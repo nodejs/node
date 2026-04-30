@@ -22,8 +22,8 @@ transitioning javascript builtin TypedArrayPrototypeToSorted(
   // 3. Perform ? ValidateTypedArray(O).
   // 4. Let buffer be obj.[[ViewedArrayBuffer]].
   // 5. Let len be O.[[ArrayLength]].
-  const len: uintptr =
-      ValidateTypedArrayAndGetLength(context, obj, kBuiltinNameToSorted);
+  const len: uintptr = ValidateTypedArrayAndGetLength(
+      context, obj, kBuiltinNameToSorted, TypedArrayAccessMode::kRead);
   const array: JSTypedArray = UnsafeCast<JSTypedArray>(obj);
 
   // 6. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
@@ -45,6 +45,8 @@ transitioning javascript builtin TypedArrayPrototypeToSorted(
   // Perform the sorting by copying the source TypedArray and sorting the copy
   // in-place using the same code that as TypedArray.prototype.sort
   const info = GetTypedArrayElementsInfo(copy);
+  // Since the source typed array was not too big to exist, the error case is
+  // unreachable.
   const countBytes: uintptr =
       info.CalculateByteLength(len) otherwise unreachable;
   if (IsSharedArrayBuffer(array.buffer)) {

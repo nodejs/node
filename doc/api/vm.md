@@ -25,23 +25,42 @@ object. The invoked code treats any property in the context like a
 global variable. Any changes to global variables caused by the invoked
 code are reflected in the context object.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, runInContext } from 'node:vm';
 
 const x = 1;
 
 const context = { x: 2 };
-vm.createContext(context); // Contextify the object.
+createContext(context); // Contextify the object.
 
 const code = 'x += 40; var y = 17;';
 // `x` and `y` are global variables in the context.
 // Initially, x has the value 2 because that is the value of context.x.
-vm.runInContext(code, context);
+runInContext(code, context);
 
 console.log(context.x); // 42
 console.log(context.y); // 17
 
-console.log(x); // 1; y is not defined.
+console.log(x); // 1; y is not defined
+```
+
+```cjs
+const { createContext, runInContext } = require('node:vm');
+
+const x = 1;
+
+const context = { x: 2 };
+createContext(context); // Contextify the object.
+
+const code = 'x += 40; var y = 17;';
+// `x` and `y` are global variables in the context.
+// Initially, x has the value 2 because that is the value of context.x.
+runInContext(code, context);
+
+console.log(context.x); // 42
+console.log(context.y); // 17
+
+console.log(x); // 1; y is not defined
 ```
 
 ## Class: `vm.Script`
@@ -120,7 +139,7 @@ any global object; rather, it is bound before each run, just for that run.
 added: v5.7.0
 -->
 
-* {boolean|undefined}
+* Type: {boolean|undefined}
 
 When `cachedData` is supplied to create the `vm.Script`, this value will be set
 to either `true` or `false` depending on acceptance of the data by V8.
@@ -201,17 +220,36 @@ The following example compiles code that increments a global variable, sets
 the value of another global variable, then execute the code multiple times.
 The globals are contained in the `context` object.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, Script } from 'node:vm';
 
 const context = {
   animal: 'cat',
   count: 2,
 };
 
-const script = new vm.Script('count += 1; name = "kitty";');
+const script = new Script('count += 1; name = "kitty";');
 
-vm.createContext(context);
+createContext(context);
+for (let i = 0; i < 10; ++i) {
+  script.runInContext(context);
+}
+
+console.log(context);
+// Prints: { animal: 'cat', count: 12, name: 'kitty' }
+```
+
+```cjs
+const { createContext, Script } = require('node:vm');
+
+const context = {
+  animal: 'cat',
+  count: 2,
+};
+
+const script = new Script('count += 1; name = "kitty";');
+
+createContext(context);
 for (let i = 0; i < 10; ++i) {
   script.runInContext(context);
 }
@@ -296,10 +334,10 @@ The following example compiles code that sets a global variable, then executes
 the code multiple times in different contexts. The globals are set on and
 contained within each individual `context`.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { constants, Script } from 'node:vm';
 
-const script = new vm.Script('globalVar = "set"');
+const script = new Script('globalVar = "set"');
 
 const contexts = [{}, {}, {}];
 contexts.forEach((context) => {
@@ -310,10 +348,30 @@ console.log(contexts);
 // Prints: [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
 
 // This would throw if the context is created from a contextified object.
-// vm.constants.DONT_CONTEXTIFY allows creating contexts with ordinary
+// constants.DONT_CONTEXTIFY allows creating contexts with ordinary
 // global objects that can be frozen.
-const freezeScript = new vm.Script('Object.freeze(globalThis); globalThis;');
-const frozenContext = freezeScript.runInNewContext(vm.constants.DONT_CONTEXTIFY);
+const freezeScript = new Script('Object.freeze(globalThis); globalThis;');
+const frozenContext = freezeScript.runInNewContext(constants.DONT_CONTEXTIFY);
+```
+
+```cjs
+const { constants, Script } = require('node:vm');
+
+const script = new Script('globalVar = "set"');
+
+const contexts = [{}, {}, {}];
+contexts.forEach((context) => {
+  script.runInNewContext(context);
+});
+
+console.log(contexts);
+// Prints: [{ globalVar: 'set' }, { globalVar: 'set' }, { globalVar: 'set' }]
+
+// This would throw if the context is created from a contextified object.
+// constants.DONT_CONTEXTIFY allows creating contexts with ordinary
+// global objects that can be frozen.
+const freezeScript = new Script('Object.freeze(globalThis); globalThis;');
+const frozenContext = freezeScript.runInNewContext(constants.DONT_CONTEXTIFY);
 ```
 
 ### `script.runInThisContext([options])`
@@ -347,12 +405,28 @@ _does_ have access to the current `global` object.
 The following example compiles code that increments a `global` variable then
 executes that code multiple times:
 
-```js
-const vm = require('node:vm');
+```mjs
+import { Script } from 'node:vm';
 
 global.globalVar = 0;
 
-const script = new vm.Script('globalVar += 1', { filename: 'myfile.vm' });
+const script = new Script('globalVar += 1', { filename: 'myfile.vm' });
+
+for (let i = 0; i < 1000; ++i) {
+  script.runInThisContext();
+}
+
+console.log(globalVar);
+
+// 1000
+```
+
+```cjs
+const { Script } = require('node:vm');
+
+global.globalVar = 0;
+
+const script = new Script('globalVar += 1', { filename: 'myfile.vm' });
 
 for (let i = 0; i < 1000; ++i) {
   script.runInThisContext();
@@ -371,7 +445,7 @@ added:
   - v18.13.0
 -->
 
-* {string|undefined}
+* Type: {string|undefined}
 
 When the script is compiled from a source that contains a source map magic
 comment, this property will be set to the URL of the source map.
@@ -419,9 +493,7 @@ class that closely mirrors [Module Record][]s as defined in the ECMAScript
 specification.
 
 Unlike `vm.Script` however, every `vm.Module` object is bound to a context from
-its creation. Operations on `vm.Module` objects are intrinsically asynchronous,
-in contrast with the synchronous nature of `vm.Script` objects. The use of
-'async' functions can help with manipulating `vm.Module` objects.
+its creation.
 
 Using a `vm.Module` object requires three distinct steps: creation/parsing,
 linking, and evaluation. These three steps are illustrated in the following
@@ -449,7 +521,7 @@ const contextifiedObject = vm.createContext({
 // Here, we attempt to obtain the default export from the module "foo", and
 // put it into local binding "secret".
 
-const bar = new vm.SourceTextModule(`
+const rootModule = new vm.SourceTextModule(`
   import s from 'foo';
   s;
   print(s);
@@ -459,39 +531,48 @@ const bar = new vm.SourceTextModule(`
 //
 // "Link" the imported dependencies of this Module to it.
 //
-// The provided linking callback (the "linker") accepts two arguments: the
-// parent module (`bar` in this case) and the string that is the specifier of
-// the imported module. The callback is expected to return a Module that
-// corresponds to the provided specifier, with certain requirements documented
-// in `module.link()`.
-//
-// If linking has not started for the returned Module, the same linker
-// callback will be called on the returned Module.
+// Obtain the requested dependencies of a SourceTextModule by
+// `sourceTextModule.moduleRequests` and resolve them.
 //
 // Even top-level Modules without dependencies must be explicitly linked. The
-// callback provided would never be called, however.
+// array passed to `sourceTextModule.linkRequests(modules)` can be
+// empty, however.
 //
-// The link() method returns a Promise that will be resolved when all the
-// Promises returned by the linker resolve.
-//
-// Note: This is a contrived example in that the linker function creates a new
-// "foo" module every time it is called. In a full-fledged module system, a
-// cache would probably be used to avoid duplicated modules.
+// Note: This is a contrived example in that the resolveAndLinkDependencies
+// creates a new "foo" module every time it is called. In a full-fledged
+// module system, a cache would probably be used to avoid duplicated modules.
 
-async function linker(specifier, referencingModule) {
-  if (specifier === 'foo') {
-    return new vm.SourceTextModule(`
-      // The "secret" variable refers to the global variable we added to
-      // "contextifiedObject" when creating the context.
-      export default secret;
-    `, { context: referencingModule.context });
+const moduleMap = new Map([
+  ['root', rootModule],
+]);
 
-    // Using `contextifiedObject` instead of `referencingModule.context`
-    // here would work as well.
-  }
-  throw new Error(`Unable to resolve dependency: ${specifier}`);
+function resolveAndLinkDependencies(module) {
+  const requestedModules = module.moduleRequests.map((request) => {
+    // In a full-fledged module system, the resolveAndLinkDependencies would
+    // resolve the module with the module cache key `[specifier, attributes]`.
+    // In this example, we just use the specifier as the key.
+    const specifier = request.specifier;
+
+    let requestedModule = moduleMap.get(specifier);
+    if (requestedModule === undefined) {
+      requestedModule = new vm.SourceTextModule(`
+        // The "secret" variable refers to the global variable we added to
+        // "contextifiedObject" when creating the context.
+        export default secret;
+      `, { context: module.context });
+      moduleMap.set(specifier, requestedModule);
+      // Resolve the dependencies of the new module as well.
+      resolveAndLinkDependencies(requestedModule);
+    }
+
+    return requestedModule;
+  });
+
+  module.linkRequests(requestedModules);
 }
-await bar.link(linker);
+
+resolveAndLinkDependencies(rootModule);
+rootModule.instantiate();
 
 // Step 3
 //
@@ -499,7 +580,7 @@ await bar.link(linker);
 // resolve after the module has finished evaluating.
 
 // Prints 42.
-await bar.evaluate();
+await rootModule.evaluate();
 ```
 
 ```cjs
@@ -521,7 +602,7 @@ const contextifiedObject = vm.createContext({
   // Here, we attempt to obtain the default export from the module "foo", and
   // put it into local binding "secret".
 
-  const bar = new vm.SourceTextModule(`
+  const rootModule = new vm.SourceTextModule(`
     import s from 'foo';
     s;
     print(s);
@@ -531,39 +612,48 @@ const contextifiedObject = vm.createContext({
   //
   // "Link" the imported dependencies of this Module to it.
   //
-  // The provided linking callback (the "linker") accepts two arguments: the
-  // parent module (`bar` in this case) and the string that is the specifier of
-  // the imported module. The callback is expected to return a Module that
-  // corresponds to the provided specifier, with certain requirements documented
-  // in `module.link()`.
-  //
-  // If linking has not started for the returned Module, the same linker
-  // callback will be called on the returned Module.
+  // Obtain the requested dependencies of a SourceTextModule by
+  // `sourceTextModule.moduleRequests` and resolve them.
   //
   // Even top-level Modules without dependencies must be explicitly linked. The
-  // callback provided would never be called, however.
+  // array passed to `sourceTextModule.linkRequests(modules)` can be
+  // empty, however.
   //
-  // The link() method returns a Promise that will be resolved when all the
-  // Promises returned by the linker resolve.
-  //
-  // Note: This is a contrived example in that the linker function creates a new
-  // "foo" module every time it is called. In a full-fledged module system, a
-  // cache would probably be used to avoid duplicated modules.
+  // Note: This is a contrived example in that the resolveAndLinkDependencies
+  // creates a new "foo" module every time it is called. In a full-fledged
+  // module system, a cache would probably be used to avoid duplicated modules.
 
-  async function linker(specifier, referencingModule) {
-    if (specifier === 'foo') {
-      return new vm.SourceTextModule(`
-        // The "secret" variable refers to the global variable we added to
-        // "contextifiedObject" when creating the context.
-        export default secret;
-      `, { context: referencingModule.context });
+  const moduleMap = new Map([
+    ['root', rootModule],
+  ]);
 
-      // Using `contextifiedObject` instead of `referencingModule.context`
-      // here would work as well.
-    }
-    throw new Error(`Unable to resolve dependency: ${specifier}`);
+  function resolveAndLinkDependencies(module) {
+    const requestedModules = module.moduleRequests.map((request) => {
+      // In a full-fledged module system, the resolveAndLinkDependencies would
+      // resolve the module with the module cache key `[specifier, attributes]`.
+      // In this example, we just use the specifier as the key.
+      const specifier = request.specifier;
+
+      let requestedModule = moduleMap.get(specifier);
+      if (requestedModule === undefined) {
+        requestedModule = new vm.SourceTextModule(`
+          // The "secret" variable refers to the global variable we added to
+          // "contextifiedObject" when creating the context.
+          export default secret;
+        `, { context: module.context });
+        moduleMap.set(specifier, requestedModule);
+        // Resolve the dependencies of the new module as well.
+        resolveAndLinkDependencies(requestedModule);
+      }
+
+      return requestedModule;
+    });
+
+    module.linkRequests(requestedModules);
   }
-  await bar.link(linker);
+
+  resolveAndLinkDependencies(rootModule);
+  rootModule.instantiate();
 
   // Step 3
   //
@@ -571,23 +661,13 @@ const contextifiedObject = vm.createContext({
   // resolve after the module has finished evaluating.
 
   // Prints 42.
-  await bar.evaluate();
+  await rootModule.evaluate();
 })();
 ```
 
-### `module.dependencySpecifiers`
-
-* {string\[]}
-
-The specifiers of all dependencies of this module. The returned array is frozen
-to disallow any changes to it.
-
-Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
-the ECMAScript specification.
-
 ### `module.error`
 
-* {any}
+* Type: {any}
 
 If the `module.status` is `'errored'`, this property contains the exception
 thrown by the module during evaluation. If the status is anything else,
@@ -612,23 +692,51 @@ in the ECMAScript specification.
     work after that. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
-Evaluate the module.
+Evaluate the module and its depenendencies. Corresponds to the [Evaluate() concrete method][] field of
+[Cyclic Module Record][]s in the ECMAScript specification.
 
-This must be called after the module has been linked; otherwise it will reject.
-It could be called also when the module has already been evaluated, in which
-case it will either do nothing if the initial evaluation ended in success
-(`module.status` is `'evaluated'`) or it will re-throw the exception that the
-initial evaluation resulted in (`module.status` is `'errored'`).
+If the module is a `vm.SourceTextModule`, `evaluate()` must be called after the module has been instantiated;
+otherwise `evaluate()` will return a rejected promise.
 
-This method cannot be called while the module is being evaluated
-(`module.status` is `'evaluating'`).
+For a `vm.SourceTextModule`, the promise returned by `evaluate()` may be fulfilled either
+synchronously or asynchronously:
 
-Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
-Record][]s in the ECMAScript specification.
+1. If the `vm.SourceTextModule` has no top-level `await` in itself or any of its dependencies, the promise will be
+   fulfilled _synchronously_ after the module and all its dependencies have been evaluated.
+   1. If the evaluation succeeds, the promise will be _synchronously_ resolved to `undefined`.
+   2. If the evaluation results in an exception, the promise will be _synchronously_ rejected with the exception
+      that causes the evaluation to fail, which is the same as `module.error`.
+2. If the `vm.SourceTextModule` has top-level `await` in itself or any of its dependencies, the promise will be
+   fulfilled _asynchronously_ after the module and all its dependencies have been evaluated.
+   1. If the evaluation succeeds, the promise will be _asynchronously_ resolved to `undefined`.
+   2. If the evaluation results in an exception, the promise will be _asynchronously_ rejected with the exception
+      that causes the evaluation to fail.
+
+If the module is a `vm.SyntheticModule`, `evaluate()` always returns a promise that fulfills synchronously, see
+the specification of [Evaluate() of a Synthetic Module Record][]:
+
+1. If the `evaluateCallback` passed to its constructor throws an exception synchronously, `evaluate()` returns
+   a promise that will be synchronously rejected with that exception.
+2. If the `evaluateCallback` does not throw an exception, `evaluate()` returns a promise that will be
+   synchronously resolved to `undefined`.
+
+The `evaluateCallback` of a `vm.SyntheticModule` is executed synchronously within the `evaluate()` call, and its
+return value is discarded. This means if `evaluateCallback` is an asynchronous function, the promise returned by
+`evaluate()` will not reflect its asynchronous behavior, and any rejections from an asynchronous
+`evaluateCallback` will be lost.
+
+`evaluate()` could also be called again after the module has already been evaluated, in which case:
+
+1. If the initial evaluation ended in success (`module.status` is `'evaluated'`), it will do nothing
+   and return a promise that resolves to `undefined`.
+2. If the initial evaluation resulted in an exception (`module.status` is `'errored'`), it will re-reject
+   the exception that the initial evaluation resulted in.
+
+This method cannot be called while the module is being evaluated (`module.status` is `'evaluating'`).
 
 ### `module.identifier`
 
-* {string}
+* Type: {string}
 
 The identifier of the current module, as set in the constructor.
 
@@ -670,6 +778,10 @@ changes:
 Link module dependencies. This method must be called before evaluation, and
 can only be called once per module.
 
+Use [`sourceTextModule.linkRequests(modules)`][] and
+[`sourceTextModule.instantiate()`][] to link modules either synchronously or
+asynchronously.
+
 The function is expected to return a `Module` object or a `Promise` that
 eventually resolves to a `Module` object. The returned `Module` must satisfy the
 following two invariants:
@@ -703,7 +815,7 @@ Record][]s in the ECMAScript specification.
 
 ### `module.namespace`
 
-* {Object}
+* Type: {Object}
 
 The namespace object of the module. This is only available after linking
 (`module.link()`) has completed.
@@ -713,7 +825,7 @@ specification.
 
 ### `module.status`
 
-* {string}
+* Type: {string}
 
 The current status of the module. Will be one of:
 
@@ -815,8 +927,9 @@ const module = new vm.SourceTextModule(
       meta.prop = {};
     },
   });
-// Since module has no dependencies, the linker function will never be called.
-await module.link(() => {});
+// The module has an empty `moduleRequests` array.
+module.linkRequests([]);
+module.instantiate();
 await module.evaluate();
 
 // Now, Object.prototype.secret will be equal to 42.
@@ -842,8 +955,9 @@ const contextifiedObject = vm.createContext({ secret: 42 });
         meta.prop = {};
       },
     });
-  // Since module has no dependencies, the linker function will never be called.
-  await module.link(() => {});
+  // The module has an empty `moduleRequests` array.
+  module.linkRequests([]);
+  module.instantiate();
   await module.evaluate();
   // Now, Object.prototype.secret will be equal to 42.
   //
@@ -889,6 +1003,183 @@ const cachedData = module.createCachedData();
 const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 ```
 
+### `sourceTextModule.dependencySpecifiers`
+
+<!-- YAML
+changes:
+  - version:
+    - v24.4.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/20300
+    description: This is deprecated in favour of `sourceTextModule.moduleRequests`.
+-->
+
+> Stability: 0 - Deprecated: Use [`sourceTextModule.moduleRequests`][] instead.
+
+* Type: {string\[]}
+
+The specifiers of all dependencies of this module. The returned array is frozen
+to disallow any changes to it.
+
+Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
+the ECMAScript specification.
+
+### `sourceTextModule.hasAsyncGraph()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* Returns: {boolean}
+
+Iterates over the dependency graph and returns `true` if any module in its
+dependencies or this module itself contains top-level `await` expressions,
+otherwise returns `false`.
+
+The search may be slow if the graph is big enough.
+
+This requires the module to be instantiated first. If the module is not
+instantiated yet, an error will be thrown.
+
+### `sourceTextModule.hasTopLevelAwait()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* Returns: {boolean}
+
+Returns whether the module itself contains any top-level `await` expressions.
+
+This corresponds to the field `[[HasTLA]]` in [Cyclic Module Record][] in the
+ECMAScript specification.
+
+### `sourceTextModule.instantiate()`
+
+<!-- YAML
+added:
+ - v24.8.0
+ - v22.21.0
+-->
+
+* Returns: {undefined}
+
+Instantiate the module with the linked requested modules.
+
+This resolves the imported bindings of the module, including re-exported
+binding names. When there are any bindings that cannot be resolved,
+an error would be thrown synchronously.
+
+If the requested modules include cyclic dependencies, the
+[`sourceTextModule.linkRequests(modules)`][] method must be called on all
+modules in the cycle before calling this method.
+
+### `sourceTextModule.linkRequests(modules)`
+
+<!-- YAML
+added:
+ - v24.8.0
+ - v22.21.0
+-->
+
+* `modules` {vm.Module\[]} Array of `vm.Module` objects that this module depends on.
+  The order of the modules in the array is the order of
+  [`sourceTextModule.moduleRequests`][].
+* Returns: {undefined}
+
+Link module dependencies. This method must be called before evaluation, and
+can only be called once per module.
+
+The order of the module instances in the `modules` array should correspond to the order of
+[`sourceTextModule.moduleRequests`][] being resolved. If two module requests have the same
+specifier and import attributes, they must be resolved with the same module instance or an
+`ERR_MODULE_LINK_MISMATCH` would be thrown. For example, when linking requests for this
+module:
+
+<!-- eslint-disable no-duplicate-imports -->
+
+```mjs
+import foo from 'foo';
+import source Foo from 'foo';
+```
+
+<!-- eslint-enable no-duplicate-imports -->
+
+The `modules` array must contain two references to the same instance, because the two
+module requests are identical but in two phases.
+
+If the module has no dependencies, the `modules` array can be empty.
+
+Users can use `sourceTextModule.moduleRequests` to implement the host-defined
+[HostLoadImportedModule][] abstract operation in the ECMAScript specification,
+and using `sourceTextModule.linkRequests()` to invoke specification defined
+[FinishLoadingImportedModule][], on the module with all dependencies in a batch.
+
+It's up to the creator of the `SourceTextModule` to determine if the resolution
+of the dependencies is synchronous or asynchronous.
+
+After each module in the `modules` array is linked, call
+[`sourceTextModule.instantiate()`][].
+
+### `sourceTextModule.moduleRequests`
+
+<!-- YAML
+added:
+  - v24.4.0
+  - v22.20.0
+-->
+
+* Type: {ModuleRequest\[]} Dependencies of this module.
+
+The requested import dependencies of this module. The returned array is frozen
+to disallow any changes to it.
+
+For example, given a source text:
+
+<!-- eslint-disable no-duplicate-imports -->
+
+```mjs
+import foo from 'foo';
+import fooAlias from 'foo';
+import bar from './bar.js';
+import withAttrs from '../with-attrs.ts' with { arbitraryAttr: 'attr-val' };
+import source Module from 'wasm-mod.wasm';
+```
+
+<!-- eslint-enable no-duplicate-imports -->
+
+The value of the `sourceTextModule.moduleRequests` will be:
+
+```js
+[
+  {
+    specifier: 'foo',
+    attributes: {},
+    phase: 'evaluation',
+  },
+  {
+    specifier: 'foo',
+    attributes: {},
+    phase: 'evaluation',
+  },
+  {
+    specifier: './bar.js',
+    attributes: {},
+    phase: 'evaluation',
+  },
+  {
+    specifier: '../with-attrs.ts',
+    attributes: { arbitraryAttr: 'attr-val' },
+    phase: 'evaluation',
+  },
+  {
+    specifier: 'wasm-mod.wasm',
+    attributes: {},
+    phase: 'source',
+  },
+];
+```
+
 ## Class: `vm.SyntheticModule`
 
 <!-- YAML
@@ -909,16 +1200,40 @@ defined in the WebIDL specification. The purpose of synthetic modules is to
 provide a generic interface for exposing non-JavaScript sources to ECMAScript
 module graphs.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { SyntheticModule } from 'node:vm';
 
 const source = '{ "a": 1 }';
-const module = new vm.SyntheticModule(['default'], function() {
+const syntheticModule = new SyntheticModule(['default'], function() {
   const obj = JSON.parse(source);
   this.setExport('default', obj);
 });
 
-// Use `module` in linking...
+// Use `syntheticModule` in linking
+(async () => {
+  await syntheticModule.link(() => {});
+  await syntheticModule.evaluate();
+
+  console.log('Default export:', syntheticModule.namespace.default);
+})();
+```
+
+```cjs
+const { SyntheticModule } = require('node:vm');
+
+const source = '{ "a": 1 }';
+const syntheticModule = new SyntheticModule(['default'], function() {
+  const obj = JSON.parse(source);
+  this.setExport('default', obj);
+});
+
+// Use `syntheticModule` in linking
+(async () => {
+  await syntheticModule.link(() => {});
+  await syntheticModule.evaluate();
+
+  console.log('Default export:', syntheticModule.namespace.default);
+})();
 ```
 
 ### `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
@@ -951,14 +1266,19 @@ the module to access information outside the specified `context`. Use
 added:
  - v13.0.0
  - v12.16.0
+changes:
+  - version:
+     - v24.8.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59000
+    description: No longer need to call `syntheticModule.link()` before
+                 calling this method.
 -->
 
 * `name` {string} Name of the export to set.
 * `value` {any} The value to set the export to.
 
-This method is used after the module is linked to set the values of exports. If
-it is called before the module is linked, an [`ERR_VM_MODULE_STATUS`][] error
-will be thrown.
+This method sets the module export binding slots with the given value.
 
 ```mjs
 import vm from 'node:vm';
@@ -967,7 +1287,6 @@ const m = new vm.SyntheticModule(['x'], () => {
   m.setExport('x', 1);
 });
 
-await m.link(() => {});
 await m.evaluate();
 
 assert.strictEqual(m.namespace.x, 1);
@@ -979,11 +1298,27 @@ const vm = require('node:vm');
   const m = new vm.SyntheticModule(['x'], () => {
     m.setExport('x', 1);
   });
-  await m.link(() => {});
   await m.evaluate();
   assert.strictEqual(m.namespace.x, 1);
 })();
 ```
+
+## Type: `ModuleRequest`
+
+<!-- YAML
+added:
+  - v24.4.0
+  - v22.20.0
+-->
+
+* Type: {Object}
+  * `specifier` {string} The specifier of the requested module.
+  * `attributes` {Object} The `"with"` value passed to the
+    [WithClause][] in a [ImportDeclaration][], or an empty object if no value was
+    provided.
+  * `phase` {string} The phase of the requested module (`"source"` or `"evaluation"`).
+
+A `ModuleRequest` represents the request to import a module with given import attributes and phase.
 
 ## `vm.compileFunction(code[, params[, options]])`
 
@@ -1044,13 +1379,13 @@ changes:
   * `contextExtensions` {Object\[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
-* `importModuleDynamically`
-  {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
-  Used to specify the how the modules should be loaded during the evaluation of
-  this function when `import()` is called. This option is part of the
-  experimental modules API. We do not recommend using it in a production
-  environment. For detailed information, see
-  [Support of dynamic `import()` in compilation APIs][].
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify the how the modules should be loaded during the evaluation of
+    this function when `import()` is called. This option is part of the
+    experimental modules API. We do not recommend using it in a production
+    environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 * Returns: {Function}
 
 Compiles the given code into the provided context (if no context is
@@ -1065,7 +1400,7 @@ added:
   - v20.12.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Returns an object containing commonly used constants for VM operations.
 
@@ -1158,15 +1493,32 @@ existing properties but also having the built-in objects and functions any
 standard [global object][] has. Outside of scripts run by the vm module, global
 variables will remain unchanged.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, runInContext } from 'node:vm';
 
 global.globalVar = 3;
 
 const context = { globalVar: 1 };
-vm.createContext(context);
+createContext(context);
 
-vm.runInContext('globalVar *= 2;', context);
+runInContext('globalVar *= 2;', context);
+
+console.log(context);
+// Prints: { globalVar: 2 }
+
+console.log(global.globalVar);
+// Prints: 3
+```
+
+```cjs
+const { createContext, runInContext } = require('node:vm');
+
+global.globalVar = 3;
+
+const context = { globalVar: 1 };
+createContext(context);
+
+runInContext('globalVar *= 2;', context);
 
 console.log(context);
 // Prints: { globalVar: 2 }
@@ -1241,45 +1593,62 @@ memory reachable by each V8 specific contexts in the current instance of
 the V8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
 the memory occupied by each heap space in the current V8 instance.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, measureMemory } from 'node:vm';
 // Measure the memory used by the main context.
-vm.measureMemory({ mode: 'summary' })
+measureMemory({ mode: 'summary' })
   // This is the same as vm.measureMemory()
   .then((result) => {
     // The current format is:
     // {
-    //   total: {
-    //      jsMemoryEstimate: 2418479, jsMemoryRange: [ 2418479, 2745799 ]
-    //    }
+    //   total: { jsMemoryEstimate: 1601828, jsMemoryRange: [1601828, 5275288] },
+    //   WebAssembly: { code: 0, metadata: 33962 },
     // }
     console.log(result);
   });
 
-const context = vm.createContext({ a: 1 });
-vm.measureMemory({ mode: 'detailed', execution: 'eager' })
+const context = createContext({ a: 1 });
+measureMemory({ mode: 'detailed', execution: 'eager' }).then((result) => {
+  // Reference the context here so that it won't be GC'ed
+  // until the measurement is complete.
+  console.log('Context:', context.a);
+  // {
+  //   total: { jsMemoryEstimate: 1767100, jsMemoryRange: [1767100, 5440560] },
+  //   WebAssembly: { code: 0, metadata: 33962 },
+  //   current: { jsMemoryEstimate: 1601828, jsMemoryRange: [1601828, 5275288] },
+  //   other: [{ jsMemoryEstimate: 165272, jsMemoryRange: [Array] }],
+  // }
+  console.log(result);
+});
+```
+
+```cjs
+const { createContext, measureMemory } = require('node:vm');
+// Measure the memory used by the main context.
+measureMemory({ mode: 'summary' })
+  // This is the same as vm.measureMemory()
   .then((result) => {
-    // Reference the context here so that it won't be GC'ed
-    // until the measurement is complete.
-    console.log(context.a);
+    // The current format is:
     // {
-    //   total: {
-    //     jsMemoryEstimate: 2574732,
-    //     jsMemoryRange: [ 2574732, 2904372 ]
-    //   },
-    //   current: {
-    //     jsMemoryEstimate: 2438996,
-    //     jsMemoryRange: [ 2438996, 2768636 ]
-    //   },
-    //   other: [
-    //     {
-    //       jsMemoryEstimate: 135736,
-    //       jsMemoryRange: [ 135736, 465376 ]
-    //     }
-    //   ]
+    //   total: { jsMemoryEstimate: 1601828, jsMemoryRange: [1601828, 5275288] },
+    //   WebAssembly: { code: 0, metadata: 33962 },
     // }
     console.log(result);
   });
+
+const context = createContext({ a: 1 });
+measureMemory({ mode: 'detailed', execution: 'eager' }).then((result) => {
+  // Reference the context here so that it won't be GC'ed
+  // until the measurement is complete.
+  console.log('Context:', context.a);
+  // {
+  //   total: { jsMemoryEstimate: 1767100, jsMemoryRange: [1767100, 5440560] },
+  //   WebAssembly: { code: 0, metadata: 33962 },
+  //   current: { jsMemoryEstimate: 1601828, jsMemoryRange: [1601828, 5275288] },
+  //   other: [{ jsMemoryEstimate: 165272, jsMemoryRange: [Array] }],
+  // }
+  console.log(result);
+});
 ```
 
 ## `vm.runInContext(code, contextifiedObject[, options])`
@@ -1346,14 +1715,27 @@ If `options` is a string, then it specifies the filename.
 The following example compiles and executes different scripts using a single
 [contextified][] object:
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, runInContext } from 'node:vm';
 
 const contextObject = { globalVar: 1 };
-vm.createContext(contextObject);
+createContext(contextObject);
 
 for (let i = 0; i < 10; ++i) {
-  vm.runInContext('globalVar *= 2;', contextObject);
+  runInContext('globalVar *= 2;', contextObject);
+}
+console.log(contextObject);
+// Prints: { globalVar: 1024 }
+```
+
+```cjs
+const { createContext, runInContext } = require('node:vm');
+
+const contextObject = { globalVar: 1 };
+createContext(contextObject);
+
+for (let i = 0; i < 10; ++i) {
+  runInContext('globalVar *= 2;', contextObject);
 }
 console.log(contextObject);
 // Prints: { globalVar: 1024 }
@@ -1453,32 +1835,56 @@ It does several things at once:
 
 1. Creates a new context.
 2. If `contextObject` is an object, [contextifies][contextified] it with the new context.
-   If  `contextObject` is undefined, creates a new object and [contextifies][contextified] it.
+   If `contextObject` is undefined, creates a new object and [contextifies][contextified] it.
    If `contextObject` is [`vm.constants.DONT_CONTEXTIFY`][], don't [contextify][contextified] anything.
-3. Compiles the code as a`vm.Script`
-4. Runs the compield code within the created context. The code does not have access to the scope in
+3. Compiles the code as a `vm.Script`
+4. Runs the compiled code within the created context. The code does not have access to the scope in
    which this method is called.
 5. Returns the result.
 
 The following example compiles and executes code that increments a global
 variable and sets a new one. These globals are contained in the `contextObject`.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { runInNewContext, constants } from 'node:vm';
 
 const contextObject = {
   animal: 'cat',
   count: 2,
 };
 
-vm.runInNewContext('count += 1; name = "kitty"', contextObject);
+runInNewContext('count += 1; name = "kitty"', contextObject);
 console.log(contextObject);
 // Prints: { animal: 'cat', count: 3, name: 'kitty' }
 
 // This would throw if the context is created from a contextified object.
 // vm.constants.DONT_CONTEXTIFY allows creating contexts with ordinary global objects that
 // can be frozen.
-const frozenContext = vm.runInNewContext('Object.freeze(globalThis); globalThis;', vm.constants.DONT_CONTEXTIFY);
+const frozenContext = runInNewContext(
+  'Object.freeze(globalThis); globalThis;',
+  constants.DONT_CONTEXTIFY,
+);
+```
+
+```cjs
+const { runInNewContext, constants } = require('node:vm');
+
+const contextObject = {
+  animal: 'cat',
+  count: 2,
+};
+
+runInNewContext('count += 1; name = "kitty"', contextObject);
+console.log(contextObject);
+// Prints: { animal: 'cat', count: 3, name: 'kitty' }
+
+// This would throw if the context is created from a contextified object.
+// vm.constants.DONT_CONTEXTIFY allows creating contexts with ordinary global objects that
+// can be frozen.
+const frozenContext = runInNewContext(
+  'Object.freeze(globalThis); globalThis;',
+  constants.DONT_CONTEXTIFY,
+);
 ```
 
 ## `vm.runInThisContext(code[, options])`
@@ -1545,11 +1951,26 @@ the JavaScript [`eval()`][] function to run the same code:
 
 <!-- eslint-disable prefer-const -->
 
-```js
-const vm = require('node:vm');
+```mjs
+import { runInThisContext } from 'node:vm';
 let localVar = 'initial value';
 
-const vmResult = vm.runInThisContext('localVar = "vm";');
+const vmResult = runInThisContext('localVar = "vm";');
+console.log(`vmResult: '${vmResult}', localVar: '${localVar}'`);
+// Prints: vmResult: 'vm', localVar: 'initial value'
+
+const evalResult = eval('localVar = "eval";');
+console.log(`evalResult: '${evalResult}', localVar: '${localVar}'`);
+// Prints: evalResult: 'eval', localVar: 'eval'
+```
+
+<!-- eslint-disable prefer-const -->
+
+```cjs
+const { runInThisContext } = require('node:vm');
+let localVar = 'initial value';
+
+const vmResult = runInThisContext('localVar = "vm";');
 console.log(`vmResult: '${vmResult}', localVar: '${localVar}'`);
 // Prints: vmResult: 'vm', localVar: 'initial value'
 
@@ -1559,8 +1980,8 @@ console.log(`evalResult: '${evalResult}', localVar: '${localVar}'`);
 ```
 
 Because `vm.runInThisContext()` does not have access to the local scope,
-`localVar` is unchanged. In contrast, [`eval()`][] _does_ have access to the
-local scope, so the value `localVar` is changed. In this way
+`localVar` is unchanged. In contrast, a direct `eval()` call _does_ have access
+to the local scope, so the value `localVar` is changed. In this way
 `vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g.
 `(0,eval)('code')`.
 
@@ -1574,15 +1995,17 @@ In order to run a simple web server using the `node:http` module the code passed
 to the context must either call `require('node:http')` on its own, or have a
 reference to the `node:http` module passed to it. For instance:
 
-```js
-'use strict';
-const vm = require('node:vm');
+```mjs
+import { runInThisContext } from 'node:vm';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const code = `
 ((require) => {
-  const http = require('node:http');
+  const { createServer } = require('node:http');
 
-  http.createServer((request, response) => {
+  createServer((request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/plain' });
     response.end('Hello World\\n');
   }).listen(8124);
@@ -1590,7 +2013,25 @@ const code = `
   console.log('Server running at http://127.0.0.1:8124/');
 })`;
 
-vm.runInThisContext(code)(require);
+runInThisContext(code)(require);
+```
+
+```cjs
+const { runInThisContext } = require('node:vm');
+
+const code = `
+((require) => {
+  const { createServer } = require('node:http');
+
+  createServer((request, response) => {
+    response.writeHead(200, { 'Content-Type': 'text/plain' });
+    response.end('Hello World\\n');
+  }).listen(8124);
+
+  console.log('Server running at http://127.0.0.1:8124/');
+})`;
+
+runInThisContext(code)(require);
 ```
 
 The `require()` in the above case shares the state with the context it is
@@ -1618,19 +2059,34 @@ The contextifying would introduce some quirks to the `globalThis` value in the c
 For example, it cannot be frozen, and it is not reference equal to the `contextObject`
 in the outer context.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, runInContext } from 'node:vm';
 
 // An undefined `contextObject` option makes the global object contextified.
-const context = vm.createContext();
-console.log(vm.runInContext('globalThis', context) === context);  // false
+const context = createContext();
+console.log(runInContext('globalThis', context) === context);  // false
 // A contextified global object cannot be frozen.
 try {
-  vm.runInContext('Object.freeze(globalThis);', context);
+  runInContext('Object.freeze(globalThis);', context);
 } catch (e) {
-  console.log(e); // TypeError: Cannot freeze
+  console.log(`${e.constructor.name}: ${e.message}`); // TypeError: Cannot freeze
 }
-console.log(vm.runInContext('globalThis.foo = 1; foo;', context));  // 1
+console.log(runInContext('globalThis.foo = 1; foo;', context));  // 1
+```
+
+```cjs
+const { createContext, runInContext } = require('node:vm');
+
+// An undefined `contextObject` option makes the global object contextified.
+const context = createContext();
+console.log(runInContext('globalThis', context) === context);  // false
+// A contextified global object cannot be frozen.
+try {
+  runInContext('Object.freeze(globalThis);', context);
+} catch (e) {
+  console.log(`${e.constructor.name}: ${e.message}`); // TypeError: Cannot freeze
+}
+console.log(runInContext('globalThis.foo = 1; foo;', context));  // 1
 ```
 
 To create a context with an ordinary global object and get access to a global proxy in
@@ -1644,16 +2100,29 @@ a context without wrapping its global object with another object in a Node.js-sp
 As a result, the `globalThis` value inside the new context would behave more closely to an ordinary
 one.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, runInContext, constants } from 'node:vm';
 
 // Use vm.constants.DONT_CONTEXTIFY to freeze the global object.
-const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
-vm.runInContext('Object.freeze(globalThis);', context);
+const context = createContext(constants.DONT_CONTEXTIFY);
+runInContext('Object.freeze(globalThis);', context);
 try {
-  vm.runInContext('bar = 1; bar;', context);
+  runInContext('bar = 1; bar;', context);
 } catch (e) {
-  console.log(e); // Uncaught ReferenceError: bar is not defined
+  console.log(`${e.constructor.name}: ${e.message}`); // ReferenceError: bar is not defined
+}
+```
+
+```cjs
+const { createContext, runInContext, constants } = require('node:vm');
+
+// Use vm.constants.DONT_CONTEXTIFY to freeze the global object.
+const context = createContext(constants.DONT_CONTEXTIFY);
+runInContext('Object.freeze(globalThis);', context);
+try {
+  runInContext('bar = 1; bar;', context);
+} catch (e) {
+  console.log(`${e.constructor.name}: ${e.message}`); // ReferenceError: bar is not defined
 }
 ```
 
@@ -1662,27 +2131,51 @@ the returned object is a proxy-like object to the global object in the newly cre
 fewer Node.js-specific quirks. It is reference equal to the `globalThis` value in the new context,
 can be modified from outside the context, and can be used to access built-ins in the new context directly.
 
-```js
-const vm = require('node:vm');
+```mjs
+import { createContext, runInContext, constants } from 'node:vm';
 
-const context = vm.createContext(vm.constants.DONT_CONTEXTIFY);
+const context = createContext(constants.DONT_CONTEXTIFY);
 
 // Returned object is reference equal to globalThis in the new context.
-console.log(vm.runInContext('globalThis', context) === context);  // true
+console.log(runInContext('globalThis', context) === context);  // true
 
 // Can be used to access globals in the new context directly.
 console.log(context.Array);  // [Function: Array]
-vm.runInContext('foo = 1;', context);
+runInContext('foo = 1;', context);
 console.log(context.foo);  // 1
 context.bar = 1;
-console.log(vm.runInContext('bar;', context));  // 1
+console.log(runInContext('bar;', context));  // 1
 
 // Can be frozen and it affects the inner context.
 Object.freeze(context);
 try {
-  vm.runInContext('baz = 1; baz;', context);
+  runInContext('baz = 1; baz;', context);
 } catch (e) {
-  console.log(e); // Uncaught ReferenceError: baz is not defined
+  console.log(`${e.constructor.name}: ${e.message}`); // ReferenceError: baz is not defined
+}
+```
+
+```cjs
+const { createContext, runInContext, constants } = require('node:vm');
+
+const context = createContext(constants.DONT_CONTEXTIFY);
+
+// Returned object is reference equal to globalThis in the new context.
+console.log(runInContext('globalThis', context) === context);  // true
+
+// Can be used to access globals in the new context directly.
+console.log(context.Array);  // [Function: Array]
+runInContext('foo = 1;', context);
+console.log(context.foo);  // 1
+context.bar = 1;
+console.log(runInContext('bar;', context));  // 1
+
+// Can be frozen and it affects the inner context.
+Object.freeze(context);
+try {
+  runInContext('baz = 1; baz;', context);
+} catch (e) {
+  console.log(`${e.constructor.name}: ${e.message}`); // ReferenceError: baz is not defined
 }
 ```
 
@@ -1698,34 +2191,65 @@ For example, the following code executed by `vm.runInNewContext()` with a
 timeout of 5 milliseconds schedules an infinite loop to run after a promise
 resolves. The scheduled loop is never interrupted by the timeout:
 
-```js
-const vm = require('node:vm');
+```mjs
+import { runInNewContext } from 'node:vm';
 
 function loop() {
   console.log('entering loop');
   while (1) console.log(Date.now());
 }
 
-vm.runInNewContext(
+runInNewContext(
   'Promise.resolve().then(() => loop());',
   { loop, console },
   { timeout: 5 },
 );
-// This is printed *before* 'entering loop' (!)
+// This is printed *before* 'entering infinite loop' (!)
+console.log('done executing');
+```
+
+```cjs
+const { runInNewContext } = require('node:vm');
+
+function loop() {
+  console.log('entering loop');
+  while (1) console.log(Date.now());
+}
+
+runInNewContext(
+  'Promise.resolve().then(() => loop());',
+  { loop, console },
+  { timeout: 5 },
+);
+// This is printed *before* 'entering infinite loop' (!)
 console.log('done executing');
 ```
 
 This can be addressed by passing `microtaskMode: 'afterEvaluate'` to the code
 that creates the `Context`:
 
-```js
-const vm = require('node:vm');
+```mjs
+import { runInNewContext } from 'node:vm';
 
 function loop() {
   while (1) console.log(Date.now());
 }
 
-vm.runInNewContext(
+runInNewContext(
+  'Promise.resolve().then(() => loop());',
+  { loop, console },
+  { timeout: 5, microtaskMode: 'afterEvaluate' },
+);
+```
+
+```cjs
+const { runInNewContext } = require('node:vm');
+
+function loop() {
+  while (1) console.log(Date.now());
+}
+
+runInNewContext(
   'Promise.resolve().then(() => loop());',
   { loop, console },
   { timeout: 5, microtaskMode: 'afterEvaluate' },
@@ -1748,6 +2272,87 @@ If asynchronous scheduling functions such as `process.nextTick()`,
 inside a `vm.Context`, functions passed to them will be added to global queues,
 which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
+
+### When `microtaskMode` is `'afterEvaluate'`, beware sharing Promises between Contexts
+
+In `'afterEvaluate'` mode, the `Context` has its own microtask queue, separate
+from the global microtask queue used by the outer (main) context. While this
+mode is necessary to enforce `timeout` and enable `breakOnSigint` with
+asynchronous tasks, it also makes sharing promises between contexts challenging.
+
+In the example below, a promise is created in the inner context and shared with
+the outer context. When the outer context `await` on the promise, the execution
+flow of the outer context is disrupted in a surprising way: the log statement
+is never executed.
+
+```mjs
+import { createContext, runInContext } from 'node:vm';
+
+const inner_context = createContext({}, { microtaskMode: 'afterEvaluate' });
+
+// runInContext() returns a Promise created in the inner context.
+const inner_promise = runInContext('Promise.resolve()', inner_context);
+
+// As part of performing `await`, the JavaScript runtime must enqueue a task
+// on the microtask queue of the context where `inner_promise` was created.
+// A task is added on the inner microtask queue, but **it will not be run
+// automatically**: this task will remain pending indefinitely.
+//
+// Since the outer microtask queue is empty, execution in the outer module
+// falls through, and the log statement below is never executed.
+await inner_promise;
+
+console.log('this will NOT be printed');
+```
+
+```cjs
+const { createContext, runInContext } = require('node:vm');
+
+// runInContext() returns a Promise created in the inner context.
+const inner_context = createContext({}, { microtaskMode: 'afterEvaluate' });
+
+(async () => {
+  const inner_promise = runInContext('Promise.resolve()', inner_context);
+
+  // As part of performing `await`, the JavaScript runtime must enqueue a task
+  // on the microtask queue of the context where `inner_promise` was created.
+  // A task is added on the inner microtask queue, but **it will not be run
+  // automatically**: this task will remain pending indefinitely.
+  //
+  // Since the outer microtask queue is empty, execution in the outer module
+  // falls through, and the log statement below is never executed.
+  await inner_promise;
+
+  console.log('this will NOT be printed');
+})();
+```
+
+To successfully share promises between contexts with different microtask queues,
+it is necessary to ensure that tasks on the inner microtask queue will be run
+**whenever** the outer context enqueues a task on the inner microtask queue.
+
+The tasks on the microtask queue of a given context are run whenever
+`runInContext()` or `SourceTextModule.evaluate()` are invoked on a script or
+module using this context. In our example, the normal execution flow can be
+restored by scheduling a second call to `runInContext()` _before_ `await
+inner_promise`.
+
+```mjs
+// Schedule `runInContext()` to manually drain the inner context microtask
+// queue; it will run after the `await` statement below.
+setImmediate(() => {
+  vm.runInContext('', context);
+});
+
+await inner_promise;
+
+console.log('OK');
+```
+
+**Note:** Strictly speaking, in this mode, `node:vm` departs from the letter of
+the ECMAScript specification for [enqueing jobs][], by allowing asynchronous
+tasks from different contexts to run in a different order than they were
+enqueued.
 
 ## Support of dynamic `import()` in compilation APIs
 
@@ -1956,23 +2561,30 @@ const { Script, SyntheticModule } = require('node:vm');
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.md#modules-ecmascript-modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
+[Evaluate() of a Synthetic Module Record]: https://tc39.es/ecma262/#sec-smr-Evaluate
+[FinishLoadingImportedModule]: https://tc39.es/ecma262/#sec-FinishLoadingImportedModule
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
+[HostLoadImportedModule]: https://tc39.es/ecma262/#sec-HostLoadImportedModule
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule
+[ImportDeclaration]: https://tc39.es/ecma262/#prod-ImportDeclaration
 [Link() concrete method]: https://tc39.es/ecma262/#sec-moduledeclarationlinking
-[Module Record]: https://262.ecma-international.org/14.0/#sec-abstract-module-records
+[Module Record]: https://tc39.es/ecma262/#sec-abstract-module-records
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
 [Support of dynamic `import()` in compilation APIs]: #support-of-dynamic-import-in-compilation-apis
-[Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
+[Synthetic Module Record]: https://tc39.es/ecma262/#sec-synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
+[WithClause]: https://tc39.es/ecma262/#prod-WithClause
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`]: errors.md#err_vm_dynamic_import_callback_missing_flag
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
-[`ERR_VM_MODULE_STATUS`]: errors.md#err_vm_module_status
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [`optionsExpression`]: https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
+[`sourceTextModule.instantiate()`]: #sourcetextmoduleinstantiate
+[`sourceTextModule.linkRequests(modules)`]: #sourcetextmodulelinkrequestsmodules
+[`sourceTextModule.moduleRequests`]: #sourcetextmodulemodulerequests
 [`url.origin`]: url.md#urlorigin
 [`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
 [`vm.constants.DONT_CONTEXTIFY`]: #vmconstantsdont_contextify
@@ -1980,6 +2592,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
-[global object]: https://es5.github.io/#x15.1
-[indirect `eval()` call]: https://es5.github.io/#x10.4.2
+[enqueing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
+[global object]: https://tc39.es/ecma262/#sec-global-object
+[indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin

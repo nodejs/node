@@ -19,16 +19,17 @@ namespace internal {
   V(a6)  V(a7)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  V(s8)  V(s9)  \
   V(s10)  V(s11)  V(t3)  V(t4)  V(t5)  V(t6)
 
-// s3: scratch register s4: scratch register 2  used in code-generator-riscv64
+// s3: scratch register s4: scratch register 2 used in code-generator-riscv64
 // s6: roots in Javascript code s7: context register
 // s11: PtrComprCageBaseRegister
 // t3 t5 : scratch register used in scratch_register_list
 // t6 : call reg.
 // t0 t1 t2 t4:caller saved scratch register can be used in macroassembler and
+// t2: kMaglevExtraScratchRegister
 // builtin-riscv64
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
              V(a0)  V(a1)  V(a2)  V(a3) \
-             V(a4)  V(a5)  V(a6)  V(a7)  V(t0)  \
+             V(a4)  V(a5)  V(a6)  V(a7)  V(s1) V(s2)  \
              V(t1)  V(t2)  V(t4)  V(s7)  V(s8) V(s9) V(s10)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -48,6 +49,13 @@ namespace internal {
   V(fs8) V(fs9) V(fs10) V(fs11) V(ft8) V(ft9) V(ft10) V(ft11)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+
+#define C_CALL_CALLEE_SAVE_REGISTERS \
+  fp, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS \
+  fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
+
 #define VECTOR_REGISTERS(V)                               \
   V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
   V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) \
@@ -57,14 +65,13 @@ namespace internal {
 #define ALLOCATABLE_SIMD128_REGISTERS(V)            \
   V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)   \
   V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) V(v16)  \
-  V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v26)  \
+  V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23)  \
   V(v27) V(v28) V(v29) V(v30) V(v31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                              \
   V(ft1)  V(ft2) V(ft3) V(ft4)  V(ft5) V(ft6) V(ft7) V(ft8)          \
   V(ft9)  V(ft10) V(ft11) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
   V(fa6)  V(fa7)
-
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -169,10 +176,6 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 
 constexpr Register no_reg = Register::no_reg();
 
-int ToNumber(Register reg);
-
-Register ToRegister(int num);
-
 constexpr bool kPadArguments = false;
 constexpr AliasingKind kFPAliasing = AliasingKind::kIndependent;
 constexpr bool kSimdMaskRegisters = false;
@@ -267,6 +270,8 @@ constexpr Register kRootRegister = s6;
 constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
+constexpr Register kStackPointerRegister = sp;
+constexpr Register padreg = t6;
 
 constexpr DoubleRegister kScratchDoubleReg = ft0;
 
@@ -290,7 +295,7 @@ constexpr Register kJSFunctionRegister = a1;
 constexpr Register kContextRegister = s7;
 constexpr Register kAllocateSizeRegister = a1;
 constexpr Register kInterpreterAccumulatorRegister = a0;
-constexpr Register kInterpreterBytecodeOffsetRegister = t0;
+constexpr Register kInterpreterBytecodeOffsetRegister = s2;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
 
@@ -299,6 +304,11 @@ constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kJavaScriptCallExtraArg1Register = a2;
+#ifdef V8_TARGET_ARCH_RISCV64
+constexpr Register kJavaScriptCallDispatchHandleRegister = a4;
+#else
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
+#endif
 
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
@@ -308,10 +318,21 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 constexpr Register kWasmTrapHandlerFaultAddressRegister = t6;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
+
+constexpr Register kSimulatorBreakArgument = t6;
+
+constexpr Register kMaglevFlagsRegister = t6;
+constexpr Register kMaglevExtraScratchRegister = t2;
+
+// kSimd128ScratchReg and kSimd128ScratchReg2 can be used as a register group.
 constexpr VRegister kSimd128ScratchReg = v24;
-constexpr VRegister kSimd128ScratchReg2 = v23;
+constexpr VRegister kSimd128ScratchReg2 = v25;
+// kSimd128ScratchReg3 and kSimd128ScratchReg4 are on even indices and can
+// be used as a register group as long as v9 and v27 are not overwritten,
+// as is the case for some `vcompress` operations.
 constexpr VRegister kSimd128ScratchReg3 = v8;
-constexpr VRegister kSimd128RegZero = v25;
+constexpr VRegister kSimd128ScratchReg4 = v26;
+constexpr VRegister kSimd128RegZero = kSimd128ScratchReg4;
 
 #ifdef V8_COMPRESS_POINTERS
 constexpr Register kPtrComprCageBaseRegister = s11;  // callee save

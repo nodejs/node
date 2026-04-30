@@ -38,7 +38,7 @@ inline void Hash(const v8::FunctionCallbackInfo<v8::Value>& info) {
 inline void Initialize(v8::Local<v8::Object> exports,
                        v8::Local<v8::Value> module,
                        v8::Local<v8::Context> context) {
-  auto isolate = context->GetIsolate();
+  auto isolate = v8::Isolate::GetCurrent();
   auto key = v8::String::NewFromUtf8(
       isolate, "randomBytes").ToLocalChecked();
   auto value = v8::FunctionTemplate::New(isolate, RandomBytes)
@@ -46,7 +46,7 @@ inline void Initialize(v8::Local<v8::Object> exports,
                    .ToLocalChecked();
   assert(exports->Set(context, key, value).IsJust());
 
-  const SSL_METHOD* method = TLSv1_2_server_method();
+  const SSL_METHOD* method = TLS_server_method();
   assert(method != nullptr);
 
   key = v8::String::NewFromUtf8(isolate, "hash").ToLocalChecked();

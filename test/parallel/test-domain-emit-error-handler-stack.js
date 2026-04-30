@@ -70,7 +70,7 @@ d3.on('error', common.mustCall((err) => {
   checkExpectedDomains(err);
 }, 1));
 
-d1.run(() => {
+d1.run(common.mustCall(() => {
   const ee = new EventEmitter();
   assert.strictEqual(process.domain, d1);
   assert.strictEqual(domain._stack.length, 1);
@@ -82,10 +82,10 @@ d1.run(() => {
 
   assert.strictEqual(process.domain, d1);
   assert.strictEqual(domain._stack.length, 1);
-});
+}));
 
-d1.run(() => {
-  d1.run(() => {
+d1.run(common.mustCall(() => {
+  d1.run(common.mustCall(() => {
     const ee = new EventEmitter();
 
     assert.strictEqual(process.domain, d1);
@@ -98,11 +98,11 @@ d1.run(() => {
 
     assert.strictEqual(process.domain, d1);
     assert.strictEqual(domain._stack.length, 2);
-  });
-});
+  }));
+}));
 
-d1.run(() => {
-  d2.run(() => {
+d1.run(common.mustCall(() => {
+  d2.run(common.mustCall(() => {
     const ee = new EventEmitter();
 
     assert.strictEqual(process.domain, d2);
@@ -115,12 +115,12 @@ d1.run(() => {
 
     assert.strictEqual(process.domain, d2);
     assert.strictEqual(domain._stack.length, 2);
-  });
-});
+  }));
+}));
 
-d1.run(() => {
-  d2.run(() => {
-    d2.run(() => {
+d1.run(common.mustCall(() => {
+  d2.run(common.mustCall(() => {
+    d2.run(common.mustCall(() => {
       const ee = new EventEmitter();
 
       assert.strictEqual(process.domain, d2);
@@ -133,14 +133,14 @@ d1.run(() => {
 
       assert.strictEqual(process.domain, d2);
       assert.strictEqual(domain._stack.length, 3);
-    });
-  });
-});
+    }));
+  }));
+}));
 
-d3.run(() => {
-  d1.run(() => {
-    d3.run(() => {
-      d3.run(() => {
+d3.run(common.mustCall(() => {
+  d1.run(common.mustCall(() => {
+    d3.run(common.mustCall(() => {
+      d3.run(common.mustCall(() => {
         const ee = new EventEmitter();
 
         assert.strictEqual(process.domain, d3);
@@ -153,7 +153,7 @@ d3.run(() => {
 
         assert.strictEqual(process.domain, d3);
         assert.strictEqual(domain._stack.length, 4);
-      });
-    });
-  });
-});
+      }));
+    }));
+  }));
+}));

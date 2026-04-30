@@ -334,6 +334,10 @@ class PropertyDetails {
     return details;
   }
 
+  static bool CanSetIndex(int index) {
+    return DictionaryStorageField::is_valid(index);
+  }
+
   PropertyDetails CopyWithRepresentation(Representation representation) const {
     return PropertyDetails(value_, representation);
   }

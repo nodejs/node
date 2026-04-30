@@ -12,9 +12,9 @@
 #include "bn_local.h"
 
 /* How many bignums are in each "pool item"; */
-#define BN_CTX_POOL_SIZE        16
+#define BN_CTX_POOL_SIZE 16
 /* The stack frame info is resizing, set a first-time expansion size; */
-#define BN_CTX_START_FRAMES     32
+#define BN_CTX_START_FRAMES 32
 
 /***********/
 /* BN_POOL */
@@ -86,10 +86,10 @@ static void ctxdbg(BIO *channel, const char *text, BN_CTX *ctx)
     BN_STACK *stack = &ctx->stack;
 
     BIO_printf(channel, "%s\n", text);
-    BIO_printf(channel, "  (%16p): ", (void*)ctx);
+    BIO_printf(channel, "  (%16p): ", (void *)ctx);
     while (bnidx < ctx->used) {
         BIO_printf(channel, "%03x ",
-                   item->vals[bnidx++ % BN_CTX_POOL_SIZE].dmax);
+            item->vals[bnidx++ % BN_CTX_POOL_SIZE].dmax);
         if (!(bnidx % BN_CTX_POOL_SIZE))
             item = item->next;
     }
@@ -106,23 +106,25 @@ static void ctxdbg(BIO *channel, const char *text, BN_CTX *ctx)
     BIO_printf(channel, "\n");
 }
 
-# define CTXDBG(str, ctx)           \
-    OSSL_TRACE_BEGIN(BN_CTX) {      \
-        ctxdbg(trc_out, str, ctx);  \
-    } OSSL_TRACE_END(BN_CTX)
+#define CTXDBG(str, ctx)           \
+    OSSL_TRACE_BEGIN(BN_CTX)       \
+    {                              \
+        ctxdbg(trc_out, str, ctx); \
+    }                              \
+    OSSL_TRACE_END(BN_CTX)
 #else
 /* We do not want tracing in FIPS module */
-# define CTXDBG(str, ctx) do {} while(0)
+#define CTXDBG(str, ctx) \
+    do {                 \
+    } while (0)
 #endif /* FIPS_MODULE */
 
 BN_CTX *BN_CTX_new_ex(OSSL_LIB_CTX *ctx)
 {
     BN_CTX *ret;
 
-    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL)
         return NULL;
-    }
     /* Initialise the structure */
     BN_POOL_init(&ret->pool);
     BN_STACK_init(&ret->stack);
@@ -158,11 +160,12 @@ void BN_CTX_free(BN_CTX *ctx)
     if (ctx == NULL)
         return;
 #ifndef FIPS_MODULE
-    OSSL_TRACE_BEGIN(BN_CTX) {
+    OSSL_TRACE_BEGIN(BN_CTX)
+    {
         BN_POOL_ITEM *pool = ctx->pool.head;
         BIO_printf(trc_out,
-                   "BN_CTX_free(): stack-size=%d, pool-bignums=%d\n",
-                   ctx->stack.size, ctx->pool.size);
+            "BN_CTX_free(): stack-size=%d, pool-bignums=%d\n",
+            ctx->stack.size, ctx->pool.size);
         BIO_printf(trc_out, "  dmaxs: ");
         while (pool) {
             unsigned loop = 0;
@@ -171,7 +174,8 @@ void BN_CTX_free(BN_CTX *ctx)
             pool = pool->next;
         }
         BIO_printf(trc_out, "\n");
-    } OSSL_TRACE_END(BN_CTX);
+    }
+    OSSL_TRACE_END(BN_CTX);
 #endif
     BN_STACK_finish(&ctx->stack);
     BN_POOL_finish(&ctx->pool);
@@ -259,19 +263,15 @@ static void BN_STACK_finish(BN_STACK *st)
     st->indexes = NULL;
 }
 
-
 static int BN_STACK_push(BN_STACK *st, unsigned int idx)
 {
     if (st->depth == st->size) {
         /* Need to expand */
-        unsigned int newsize =
-            st->size ? (st->size * 3 / 2) : BN_CTX_START_FRAMES;
+        unsigned int newsize = st->size ? (st->size * 3 / 2) : BN_CTX_START_FRAMES;
         unsigned int *newitems;
 
-        if ((newitems = OPENSSL_malloc(sizeof(*newitems) * newsize)) == NULL) {
-            ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+        if ((newitems = OPENSSL_malloc(sizeof(*newitems) * newsize)) == NULL)
             return 0;
-        }
         if (st->depth)
             memcpy(newitems, st->indexes, sizeof(*newitems) * st->depth);
         OPENSSL_free(st->indexes);
@@ -312,7 +312,6 @@ static void BN_POOL_finish(BN_POOL *p)
     }
 }
 
-
 static BIGNUM *BN_POOL_get(BN_POOL *p, int flag)
 {
     BIGNUM *bn;
@@ -322,10 +321,8 @@ static BIGNUM *BN_POOL_get(BN_POOL *p, int flag)
     if (p->used == p->size) {
         BN_POOL_ITEM *item;
 
-        if ((item = OPENSSL_malloc(sizeof(*item))) == NULL) {
-            ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+        if ((item = OPENSSL_malloc(sizeof(*item))) == NULL)
             return NULL;
-        }
         for (loop = 0, bn = item->vals; loop++ < BN_CTX_POOL_SIZE; bn++) {
             bn_init(bn);
             if ((flag & BN_FLG_SECURE) != 0)

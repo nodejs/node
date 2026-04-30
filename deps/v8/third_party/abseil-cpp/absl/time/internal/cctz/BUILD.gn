@@ -32,12 +32,22 @@ absl_source_set("time_zone") {
     "src/tzfile.h",
     "src/zone_info_source.cc",
   ]
+  if (is_win) {
+    sources += [
+      "src/time_zone_name_win.cc",
+      "src/time_zone_name_win.h",
+    ]
+  }
   public = [
     "include/cctz/time_zone.h",
     "include/cctz/zone_info_source.h",
   ]
+  defines = []
   if (is_apple) {
     frameworks = [ "Foundation.framework" ]
+
+    # Work-around for https://github.com/llvm/llvm-project/issues/117630
+    defines += [ "_XOPEN_SOURCE=700" ]
   }
   deps = [
     ":civil_time",

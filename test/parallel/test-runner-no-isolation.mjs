@@ -1,6 +1,6 @@
 import { allowGlobals, mustCall, mustNotCall } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { deepStrictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { run } from 'node:test';
 
 const stream = run({
@@ -16,7 +16,7 @@ stream.on('test:pass', mustCall(4));
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);
 allowGlobals(globalThis.GLOBAL_ORDER);
-deepStrictEqual(globalThis.GLOBAL_ORDER, [
+assert.deepStrictEqual(globalThis.GLOBAL_ORDER, [
   'before one: <root>',
   'suite one',
   'before two: <root>',

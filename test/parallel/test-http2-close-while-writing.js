@@ -31,7 +31,7 @@ server.on('session', common.mustCall(function(session) {
   }));
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`, {
     ca,
     maxSessionMemory: 1000
@@ -43,4 +43,4 @@ server.listen(0, function() {
   }));
   client_stream.resume();
   client_stream.write(Buffer.alloc(64 * 1024));
-});
+}));

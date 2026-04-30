@@ -8,12 +8,16 @@
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/objects/js-objects.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 class AccessBuilderTS;
+using JSReceiverOrNull = UnionOf<JSReceiver, Null>;
 
 // TODO(nicohartmann): Rename this to `FieldAccess` and rely on proper
 // namespaces.
@@ -57,9 +61,15 @@ class AccessBuilderTS : public AllStatic {
   TF_FIELD_ACCESS(String, Word32, ForStringLength)
   TF_FIELD_ACCESS(Name, Word32, ForNameRawHashField)
   TF_FIELD_ACCESS(HeapNumber, Float64, ForHeapNumberValue)
-  using HeapNumberOrOddballOrHole = Union<HeapNumber, Oddball, Hole>;
-  TF_FIELD_ACCESS(HeapNumberOrOddballOrHole, Float64,
-                  ForHeapNumberOrOddballOrHoleValue)
+  using HeapNumberOrOddball = Union<HeapNumber, Oddball>;
+  TF_FIELD_ACCESS(HeapNumberOrOddball, Float64, ForHeapNumberOrOddballValue)
+  TF_FIELD_ACCESS(BigInt, Word32, ForBigIntBitfield)
+  TF_FIELD_ACCESS(BigInt, Word64, ForBigIntLeastSignificantDigit64)
+  TF_FIELD_ACCESS(Map, JSReceiverOrNull, ForMapPrototype)
+  TF_FIELD_ACCESS(Map, Word32, ForMapBitField)
+  TF_FIELD_ACCESS(Map, Word32, ForMapBitField3)
+  TF_FIELD_ACCESS(Map, NativeContext, ForMapNativeContext)
+  TF_FIELD_ACCESS(JSAny, Object, ForJSObjectPropertiesOrHash)
 #undef TF_ACCESS
   static FieldAccessTS<Object, Map> ForMap(
       WriteBarrierKind write_barrier = kMapWriteBarrier) {
@@ -72,6 +82,39 @@ class AccessBuilderTS : public AllStatic {
         Handle<Name>(), OptionalMapRef(), TypeCache::Get()->kInt32,
         MachineType::Int32(), WriteBarrierKind::kNoWriteBarrier});
   }
+  static FieldAccessTS<Cell, MaybeObject> ForCellMaybeValue() {
+    return FieldAccessTS<Cell, MaybeObject>(
+        compiler::AccessBuilder::ForCellValue());
+  }
+  static FieldAccessTS<PropertyCell, Object> ForPropertyCellValue() {
+    return FieldAccessTS<PropertyCell, Object>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, PropertyCell::kValueOffset, Handle<Name>(),
+        OptionalMapRef(), compiler::Type::Any(), MachineType::AnyTagged(),
+        WriteBarrierKind::kFullWriteBarrier});
+  }
+  static FieldAccessTS<JSPrimitiveWrapper, Object>
+  ForJSPrimitiveWrapperValue() {
+    return FieldAccessTS<JSPrimitiveWrapper, Object>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, JSPrimitiveWrapper::kValueOffset,
+        Handle<Name>(), OptionalMapRef(), compiler::Type::Any(),
+        MachineType::AnyTagged(), WriteBarrierKind::kFullWriteBarrier});
+  }
+  static FieldAccessTS<JSArray, Number> ForJSArrayLength() {
+    // NOTE: The only difference between elements kinds is the TF type of the
+    // field, which we don't care about in TS.
+    return FieldAccessTS<JSArray, Number>(
+        compiler::AccessBuilder::ForJSArrayLength(ElementsKind::NO_ELEMENTS));
+  }
+  static FieldAccessTS<Context, Object> ForContextSlot(size_t index) {
+    return FieldAccessTS<Context, Object>(
+        compiler::AccessBuilder::ForContextSlot(index));
+  }
+  static FieldAccessTS<Symbol, Word32> ForSymbolFlags() {
+    return FieldAccessTS<Symbol, Word32>(compiler::FieldAccess{
+        BaseTaggedness::kTaggedBase, offsetof(Symbol, flags_), Handle<Name>(),
+        OptionalMapRef(), compiler::Type::Any(), MachineType::Uint32(),
+        WriteBarrierKind::kNoWriteBarrier});
+  }
 
 #define TF_ELEMENT_ACCESS(Class, T, name)                                     \
   static ElementAccessTS<Class, T> name() {                                   \
@@ -79,9 +122,10 @@ class AccessBuilderTS : public AllStatic {
   }
   TF_ELEMENT_ACCESS(SeqOneByteString, Word32, ForSeqOneByteStringCharacter)
   TF_ELEMENT_ACCESS(SeqTwoByteString, Word32, ForSeqTwoByteStringCharacter)
+  TF_ELEMENT_ACCESS(Object, Object, ForOrderedHashMapEntryValue)
 #undef TF_ELEMENT_ACCESS
 
-  template <CONCEPT(IsTagged) T>
+  template <IsTagged T>
   static ElementAccessTS<FixedArray, T> ForFixedArrayElement() {
     static_assert(!is_array_buffer_v<FixedArray>);
     return ElementAccessTS<FixedArray, T>{

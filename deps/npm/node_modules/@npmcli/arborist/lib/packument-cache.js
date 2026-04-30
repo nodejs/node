@@ -30,7 +30,7 @@ class PackumentCache extends LRUCache {
       maxSize,
       maxEntrySize,
       sizeCalculation: (p) => {
-        // Don't cache if we dont know the size
+        // Don't cache if we don't know the size
         // Some versions of pacote set this to `0`, newer versions set it to `null`
         if (!p[sizeKey]) {
           return maxEntrySize + 1

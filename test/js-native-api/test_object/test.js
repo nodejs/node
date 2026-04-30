@@ -5,7 +5,6 @@ const assert = require('assert');
 // Testing api calls for objects
 const test_object = require(`./build/${common.buildType}/test_object`);
 
-
 const object = {
   hello: 'world',
   array: [
@@ -140,7 +139,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   test_object.Wrap(wrapper);
 
   assert(test_object.Unwrap(wrapper));
-  assert(wrapper.protoA);
+  assert.strictEqual(wrapper.protoA, true);
 }
 
 {
@@ -155,8 +154,8 @@ assert.strictEqual(newObject.test_string, 'test string');
   Object.setPrototypeOf(wrapper, protoB);
 
   assert(test_object.Unwrap(wrapper));
-  assert(wrapper.protoA, true);
-  assert(wrapper.protoB, true);
+  assert.strictEqual(wrapper.protoA, true);
+  assert.strictEqual(wrapper.protoB, true);
 }
 
 {
@@ -390,4 +389,22 @@ assert.deepStrictEqual(test_object.TestGetProperty(), {
   assert.throws(() => {
     delete obj.x;
   }, /Cannot delete property 'x' of #<Object>/);
+}
+
+{
+  const objectWithProperties = test_object.TestCreateObjectWithProperties();
+  assert.strictEqual(typeof objectWithProperties, 'object');
+  assert.strictEqual(objectWithProperties.name, 'Foo');
+  assert.strictEqual(objectWithProperties.age, 42);
+  assert.strictEqual(objectWithProperties.active, true);
+
+  const emptyObject = test_object.TestCreateObjectWithPropertiesEmpty();
+  assert.strictEqual(typeof emptyObject, 'object');
+  assert.strictEqual(Object.keys(emptyObject).length, 0);
+
+  const objectWithCustomPrototype = test_object.TestCreateObjectWithCustomPrototype();
+  assert.strictEqual(typeof objectWithCustomPrototype, 'object');
+  assert.deepStrictEqual(Object.getOwnPropertyNames(objectWithCustomPrototype), ['value']);
+  assert.strictEqual(objectWithCustomPrototype.value, 42);
+  assert.strictEqual(typeof objectWithCustomPrototype.test, 'function');
 }

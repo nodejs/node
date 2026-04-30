@@ -14,7 +14,7 @@ const { log } = require('proc-log')
 const hasSlashes = isWindows ? /\\|[/]/ : /[/]/
 const isURL = /^(?:git[+])?[a-z]+:/i
 const isGit = /^[^@]+@[^:.]+\.[^:]+:.+$/i
-const isFileType = /[.](?:tgz|tar.gz|tar)$/i
+const isFileType = /[.](?:tgz|tar\.gz|tar)$/i
 const isPortNumber = /:[0-9]+(\/|$)/i
 const isWindowsFile = /^(?:[.]|~[/]|[/\\]|[a-zA-Z]:)/
 const isPosixFile = /^(?:[.]|~[/]|[/]|[a-zA-Z]:)/
@@ -66,8 +66,6 @@ function isFileSpec (spec) {
   if (isWindows) {
     return isWindowsFile.test(spec)
   }
-  // We never hit this in windows tests, obviously
-  /* istanbul ignore next */
   return isPosixFile.test(spec)
 }
 

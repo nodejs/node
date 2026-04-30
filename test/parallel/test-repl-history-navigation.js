@@ -798,21 +798,37 @@ const tests = [
     env: { NODE_REPL_HISTORY: defaultHistoryPath },
     skip: !process.features.inspector,
     test: [
-      'let f = `multiline',
+      "let f = ''",
+      ENTER,
+      'f = `multiline',
       ENTER,
       'string`',
-      ENTER,
-      UP, UP, UP,
+      ENTER, // Finished issuing the multiline command
+      UP,
+      ENTER, // Trying to reissue the same command
+      UP, UP, UP, // Going back 3 times in the history, it should show the var definition
+      DOWN, DOWN, // Going down 2 times should show the multiline command only once
     ],
     expected: [
-      prompt, ...'let f = `multiline',
-      '| ',
-      ...'string`',
+      prompt,
+      ...`let f = ''`,
       'undefined\n',
       prompt,
-      `${prompt}let f = \`multiline`,
+      ...'f = `multiline',
+      '| ',
+      ...'string`',
+      "'multiline\\nstring'\n",
+      prompt,
+      `${prompt}f = \`multiline`,
+      '\n| string`',
+      "'multiline\\nstring'\n",
+      prompt,
+      `${prompt}f = \`multiline`,
       `\n| string\``,
-      `${prompt}let f = \`multiline`,
+      `${prompt}f = \`multiline`,
+      `\n| string\``,
+      `${prompt}let f = ''`,
+      `${prompt}f = \`multiline`,
       `\n| string\``,
       prompt,
     ],
@@ -851,7 +867,7 @@ function runTest() {
   REPL.createInternalRepl(opts.env, {
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
 
         if (!opts.showEscapeCodes &&
@@ -876,20 +892,20 @@ function runTest() {
         }
 
         next();
-      }
+      }),
     }),
     completer: opts.completer,
     prompt,
     useColors: false,
     preview: opts.preview,
     terminal: true
-  }, function(err, repl) {
+  }, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
-    repl.once('close', () => {
+    repl.once('close', common.mustCall(() => {
       if (opts.clean)
         cleanupTmpFile();
 
@@ -901,7 +917,7 @@ function runTest() {
       }
 
       setImmediate(runTestWrap, true);
-    });
+    }));
 
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {
@@ -910,7 +926,7 @@ function runTest() {
       });
     }
     repl.input.run(opts.test);
-  });
+  }));
 }
 
 // run the tests

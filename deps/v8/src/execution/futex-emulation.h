@@ -38,18 +38,7 @@ class FutexWaitList;
 
 class Isolate;
 class JSArrayBuffer;
-
-class AtomicsWaitWakeHandle {
- public:
-  explicit AtomicsWaitWakeHandle(Isolate* isolate) : isolate_(isolate) {}
-
-  void Wake();
-  inline bool has_stopped() const { return stopped_; }
-
- private:
-  Isolate* isolate_;
-  bool stopped_ = false;
-};
+class JSPromise;
 
 class FutexWaitListNode {
  public:
@@ -58,7 +47,8 @@ class FutexWaitListNode {
 
   // Create an async FutexWaitListNode.
   FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
-                    void* wait_location, Handle<JSObject> promise_capability,
+                    void* wait_location,
+                    DirectHandle<JSPromise> promise_capability,
                     Isolate* isolate);
 
   // Disallow copying nodes.
@@ -137,8 +127,8 @@ class FutexWaitListNode {
   void* wait_location_ = nullptr;
 
   // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
-  // if this node is currently contained in FutexEmulationGlobalState::wait_list
-  // or an AtomicsWaitWakeHandle has access to it.
+  // if this node is currently contained in
+  // FutexEmulationGlobalState::wait_list.
   bool waiting_ = false;
   bool interrupted_ = false;
 
@@ -161,27 +151,27 @@ class FutexEmulation : public AllStatic {
   // If woken, return "ok", otherwise return "timed-out". The initial check and
   // the decision to wait happen atomically.
   static Tagged<Object> WaitJs32(Isolate* isolate, WaitMode mode,
-                                 Handle<JSArrayBuffer> array_buffer,
+                                 DirectHandle<JSArrayBuffer> array_buffer,
                                  size_t addr, int32_t value,
                                  double rel_timeout_ms);
 
   // An version of WaitJs32 for int64_t values.
   static Tagged<Object> WaitJs64(Isolate* isolate, WaitMode mode,
-                                 Handle<JSArrayBuffer> array_buffer,
+                                 DirectHandle<JSArrayBuffer> array_buffer,
                                  size_t addr, int64_t value,
                                  double rel_timeout_ms);
 
   // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
   // out) as expected by Wasm.
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm32(
-      Isolate* isolate, Handle<JSArrayBuffer> array_buffer, size_t addr,
-      int32_t value, int64_t rel_timeout_ns);
+      Isolate* isolate, BackingStore* backing_store, size_t addr, int32_t value,
+      int64_t rel_timeout_ns);
 
   // Same as Wait32 above except it checks for an int64_t value in the
   // array_buffer.
   V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm64(
-      Isolate* isolate, Handle<JSArrayBuffer> array_buffer, size_t addr,
-      int64_t value, int64_t rel_timeout_ns);
+      Isolate* isolate, BackingStore* backing_store, size_t addr, int64_t value,
+      int64_t rel_timeout_ns);
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
@@ -209,26 +199,19 @@ class FutexEmulation : public AllStatic {
 
  private:
   friend class FutexWaitListNode;
-  friend class AtomicsWaitWakeHandle;
   friend class ResolveAsyncWaiterPromisesTask;
   friend class AsyncWaiterTimeoutTask;
 
   template <typename T>
   static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
-                             Handle<JSArrayBuffer> array_buffer, size_t addr,
-                             T value, double rel_timeout_ms);
+                             DirectHandle<JSArrayBuffer> array_buffer,
+                             size_t addr, T value, double rel_timeout_ms,
+                             CallType call_type);
 
   template <typename T>
-  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
-                             Handle<JSArrayBuffer> array_buffer, size_t addr,
-                             T value, bool use_timeout, int64_t rel_timeout_ns,
-                             CallType call_type = CallType::kIsNotWasm);
-
-  template <typename T>
-  static Tagged<Object> WaitSync(Isolate* isolate,
-                                 Handle<JSArrayBuffer> array_buffer,
-                                 size_t addr, T value, bool use_timeout,
-                                 int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitSync(Isolate* isolate, void* wait_location, T value,
+                                 bool use_timeout, int64_t rel_timeout_ns,
+                                 CallType call_type);
 
   template <typename T>
   static Tagged<Object> WaitAsync(Isolate* isolate,

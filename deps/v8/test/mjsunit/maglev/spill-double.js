@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --maglev
+// Flags: --nooptimize-maglev-optimizes-to-turbofan
 
 // This tests that we can lazy deopt with a double spilled.
 

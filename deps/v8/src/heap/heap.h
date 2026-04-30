@@ -20,16 +20,21 @@
 #include "include/v8-internal.h"
 #include "include/v8-isolate.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/bounded-page-allocator.h"
 #include "src/base/enum-set.h"
+#include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
+#include "src/base/strong-alias.h"
 #include "src/builtins/accessors.h"
 #include "src/common/assert-scope.h"
 #include "src/common/code-memory-access.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/base/bytes.h"
 #include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/marking-state.h"
@@ -60,6 +65,7 @@ class ClassNameAsHeapObjectNameScope;
 
 namespace heap::base {
 class Stack;
+class StackVisitor;
 }  // namespace heap::base
 
 namespace v8 {
@@ -78,7 +84,7 @@ class TestMemoryAllocatorScope;
 class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
-class MemoryChunkMetadata;
+class BasePage;
 class Boolean;
 class CodeLargeObjectSpace;
 class CodeRange;
@@ -89,8 +95,11 @@ class EphemeronRememberedSet;
 class GCTracer;
 class IncrementalMarking;
 class IsolateSafepoint;
+class HeapLimits;
+struct HeapLimitBounds;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
+class HeapProfiler;
 class HeapStats;
 class Isolate;
 class JSArrayBuffer;
@@ -100,15 +109,15 @@ class LinearAllocationArea;
 class LocalHeap;
 class MemoryAllocator;
 class MemoryBalancer;
-class MutablePageMetadata;
+class MutablePage;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorMarkSweepCollector;
 class NativeContext;
 class NopRwxMemoryWriteScope;
+class NormalPage;
 class ObjectIterator;
 class ObjectStats;
-class PageMetadata;
 class PagedSpace;
 class PagedNewSpace;
 class ReadOnlyHeap;
@@ -171,20 +180,10 @@ class StrongRootsEntry final {
   friend class Heap;
 };
 
-#ifdef DEBUG
-struct CommentStatistic {
-  const char* comment;
-  int size;
-  int count;
-  void Clear() {
-    comment = nullptr;
-    size = 0;
-    count = 0;
-  }
-  // Must be small, since an iteration is used for lookup.
-  static const int kMaxComments = 64;
+enum class LeaveHeapState {
+  kNotify,
+  kReachedTimeout,
 };
-#endif
 
 // An alias for std::unordered_map<Tagged<HeapObject>, T> which also
 // sets proper Hash and KeyEqual functions.
@@ -199,10 +198,71 @@ enum class GCFlag : uint8_t {
   // GCs that are forced, either through testing configurations (requiring
   // --expose-gc) or through DevTools (using LowMemoryNotification).
   kForced = 1 << 1,
+  kLastResort = 1 << 2,
+};
+
+// Temporarily enables CSS to conservatively scan the stack starting from the
+// current frame. This scope should not yet be used in production!
+class V8_EXPORT_PRIVATE ConservativePinningScope {
+  V8_STACK_ALLOCATED();
+
+ public:
+  // `frame_address` is used an initial fast frame address. If it doesn't cover
+  // this scope, it will be ignored and replaced with a frame address that does
+  // include this scope.
+  explicit ConservativePinningScope(Heap* heap);
+  ~ConservativePinningScope();
+
+ private:
+  Heap* const heap_;
 };
 
 using GCFlags = base::Flags<GCFlag, uint8_t>;
 DEFINE_OPERATORS_FOR_FLAGS(GCFlags)
+
+enum class CompleteSweepingReason {
+  kCollectCodeStatistics,
+  kHeapObjectIterator,
+  kStartMinorMarking,
+  kStartMajorMarking,
+  kMinorGC,
+  kMajorGC,
+  kHeapSnapshot,
+  kTearDown,
+  kFreeze,
+  kTesting,
+  kReadOnly,
+};
+
+constexpr const char* ToString(CompleteSweepingReason reason) {
+  switch (reason) {
+    case CompleteSweepingReason::kCollectCodeStatistics:
+      return "collect code statistics";
+    case CompleteSweepingReason::kHeapObjectIterator:
+      return "heap object iterator";
+    case CompleteSweepingReason::kStartMajorMarking:
+      return "start major marking";
+    case CompleteSweepingReason::kStartMinorMarking:
+      return "start minor marking";
+    case CompleteSweepingReason::kMinorGC:
+      return "minor gc";
+    case CompleteSweepingReason::kMajorGC:
+      return "major gc";
+    case CompleteSweepingReason::kHeapSnapshot:
+      return "heap snapshot";
+    case CompleteSweepingReason::kTearDown:
+      return "tear down";
+    case CompleteSweepingReason::kFreeze:
+      return "freeze";
+    case CompleteSweepingReason::kTesting:
+      return "testing";
+    case CompleteSweepingReason::kReadOnly:
+      return "read only";
+  }
+}
+
+static constexpr v8::base::TimeDelta kMaxSynchronuousGCOperation =
+    v8::base::TimeDelta::FromMilliseconds(5);
 
 class Heap final {
  public:
@@ -228,74 +288,6 @@ class Heap final {
     const char* event_name_;
   };
 
-  class ExternalMemoryAccounting {
-   public:
-    static constexpr size_t kExternalAllocationLimitForInterrupt = 128 * KB;
-
-    int64_t total() const { return total_.load(std::memory_order_relaxed); }
-    int64_t limit_for_interrupt() const {
-      return limit_for_interrupt_.load(std::memory_order_relaxed);
-    }
-    int64_t soft_limit() const {
-      return low_since_mark_compact() + kExternalAllocationSoftLimit;
-    }
-    int64_t low_since_mark_compact() const {
-      return low_since_mark_compact_.load(std::memory_order_relaxed);
-    }
-
-    int64_t UpdateAmount(int64_t delta) {
-      const int64_t amount =
-          total_.fetch_add(delta, std::memory_order_relaxed) + delta;
-      return amount;
-    }
-
-    void UpdateLimitForInterrupt(int64_t amount) {
-      set_limit_for_interrupt(amount + kExternalAllocationLimitForInterrupt);
-    }
-
-    void UpdateLowSinceMarkCompact(int64_t amount) {
-      set_low_since_mark_compact(amount);
-      UpdateLimitForInterrupt(amount);
-    }
-
-    uint64_t AllocatedSinceMarkCompact() const {
-      int64_t total_bytes = total();
-      int64_t low_since_mark_compact_bytes = low_since_mark_compact();
-
-      if (total_bytes <= low_since_mark_compact_bytes) {
-        return 0;
-      }
-      return static_cast<uint64_t>(total_bytes - low_since_mark_compact_bytes);
-    }
-
-   private:
-    void set_total(int64_t value) {
-      total_.store(value, std::memory_order_relaxed);
-    }
-
-    void set_limit_for_interrupt(int64_t value) {
-      limit_for_interrupt_.store(value, std::memory_order_relaxed);
-    }
-
-    void set_low_since_mark_compact(int64_t value) {
-      low_since_mark_compact_.store(value, std::memory_order_relaxed);
-    }
-
-    // The amount of external memory registered through the API.
-    std::atomic<int64_t> total_{0};
-
-    // The limit when to trigger memory pressure from the API.
-    std::atomic<int64_t> limit_for_interrupt_{
-        kExternalAllocationLimitForInterrupt};
-
-    // Caches the amount of external memory registered at the last MC.
-    std::atomic<int64_t> low_since_mark_compact_{0};
-  };
-
-  // Taking this mutex prevents the GC from entering a phase that relocates
-  // object references.
-  base::Mutex* relocation_mutex() { return &relocation_mutex_; }
-
   // Support for context snapshots.  After calling this we have a linear
   // space to write objects in each space.
   struct Chunk {
@@ -305,26 +297,8 @@ class Heap final {
   };
   using Reservation = std::vector<Chunk>;
 
-#if V8_OS_ANDROID
-  // Don't apply pointer multiplier on Android since it has no swap space and
-  // should instead adapt it's heap size based on available physical memory.
-  static const int kPointerMultiplier = 1;
-  static const int kHeapLimitMultiplier = 1;
-#else
-  static const int kPointerMultiplier = kTaggedSize / 4;
-  // The heap limit needs to be computed based on the system pointer size
-  // because we want a pointer-compressed heap to have larger limit than
-  // an ordinary 32-bit which that is constrained by 2GB virtual address space.
-  static const int kHeapLimitMultiplier = kSystemPointerSize / 4;
-#endif
-
-  static const size_t kMaxInitialOldGenerationSize =
-      256 * MB * kHeapLimitMultiplier;
-
   // These constants control heap configuration based on the physical memory.
   static constexpr size_t kPhysicalMemoryToOldGenerationRatio = 4;
-  static constexpr size_t kOldGenerationLowMemory =
-      128 * MB * kHeapLimitMultiplier;
   static constexpr size_t kNewLargeObjectSpaceToSemiSpaceRatio = 1;
 
   static const int kTraceRingBufferSize = 512;
@@ -333,11 +307,22 @@ class Heap final {
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInTaggedWords = 2;
 
+  V8_EXPORT_PRIVATE static size_t DefaultInitialOldGenerationSize(
+      uint64_t physical_memory);
+
+#if V8_OS_ANDROID
+  V8_EXPORT_PRIVATE static bool IsHighEndAndroid(uint64_t physical_memory);
+#endif
+  V8_EXPORT_PRIVATE static size_t HeapLimitMultiplier(uint64_t physical_memory);
+
   static size_t DefaultMinSemiSpaceSize();
-  V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize();
-  // Young generation size is the same for compressed heaps and 32-bit heaps.
-  static size_t OldGenerationToSemiSpaceRatio();
-  static size_t OldGenerationToSemiSpaceRatioLowMemory();
+  V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize(
+      uint64_t physical_memory);
+
+  static size_t HeapSizeToSemiSpaceRatio(uint64_t physical_memory);
+
+  V8_EXPORT_PRIVATE static size_t DefaultMinHeapSize(uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t DefaultMaxHeapSize(uint64_t physical_memory);
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
@@ -355,17 +340,21 @@ class Heap final {
   [[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
       const char* location);
 
-  // Checks whether the space is valid.
-  static bool IsValidAllocationSpace(AllocationSpace space);
-
-  // Helper function to get the bytecode flushing mode based on the flags. This
-  // is required because it is not safe to access flags in concurrent marker.
-  static inline base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate);
+  static constexpr std::optional<AllocationSpace>
+  TryGetAllocationSpaceFromIndex(size_t index) {
+    if (index > AllocationSpace::LAST_SPACE) {
+      return std::nullopt;
+    }
+    static_assert(AllocationSpace::FIRST_SPACE == 0);
+    return {static_cast<AllocationSpace>(index)};
+  }
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
            collector == GarbageCollector::MINOR_MARK_SWEEPER;
   }
+
+  V8_EXPORT_PRIVATE bool IsFreeSpaceValid(const FreeSpace* object) const;
 
   static inline GarbageCollector YoungGenerationCollector() {
     return (v8_flags.minor_ms) ? GarbageCollector::MINOR_MARK_SWEEPER
@@ -374,11 +363,48 @@ class Heap final {
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
-  static inline void CopyBlock(Address dst, Address src, int byte_size);
+  static inline void CopyBlock(Address dst, Address src, size_t byte_size);
+
+  perfetto::NamedTrack tracing_track() const { return tracing_track_; }
+
+  bool is_gc_tracing_category_enabled() const {
+    return *gc_tracing_category_enabled_;
+  }
+
+  enum class StackScanMode { kNone, kFull, kSelective };
+  StackScanMode ConservativeStackScanningModeForMinorGC() const {
+    if (v8_flags.scavenger_conservative_object_pinning) {
+      return StackScanMode::kFull;
+    }
+    if (selective_stack_scan_start_address_.has_value()) {
+      DCHECK(IsGCWithStack());
+      return StackScanMode::kSelective;
+    }
+    return StackScanMode::kNone;
+  }
+  StackScanMode ConservativeStackScanningModeForMajorGC() const {
+    if (v8_flags.conservative_stack_scanning) {
+      return StackScanMode::kFull;
+    }
+    if (selective_stack_scan_start_address_.has_value()) {
+      DCHECK(IsGCWithStack());
+      return StackScanMode::kSelective;
+    }
+    return StackScanMode::kNone;
+  }
+
+  bool ShouldUsePrecisePinningForMinorGC() const {
+    return v8_flags.scavenger_precise_object_pinning;
+  }
+  bool ShouldUsePrecisePinningForMajorGC() const {
+    return v8_flags.precise_object_pinning;
+  }
 
   EphemeronRememberedSet* ephemeron_remembered_set() {
     return ephemeron_remembered_set_.get();
   }
+
+  HeapProfiler* heap_profiler() const { return heap_profiler_.get(); }
 
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
@@ -400,30 +426,26 @@ class Heap final {
   };
 
   void NotifyOldGenerationExpansion(
-      LocalHeap* local_heap, AllocationSpace space, MutablePageMetadata* chunk,
+      LocalHeap* local_heap, AllocationSpace space, MutablePage* chunk,
       OldGenerationExpansionNotificationOrigin =
           OldGenerationExpansionNotificationOrigin::kFromSameHeap);
-
-  inline Address* NewSpaceAllocationTopAddress();
-  inline Address* NewSpaceAllocationLimitAddress();
-  inline Address* OldSpaceAllocationTopAddress();
-  inline Address* OldSpaceAllocationLimitAddress();
 
   size_t NewSpaceSize();
   size_t NewSpaceCapacity() const;
   size_t NewSpaceTargetCapacity() const;
 
-  // Move len non-weak tagged elements from src_slot to dst_slot of dst_object.
+  // Move `len` tagged elements from `src_slot` to `dst_slot` of `dst_object`.
   // The source and destination memory ranges can overlap.
+  template <typename TSlot>
   V8_EXPORT_PRIVATE void MoveRange(Tagged<HeapObject> dst_object,
-                                   ObjectSlot dst_slot, ObjectSlot src_slot,
-                                   int len, WriteBarrierMode mode);
+                                   TSlot dst_slot, TSlot src_slot, uint32_t len,
+                                   WriteBarrierMode mode);
 
-  // Copy len non-weak tagged elements from src_slot to dst_slot of dst_object.
+  // Copy `len` tagged elements from `src_slot` to `dst_slot` of `dst_object`.
   // The source and destination memory ranges must not overlap.
   template <typename TSlot>
   V8_EXPORT_PRIVATE void CopyRange(Tagged<HeapObject> dst_object,
-                                   TSlot dst_slot, TSlot src_slot, int len,
+                                   TSlot dst_slot, TSlot src_slot, uint32_t len,
                                    WriteBarrierMode mode);
 
   // Initialize a filler object to keep the ability to iterate over the heap
@@ -432,7 +454,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void CreateFillerObjectAt(
       Address addr, int size,
       ClearFreedMemoryMode clear_memory_mode =
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+          ClearFreedMemoryMode::kDontClearFreedMemory,
+      std::optional<AllocationType> allocation_type = {});
 
   // Initialize a filler object at a specific address. Unlike
   // `CreateFillerObjectAt` this method will not perform slot verification since
@@ -442,8 +465,6 @@ class Heap final {
   bool CanMoveObjectStart(Tagged<HeapObject> object);
 
   bool IsImmovable(Tagged<HeapObject> object);
-
-  V8_EXPORT_PRIVATE static bool IsLargeObject(Tagged<HeapObject> object);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
@@ -460,7 +481,8 @@ class Heap final {
 
   // Trim the given array from the right.
   template <typename Array>
-  void RightTrimArray(Tagged<Array> object, int new_capacity, int old_capacity);
+  void RightTrimArray(Tagged<Array> object, uint32_t new_capacity,
+                      uint32_t old_capacity);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Tagged<Boolean> ToBoolean(bool condition);
@@ -478,10 +500,16 @@ class Heap final {
         native_contexts_list_.load(std::memory_order_acquire));
   }
 
-  void set_allocation_sites_list(Tagged<Object> object) {
+  V8_EXPORT_PRIVATE void AddToWeakNativeContextList(Tagged<Context> context);
+
+  void set_allocation_sites_list(
+      Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
     allocation_sites_list_ = object;
   }
-  Tagged<Object> allocation_sites_list() { return allocation_sites_list_; }
+  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
+  allocation_sites_list() {
+    return allocation_sites_list_;
+  }
 
   void set_dirty_js_finalization_registries_list(Tagged<Object> object) {
     dirty_js_finalization_registries_list_ = object;
@@ -553,12 +581,12 @@ class Heap final {
   bool IsGCWithMainThreadStack() const;
 
   // This method is only safe to use in a safepoint.
-  bool IsGCWithStack() const;
+  V8_EXPORT_PRIVATE bool IsGCWithStack() const;
 
   bool CanShortcutStringsDuringGC(GarbageCollector collector) const;
 
   // Performs GC after background allocation failure.
-  void CollectGarbageForBackground(LocalHeap* local_heap);
+  void PerformRequestedGC(LocalHeap* local_heap);
 
   //
   // Support for the API.
@@ -579,8 +607,13 @@ class Heap final {
       double threshold_percent);
 
   V8_EXPORT_PRIVATE void AppendArrayBufferExtension(
-      Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
+      ArrayBufferExtension* extension);
+  V8_EXPORT_PRIVATE void ResizeArrayBufferExtension(
+      ArrayBufferExtension* extension, int64_t delta);
   void DetachArrayBufferExtension(ArrayBufferExtension* extension);
+
+  V8_EXPORT_PRIVATE void ExpandNewSpaceSizeForTesting();
+  V8_EXPORT_PRIVATE void ReduceNewSpaceSizeForTesting();
 
   IsolateSafepoint* safepoint() { return safepoint_.get(); }
 
@@ -590,23 +623,23 @@ class Heap final {
   void VerifyNewSpaceTop();
 #endif  // DEBUG
 
-  void RecordStats(HeapStats* stats, bool take_snapshot = false);
+  void RecordStats(HeapStats* stats);
+  V8_EXPORT_PRIVATE void ReportStatsAsCrashKeys(const HeapStats& heap_stats);
 
   bool MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
                      v8::MeasureMemoryExecution execution);
 
-  std::unique_ptr<v8::MeasureMemoryDelegate> MeasureMemoryDelegate(
-      Handle<NativeContext> context, Handle<JSPromise> promise,
+  std::unique_ptr<v8::MeasureMemoryDelegate> CreateDefaultMeasureMemoryDelegate(
+      v8::Local<v8::Context> context, v8::Local<v8::Promise::Resolver> promise,
       v8::MeasureMemoryMode mode);
-
-  void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
 
   void IncrementDeferredCounts(
       base::Vector<const v8::Isolate::UseCounterFeature> features);
 
-  inline int NextScriptId();
-  inline int NextDebuggingId();
-  inline int GetNextTemplateSerialNumber();
+  int NextScriptId();
+  int NextDebuggingId();
+  int NextStackTraceId();
+  inline uint32_t GetNextTemplateSerialNumber();
 
   void SetSerializedObjects(Tagged<HeapObject> objects);
   void SetSerializedGlobalProxySizes(Tagged<FixedArray> sizes);
@@ -616,22 +649,14 @@ class Heap final {
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
 
-  int64_t external_memory_hard_limit() {
-    return external_memory_.low_since_mark_compact() +
-           max_old_generation_size() / 2;
-  }
+  V8_EXPORT_PRIVATE uint64_t external_memory_hard_limit();
 
-  V8_INLINE int64_t external_memory() const;
-  V8_EXPORT_PRIVATE int64_t external_memory_limit_for_interrupt();
-  V8_EXPORT_PRIVATE int64_t external_memory_soft_limit();
-  int64_t UpdateExternalMemory(int64_t delta);
+  V8_INLINE uint64_t external_memory() const;
+  V8_EXPORT_PRIVATE uint64_t external_memory_limit_for_interrupt();
+  V8_EXPORT_PRIVATE uint64_t external_memory_soft_limit();
+  uint64_t UpdateExternalMemory(int64_t delta);
 
-  V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
-  V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
-
-  uint64_t backing_store_bytes() const {
-    return backing_store_bytes_.load(std::memory_order_relaxed);
-  }
+  uint64_t backing_store_bytes() const;
 
   void CompactWeakArrayLists();
 
@@ -655,6 +680,7 @@ class Heap final {
   void ActivateMemoryReducerIfNeeded();
 
   V8_EXPORT_PRIVATE bool ShouldOptimizeForMemoryUsage();
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForMemoryUsageIgnoringPriority();
 
   // Returns true when GC should optimize for battery.
   V8_EXPORT_PRIVATE bool ShouldOptimizeForBattery() const;
@@ -666,14 +692,7 @@ class Heap final {
 
   bool CollectionRequested();
 
-  void CheckCollectionRequested();
-
-  void RestoreHeapLimit(size_t heap_limit) {
-    // Do not set the limit lower than the live size + some slack.
-    size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
-    SetOldGenerationAndGlobalMaximumSize(
-        std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
-  }
+  void RestoreHeapLimit(size_t heap_limit);
 
   // ===========================================================================
   // Initialization. ===========================================================
@@ -692,14 +711,10 @@ class Heap final {
   void ReplaceReadOnlySpace(SharedReadOnlySpace* shared_ro_space);
 
   // Sets up the heap memory without creating any objects.
-  void SetUpSpaces(LinearAllocationArea& new_allocation_info,
-                   LinearAllocationArea& old_allocation_info);
+  void SetUpSpaces();
 
   // Prepares the heap, setting up for deserialization.
   void InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap);
-
-  // (Re-)Initialize hash seed from flag or RNG.
-  void InitializeHashSeed();
 
   // Invoked once for the process from V8::Initialize.
   static void InitializeOncePerProcess();
@@ -767,8 +782,9 @@ class Heap final {
     return shared_trusted_lo_allocation_space_;
   }
 
-  inline PagedSpace* paged_space(int idx) const;
-  inline Space* space(int idx) const;
+  inline PagedSpace* paged_space(int index) const;
+  inline Space* space(int index) const;
+  inline Space* space(AllocationSpace allocation_space) const;
 
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable::Space* young_external_pointer_space() {
@@ -794,17 +810,20 @@ class Heap final {
 
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* js_dispatch_table_space() {
     return &js_dispatch_table_space_;
   }
-#endif  // V8_ENABLE_LEAPTIERING
+
+  JSDispatchTable::Space* read_only_js_dispatch_table_space() {
+    return &read_only_js_dispatch_table_space_;
+  }
 
   // ===========================================================================
   // Getters to other components. ==============================================
   // ===========================================================================
 
   GCTracer* tracer() { return tracer_.get(); }
+  const GCTracer* tracer() const { return tracer_.get(); }
 
   MemoryAllocator* memory_allocator() { return memory_allocator_.get(); }
   const MemoryAllocator* memory_allocator() const {
@@ -826,7 +845,7 @@ class Heap final {
 
   Sweeper* sweeper() { return sweeper_.get(); }
 
-  ArrayBufferSweeper* array_buffer_sweeper() {
+  ArrayBufferSweeper* array_buffer_sweeper() const {
     return array_buffer_sweeper_.get();
   }
 
@@ -861,18 +880,19 @@ class Heap final {
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  V8_INLINE Tagged<FixedArray> single_character_string_table();
-
   V8_INLINE void SetRootMaterializedObjects(Tagged<FixedArray> objects);
   V8_INLINE void SetRootScriptList(Tagged<Object> value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Tagged<Object> value);
   V8_INLINE void SetMessageListeners(Tagged<ArrayList> value);
   V8_INLINE void SetFunctionsMarkedForManualOptimization(
       Tagged<Object> bytecode);
+  V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
+  V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
 
 #if V8_ENABLE_WEBASSEMBLY
-  V8_INLINE void SetWasmCanonicalRttsAndJSToWasmWrappers(
-      Tagged<WeakFixedArray> rtts, Tagged<WeakFixedArray> js_to_wasm_wrappers);
+  V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
+  V8_INLINE void SetJSToWasmWrappers(
+      Tagged<WeakFixedArray> js_to_wasm_wrappers);
 #endif
 
   StrongRootsEntry* RegisterStrongRoots(const char* label, FullObjectSlot start,
@@ -887,10 +907,12 @@ class Heap final {
   void EnqueueDirtyJSFinalizationRegistry(
       Tagged<JSFinalizationRegistry> finalization_registry,
       std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
-                         Tagged<Object> target)>
-          gc_notify_updated_slot);
+                         Tagged<HeapObject> target)>
+          gc_notify_updated_slot,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
 
-  MaybeHandle<JSFinalizationRegistry> DequeueDirtyJSFinalizationRegistry();
+  MaybeDirectHandle<JSFinalizationRegistry>
+  DequeueDirtyJSFinalizationRegistry();
 
   // Called from Heap::NotifyContextDisposed to remove all
   // FinalizationRegistries with {context} from the dirty list when the context
@@ -899,7 +921,7 @@ class Heap final {
   void RemoveDirtyFinalizationRegistriesOnContext(
       Tagged<NativeContext> context);
 
-  inline bool HasDirtyJSFinalizationRegistries();
+  bool HasDirtyJSFinalizationRegistries();
 
   void PostFinalizationRegistryCleanupTaskIfNeeded();
 
@@ -931,12 +953,18 @@ class Heap final {
   // collect more garbage.
   V8_EXPORT_PRIVATE void CollectGarbage(
       AllocationSpace space, GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
+      PerformHeapLimitCheck check_heap_limit_reached =
+          PerformHeapLimitCheck::kYes,
+      PerformIneffectiveMarkCompactCheck check_ineffective_mark_compact =
+          PerformIneffectiveMarkCompactCheck::kYes);
 
   // Performs a full garbage collection.
   V8_EXPORT_PRIVATE void CollectAllGarbage(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
+      const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags,
+      PerformHeapLimitCheck check_heap_limit_reached =
+          PerformHeapLimitCheck::kYes);
 
   // Last hope garbage collection. Will try to free as much memory as possible
   // with multiple rounds of garbage collection.
@@ -955,10 +983,16 @@ class Heap final {
       LocalHeap* local_heap, GarbageCollectionReason gc_reason);
 
   // Requests garbage collection from some other thread.
-  V8_EXPORT_PRIVATE bool CollectGarbageFromAnyThread(
-      LocalHeap* local_heap,
-      GarbageCollectionReason gc_reason =
-          GarbageCollectionReason::kBackgroundAllocationFailure);
+  V8_EXPORT_PRIVATE bool TriggerAndWaitForGCFromBackgroundThread(
+      LocalHeap* local_heap, RequestedGCKind kind);
+
+  // Performs a GC through CollectGarbage(). However, if the GC reaches the heap
+  // limit instead of crashing immediately, more and stronger GCs are performed
+  // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
+  V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
+      AllocationSpace space, GCFlags gc_flags,
+      GarbageCollectionReason gc_reason,
+      const GCCallbackFlags gc_callback_flags);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
@@ -1006,8 +1040,12 @@ class Heap final {
   void IterateStackRoots(RootVisitor* v);
 
   void IterateConservativeStackRoots(
-      RootVisitor* v,
+      RootVisitor* root_visitor,
       IterateRootsMode roots_mode = IterateRootsMode::kMainIsolate);
+  void IterateConservativeStackRoots(::heap::base::StackVisitor* stack_visitor,
+                                     StackScanMode stack_scan_mode);
+
+  void IterateRootsForPrecisePinning(RootVisitor* visitor);
 
   // ===========================================================================
   // Remembered set API. =======================================================
@@ -1018,8 +1056,11 @@ class Heap final {
   uint8_t* IsMinorMarkingFlagAddress();
 
   void ClearRecordedSlotRange(Address start, Address end);
-  static int InsertIntoRememberedSetFromCode(MutablePageMetadata* chunk,
+  static int InsertIntoRememberedSetFromCode(MutablePage* chunk,
                                              size_t slot_offset);
+
+  static void VerifySkippedWriteBarrier(Address object, Address value);
+  static void VerifySkippedIndirectWriteBarrier(Address object);
 
 #ifdef DEBUG
   void VerifySlotRangeHasNoRecordedSlots(Address start, Address end);
@@ -1039,7 +1080,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void StartIncrementalMarking(
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
-      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR);
+      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR,
+      const char* reason = "missing reason");
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingOnInterrupt();
 
@@ -1051,11 +1093,17 @@ class Heap final {
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
       GarbageCollectionReason gc_reason);
 
-  V8_EXPORT_PRIVATE void CompleteSweepingFull();
-  void CompleteSweepingYoung();
+  // Synchronously finalizes incremental marking if it is currently running.
+  V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomicallyIfRunning(
+      GarbageCollectionReason gc_reason);
+
+  V8_EXPORT_PRIVATE void CompleteSweepingFull(CompleteSweepingReason reason);
+  void CompleteSweepingYoung(CompleteSweepingReason reason);
 
   // Ensures that sweeping is finished for that object's page.
   void EnsureSweepingCompletedForObject(Tagged<HeapObject> object);
+
+  HeapLimits* limits() const { return limits_.get(); }
 
   IncrementalMarking* incremental_marking() const {
     return incremental_marking_.get();
@@ -1076,7 +1124,7 @@ class Heap final {
   // manually.
   // If the object contains external pointer slots, then these need to be
   // invalidated as well if a GC marker may have observed them previously. To
-  // do this, pass HasExernalPointerSlots::kYes.
+  // do this, pass HasExternalPointerSlots::kYes.
   void NotifyObjectLayoutChange(
       Tagged<HeapObject> object, const DisallowGarbageCollection&,
       InvalidateRecordedSlots invalidate_recorded_slots,
@@ -1098,6 +1146,7 @@ class Heap final {
   // Setters for code offsets of well-known deoptimization targets.
   void SetConstructStubCreateDeoptPCOffset(int pc_offset);
   void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
+  void SetDeoptPCOffsetAfterAdaptShadowStack(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
   void DeoptMarkedAllocationSites();
@@ -1105,9 +1154,6 @@ class Heap final {
   // ===========================================================================
   // Unified heap (C++) support. ===============================================
   // ===========================================================================
-
-  V8_EXPORT_PRIVATE void AttachCppHeap(v8::CppHeap* cpp_heap);
-  V8_EXPORT_PRIVATE void DetachCppHeap();
 
   v8::CppHeap* cpp_heap() const { return cpp_heap_; }
 
@@ -1146,17 +1192,11 @@ class Heap final {
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(Tagged<String> string);
 
-  static Tagged<String> UpdateYoungReferenceInExternalStringTableEntry(
-      Heap* heap, FullObjectSlot pointer);
-
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
   // ===========================================================================
 
   // Returns whether the object resides in new space.
-  static inline bool InYoungGeneration(Tagged<Object> object);
-  static inline bool InYoungGeneration(Tagged<MaybeObject> object);
-  static inline bool InYoungGeneration(Tagged<HeapObject> heap_object);
   static inline bool InFromPage(Tagged<Object> object);
   static inline bool InFromPage(Tagged<MaybeObject> object);
   static inline bool InFromPage(Tagged<HeapObject> heap_object);
@@ -1193,6 +1233,10 @@ class Heap final {
   V8_EXPORT_PRIVATE bool InSpaceSlow(Address addr, AllocationSpace space) const;
 
   static inline Heap* FromWritableHeapObject(Tagged<HeapObject> obj);
+
+  // Returns whether this heap can reference a HeapObject. Mostly useful for
+  // DCHECKs.
+  V8_EXPORT_PRIVATE bool CanReferenceHeapObject(Tagged<HeapObject> obj);
 
   // ===========================================================================
   // Object statistics tracking. ===============================================
@@ -1235,26 +1279,35 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t MaxReserved() const;
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
-  size_t MaxOldGenerationSize() { return max_old_generation_size(); }
+  V8_EXPORT_PRIVATE size_t MaxOldGenerationSize();
 
   // Limit on the max old generation size imposed by the underlying allocator.
-  V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize();
+  V8_EXPORT_PRIVATE static size_t AllocatorLimitOnMaxOldGenerationSize(
+      uint64_t physical_memory);
 
-  V8_EXPORT_PRIVATE static size_t HeapSizeFromPhysicalMemory(
+  V8_EXPORT_PRIVATE static size_t OldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
   V8_EXPORT_PRIVATE static void GenerationSizesFromHeapSize(
-      size_t heap_size, size_t* young_generation_size,
+      uint64_t physical_memory, size_t heap_size, size_t* young_generation_size,
       size_t* old_generation_size);
-  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromOldGenerationSize(
-      size_t old_generation_size);
+  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromPhysicalMemory(
+      uint64_t physical_memory);
+  V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromHeapSize(
+      uint64_t physical_memory, size_t heap_size);
   V8_EXPORT_PRIVATE static size_t YoungGenerationSizeFromSemiSpaceSize(
       size_t semi_space_size);
   V8_EXPORT_PRIVATE static size_t SemiSpaceSizeFromYoungGenerationSize(
       size_t young_generation_size);
   V8_EXPORT_PRIVATE static size_t MinYoungGenerationSize();
   V8_EXPORT_PRIVATE static size_t MinOldGenerationSize();
-  V8_EXPORT_PRIVATE static size_t MaxOldGenerationSize(
+  V8_EXPORT_PRIVATE static size_t MaxOldGenerationSizeFromPhysicalMemory(
       uint64_t physical_memory);
+
+  uint64_t physical_memory() const {
+    // Prevent access before its initialization in ConfigureHeap().
+    DCHECK(configured_);
+    return physical_memory_;
+  }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -1264,9 +1317,6 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t OldGenerationCapacity() const;
 
   base::Mutex* heap_expansion_mutex() { return &heap_expansion_mutex_; }
-
-  // Returns the amount of memory currently held alive by the pool.
-  size_t CommittedMemoryOfPool();
 
   // Returns the amount of memory currently committed for the heap.
   size_t CommittedMemory();
@@ -1340,8 +1390,6 @@ class Heap final {
   void UpdateOldGenerationAllocationCounter() {
     old_generation_allocation_counter_at_last_gc_ =
         OldGenerationAllocationCounter();
-    old_generation_size_at_last_gc_ = 0;
-    old_generation_wasted_at_last_gc_ = 0;
   }
 
   size_t OldGenerationAllocationCounter() {
@@ -1356,7 +1404,7 @@ class Heap final {
     old_generation_allocation_counter_at_last_gc_ = new_value;
   }
 
-  int gc_count() const { return gc_count_; }
+  GCEpoch gc_count() const { return gc_count_; }
 
   bool is_current_gc_forced() const { return is_current_gc_forced_; }
 
@@ -1377,7 +1425,7 @@ class Heap final {
   // Returns the amount of wasted bytes in non-new spaces.
   V8_EXPORT_PRIVATE size_t OldGenerationWastedBytes() const;
 
-  // Returns the amount of bytes in non-new spaces not availalbe for allocation,
+  // Returns the amount of bytes in non-new spaces not available for allocation,
   // including bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t OldGenerationConsumedBytes() const;
 
@@ -1388,7 +1436,7 @@ class Heap final {
   // Returns the amount of wasted bytes in new spaces.
   V8_EXPORT_PRIVATE size_t YoungGenerationWastedBytes() const;
 
-  // Returns the amount of bytes in new space not availalbe for allocation,
+  // Returns the amount of bytes in new space not available for allocation,
   // including bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t YoungGenerationConsumedBytes() const;
 
@@ -1401,21 +1449,24 @@ class Heap final {
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;
 
-  // Returns the global amount of bytes not availalbe for allocation, including
+  // Returns the global amount of bytes not available for allocation, including
   // bytes allocated and wasted.
   V8_EXPORT_PRIVATE size_t GlobalConsumedBytes() const;
 
-  // Returns the size of objects in old generation after the last MarkCompact
-  // GC.
-  V8_EXPORT_PRIVATE size_t OldGenerationConsumedBytesAtLastGC() const;
+  V8_EXPORT_PRIVATE size_t OldGenerationAllocationLimitForTesting() const;
+  V8_EXPORT_PRIVATE size_t GlobalAllocationLimitForTesting() const;
 
-  // Returns the global amount of bytes after the last MarkCompact GC.
-  V8_EXPORT_PRIVATE size_t GlobalConsumedBytesAtLastGC() const;
+  V8_EXPORT_PRIVATE size_t GetExternalStrinBytesForTesting() const;
 
   // We allow incremental marking to overshoot the V8 and global allocation
   // limit for performance reasons. If the overshoot is too large then we are
   // more eager to finalize incremental marking.
   bool AllocationLimitOvershotByLargeMargin() const;
+
+  // While handling input, we allow allocations to overshoot the limits by a
+  // fixed margin, to decrease the chances of running a GC during that window.
+  bool AllocationLimitOvershotByFixedMargin(
+      const uint64_t overshoot_margin) const;
 
   // Return the maximum size objects can be before having to allocate them as
   // large objects. This takes into account allocating in the code space for
@@ -1438,6 +1489,9 @@ class Heap final {
                              GCType gc_type_filter, void* data);
   void RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                 void* data);
+
+  void AddGlobalGCRootsProvider(GCRootsProvider* provider);
+  void RemoveGlobalGCRootsProvider(GCRootsProvider* provider);
 
   void CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
                                GCTracer::Scope::ScopeId scope_id);
@@ -1548,16 +1602,21 @@ class Heap final {
     return sweeper_->major_sweeping_in_progress();
   }
 
-  void FinishSweepingIfOutOfWork();
+  // Used on Minor GCs to finish sweeping for Major GCs if the sweeper tasks
+  // have run out of work. Finishes sweeping using EnsureSweepingCompleted() -
+  // but this should be a no-op as all sweeping is already done.
+  void FinishSweepingIfOutOfWork(CompleteSweepingReason reason);
 
   enum class SweepingForcedFinalizationMode { kUnifiedHeap, kV8Only };
 
-  // Ensures that sweeping is finished.
+  // Ensures that sweeping is finished. This generally entails sweeping heap
+  // pages not yet swept.
   //
   // Note: Can only be called safely from main thread.
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
-      SweepingForcedFinalizationMode mode);
+      SweepingForcedFinalizationMode mode, CompleteSweepingReason reason);
   void EnsureYoungSweepingCompleted();
+  void EnsureQuarantinedPagesSweepingCompleted();
 
   // =============================================================================
 
@@ -1594,12 +1653,9 @@ class Heap final {
     return result;
   }
 
-  // Calculates the nof entries for the full sized number to string cache.
-  inline int MaxNumberToStringCacheSize() const;
-
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.
-  V8_EXPORT_PRIVATE void MakeHeapIterable();
+  V8_EXPORT_PRIVATE void MakeHeapIterable(CompleteSweepingReason reason);
 
   V8_EXPORT_PRIVATE void Unmark();
   V8_EXPORT_PRIVATE void DeactivateMajorGCInProgressFlag();
@@ -1623,6 +1679,8 @@ class Heap final {
     return current_gc_flags_ & GCFlag::kReduceMemoryFootprint;
   }
 
+  bool IsLastResortGC() { return current_gc_flags_ & GCFlag::kLastResort; }
+
   MarkingState* marking_state() { return &marking_state_; }
 
   NonAtomicMarkingState* non_atomic_marking_state() {
@@ -1636,11 +1694,18 @@ class Heap final {
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
 
+  size_t YoungExternalMemoryBytes() const;
+
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       TaskPriority priority = TaskPriority::kUserBlocking) const;
 
   bool ShouldUseBackgroundThreads() const;
   bool ShouldUseIncrementalMarking() const;
+
+  void AddTotalAllocatedBytes(size_t size) {
+    total_allocated_bytes_.fetch_add(size, std::memory_order_relaxed);
+  }
+  uint64_t GetTotalAllocatedBytes();
 
   HeapAllocator* allocator() { return heap_allocator_; }
   const HeapAllocator* allocator() const { return heap_allocator_; }
@@ -1650,8 +1715,12 @@ class Heap final {
     return new_space() || v8_flags.sticky_mark_bits;
   }
 
+  bool IsNewSpaceAllowedToGrowAboveTargetCapacity() const;
+
  private:
   class AllocationTrackerForDebugging;
+
+  void AttachCppHeap(v8::CppHeap* cpp_heap);
 
   using ExternalStringTableUpdaterCallback =
       Tagged<String> (*)(Heap* heap, FullObjectSlot pointer);
@@ -1669,41 +1738,33 @@ class Heap final {
     inline void AddString(Tagged<String> string);
     bool Contains(Tagged<String> string);
 
-    void IterateAll(RootVisitor* v);
-    void IterateYoung(RootVisitor* v);
-    void PromoteYoung();
+    void Iterate(RootVisitor* visitor);
+    void Update(base::FunctionRef<void(Tagged<HeapObject>)> callback);
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
-    void CleanUpAll();
-    void CleanUpYoung();
+    void CleanUp();
 
     // Finalize all registered external strings and clear tables.
     void TearDown();
 
-    void UpdateYoungReferences(
-        Heap::ExternalStringTableUpdaterCallback updater_func);
     void UpdateReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
-    bool HasYoung() const { return !young_strings_.empty(); }
+    size_t GetBytes() const { return bytes_; }
 
    private:
     void Verify();
-    void VerifyYoung();
 
     Heap* const heap_;
 
-    // To speed up scavenge collections young string are kept separate from old
-    // strings.
-    std::vector<TaggedBase> young_strings_;
+    size_t bytes_{0};
     std::vector<TaggedBase> old_strings_;
     // Used to protect access with --shared-string-table.
     base::Mutex mutex_;
   };
 
   static const int kInitialEvalCacheSize = 64;
-  static const int kInitialNumberStringCacheSize = 256;
 
   static const int kRememberedUnmappedPages = 128;
 
@@ -1736,12 +1797,19 @@ class Heap final {
                                           GarbageCollectionReason gc_reason,
                                           const char** reason) const;
 
+  void CheckHeapLimitReached();
+  bool ReachedHeapLimit();
+  bool HasConsecutiveIneffectiveMarkCompact() const;
+
   // Make all LABs of all threads iterable.
   void MakeLinearAllocationAreasIterable();
 
-  // Enables/Disables black allocation in shared LABs.
+  // Enables/Disables black allocation in shared LABs when not using black
+  // allocated pages.
   void MarkSharedLinearAllocationAreasBlack();
-  void UnmarkSharedLinearAllocationAreas();
+
+  // Free shared LABs and reset freelists.
+  void FreeSharedLinearAllocationAreasAndResetFreeLists();
 
   // Performs garbage collection in a safepoint.
   void PerformGarbageCollection(GarbageCollector collector,
@@ -1786,21 +1854,23 @@ class Heap final {
   // Record statistics after garbage collection.
   void ReportStatisticsAfterGC();
 
-  // Flush the number to string cache.
-  void FlushNumberStringCache();
-
   void ActivateMemoryReducerIfNeededOnMainThread();
 
-  void ShrinkOldGenerationAllocationLimitIfNotConfigured();
+  // Extends the allocation limits (only if necessary) such that they are at
+  // least at or above the current consumed bytes.
+  void EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining);
 
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
-                                   double gc_speed);
+                                   std::optional<double> gc_speed);
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
   bool HasLowEmbedderAllocationRate();
 
   enum class ResizeNewSpaceMode { kShrink, kGrow, kNone };
   ResizeNewSpaceMode ShouldResizeNewSpace();
+
+  void StartResizeNewSpace();
+  void ResizeNewSpace();
   void ExpandNewSpaceSize();
   void ReduceNewSpaceSize();
 
@@ -1818,7 +1888,8 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void EagerlyFreeExternalMemoryAndWasmCode();
+  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
+  void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();
 
@@ -1841,7 +1912,7 @@ class Heap final {
   // some reporting/verification activities when compiled with DEBUG set.
   void GarbageCollectionPrologue(GarbageCollectionReason gc_reason,
                                  const v8::GCCallbackFlags gc_callback_flags);
-  void GarbageCollectionPrologueInSafepoint();
+  void GarbageCollectionPrologueInSafepoint(GarbageCollector collector);
   void GarbageCollectionEpilogue(GarbageCollector collector);
   void GarbageCollectionEpilogueInSafepoint(GarbageCollector collector);
 
@@ -1857,12 +1928,6 @@ class Heap final {
   // Performs a minor collection in new generation.
   void Scavenge();
 
-  void UpdateYoungReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
-  void UpdateReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
   void ProcessAllWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
@@ -1873,7 +1938,7 @@ class Heap final {
   // GC statistics. ============================================================
   // ===========================================================================
 
-  inline size_t OldGenerationSpaceAvailable() {
+  inline uint64_t OldGenerationAllocationLimitConsumedBytes() const {
     uint64_t bytes = OldGenerationConsumedBytes();
     if (!v8_flags.external_memory_accounted_in_global_limit) {
       // TODO(chromium:42203776): When not accounting external memory properly
@@ -1881,24 +1946,19 @@ class Heap final {
       // regular old gen bytes. This is historic behavior.
       bytes += AllocatedExternalMemorySinceMarkCompact();
     }
-
-    if (old_generation_allocation_limit() <= bytes) return 0;
-    return old_generation_allocation_limit() - static_cast<size_t>(bytes);
+    return bytes;
   }
+
+  V8_EXPORT_PRIVATE size_t OldGenerationSpaceAvailable();
+  V8_EXPORT_PRIVATE size_t GlobalSpaceAvailable();
 
   void UpdateTotalGCTime(base::TimeDelta duration);
 
-  bool IsIneffectiveMarkCompact(size_t old_generation_size,
+  bool IsIneffectiveMarkCompact(size_t old_generation_size, size_t global_size,
                                 double mutator_utilization);
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
+                                   size_t global_size,
                                    double mutator_utilization);
-  void ReportIneffectiveMarkCompactIfNeeded();
-
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
 
   // ===========================================================================
   // Growing strategy. =========================================================
@@ -1906,53 +1966,35 @@ class Heap final {
 
   MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
-  // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
-  // This constant limits the effect of load RAIL mode on GC.
+  // For some webpages NotifyLoadingEnded() is never called.
+  // This constant limits the effect of load time on GC.
   // The value is arbitrary and chosen as the largest load time observed in
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
+  // We use this timeout in case the embedder doesn't ever reset the input
+  // handling state. Note that input may actually be relatively long in a few
+  // cases, such as scrolling.
+  // The value is arbitrary; it was chosen to match a similar timeout in
+  // Chrome.
+  static const int kMaxInputHandlingTimeMs = 3000;
+
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
+  V8_EXPORT_PRIVATE bool IsLoading() const;
+  bool IsLoadingInitialized() const;
+
+  bool ShouldOptimizeForInputHandlingResponsiveness() const;
+  bool IsInputHandling() const;
+  bool IsInputHandlingInitialized() const;
+
   void NotifyLoadingStarted();
-  void NotifyLoadingEnded();
-  void UpdateLoadStartTime();
+  void NotifyLoadingEnded(LeaveHeapState context = LeaveHeapState::kNotify);
 
-  size_t old_generation_allocation_limit() const {
-    return old_generation_allocation_limit_.load(std::memory_order_relaxed);
-  }
+  void NotifyInputHandlingStarted();
+  void NotifyInputHandlingEnded(
+      LeaveHeapState context = LeaveHeapState::kNotify);
 
-  size_t global_allocation_limit() const {
-    return global_allocation_limit_.load(std::memory_order_relaxed);
-  }
-
-  bool old_generation_allocation_limit_configured() const {
-    return old_generation_allocation_limit_configured_.load(
-        std::memory_order_relaxed);
-  }
-
-  void set_old_generation_allocation_limit_configured(bool value) {
-    old_generation_allocation_limit_configured_.store(
-        value, std::memory_order_relaxed);
-  }
-
-  size_t max_old_generation_size() const {
-    return max_old_generation_size_.load(std::memory_order_relaxed);
-  }
-
-  size_t min_old_generation_size() const { return min_old_generation_size_; }
-
-  // Sets max_old_generation_size_ and computes the new global heap limit from
-  // it.
-  void SetOldGenerationAndGlobalMaximumSize(size_t max_old_generation_size);
-
-  // Sets allocation limits for both old generation and the global heap.
-  void SetOldGenerationAndGlobalAllocationLimit(
-      size_t new_old_generation_allocation_limit,
-      size_t new_global_allocation_limit);
-
-  void ResetOldGenerationAndGlobalAllocationLimit();
-
-  bool always_allocate() { return always_allocate_scope_count_ != 0; }
+  bool always_allocate() const { return always_allocate_scope_count_ != 0; }
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
@@ -1968,26 +2010,24 @@ class Heap final {
     kHardLimit,
     kFallbackForEmbedderLimit
   };
-  IncrementalMarkingLimit IncrementalMarkingLimitReached();
+
+  std::pair<IncrementalMarkingLimit, const char*>
+  IncrementalMarkingLimitReached();
 
   bool ShouldStressCompaction() const;
 
-  size_t GlobalMemoryAvailable();
+  void RecomputeLimits(GarbageCollector collector);
 
-  void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
-  void RecomputeLimitsAfterLoadingIfNeeded();
-  struct LimitsCompuatationResult {
+  struct LimitsComputationResult {
     size_t old_generation_allocation_limit;
     size_t global_allocation_limit;
   };
-  static LimitsCompuatationResult ComputeNewAllocationLimits(Heap* heap);
 
   // ===========================================================================
   // GC Tasks. =================================================================
   // ===========================================================================
 
-  void ScheduleMinorGCTaskIfNeeded();
-  V8_EXPORT_PRIVATE void StartMinorMSIncrementalMarkingIfNeeded();
+  V8_EXPORT_PRIVATE void StartMinorMSConcurrentMarkingIfNeeded();
   bool MinorMSSizeTaskTriggerReached() const;
 
   MinorGCJob* minor_gc_job() { return minor_gc_job_.get(); }
@@ -2060,16 +2100,12 @@ class Heap final {
   bool IsStressingScavenge();
 
   void SetIsMarkingFlag(bool value);
-  void SetIsMinorMarkingFlag(bool value);
+  V8_EXPORT_PRIVATE void SetIsMinorMarkingFlag(bool value);
 
-  size_t PromotedSinceLastGC() {
-    size_t old_generation_size = OldGenerationSizeOfObjects();
-    return old_generation_size > old_generation_size_at_last_gc_
-               ? old_generation_size - old_generation_size_at_last_gc_
-               : 0;
-  }
+  V8_EXPORT_PRIVATE size_t PromotedSinceLastGC();
 
-  ExternalMemoryAccounting external_memory_;
+  // The amount of external memory registered through the API.
+  std::atomic<uint64_t> external_memory_total_{0};
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -2081,39 +2117,21 @@ class Heap final {
   // constraints and flags.
   size_t code_range_size_ = 0;
   size_t max_semi_space_size_ = 0;
+  size_t min_semi_space_size_ = 0;
   size_t initial_semispace_size_ = 0;
-  // Full garbage collections can be skipped if the old generation size
-  // is below this threshold.
-  size_t min_old_generation_size_ = 0;
-  // If the old generation size exceeds this limit, then V8 will
-  // crash with out-of-memory error.
-  std::atomic<size_t> max_old_generation_size_{0};
-  // TODO(mlippautz): Clarify whether this should take some embedder
-  // configurable limit into account.
-  size_t min_global_memory_size_ = 0;
-  size_t max_global_memory_size_ = 0;
 
-  size_t initial_max_old_generation_size_ = 0;
   size_t initial_max_old_generation_size_threshold_ = 0;
-  size_t initial_old_generation_size_ = 0;
 
-  // Before the first full GC the old generation allocation limit is considered
-  // to be *not* configured (unless initial limits were provided by the
-  // embedder). In this mode V8 starts with a very large old generation
-  // allocation limit initially. Minor GCs may then shrink this initial limit
-  // down until the first full GC computes a proper old generation allocation
-  // limit in Heap::RecomputeLimits. The old generation allocation limit is then
-  // considered to be configured for all subsequent GCs. After the first full GC
-  // this field is only ever reset for top context disposals.
-  std::atomic<bool> old_generation_allocation_limit_configured_ = false;
+  // True if initial heap size was provided by the embedder.
+  bool initial_size_overwritten_ = false;
+
+  // True if the old space size was preconfigured. This is different from
+  // initial_size_overwritten_ because it is not also minimum and because of
+  // different behavior in NotifyContextDisposed().
+  bool preconfigured_old_generation_size_ = false;
 
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
-
-  // Backing store bytes (array buffers and external strings).
-  // Use uint64_t counter since the counter could overflow the 32-bit range
-  // temporarily on 32-bit.
-  std::atomic<uint64_t> backing_store_bytes_{0};
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
@@ -2176,10 +2194,12 @@ class Heap final {
 
   // The space in the process-wide code pointer table managed by this heap.
   CodePointerTable::Space code_pointer_space_;
-
-  // The space in the process-wide JSDispatchTable managed by this heap.
-  JSDispatchTable::Space js_dispatch_table_space_;
 #endif  // V8_ENABLE_SANDBOX
+
+  // The spaces in the JSDispatchTable containing entries owned by objects
+  // in this heap
+  JSDispatchTable::Space js_dispatch_table_space_;
+  JSDispatchTable::Space read_only_js_dispatch_table_space_;
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
@@ -2197,14 +2217,14 @@ class Heap final {
   std::atomic<double> max_marking_limit_reached_ = 0.0;
 
   // How many mark-sweep collections happened.
-  unsigned int ms_count_ = 0;
+  uint32_t ms_count_ = 0;
 
   // How many gc happened.
-  unsigned int gc_count_ = 0;
+  GCEpoch gc_count_ = kInitialGCEpoch;
 
   // The number of Mark-Compact garbage collections that are considered as
   // ineffective. See IsIneffectiveMarkCompact() predicate.
-  int consecutive_ineffective_mark_compacts_ = 0;
+  std::atomic<int> consecutive_ineffective_mark_compacts_ = 0;
 
   static const uintptr_t kMmapRegionMask = 0xFFFFFFFFu;
   uintptr_t mmap_region_base_ = 0;
@@ -2213,25 +2233,24 @@ class Heap final {
   int remembered_unmapped_pages_index_ = 0;
   Address remembered_unmapped_pages_[kRememberedUnmappedPages];
 
-  // Limit that triggers a global GC on the next (normally caused) GC.  This
-  // is checked when we have already decided to do a GC to help determine
-  // which collector to invoke, before expanding a paged space in the old
-  // generation and on every allocation in large object space.
-  std::atomic<size_t> old_generation_allocation_limit_{0};
-  std::atomic<size_t> global_allocation_limit_{0};
-
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.
   // {native_contexts_list_} is an Address instead of an Object to allow the use
   // of atomic accessors.
   std::atomic<Address> native_contexts_list_;
-  Tagged<Object> allocation_sites_list_ = Smi::zero();
+  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
+      allocation_sites_list_ = Smi::zero();
   Tagged<Object> dirty_js_finalization_registries_list_ = Smi::zero();
   // Weak list tails.
   Tagged<Object> dirty_js_finalization_registries_list_tail_ = Smi::zero();
 
   GCCallbacks gc_prologue_callbacks_;
   GCCallbacks gc_epilogue_callbacks_;
+
+  // Global list of GCRootsProvider objects. This should only be used for
+  // objects, which aren't strictly tied to a single thread/LocalHeap.
+  base::Mutex global_gc_roots_providers_mutex_;
+  base::SmallVector<GCRootsProvider*, 4> global_gc_roots_providers_;
 
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
@@ -2261,6 +2280,7 @@ class Heap final {
   std::unique_ptr<ArrayBufferSweeper> array_buffer_sweeper_;
 
   std::unique_ptr<MemoryAllocator> memory_allocator_;
+  std::unique_ptr<HeapLimits> limits_;
   std::unique_ptr<IncrementalMarking> incremental_marking_;
   std::unique_ptr<ConcurrentMarking> concurrent_marking_;
   std::unique_ptr<MemoryMeasurement> memory_measurement_;
@@ -2268,11 +2288,11 @@ class Heap final {
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<MinorGCJob> minor_gc_job_;
-  std::unique_ptr<AllocationObserver> minor_gc_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
   std::unique_ptr<EphemeronRememberedSet> ephemeron_remembered_set_;
+  std::unique_ptr<HeapProfiler> heap_profiler_;
 
   std::shared_ptr<v8::TaskRunner> task_runner_;
 
@@ -2285,12 +2305,6 @@ class Heap final {
   CodeRange* code_range_ = nullptr;
 #else
   std::unique_ptr<CodeRange> code_range_;
-#endif
-
-  // The process-wide virtual space reserved for trusted objects in the V8 heap.
-  // Only used when the sandbox is enabled.
-#if V8_ENABLE_SANDBOX
-  TrustedRange* trusted_range_ = nullptr;
 #endif
 
   // V8 configuration where V8 owns the heap which is either created or passed
@@ -2324,15 +2338,6 @@ class Heap final {
   // OldGenerationAllocationCounter() function.
   size_t old_generation_allocation_counter_at_last_gc_ = 0;
 
-  // The size of objects in old generation after the last MarkCompact GC.
-  size_t old_generation_size_at_last_gc_{0};
-
-  // The wasted bytes in old generation after the last MarkCompact GC.
-  size_t old_generation_wasted_at_last_gc_{0};
-
-  // The size of embedder memory after the last MarkCompact GC.
-  size_t embedder_size_at_last_gc_ = 0;
-
   char trace_ring_buffer_[kTraceRingBufferSize];
 
   // If it's not full then the data is from 0 to ring_buffer_end_.  If it's
@@ -2362,8 +2367,6 @@ class Heap final {
   ExternalStringTable external_string_table_;
 
   const AllocationType allocation_type_for_in_place_internalizable_strings_;
-
-  base::Mutex relocation_mutex_;
 
   std::unique_ptr<CollectionBarrier> collection_barrier_;
 
@@ -2398,18 +2401,61 @@ class Heap final {
 
   std::unique_ptr<MemoryBalancer> mb_;
 
-  std::atomic<double> load_start_time_ms_{0};
-  bool update_allocation_limits_after_loading_ = false;
-  // Full GC may trigger during loading due to overshooting allocation limits.
-  // In such cases we may want to update the limits again once loading is
-  // actually finished.
-  bool is_full_gc_during_loading_ = false;
+  class GCHintState {
+   public:
+    explicit GCHintState(const double max_time_ms, perfetto::NamedTrack track,
+                         perfetto::StaticString track_tag)
+        : max_time_ms_(max_time_ms), track_(track), tag_(track_tag) {}
+    bool IsActive(const Heap* heap) const;
+    bool IsInitialized() const;
+    void NotifyStarted(Heap* heap);
+    void NotifyEnded(Heap* heap);
+
+   protected:
+    // Maximum time spent in high responsiveness mode, in ms.
+    double max_time() const { return max_time_ms_; }
+    // Sentinel value meaning that we are not currently in high responsiveness
+    // mode.
+    static constexpr double kInactive = -1.0;
+    // The time that we entered high responsiveness mode, or |kInactive|.
+    std::atomic<double> start_time_ms_{kInactive};
+    // Maximum time spent in high responsiveness mode.
+    const double max_time_ms_;
+    // Track used to record whether or not high responsiveness mode is active.
+    perfetto::NamedTrack track_;
+    // What to tag |track_| with when high responsiveness mode is active.
+    perfetto::StaticString tag_;
+  };
+
+  perfetto::NamedTrack tracing_track_;
+
+  GCHintState loading_state_{kMaxLoadTimeMs,
+                             perfetto::NamedTrack{"Loading", 0, tracing_track_},
+                             "IsLoading"};
+  GCHintState input_handling_state_{
+      kMaxInputHandlingTimeMs,
+      perfetto::NamedTrack{"InputHandling", 0, tracing_track_},
+      "IsInputHandling"};
+
+  // On-stack address used for selective consevative stack scanning. No value
+  // means that selective conservative stack scanning is not enabled.
+  std::optional<const void*> selective_stack_scan_start_address_;
+
+  // The amount of physical memory on the device passed in by the embedder. If
+  // no value was provided this will be 0.
+  uint64_t physical_memory_;
+
+  std::atomic<uint64_t> total_allocated_bytes_ = 0;
+
+  const uint8_t* gc_tracing_category_enabled_ = nullptr;
+  size_t notify_context_disposed_counter_ = 1;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
+  friend class ConservativePinningScope;
   friend class ConcurrentMarking;
   friend class ConservativeTracedHandlesMarkingVisitor;
   friend class CppHeap;
@@ -2418,6 +2464,8 @@ class Heap final {
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapAllocator;
+  friend class HeapLimits;
+  friend struct HeapLimitBounds;
   friend class HeapObjectIterator;
   friend class HeapVerifier;
   friend class IgnoreLocalGCRequests;
@@ -2437,8 +2485,8 @@ class Heap final {
   friend class MinorMSIncrementalMarkingTaskObserver;
   friend class NewLargeObjectSpace;
   friend class NewSpace;
+  friend class NormalPage;
   friend class ObjectStatsCollector;
-  friend class PageMetadata;
   friend class PagedNewSpaceAllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
@@ -2449,6 +2497,7 @@ class Heap final {
   friend class DisableConservativeStackScanningScopeForTesting;
   friend class Scavenger;
   friend class ScavengerCollector;
+  friend class ScavengerWeakObjectsProcessor;
   friend class ScheduleMinorGCTaskObserver;
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceNewSpaceAllocatorPolicy;
@@ -2475,46 +2524,98 @@ class Heap final {
   friend class HeapInternalsBase;
 };
 
-#define DECL_RIGHT_TRIM(T)                                        \
-  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void \
-  Heap::RightTrimArray<T>(Tagged<T> object, int new_capacity,     \
-                          int old_capacity);
+constexpr const char* ToString(Heap::SweepingForcedFinalizationMode mode) {
+  switch (mode) {
+    case Heap::SweepingForcedFinalizationMode::kV8Only:
+      return "v8 only";
+    case Heap::SweepingForcedFinalizationMode::kUnifiedHeap:
+      return "unified heap";
+  }
+}
+
+constexpr const char* ToString(Heap::HeapGrowingMode mode) {
+  switch (mode) {
+    case Heap::HeapGrowingMode::kSlow:
+      return "slow";
+    case Heap::HeapGrowingMode::kConservative:
+      return "conservative";
+    case Heap::HeapGrowingMode::kMinimal:
+      return "minimal";
+    case Heap::HeapGrowingMode::kDefault:
+      return "default";
+  }
+}
+
+#define DECL_RIGHT_TRIM(T)                                         \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void  \
+  Heap::RightTrimArray<T>(Tagged<T> object, uint32_t new_capacity, \
+                          uint32_t old_capacity);
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 
+struct HexAddressTag;
+using HexAddress = base::StrongAlias<HexAddressTag, Address>;
+
+using ByteSize = ::heap::base::ByteSize;
+
+#define CAGE_STATS_FIELDS(V)       \
+  V(HexAddress, start)             \
+  V(ByteSize, size)                \
+  V(ByteSize, free_size)           \
+  V(ByteSize, largest_free_region) \
+  V(base::BoundedPageAllocator::AllocationStatus, last_allocation_status)
+
+// When changing any of these fields please also update cs/crash::ReadHeapStats.
+class CageStats {
+ public:
+#define DECL_FIELD(type, name) type name = {};
+  CAGE_STATS_FIELDS(DECL_FIELD)
+#undef DECL_FIELD
+};
+
+using TraceRingBuffer = char[Heap::kTraceRingBufferSize + 1];
+
+#define HEAP_STATS_FIELDS(V)                \
+  V(ByteSize, ro_space_size)                \
+  V(ByteSize, ro_space_capacity)            \
+  V(ByteSize, new_space_size)               \
+  V(ByteSize, new_space_capacity)           \
+  V(ByteSize, old_space_size)               \
+  V(ByteSize, old_space_capacity)           \
+  V(ByteSize, code_space_size)              \
+  V(ByteSize, code_space_capacity)          \
+  V(ByteSize, map_space_size)               \
+  V(ByteSize, map_space_capacity)           \
+  V(ByteSize, lo_space_size)                \
+  V(ByteSize, code_lo_space_size)           \
+  V(size_t, global_handle_count)            \
+  V(size_t, weak_global_handle_count)       \
+  V(size_t, pending_global_handle_count)    \
+  V(size_t, near_death_global_handle_count) \
+  V(size_t, free_global_handle_count)       \
+  V(ByteSize, memory_allocator_size)        \
+  V(ByteSize, memory_allocator_capacity)    \
+  V(ByteSize, malloced_memory)              \
+  V(ByteSize, malloced_peak_memory)         \
+  V(size_t, isolate_count)                  \
+  V(size_t, last_os_error)                  \
+  V(bool, is_main_isolate)                  \
+  V(CageStats, main_cage)                   \
+  V(CageStats, trusted_cage)                \
+  V(CageStats, code_cage)                   \
+  V(TraceRingBuffer, last_few_messages)
+
+// When changing any of these fields please also update cs/crash::ReadHeapStats.
 class HeapStats {
  public:
   static const int kStartMarker = 0xDECADE00;
   static const int kEndMarker = 0xDECADE01;
 
-  intptr_t* start_marker;                  //  0
-  size_t* ro_space_size;                   //  1
-  size_t* ro_space_capacity;               //  2
-  size_t* new_space_size;                  //  3
-  size_t* new_space_capacity;              //  4
-  size_t* old_space_size;                  //  5
-  size_t* old_space_capacity;              //  6
-  size_t* code_space_size;                 //  7
-  size_t* code_space_capacity;             //  8
-  size_t* map_space_size;                  //  9
-  size_t* map_space_capacity;              // 10
-  size_t* lo_space_size;                   // 11
-  size_t* code_lo_space_size;              // 12
-  size_t* global_handle_count;             // 13
-  size_t* weak_global_handle_count;        // 14
-  size_t* pending_global_handle_count;     // 15
-  size_t* near_death_global_handle_count;  // 16
-  size_t* free_global_handle_count;        // 17
-  size_t* memory_allocator_size;           // 18
-  size_t* memory_allocator_capacity;       // 19
-  size_t* malloced_memory;                 // 20
-  size_t* malloced_peak_memory;            // 21
-  size_t* objects_per_type;                // 22
-  size_t* size_per_type;                   // 23
-  int* os_error;                           // 24
-  char* last_few_messages;                 // 25
-  char* js_stacktrace;                     // 26
-  intptr_t* end_marker;                    // 27
+  intptr_t start_marker = 0;
+#define DECL_FIELD(type, name) type name = {};
+  HEAP_STATS_FIELDS(DECL_FIELD)
+#undef DECL_FIELD
+  intptr_t end_marker = 0;
 };
 
 // Disables GC for all allocations. It should not be used
@@ -2563,8 +2664,7 @@ class CodePageMemoryModificationScopeForDebugging {
   // access the page header. Hence, use the VirtualMemory for tracking instead.
   explicit CodePageMemoryModificationScopeForDebugging(
       Heap* heap, VirtualMemory* reservation, base::AddressRegion region);
-  explicit CodePageMemoryModificationScopeForDebugging(
-      MemoryChunkMetadata* chunk);
+  explicit CodePageMemoryModificationScopeForDebugging(BasePage* chunk);
   ~CodePageMemoryModificationScopeForDebugging();
 
  private:
@@ -2652,6 +2752,12 @@ class WeakObjectRetainer {
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
   virtual Tagged<Object> RetainAs(Tagged<Object> object) = 0;
+
+  // Return whether updated slots should be recorded.
+  virtual bool ShouldRecordSlots() const = 0;
+
+  virtual void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                          Tagged<HeapObject> object) = 0;
 };
 
 // -----------------------------------------------------------------------------
@@ -2665,7 +2771,7 @@ class HeapObjectAllocationTracker {
 };
 
 template <typename T>
-inline T ForwardingAddress(T heap_obj);
+inline Tagged<T> ForwardingAddress(Tagged<T> heap_obj);
 
 // Specialized strong root allocator for blocks of Addresses, retained
 // as strong references.
@@ -2674,11 +2780,9 @@ class StrongRootAllocator<Address> : public StrongRootAllocatorBase {
  public:
   using value_type = Address;
 
-  explicit StrongRootAllocator(Heap* heap) : StrongRootAllocatorBase(heap) {}
-  explicit StrongRootAllocator(Isolate* isolate)
-      : StrongRootAllocatorBase(isolate) {}
-  explicit StrongRootAllocator(v8::Isolate* isolate)
-      : StrongRootAllocatorBase(reinterpret_cast<Isolate*>(isolate)) {}
+  template <typename HeapOrIsolateT>
+  explicit StrongRootAllocator(HeapOrIsolateT* heap_or_isolate)
+      : StrongRootAllocatorBase(heap_or_isolate) {}
   template <typename U>
   StrongRootAllocator(const StrongRootAllocator<U>& other) V8_NOEXCEPT
       : StrongRootAllocatorBase(other) {}
@@ -2718,6 +2822,50 @@ class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
 
  private:
   std::unique_ptr<cppgc::internal::ClassNameAsHeapObjectNameScope> scope_;
+};
+
+// We cannot avoid stale handles to left-trimmed objects, but can only make
+// sure all handles still needed are updated. Filter out a stale pointer
+// and clear the slot to allow post processing of handles (needed because
+// the sweeper might actually free the underlying page).
+class ClearStaleLeftTrimmedPointerVisitor : public RootVisitor {
+ public:
+  ClearStaleLeftTrimmedPointerVisitor(Heap* heap, RootVisitor* visitor);
+
+  void VisitRootPointer(Root root, const char* description,
+                        FullObjectSlot p) override;
+
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override;
+
+  void VisitRunningCode(FullObjectSlot code_slot,
+                        FullObjectSlot istream_or_smi_zero_slot) override;
+
+  void Synchronize(VisitorSynchronization::SyncTag tag) override {
+    visitor_->Synchronize(tag);
+  }
+
+  // The pointer compression cage base value used for decompression of all
+  // tagged values except references to InstructionStream objects.
+  PtrComprCageBase cage_base() const {
+#if V8_COMPRESS_POINTERS
+    return cage_base_;
+#else
+    return PtrComprCageBase{};
+#endif  // V8_COMPRESS_POINTERS
+  }
+
+ private:
+  inline void ClearLeftTrimmedOrForward(Root root, const char* description,
+                                        FullObjectSlot p);
+  inline bool IsLeftTrimmed(FullObjectSlot p);
+
+  Heap* heap_;
+  RootVisitor* visitor_;
+
+#if V8_COMPRESS_POINTERS
+  const PtrComprCageBase cage_base_;
+#endif  // V8_COMPRESS_POINTERS
 };
 
 }  // namespace internal

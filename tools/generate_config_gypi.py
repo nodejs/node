@@ -58,7 +58,7 @@ def translate_config(out_dir, config, v8_config):
       'llvm_version': 13,
       'napi_build_version': config['napi_build_version'],
       'node_builtin_shareable_builtins':
-          eval(config['node_builtin_shareable_builtins']),
+          json.loads(config['node_builtin_shareable_builtins']),
       'node_module_version': int(config['node_module_version']),
       'node_use_openssl': config['node_use_openssl'],
       'node_use_amaro': config['node_use_amaro'],
@@ -95,14 +95,15 @@ def main():
                       default='//node')
   parser.add_argument('--dep-file', help='path to an optional dep file',
                       default=None)
-  args, unknown_args = parser.parse_known_args()
+  args, _unknown_args = parser.parse_known_args()
 
   config = get_gn_config(args.out_dir)
   v8_config = get_v8_config(args.out_dir, args.node_gn_path)
 
   # Write output.
   with open(args.target, 'w') as f:
-    f.write(repr(translate_config(args.out_dir, config, v8_config)))
+    f.write(json.dumps(translate_config(args.out_dir, config, v8_config),
+                       sort_keys=True))
 
   # Write depfile. Force regenerating config.gypi when GN configs change.
   if args.dep_file:

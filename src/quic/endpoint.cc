@@ -1,6 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
-#include "endpoint.h"
+#if HAVE_OPENSSL && HAVE_QUIC
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
@@ -11,7 +11,6 @@
 #include <node_external_reference.h>
 #include <node_process-inl.h>
 #include <node_sockaddr-inl.h>
-#include <req_wrap-inl.h>
 #include <util-inl.h>
 #include <uv.h>
 #include <v8.h>
@@ -19,15 +18,15 @@
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
+#include "endpoint.h"
 #include "http3.h"
 #include "ncrypto.h"
 
 namespace node {
 
+using v8::Array;
 using v8::ArrayBufferView;
 using v8::BackingStore;
-using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
@@ -37,7 +36,6 @@ using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -106,7 +104,7 @@ bool SetOption(Environment* env,
     if (!value->ToNumber(env->context()).ToLocal(&num)) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be a number", *nameStr);
+          env, "The %s option must be a number", nameStr);
       return false;
     }
     options->*member = num->Value();
@@ -126,7 +124,7 @@ bool SetOption(Environment* env,
     if (!value->IsUint32()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an uint8", *nameStr);
+          env, "The %s option must be an uint8", nameStr);
       return false;
     }
     Local<Uint32> num;
@@ -134,7 +132,7 @@ bool SetOption(Environment* env,
         num->Value() > std::numeric_limits<uint8_t>::max()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an uint8", *nameStr);
+          env, "The %s option must be an uint8", nameStr);
       return false;
     }
     options->*member = num->Value();
@@ -153,16 +151,16 @@ bool SetOption(Environment* env,
     if (!value->IsArrayBufferView()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an ArrayBufferView", *nameStr);
+          env, "The %s option must be an ArrayBufferView", nameStr);
       return false;
     }
-    Store store(value.As<ArrayBufferView>());
+    Store store = Store::CopyFrom(value.As<ArrayBufferView>());
     if (store.length() != TokenSecret::QUIC_TOKENSECRET_LEN) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
           env,
           "The %s option must be an ArrayBufferView of length %d",
-          *nameStr,
+          nameStr,
           TokenSecret::QUIC_TOKENSECRET_LEN);
       return false;
     }
@@ -280,27 +278,10 @@ std::string Endpoint::Options::ToString() const {
 
 class Endpoint::UDP::Impl final : public HandleWrap {
  public:
-  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
-    auto& state = BindingData::Get(env);
-    auto tmpl = state.udp_constructor_template();
-    if (tmpl.IsEmpty()) {
-      tmpl = NewFunctionTemplate(env->isolate(), IllegalConstructor);
-      tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
-      tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
-      tmpl->SetClassName(state.endpoint_udp_string());
-      state.set_udp_constructor_template(tmpl);
-    }
-    return tmpl;
-  }
+  JS_CONSTRUCTOR(Impl);
 
   static Impl* Create(Endpoint* endpoint) {
-    Local<Object> obj;
-    if (!GetConstructorTemplate(endpoint->env())
-             ->InstanceTemplate()
-             ->NewInstance(endpoint->env()->context())
-             .ToLocal(&obj)) {
-      return nullptr;
-    }
+    JS_NEW_INSTANCE_OR_RETURN(endpoint->env(), obj, nullptr);
     return new Impl(endpoint, obj);
   }
 
@@ -338,16 +319,24 @@ class Endpoint::UDP::Impl final : public HandleWrap {
                         const uv_buf_t* buf,
                         const sockaddr* addr,
                         unsigned int flags) {
-    // Nothing to do in these cases. Specifically, if the nread
-    // is zero or we've received a partial packet, we're just
-    // going to ignore it.
-    if (nread == 0 || flags & UV_UDP_PARTIAL) return;
-
     auto impl = From(handle);
     DCHECK_NOT_NULL(impl);
     DCHECK_NOT_NULL(impl->endpoint_);
 
+    auto release_buf = [&]() {
+      if (buf->base != nullptr) impl->env()->release_managed_buffer(*buf);
+    };
+
+    // Nothing to do in these cases. Specifically, if the nread
+    // is zero or we have received a partial packet, we are just
+    // going to ignore it.
+    if (nread == 0 || flags & UV_UDP_PARTIAL) {
+      release_buf();
+      return;
+    }
+
     if (nread < 0) {
+      release_buf();
       impl->endpoint_->Destroy(CloseContext::RECEIVE_FAILURE,
                                static_cast<int>(nread));
       return;
@@ -362,6 +351,12 @@ class Endpoint::UDP::Impl final : public HandleWrap {
 
   friend class UDP;
 };
+
+JS_CONSTRUCTOR_IMPL(Endpoint::UDP::Impl, udp_constructor_template, {
+  JS_ILLEGAL_CONSTRUCTOR();
+  JS_INHERIT(HandleWrap);
+  JS_CLASS(endpoint_udp);
+})
 
 Endpoint::UDP::UDP(Endpoint* endpoint) : impl_(Impl::Create(endpoint)) {
   DCHECK(impl_);
@@ -469,35 +464,27 @@ SocketAddress Endpoint::UDP::local_address() const {
   return SocketAddress::FromSockName(impl_->handle_);
 }
 
-int Endpoint::UDP::Send(const BaseObjectPtr<Packet>& packet) {
+int Endpoint::UDP::Send(Packet::Ptr packet) {
   DCHECK(packet);
-  DCHECK(!packet->IsDispatched());
   if (is_closed_or_closing()) return UV_EBADF;
-  uv_buf_t buf = *packet;
 
-  // We don't use the default implementation of Dispatch because the packet
-  // itself is going to be reset and added to a freelist to be reused. The
-  // default implementation of Dispatch will cause the packet to be deleted,
-  // which we don't want.
-  packet->ClearWeak();
-  packet->Dispatched();
-  int err = uv_udp_send(packet->req(),
+  // Detach from the Ptr — libuv takes ownership until the callback fires.
+  Packet* raw = packet.release();
+  uv_buf_t buf = *raw;
+
+  int err = uv_udp_send(raw->req(),
                         &impl_->handle_,
                         &buf,
                         1,
-                        packet->destination().data(),
-                        uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
-                          auto ptr = BaseObjectPtr<Packet>(static_cast<Packet*>(
-                              ReqWrap<uv_udp_send_t>::from_req(req)));
-                          ptr->env()->DecreaseWaitingRequestCounter();
-                          ptr->Done(status);
-                        }});
+                        raw->destination().data(),
+                        [](uv_udp_send_t* req, int status) {
+                          Packet* p = Packet::FromReq(req);
+                          p->listener()->PacketDone(status);
+                          ArenaPool<Packet>::Release(p);
+                        });
   if (err < 0) {
-    // The packet failed.
-    packet->Done(err);
-    packet->MakeWeak();
-  } else {
-    packet->env()->IncreaseWaitingRequestCounter();
+    // Send failed — release the packet back to the pool immediately.
+    ArenaPool<Packet>::Release(raw);
   }
   return err;
 }
@@ -508,33 +495,22 @@ void Endpoint::UDP::MemoryInfo(MemoryTracker* tracker) const {
 
 // ============================================================================
 
-bool Endpoint::HasInstance(Environment* env, Local<Value> value) {
-  return GetConstructorTemplate(env)->HasInstance(value);
-}
-
-Local<FunctionTemplate> Endpoint::GetConstructorTemplate(Environment* env) {
-  auto& state = BindingData::Get(env);
-  auto tmpl = state.endpoint_constructor_template();
-  if (tmpl.IsEmpty()) {
-    auto isolate = env->isolate();
-    tmpl = NewFunctionTemplate(isolate, New);
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->SetClassName(state.endpoint_string());
-    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "listen", DoListen);
-    SetProtoMethod(isolate, tmpl, "closeGracefully", DoCloseGracefully);
-    SetProtoMethod(isolate, tmpl, "connect", DoConnect);
-    SetProtoMethod(isolate, tmpl, "markBusy", MarkBusy);
-    SetProtoMethod(isolate, tmpl, "ref", Ref);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "address", LocalAddress);
-    state.set_endpoint_constructor_template(tmpl);
-  }
-  return tmpl;
-}
+JS_CONSTRUCTOR_IMPL(Endpoint, endpoint_constructor_template, {
+  auto isolate = env->isolate();
+  JS_NEW_CONSTRUCTOR();
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS(endpoint);
+  SetProtoMethod(isolate, tmpl, "listen", DoListen);
+  SetProtoMethod(isolate, tmpl, "closeGracefully", DoCloseGracefully);
+  SetProtoMethod(isolate, tmpl, "connect", DoConnect);
+  SetProtoMethod(isolate, tmpl, "markBusy", MarkBusy);
+  SetProtoMethod(isolate, tmpl, "ref", Ref);
+  SetProtoMethod(isolate, tmpl, "setSNIContexts", DoSetSNIContexts);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "address", LocalAddress);
+})
 
 void Endpoint::InitPerIsolate(IsolateData* data, Local<ObjectTemplate> target) {
   // TODO(@jasnell): Implement the per-isolate state
-  Http3Application::InitPerIsolate(data, target);
 }
 
 void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
@@ -572,25 +548,23 @@ void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_PACKET_LENGTH);
 
   static constexpr auto CLOSECONTEXT_CLOSE =
-      static_cast<int>(CloseContext::CLOSE);
+      static_cast<uint8_t>(CloseContext::CLOSE);
   static constexpr auto CLOSECONTEXT_BIND_FAILURE =
-      static_cast<int>(CloseContext::BIND_FAILURE);
+      static_cast<uint8_t>(CloseContext::BIND_FAILURE);
   static constexpr auto CLOSECONTEXT_LISTEN_FAILURE =
-      static_cast<int>(CloseContext::LISTEN_FAILURE);
+      static_cast<uint8_t>(CloseContext::LISTEN_FAILURE);
   static constexpr auto CLOSECONTEXT_RECEIVE_FAILURE =
-      static_cast<int>(CloseContext::RECEIVE_FAILURE);
+      static_cast<uint8_t>(CloseContext::RECEIVE_FAILURE);
   static constexpr auto CLOSECONTEXT_SEND_FAILURE =
-      static_cast<int>(CloseContext::SEND_FAILURE);
+      static_cast<uint8_t>(CloseContext::SEND_FAILURE);
   static constexpr auto CLOSECONTEXT_START_FAILURE =
-      static_cast<int>(CloseContext::START_FAILURE);
+      static_cast<uint8_t>(CloseContext::START_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_CLOSE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_BIND_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_LISTEN_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_RECEIVE_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_SEND_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_START_FAILURE);
-
-  Http3Application::InitPerContext(realm, target);
 
   SetConstructorFunction(realm->context(),
                          target,
@@ -603,6 +577,7 @@ void Endpoint::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(DoConnect);
   registry->Register(DoListen);
   registry->Register(DoCloseGracefully);
+  registry->Register(DoSetSNIContexts);
   registry->Register(LocalAddress);
   registry->Register(Ref);
   registry->Register(MarkBusy);
@@ -615,6 +590,8 @@ Endpoint::Endpoint(Environment* env,
       stats_(env->isolate()),
       state_(env->isolate()),
       options_(options),
+      packet_pool_(kDefaultMaxPacketLength,
+                   ArenaPool<Packet>::kDefaultSlotsPerBlock),
       udp_(this),
       addrLRU_(options_.address_lru_size) {
   MakeWeak();
@@ -624,15 +601,22 @@ Endpoint::Endpoint(Environment* env,
     Debug(this, "Endpoint created. Options %s", options.ToString());
   }
 
-  const auto defineProperty = [&](auto name, auto value) {
-    object
-        ->DefineOwnProperty(
-            env->context(), name, value, PropertyAttribute::ReadOnly)
-        .Check();
-  };
+  JS_DEFINE_READONLY_PROPERTY(
+      env, object, env->state_string(), state_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env, object, env->stats_string(), stats_.GetArrayBuffer());
+}
 
-  defineProperty(env->state_string(), state_.GetArrayBuffer());
-  defineProperty(env->stats_string(), stats_.GetArrayBuffer());
+Packet::Ptr Endpoint::CreatePacket(const SocketAddress& destination,
+                                   size_t length,
+                                   const char* diagnostic_label) {
+  auto ptr = packet_pool_.AcquireExtra(static_cast<Packet::Listener*>(this),
+                                       destination);
+  if (ptr) {
+    ptr->Truncate(std::min(length, ptr->capacity()));
+    ptr->set_diagnostic_label(diagnostic_label);
+  }
+  return ptr;
 }
 
 SocketAddress Endpoint::local_address() const {
@@ -745,31 +729,37 @@ void Endpoint::DisassociateStatelessResetToken(
   }
 }
 
-void Endpoint::Send(const BaseObjectPtr<Packet>& packet) {
+void Endpoint::Send(Packet::Ptr packet) {
 #ifdef DEBUG
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped. This can happen to any type of packet. We use this only in
   // testing to test various reliability issues.
   if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
-    packet->Done(0);
-    // Simulating tx packet loss
+    // Simulating tx packet loss. Ptr destructor releases the packet.
     return;
   }
 #endif  // DEBUG
 
   if (is_closed() || is_closing() || packet->length() == 0) {
-    packet->Done(UV_ECANCELED);
+    // Ptr destructor releases the packet back to the pool.
     return;
   }
   Debug(this, "Sending %s", packet->ToString());
+  size_t packet_length = packet->length();
+
   state_->pending_callbacks++;
-  int err = udp_.Send(packet);
+  env()->IncreaseWaitingRequestCounter();
+
+  int err = udp_.Send(std::move(packet));
   if (err != 0) {
     Debug(this, "Sending packet failed with error %d", err);
-    packet->Done(err);
+    // The packet was already released in UDP::Send on error.
+    state_->pending_callbacks--;
+    env()->DecreaseWaitingRequestCounter();
     Destroy(CloseContext::SEND_FAILURE, err);
+    return;
   }
-  STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
+  STAT_INCREMENT_N(Stats, bytes_sent, packet_length);
   STAT_INCREMENT(Stats, packets_sent);
 }
 
@@ -787,11 +777,10 @@ void Endpoint::SendRetry(const PathDescriptor& options) {
   auto info = addrLRU_.Upsert(options.remote_address);
   if (++(info->retry_count) <= options_.max_retries) {
     auto packet =
-        Packet::CreateRetryPacket(env(), this, options, options_.token_secret);
+        Packet::CreateRetryPacket(*this, options, options_.token_secret);
     if (packet) {
       STAT_INCREMENT(Stats, retry_count);
       Send(std::move(packet));
-      packet.reset();
     }
 
     // If creating the retry is unsuccessful, we just drop things on the floor.
@@ -809,11 +798,10 @@ void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
   // reset packets. If the packet is sent, then we'll at least increment the
   // version_negotiation_count statistic so that application code can keep an
   // eye on it.
-  auto packet = Packet::CreateVersionNegotiationPacket(env(), this, options);
+  auto packet = Packet::CreateVersionNegotiationPacket(*this, options);
   if (packet) {
     STAT_INCREMENT(Stats, version_negotiation_count);
     Send(std::move(packet));
-    packet.reset();
   }
 
   // If creating the packet is unsuccessful, we just drop things on the floor.
@@ -843,13 +831,12 @@ bool Endpoint::SendStatelessReset(const PathDescriptor& options,
   if (exceeds_limits()) return false;
 
   auto packet = Packet::CreateStatelessResetPacket(
-      env(), this, options, options_.reset_token_secret, source_len);
+      *this, options, options_.reset_token_secret, source_len);
 
   if (packet) {
     addrLRU_.Upsert(options.remote_address)->reset_count++;
     STAT_INCREMENT(Stats, stateless_reset_count);
     Send(std::move(packet));
-    packet.reset();
     return true;
   }
   return false;
@@ -863,12 +850,11 @@ void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
         reason);
   // While it is possible for a malicious peer to cause us to create a large
   // number of these, generating them is fairly trivial.
-  auto packet = Packet::CreateImmediateConnectionClosePacket(
-      env(), this, options, reason);
+  auto packet =
+      Packet::CreateImmediateConnectionClosePacket(*this, options, reason);
   if (packet) {
     STAT_INCREMENT(Stats, immediate_close_count);
     Send(std::move(packet));
-    packet.reset();
   }
 }
 
@@ -921,11 +907,20 @@ void Endpoint::Listen(const Session::Options& options) {
                        "not what you want.");
   }
 
-  auto context = TLSContext::CreateServer(options.tls_options);
+  auto context = TLSContext::CreateServer(env(), options.tls_options);
   if (!*context) {
     THROW_ERR_INVALID_STATE(
         env(), "Failed to create TLS context: %s", context->validation_error());
     return;
+  }
+
+  // Create additional TLS contexts for SNI entries (virtual hosts).
+  for (const auto& [hostname, sni_options] : options.sni) {
+    if (!context->AddSNIContext(env(), hostname, sni_options)) {
+      THROW_ERR_INVALID_STATE(
+          env(), "Failed to create TLS context for SNI host '%s'", hostname);
+      return;
+    }
   }
 
   server_state_ = {
@@ -954,7 +949,7 @@ BaseObjectPtr<Session> Endpoint::Connect(
         config,
         session_ticket.has_value() ? "yes" : "no");
 
-  auto tls_context = TLSContext::CreateClient(options.tls_options);
+  auto tls_context = TLSContext::CreateClient(env(), options.tls_options);
   if (!*tls_context) {
     THROW_ERR_INVALID_STATE(env(),
                             "Failed to create TLS context: %s",
@@ -1017,8 +1012,6 @@ void Endpoint::Destroy(CloseContext context, int status) {
         this, "Destroying endpoint due to \"%s\" with status %d", ctx, status);
   }
 
-  STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
-
   state_->listening = 0;
 
   close_context_ = context;
@@ -1036,6 +1029,7 @@ void Endpoint::Destroy(CloseContext context, int status) {
   DCHECK(sessions_.empty());
   token_map_.clear();
   dcid_to_scid_.clear();
+  server_state_.reset();
 
   udp_.Close();
   state_->closing = 0;
@@ -1374,29 +1368,32 @@ void Endpoint::Receive(const uv_buf_t& buf,
           }
           break;
         case NGTCP2_PKT_0RTT:
+          // 0-RTT packets are inherently replayable and could be sent
+          // from a spoofed source address to trigger amplification.
+          // When address validation is enabled, we send a Retry to
+          // force the client to prove it can receive at its claimed
+          // address. This adds a round trip but prevents amplification
+          // attacks. When address validation is disabled (e.g., on
+          // trusted networks), we skip the Retry and allow 0-RTT to
+          // proceed without additional validation.
+          if (options_.validate_address) {
+            Debug(
+                this, "Sending retry to %s due to 0RTT packet", remote_address);
+            SendRetry(PathDescriptor{
+                version,
+                dcid,
+                scid,
+                local_address,
+                remote_address,
+            });
+            STAT_INCREMENT(Stats, packets_received);
+            return;
+          }
           Debug(this,
-                "Sending retry to %s due to initial 0RTT packet",
+                "Accepting 0RTT packet from %s without "
+                "address validation",
                 remote_address);
-          // If it's a 0RTT packet, we're always going to perform path
-          // validation no matter what. This is a bit unfortunate since
-          // ORTT is supposed to be, you know, 0RTT, but sending a retry
-          // forces a round trip... but if the remote address is not
-          // validated, there's a possibility that this 0RTT is forged
-          // or otherwise suspicious. Before we can do anything with it,
-          // we have to validate it. Keep in mind that this means the
-          // client needs to respond with a proper initial packet in
-          // order to proceed.
-          // TODO(@jasnell): Validate this further to ensure this is
-          // the correct behavior.
-          SendRetry(PathDescriptor{
-              version,
-              dcid,
-              scid,
-              local_address,
-              remote_address,
-          });
-          STAT_INCREMENT(Stats, packets_received);
-          return;
+          break;
       }
     }
 
@@ -1589,6 +1586,7 @@ void Endpoint::PacketDone(int status) {
   // At this point we should be waiting on at least one packet.
   DCHECK_GE(state_->pending_callbacks, 1);
   state_->pending_callbacks--;
+  env()->DecreaseWaitingRequestCounter();
   // Can we go ahead and close now?
   if (state_->closing == 1) MaybeDestroy();
 }
@@ -1615,6 +1613,7 @@ bool Endpoint::is_listening() const {
 
 void Endpoint::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("options", options_);
+  tracker->TrackField("packet_pool", packet_pool_);
   tracker->TrackField("udp", udp_);
   if (server_state_.has_value()) {
     tracker->TrackField("server_options", server_state_->options);
@@ -1672,7 +1671,7 @@ void Endpoint::EmitClose(CloseContext context, int status) {
 // ======================================================================================
 // Endpoint JavaScript API
 
-void Endpoint::New(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::New) {
   DCHECK(args.IsConstructCall());
   auto env = Environment::GetCurrent(args);
   Options options;
@@ -1685,7 +1684,7 @@ void Endpoint::New(const FunctionCallbackInfo<Value>& args) {
   new Endpoint(env, args.This(), options);
 }
 
-void Endpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::DoConnect) {
   auto env = Environment::GetCurrent(args);
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
@@ -1719,7 +1718,7 @@ void Endpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   if (session) args.GetReturnValue().Set(session->object());
 }
 
-void Endpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::DoListen) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
@@ -1730,19 +1729,19 @@ void Endpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void Endpoint::MarkBusy(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::MarkBusy) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   endpoint->MarkAsBusy(args[0]->IsTrue());
 }
 
-void Endpoint::DoCloseGracefully(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::DoCloseGracefully) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   endpoint->CloseGracefully();
 }
 
-void Endpoint::LocalAddress(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::LocalAddress) {
   auto env = Environment::GetCurrent(args);
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
@@ -1752,7 +1751,7 @@ void Endpoint::LocalAddress(const FunctionCallbackInfo<Value>& args) {
   if (addr) args.GetReturnValue().Set(addr->object());
 }
 
-void Endpoint::Ref(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::Ref) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
@@ -1763,7 +1762,76 @@ void Endpoint::Ref(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+JS_METHOD_IMPL(Endpoint::DoSetSNIContexts) {
+  auto env = Environment::GetCurrent(args);
+  Endpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+
+  if (!endpoint->server_state_.has_value()) {
+    THROW_ERR_INVALID_STATE(env, "Endpoint is not listening");
+    return;
+  }
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "entries must be an object");
+    return;
+  }
+
+  bool replace = args.Length() > 1 && args[1]->IsTrue();
+
+  auto entries_obj = args[0].As<Object>();
+  Local<Array> hostnames;
+  if (!entries_obj->GetOwnPropertyNames(env->context()).ToLocal(&hostnames)) {
+    return;
+  }
+
+  if (replace) {
+    std::unordered_map<std::string, TLSContext::Options> entries;
+    for (uint32_t i = 0; i < hostnames->Length(); i++) {
+      Local<Value> key;
+      Local<Value> entry_val;
+      if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+          !key->IsString() ||
+          !entries_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+        return;
+      }
+      Utf8Value hostname(env->isolate(), key);
+      auto entry_options = TLSContext::Options::From(env, entry_val);
+      if (entry_options.IsNothing()) return;
+      entries[std::string(*hostname, hostname.length())] =
+          entry_options.FromJust();
+    }
+
+    if (!endpoint->server_state_->tls_context->SetSNIContexts(env, entries)) {
+      THROW_ERR_INVALID_STATE(env, "Failed to set SNI contexts");
+      return;
+    }
+  } else {
+    for (uint32_t i = 0; i < hostnames->Length(); i++) {
+      Local<Value> key;
+      Local<Value> entry_val;
+      if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+          !key->IsString() ||
+          !entries_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+        return;
+      }
+      Utf8Value hostname(env->isolate(), key);
+      auto entry_options = TLSContext::Options::From(env, entry_val);
+      if (entry_options.IsNothing()) return;
+
+      if (!endpoint->server_state_->tls_context->AddSNIContext(
+              env,
+              std::string(*hostname, hostname.length()),
+              entry_options.FromJust())) {
+        THROW_ERR_INVALID_STATE(
+            env, "Failed to add SNI context for '%s'", *hostname);
+        return;
+      }
+    }
+  }
+}
+
 }  // namespace quic
 }  // namespace node
-
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL && HAVE_QUIC

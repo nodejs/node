@@ -46,24 +46,20 @@ class EnvHttpProxyAgent extends DispatcherBase {
     return agent.dispatch(opts, handler)
   }
 
-  async [kClose] () {
-    await this[kNoProxyAgent].close()
-    if (!this[kHttpProxyAgent][kClosed]) {
-      await this[kHttpProxyAgent].close()
-    }
-    if (!this[kHttpsProxyAgent][kClosed]) {
-      await this[kHttpsProxyAgent].close()
-    }
+  [kClose] () {
+    return Promise.all([
+      this[kNoProxyAgent].close(),
+      !this[kHttpProxyAgent][kClosed] && this[kHttpProxyAgent].close(),
+      !this[kHttpsProxyAgent][kClosed] && this[kHttpsProxyAgent].close()
+    ])
   }
 
-  async [kDestroy] (err) {
-    await this[kNoProxyAgent].destroy(err)
-    if (!this[kHttpProxyAgent][kDestroyed]) {
-      await this[kHttpProxyAgent].destroy(err)
-    }
-    if (!this[kHttpsProxyAgent][kDestroyed]) {
-      await this[kHttpsProxyAgent].destroy(err)
-    }
+  [kDestroy] (err) {
+    return Promise.all([
+      this[kNoProxyAgent].destroy(err),
+      !this[kHttpProxyAgent][kDestroyed] && this[kHttpProxyAgent].destroy(err),
+      !this[kHttpsProxyAgent][kDestroyed] && this[kHttpsProxyAgent].destroy(err)
+    ])
   }
 
   #getProxyAgentForUrl (url) {
@@ -99,16 +95,14 @@ class EnvHttpProxyAgent extends DispatcherBase {
       if (entry.port && entry.port !== port) {
         continue // Skip if ports don't match.
       }
-      if (!/^[.*]/.test(entry.hostname)) {
-        // No wildcards, so don't proxy only if there is not an exact match.
-        if (hostname === entry.hostname) {
-          return false
-        }
-      } else {
-        // Don't proxy if the hostname ends with the no_proxy host.
-        if (hostname.endsWith(entry.hostname.replace(/^\*/, ''))) {
-          return false
-        }
+      // Don't proxy if the hostname is equal with the no_proxy host.
+      if (hostname === entry.hostname) {
+        return false
+      }
+      // Don't proxy if the hostname is the subdomain of the no_proxy host.
+      // Reference - https://github.com/denoland/deno/blob/6fbce91e40cc07fc6da74068e5cc56fdd40f7b4c/ext/fetch/proxy.rs#L485
+      if (hostname.slice(-(entry.hostname.length + 1)) === `.${entry.hostname}`) {
+        return false
       }
     }
 
@@ -127,7 +121,8 @@ class EnvHttpProxyAgent extends DispatcherBase {
       }
       const parsed = entry.match(/^(.+):(\d+)$/)
       noProxyEntries.push({
-        hostname: (parsed ? parsed[1] : entry).toLowerCase(),
+        // strip leading dot or asterisk with dot
+        hostname: (parsed ? parsed[1] : entry).replace(/^\*?\./, '').toLowerCase(),
         port: parsed ? Number.parseInt(parsed[2], 10) : 0
       })
     }

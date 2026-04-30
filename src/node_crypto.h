@@ -29,7 +29,9 @@
 // remains for convenience for any code that still imports it. New
 // code should include the relevant src/crypto headers directly.
 #include "crypto/crypto_aes.h"
+#include "crypto/crypto_argon2.h"
 #include "crypto/crypto_bio.h"
+#include "crypto/crypto_chacha20_poly1305.h"
 #include "crypto/crypto_cipher.h"
 #include "crypto/crypto_context.h"
 #include "crypto/crypto_dh.h"
@@ -38,9 +40,14 @@
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
 #include "crypto/crypto_hmac.h"
+#if OPENSSL_VERSION_MAJOR >= 3
+#include "crypto/crypto_kem.h"
+#include "crypto/crypto_kmac.h"
+#endif
 #include "crypto/crypto_keygen.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_pbkdf2.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_random.h"
 #include "crypto/crypto_rsa.h"
 #include "crypto/crypto_scrypt.h"
@@ -48,6 +55,7 @@
 #include "crypto/crypto_spkac.h"
 #include "crypto/crypto_timing.h"
 #include "crypto/crypto_tls.h"
+#include "crypto/crypto_turboshake.h"
 #include "crypto/crypto_util.h"
 #include "crypto/crypto_x509.h"
 

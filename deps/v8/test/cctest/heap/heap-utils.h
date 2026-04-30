@@ -20,20 +20,22 @@ int FixedArrayLenFromSize(int size);
 
 // Fill a page with fixed arrays leaving remainder behind. The function does
 // not create additional fillers and assumes that the space has just been
-// sealed.
-std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
-                                                                int remainder);
+// sealed. If out_handles is not null, it appends the fixed arrays to the
+// pointed vector.
+void FillOldSpacePageWithFixedArrays(
+    Heap* heap, int remainder,
+    DirectHandleVector<FixedArray>* out_handles = nullptr);
 
-std::vector<Handle<FixedArray>> CreatePadding(
-    Heap* heap, int padding_size, AllocationType allocation,
-    int object_size = kMaxRegularHeapObjectSize);
+void CreatePadding(Heap* heap, int padding_size, AllocationType allocation,
+                   DirectHandleVector<FixedArray>* out_handles = nullptr,
+                   int object_size = kMaxRegularHeapObjectSize);
 
 void FillCurrentPage(v8::internal::NewSpace* space,
-                     std::vector<Handle<FixedArray>>* out_handles = nullptr);
+                     DirectHandleVector<FixedArray>* out_handles = nullptr);
 
 void FillCurrentPageButNBytes(
     v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
-    std::vector<Handle<FixedArray>>* out_handles = nullptr);
+    DirectHandleVector<FixedArray>* out_handles = nullptr);
 
 // Helper function that simulates many incremental marking steps until
 // marking is completed.
@@ -54,7 +56,7 @@ void CollectSharedGarbage(Heap* heap);
 
 void EmptyNewSpaceUsingGC(Heap* heap);
 
-void ForceEvacuationCandidate(PageMetadata* page);
+void ForceEvacuationCandidate(NormalPage* page);
 
 void GrowNewSpace(Heap* heap);
 
@@ -64,7 +66,7 @@ template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
+  return i::HeapLayout::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
 bool InCorrectGeneration(Tagged<HeapObject> object);
@@ -91,6 +93,40 @@ class ManualEvacuationCandidatesSelectionScope {
   }
 
  private:
+};
+
+class MockTaskRunner;
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform();
+  ~MockPlatform() override {
+    for (auto& task : worker_tasks_) {
+      CcTest::default_platform()->PostTaskOnWorkerThread(
+          TaskPriority::kUserVisible, std::move(task));
+    }
+    worker_tasks_.clear();
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate, v8::TaskPriority) override;
+
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
+    worker_tasks_.push_back(std::move(task));
+  }
+
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
+
+  bool PendingTask();
+
+  void PerformTask();
+
+  double Delay();
+
+ private:
+  std::shared_ptr<MockTaskRunner> taskrunner_;
+  std::vector<std::unique_ptr<Task>> worker_tasks_;
 };
 
 }  // namespace heap

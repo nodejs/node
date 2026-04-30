@@ -1,6 +1,6 @@
 'use strict'
 
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { kEnumerableProperty } = require('../../core/util')
 const { kConstruct } = require('../../core/symbols')
 
@@ -272,7 +272,7 @@ webidl.converters.MessageEventInit = webidl.dictionaryConverter([
   {
     key: 'ports',
     converter: webidl.converters['sequence<MessagePort>'],
-    defaultValue: () => new Array(0)
+    defaultValue: () => []
   }
 ])
 

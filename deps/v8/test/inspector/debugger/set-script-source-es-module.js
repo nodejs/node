@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --inspector-live-edit
+
 const {session, contextGroup, Protocol} = InspectorTest.start(
   'Test that live editing the top-level function of an ES module does not work [crbug.com/1413447]');
 

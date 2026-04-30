@@ -17,14 +17,14 @@ class HeapBase;
 
 class V8_EXPORT_PRIVATE FatalOutOfMemoryHandler final {
  public:
-  using Callback = void(const std::string&, const SourceLocation&, HeapBase*);
+  using Callback = void(const std::string&, SourceLocation, HeapBase*);
 
   FatalOutOfMemoryHandler() = default;
   explicit FatalOutOfMemoryHandler(HeapBase* heap) : heap_(heap) {}
 
   [[noreturn]] void operator()(
       const std::string& reason = std::string(),
-      const SourceLocation& = SourceLocation::Current()) const;
+      SourceLocation = SourceLocation::Current()) const;
 
   void SetCustomHandler(Callback*);
 

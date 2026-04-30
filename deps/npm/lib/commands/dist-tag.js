@@ -49,8 +49,7 @@ class DistTag extends BaseCommand {
     }
 
     if (!pkg) {
-      // when only using the pkg name the default behavior
-      // should be listing the existing tags
+      // when only using the pkg name the default behavior should be listing the existing tags
       return this.list(cmdName, opts)
     } else {
       throw this.usageError()
@@ -77,7 +76,7 @@ class DistTag extends BaseCommand {
     }
 
     // anything else is just a regular dist-tag command
-    // so we fallback to the non-workspaces implementation
+    // so we fall back to the non-workspaces implementation
     log.warn('dist-tag', 'Ignoring workspaces for specified package')
     return this.exec([cmdName, pkg, tag])
   }
@@ -183,8 +182,7 @@ class DistTag extends BaseCommand {
         output.standard(`${name}:`)
         await this.list(npa(name), this.npm.flatOptions)
       } catch {
-        // set the exitCode directly, but ignore the error
-        // since it will have already been logged by this.list()
+        // set the exitCode directly, but ignore the error since it will have already been logged by this.list()
         process.exitCode = 1
       }
     }

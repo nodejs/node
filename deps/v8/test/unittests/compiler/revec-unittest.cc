@@ -25,11 +25,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// REVIEW: Looks like this entire file still uses the Turbofan implementation.
+// It should be ported to Turboshaft.
+
 class RevecTest : public TestWithIsolateAndZone {
  public:
   RevecTest()
-      : TestWithIsolateAndZone(kCompressGraphZone),
-        graph_(zone()),
+      : graph_(zone()),
         common_(zone()),
         machine_(zone(), MachineRepresentation::kWord64,
                  MachineOperatorBuilder::Flag::kAllOptionalOps),
@@ -47,14 +49,14 @@ class RevecTest : public TestWithIsolateAndZone {
   void TestLoadSplat(LoadTransformation transform, const Operator* bin_op,
                      LoadTransformation expected_transform);
 
-  Graph* graph() { return &graph_; }
+  TFGraph* graph() { return &graph_; }
   CommonOperatorBuilder* common() { return &common_; }
   MachineOperatorBuilder* machine() { return &machine_; }
   MachineGraph* mcgraph() { return &mcgraph_; }
   SourcePositionTable* source_positions() { return source_positions_; }
 
  private:
-  Graph graph_;
+  TFGraph graph_;
   CommonOperatorBuilder common_;
   MachineOperatorBuilder machine_;
   MachineGraph mcgraph_;
@@ -548,7 +550,8 @@ void RevecTest::TestLoadSplat(
                                 offset, start, start);
 
   Node* loadSplat = graph()->NewNode(
-      machine()->LoadTransform(MemoryAccessKind::kProtected, load_transform),
+      machine()->LoadTransform(MemoryAccessKind::kProtectedByTrapHandler,
+                               load_transform),
       base, a, base, start);
 
   LoadRepresentation load_rep(MachineType::Simd128());

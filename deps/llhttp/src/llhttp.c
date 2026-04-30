@@ -10,10 +10,20 @@
  #endif  /* _MSC_VER */
 #endif  /* __SSE4_2__ */
 
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
+ #include <arm_neon.h>
+#endif  /* __ARM_NEON__ */
+
+#ifdef __wasm__
+ #include <wasm_simd128.h>
+#endif  /* __wasm__ */
+
 #ifdef _MSC_VER
  #define ALIGN(n) _declspec(align(n))
+ #define UNREACHABLE __assume(0)
 #else  /* !_MSC_VER */
  #define ALIGN(n) __attribute__((aligned(n)))
+ #define UNREACHABLE __builtin_unreachable()
 #endif  /* _MSC_VER */
 
 #include "llhttp.h"
@@ -72,16 +82,16 @@ static const unsigned char llparse_blob12[] = {
   'p', 'g', 'r', 'a', 'd', 'e'
 };
 static const unsigned char llparse_blob13[] = {
-  'T', 'T', 'P', '/'
+  'T', 'T', 'P'
 };
 static const unsigned char llparse_blob14[] = {
   0xd, 0xa, 0xd, 0xa, 'S', 'M', 0xd, 0xa, 0xd, 0xa
 };
 static const unsigned char llparse_blob15[] = {
-  'C', 'E', '/'
+  'C', 'E'
 };
 static const unsigned char llparse_blob16[] = {
-  'T', 'S', 'P', '/'
+  'T', 'S', 'P'
 };
 static const unsigned char llparse_blob17[] = {
   'N', 'O', 'U', 'N', 'C', 'E'
@@ -207,12 +217,18 @@ static const unsigned char llparse_blob57[] = {
   'U', 'B', 'S', 'C', 'R', 'I', 'B', 'E'
 };
 static const unsigned char llparse_blob58[] = {
-  'H', 'T', 'T', 'P', '/'
+  'T', 'T', 'P'
 };
 static const unsigned char llparse_blob59[] = {
-  'A', 'D'
+  'C', 'E'
 };
 static const unsigned char llparse_blob60[] = {
+  'T', 'S', 'P'
+};
+static const unsigned char llparse_blob61[] = {
+  'A', 'D'
+};
+static const unsigned char llparse_blob62[] = {
   'T', 'P', '/'
 };
 
@@ -425,17 +441,27 @@ enum llparse_state_e {
   s_n_llhttp__internal__n_req_http_complete,
   s_n_llhttp__internal__n_invoke_load_method_1,
   s_n_llhttp__internal__n_invoke_llhttp__on_version_complete,
-  s_n_llhttp__internal__n_error_66,
-  s_n_llhttp__internal__n_error_73,
-  s_n_llhttp__internal__n_req_http_minor,
+  s_n_llhttp__internal__n_error_67,
   s_n_llhttp__internal__n_error_74,
-  s_n_llhttp__internal__n_req_http_dot,
+  s_n_llhttp__internal__n_req_http_minor,
   s_n_llhttp__internal__n_error_75,
+  s_n_llhttp__internal__n_req_http_dot,
+  s_n_llhttp__internal__n_error_76,
   s_n_llhttp__internal__n_req_http_major,
   s_n_llhttp__internal__n_span_start_llhttp__on_version,
-  s_n_llhttp__internal__n_req_http_start_1,
-  s_n_llhttp__internal__n_req_http_start_2,
-  s_n_llhttp__internal__n_req_http_start_3,
+  s_n_llhttp__internal__n_req_after_protocol,
+  s_n_llhttp__internal__n_invoke_load_method,
+  s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete,
+  s_n_llhttp__internal__n_error_82,
+  s_n_llhttp__internal__n_req_after_http_start_1,
+  s_n_llhttp__internal__n_invoke_load_method_2,
+  s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_1,
+  s_n_llhttp__internal__n_req_after_http_start_2,
+  s_n_llhttp__internal__n_invoke_load_method_3,
+  s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_2,
+  s_n_llhttp__internal__n_req_after_http_start_3,
+  s_n_llhttp__internal__n_req_after_http_start,
+  s_n_llhttp__internal__n_span_start_llhttp__on_protocol,
   s_n_llhttp__internal__n_req_http_start,
   s_n_llhttp__internal__n_url_to_http,
   s_n_llhttp__internal__n_url_skip_to_http,
@@ -543,15 +569,22 @@ enum llparse_state_e {
   s_n_llhttp__internal__n_res_status_code_digit_1,
   s_n_llhttp__internal__n_res_after_version,
   s_n_llhttp__internal__n_invoke_llhttp__on_version_complete_1,
-  s_n_llhttp__internal__n_error_89,
-  s_n_llhttp__internal__n_error_103,
+  s_n_llhttp__internal__n_error_93,
+  s_n_llhttp__internal__n_error_107,
   s_n_llhttp__internal__n_res_http_minor,
-  s_n_llhttp__internal__n_error_104,
+  s_n_llhttp__internal__n_error_108,
   s_n_llhttp__internal__n_res_http_dot,
-  s_n_llhttp__internal__n_error_105,
+  s_n_llhttp__internal__n_error_109,
   s_n_llhttp__internal__n_res_http_major,
   s_n_llhttp__internal__n_span_start_llhttp__on_version_1,
-  s_n_llhttp__internal__n_start_res,
+  s_n_llhttp__internal__n_res_after_protocol,
+  s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_3,
+  s_n_llhttp__internal__n_error_115,
+  s_n_llhttp__internal__n_res_after_start_1,
+  s_n_llhttp__internal__n_res_after_start_2,
+  s_n_llhttp__internal__n_res_after_start_3,
+  s_n_llhttp__internal__n_res_after_start,
+  s_n_llhttp__internal__n_span_start_llhttp__on_protocol_1,
   s_n_llhttp__internal__n_invoke_llhttp__on_method_complete,
   s_n_llhttp__internal__n_req_or_res_method_2,
   s_n_llhttp__internal__n_invoke_update_type_1,
@@ -571,6 +604,10 @@ int llhttp__on_method(
     const unsigned char* endp);
 
 int llhttp__on_url(
+    llhttp__internal_t* s, const unsigned char* p,
+    const unsigned char* endp);
+
+int llhttp__on_protocol(
     llhttp__internal_t* s, const unsigned char* p,
     const unsigned char* endp);
 
@@ -1057,6 +1094,10 @@ int llhttp__internal__c_or_flags_20(
   return 0;
 }
 
+int llhttp__on_protocol_complete(
+    llhttp__internal_t* s, const unsigned char* p,
+    const unsigned char* endp);
+
 int llhttp__internal__c_load_method(
     llhttp__internal_t* state,
     const unsigned char* p,
@@ -1192,8 +1233,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_3;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__after_message_complete:
     s_n_llhttp__internal__n_invoke_llhttp__after_message_complete: {
@@ -1203,8 +1243,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_invoke_update_finish_1;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_pause_1:
     s_n_llhttp__internal__n_pause_1: {
@@ -1213,8 +1252,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__after_message_complete;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_is_equal_upgrade:
     s_n_llhttp__internal__n_invoke_is_equal_upgrade: {
@@ -1224,8 +1262,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_pause_1;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_message_complete_2:
     s_n_llhttp__internal__n_invoke_llhttp__on_message_complete_2: {
@@ -1237,8 +1274,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_38;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_data_almost_done_1:
     s_n_llhttp__internal__n_chunk_data_almost_done_1: {
@@ -1254,8 +1290,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_7;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_data_almost_done:
     s_n_llhttp__internal__n_chunk_data_almost_done: {
@@ -1275,8 +1310,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_7;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_consume_content_length:
     s_n_llhttp__internal__n_consume_content_length: {
@@ -1293,8 +1327,7 @@ static llparse_state_t llhttp__internal__run(
       
       state->content_length -= avail;
       return s_n_llhttp__internal__n_consume_content_length;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_body:
     s_n_llhttp__internal__n_span_start_llhttp__on_body: {
@@ -1304,8 +1337,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_body;
       goto s_n_llhttp__internal__n_consume_content_length;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_is_equal_content_length:
     s_n_llhttp__internal__n_invoke_is_equal_content_length: {
@@ -1315,8 +1347,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_invoke_or_flags;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_size_almost_done:
     s_n_llhttp__internal__n_chunk_size_almost_done: {
@@ -1332,8 +1363,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_8;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_test_lenient_flags_9:
     s_n_llhttp__internal__n_invoke_test_lenient_flags_9: {
@@ -1343,8 +1373,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_20;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete: {
@@ -1356,8 +1385,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_19;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_1:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_1: {
@@ -1369,8 +1397,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_21;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_2:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_2: {
@@ -1382,8 +1409,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_22;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_test_lenient_flags_10:
     s_n_llhttp__internal__n_invoke_test_lenient_flags_10: {
@@ -1393,8 +1419,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_25;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete: {
@@ -1406,8 +1431,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_24;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_1:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_1: {
@@ -1419,8 +1443,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_26;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_extension_quoted_value_done:
     s_n_llhttp__internal__n_chunk_extension_quoted_value_done: {
@@ -1443,8 +1466,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_29;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_2:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_2: {
@@ -1456,8 +1478,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_27;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_30:
     s_n_llhttp__internal__n_error_30: {
@@ -1466,8 +1487,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_extension_quoted_value_quoted_pair:
     s_n_llhttp__internal__n_chunk_extension_quoted_value_quoted_pair: {
@@ -1501,8 +1521,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_3;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_31:
     s_n_llhttp__internal__n_error_31: {
@@ -1511,8 +1530,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_extension_quoted_value:
     s_n_llhttp__internal__n_chunk_extension_quoted_value: {
@@ -1524,7 +1542,7 @@ static llparse_state_t llhttp__internal__run(
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -1554,8 +1572,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_4;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_3:
     s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_3: {
@@ -1567,8 +1584,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_32;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_33:
     s_n_llhttp__internal__n_error_33: {
@@ -1577,8 +1593,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_extension_value:
     s_n_llhttp__internal__n_chunk_extension_value: {
@@ -1625,8 +1640,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_6;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_chunk_extension_value:
     s_n_llhttp__internal__n_span_start_llhttp__on_chunk_extension_value: {
@@ -1636,8 +1650,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_chunk_extension_value;
       goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_3;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_34:
     s_n_llhttp__internal__n_error_34: {
@@ -1646,8 +1659,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_extension_name:
     s_n_llhttp__internal__n_chunk_extension_name: {
@@ -1693,8 +1705,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_name_4;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_chunk_extension_name:
     s_n_llhttp__internal__n_span_start_llhttp__on_chunk_extension_name: {
@@ -1704,8 +1715,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_chunk_extension_name;
       goto s_n_llhttp__internal__n_chunk_extension_name;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_extensions:
     s_n_llhttp__internal__n_chunk_extensions: {
@@ -1725,8 +1735,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_start_llhttp__on_chunk_extension_name;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_size_otherwise:
     s_n_llhttp__internal__n_chunk_size_otherwise: {
@@ -1758,8 +1767,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_35;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_size:
     s_n_llhttp__internal__n_chunk_size: {
@@ -1881,8 +1889,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_chunk_size_otherwise;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_chunk_size_digit:
     s_n_llhttp__internal__n_chunk_size_digit: {
@@ -2004,8 +2011,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_37;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_update_content_length_1:
     s_n_llhttp__internal__n_invoke_update_content_length_1: {
@@ -2013,8 +2019,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_chunk_size_digit;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_consume_content_length_1:
     s_n_llhttp__internal__n_consume_content_length_1: {
@@ -2031,8 +2036,7 @@ static llparse_state_t llhttp__internal__run(
       
       state->content_length -= avail;
       return s_n_llhttp__internal__n_consume_content_length_1;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_body_1:
     s_n_llhttp__internal__n_span_start_llhttp__on_body_1: {
@@ -2042,8 +2046,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_body;
       goto s_n_llhttp__internal__n_consume_content_length_1;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_eof:
     s_n_llhttp__internal__n_eof: {
@@ -2052,8 +2055,7 @@ static llparse_state_t llhttp__internal__run(
       }
       p++;
       goto s_n_llhttp__internal__n_eof;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_body_2:
     s_n_llhttp__internal__n_span_start_llhttp__on_body_2: {
@@ -2063,8 +2065,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_body;
       goto s_n_llhttp__internal__n_eof;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete:
     s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete: {
@@ -2082,8 +2083,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_invoke_llhttp__on_message_complete;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_5:
     s_n_llhttp__internal__n_error_5: {
@@ -2092,8 +2092,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_headers_almost_done:
     s_n_llhttp__internal__n_headers_almost_done: {
@@ -2109,8 +2108,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_12;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_colon_discard_ws:
     s_n_llhttp__internal__n_header_field_colon_discard_ws: {
@@ -2126,8 +2124,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_field_colon;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_header_value_complete:
     s_n_llhttp__internal__n_invoke_llhttp__on_header_value_complete: {
@@ -2139,8 +2136,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_48;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_header_value:
     s_n_llhttp__internal__n_span_start_llhttp__on_header_value: {
@@ -2150,8 +2146,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_header_value;
       goto s_n_llhttp__internal__n_span_end_llhttp__on_header_value;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_discard_lws:
     s_n_llhttp__internal__n_header_value_discard_lws: {
@@ -2171,8 +2166,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_load_header_state_1;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_discard_ws_almost_done:
     s_n_llhttp__internal__n_header_value_discard_ws_almost_done: {
@@ -2188,8 +2182,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_16;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_lws:
     s_n_llhttp__internal__n_header_value_lws: {
@@ -2207,8 +2200,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_load_header_state_5;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_almost_done:
     s_n_llhttp__internal__n_header_value_almost_done: {
@@ -2224,8 +2216,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_53;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_test_lenient_flags_17:
     s_n_llhttp__internal__n_invoke_test_lenient_flags_17: {
@@ -2235,8 +2226,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_51;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_lenient:
     s_n_llhttp__internal__n_header_value_lenient: {
@@ -2255,8 +2245,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_lenient;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_54:
     s_n_llhttp__internal__n_error_54: {
@@ -2265,8 +2254,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_otherwise:
     s_n_llhttp__internal__n_header_value_otherwise: {
@@ -2284,8 +2272,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_19;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_connection_token:
     s_n_llhttp__internal__n_header_value_connection_token: {
@@ -2323,8 +2310,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_otherwise;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_connection_ws:
     s_n_llhttp__internal__n_header_value_connection_ws: {
@@ -2350,8 +2336,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_5;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_connection_1:
     s_n_llhttp__internal__n_header_value_connection_1: {
@@ -2374,8 +2359,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_connection_token;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_connection_2:
     s_n_llhttp__internal__n_header_value_connection_2: {
@@ -2398,8 +2382,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_connection_token;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_connection_3:
     s_n_llhttp__internal__n_header_value_connection_3: {
@@ -2422,8 +2405,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_connection_token;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_connection:
     s_n_llhttp__internal__n_header_value_connection: {
@@ -2455,8 +2437,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_connection_token;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_56:
     s_n_llhttp__internal__n_error_56: {
@@ -2465,8 +2446,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_57:
     s_n_llhttp__internal__n_error_57: {
@@ -2475,8 +2455,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_content_length_ws:
     s_n_llhttp__internal__n_header_value_content_length_ws: {
@@ -2498,8 +2477,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_header_value_7;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_content_length:
     s_n_llhttp__internal__n_header_value_content_length: {
@@ -2561,8 +2539,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_content_length_ws;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_59:
     s_n_llhttp__internal__n_error_59: {
@@ -2571,8 +2548,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_error_58:
     s_n_llhttp__internal__n_error_58: {
@@ -2581,8 +2557,7 @@ static llparse_state_t llhttp__internal__run(
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_te_token_ows:
     s_n_llhttp__internal__n_header_value_te_token_ows: {
@@ -2602,8 +2577,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_te_chunked;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value:
     s_n_llhttp__internal__n_header_value: {
@@ -2632,7 +2606,6 @@ static llparse_state_t llhttp__internal__run(
       if (endp - p >= 16) {
         __m128i ranges;
         __m128i input;
-        int avail;
         int match_len;
       
         /* Load input */
@@ -2652,6 +2625,82 @@ static llparse_state_t llhttp__internal__run(
         goto s_n_llhttp__internal__n_header_value_otherwise;
       }
       #endif  /* __SSE4_2__ */
+      #if defined(__ARM_NEON__) || defined(__ARM_NEON)
+      while (endp - p >= 16) {
+        uint8x16_t input;
+        uint8x16_t single;
+        uint8x16_t mask;
+        uint8x8_t narrow;
+        uint64_t match_mask;
+        int match_len;
+      
+        /* Load input */
+        input = vld1q_u8(p);
+        /* Find first character that does not match `ranges` */
+        single = vceqq_u8(input, vdupq_n_u8(0x9));
+        mask = single;
+        single = vandq_u8(
+          vcgeq_u8(input, vdupq_n_u8(' ')),
+          vcleq_u8(input, vdupq_n_u8('~'))
+        );
+        mask = vorrq_u8(mask, single);
+        single = vandq_u8(
+          vcgeq_u8(input, vdupq_n_u8(0x80)),
+          vcleq_u8(input, vdupq_n_u8(0xff))
+        );
+        mask = vorrq_u8(mask, single);
+        narrow = vshrn_n_u16(vreinterpretq_u16_u8(mask), 4);
+        match_mask = ~vget_lane_u64(vreinterpret_u64_u8(narrow), 0);
+        if (match_mask == 0) {
+          match_len = 16;
+        } else {
+          match_len = __builtin_ctzll(match_mask) >> 2;
+        }
+        if (match_len != 16) {
+          p += match_len;
+          goto s_n_llhttp__internal__n_header_value_otherwise;
+        }
+        p += 16;
+      }
+      if (p == endp) {
+        return s_n_llhttp__internal__n_header_value;
+      }
+      #endif  /* __ARM_NEON__ */
+      #ifdef __wasm_simd128__
+      while (endp - p >= 16) {
+        v128_t input;
+        v128_t mask;
+        v128_t single;
+        int match_len;
+      
+        /* Load input */
+        input = wasm_v128_load(p);
+        /* Find first character that does not match `ranges` */
+        single = wasm_i8x16_eq(input, wasm_u8x16_const_splat(0x9));
+        mask = single;
+        single = wasm_v128_and(
+          wasm_i8x16_ge(input, wasm_u8x16_const_splat(' ')),
+          wasm_i8x16_le(input, wasm_u8x16_const_splat('~'))
+        );
+        mask = wasm_v128_or(mask, single);
+        single = wasm_v128_and(
+          wasm_i8x16_ge(input, wasm_u8x16_const_splat(0x80)),
+          wasm_i8x16_le(input, wasm_u8x16_const_splat(0xff))
+        );
+        mask = wasm_v128_or(mask, single);
+        match_len = __builtin_ctz(
+          ~wasm_i8x16_bitmask(mask)
+        );
+        if (match_len != 16) {
+          p += match_len;
+          goto s_n_llhttp__internal__n_header_value_otherwise;
+        }
+        p += 16;
+      }
+      if (p == endp) {
+        return s_n_llhttp__internal__n_header_value;
+      }
+      #endif  /* __wasm_simd128__ */
       switch (lookup_table[(uint8_t) *p]) {
         case 1: {
           p++;
@@ -2661,8 +2710,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_otherwise;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_te_token:
     s_n_llhttp__internal__n_header_value_te_token: {
@@ -2700,8 +2748,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_9;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_te_chunked_last:
     s_n_llhttp__internal__n_header_value_te_chunked_last: {
@@ -2726,8 +2773,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_te_token;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_te_chunked:
     s_n_llhttp__internal__n_header_value_te_chunked: {
@@ -2750,8 +2796,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_value_te_token;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_header_value_1:
     s_n_llhttp__internal__n_span_start_llhttp__on_header_value_1: {
@@ -2761,8 +2806,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_header_value;
       goto s_n_llhttp__internal__n_invoke_load_header_state_3;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_value_discard_ws:
     s_n_llhttp__internal__n_header_value_discard_ws: {
@@ -2790,8 +2834,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_start_llhttp__on_header_value_1;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_load_header_state:
     s_n_llhttp__internal__n_invoke_load_header_state: {
@@ -2803,8 +2846,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_header_value_discard_ws;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_header_field_complete:
     s_n_llhttp__internal__n_invoke_llhttp__on_header_field_complete: {
@@ -2816,8 +2858,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_error_45;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_general_otherwise:
     s_n_llhttp__internal__n_header_field_general_otherwise: {
@@ -2832,8 +2873,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_62;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_general:
     s_n_llhttp__internal__n_header_field_general: {
@@ -2862,7 +2902,6 @@ static llparse_state_t llhttp__internal__run(
       if (endp - p >= 16) {
         __m128i ranges;
         __m128i input;
-        int avail;
         int match_len;
       
         /* Load input */
@@ -2903,8 +2942,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_field_general_otherwise;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_colon:
     s_n_llhttp__internal__n_header_field_colon: {
@@ -2922,8 +2960,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_10;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_3:
     s_n_llhttp__internal__n_header_field_3: {
@@ -2947,8 +2984,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_4:
     s_n_llhttp__internal__n_header_field_4: {
@@ -2972,8 +3008,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_2:
     s_n_llhttp__internal__n_header_field_2: {
@@ -2993,8 +3028,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_1:
     s_n_llhttp__internal__n_header_field_1: {
@@ -3017,8 +3051,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_5:
     s_n_llhttp__internal__n_header_field_5: {
@@ -3042,8 +3075,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_6:
     s_n_llhttp__internal__n_header_field_6: {
@@ -3067,8 +3099,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_7:
     s_n_llhttp__internal__n_header_field_7: {
@@ -3092,8 +3123,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field:
     s_n_llhttp__internal__n_header_field: {
@@ -3121,8 +3151,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_header_state_11;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_header_field:
     s_n_llhttp__internal__n_span_start_llhttp__on_header_field: {
@@ -3132,8 +3161,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_header_field;
       goto s_n_llhttp__internal__n_header_field;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_header_field_start:
     s_n_llhttp__internal__n_header_field_start: {
@@ -3156,8 +3184,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_start_llhttp__on_header_field;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_headers_start:
     s_n_llhttp__internal__n_headers_start: {
@@ -3173,8 +3200,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_header_field_start;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_to_http_09:
     s_n_llhttp__internal__n_url_to_http_09: {
@@ -3194,8 +3220,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_http_major;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_skip_to_http09:
     s_n_llhttp__internal__n_url_skip_to_http09: {
@@ -3216,8 +3241,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_to_http_09;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_skip_lf_to_http09_1:
     s_n_llhttp__internal__n_url_skip_lf_to_http09_1: {
@@ -3233,8 +3257,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_63;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_skip_lf_to_http09:
     s_n_llhttp__internal__n_url_skip_lf_to_http09: {
@@ -3258,8 +3281,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_error_63;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_pri_upgrade:
     s_n_llhttp__internal__n_req_pri_upgrade: {
@@ -3273,17 +3295,16 @@ static llparse_state_t llhttp__internal__run(
       switch (match_seq.status) {
         case kMatchComplete: {
           p++;
-          goto s_n_llhttp__internal__n_error_71;
+          goto s_n_llhttp__internal__n_error_72;
         }
         case kMatchPause: {
           return s_n_llhttp__internal__n_req_pri_upgrade;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_72;
+          goto s_n_llhttp__internal__n_error_73;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_http_complete_crlf:
     s_n_llhttp__internal__n_req_http_complete_crlf: {
@@ -3299,8 +3320,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_26;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_http_complete:
     s_n_llhttp__internal__n_req_http_complete: {
@@ -3317,11 +3337,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_req_http_complete_crlf;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_70;
+          goto s_n_llhttp__internal__n_error_71;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_load_method_1:
     s_n_llhttp__internal__n_invoke_load_method_1: {
@@ -3331,8 +3350,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_req_http_complete;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_version_complete:
     s_n_llhttp__internal__n_invoke_llhttp__on_version_complete: {
@@ -3342,30 +3360,27 @@ static llparse_state_t llhttp__internal__run(
         case 21:
           goto s_n_llhttp__internal__n_pause_21;
         default:
-          goto s_n_llhttp__internal__n_error_67;
+          goto s_n_llhttp__internal__n_error_68;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_66:
-    s_n_llhttp__internal__n_error_66: {
+    case s_n_llhttp__internal__n_error_67:
+    s_n_llhttp__internal__n_error_67: {
       state->error = 0x9;
       state->reason = "Invalid HTTP version";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_73:
-    s_n_llhttp__internal__n_error_73: {
+    case s_n_llhttp__internal__n_error_74:
+    s_n_llhttp__internal__n_error_74: {
       state->error = 0x9;
       state->reason = "Invalid minor version";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_http_minor:
     s_n_llhttp__internal__n_req_http_minor: {
@@ -3427,18 +3442,16 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_version_2;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_74:
-    s_n_llhttp__internal__n_error_74: {
+    case s_n_llhttp__internal__n_error_75:
+    s_n_llhttp__internal__n_error_75: {
       state->error = 0x9;
       state->reason = "Expected dot";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_http_dot:
     s_n_llhttp__internal__n_req_http_dot: {
@@ -3454,18 +3467,16 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_version_3;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_75:
-    s_n_llhttp__internal__n_error_75: {
+    case s_n_llhttp__internal__n_error_76:
+    s_n_llhttp__internal__n_error_76: {
       state->error = 0x9;
       state->reason = "Invalid major version";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_http_major:
     s_n_llhttp__internal__n_req_http_major: {
@@ -3527,8 +3538,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_version_4;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_version:
     s_n_llhttp__internal__n_span_start_llhttp__on_version: {
@@ -3538,80 +3548,297 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_version;
       goto s_n_llhttp__internal__n_req_http_major;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_req_http_start_1:
-    s_n_llhttp__internal__n_req_http_start_1: {
-      llparse_match_t match_seq;
-      
+    case s_n_llhttp__internal__n_req_after_protocol:
+    s_n_llhttp__internal__n_req_after_protocol: {
       if (p == endp) {
-        return s_n_llhttp__internal__n_req_http_start_1;
+        return s_n_llhttp__internal__n_req_after_protocol;
       }
-      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob13, 4);
-      p = match_seq.current;
-      switch (match_seq.status) {
-        case kMatchComplete: {
+      switch (*p) {
+        case '/': {
           p++;
+          goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
+        }
+        default: {
+          goto s_n_llhttp__internal__n_error_77;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_load_method:
+    s_n_llhttp__internal__n_invoke_load_method: {
+      switch (llhttp__internal__c_load_method(state, p, endp)) {
+        case 0:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 1:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 2:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 3:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 4:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 5:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 6:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 7:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 8:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 9:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 10:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 11:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 12:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 13:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 14:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 15:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 16:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 17:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 18:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 19:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 20:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 21:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 22:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 23:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 24:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 25:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 26:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 27:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 28:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 29:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 30:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 31:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 32:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 33:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 34:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 46:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        default:
+          goto s_n_llhttp__internal__n_error_66;
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete:
+    s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete: {
+      switch (llhttp__on_protocol_complete(state, p, endp)) {
+        case 0:
           goto s_n_llhttp__internal__n_invoke_load_method;
-        }
-        case kMatchPause: {
-          return s_n_llhttp__internal__n_req_http_start_1;
-        }
-        case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_78;
-        }
+        case 21:
+          goto s_n_llhttp__internal__n_pause_22;
+        default:
+          goto s_n_llhttp__internal__n_error_65;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_req_http_start_2:
-    s_n_llhttp__internal__n_req_http_start_2: {
+    case s_n_llhttp__internal__n_error_82:
+    s_n_llhttp__internal__n_error_82: {
+      state->error = 0x8;
+      state->reason = "Expected HTTP/, RTSP/ or ICE/";
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_error;
+      return s_error;
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_req_after_http_start_1:
+    s_n_llhttp__internal__n_req_after_http_start_1: {
       llparse_match_t match_seq;
       
       if (p == endp) {
-        return s_n_llhttp__internal__n_req_http_start_2;
+        return s_n_llhttp__internal__n_req_after_http_start_1;
       }
-      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob15, 3);
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob13, 3);
       p = match_seq.current;
       switch (match_seq.status) {
         case kMatchComplete: {
           p++;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol;
+        }
+        case kMatchPause: {
+          return s_n_llhttp__internal__n_req_after_http_start_1;
+        }
+        case kMatchMismatch: {
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_3;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_load_method_2:
+    s_n_llhttp__internal__n_invoke_load_method_2: {
+      switch (llhttp__internal__c_load_method(state, p, endp)) {
+        case 33:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        default:
+          goto s_n_llhttp__internal__n_error_79;
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_1:
+    s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_1: {
+      switch (llhttp__on_protocol_complete(state, p, endp)) {
+        case 0:
           goto s_n_llhttp__internal__n_invoke_load_method_2;
-        }
-        case kMatchPause: {
-          return s_n_llhttp__internal__n_req_http_start_2;
-        }
-        case kMatchMismatch: {
+        case 21:
+          goto s_n_llhttp__internal__n_pause_23;
+        default:
           goto s_n_llhttp__internal__n_error_78;
-        }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_req_http_start_3:
-    s_n_llhttp__internal__n_req_http_start_3: {
+    case s_n_llhttp__internal__n_req_after_http_start_2:
+    s_n_llhttp__internal__n_req_after_http_start_2: {
       llparse_match_t match_seq;
       
       if (p == endp) {
-        return s_n_llhttp__internal__n_req_http_start_3;
+        return s_n_llhttp__internal__n_req_after_http_start_2;
       }
-      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob16, 4);
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob15, 2);
       p = match_seq.current;
       switch (match_seq.status) {
         case kMatchComplete: {
           p++;
-          goto s_n_llhttp__internal__n_invoke_load_method_3;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_1;
         }
         case kMatchPause: {
-          return s_n_llhttp__internal__n_req_http_start_3;
+          return s_n_llhttp__internal__n_req_after_http_start_2;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_78;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_3;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_load_method_3:
+    s_n_llhttp__internal__n_invoke_load_method_3: {
+      switch (llhttp__internal__c_load_method(state, p, endp)) {
+        case 1:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 3:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 6:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 35:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 36:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 37:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 38:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 39:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 40:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 41:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 42:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 43:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 44:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        case 45:
+          goto s_n_llhttp__internal__n_req_after_protocol;
+        default:
+          goto s_n_llhttp__internal__n_error_81;
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_2:
+    s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_2: {
+      switch (llhttp__on_protocol_complete(state, p, endp)) {
+        case 0:
+          goto s_n_llhttp__internal__n_invoke_load_method_3;
+        case 21:
+          goto s_n_llhttp__internal__n_pause_24;
+        default:
+          goto s_n_llhttp__internal__n_error_80;
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_req_after_http_start_3:
+    s_n_llhttp__internal__n_req_after_http_start_3: {
+      llparse_match_t match_seq;
+      
+      if (p == endp) {
+        return s_n_llhttp__internal__n_req_after_http_start_3;
+      }
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob16, 3);
+      p = match_seq.current;
+      switch (match_seq.status) {
+        case kMatchComplete: {
+          p++;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_2;
+        }
+        case kMatchPause: {
+          return s_n_llhttp__internal__n_req_after_http_start_3;
+        }
+        case kMatchMismatch: {
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_3;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_req_after_http_start:
+    s_n_llhttp__internal__n_req_after_http_start: {
+      if (p == endp) {
+        return s_n_llhttp__internal__n_req_after_http_start;
+      }
+      switch (*p) {
+        case 'H': {
+          p++;
+          goto s_n_llhttp__internal__n_req_after_http_start_1;
+        }
+        case 'I': {
+          p++;
+          goto s_n_llhttp__internal__n_req_after_http_start_2;
+        }
+        case 'R': {
+          p++;
+          goto s_n_llhttp__internal__n_req_after_http_start_3;
+        }
+        default: {
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_3;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_span_start_llhttp__on_protocol:
+    s_n_llhttp__internal__n_span_start_llhttp__on_protocol: {
+      if (p == endp) {
+        return s_n_llhttp__internal__n_span_start_llhttp__on_protocol;
+      }
+      state->_span_pos0 = (void*) p;
+      state->_span_cb0 = llhttp__on_protocol;
+      goto s_n_llhttp__internal__n_req_after_http_start;
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_http_start:
     s_n_llhttp__internal__n_req_http_start: {
@@ -3623,24 +3850,11 @@ static llparse_state_t llhttp__internal__run(
           p++;
           goto s_n_llhttp__internal__n_req_http_start;
         }
-        case 'H': {
-          p++;
-          goto s_n_llhttp__internal__n_req_http_start_1;
-        }
-        case 'I': {
-          p++;
-          goto s_n_llhttp__internal__n_req_http_start_2;
-        }
-        case 'R': {
-          p++;
-          goto s_n_llhttp__internal__n_req_http_start_3;
-        }
         default: {
-          goto s_n_llhttp__internal__n_error_78;
+          goto s_n_llhttp__internal__n_span_start_llhttp__on_protocol;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_to_http:
     s_n_llhttp__internal__n_url_to_http: {
@@ -3660,8 +3874,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_llhttp__on_url_complete_1;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_skip_to_http:
     s_n_llhttp__internal__n_url_skip_to_http: {
@@ -3682,8 +3895,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_to_http;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_fragment:
     s_n_llhttp__internal__n_url_fragment: {
@@ -3727,11 +3939,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_fragment;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_79;
+          goto s_n_llhttp__internal__n_error_83;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_end_stub_query_3:
     s_n_llhttp__internal__n_span_end_stub_query_3: {
@@ -3740,8 +3951,7 @@ static llparse_state_t llhttp__internal__run(
       }
       p++;
       goto s_n_llhttp__internal__n_url_fragment;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_query:
     s_n_llhttp__internal__n_url_query: {
@@ -3788,11 +3998,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_stub_query_3;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_80;
+          goto s_n_llhttp__internal__n_error_84;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_query_or_fragment:
     s_n_llhttp__internal__n_url_query_or_fragment: {
@@ -3826,11 +4035,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_query;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_81;
+          goto s_n_llhttp__internal__n_error_85;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_path:
     s_n_llhttp__internal__n_url_path: {
@@ -3868,8 +4076,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_query_or_fragment;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_stub_path_2:
     s_n_llhttp__internal__n_span_start_stub_path_2: {
@@ -3878,8 +4085,7 @@ static llparse_state_t llhttp__internal__run(
       }
       p++;
       goto s_n_llhttp__internal__n_url_path;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_stub_path:
     s_n_llhttp__internal__n_span_start_stub_path: {
@@ -3888,8 +4094,7 @@ static llparse_state_t llhttp__internal__run(
       }
       p++;
       goto s_n_llhttp__internal__n_url_path;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_stub_path_1:
     s_n_llhttp__internal__n_span_start_stub_path_1: {
@@ -3898,8 +4103,7 @@ static llparse_state_t llhttp__internal__run(
       }
       p++;
       goto s_n_llhttp__internal__n_url_path;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_server_with_at:
     s_n_llhttp__internal__n_url_server_with_at: {
@@ -3951,14 +4155,13 @@ static llparse_state_t llhttp__internal__run(
         }
         case 8: {
           p++;
-          goto s_n_llhttp__internal__n_error_82;
+          goto s_n_llhttp__internal__n_error_86;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_83;
+          goto s_n_llhttp__internal__n_error_87;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_server:
     s_n_llhttp__internal__n_url_server: {
@@ -4013,11 +4216,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_server_with_at;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_84;
+          goto s_n_llhttp__internal__n_error_88;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_schema_delim_1:
     s_n_llhttp__internal__n_url_schema_delim_1: {
@@ -4030,11 +4232,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_server;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_85;
+          goto s_n_llhttp__internal__n_error_89;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_schema_delim:
     s_n_llhttp__internal__n_url_schema_delim: {
@@ -4067,11 +4268,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_schema_delim_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_85;
+          goto s_n_llhttp__internal__n_error_89;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_end_stub_schema:
     s_n_llhttp__internal__n_span_end_stub_schema: {
@@ -4080,8 +4280,7 @@ static llparse_state_t llhttp__internal__run(
       }
       p++;
       goto s_n_llhttp__internal__n_url_schema_delim;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_schema:
     s_n_llhttp__internal__n_url_schema: {
@@ -4119,11 +4318,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_schema;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_86;
+          goto s_n_llhttp__internal__n_error_90;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_start:
     s_n_llhttp__internal__n_url_start: {
@@ -4160,11 +4358,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_url_schema;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_87;
+          goto s_n_llhttp__internal__n_error_91;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_url_1:
     s_n_llhttp__internal__n_span_start_llhttp__on_url_1: {
@@ -4174,8 +4371,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_url;
       goto s_n_llhttp__internal__n_url_start;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_entry_normal:
     s_n_llhttp__internal__n_url_entry_normal: {
@@ -4195,8 +4391,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_start_llhttp__on_url_1;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_url:
     s_n_llhttp__internal__n_span_start_llhttp__on_url: {
@@ -4206,8 +4401,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_url;
       goto s_n_llhttp__internal__n_url_server;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_url_entry_connect:
     s_n_llhttp__internal__n_url_entry_connect: {
@@ -4227,8 +4421,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_start_llhttp__on_url;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_spaces_before_url:
     s_n_llhttp__internal__n_req_spaces_before_url: {
@@ -4244,8 +4437,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_is_equal_method;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_first_space_before_url:
     s_n_llhttp__internal__n_req_first_space_before_url: {
@@ -4258,11 +4450,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_req_spaces_before_url;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_88;
+          goto s_n_llhttp__internal__n_error_92;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_method_complete_1:
     s_n_llhttp__internal__n_invoke_llhttp__on_method_complete_1: {
@@ -4270,12 +4461,11 @@ static llparse_state_t llhttp__internal__run(
         case 0:
           goto s_n_llhttp__internal__n_req_first_space_before_url;
         case 21:
-          goto s_n_llhttp__internal__n_pause_26;
+          goto s_n_llhttp__internal__n_pause_29;
         default:
-          goto s_n_llhttp__internal__n_error_107;
+          goto s_n_llhttp__internal__n_error_111;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_2:
     s_n_llhttp__internal__n_after_start_req_2: {
@@ -4289,11 +4479,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_store_method_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_3:
     s_n_llhttp__internal__n_after_start_req_3: {
@@ -4314,11 +4503,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_3;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_1:
     s_n_llhttp__internal__n_after_start_req_1: {
@@ -4335,11 +4523,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_3;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_4:
     s_n_llhttp__internal__n_after_start_req_4: {
@@ -4360,11 +4547,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_4;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_6:
     s_n_llhttp__internal__n_after_start_req_6: {
@@ -4385,11 +4571,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_6;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_8:
     s_n_llhttp__internal__n_after_start_req_8: {
@@ -4410,11 +4595,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_8;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_9:
     s_n_llhttp__internal__n_after_start_req_9: {
@@ -4428,11 +4612,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_store_method_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_7:
     s_n_llhttp__internal__n_after_start_req_7: {
@@ -4449,11 +4632,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_9;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_5:
     s_n_llhttp__internal__n_after_start_req_5: {
@@ -4470,11 +4652,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_7;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_12:
     s_n_llhttp__internal__n_after_start_req_12: {
@@ -4495,11 +4676,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_12;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_13:
     s_n_llhttp__internal__n_after_start_req_13: {
@@ -4520,11 +4700,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_13;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_11:
     s_n_llhttp__internal__n_after_start_req_11: {
@@ -4541,11 +4720,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_13;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_10:
     s_n_llhttp__internal__n_after_start_req_10: {
@@ -4558,11 +4736,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_11;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_14:
     s_n_llhttp__internal__n_after_start_req_14: {
@@ -4583,11 +4760,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_14;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_17:
     s_n_llhttp__internal__n_after_start_req_17: {
@@ -4608,11 +4784,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_17;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_16:
     s_n_llhttp__internal__n_after_start_req_16: {
@@ -4629,8 +4804,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_store_method_1;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_15:
     s_n_llhttp__internal__n_after_start_req_15: {
@@ -4650,11 +4824,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_15;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_18:
     s_n_llhttp__internal__n_after_start_req_18: {
@@ -4675,11 +4848,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_18;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_20:
     s_n_llhttp__internal__n_after_start_req_20: {
@@ -4700,11 +4872,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_20;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_21:
     s_n_llhttp__internal__n_after_start_req_21: {
@@ -4725,11 +4896,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_21;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_19:
     s_n_llhttp__internal__n_after_start_req_19: {
@@ -4746,11 +4916,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_21;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_23:
     s_n_llhttp__internal__n_after_start_req_23: {
@@ -4771,11 +4940,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_23;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_24:
     s_n_llhttp__internal__n_after_start_req_24: {
@@ -4796,11 +4964,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_24;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_26:
     s_n_llhttp__internal__n_after_start_req_26: {
@@ -4821,11 +4988,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_26;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_28:
     s_n_llhttp__internal__n_after_start_req_28: {
@@ -4846,11 +5012,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_28;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_29:
     s_n_llhttp__internal__n_after_start_req_29: {
@@ -4864,11 +5029,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_store_method_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_27:
     s_n_llhttp__internal__n_after_start_req_27: {
@@ -4885,11 +5049,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_29;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_25:
     s_n_llhttp__internal__n_after_start_req_25: {
@@ -4906,11 +5069,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_27;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_30:
     s_n_llhttp__internal__n_after_start_req_30: {
@@ -4931,11 +5093,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_30;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_22:
     s_n_llhttp__internal__n_after_start_req_22: {
@@ -4960,11 +5121,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_30;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_31:
     s_n_llhttp__internal__n_after_start_req_31: {
@@ -4985,11 +5145,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_31;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_32:
     s_n_llhttp__internal__n_after_start_req_32: {
@@ -5010,11 +5169,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_32;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_35:
     s_n_llhttp__internal__n_after_start_req_35: {
@@ -5035,11 +5193,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_35;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_36:
     s_n_llhttp__internal__n_after_start_req_36: {
@@ -5060,11 +5217,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_36;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_34:
     s_n_llhttp__internal__n_after_start_req_34: {
@@ -5081,11 +5237,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_36;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_37:
     s_n_llhttp__internal__n_after_start_req_37: {
@@ -5106,11 +5261,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_37;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_38:
     s_n_llhttp__internal__n_after_start_req_38: {
@@ -5131,11 +5285,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_38;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_42:
     s_n_llhttp__internal__n_after_start_req_42: {
@@ -5156,11 +5309,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_42;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_43:
     s_n_llhttp__internal__n_after_start_req_43: {
@@ -5181,11 +5333,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_43;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_41:
     s_n_llhttp__internal__n_after_start_req_41: {
@@ -5202,11 +5353,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_43;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_40:
     s_n_llhttp__internal__n_after_start_req_40: {
@@ -5219,11 +5369,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_41;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_39:
     s_n_llhttp__internal__n_after_start_req_39: {
@@ -5241,11 +5390,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_40;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_45:
     s_n_llhttp__internal__n_after_start_req_45: {
@@ -5266,11 +5414,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_45;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_44:
     s_n_llhttp__internal__n_after_start_req_44: {
@@ -5288,11 +5435,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_store_method_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_33:
     s_n_llhttp__internal__n_after_start_req_33: {
@@ -5321,11 +5467,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_44;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_46:
     s_n_llhttp__internal__n_after_start_req_46: {
@@ -5346,11 +5491,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_46;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_49:
     s_n_llhttp__internal__n_after_start_req_49: {
@@ -5371,11 +5515,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_49;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_50:
     s_n_llhttp__internal__n_after_start_req_50: {
@@ -5396,11 +5539,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_50;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_51:
     s_n_llhttp__internal__n_after_start_req_51: {
@@ -5421,11 +5563,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_51;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_52:
     s_n_llhttp__internal__n_after_start_req_52: {
@@ -5446,11 +5587,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_52;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_48:
     s_n_llhttp__internal__n_after_start_req_48: {
@@ -5475,11 +5615,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_52;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_47:
     s_n_llhttp__internal__n_after_start_req_47: {
@@ -5492,11 +5631,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_48;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_55:
     s_n_llhttp__internal__n_after_start_req_55: {
@@ -5517,11 +5655,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_55;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_57:
     s_n_llhttp__internal__n_after_start_req_57: {
@@ -5535,11 +5672,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_store_method_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_58:
     s_n_llhttp__internal__n_after_start_req_58: {
@@ -5560,11 +5696,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_58;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_56:
     s_n_llhttp__internal__n_after_start_req_56: {
@@ -5581,11 +5716,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_58;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_54:
     s_n_llhttp__internal__n_after_start_req_54: {
@@ -5602,11 +5736,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_56;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_59:
     s_n_llhttp__internal__n_after_start_req_59: {
@@ -5627,11 +5760,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_59;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_60:
     s_n_llhttp__internal__n_after_start_req_60: {
@@ -5652,11 +5784,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_60;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_53:
     s_n_llhttp__internal__n_after_start_req_53: {
@@ -5677,11 +5808,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_60;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_62:
     s_n_llhttp__internal__n_after_start_req_62: {
@@ -5702,11 +5832,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_62;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_63:
     s_n_llhttp__internal__n_after_start_req_63: {
@@ -5727,11 +5856,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_63;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_61:
     s_n_llhttp__internal__n_after_start_req_61: {
@@ -5748,11 +5876,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_63;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_66:
     s_n_llhttp__internal__n_after_start_req_66: {
@@ -5773,11 +5900,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_66;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_68:
     s_n_llhttp__internal__n_after_start_req_68: {
@@ -5798,11 +5924,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_68;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_69:
     s_n_llhttp__internal__n_after_start_req_69: {
@@ -5823,11 +5948,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_69;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_67:
     s_n_llhttp__internal__n_after_start_req_67: {
@@ -5844,11 +5968,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_69;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_70:
     s_n_llhttp__internal__n_after_start_req_70: {
@@ -5869,11 +5992,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_after_start_req_70;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_65:
     s_n_llhttp__internal__n_after_start_req_65: {
@@ -5894,11 +6016,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_70;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req_64:
     s_n_llhttp__internal__n_after_start_req_64: {
@@ -5911,11 +6032,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_65;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_after_start_req:
     s_n_llhttp__internal__n_after_start_req: {
@@ -5992,11 +6112,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_after_start_req_64;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_108;
+          goto s_n_llhttp__internal__n_error_112;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_method_1:
     s_n_llhttp__internal__n_span_start_llhttp__on_method_1: {
@@ -6006,8 +6125,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_method;
       goto s_n_llhttp__internal__n_after_start_req;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_line_almost_done:
     s_n_llhttp__internal__n_res_line_almost_done: {
@@ -6027,8 +6145,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_test_lenient_flags_29;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_test_lenient_flags_30:
     s_n_llhttp__internal__n_invoke_test_lenient_flags_30: {
@@ -6036,10 +6153,9 @@ static llparse_state_t llhttp__internal__run(
         case 1:
           goto s_n_llhttp__internal__n_invoke_llhttp__on_status_complete;
         default:
-          goto s_n_llhttp__internal__n_error_94;
+          goto s_n_llhttp__internal__n_error_98;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_status:
     s_n_llhttp__internal__n_res_status: {
@@ -6058,8 +6174,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_res_status;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_status:
     s_n_llhttp__internal__n_span_start_llhttp__on_status: {
@@ -6069,8 +6184,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_status;
       goto s_n_llhttp__internal__n_res_status;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_status_code_otherwise:
     s_n_llhttp__internal__n_res_status_code_otherwise: {
@@ -6091,11 +6205,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_start_llhttp__on_status;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_95;
+          goto s_n_llhttp__internal__n_error_99;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_status_code_digit_3:
     s_n_llhttp__internal__n_res_status_code_digit_3: {
@@ -6154,11 +6267,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_mul_add_status_code_2;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_97;
+          goto s_n_llhttp__internal__n_error_101;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_status_code_digit_2:
     s_n_llhttp__internal__n_res_status_code_digit_2: {
@@ -6217,11 +6329,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_mul_add_status_code_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_99;
+          goto s_n_llhttp__internal__n_error_103;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_status_code_digit_1:
     s_n_llhttp__internal__n_res_status_code_digit_1: {
@@ -6280,11 +6391,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_mul_add_status_code;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_101;
+          goto s_n_llhttp__internal__n_error_105;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_after_version:
     s_n_llhttp__internal__n_res_after_version: {
@@ -6297,11 +6407,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_status_code;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_102;
+          goto s_n_llhttp__internal__n_error_106;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_version_complete_1:
     s_n_llhttp__internal__n_invoke_llhttp__on_version_complete_1: {
@@ -6309,32 +6418,29 @@ static llparse_state_t llhttp__internal__run(
         case 0:
           goto s_n_llhttp__internal__n_res_after_version;
         case 21:
-          goto s_n_llhttp__internal__n_pause_25;
+          goto s_n_llhttp__internal__n_pause_28;
         default:
-          goto s_n_llhttp__internal__n_error_90;
+          goto s_n_llhttp__internal__n_error_94;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_89:
-    s_n_llhttp__internal__n_error_89: {
+    case s_n_llhttp__internal__n_error_93:
+    s_n_llhttp__internal__n_error_93: {
       state->error = 0x9;
       state->reason = "Invalid HTTP version";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_103:
-    s_n_llhttp__internal__n_error_103: {
+    case s_n_llhttp__internal__n_error_107:
+    s_n_llhttp__internal__n_error_107: {
       state->error = 0x9;
       state->reason = "Invalid minor version";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_http_minor:
     s_n_llhttp__internal__n_res_http_minor: {
@@ -6396,18 +6502,16 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_version_7;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_104:
-    s_n_llhttp__internal__n_error_104: {
+    case s_n_llhttp__internal__n_error_108:
+    s_n_llhttp__internal__n_error_108: {
       state->error = 0x9;
       state->reason = "Expected dot";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_http_dot:
     s_n_llhttp__internal__n_res_http_dot: {
@@ -6423,18 +6527,16 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_version_8;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_error_105:
-    s_n_llhttp__internal__n_error_105: {
+    case s_n_llhttp__internal__n_error_109:
+    s_n_llhttp__internal__n_error_109: {
       state->error = 0x9;
       state->reason = "Invalid major version";
       state->error_pos = (const char*) p;
       state->_current = (void*) (intptr_t) s_error;
       return s_error;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_res_http_major:
     s_n_llhttp__internal__n_res_http_major: {
@@ -6496,8 +6598,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_span_end_llhttp__on_version_9;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_version_1:
     s_n_llhttp__internal__n_span_start_llhttp__on_version_1: {
@@ -6507,32 +6608,147 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_version;
       goto s_n_llhttp__internal__n_res_http_major;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
-    case s_n_llhttp__internal__n_start_res:
-    s_n_llhttp__internal__n_start_res: {
+    case s_n_llhttp__internal__n_res_after_protocol:
+    s_n_llhttp__internal__n_res_after_protocol: {
+      if (p == endp) {
+        return s_n_llhttp__internal__n_res_after_protocol;
+      }
+      switch (*p) {
+        case '/': {
+          p++;
+          goto s_n_llhttp__internal__n_span_start_llhttp__on_version_1;
+        }
+        default: {
+          goto s_n_llhttp__internal__n_error_114;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_3:
+    s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_3: {
+      switch (llhttp__on_protocol_complete(state, p, endp)) {
+        case 0:
+          goto s_n_llhttp__internal__n_res_after_protocol;
+        case 21:
+          goto s_n_llhttp__internal__n_pause_30;
+        default:
+          goto s_n_llhttp__internal__n_error_113;
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_error_115:
+    s_n_llhttp__internal__n_error_115: {
+      state->error = 0x8;
+      state->reason = "Expected HTTP/, RTSP/ or ICE/";
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_error;
+      return s_error;
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_res_after_start_1:
+    s_n_llhttp__internal__n_res_after_start_1: {
       llparse_match_t match_seq;
       
       if (p == endp) {
-        return s_n_llhttp__internal__n_start_res;
+        return s_n_llhttp__internal__n_res_after_start_1;
       }
-      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob58, 5);
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob58, 3);
       p = match_seq.current;
       switch (match_seq.status) {
         case kMatchComplete: {
           p++;
-          goto s_n_llhttp__internal__n_span_start_llhttp__on_version_1;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_4;
         }
         case kMatchPause: {
-          return s_n_llhttp__internal__n_start_res;
+          return s_n_llhttp__internal__n_res_after_start_1;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_109;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_5;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_res_after_start_2:
+    s_n_llhttp__internal__n_res_after_start_2: {
+      llparse_match_t match_seq;
+      
+      if (p == endp) {
+        return s_n_llhttp__internal__n_res_after_start_2;
+      }
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob59, 2);
+      p = match_seq.current;
+      switch (match_seq.status) {
+        case kMatchComplete: {
+          p++;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_4;
+        }
+        case kMatchPause: {
+          return s_n_llhttp__internal__n_res_after_start_2;
+        }
+        case kMatchMismatch: {
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_5;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_res_after_start_3:
+    s_n_llhttp__internal__n_res_after_start_3: {
+      llparse_match_t match_seq;
+      
+      if (p == endp) {
+        return s_n_llhttp__internal__n_res_after_start_3;
+      }
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob60, 3);
+      p = match_seq.current;
+      switch (match_seq.status) {
+        case kMatchComplete: {
+          p++;
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_4;
+        }
+        case kMatchPause: {
+          return s_n_llhttp__internal__n_res_after_start_3;
+        }
+        case kMatchMismatch: {
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_5;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_res_after_start:
+    s_n_llhttp__internal__n_res_after_start: {
+      if (p == endp) {
+        return s_n_llhttp__internal__n_res_after_start;
+      }
+      switch (*p) {
+        case 'H': {
+          p++;
+          goto s_n_llhttp__internal__n_res_after_start_1;
+        }
+        case 'I': {
+          p++;
+          goto s_n_llhttp__internal__n_res_after_start_2;
+        }
+        case 'R': {
+          p++;
+          goto s_n_llhttp__internal__n_res_after_start_3;
+        }
+        default: {
+          goto s_n_llhttp__internal__n_span_end_llhttp__on_protocol_5;
+        }
+      }
+      UNREACHABLE;
+    }
+    case s_n_llhttp__internal__n_span_start_llhttp__on_protocol_1:
+    s_n_llhttp__internal__n_span_start_llhttp__on_protocol_1: {
+      if (p == endp) {
+        return s_n_llhttp__internal__n_span_start_llhttp__on_protocol_1;
+      }
+      state->_span_pos0 = (void*) p;
+      state->_span_cb0 = llhttp__on_protocol;
+      goto s_n_llhttp__internal__n_res_after_start;
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_llhttp__on_method_complete:
     s_n_llhttp__internal__n_invoke_llhttp__on_method_complete: {
@@ -6540,12 +6756,11 @@ static llparse_state_t llhttp__internal__run(
         case 0:
           goto s_n_llhttp__internal__n_req_first_space_before_url;
         case 21:
-          goto s_n_llhttp__internal__n_pause_23;
+          goto s_n_llhttp__internal__n_pause_26;
         default:
           goto s_n_llhttp__internal__n_error_1;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_or_res_method_2:
     s_n_llhttp__internal__n_req_or_res_method_2: {
@@ -6554,7 +6769,7 @@ static llparse_state_t llhttp__internal__run(
       if (p == endp) {
         return s_n_llhttp__internal__n_req_or_res_method_2;
       }
-      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob59, 2);
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob61, 2);
       p = match_seq.current;
       switch (match_seq.status) {
         case kMatchComplete: {
@@ -6566,11 +6781,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_req_or_res_method_2;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_106;
+          goto s_n_llhttp__internal__n_error_110;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_update_type_1:
     s_n_llhttp__internal__n_invoke_update_type_1: {
@@ -6578,8 +6792,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_span_start_llhttp__on_version_1;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_or_res_method_3:
     s_n_llhttp__internal__n_req_or_res_method_3: {
@@ -6588,7 +6801,7 @@ static llparse_state_t llhttp__internal__run(
       if (p == endp) {
         return s_n_llhttp__internal__n_req_or_res_method_3;
       }
-      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob60, 3);
+      match_seq = llparse__match_sequence_id(state, p, endp, llparse_blob62, 3);
       p = match_seq.current;
       switch (match_seq.status) {
         case kMatchComplete: {
@@ -6599,11 +6812,10 @@ static llparse_state_t llhttp__internal__run(
           return s_n_llhttp__internal__n_req_or_res_method_3;
         }
         case kMatchMismatch: {
-          goto s_n_llhttp__internal__n_error_106;
+          goto s_n_llhttp__internal__n_error_110;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_or_res_method_1:
     s_n_llhttp__internal__n_req_or_res_method_1: {
@@ -6620,11 +6832,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_req_or_res_method_3;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_106;
+          goto s_n_llhttp__internal__n_error_110;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_req_or_res_method:
     s_n_llhttp__internal__n_req_or_res_method: {
@@ -6637,11 +6848,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_req_or_res_method_1;
         }
         default: {
-          goto s_n_llhttp__internal__n_error_106;
+          goto s_n_llhttp__internal__n_error_110;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_span_start_llhttp__on_method:
     s_n_llhttp__internal__n_span_start_llhttp__on_method: {
@@ -6651,8 +6861,7 @@ static llparse_state_t llhttp__internal__run(
       state->_span_pos0 = (void*) p;
       state->_span_cb0 = llhttp__on_method;
       goto s_n_llhttp__internal__n_req_or_res_method;
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_start_req_or_res:
     s_n_llhttp__internal__n_start_req_or_res: {
@@ -6667,8 +6876,7 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_update_type_2;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_load_type:
     s_n_llhttp__internal__n_invoke_load_type: {
@@ -6676,12 +6884,11 @@ static llparse_state_t llhttp__internal__run(
         case 1:
           goto s_n_llhttp__internal__n_span_start_llhttp__on_method_1;
         case 2:
-          goto s_n_llhttp__internal__n_start_res;
+          goto s_n_llhttp__internal__n_span_start_llhttp__on_protocol_1;
         default:
           goto s_n_llhttp__internal__n_start_req_or_res;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_invoke_update_finish:
     s_n_llhttp__internal__n_invoke_update_finish: {
@@ -6689,8 +6896,7 @@ static llparse_state_t llhttp__internal__run(
         default:
           goto s_n_llhttp__internal__n_invoke_llhttp__on_message_begin;
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     case s_n_llhttp__internal__n_start:
     s_n_llhttp__internal__n_start: {
@@ -6710,12 +6916,10 @@ static llparse_state_t llhttp__internal__run(
           goto s_n_llhttp__internal__n_invoke_load_initial_message_completed;
         }
       }
-      /* UNREACHABLE */;
-      abort();
+      UNREACHABLE;
     }
     default:
-      /* UNREACHABLE */
-      abort();
+      UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_2: {
     state->error = 0x7;
@@ -6723,32 +6927,28 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_finish_2: {
     switch (llhttp__internal__c_update_finish_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_start;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_initial_message_completed: {
     switch (llhttp__internal__c_update_initial_message_completed(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_finish_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_content_length: {
     switch (llhttp__internal__c_update_content_length(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_initial_message_completed;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_8: {
     state->error = 0x5;
@@ -6756,8 +6956,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_3: {
     switch (llhttp__internal__c_test_lenient_flags_3(state, p, endp)) {
@@ -6766,8 +6965,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_8;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_2: {
     switch (llhttp__internal__c_test_lenient_flags_2(state, p, endp)) {
@@ -6776,16 +6974,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_closed;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_finish_1: {
     switch (llhttp__internal__c_update_finish_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_test_lenient_flags_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_13: {
     state->error = 0x15;
@@ -6793,8 +6989,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_is_equal_upgrade;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_38: {
     state->error = 0x12;
@@ -6802,8 +6997,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_15: {
     state->error = 0x15;
@@ -6811,8 +7005,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__on_message_complete_2;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_40: {
     state->error = 0x14;
@@ -6820,8 +7013,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_chunk_complete_1: {
     switch (llhttp__on_chunk_complete(state, p, endp)) {
@@ -6832,8 +7024,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_40;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_2: {
     state->error = 0x15;
@@ -6841,8 +7032,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_pause_1;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_9: {
     state->error = 0x12;
@@ -6850,8 +7040,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_message_complete_1: {
     switch (llhttp__on_message_complete(state, p, endp)) {
@@ -6862,8 +7051,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_9;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_36: {
     state->error = 0xc;
@@ -6871,8 +7059,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_10: {
     state->error = 0xc;
@@ -6880,8 +7067,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_4: {
     switch (llhttp__internal__c_test_lenient_flags_4(state, p, endp)) {
@@ -6890,8 +7076,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_10;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_3: {
     state->error = 0x15;
@@ -6899,8 +7084,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_update_content_length_1;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_14: {
     state->error = 0x14;
@@ -6908,8 +7092,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_chunk_complete: {
     switch (llhttp__on_chunk_complete(state, p, endp)) {
@@ -6920,8 +7103,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_14;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_13: {
     state->error = 0x19;
@@ -6929,8 +7111,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_6: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
@@ -6939,8 +7120,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_13;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_15: {
     state->error = 0x2;
@@ -6948,8 +7128,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_7: {
     switch (llhttp__internal__c_test_lenient_flags_7(state, p, endp)) {
@@ -6958,8 +7137,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_15;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_body: {
     const unsigned char* start;
@@ -6975,16 +7153,14 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_chunk_data_almost_done;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags: {
     switch (llhttp__internal__c_or_flags(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_field_start;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_4: {
     state->error = 0x15;
@@ -6992,8 +7168,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_is_equal_content_length;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_12: {
     state->error = 0x13;
@@ -7001,8 +7176,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_chunk_header: {
     switch (llhttp__on_chunk_header(state, p, endp)) {
@@ -7013,8 +7187,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_12;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_16: {
     state->error = 0x2;
@@ -7022,8 +7195,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_8: {
     switch (llhttp__internal__c_test_lenient_flags_8(state, p, endp)) {
@@ -7032,8 +7204,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_16;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_11: {
     state->error = 0x19;
@@ -7041,8 +7212,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_5: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
@@ -7051,8 +7221,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_11;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_17: {
     state->error = 0x2;
@@ -7060,8 +7229,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_18: {
     state->error = 0x2;
@@ -7069,8 +7237,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_20: {
     state->error = 0x19;
@@ -7078,8 +7245,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_5: {
     state->error = 0x15;
@@ -7087,8 +7253,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_test_lenient_flags_9;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_19: {
     state->error = 0x22;
@@ -7096,8 +7261,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_name: {
     const unsigned char* start;
@@ -7113,8 +7277,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_6: {
     state->error = 0x15;
@@ -7122,8 +7285,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_chunk_size_almost_done;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_21: {
     state->error = 0x22;
@@ -7131,8 +7293,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_name_1: {
     const unsigned char* start;
@@ -7149,8 +7310,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_1;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_7: {
     state->error = 0x15;
@@ -7158,8 +7318,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_chunk_extensions;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_22: {
     state->error = 0x22;
@@ -7167,8 +7326,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_name_2: {
     const unsigned char* start;
@@ -7185,8 +7343,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_2;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_25: {
     state->error = 0x19;
@@ -7194,8 +7351,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_8: {
     state->error = 0x15;
@@ -7203,8 +7359,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_test_lenient_flags_10;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_24: {
     state->error = 0x23;
@@ -7212,8 +7367,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value: {
     const unsigned char* start;
@@ -7229,8 +7383,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_9: {
     state->error = 0x15;
@@ -7238,8 +7391,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_chunk_size_almost_done;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_26: {
     state->error = 0x23;
@@ -7247,8 +7399,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_1: {
     const unsigned char* start;
@@ -7265,8 +7416,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_1;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_28: {
     state->error = 0x19;
@@ -7274,8 +7424,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_11: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
@@ -7284,8 +7433,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_28;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_29: {
     state->error = 0x2;
@@ -7293,8 +7441,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_10: {
     state->error = 0x15;
@@ -7302,8 +7449,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_chunk_extension_quoted_value_done;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_27: {
     state->error = 0x23;
@@ -7311,8 +7457,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_2: {
     const unsigned char* start;
@@ -7328,8 +7473,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_2;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_3: {
     const unsigned char* start;
@@ -7346,8 +7490,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_30;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_4: {
     const unsigned char* start;
@@ -7364,8 +7507,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_31;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_11: {
     state->error = 0x15;
@@ -7373,8 +7515,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_chunk_extensions;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_32: {
     state->error = 0x23;
@@ -7382,8 +7523,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_5: {
     const unsigned char* start;
@@ -7400,8 +7540,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_value_complete_3;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_value_6: {
     const unsigned char* start;
@@ -7418,8 +7557,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_33;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_12: {
     state->error = 0x15;
@@ -7427,8 +7565,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_chunk_extension_value;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_23: {
     state->error = 0x22;
@@ -7436,8 +7573,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_chunk_extension_name_complete_3: {
     switch (llhttp__on_chunk_extension_name_complete(state, p, endp)) {
@@ -7448,8 +7584,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_23;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_name_3: {
     const unsigned char* start;
@@ -7466,8 +7601,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_span_start_llhttp__on_chunk_extension_value;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_chunk_extension_name_4: {
     const unsigned char* start;
@@ -7484,8 +7618,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_34;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_35: {
     state->error = 0xc;
@@ -7493,8 +7626,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_mul_add_content_length: {
     switch (llhttp__internal__c_mul_add_content_length(state, p, endp, match)) {
@@ -7503,8 +7635,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_chunk_size;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_37: {
     state->error = 0xc;
@@ -7512,8 +7643,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_body_1: {
     const unsigned char* start;
@@ -7529,16 +7659,14 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_message_complete_2;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_finish_3: {
     switch (llhttp__internal__c_update_finish_3(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_body_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_39: {
     state->error = 0xf;
@@ -7546,8 +7674,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause: {
     state->error = 0x15;
@@ -7555,8 +7682,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__after_message_complete;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_7: {
     state->error = 0x12;
@@ -7564,8 +7690,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_message_complete: {
     switch (llhttp__on_message_complete(state, p, endp)) {
@@ -7576,32 +7701,28 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_7;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_1: {
     switch (llhttp__internal__c_or_flags_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_2: {
     switch (llhttp__internal__c_or_flags_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_upgrade: {
     switch (llhttp__internal__c_update_upgrade(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_or_flags_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_14: {
     state->error = 0x15;
@@ -7609,8 +7730,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_6: {
     state->error = 0x11;
@@ -7618,8 +7738,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_headers_complete: {
     switch (llhttp__on_headers_complete(state, p, endp)) {
@@ -7634,16 +7753,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_6;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__before_headers_complete: {
     switch (llhttp__before_headers_complete(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_headers_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_flags: {
     switch (llhttp__internal__c_test_flags(state, p, endp)) {
@@ -7652,8 +7769,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__before_headers_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_1: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
@@ -7662,8 +7778,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_5;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_17: {
     state->error = 0x15;
@@ -7671,8 +7786,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__on_message_complete_2;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_42: {
     state->error = 0x14;
@@ -7680,8 +7794,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_chunk_complete_2: {
     switch (llhttp__on_chunk_complete(state, p, endp)) {
@@ -7692,32 +7805,28 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_42;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_3: {
     switch (llhttp__internal__c_or_flags_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_4: {
     switch (llhttp__internal__c_or_flags_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_upgrade_1: {
     switch (llhttp__internal__c_update_upgrade(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_or_flags_4;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_16: {
     state->error = 0x15;
@@ -7725,8 +7834,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__after_headers_complete;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_41: {
     state->error = 0x11;
@@ -7734,8 +7842,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_headers_complete_1: {
     switch (llhttp__on_headers_complete(state, p, endp)) {
@@ -7750,16 +7857,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_41;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__before_headers_complete_1: {
     switch (llhttp__before_headers_complete(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_headers_complete_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_flags_1: {
     switch (llhttp__internal__c_test_flags(state, p, endp)) {
@@ -7768,8 +7873,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__before_headers_complete_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_43: {
     state->error = 0x2;
@@ -7777,8 +7881,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_12: {
     switch (llhttp__internal__c_test_lenient_flags_8(state, p, endp)) {
@@ -7787,8 +7890,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_43;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_44: {
     state->error = 0xa;
@@ -7796,8 +7898,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_field: {
     const unsigned char* start;
@@ -7814,8 +7915,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_5;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_13: {
     switch (llhttp__internal__c_test_lenient_flags(state, p, endp)) {
@@ -7824,8 +7924,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_header_field;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_60: {
     state->error = 0xb;
@@ -7833,8 +7932,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_47: {
     state->error = 0xa;
@@ -7842,8 +7940,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_15: {
     switch (llhttp__internal__c_test_lenient_flags(state, p, endp)) {
@@ -7852,8 +7949,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_47;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_49: {
     state->error = 0xb;
@@ -7861,8 +7957,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_18: {
     state->error = 0x15;
@@ -7870,8 +7965,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_header_field_start;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_48: {
     state->error = 0x1d;
@@ -7879,8 +7973,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value: {
     const unsigned char* start;
@@ -7896,48 +7989,42 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_header_value_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state: {
     switch (llhttp__internal__c_update_header_state(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_header_value;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_5: {
     switch (llhttp__internal__c_or_flags_5(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_6: {
     switch (llhttp__internal__c_or_flags_6(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_7: {
     switch (llhttp__internal__c_or_flags_7(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_8: {
     switch (llhttp__internal__c_or_flags_8(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_header_value;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_header_state_2: {
     switch (llhttp__internal__c_load_header_state(state, p, endp)) {
@@ -7952,8 +8039,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_header_value;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_header_state_1: {
     switch (llhttp__internal__c_load_header_state(state, p, endp)) {
@@ -7962,8 +8048,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_load_header_state_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_46: {
     state->error = 0xa;
@@ -7971,8 +8056,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_14: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
@@ -7981,8 +8065,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_46;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_50: {
     state->error = 0x2;
@@ -7990,8 +8073,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_16: {
     switch (llhttp__internal__c_test_lenient_flags(state, p, endp)) {
@@ -8000,16 +8082,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_50;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_1: {
     switch (llhttp__internal__c_update_header_state_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_header_value_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_header_state_4: {
     switch (llhttp__internal__c_load_header_state(state, p, endp)) {
@@ -8018,8 +8098,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_header_value_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_52: {
     state->error = 0xa;
@@ -8027,8 +8106,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_18: {
     switch (llhttp__internal__c_test_lenient_flags(state, p, endp)) {
@@ -8037,48 +8115,42 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_52;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_2: {
     switch (llhttp__internal__c_update_header_state(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_header_value_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_9: {
     switch (llhttp__internal__c_or_flags_5(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_10: {
     switch (llhttp__internal__c_or_flags_6(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_11: {
     switch (llhttp__internal__c_or_flags_7(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_12: {
     switch (llhttp__internal__c_or_flags_8(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_header_value_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_header_state_5: {
     switch (llhttp__internal__c_load_header_state(state, p, endp)) {
@@ -8093,8 +8165,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_header_value_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_53: {
     state->error = 0x3;
@@ -8102,8 +8173,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_51: {
     state->error = 0x19;
@@ -8111,8 +8181,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_1: {
     const unsigned char* start;
@@ -8128,8 +8197,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_test_lenient_flags_17;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_2: {
     const unsigned char* start;
@@ -8146,8 +8214,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_header_value_almost_done;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_4: {
     const unsigned char* start;
@@ -8163,8 +8230,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_header_value_almost_done;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_5: {
     const unsigned char* start;
@@ -8181,8 +8247,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_header_value_almost_done;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_3: {
     const unsigned char* start;
@@ -8198,8 +8263,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_error_54;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_19: {
     switch (llhttp__internal__c_test_lenient_flags(state, p, endp)) {
@@ -8208,48 +8272,42 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_header_value_3;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_4: {
     switch (llhttp__internal__c_update_header_state(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_connection;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_13: {
     switch (llhttp__internal__c_or_flags_5(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_4;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_14: {
     switch (llhttp__internal__c_or_flags_6(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_4;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_15: {
     switch (llhttp__internal__c_or_flags_7(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_4;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_16: {
     switch (llhttp__internal__c_or_flags_8(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_connection;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_header_state_6: {
     switch (llhttp__internal__c_load_header_state(state, p, endp)) {
@@ -8264,40 +8322,35 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_connection;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_5: {
     switch (llhttp__internal__c_update_header_state_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_connection_token;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_3: {
     switch (llhttp__internal__c_update_header_state_3(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_connection_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_6: {
     switch (llhttp__internal__c_update_header_state_6(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_connection_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_7: {
     switch (llhttp__internal__c_update_header_state_7(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_connection_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_6: {
     const unsigned char* start;
@@ -8313,8 +8366,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_error_56;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_mul_add_content_length_1: {
     switch (llhttp__internal__c_mul_add_content_length_1(state, p, endp, match)) {
@@ -8323,16 +8375,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_content_length;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_17: {
     switch (llhttp__internal__c_or_flags_17(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_otherwise;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_7: {
     const unsigned char* start;
@@ -8348,8 +8398,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_error_57;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_55: {
     state->error = 0x4;
@@ -8357,8 +8406,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_flags_2: {
     switch (llhttp__internal__c_test_flags_2(state, p, endp)) {
@@ -8367,8 +8415,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_55;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_9: {
     const unsigned char* start;
@@ -8385,16 +8432,14 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_59;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_8: {
     switch (llhttp__internal__c_update_header_state_8(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_otherwise;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_value_8: {
     const unsigned char* start;
@@ -8411,8 +8456,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_error_58;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_20: {
     switch (llhttp__internal__c_test_lenient_flags_20(state, p, endp)) {
@@ -8421,8 +8465,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_te_chunked;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_type_1: {
     switch (llhttp__internal__c_load_type(state, p, endp)) {
@@ -8431,32 +8474,28 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_te_chunked;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_9: {
     switch (llhttp__internal__c_update_header_state_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_and_flags: {
     switch (llhttp__internal__c_and_flags(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_value_te_chunked;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_19: {
     switch (llhttp__internal__c_or_flags_18(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_and_flags;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_21: {
     switch (llhttp__internal__c_test_lenient_flags_20(state, p, endp)) {
@@ -8465,8 +8504,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_or_flags_19;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_type_2: {
     switch (llhttp__internal__c_load_type(state, p, endp)) {
@@ -8475,16 +8513,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_or_flags_19;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_18: {
     switch (llhttp__internal__c_or_flags_18(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_and_flags;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_flags_3: {
     switch (llhttp__internal__c_test_flags_3(state, p, endp)) {
@@ -8493,16 +8529,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_or_flags_18;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_or_flags_20: {
     switch (llhttp__internal__c_or_flags_20(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_header_state_9;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_header_state_3: {
     switch (llhttp__internal__c_load_header_state(state, p, endp)) {
@@ -8517,8 +8551,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_22: {
     switch (llhttp__internal__c_test_lenient_flags_22(state, p, endp)) {
@@ -8527,8 +8560,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_discard_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_flags_4: {
     switch (llhttp__internal__c_test_flags_4(state, p, endp)) {
@@ -8537,8 +8569,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_discard_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_61: {
     state->error = 0xf;
@@ -8546,8 +8577,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_23: {
     switch (llhttp__internal__c_test_lenient_flags_22(state, p, endp)) {
@@ -8556,8 +8586,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_discard_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_flags_5: {
     switch (llhttp__internal__c_test_flags_2(state, p, endp)) {
@@ -8566,8 +8595,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_header_value_discard_ws;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_19: {
     state->error = 0x15;
@@ -8575,8 +8603,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_load_header_state;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_45: {
     state->error = 0x1c;
@@ -8584,8 +8611,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_field_1: {
     const unsigned char* start;
@@ -8602,8 +8628,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_llhttp__on_header_field_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_header_field_2: {
     const unsigned char* start;
@@ -8620,8 +8645,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_llhttp__on_header_field_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_62: {
     state->error = 0xa;
@@ -8629,32 +8653,28 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_10: {
     switch (llhttp__internal__c_update_header_state_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_field_general;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_store_header_state: {
     switch (llhttp__internal__c_store_header_state(state, p, endp, match)) {
       default:
         goto s_n_llhttp__internal__n_header_field_colon;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_header_state_11: {
     switch (llhttp__internal__c_update_header_state_1(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_header_field_general;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_4: {
     state->error = 0x1e;
@@ -8662,8 +8682,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags: {
     switch (llhttp__internal__c_test_lenient_flags(state, p, endp)) {
@@ -8672,8 +8691,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_4;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_20: {
     state->error = 0x15;
@@ -8681,8 +8699,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_headers_start;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_3: {
     state->error = 0x1a;
@@ -8690,8 +8707,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_url_complete: {
     switch (llhttp__on_url_complete(state, p, endp)) {
@@ -8702,24 +8718,21 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_error_3;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_http_minor: {
     switch (llhttp__internal__c_update_http_minor(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_url_complete;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_http_major: {
     switch (llhttp__internal__c_update_http_major(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_http_minor;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_3: {
     const unsigned char* start;
@@ -8735,8 +8748,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_63: {
     state->error = 0x7;
@@ -8744,8 +8756,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_4: {
     const unsigned char* start;
@@ -8761,73 +8772,65 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_lf_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_71: {
+  s_n_llhttp__internal__n_error_72: {
     state->error = 0x17;
     state->reason = "Pause on PRI/Upgrade";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_72: {
+  s_n_llhttp__internal__n_error_73: {
     state->error = 0x9;
     state->reason = "Expected HTTP/2 Connection Preface";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_69: {
+  s_n_llhttp__internal__n_error_70: {
     state->error = 0x2;
     state->reason = "Expected CRLF after version";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_26: {
     switch (llhttp__internal__c_test_lenient_flags_8(state, p, endp)) {
       case 1:
         goto s_n_llhttp__internal__n_headers_start;
       default:
-        goto s_n_llhttp__internal__n_error_69;
+        goto s_n_llhttp__internal__n_error_70;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_68: {
+  s_n_llhttp__internal__n_error_69: {
     state->error = 0x9;
     state->reason = "Expected CRLF after version";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_25: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
       case 1:
         goto s_n_llhttp__internal__n_req_http_complete_crlf;
       default:
-        goto s_n_llhttp__internal__n_error_68;
+        goto s_n_llhttp__internal__n_error_69;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_70: {
+  s_n_llhttp__internal__n_error_71: {
     state->error = 0x9;
     state->reason = "Expected CRLF after version";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_pause_21: {
     state->error = 0x15;
@@ -8835,17 +8838,15 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_load_method_1;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_67: {
+  s_n_llhttp__internal__n_error_68: {
     state->error = 0x21;
     state->reason = "`on_version_complete` callback error";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_1: {
     const unsigned char* start;
@@ -8861,8 +8862,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_version_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version: {
     const unsigned char* start;
@@ -8874,12 +8874,11 @@ static llparse_state_t llhttp__internal__run(
     if (err != 0) {
       state->error = err;
       state->error_pos = (const char*) p;
-      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_66;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_67;
       return s_error;
     }
-    goto s_n_llhttp__internal__n_error_66;
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_error_67;
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_minor: {
     switch (llhttp__internal__c_load_http_minor(state, p, endp)) {
@@ -8888,8 +8887,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_minor_1: {
     switch (llhttp__internal__c_load_http_minor(state, p, endp)) {
@@ -8900,8 +8898,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_minor_2: {
     switch (llhttp__internal__c_load_http_minor(state, p, endp)) {
@@ -8910,8 +8907,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_major: {
     switch (llhttp__internal__c_load_http_major(state, p, endp)) {
@@ -8924,8 +8920,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_24: {
     switch (llhttp__internal__c_test_lenient_flags_24(state, p, endp)) {
@@ -8934,35 +8929,16 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_load_http_major;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_store_http_minor: {
     switch (llhttp__internal__c_store_http_minor(state, p, endp, match)) {
       default:
         goto s_n_llhttp__internal__n_invoke_test_lenient_flags_24;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_2: {
-    const unsigned char* start;
-    int err;
-    
-    start = state->_span_pos0;
-    state->_span_pos0 = NULL;
-    err = llhttp__on_version(state, start, p);
-    if (err != 0) {
-      state->error = err;
-      state->error_pos = (const char*) p;
-      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_73;
-      return s_error;
-    }
-    goto s_n_llhttp__internal__n_error_73;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_span_end_llhttp__on_version_3: {
     const unsigned char* start;
     int err;
     
@@ -8976,18 +8952,9 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_error_74;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_invoke_store_http_major: {
-    switch (llhttp__internal__c_store_http_major(state, p, endp, match)) {
-      default:
-        goto s_n_llhttp__internal__n_req_http_dot;
-    }
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_span_end_llhttp__on_version_4: {
+  s_n_llhttp__internal__n_span_end_llhttp__on_version_3: {
     const unsigned char* start;
     int err;
     
@@ -9001,179 +8968,182 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_error_75;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_65: {
+  s_n_llhttp__internal__n_invoke_store_http_major: {
+    switch (llhttp__internal__c_store_http_major(state, p, endp, match)) {
+      default:
+        goto s_n_llhttp__internal__n_req_http_dot;
+    }
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_span_end_llhttp__on_version_4: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_version(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_76;
+      return s_error;
+    }
+    goto s_n_llhttp__internal__n_error_76;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_77: {
+    state->error = 0x8;
+    state->reason = "Expected HTTP/, RTSP/ or ICE/";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_66: {
     state->error = 0x8;
     state->reason = "Invalid method for HTTP/x.x request";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_invoke_load_method: {
-    switch (llhttp__internal__c_load_method(state, p, endp)) {
-      case 0:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 1:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 2:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 3:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 4:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 5:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 6:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 7:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 8:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 9:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 10:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 11:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 12:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 13:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 14:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 15:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 16:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 17:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 18:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 19:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 20:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 21:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 22:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 23:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 24:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 25:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 26:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 27:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 28:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 29:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 30:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 31:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 32:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 33:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 34:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 46:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      default:
-        goto s_n_llhttp__internal__n_error_65;
-    }
-    /* UNREACHABLE */;
-    abort();
+  s_n_llhttp__internal__n_pause_22: {
+    state->error = 0x15;
+    state->reason = "on_protocol_complete pause";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_load_method;
+    return s_error;
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_78: {
-    state->error = 0x8;
-    state->reason = "Expected HTTP/";
+  s_n_llhttp__internal__n_error_65: {
+    state->error = 0x26;
+    state->reason = "`on_protocol_complete` callback error";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_76: {
+  s_n_llhttp__internal__n_span_end_llhttp__on_protocol: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_protocol(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete;
+      return s_error;
+    }
+    goto s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_span_end_llhttp__on_protocol_3: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_protocol(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_82;
+      return s_error;
+    }
+    goto s_n_llhttp__internal__n_error_82;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_79: {
     state->error = 0x8;
     state->reason = "Expected SOURCE method for ICE/x.x request";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_invoke_load_method_2: {
-    switch (llhttp__internal__c_load_method(state, p, endp)) {
-      case 33:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      default:
-        goto s_n_llhttp__internal__n_error_76;
+  s_n_llhttp__internal__n_pause_23: {
+    state->error = 0x15;
+    state->reason = "on_protocol_complete pause";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_load_method_2;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_78: {
+    state->error = 0x26;
+    state->reason = "`on_protocol_complete` callback error";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_span_end_llhttp__on_protocol_1: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_protocol(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_1;
+      return s_error;
     }
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_1;
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_77: {
+  s_n_llhttp__internal__n_error_81: {
     state->error = 0x8;
     state->reason = "Invalid method for RTSP/x.x request";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_invoke_load_method_3: {
-    switch (llhttp__internal__c_load_method(state, p, endp)) {
-      case 1:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 3:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 6:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 35:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 36:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 37:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 38:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 39:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 40:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 41:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 42:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 43:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 44:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      case 45:
-        goto s_n_llhttp__internal__n_span_start_llhttp__on_version;
-      default:
-        goto s_n_llhttp__internal__n_error_77;
+  s_n_llhttp__internal__n_pause_24: {
+    state->error = 0x15;
+    state->reason = "on_protocol_complete pause";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_load_method_3;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_80: {
+    state->error = 0x26;
+    state->reason = "`on_protocol_complete` callback error";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_span_end_llhttp__on_protocol_2: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_protocol(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_2;
+      return s_error;
     }
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_2;
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_pause_22: {
+  s_n_llhttp__internal__n_pause_25: {
     state->error = 0x15;
     state->reason = "on_url_complete pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_req_http_start;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_64: {
     state->error = 0x1a;
@@ -9181,20 +9151,18 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_url_complete_1: {
     switch (llhttp__on_url_complete(state, p, endp)) {
       case 0:
         goto s_n_llhttp__internal__n_req_http_start;
       case 21:
-        goto s_n_llhttp__internal__n_pause_22;
+        goto s_n_llhttp__internal__n_pause_25;
       default:
         goto s_n_llhttp__internal__n_error_64;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_5: {
     const unsigned char* start;
@@ -9210,8 +9178,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_6: {
     const unsigned char* start;
@@ -9227,8 +9194,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_7: {
     const unsigned char* start;
@@ -9244,8 +9210,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_lf_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_8: {
     const unsigned char* start;
@@ -9261,17 +9226,15 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_79: {
+  s_n_llhttp__internal__n_error_83: {
     state->error = 0x7;
     state->reason = "Invalid char in url fragment start";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_9: {
     const unsigned char* start;
@@ -9287,8 +9250,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_10: {
     const unsigned char* start;
@@ -9304,8 +9266,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_lf_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_11: {
     const unsigned char* start;
@@ -9321,26 +9282,23 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_80: {
+  s_n_llhttp__internal__n_error_84: {
     state->error = 0x7;
     state->reason = "Invalid char in url query";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_81: {
+  s_n_llhttp__internal__n_error_85: {
     state->error = 0x7;
     state->reason = "Invalid char in url path";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url: {
     const unsigned char* start;
@@ -9356,8 +9314,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_1: {
     const unsigned char* start;
@@ -9373,8 +9330,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_lf_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_2: {
     const unsigned char* start;
@@ -9390,8 +9346,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_12: {
     const unsigned char* start;
@@ -9407,8 +9362,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_13: {
     const unsigned char* start;
@@ -9424,8 +9378,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_lf_to_http09;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_url_14: {
     const unsigned char* start;
@@ -9441,62 +9394,55 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_url_skip_to_http;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_82: {
+  s_n_llhttp__internal__n_error_86: {
     state->error = 0x7;
     state->reason = "Double @ in url";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_83: {
-    state->error = 0x7;
-    state->reason = "Unexpected char in url server";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_84: {
-    state->error = 0x7;
-    state->reason = "Unexpected char in url server";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_85: {
-    state->error = 0x7;
-    state->reason = "Unexpected char in url schema";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_86: {
-    state->error = 0x7;
-    state->reason = "Unexpected char in url schema";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_87: {
+    state->error = 0x7;
+    state->reason = "Unexpected char in url server";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_88: {
+    state->error = 0x7;
+    state->reason = "Unexpected char in url server";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_89: {
+    state->error = 0x7;
+    state->reason = "Unexpected char in url schema";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_90: {
+    state->error = 0x7;
+    state->reason = "Unexpected char in url schema";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_91: {
     state->error = 0x7;
     state->reason = "Unexpected start char in url";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_is_equal_method: {
     switch (llhttp__internal__c_is_equal_method(state, p, endp)) {
@@ -9505,35 +9451,31 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_url_entry_connect;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_88: {
+  s_n_llhttp__internal__n_error_92: {
     state->error = 0x6;
     state->reason = "Expected space after method";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_pause_26: {
+  s_n_llhttp__internal__n_pause_29: {
     state->error = 0x15;
     state->reason = "on_method_complete pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_req_first_space_before_url;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_107: {
+  s_n_llhttp__internal__n_error_111: {
     state->error = 0x20;
     state->reason = "`on_method_complete` callback error";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_method_2: {
     const unsigned char* start;
@@ -9549,25 +9491,38 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_method_complete_1;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_store_method_1: {
     switch (llhttp__internal__c_store_method(state, p, endp, match)) {
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_method_2;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_108: {
+  s_n_llhttp__internal__n_error_112: {
     state->error = 0x6;
     state->reason = "Invalid method encountered";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_104: {
+    state->error = 0xd;
+    state->reason = "Invalid status code";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_102: {
+    state->error = 0xd;
+    state->reason = "Invalid status code";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_100: {
     state->error = 0xd;
@@ -9575,103 +9530,76 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_98: {
-    state->error = 0xd;
-    state->reason = "Invalid status code";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_96: {
-    state->error = 0xd;
-    state->reason = "Invalid status code";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_pause_24: {
+  s_n_llhttp__internal__n_pause_27: {
     state->error = 0x15;
     state->reason = "on_status_complete pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_headers_start;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_92: {
+  s_n_llhttp__internal__n_error_96: {
     state->error = 0x1b;
     state->reason = "`on_status_complete` callback error";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_status_complete: {
     switch (llhttp__on_status_complete(state, p, endp)) {
       case 0:
         goto s_n_llhttp__internal__n_headers_start;
       case 21:
-        goto s_n_llhttp__internal__n_pause_24;
+        goto s_n_llhttp__internal__n_pause_27;
       default:
-        goto s_n_llhttp__internal__n_error_92;
+        goto s_n_llhttp__internal__n_error_96;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_91: {
+  s_n_llhttp__internal__n_error_95: {
     state->error = 0xd;
     state->reason = "Invalid response status";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_28: {
     switch (llhttp__internal__c_test_lenient_flags_1(state, p, endp)) {
       case 1:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_status_complete;
       default:
-        goto s_n_llhttp__internal__n_error_91;
+        goto s_n_llhttp__internal__n_error_95;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_93: {
+  s_n_llhttp__internal__n_error_97: {
     state->error = 0x2;
     state->reason = "Expected LF after CR";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_29: {
     switch (llhttp__internal__c_test_lenient_flags_8(state, p, endp)) {
       case 1:
         goto s_n_llhttp__internal__n_invoke_llhttp__on_status_complete;
       default:
-        goto s_n_llhttp__internal__n_error_93;
+        goto s_n_llhttp__internal__n_error_97;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_94: {
+  s_n_llhttp__internal__n_error_98: {
     state->error = 0x19;
     state->reason = "Missing expected CR after response line";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_status: {
     const unsigned char* start;
@@ -9688,8 +9616,7 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_invoke_test_lenient_flags_30;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_status_1: {
     const unsigned char* start;
@@ -9706,65 +9633,24 @@ static llparse_state_t llhttp__internal__run(
     }
     p++;
     goto s_n_llhttp__internal__n_res_line_almost_done;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_95: {
+  s_n_llhttp__internal__n_error_99: {
     state->error = 0xd;
     state->reason = "Invalid response status";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_mul_add_status_code_2: {
     switch (llhttp__internal__c_mul_add_status_code(state, p, endp, match)) {
       case 1:
-        goto s_n_llhttp__internal__n_error_96;
+        goto s_n_llhttp__internal__n_error_100;
       default:
         goto s_n_llhttp__internal__n_res_status_code_otherwise;
     }
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_97: {
-    state->error = 0xd;
-    state->reason = "Invalid status code";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_invoke_mul_add_status_code_1: {
-    switch (llhttp__internal__c_mul_add_status_code(state, p, endp, match)) {
-      case 1:
-        goto s_n_llhttp__internal__n_error_98;
-      default:
-        goto s_n_llhttp__internal__n_res_status_code_digit_3;
-    }
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_error_99: {
-    state->error = 0xd;
-    state->reason = "Invalid status code";
-    state->error_pos = (const char*) p;
-    state->_current = (void*) (intptr_t) s_error;
-    return s_error;
-    /* UNREACHABLE */;
-    abort();
-  }
-  s_n_llhttp__internal__n_invoke_mul_add_status_code: {
-    switch (llhttp__internal__c_mul_add_status_code(state, p, endp, match)) {
-      case 1:
-        goto s_n_llhttp__internal__n_error_100;
-      default:
-        goto s_n_llhttp__internal__n_res_status_code_digit_2;
-    }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_101: {
     state->error = 0xd;
@@ -9772,43 +9658,72 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_invoke_mul_add_status_code_1: {
+    switch (llhttp__internal__c_mul_add_status_code(state, p, endp, match)) {
+      case 1:
+        goto s_n_llhttp__internal__n_error_102;
+      default:
+        goto s_n_llhttp__internal__n_res_status_code_digit_3;
+    }
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_103: {
+    state->error = 0xd;
+    state->reason = "Invalid status code";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_invoke_mul_add_status_code: {
+    switch (llhttp__internal__c_mul_add_status_code(state, p, endp, match)) {
+      case 1:
+        goto s_n_llhttp__internal__n_error_104;
+      default:
+        goto s_n_llhttp__internal__n_res_status_code_digit_2;
+    }
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_105: {
+    state->error = 0xd;
+    state->reason = "Invalid status code";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_status_code: {
     switch (llhttp__internal__c_update_status_code(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_res_status_code_digit_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_102: {
+  s_n_llhttp__internal__n_error_106: {
     state->error = 0x9;
     state->reason = "Expected space after version";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_pause_25: {
+  s_n_llhttp__internal__n_pause_28: {
     state->error = 0x15;
     state->reason = "on_version_complete pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_res_after_version;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_90: {
+  s_n_llhttp__internal__n_error_94: {
     state->error = 0x21;
     state->reason = "`on_version_complete` callback error";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_6: {
     const unsigned char* start;
@@ -9824,8 +9739,7 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_version_complete_1;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_5: {
     const unsigned char* start;
@@ -9837,12 +9751,11 @@ static llparse_state_t llhttp__internal__run(
     if (err != 0) {
       state->error = err;
       state->error_pos = (const char*) p;
-      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_89;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_93;
       return s_error;
     }
-    goto s_n_llhttp__internal__n_error_89;
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_error_93;
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_minor_3: {
     switch (llhttp__internal__c_load_http_minor(state, p, endp)) {
@@ -9851,8 +9764,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version_5;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_minor_4: {
     switch (llhttp__internal__c_load_http_minor(state, p, endp)) {
@@ -9863,8 +9775,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version_5;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_minor_5: {
     switch (llhttp__internal__c_load_http_minor(state, p, endp)) {
@@ -9873,8 +9784,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version_5;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_http_major_1: {
     switch (llhttp__internal__c_load_http_major(state, p, endp)) {
@@ -9887,8 +9797,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_version_5;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_test_lenient_flags_27: {
     switch (llhttp__internal__c_test_lenient_flags_24(state, p, endp)) {
@@ -9897,16 +9806,14 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_load_http_major_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_store_http_minor_1: {
     switch (llhttp__internal__c_store_http_minor(state, p, endp, match)) {
       default:
         goto s_n_llhttp__internal__n_invoke_test_lenient_flags_27;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_7: {
     const unsigned char* start;
@@ -9918,12 +9825,11 @@ static llparse_state_t llhttp__internal__run(
     if (err != 0) {
       state->error = err;
       state->error_pos = (const char*) p;
-      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_103;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_107;
       return s_error;
     }
-    goto s_n_llhttp__internal__n_error_103;
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_error_107;
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_8: {
     const unsigned char* start;
@@ -9935,20 +9841,18 @@ static llparse_state_t llhttp__internal__run(
     if (err != 0) {
       state->error = err;
       state->error_pos = (const char*) p;
-      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_104;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_108;
       return s_error;
     }
-    goto s_n_llhttp__internal__n_error_104;
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_error_108;
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_store_http_major_1: {
     switch (llhttp__internal__c_store_http_major(state, p, endp, match)) {
       default:
         goto s_n_llhttp__internal__n_res_http_dot;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_version_9: {
     const unsigned char* start;
@@ -9960,30 +9864,75 @@ static llparse_state_t llhttp__internal__run(
     if (err != 0) {
       state->error = err;
       state->error_pos = (const char*) p;
-      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_105;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_109;
       return s_error;
     }
-    goto s_n_llhttp__internal__n_error_105;
-    /* UNREACHABLE */;
-    abort();
+    goto s_n_llhttp__internal__n_error_109;
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_109: {
+  s_n_llhttp__internal__n_error_114: {
     state->error = 0x8;
-    state->reason = "Expected HTTP/";
+    state->reason = "Expected HTTP/, RTSP/ or ICE/";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_pause_23: {
+  s_n_llhttp__internal__n_pause_30: {
+    state->error = 0x15;
+    state->reason = "on_protocol_complete pause";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_res_after_protocol;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_error_113: {
+    state->error = 0x26;
+    state->reason = "`on_protocol_complete` callback error";
+    state->error_pos = (const char*) p;
+    state->_current = (void*) (intptr_t) s_error;
+    return s_error;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_span_end_llhttp__on_protocol_4: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_protocol(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_3;
+      return s_error;
+    }
+    goto s_n_llhttp__internal__n_invoke_llhttp__on_protocol_complete_3;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_span_end_llhttp__on_protocol_5: {
+    const unsigned char* start;
+    int err;
+    
+    start = state->_span_pos0;
+    state->_span_pos0 = NULL;
+    err = llhttp__on_protocol(state, start, p);
+    if (err != 0) {
+      state->error = err;
+      state->error_pos = (const char*) p;
+      state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_error_115;
+      return s_error;
+    }
+    goto s_n_llhttp__internal__n_error_115;
+    UNREACHABLE;
+  }
+  s_n_llhttp__internal__n_pause_26: {
     state->error = 0x15;
     state->reason = "on_method_complete pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_req_first_space_before_url;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error_1: {
     state->error = 0x20;
@@ -9991,8 +9940,7 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_method: {
     const unsigned char* start;
@@ -10008,33 +9956,29 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_llhttp__on_method_complete;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_type: {
     switch (llhttp__internal__c_update_type(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_span_end_llhttp__on_method;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_store_method: {
     switch (llhttp__internal__c_store_method(state, p, endp, match)) {
       default:
         goto s_n_llhttp__internal__n_invoke_update_type;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_106: {
+  s_n_llhttp__internal__n_error_110: {
     state->error = 0x8;
     state->reason = "Invalid word encountered";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_span_end_llhttp__on_method_1: {
     const unsigned char* start;
@@ -10050,25 +9994,22 @@ static llparse_state_t llhttp__internal__run(
       return s_error;
     }
     goto s_n_llhttp__internal__n_invoke_update_type_1;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_update_type_2: {
     switch (llhttp__internal__c_update_type(state, p, endp)) {
       default:
         goto s_n_llhttp__internal__n_span_start_llhttp__on_method_1;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_pause_27: {
+  s_n_llhttp__internal__n_pause_31: {
     state->error = 0x15;
     state->reason = "on_message_begin pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_load_type;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_error: {
     state->error = 0x10;
@@ -10076,50 +10017,45 @@ static llparse_state_t llhttp__internal__run(
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_message_begin: {
     switch (llhttp__on_message_begin(state, p, endp)) {
       case 0:
         goto s_n_llhttp__internal__n_invoke_load_type;
       case 21:
-        goto s_n_llhttp__internal__n_pause_27;
+        goto s_n_llhttp__internal__n_pause_31;
       default:
         goto s_n_llhttp__internal__n_error;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_pause_28: {
+  s_n_llhttp__internal__n_pause_32: {
     state->error = 0x15;
     state->reason = "on_reset pause";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_n_llhttp__internal__n_invoke_update_finish;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
-  s_n_llhttp__internal__n_error_110: {
+  s_n_llhttp__internal__n_error_116: {
     state->error = 0x1f;
     state->reason = "`on_reset` callback error";
     state->error_pos = (const char*) p;
     state->_current = (void*) (intptr_t) s_error;
     return s_error;
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_llhttp__on_reset: {
     switch (llhttp__on_reset(state, p, endp)) {
       case 0:
         goto s_n_llhttp__internal__n_invoke_update_finish;
       case 21:
-        goto s_n_llhttp__internal__n_pause_28;
+        goto s_n_llhttp__internal__n_pause_32;
       default:
-        goto s_n_llhttp__internal__n_error_110;
+        goto s_n_llhttp__internal__n_error_116;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
   s_n_llhttp__internal__n_invoke_load_initial_message_completed: {
     switch (llhttp__internal__c_load_initial_message_completed(state, p, endp)) {
@@ -10128,8 +10064,7 @@ static llparse_state_t llhttp__internal__run(
       default:
         goto s_n_llhttp__internal__n_invoke_update_finish;
     }
-    /* UNREACHABLE */;
-    abort();
+    UNREACHABLE;
   }
 }
 

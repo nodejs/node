@@ -369,19 +369,6 @@
 #endif
 
 /**
- * \def U_HAVE_PLACEMENT_NEW
- * Determines whether to override placement new and delete for STL.
- * @stable ICU 2.6
- */
-#ifdef U_HAVE_PLACEMENT_NEW
-    /* Use the predefined value. */
-#elif defined(__BORLANDC__)
-#   define U_HAVE_PLACEMENT_NEW 0
-#else
-#   define U_HAVE_PLACEMENT_NEW 1
-#endif
-
-/**
  * \def U_HAVE_DEBUG_LOCATION_NEW 
  * Define this to define the MFC debug version of the operator new.
  *
@@ -479,6 +466,12 @@
     /* Otherwise use the predefined value. */
 #elif !defined(__cplusplus)
 #   define U_CPLUSPLUS_VERSION 0
+// The value of _MSVC_LANG for C++23 preview is undocumented, except that it is larger than 202002.
+// As of this writing, it is 202004.
+#elif __cplusplus >= 202302L || (defined(_MSVC_LANG) && _MSVC_LANG > 202002L)
+#   define U_CPLUSPLUS_VERSION 23
+#elif __cplusplus >= 202002L || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L)
+#   define U_CPLUSPLUS_VERSION 20
 #elif __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
 #   define U_CPLUSPLUS_VERSION 17
 #elif __cplusplus >= 201402L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
@@ -493,12 +486,10 @@
 /**
  * \def U_FALLTHROUGH
  * Annotate intentional fall-through between switch labels.
- * http://clang.llvm.org/docs/AttributeReference.html#fallthrough-clang-fallthrough
+ * https://clang.llvm.org/docs/AttributeReference.html#fallthrough
  * @internal
  */
-#ifndef __cplusplus
-    // Not for C.
-#elif defined(U_FALLTHROUGH)
+#if defined(U_FALLTHROUGH)
     // Use the predefined value.
 #elif defined(__clang__)
     // Test for compiler vs. feature separately.

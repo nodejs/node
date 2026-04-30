@@ -124,6 +124,7 @@ typedef struct UPKGOptions_
   const char *install;     /* Where to install to (nullptr = don't install) */
   const char *icuroot;     /* where does ICU lives */
   const char *libName;     /* name for library (default: shortName) */
+  const char* cpuArch;     /* CPU Architecture for Clang-CL on Windows. See genccode.c --cpu-arch */
   UBool      rebuild;
   UBool      verbose;
   UBool      quiet;

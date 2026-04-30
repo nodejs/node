@@ -26,7 +26,7 @@
 #include "ec_local.h"
 
 int ossl_ecdh_compute_key(unsigned char **psec, size_t *pseclen,
-                          const EC_POINT *pub_key, const EC_KEY *ecdh)
+    const EC_POINT *pub_key, const EC_KEY *ecdh)
 {
     if (ecdh->group->meth->ecdh_compute_key == NULL) {
         ERR_raise(ERR_LIB_EC, EC_R_CURVE_DOES_NOT_SUPPORT_ECDH);
@@ -47,7 +47,7 @@ int ossl_ecdh_compute_key(unsigned char **psec, size_t *pseclen,
  * (ECC CDH) Primitive:". The steps listed below refer to SP800-56A.
  */
 int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
-                                 const EC_POINT *pub_key, const EC_KEY *ecdh)
+    const EC_POINT *pub_key, const EC_KEY *ecdh)
 {
     BN_CTX *ctx;
     EC_POINT *tmp = NULL;
@@ -63,7 +63,7 @@ int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
     BN_CTX_start(ctx);
     x = BN_CTX_get(ctx);
     if (x == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         goto err;
     }
 
@@ -80,16 +80,19 @@ int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
      *                                   * peer_public_key.
      */
     if (EC_KEY_get_flags(ecdh) & EC_FLAG_COFACTOR_ECDH) {
-        if (!EC_GROUP_get_cofactor(group, x, NULL) ||
-            !BN_mul(x, x, priv_key, ctx)) {
-            ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        if (!EC_GROUP_get_cofactor(group, x, NULL)) {
+            ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
+            goto err;
+        }
+        if (!BN_mul(x, x, priv_key, ctx)) {
+            ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             goto err;
         }
         priv_key = x;
     }
 
     if ((tmp = EC_POINT_new(group)) == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
 
@@ -118,10 +121,8 @@ int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
         ERR_raise(ERR_LIB_EC, ERR_R_INTERNAL_ERROR);
         goto err;
     }
-    if ((buf = OPENSSL_malloc(buflen)) == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if ((buf = OPENSSL_malloc(buflen)) == NULL)
         goto err;
-    }
 
     memset(buf, 0, buflen - len);
     if (len != (size_t)BN_bn2bin(x, buf + buflen - len)) {
@@ -135,7 +136,7 @@ int ossl_ecdh_simple_compute_key(unsigned char **pout, size_t *poutlen,
 
     ret = 1;
 
- err:
+err:
     /* Step(4) : Destroy all intermediate calculations */
     BN_clear(x);
     EC_POINT_clear_free(tmp);

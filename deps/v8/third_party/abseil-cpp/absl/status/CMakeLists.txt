@@ -35,6 +35,7 @@ absl_cc_library(
     absl::core_headers
     absl::function_ref
     absl::inlined_vector
+    absl::leak_check
     absl::memory
     absl::no_destructor
     absl::nullability
@@ -42,8 +43,8 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::span
     absl::stacktrace
-    absl::strerror
     absl::str_format
+    absl::strerror
     absl::strings
     absl::symbolize
   PUBLIC
@@ -134,6 +135,22 @@ absl_cc_test(
    "status_matchers_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
+  DEPS
+    absl::status
+    absl::statusor
+    absl::status_matchers
+    GTest::gmock_main
+)
+
+absl_cc_test(
+  NAME
+    status_matchers_with_unqualified_macros_test
+  SRCS
+   "status_matchers_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEFINES
+    "ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS"
   DEPS
     absl::status
     absl::statusor

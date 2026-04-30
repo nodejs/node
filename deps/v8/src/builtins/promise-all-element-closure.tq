@@ -76,9 +76,9 @@ extern enum PromiseAllResolveElementContextSlots extends intptr
       Slot<PromiseAllResolveElementContext, FixedArray>,
   kPromiseAllResolveElementLength
 }
-extern operator '[]=' macro StoreContextElement(
+extern operator '[]=' macro StoreContextElementNoCell(
     Context, constexpr PromiseAllResolveElementContextSlots, Object): void;
-extern operator '[]' macro LoadContextElement(
+extern operator '[]' macro LoadContextElementNoCell(
     Context, constexpr PromiseAllResolveElementContextSlots): Object;
 
 const kPropertyArrayNoHashSentinel: constexpr int31

@@ -4,7 +4,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-""" Unit tests for the easy_xml.py file. """
+"""Unit tests for the easy_xml.py file."""
 
 import unittest
 from io import StringIO

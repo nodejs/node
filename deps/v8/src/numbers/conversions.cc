@@ -10,6 +10,7 @@
 #include <cmath>
 #include <optional>
 
+#include "src/base/fpu.h"
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
 #include "src/base/small-vector.h"
@@ -22,9 +23,7 @@
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/allocation.h"
-
-#define FASTFLOAT_ALLOWS_LEADING_PLUS
-
+#include "third_party/dragonbox/src/include/dragonbox/dragonbox.h"
 #include "third_party/fast_float/src/include/fast_float/fast_float.h"
 #include "third_party/fast_float/src/include/fast_float/float_common.h"
 
@@ -38,110 +37,301 @@
 namespace v8 {
 namespace internal {
 
+// SignificandToChars and its helpers are heavily inspired by
+// dragonbox::to_chars.
+// See //third_party/dragonbox/src/source/dragonbox_to_chars.cc
+
+static constexpr char kRadix100Table[200] = {
+    '0', '0', '0', '1', '0', '2', '0', '3', '0', '4',  //
+    '0', '5', '0', '6', '0', '7', '0', '8', '0', '9',  //
+    '1', '0', '1', '1', '1', '2', '1', '3', '1', '4',  //
+    '1', '5', '1', '6', '1', '7', '1', '8', '1', '9',  //
+    '2', '0', '2', '1', '2', '2', '2', '3', '2', '4',  //
+    '2', '5', '2', '6', '2', '7', '2', '8', '2', '9',  //
+    '3', '0', '3', '1', '3', '2', '3', '3', '3', '4',  //
+    '3', '5', '3', '6', '3', '7', '3', '8', '3', '9',  //
+    '4', '0', '4', '1', '4', '2', '4', '3', '4', '4',  //
+    '4', '5', '4', '6', '4', '7', '4', '8', '4', '9',  //
+    '5', '0', '5', '1', '5', '2', '5', '3', '5', '4',  //
+    '5', '5', '5', '6', '5', '7', '5', '8', '5', '9',  //
+    '6', '0', '6', '1', '6', '2', '6', '3', '6', '4',  //
+    '6', '5', '6', '6', '6', '7', '6', '8', '6', '9',  //
+    '7', '0', '7', '1', '7', '2', '7', '3', '7', '4',  //
+    '7', '5', '7', '6', '7', '7', '7', '8', '7', '9',  //
+    '8', '0', '8', '1', '8', '2', '8', '3', '8', '4',  //
+    '8', '5', '8', '6', '8', '7', '8', '8', '8', '9',  //
+    '9', '0', '9', '1', '9', '2', '9', '3', '9', '4',  //
+    '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'   //
+};
+
+static constexpr char kRadix100HeadTable[200] = {
+    '\0', '\0', '1', '\0', '2', '\0', '3', '\0', '4', '\0',  //
+    '5',  '\0', '6', '\0', '7', '\0', '8', '\0', '9', '\0',  //
+    '1',  '0',  '1', '1',  '1', '2',  '1', '3',  '1', '4',   //
+    '1',  '5',  '1', '6',  '1', '7',  '1', '8',  '1', '9',   //
+    '2',  '0',  '2', '1',  '2', '2',  '2', '3',  '2', '4',   //
+    '2',  '5',  '2', '6',  '2', '7',  '2', '8',  '2', '9',   //
+    '3',  '0',  '3', '1',  '3', '2',  '3', '3',  '3', '4',   //
+    '3',  '5',  '3', '6',  '3', '7',  '3', '8',  '3', '9',   //
+    '4',  '0',  '4', '1',  '4', '2',  '4', '3',  '4', '4',   //
+    '4',  '5',  '4', '6',  '4', '7',  '4', '8',  '4', '9',   //
+    '5',  '0',  '5', '1',  '5', '2',  '5', '3',  '5', '4',   //
+    '5',  '5',  '5', '6',  '5', '7',  '5', '8',  '5', '9',   //
+    '6',  '0',  '6', '1',  '6', '2',  '6', '3',  '6', '4',   //
+    '6',  '5',  '6', '6',  '6', '7',  '6', '8',  '6', '9',   //
+    '7',  '0',  '7', '1',  '7', '2',  '7', '3',  '7', '4',   //
+    '7',  '5',  '7', '6',  '7', '7',  '7', '8',  '7', '9',   //
+    '8',  '0',  '8', '1',  '8', '2',  '8', '3',  '8', '4',   //
+    '8',  '5',  '8', '6',  '8', '7',  '8', '8',  '8', '9',   //
+    '9',  '0',  '9', '1',  '9', '2',  '9', '3',  '9', '4',   //
+    '9',  '5',  '9', '6',  '9', '7',  '9', '8',  '9', '9'    //
+};
+
+static void Convert2Digits(uint8_t n, char* buffer) {
+  DCHECK_LT(n, sizeof(kRadix100Table) / 2);
+  MemCopy(buffer, kRadix100Table + n * 2, 2);
+}
+
+// Returns count of digits written.
+static uint8_t ConvertHeadDigits(uint8_t n, char* buffer) {
+  DCHECK_LT(n, sizeof(kRadix100HeadTable) / 2);
+  const uint8_t digit_count = 1 + (n >= 10);
+  DCHECK_LE(digit_count, 2);
+  MemCopy(buffer, kRadix100HeadTable + n * 2, digit_count);
+  return digit_count;
+}
+
+static void Convert8Digits(uint32_t n, char* buffer) {
+  static constexpr uint32_t kUint32Mask = kMaxUInt32;
+  // 281474978 = ceil(2^48 / 1'000'000) + 1
+  uint64_t prod = n * 281474978LL;
+  prod >>= 16;
+  prod += 1;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+  prod = (prod & kUint32Mask) * 100;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 2);
+  prod = (prod & kUint32Mask) * 100;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 4);
+  prod = (prod & kUint32Mask) * 100;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 6);
+}
+
+// Returns count of digits written.
+uint8_t ConvertUpTo9Digits(uint32_t n, char* buffer) {
+  static constexpr uint32_t kUint32Mask = kMaxUInt32;
+
+  if (n >= 100'000'000) {
+    // 9 digits.
+    // 1441151882 = ceil(2^57 / 100'000'000) + 1
+    uint64_t prod = n * 1441151882LL;
+    prod >>= 25;
+
+    const uint8_t head_digit = static_cast<uint8_t>(prod >> 32);
+    DCHECK_LT(head_digit, 10);
+    *buffer = '0' + head_digit;
+
+    // Print remaining 8 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 1);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 3);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 5);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 7);
+
+    return 9;
+  }
+  if (n >= 1'000'000) {
+    // 7 or 8 digits.
+    // 281474978 = ceil(2^48 / 1'000'000) + 1
+    uint64_t prod = n * 281474978LL;
+    prod >>= 16;
+
+    const uint8_t head_digits = static_cast<uint8_t>(prod >> 32);
+    const uint8_t head_digit_count = ConvertHeadDigits(head_digits, buffer);
+    buffer += head_digit_count;
+
+    // Print remaining 6 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 2);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 4);
+
+    return 6 + head_digit_count;
+  }
+  if (n >= 10'000) {
+    // 5 or 6 digits.
+    // 429497 = ceil(2^32 / 10'000)
+    uint64_t prod = n * 429497LL;
+
+    const uint8_t head_digits = static_cast<uint8_t>(prod >> 32);
+    const uint8_t head_digit_count = ConvertHeadDigits(head_digits, buffer);
+    buffer += head_digit_count;
+
+    // Print remaining 4 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 2);
+
+    return 4 + head_digit_count;
+  }
+  if (n >= 100) {
+    // 3 or 4 digits.
+    // 42949673 = ceil(2^32 / 10'000)
+    uint64_t prod = n * 42949673LL;
+
+    const uint8_t head_digits = static_cast<uint8_t>(prod >> 32);
+    const uint8_t head_digit_count = ConvertHeadDigits(head_digits, buffer);
+    buffer += head_digit_count;
+
+    // Print remaining 2 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+
+    return 2 + head_digit_count;
+  }
+  // 1 or 2 digits.
+  return ConvertHeadDigits(n, buffer);
+}
+
+// Returns count of digits written.
+uint8_t SignificandToChars(uint64_t n, char* buffer) {
+  DCHECK_LT(n, 99999999999999999);  // Only supports up to 17 digits
+
+  if (n >= 100'000'000) {
+    // If we have at least 9 digits, split into 2 blocks. The second one always
+    // has exactly 8 digits.
+    uint32_t first_block = static_cast<uint32_t>(n / 100'000'000);
+    uint32_t second_block = static_cast<uint32_t>(n % 100'000'000);
+
+    uint8_t first_block_digits = ConvertUpTo9Digits(first_block, buffer);
+    Convert8Digits(second_block, buffer + first_block_digits);
+    return first_block_digits + 8;
+  } else {
+    return ConvertUpTo9Digits(static_cast<uint32_t>(n), buffer);
+  }
+}
+
 // Helper class for building result strings in a character buffer. The
 // purpose of the class is to use safe operations that checks the
 // buffer bounds on all operations in debug mode.
 // This simple base class does not allow formatted output.
-class SimpleStringBuilder {
+class SimpleStringBuilder final {
  public:
   // Create a string builder with a buffer of the given size. The
   // buffer is allocated through NewArray<char> and must be
   // deallocated by the caller of Finalize().
-  explicit SimpleStringBuilder(int size) {
+  explicit SimpleStringBuilder(size_t size) {
     buffer_ = base::Vector<char>::New(size);
-    position_ = 0;
+    cursor_ = buffer_.begin();
   }
 
-  SimpleStringBuilder(char* buffer, int size)
-      : buffer_(buffer, size), position_(0) {}
+  SimpleStringBuilder(char* buffer, size_t size)
+      : buffer_(buffer, size), cursor_(buffer) {}
 
   ~SimpleStringBuilder() {
-    if (!is_finalized()) Finalize();
+    if (V8_UNLIKELY(!is_finalized())) Finalize();
   }
 
   // Get the current position in the builder.
-  int position() const {
+  size_t position() const {
     DCHECK(!is_finalized());
-    return position_;
+    return cursor_ - buffer_.begin();
   }
 
   // Add a single character to the builder. It is not allowed to add
   // 0-characters; use the Finalize() method to terminate the string
   // instead.
-  void AddCharacter(char c) {
+  V8_INLINE void AddCharacter(char c) {
     DCHECK_NE(c, '\0');
-    DCHECK(!is_finalized() && position_ < buffer_.length());
-    buffer_[position_++] = c;
+    DCHECK(!is_finalized());
+    DCHECK_LT(position(), buffer_.size());
+    *cursor_++ = c;
   }
 
-  // Add an entire string to the builder. Uses strlen() internally to
-  // compute the length of the input string.
-  void AddString(const char* s) {
-    size_t len = strlen(s);
-    DCHECK_GE(kMaxInt, len);
-    AddSubstring(s, static_cast<int>(len));
+  // Add an entire string to the builder. 'len' must be equal to strlen().
+  V8_INLINE void AddString(const char* s, size_t len) {
+    DCHECK_EQ(len, strlen(s));
+    AddSubstring(s, len);
+  }
+
+  // Add a string literal to the builder.
+  template <size_t N>
+  V8_INLINE void AddStringLiteral(const char (&s)[N]) {
+    AddSubstring(s, N - 1);
   }
 
   // Add the first 'n' characters of the given 0-terminated string 's' to the
   // builder. The input string must have enough characters.
-  void AddSubstring(const char* s, int n) {
-    DCHECK(!is_finalized() && position_ + n <= buffer_.length());
+  V8_INLINE void AddSubstring(const char* s, size_t n) {
+    DCHECK(!is_finalized());
+    DCHECK_LE(position() + n, buffer_.size());
     DCHECK_LE(n, strlen(s));
-    std::memcpy(&buffer_[position_], s, n * kCharSize);
-    position_ += n;
+    MemCopy(cursor_, s, n * kCharSize);
+    cursor_ += n;
   }
 
   // Add character padding to the builder. If count is non-positive,
   // nothing is added to the builder.
-  void AddPadding(char c, int count) {
-    for (int i = 0; i < count; i++) {
-      AddCharacter(c);
+  V8_INLINE void AddPadding(char c, int count) {
+    DCHECK(!is_finalized());
+    DCHECK_LE(position() + std::max(0, count), buffer_.size());
+    cursor_ = std::fill_n(cursor_, count, c);
+  }
+
+  // Add the decimal representation of the value. The value is expected to be
+  // a positive integer with at most 3 digits.
+  V8_INLINE void AddExponent(int value) {
+    DCHECK(!is_finalized());
+    DCHECK_GE(value, 0);
+    DCHECK_LE(value, 999);
+    if (value >= 100) {
+      // d1 = value / 10; d2 = value % 10;
+      // 6554 = ceil(2^16 / 10)
+      uint32_t d1 = (static_cast<uint32_t>(value) * 6554) >> 16;
+      uint32_t d2 = static_cast<uint32_t>(value) - 10 * d1;
+      DCHECK_LT(position() + 2, buffer_.length());
+      Convert2Digits(d1, cursor_);
+      cursor_ += 2;
+      AddCharacter('0' + d2);
+    } else if (value >= 10) {
+      DCHECK_LT(position() + 2, buffer_.length());
+      Convert2Digits(value, cursor_);
+      cursor_ += 2;
+    } else {
+      DCHECK_LT(value, 10);
+      AddCharacter('0' + value);
     }
   }
 
-  // Add the decimal representation of the value.
-  void AddDecimalInteger(int value) {
-    uint32_t number = static_cast<uint32_t>(value);
-    if (value < 0) {
-      AddCharacter('-');
-      number = static_cast<uint32_t>(-value);
-    }
-    int digits = 1;
-    for (uint32_t factor = 10; digits < 10; digits++, factor *= 10) {
-      if (factor > number) break;
-    }
-    position_ += digits;
-    for (int i = 1; i <= digits; i++) {
-      buffer_[position_ - i] = '0' + static_cast<char>(number % 10);
-      number /= 10;
-    }
-  }
-
-  // Finalize the string by 0-terminating it and returning the buffer.
+  // Finalize the string by, checking that there is no null-character in the
+  // content. Returns a pointer one past the last character.
   char* Finalize() {
-    DCHECK(!is_finalized() && position_ <= buffer_.length());
-    // If there is no space for null termination, overwrite last character.
-    if (position_ == buffer_.length()) {
-      position_--;
-      // Print ellipsis.
-      for (int i = 3; i > 0 && position_ > i; --i) buffer_[position_ - i] = '.';
-    }
-    buffer_[position_] = '\0';
+    DCHECK(!is_finalized());
+    DCHECK_LE(position(), buffer_.size());
+#ifdef DEBUG
     // Make sure nobody managed to add a 0-character to the
     // buffer while building the string.
-    DCHECK(strlen(buffer_.begin()) == static_cast<size_t>(position_));
-    position_ = -1;
+    for (const char* buf = buffer_.begin(); buf != cursor_; buf++) {
+      DCHECK_NE(*buf, '\0');
+    }
+#endif
+    char* ret = cursor_;
+    cursor_ = nullptr;
     DCHECK(is_finalized());
-    return buffer_.begin();
+    return ret;
   }
 
- protected:
-  base::Vector<char> buffer_;
-  int position_;
-
-  bool is_finalized() const { return position_ < 0; }
-
  private:
+  base::Vector<char> buffer_;
+  char* cursor_;
+
+  bool is_finalized() const { return cursor_ == nullptr; }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
 };
 
@@ -269,7 +459,7 @@ double InternalStringToIntDouble(const Char* start, const Char* end,
     ++current;
   } while (current != end);
 
-  DCHECK(number < ((int64_t)1 << 53));
+  DCHECK(number < (int64_t{1} << 53));
   DCHECK(static_cast<int64_t>(static_cast<double>(number)) == number);
 
   if (exponent == 0) {
@@ -298,26 +488,26 @@ enum class Sign { kNegative, kPositive, kNone };
 // (with StringToBigIntHelper subclass).
 class StringToIntHelper {
  public:
-  StringToIntHelper(Handle<String> subject, int radix)
+  StringToIntHelper(DirectHandle<String> subject, int radix)
       : subject_(subject), radix_(radix) {
     DCHECK(subject->IsFlat());
   }
 
   // Used for the NumberParseInt operation
-  StringToIntHelper(const uint8_t* subject, int radix, int length)
+  StringToIntHelper(const uint8_t* subject, int radix, size_t length)
       : raw_one_byte_subject_(subject), radix_(radix), length_(length) {}
 
-  StringToIntHelper(const base::uc16* subject, int radix, int length)
+  StringToIntHelper(const base::uc16* subject, int radix, size_t length)
       : raw_two_byte_subject_(subject), radix_(radix), length_(length) {}
 
   // Used for the StringToBigInt operation.
-  explicit StringToIntHelper(Handle<String> subject) : subject_(subject) {
+  explicit StringToIntHelper(DirectHandle<String> subject) : subject_(subject) {
     DCHECK(subject->IsFlat());
   }
 
   // Used for parsing BigInt literals, where the input is a Zone-allocated
   // buffer of one-byte digits, along with an optional radix prefix.
-  StringToIntHelper(const uint8_t* subject, int length)
+  StringToIntHelper(const uint8_t* subject, size_t length)
       : raw_one_byte_subject_(subject), length_(length) {}
   virtual ~StringToIntHelper() = default;
 
@@ -360,8 +550,8 @@ class StringToIntHelper {
   }
 
   int radix() { return radix_; }
-  int cursor() { return cursor_; }
-  int length() { return length_; }
+  size_t cursor() { return cursor_; }
+  size_t length() { return length_; }
   bool negative() { return sign_ == Sign::kNegative; }
   Sign sign() { return sign_; }
   State state() { return state_; }
@@ -369,14 +559,14 @@ class StringToIntHelper {
 
  private:
   template <class Char>
-  void DetectRadixInternal(const Char* current, int length);
+  void DetectRadixInternal(const Char* current, size_t length);
 
-  Handle<String> subject_;
+  DirectHandle<String> subject_;
   const uint8_t* raw_one_byte_subject_ = nullptr;
   const base::uc16* raw_two_byte_subject_ = nullptr;
   int radix_ = 0;
-  int cursor_ = 0;
-  int length_ = 0;
+  size_t cursor_ = 0;
+  size_t length_ = 0;
   Sign sign_ = Sign::kNone;
   bool leading_zero_ = false;
   bool allow_binary_and_octal_prefixes_ = false;
@@ -388,19 +578,20 @@ void StringToIntHelper::ParseInt() {
   DisallowGarbageCollection no_gc;
   if (IsOneByte()) {
     base::Vector<const uint8_t> vector = GetOneByteVector(no_gc);
-    DetectRadixInternal(vector.begin(), vector.length());
+    DetectRadixInternal(vector.begin(), vector.size());
     if (state_ != State::kRunning) return;
     ParseOneByte(vector.begin());
   } else {
     base::Vector<const base::uc16> vector = GetTwoByteVector(no_gc);
-    DetectRadixInternal(vector.begin(), vector.length());
+    DetectRadixInternal(vector.begin(), vector.size());
     if (state_ != State::kRunning) return;
     ParseTwoByte(vector.begin());
   }
 }
 
 template <class Char>
-void StringToIntHelper::DetectRadixInternal(const Char* current, int length) {
+void StringToIntHelper::DetectRadixInternal(const Char* current,
+                                            size_t length) {
   const Char* start = current;
   length_ = length;
   const Char* end = start + length;
@@ -477,19 +668,18 @@ void StringToIntHelper::DetectRadixInternal(const Char* current, int length) {
   }
 
   DCHECK(radix_ >= 2 && radix_ <= 36);
-  static_assert(String::kMaxLength <= INT_MAX);
-  cursor_ = static_cast<int>(current - start);
+  cursor_ = current - start;
 }
 
 class NumberParseIntHelper : public StringToIntHelper {
  public:
-  NumberParseIntHelper(Handle<String> string, int radix)
+  NumberParseIntHelper(DirectHandle<String> string, int radix)
       : StringToIntHelper(string, radix) {}
 
-  NumberParseIntHelper(const uint8_t* string, int radix, int length)
+  NumberParseIntHelper(const uint8_t* string, int radix, size_t length)
       : StringToIntHelper(string, radix, length) {}
 
-  NumberParseIntHelper(const base::uc16* string, int radix, int length)
+  NumberParseIntHelper(const base::uc16* string, int radix, size_t length)
       : StringToIntHelper(string, radix, length) {}
 
   template <class Char>
@@ -562,17 +752,18 @@ class NumberParseIntHelper : public StringToIntHelper {
   template <class Char>
   void HandleBaseTenCase(const Char* current, const Char* end) {
     // Parsing with strtod.
-    const int kMaxSignificantDigits = 309;  // Doubles are less than 1.8e308.
+    // Doubles are less than 1.8e308.
+    constexpr size_t kMaxSignificantDigits = 309;
     // The buffer may contain up to kMaxSignificantDigits + 1 digits and a zero
     // end.
-    const int kBufferSize = kMaxSignificantDigits + 2;
+    constexpr size_t kBufferSize = kMaxSignificantDigits + 2;
     char buffer[kBufferSize];
-    int buffer_pos = 0;
+    size_t buffer_pos = 0;
     while (*current >= '0' && *current <= '9') {
       if (buffer_pos <= kMaxSignificantDigits) {
         // If the number has more than kMaxSignificantDigits it will be parsed
         // as infinity.
-        DCHECK_LT(buffer_pos, kBufferSize);
+        static_assert(kMaxSignificantDigits < kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
       }
       ++current;
@@ -628,7 +819,7 @@ void NumberParseIntHelper::HandleGenericCase(const Char* current,
       // in 32 bits. When we can't guarantee that the next iteration
       // will not overflow the multiplier, we stop parsing the part
       // by leaving the loop.
-      const uint32_t kMaximumMultiplier = 0xFFFFFFFFU / 36;
+      const uint32_t kMaximumMultiplier = kMaxUInt32 / 36;
       uint32_t m = multiplier * static_cast<uint32_t>(radix());
       if (m > kMaximumMultiplier) break;
       part = part * radix() + d;
@@ -703,10 +894,12 @@ double InternalStringToDouble(const Char* current, const Char* end,
   static_assert(sizeof(UC) == sizeof(Char));
   const UC* current_uc = reinterpret_cast<const UC*>(current);
   const UC* end_uc = reinterpret_cast<const UC*>(end);
-  auto ret = fast_float::from_chars(current_uc, end_uc, value,
-                                    static_cast<fast_float::chars_format>(
-                                        fast_float::chars_format::general |
-                                        fast_float::chars_format::no_infnan));
+  auto ret =
+      fast_float::from_chars(current_uc, end_uc, value,
+                             static_cast<fast_float::chars_format>(
+                                 fast_float::chars_format::general |
+                                 fast_float::chars_format::no_infnan |
+                                 fast_float::chars_format::allow_leading_plus));
   if (ret.ptr == end_uc) return value;
   if (ret.ptr > current_uc) {
     current = reinterpret_cast<const Char*>(ret.ptr);
@@ -795,7 +988,7 @@ double ImplicitOctalStringToDouble(base::Vector<const uint8_t> str) {
   return InternalStringToIntDouble<3>(str.begin(), str.end(), false, false);
 }
 
-double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
+double StringToInt(Isolate* isolate, DirectHandle<String> string, int radix) {
   NumberParseIntHelper helper(string, radix);
   return helper.GetResult();
 }
@@ -806,7 +999,7 @@ class StringToBigIntHelper : public StringToIntHelper {
   enum class Behavior { kStringToBigInt, kLiteral };
 
   // Used for StringToBigInt operation (BigInt constructor and == operator).
-  StringToBigIntHelper(IsolateT* isolate, Handle<String> string)
+  StringToBigIntHelper(IsolateT* isolate, DirectHandle<String> string)
       : StringToIntHelper(string),
         isolate_(isolate),
         behavior_(Behavior::kStringToBigInt) {
@@ -816,7 +1009,7 @@ class StringToBigIntHelper : public StringToIntHelper {
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
-  StringToBigIntHelper(IsolateT* isolate, const uint8_t* string, int length)
+  StringToBigIntHelper(IsolateT* isolate, const uint8_t* string, size_t length)
       : StringToIntHelper(string, length),
         isolate_(isolate),
         behavior_(Behavior::kLiteral) {
@@ -867,11 +1060,11 @@ class StringToBigIntHelper : public StringToIntHelper {
       return std::unique_ptr<char[]>(new char[2]{'0', '\0'});
     }
     DCHECK_EQ(state(), State::kDone);
-    int num_digits = accumulator_.ResultLength();
+    uint32_t num_digits = accumulator_.ResultLength();
     base::SmallVector<bigint::digit_t, 8> digit_storage(num_digits);
     bigint::RWDigits digits(digit_storage.data(), num_digits);
     processor->FromString(digits, &accumulator_);
-    int num_chars = bigint::ToStringResultLength(digits, 10, false);
+    uint32_t num_chars = bigint::ToStringResultLength(digits, 10, false);
     std::unique_ptr<char[]> out(new char[num_chars + 1]);
     processor->ToString(out.get(), &num_chars, digits, 10, false);
     out[num_chars] = '\0';
@@ -909,7 +1102,8 @@ class StringToBigIntHelper : public StringToIntHelper {
   Behavior behavior_;
 };
 
-MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
+                                   DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   StringToBigIntHelper<Isolate> helper(isolate, string);
   return helper.GetResult();
@@ -918,8 +1112,7 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
 template <typename IsolateT>
 MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string) {
   StringToBigIntHelper<IsolateT> helper(
-      isolate, reinterpret_cast<const uint8_t*>(string),
-      static_cast<int>(strlen(string)));
+      isolate, reinterpret_cast<const uint8_t*>(string), strlen(string));
   return helper.GetResult();
 }
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
@@ -931,11 +1124,11 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 std::unique_ptr<char[]> BigIntLiteralToDecimal(
     LocalIsolate* isolate, base::Vector<const uint8_t> literal) {
   StringToBigIntHelper<LocalIsolate> helper(nullptr, literal.begin(),
-                                            literal.length());
+                                            literal.size());
   return helper.DecimalString(isolate->bigint_processor());
 }
 
-const char* DoubleToCString(double v, base::Vector<char> buffer) {
+std::string_view DoubleToStringView(double v, base::Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
     case FP_NAN:
       return "NaN";
@@ -947,77 +1140,79 @@ const char* DoubleToCString(double v, base::Vector<char> buffer) {
       if (IsInt32Double(v)) {
         // This will trigger if v is -0 and -0.0 is stringified to "0".
         // (see ES section 7.1.12.1 #sec-tostring-applied-to-the-number-type)
-        return IntToCString(FastD2I(v), buffer);
+        return IntToStringView(FastD2I(v), buffer);
       }
-      SimpleStringBuilder builder(buffer.begin(), buffer.length());
-      int decimal_point;
-      int sign;
-      const int kV8DtoaBufferCapacity = base::kBase10MaximalLength + 1;
-      char decimal_rep[kV8DtoaBufferCapacity];
-      int length;
+      SimpleStringBuilder builder(buffer.begin(), buffer.size());
+      auto d = jkj::dragonbox::to_decimal(v);
 
-      base::DoubleToAscii(
-          v, base::DTOA_SHORTEST, 0,
-          base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
-          &length, &decimal_point);
+      if (d.is_negative) builder.AddCharacter('-');
 
-      if (sign) builder.AddCharacter('-');
+      // Only in debug-builds the buffer is null-terminated.
+      constexpr int kDecimalRepLength =
+          base::kBase10MaximalLength + (DEBUG_BOOL ? 1 : 0);
+      char decimal_rep[kDecimalRepLength];
+      int length = SignificandToChars(d.significand, decimal_rep);
+#ifdef DEBUG
+      // Null-terminate decimal rep for DCHECKs in SimpleStringBuilder.
+      DCHECK_LT(length, kDecimalRepLength);
+      decimal_rep[length] = '\0';
+#endif
+      int decimal_point = length + d.exponent;
 
       if (length <= decimal_point && decimal_point <= 21) {
         // ECMA-262 section 9.8.1 step 6.
-        builder.AddString(decimal_rep);
+        builder.AddString(decimal_rep, length);
         builder.AddPadding('0', decimal_point - length);
 
       } else if (0 < decimal_point && decimal_point <= 21) {
         // ECMA-262 section 9.8.1 step 7.
         builder.AddSubstring(decimal_rep, decimal_point);
         builder.AddCharacter('.');
-        builder.AddString(decimal_rep + decimal_point);
+        builder.AddString(decimal_rep + decimal_point, length - decimal_point);
 
       } else if (decimal_point <= 0 && decimal_point > -6) {
         // ECMA-262 section 9.8.1 step 8.
-        builder.AddString("0.");
+        builder.AddStringLiteral("0.");
         builder.AddPadding('0', -decimal_point);
-        builder.AddString(decimal_rep);
+        builder.AddString(decimal_rep, length);
 
       } else {
         // ECMA-262 section 9.8.1 step 9 and 10 combined.
         builder.AddCharacter(decimal_rep[0]);
         if (length != 1) {
           builder.AddCharacter('.');
-          builder.AddString(decimal_rep + 1);
+          builder.AddString(decimal_rep + 1, length - 1);
         }
         builder.AddCharacter('e');
         builder.AddCharacter((decimal_point >= 0) ? '+' : '-');
         int exponent = decimal_point - 1;
         if (exponent < 0) exponent = -exponent;
-        builder.AddDecimalInteger(exponent);
+        builder.AddExponent(exponent);
       }
-      return builder.Finalize();
+      return {buffer.begin(), builder.Finalize()};
     }
   }
 }
 
-const char* IntToCString(int n, base::Vector<char> buffer) {
+std::string_view IntToStringView(int n, base::Vector<char> buffer) {
   bool negative = true;
   if (n >= 0) {
     n = -n;
     negative = false;
   }
   // Build the string backwards from the least significant digit.
-  int i = buffer.length();
-  buffer[--i] = '\0';
+  size_t i = buffer.size();
   do {
     // We ensured n <= 0, so the subtraction does the right addition.
     buffer[--i] = '0' - (n % 10);
     n /= 10;
   } while (n);
   if (negative) buffer[--i] = '-';
-  return buffer.begin() + i;
+  return {buffer.begin() + i, buffer.end()};
 }
 
-char* DoubleToFixedCString(double value, int f) {
-  const int kMaxDigitsBeforePoint = 21;
+std::string_view DoubleToFixedStringView(double value, int f,
+                                         base::Vector<char> buffer) {
   const double kFirstNonFixed = 1e21;
   DCHECK_GE(f, 0);
   DCHECK_LE(f, kMaxFractionDigits);
@@ -1029,20 +1224,18 @@ char* DoubleToFixedCString(double value, int f) {
     negative = true;
   }
 
-  // If abs_value has more than kMaxDigitsBeforePoint digits before the point
-  // use the non-fixed conversion routine.
+  // If abs_value has more than kDoubleToFixedMaxDigitsBeforePoint digits before
+  // the point use the non-fixed conversion routine.
   if (abs_value >= kFirstNonFixed) {
-    char arr[kMaxFractionDigits];
-    base::Vector<char> buffer(arr, arraysize(arr));
-    return StrDup(DoubleToCString(value, buffer));
+    return DoubleToStringView(value, buffer);
   }
 
   // Find a sufficiently precise decimal representation of n.
   int decimal_point;
   int sign;
   // Add space for the '\0' byte.
-  const int kDecimalRepCapacity =
-      kMaxDigitsBeforePoint + kMaxFractionDigits + 1;
+  constexpr int kDecimalRepCapacity =
+      kDoubleToFixedMaxDigitsBeforePoint + kMaxFractionDigits + 1;
   char decimal_rep[kDecimalRepCapacity];
   int decimal_rep_length;
   base::DoubleToAscii(value, base::DTOA_FIXED, f,
@@ -1065,58 +1258,58 @@ char* DoubleToFixedCString(double value, int f) {
 
   unsigned rep_length =
       zero_prefix_length + decimal_rep_length + zero_postfix_length;
-  SimpleStringBuilder rep_builder(rep_length + 1);
+  // TODO(pthier): Get rid of this intermediate string builder.
+  base::Vector<char> rep_buffer = base::Vector<char>::New(rep_length + 1);
+  SimpleStringBuilder rep_builder(rep_buffer.begin(), rep_buffer.size());
   rep_builder.AddPadding('0', zero_prefix_length);
-  rep_builder.AddString(decimal_rep);
+  rep_builder.AddString(decimal_rep, decimal_rep_length);
   rep_builder.AddPadding('0', zero_postfix_length);
-  char* rep = rep_builder.Finalize();
+  char* rep_end = rep_builder.Finalize();
+  // AddSubstring requires a null-terminated string (for DCHECKs only).
+  *rep_end = '\0';
 
   // Create the result string by appending a minus and putting in a
   // decimal point if needed.
-  unsigned result_size = decimal_point + f + 2;
-  SimpleStringBuilder builder(result_size + 1);
+  SimpleStringBuilder builder(buffer.begin(), buffer.size());
   if (negative) builder.AddCharacter('-');
-  builder.AddSubstring(rep, decimal_point);
+  builder.AddSubstring(rep_buffer.begin(), decimal_point);
   if (f > 0) {
     builder.AddCharacter('.');
-    builder.AddSubstring(rep + decimal_point, f);
+    builder.AddSubstring(rep_buffer.begin() + decimal_point, f);
   }
-  DeleteArray(rep);
-  return builder.Finalize();
+  DeleteArray(rep_buffer.begin());
+  return {buffer.begin(), builder.Finalize()};
 }
 
-static char* CreateExponentialRepresentation(char* decimal_rep, int exponent,
-                                             bool negative,
-                                             int significant_digits) {
+static std::string_view CreateExponentialRepresentation(
+    char* decimal_rep, int rep_length, int exponent, bool negative,
+    int significant_digits, base::Vector<char> buffer) {
   bool negative_exponent = false;
   if (exponent < 0) {
     negative_exponent = true;
     exponent = -exponent;
   }
 
-  // Leave room in the result for appending a minus, for a period, the
-  // letter 'e', a minus or a plus depending on the exponent, and a
-  // three digit exponent.
-  unsigned result_size = significant_digits + 7;
-  SimpleStringBuilder builder(result_size + 1);
+  SimpleStringBuilder builder(buffer.begin(), buffer.size());
 
   if (negative) builder.AddCharacter('-');
   builder.AddCharacter(decimal_rep[0]);
   if (significant_digits != 1) {
     builder.AddCharacter('.');
-    builder.AddString(decimal_rep + 1);
-    size_t rep_length = strlen(decimal_rep);
+    DCHECK_EQ(rep_length, strlen(decimal_rep));
     DCHECK_GE(significant_digits, rep_length);
-    builder.AddPadding('0', significant_digits - static_cast<int>(rep_length));
+    builder.AddString(decimal_rep + 1, rep_length - 1);
+    builder.AddPadding('0', significant_digits - rep_length);
   }
 
   builder.AddCharacter('e');
   builder.AddCharacter(negative_exponent ? '-' : '+');
-  builder.AddDecimalInteger(exponent);
-  return builder.Finalize();
+  builder.AddExponent(exponent);
+  return {buffer.begin(), builder.Finalize()};
 }
 
-char* DoubleToExponentialCString(double value, int f) {
+std::string_view DoubleToExponentialStringView(double value, int f,
+                                               base::Vector<char> buffer) {
   // f might be -1 to signal that f was undefined in JavaScript.
   DCHECK(f >= -1 && f <= kMaxFractionDigits);
 
@@ -1132,7 +1325,7 @@ char* DoubleToExponentialCString(double value, int f) {
   // f corresponds to the digits after the point. There is always one digit
   // before the point. The number of requested_digits equals hence f + 1.
   // And we have to add one character for the null-terminator.
-  const int kV8DtoaBufferCapacity = kMaxFractionDigits + 1 + 1;
+  constexpr int kV8DtoaBufferCapacity = kMaxFractionDigits + 1 + 1;
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
   DCHECK_LE(base::kBase10MaximalLength, kMaxFractionDigits + 1);
@@ -1153,14 +1346,13 @@ char* DoubleToExponentialCString(double value, int f) {
   DCHECK(decimal_rep_length <= f + 1);
 
   int exponent = decimal_point - 1;
-  char* result =
-      CreateExponentialRepresentation(decimal_rep, exponent, negative, f + 1);
-
-  return result;
+  return CreateExponentialRepresentation(decimal_rep, decimal_rep_length,
+                                         exponent, negative, f + 1, buffer);
 }
 
-char* DoubleToPrecisionCString(double value, int p) {
-  const int kMinimalDigits = 1;
+std::string_view DoubleToPrecisionStringView(double value, int p,
+                                             base::Vector<char> buffer) {
+  constexpr int kMinimalDigits = 1;
   DCHECK(p >= kMinimalDigits && p <= kMaxFractionDigits);
   USE(kMinimalDigits);
 
@@ -1174,7 +1366,7 @@ char* DoubleToPrecisionCString(double value, int p) {
   int decimal_point;
   int sign;
   // Add one for the terminating null character.
-  const int kV8DtoaBufferCapacity = kMaxFractionDigits + 1;
+  constexpr int kV8DtoaBufferCapacity = kMaxFractionDigits + 1;
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
@@ -1185,65 +1377,61 @@ char* DoubleToPrecisionCString(double value, int p) {
 
   int exponent = decimal_point - 1;
 
-  char* result = nullptr;
+  std::string_view result;
 
   if (exponent < -6 || exponent >= p) {
-    result =
-        CreateExponentialRepresentation(decimal_rep, exponent, negative, p);
+    result = CreateExponentialRepresentation(decimal_rep, decimal_rep_length,
+                                             exponent, negative, p, buffer);
   } else {
     // Use fixed notation.
-    //
-    // Leave room in the result for appending a minus, a period and in
-    // the case where decimal_point is not positive for a zero in
-    // front of the period.
-    unsigned result_size =
-        (decimal_point <= 0) ? -decimal_point + p + 3 : p + 2;
-    SimpleStringBuilder builder(result_size + 1);
+    SimpleStringBuilder builder(buffer.begin(), buffer.size());
     if (negative) builder.AddCharacter('-');
     if (decimal_point <= 0) {
-      builder.AddString("0.");
+      builder.AddStringLiteral("0.");
       builder.AddPadding('0', -decimal_point);
-      builder.AddString(decimal_rep);
+      builder.AddString(decimal_rep, decimal_rep_length);
       builder.AddPadding('0', p - decimal_rep_length);
     } else {
-      const int m = std::min(decimal_rep_length, decimal_point);
+      const size_t m = std::min(decimal_rep_length, decimal_point);
       builder.AddSubstring(decimal_rep, m);
       builder.AddPadding('0', decimal_point - decimal_rep_length);
       if (decimal_point < p) {
         builder.AddCharacter('.');
         const int extra = negative ? 2 : 1;
         if (decimal_rep_length > decimal_point) {
-          const size_t len = strlen(decimal_rep + decimal_point);
-          DCHECK_GE(kMaxInt, len);
-          const int n =
-              std::min(static_cast<int>(len), p - (builder.position() - extra));
+          DCHECK_EQ(decimal_rep_length - decimal_point,
+                    strlen(decimal_rep + decimal_point));
+          const int len = decimal_rep_length - decimal_point;
+          DCHECK_LE(builder.position(), kMaxInt);
+          const size_t n =
+              std::min(len, p - static_cast<int>(builder.position() - extra));
           builder.AddSubstring(decimal_rep + decimal_point, n);
         }
-        builder.AddPadding('0', extra + (p - builder.position()));
+        builder.AddPadding('0',
+                           extra + (p - static_cast<int>(builder.position())));
       }
     }
-    result = builder.Finalize();
+    result = {buffer.begin(), builder.Finalize()};
   }
 
   return result;
 }
 
-char* DoubleToRadixCString(double value, int radix) {
-  DCHECK(radix >= 2 && radix <= 36);
-  DCHECK(std::isfinite(value));
+std::string_view DoubleToRadixStringView(double value, int radix,
+                                         base::Vector<char> buffer) {
+  // We don't expect to see zero here (callers should handle it).
   DCHECK_NE(0.0, value);
+
+  // Certain invalid inputs will cause this function to corrupt memory (write
+  // out-of-bounds of the given buffer), so defend against that with CHECKs.
+  CHECK(radix >= 2 && radix <= 36);
+  CHECK(std::isfinite(value));
+
   // Character array used for conversion.
   static const char chars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-  // Temporary buffer for the result. We start with the decimal point in the
-  // middle and write to the left for the integer part and to the right for the
-  // fractional part. 1024 characters for the exponent and 52 for the mantissa
-  // either way, with additional space for sign, decimal point and string
-  // termination should be sufficient.
-  static const int kBufferSize = 2200;
-  char buffer[kBufferSize];
-  int integer_cursor = kBufferSize / 2;
-  int fraction_cursor = integer_cursor;
+  size_t integer_cursor = buffer.size() / 2;
+  size_t fraction_cursor = integer_cursor;
 
   bool negative = value < 0;
   if (negative) value = -value;
@@ -1253,9 +1441,20 @@ char* DoubleToRadixCString(double value, int radix) {
   double fraction = value - integer;
   // We only compute fractional digits up to the input double's precision.
   double delta = 0.5 * (base::Double(value).NextDouble() - value);
-  delta = std::max(base::Double(0.0).NextDouble(), delta);
-  DCHECK_GT(delta, 0.0);
-  if (fraction >= delta) {
+  bool delta_is_positive = true;
+  // If the delta rounded down to zero, use the minimum (denormal) delta
+  // value. Be careful around denormal flushing when doing so.
+  if (delta <= 0) {
+    if (base::FPU::GetFlushDenormals()) {
+      // We're flushing the delta value to zero, so the loop below won't
+      // make progress. Skip it instead.
+      delta_is_positive = false;
+    } else {
+      static_assert(base::Double(0.0).NextDouble() > 0);
+      delta = base::Double(0.0).NextDouble();
+    }
+  }
+  if (delta_is_positive && fraction >= delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
     do {
@@ -1273,7 +1472,7 @@ char* DoubleToRadixCString(double value, int radix) {
           // We need to back trace already written digits in case of carry-over.
           while (true) {
             fraction_cursor--;
-            if (fraction_cursor == kBufferSize / 2) {
+            if (fraction_cursor == buffer.size() / 2) {
               CHECK_EQ('.', buffer[fraction_cursor]);
               // Carry over to the integer part.
               integer += 1;
@@ -1306,17 +1505,13 @@ char* DoubleToRadixCString(double value, int radix) {
 
   // Add sign and terminate string.
   if (negative) buffer[--integer_cursor] = '-';
-  buffer[fraction_cursor++] = '\0';
-  DCHECK_LT(fraction_cursor, kBufferSize);
-  DCHECK_LE(0, integer_cursor);
-  // Allocate new string as return value.
-  char* result = NewArray<char>(fraction_cursor - integer_cursor);
-  memcpy(result, buffer + integer_cursor, fraction_cursor - integer_cursor);
-  return result;
+  DCHECK_LE(integer_cursor, 1u << 31);  // Didn't underflow.
+  DCHECK_GT(fraction_cursor, integer_cursor);
+  return {buffer.begin() + integer_cursor, fraction_cursor - integer_cursor};
 }
 
 // ES6 18.2.4 parseFloat(string)
-double StringToDouble(Isolate* isolate, Handle<String> string,
+double StringToDouble(Isolate* isolate, DirectHandle<String> string,
                       ConversionFlag flag, double empty_string_val) {
   DirectHandle<String> flattened = String::Flatten(isolate, string);
   return FlatStringToDouble(*flattened, flag, empty_string_val);
@@ -1337,9 +1532,9 @@ double FlatStringToDouble(Tagged<String> string, ConversionFlag flag,
 
 std::optional<double> TryStringToDouble(LocalIsolate* isolate,
                                         DirectHandle<String> object,
-                                        int max_length_for_conversion) {
+                                        uint32_t max_length_for_conversion) {
   DisallowGarbageCollection no_gc;
-  int length = object->length();
+  uint32_t length = object->length();
   if (length > max_length_for_conversion) {
     return std::nullopt;
   }
@@ -1354,8 +1549,8 @@ std::optional<double> TryStringToDouble(LocalIsolate* isolate,
 std::optional<double> TryStringToInt(LocalIsolate* isolate,
                                      DirectHandle<String> object, int radix) {
   DisallowGarbageCollection no_gc;
-  const int kMaxLengthForConversion = 20;
-  int length = object->length();
+  const uint32_t kMaxLengthForConversion = 20;
+  uint32_t length = object->length();
   if (length > kMaxLengthForConversion) {
     return std::nullopt;
   }
@@ -1385,14 +1580,14 @@ bool IsSpecialIndex(Tagged<String> string) {
 bool IsSpecialIndex(Tagged<String> string,
                     SharedStringAccessGuardIfNeeded& access_guard) {
   // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
-  const int kBufferSize = 24;
-  const int length = string->length();
+  const uint32_t kBufferSize = 24;
+  const uint32_t length = string->length();
   if (length == 0 || length > kBufferSize) return false;
   uint16_t buffer[kBufferSize];
   String::WriteToFlat(string, buffer, 0, length, access_guard);
   // If the first char is not a digit or a '-' or we can't match 'NaN' or
   // '(-)Infinity', bailout immediately.
-  int offset = 0;
+  uint32_t offset = 0;
   if (!IsDecimalDigit(buffer[0])) {
     if (buffer[0] == '-') {
       if (length == 1) return false;  // Just '-' is bad.
@@ -1414,9 +1609,9 @@ bool IsSpecialIndex(Tagged<String> string,
     }
   }
   // Expected fast path: key is an integer.
-  static const int kRepresentableIntegerLength = 15;  // (-)XXXXXXXXXXXXXXX
+  static const uint32_t kRepresentableIntegerLength = 15;  // (-)XXXXXXXXXXXXXXX
   if (length - offset <= kRepresentableIntegerLength) {
-    const int initial_offset = offset;
+    const uint32_t initial_offset = offset;
     bool matches = true;
     for (; offset < length; offset++) {
       matches &= IsDecimalDigit(buffer[offset]);
@@ -1434,8 +1629,10 @@ bool IsSpecialIndex(Tagged<String> string,
   // Compute reverse string.
   char reverse_buffer[kBufferSize + 1];  // Result will be /0 terminated.
   base::Vector<char> reverse_vector(reverse_buffer, arraysize(reverse_buffer));
-  const char* reverse_string = DoubleToCString(d, reverse_vector);
-  for (int i = 0; i < length; ++i) {
+  std::string_view reverse_string = DoubleToStringView(d, reverse_vector);
+
+  if (reverse_string.length() != length) return false;
+  for (uint32_t i = 0; i < length; ++i) {
     if (static_cast<uint16_t>(reverse_string[i]) != buffer[i]) return false;
   }
   return true;

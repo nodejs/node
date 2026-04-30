@@ -35,41 +35,45 @@ class Isolate;
 
 class Deoptimizer : public Malloced {
  public:
-  struct DeoptInfo {
-    DeoptInfo(SourcePosition position, DeoptimizeReason deopt_reason,
-              uint32_t node_id, int deopt_id)
-        : position(position),
-          deopt_reason(deopt_reason),
-          node_id(node_id),
-          deopt_id(deopt_id) {}
-
-    const SourcePosition position;
-    const DeoptimizeReason deopt_reason;
-    const uint32_t node_id;
-    const int deopt_id;
+  enum class CodeValidity : uint8_t {
+    kUnknown,
+    kInvalidated,
+    kInvalidatedOsr,
+    kUnaffected
   };
 
-  // Whether the deopt exit is contained by the outermost loop containing the
-  // osr'd loop. For example:
-  //
-  //  for (;;) {
-  //    for (;;) {
-  //    }  // OSR is triggered on this backedge.
-  //  }  // This is the outermost loop containing the osr'd loop.
-  static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
-                                       Tagged<JSFunction> function,
-                                       BytecodeOffset deopt_exit_offset,
-                                       BytecodeOffset osr_offset);
-  static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
-  DeoptInfo GetDeoptInfo() const {
-    return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
+  struct DeoptInfo {
+    static constexpr int kUninitilizedDeoptId = std::numeric_limits<int>::min();
+
+    SourcePosition position;
+    int deopt_id = kUninitilizedDeoptId;
+#ifdef DEBUG
+    uint32_t node_id;
+#endif
+    DeoptimizeReason deopt_reason;
+  };
+
+  static DeoptInfo ComputeDeoptInfo(Tagged<Code> code, Address pc);
+  DeoptInfo GetDeoptInfo() {
+    if (deopt_info_.deopt_id == DeoptInfo::kUninitilizedDeoptId) {
+      deopt_info_ = ComputeDeoptInfo(compiled_code_, from_);
+    }
+    return deopt_info_;
   }
+
+  static bool GetOutermostOuterLoopWithCodeKind(
+      Isolate* isolate, Tagged<JSFunction> function, BytecodeOffset osr_offset,
+      CodeKind outer_loop_code_kind, BytecodeOffset* outer_loop_osr_offset);
 
   static const char* MessageFor(DeoptimizeKind kind);
 
-  Handle<JSFunction> function() const;
-  Handle<Code> compiled_code() const;
+  DirectHandle<JSFunction> function() const;
+  DirectHandle<Code> compiled_code() const;
   DeoptimizeKind deopt_kind() const { return deopt_kind_; }
+  CodeValidity code_validity() const {
+    DCHECK_NE(code_validity_, CodeValidity::kUnknown);
+    return code_validity_;
+  }
   int output_count() const { return output_count_; }
 
   // Where the deopt exit occurred *in the outermost frame*, i.e in the
@@ -78,6 +82,12 @@ class Deoptimizer : public Malloced {
   BytecodeOffset bytecode_offset_in_outermost_frame() const {
     return bytecode_offset_in_outermost_frame_;
   }
+
+// TODO(mdanylo): for Dumpling only use ro-functions that are guaranteed to not
+// change state and metadata.
+#ifdef V8_DUMPLING
+  void VirtualMaterializeAndPrint();
+#endif  // V8_DUMPLING
 
   static Deoptimizer* New(Address raw_function, DeoptimizeKind kind,
                           Address from, int fp_to_sp_delta, Isolate* isolate);
@@ -98,6 +108,7 @@ class Deoptimizer : public Malloced {
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
   static void DeoptimizeFunction(Tagged<JSFunction> function,
+                                 LazyDeoptimizeReason reason,
                                  Tagged<Code> code = {});
 
   // Deoptimize all code in the given isolate.
@@ -117,12 +128,14 @@ class Deoptimizer : public Malloced {
   // potential attacker from using the frame creation process in the
   // deoptimizer, in particular the signing process, to gain control over the
   // program.
-  // When building mksnapshot, always return false.
-  static bool IsValidReturnAddress(Address pc, Isolate* isolate);
+  // This function makes a crash if the address is not valid. If it's valid,
+  // it returns the given address.
+  static Address EnsureValidReturnAddress(Isolate* isolate, Address address);
 
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
+  void ProcessDeoptReason(DeoptimizeReason reason);
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -139,6 +152,16 @@ class Deoptimizer : public Malloced {
     return offsetof(Deoptimizer, caller_frame_top_);
   }
 
+#if defined(V8_ENABLE_CET_SHADOW_STACK) || defined(V8_ENABLE_RISCV_SHADOW_STACK)
+  static constexpr int shadow_stack_offset() {
+    return offsetof(Deoptimizer, shadow_stack_);
+  }
+
+  static constexpr int shadow_stack_count_offset() {
+    return offsetof(Deoptimizer, shadow_stack_count_);
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
   Isolate* isolate() const { return isolate_; }
 
   static constexpr int kMaxNumberOfEntries = 16384;
@@ -152,18 +175,42 @@ class Deoptimizer : public Malloced {
   V8_EXPORT_PRIVATE static const int kEagerDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
 
+  // The size of the call instruction to Builtins::kAdaptShadowStackForDeopt.
+  V8_EXPORT_PRIVATE static const int kAdaptShadowStackOffsetToSubtract;
+
   // Tracing.
   static void TraceMarkForDeoptimization(Isolate* isolate, Tagged<Code> code,
-                                         const char* reason);
+                                         LazyDeoptimizeReason reason);
   static void TraceEvictFromOptimizedCodeCache(Isolate* isolate,
                                                Tagged<SharedFunctionInfo> sfi,
                                                const char* reason);
 
   // Patch the generated code to jump to a safepoint entry. This is used only
   // when Shadow Stack is enabled.
-  static void PatchJumpToTrampoline(Address pc, Address new_pc);
+  static void PatchToJump(Address pc, Address new_pc);
+
+  // Overwrites the code range from start to end with trapping instructions. The
+  // RelocIterator is needed to avoid overwriting GC-relevant reloc info. If the
+  // GC-relevant code segments get overwritten with zap values, the GC would
+  // interpret the zap value as references and behave incorrectly. Note that the
+  // GC may access the code object concurrently to code zapping.
+  static void ZapCode(Address start, Address end, RelocIterator& it);
 
  private:
+  // Whether the deopt exit is contained by the outermost loop containing the
+  // osr'd loop. For example:
+  //
+  //  for (;;) {
+  //    for (;;) {
+  //    }  // OSR is triggered on this backedge (osr_offset = JumpLoop's
+  //    offset).
+  //  }  // This is the outermost loop containing the osr'd loop.
+  static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
+                                       Tagged<JSFunction> function,
+                                       BytecodeOffset deopt_exit_offset,
+                                       BytecodeOffset osr_offset,
+                                       CodeKind code_kind);
+
   void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,
                                     const TranslatedFrame::iterator& iterator);
   void QueueFeedbackVectorForMaterialization(
@@ -179,7 +226,8 @@ class Deoptimizer : public Malloced {
   void DoComputeOutputFramesWasmImpl();
   FrameDescription* DoComputeWasmLiftoffFrame(
       TranslatedFrame& frame, wasm::NativeModule* native_module,
-      Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index);
+      Tagged<WasmTrustedInstanceData> wasm_trusted_instance, int frame_index,
+      std::stack<intptr_t>& shadow_stack);
 
   void GetWasmStackSlotsCounts(const wasm::FunctionSig* sig,
                                int* parameter_stack_slots,
@@ -266,6 +314,9 @@ class Deoptimizer : public Malloced {
   // Key for lookup of previously materialized objects.
   intptr_t stack_fp_;
 
+  DeoptInfo deopt_info_;
+  CodeValidity code_validity_ = CodeValidity::kUnknown;
+
   TranslatedState translated_state_;
   struct ValueToMaterialize {
     Address output_slot_address_;
@@ -274,9 +325,20 @@ class Deoptimizer : public Malloced {
   std::vector<ValueToMaterialize> values_to_materialize_;
   std::vector<ValueToMaterialize> feedback_vector_to_materialize_;
 
+#if defined(V8_ENABLE_CET_SHADOW_STACK) || defined(V8_ENABLE_RISCV_SHADOW_STACK)
+  intptr_t* shadow_stack_ = nullptr;
+  size_t shadow_stack_count_ = 0;
+#endif  // V8_ENABLE_CET_SHADOW_STACK
+
 #ifdef DEBUG
   DisallowGarbageCollection* disallow_garbage_collection_;
 #endif  // DEBUG
+
+  // Use a DisallowSandboxAccess scope for most of the deoptimizer to prevent
+  // the deoptimizer from accessing untrusted data in the sandbox. This way, we
+  // get some level of assurance that actions taken by the deoptimizer cannot
+  // be influenced by untrusted in-sandbox data but purely rely on trusted data.
+  std::optional<DisallowSandboxAccess> disallow_sandbox_access_;
 
   // Note: This is intentionally not a unique_ptr s.t. the Deoptimizer
   // satisfies is_standard_layout, needed for offsetof().
@@ -284,15 +346,9 @@ class Deoptimizer : public Malloced {
 
 #if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_32_BIT
   // Needed by webassembly for lowering signatures containing i64 types. Stored
-  // as members for re-use for multiple signatures during one de-optimization.
+  // as members for reuse for multiple signatures during one de-optimization.
   std::optional<AccountingAllocator> alloc_;
   std::optional<Zone> zone_;
-#endif
-#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
-  // Wasm deoptimizations should not access the heap at all. All deopt data is
-  // stored off-heap.
-  std::optional<SandboxHardwareSupport::BlockAccessScope>
-      no_heap_access_during_wasm_deopt_;
 #endif
 
   friend class DeoptimizedFrameInfo;

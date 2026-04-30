@@ -55,7 +55,7 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
   const char* root_name = nullptr;
   i::Tagged<i::Map> map = i::Cast<i::Map>(object);
   intptr_t root_ptr =
-      static_cast<intptr_t>(map.ptr()) & (i::PageMetadata::kPageSize - 1);
+      static_cast<intptr_t>(map.ptr()) & (i::NormalPage::kPageSize - 1);
 
   READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
   MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
@@ -84,7 +84,7 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
   i::ReadOnlyRoots roots(heap);
   const char* root_name = nullptr;
   i::RootIndex root_index = i::RootIndex::kFirstSmiRoot;
-  intptr_t root_ptr = object.ptr() & (i::PageMetadata::kPageSize - 1);
+  intptr_t root_ptr = object.ptr() & (i::NormalPage::kPageSize - 1);
 
   STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
   MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
@@ -126,8 +126,10 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope scope(isolate);
-    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::IsolateSafepointScope safepoint_scope(heap);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Heap* heap = i_isolate->heap();
+    i::SafepointScope safepoint_scope(i_isolate,
+                                      i::kGlobalSafepointForSharedSpaceIsolate);
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF(out, "%s", kHeader);
@@ -166,7 +168,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
            !object.is_null(); object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
-        if (IsMap(object)) continue;
+        if (!IsAnyHole(object) && IsMap(object)) continue;
         DumpKnownObject(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
@@ -206,7 +208,9 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         if (s->identity() == i::TRUSTED_SPACE) {
           continue;
         }
-        DumpSpaceFirstPageAddress(out, s);
+        if (s->first_page()) {
+          DumpSpaceFirstPageAddress(out, s);
+        }
       }
       DumpSpaceFirstPageAddress(out, read_only_heap->read_only_space());
       i::PrintF(out, "}\n");

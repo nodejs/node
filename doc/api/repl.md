@@ -645,14 +645,35 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### `replServer.setupHistory(historyPath, callback)`
+### `replServer.setupHistory(historyConfig, callback)`
 
 <!-- YAML
 added: v11.10.0
+changes:
+  - version: v24.2.0
+    pr-url: https://github.com/nodejs/node/pull/58225
+    description: Updated the `historyConfig` parameter to accept an object
+                 with `filePath`, `size`, `removeHistoryDuplicates` and
+                 `onHistoryFileLoaded` properties.
 -->
 
-* `historyPath` {string} the path to the history file
+* `historyConfig` {Object|string} the path to the history file
+  If it is a string, it is the path to the history file.
+  If it is an object, it can have the following properties:
+  * `filePath` {string} the path to the history file
+  * `size` {number} Maximum number of history lines retained. To disable
+    the history set this value to `0`. This option makes sense only if
+    `terminal` is set to `true` by the user or by an internal `output` check,
+    otherwise the history caching mechanism is not initialized at all.
+    **Default:** `30`.
+  * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
+    to the history list duplicates an older one, this removes the older line
+    from the list. **Default:** `false`.
+  * `onHistoryFileLoaded` {Function} called when history writes are ready or upon error
+    * `err` {Error}
+    * `repl` {repl.REPLServer}
 * `callback` {Function} called when history writes are ready or upon error
+  (Optional if provided as `onHistoryFileLoaded` in `historyConfig`)
   * `err` {Error}
   * `repl` {repl.REPLServer}
 
@@ -666,21 +687,36 @@ with REPL instances programmatically.
 
 <!-- YAML
 added: v14.5.0
-deprecated: REPLACEME
+deprecated:
+  - v24.0.0
+  - v22.16.0
 -->
 
 > Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.
 
-* {string\[]}
+* Type: {string\[]}
 
 A list of the names of some Node.js modules, e.g., `'http'`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-builtin-modules)):
+
+```bash
+npx codemod@latest @nodejs/repl-builtin-modules
+```
 
 ## `repl.start([options])`
 
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/62188
+    description: The `handleError` parameter has been added.
+  - version: v24.1.0
+    pr-url: https://github.com/nodejs/node/pull/58003
+    description: Added the possibility to add/edit/remove multilines
+                 while adding a multiline command.
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57400
     description: The multi-line indicator is now "|" instead of "...".
                  Added support for multi-line history.
@@ -754,6 +790,17 @@ changes:
     previews or not. **Default:** `true` with the default eval function and
     `false` in case a custom eval function is used. If `terminal` is falsy, then
     there are no previews and the value of `preview` has no effect.
+  * `handleError` {Function} This function customizes error handling in the REPL.
+    It receives the thrown exception as its first argument and must return one
+    of the following values synchronously:
+    * `'print'` to print the error to the output stream (default behavior).
+    * `'ignore'` to skip all remaining error handling.
+    * `'unhandled'` to treat the exception as fully unhandled. In this case,
+      the error will be passed to process-wide exception handlers, such as
+      the [`'uncaughtException'`][] event.
+      The `'unhandled'` value may or may not be desirable in situations
+      where the `REPLServer` instance has been closed, depending on the particular
+      use case.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.

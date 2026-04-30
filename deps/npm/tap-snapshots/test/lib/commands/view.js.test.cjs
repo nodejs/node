@@ -5,6 +5,22 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/commands/view.js TAP allow-git=root, package with multiple dist‑tags and no time > must match snapshot 1`] = `
+
+[4m[36mgray@1.1.0[39m[24m | [31mProprietary[39m | deps: [36mnone[39m | versions: [36m1[39m
+
+dist
+.tarball: [34mhttp://gray/1.1.0.tgz[39m
+.shasum: [32mb[39m
+
+dist-tags:
+[34mlatest[39m: 1.1.0
+[34mstable[39m: 1.1.0
+[34mold[39m: 1.0.0
+[34mbeta[39m: 1.2.0-beta
+[34malpha[39m: 1.2.0-alpha
+`
+
 exports[`test/lib/commands/view.js TAP deprecated package with license, bugs, repository and other fields > must match snapshot 1`] = `
 
 [4m[36mgreen@1.0.0[39m[24m | [32mACME[39m | deps: [36m2[39m | versions: [36m2[39m
@@ -23,8 +39,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>
@@ -52,8 +67,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>
@@ -81,8 +95,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>
@@ -106,14 +119,7 @@ dist-tags:
 [34my[39m: 1.0.0
 [34mv1[39m: 1.0.0
 [34mprev[39m: 1.0.0
-[34md[39m: 1.0.0
-[34mc[39m: 1.0.0
-[34mb[39m: 1.0.0
-[34ma[39m: 1.0.0
-[34mx[39m: 1.0.1
-[34mnext[39m: 1.0.1
-[34mh[39m: 1.0.1
-[2m(...and 3 more.)[22m
+[2m(...and 10 more.)[22m
 
 published {TIME} ago[39m
 `
@@ -132,14 +138,7 @@ dist-tags:
 [34my[39m: 1.0.0
 [34mv1[39m: 1.0.0
 [34mprev[39m: 1.0.0
-[34md[39m: 1.0.0
-[34mc[39m: 1.0.0
-[34mb[39m: 1.0.0
-[34ma[39m: 1.0.0
-[34mx[39m: 1.0.1
-[34mnext[39m: 1.0.1
-[34mh[39m: 1.0.1
-[2m(...and 3 more.)[22m
+[2m(...and 10 more.)[22m
 
 published {TIME} ago[39m
 `
@@ -158,14 +157,7 @@ dist-tags:
 [34my[39m: 1.0.0
 [34mv1[39m: 1.0.0
 [34mprev[39m: 1.0.0
-[34md[39m: 1.0.0
-[34mc[39m: 1.0.0
-[34mb[39m: 1.0.0
-[34ma[39m: 1.0.0
-[34mx[39m: 1.0.1
-[34mnext[39m: 1.0.1
-[34mh[39m: 1.0.1
-[2m(...and 3 more.)[22m
+[2m(...and 10 more.)[22m
 
 published {TIME} ago[39m
 `
@@ -249,30 +241,7 @@ dist
 .unpackedSize: [34m1 B[39m
 
 dependencies:
-[34m0[39m: 1.0.0
-[34m10[39m: 1.0.0
-[34m11[39m: 1.0.0
-[34m12[39m: 1.0.0
-[34m13[39m: 1.0.0
-[34m14[39m: 1.0.0
-[34m15[39m: 1.0.0
-[34m16[39m: 1.0.0
-[34m17[39m: 1.0.0
-[34m18[39m: 1.0.0
-[34m19[39m: 1.0.0
-[34m1[39m: 1.0.0
-[34m20[39m: 1.0.0
-[34m21[39m: 1.0.0
-[34m22[39m: 1.0.0
-[34m23[39m: 1.0.0
-[34m2[39m: 1.0.0
-[34m3[39m: 1.0.0
-[34m4[39m: 1.0.0
-[34m5[39m: 1.0.0
-[34m6[39m: 1.0.0
-[34m7[39m: 1.0.0
-[34m8[39m: 1.0.0
-[34m9[39m: 1.0.0
+[34m0[39m: 1.0.0, [34m1[39m: 1.0.0, [34m2[39m: 1.0.0, [34m3[39m: 1.0.0, [34m4[39m: 1.0.0, [34m5[39m: 1.0.0, [34m6[39m: 1.0.0, [34m7[39m: 1.0.0, [34m8[39m: 1.0.0, [34m9[39m: 1.0.0, [34m10[39m: 1.0.0, [34m11[39m: 1.0.0, [34m12[39m: 1.0.0, [34m13[39m: 1.0.0, [34m14[39m: 1.0.0, [34m15[39m: 1.0.0, [34m16[39m: 1.0.0, [34m17[39m: 1.0.0, [34m18[39m: 1.0.0, [34m19[39m: 1.0.0, [34m20[39m: 1.0.0, [34m21[39m: 1.0.0, [34m22[39m: 1.0.0, [34m23[39m: 1.0.0
 [2m(...and 1 more.)[22m
 
 dist-tags:
@@ -309,14 +278,7 @@ dist-tags:
 [34my[39m: 1.0.0
 [34mv1[39m: 1.0.0
 [34mprev[39m: 1.0.0
-[34md[39m: 1.0.0
-[34mc[39m: 1.0.0
-[34mb[39m: 1.0.0
-[34ma[39m: 1.0.0
-[34mx[39m: 1.0.1
-[34mnext[39m: 1.0.1
-[34mh[39m: 1.0.1
-[2m(...and 3 more.)[22m
+[2m(...and 10 more.)[22m
 
 published {TIME} ago[39m
 `
@@ -335,14 +297,7 @@ dist-tags:
 [34my[39m: 1.0.0
 [34mv1[39m: 1.0.0
 [34mprev[39m: 1.0.0
-[34md[39m: 1.0.0
-[34mc[39m: 1.0.0
-[34mb[39m: 1.0.0
-[34ma[39m: 1.0.0
-[34mx[39m: 1.0.1
-[34mnext[39m: 1.0.1
-[34mh[39m: 1.0.1
-[2m(...and 3 more.)[22m
+[2m(...and 10 more.)[22m
 
 published {TIME} ago[39m
 
@@ -360,14 +315,7 @@ dist-tags:
 [34my[39m: 1.0.0
 [34mv1[39m: 1.0.0
 [34mprev[39m: 1.0.0
-[34md[39m: 1.0.0
-[34mc[39m: 1.0.0
-[34mb[39m: 1.0.0
-[34ma[39m: 1.0.0
-[34mx[39m: 1.0.1
-[34mnext[39m: 1.0.1
-[34mh[39m: 1.0.1
-[2m(...and 3 more.)[22m
+[2m(...and 10 more.)[22m
 
 published {TIME} ago[39m
 `
@@ -453,8 +401,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>
@@ -563,8 +510,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>
@@ -679,8 +625,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>
@@ -743,8 +688,7 @@ dist
 .unpackedSize: [34m1.0 GB[39m
 
 dependencies:
-[34mred[39m: 1.0.0
-[34myellow[39m: 1.0.0
+[34mred[39m: 1.0.0, [34myellow[39m: 1.0.0
 
 maintainers:
 - [34mclaudia[39m <[2mc@yellow.com[22m>

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --turbo-dynamic-map-checks --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --turbo-dynamic-map-checks --allow-natives-syntax --turbofan
 
 function f(v) {
   return v.b;
@@ -14,9 +14,9 @@ f(v);
 f(v);
 assertOptimized(f);
 v.b = {x: 20};
-assertEquals(f(v).x, 20);
 // Must deoptimize because of field-rep changes for field 'b'
 assertUnoptimized(f);
+assertEquals(f(v).x, 20);
 
 function f0(v) {
   return v.b;

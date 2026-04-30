@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,40 +19,40 @@
 static STACK_OF(X509V3_EXT_METHOD) *ext_list = NULL;
 
 static int ext_cmp(const X509V3_EXT_METHOD *const *a,
-                   const X509V3_EXT_METHOD *const *b);
+    const X509V3_EXT_METHOD *const *b);
 static void ext_list_free(X509V3_EXT_METHOD *ext);
 
 int X509V3_EXT_add(X509V3_EXT_METHOD *ext)
 {
     if (ext_list == NULL
         && (ext_list = sk_X509V3_EXT_METHOD_new(ext_cmp)) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return 0;
     }
     if (!sk_X509V3_EXT_METHOD_push(ext_list, ext)) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
         return 0;
     }
     return 1;
 }
 
 static int ext_cmp(const X509V3_EXT_METHOD *const *a,
-                   const X509V3_EXT_METHOD *const *b)
+    const X509V3_EXT_METHOD *const *b)
 {
     return ((*a)->ext_nid - (*b)->ext_nid);
 }
 
 DECLARE_OBJ_BSEARCH_CMP_FN(const X509V3_EXT_METHOD *,
-                           const X509V3_EXT_METHOD *, ext);
+    const X509V3_EXT_METHOD *, ext);
 IMPLEMENT_OBJ_BSEARCH_CMP_FN(const X509V3_EXT_METHOD *,
-                             const X509V3_EXT_METHOD *, ext);
+    const X509V3_EXT_METHOD *, ext);
 
 #include "standard_exts.h"
 
 const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
 {
     X509V3_EXT_METHOD tmp;
-    const X509V3_EXT_METHOD *t = &tmp, *const *ret;
+    const X509V3_EXT_METHOD *t = &tmp, *const * ret;
     int idx;
 
     if (nid < 0)
@@ -63,7 +63,10 @@ const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
         return *ret;
     if (!ext_list)
         return NULL;
+    /* Ideally, this would be done under a lock */
+    sk_X509V3_EXT_METHOD_sort(ext_list);
     idx = sk_X509V3_EXT_METHOD_find(ext_list, &tmp);
+    /* A failure to locate the item is handled by the value method */
     return sk_X509V3_EXT_METHOD_value(ext_list, idx);
 }
 
@@ -92,14 +95,16 @@ int X509V3_EXT_add_alias(int nid_to, int nid_from)
         ERR_raise(ERR_LIB_X509V3, X509V3_R_EXTENSION_NOT_FOUND);
         return 0;
     }
-    if ((tmpext = OPENSSL_malloc(sizeof(*tmpext))) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+    if ((tmpext = OPENSSL_malloc(sizeof(*tmpext))) == NULL)
         return 0;
-    }
     *tmpext = *ext;
     tmpext->ext_nid = nid_to;
     tmpext->ext_flags |= X509V3_EXT_DYNAMIC;
-    return X509V3_EXT_add(tmpext);
+    if (!X509V3_EXT_add(tmpext)) {
+        OPENSSL_free(tmpext);
+        return 0;
+    }
+    return 1;
 }
 
 void X509V3_EXT_cleanup(void)
@@ -160,7 +165,7 @@ void *X509V3_EXT_d2i(X509_EXTENSION *ext)
  */
 
 void *X509V3_get_d2i(const STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
-                     int *idx)
+    int *idx)
 {
     int lastpos, i;
     X509_EXTENSION *ex, *found_ex = NULL;
@@ -216,7 +221,7 @@ void *X509V3_get_d2i(const STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
  */
 
 int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
-                    int crit, unsigned long flags)
+    int crit, unsigned long flags)
 {
     int errcode, extidx = -1;
     X509_EXTENSION *ext = NULL, *extmp;
@@ -252,8 +257,7 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
         /*
          * If replace existing or delete, error since extension must exist
          */
-        if ((ext_op == X509V3_ADD_REPLACE_EXISTING) ||
-            (ext_op == X509V3_ADD_DELETE)) {
+        if ((ext_op == X509V3_ADD_REPLACE_EXISTING) || (ext_op == X509V3_ADD_DELETE)) {
             errcode = X509V3_R_EXTENSION_NOT_FOUND;
             goto err;
         }
@@ -290,14 +294,14 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
     *x = ret;
     return 1;
 
- m_fail:
-    /* ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE); */
+m_fail:
+    /* ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB); */
     if (ret != *x)
         sk_X509_EXTENSION_free(ret);
     X509_EXTENSION_free(ext);
     return -1;
 
- err:
+err:
     if (!(flags & X509V3_ADD_SILENT))
         ERR_raise(ERR_LIB_X509V3, errcode);
     return 0;

@@ -22,7 +22,7 @@ if (!common.hasCrypto)
     const session = new Session();
     session.connect();
   }, common.expectsError({
-    message: 'Access to this API has been restricted. ',
+    message: 'Access to this API has been restricted. Use --allow-inspector to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'Inspector',
   }));

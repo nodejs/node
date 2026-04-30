@@ -13,10 +13,12 @@ class Version extends BaseCommand {
     'json',
     'preid',
     'sign-git-tag',
+    'save',
     'workspace',
     'workspaces',
     'workspaces-update',
     'include-workspace-root',
+    'ignore-scripts',
   ]
 
   static workspaces = true

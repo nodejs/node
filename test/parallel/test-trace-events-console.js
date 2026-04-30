@@ -48,16 +48,15 @@ if (process.argv[2] === 'child') {
 
     assert(fs.existsSync(file));
     const data = await fs.promises.readFile(file, { encoding: 'utf8' });
-    JSON.parse(data).traceEvents
-      .filter((trace) => trace.cat !== '__metadata')
-      .forEach((trace) => {
-        assert.strictEqual(trace.pid, proc.pid);
-        assert(names.includes(trace.name));
-        if (trace.name === 'count::bar')
-          assert.strictEqual(trace.args.data, expectedCounts.shift());
-        else if (trace.name === 'time::foo')
-          assert.strictEqual(trace.ph, expectedTimeTypes.shift());
-      });
+    for (const trace of JSON.parse(data).traceEvents
+      .filter((trace) => trace.cat !== '__metadata')) {
+      assert.strictEqual(trace.pid, proc.pid);
+      assert(names.includes(trace.name));
+      if (trace.name === 'count::bar')
+        assert.strictEqual(trace.args.data, expectedCounts.shift());
+      else if (trace.name === 'time::foo')
+        assert.strictEqual(trace.ph, expectedTimeTypes.shift());
+    }
     assert.strictEqual(expectedCounts.length, 0);
     assert.strictEqual(expectedTimeTypes.length, 0);
   }));

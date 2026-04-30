@@ -125,7 +125,7 @@ const mockExitHandler = async (t, {
       ...errors,
     ],
     npm,
-    // Make it async to make testing ergonomics a little easier so we dont need
+    // Make it async to make testing ergonomics a little easier so we don't need
     // to t.plan() every test to make sure we get process.exit called.
     exitHandler: (argErr) => new Promise(res => {
       process.once('exit', res)
@@ -294,6 +294,35 @@ t.test('merges output buffers errors with --json', async (t) => {
     },
     'should output expected json output'
   )
+})
+
+t.test('json output includes authUrl and doneUrl for webauth EOTP errors', async (t) => {
+  const { exitHandler, outputs } = await mockExitHandler(t, {
+    config: { json: true },
+    error: Object.assign(new Error('one-time pass required'), {
+      code: 'EOTP',
+      body: {
+        authUrl: 'https://registry.npmjs.org/-/auth/login/abc123',
+        doneUrl: 'https://registry.npmjs.org/-/auth/done/abc123',
+      },
+    }),
+  })
+
+  await exitHandler()
+
+  t.equal(process.exitCode, 1)
+  const jsonOutput = JSON.parse(outputs[0])
+  t.same(jsonOutput.error, {
+    code: 'EOTP',
+    summary: 'This operation requires a one-time password.',
+    detail: 'Open this URL in your browser to authenticate:\n' +
+      '  https://registry.npmjs.org/-/auth/login/abc123\n' +
+      '\n' +
+      'After authenticating, your token can be retrieved from:\n' +
+      '  https://registry.npmjs.org/-/auth/done/abc123',
+    authUrl: 'https://registry.npmjs.org/-/auth/login/abc123',
+    doneUrl: 'https://registry.npmjs.org/-/auth/done/abc123',
+  })
 })
 
 t.test('output buffer without json', async (t) => {

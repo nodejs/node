@@ -653,7 +653,8 @@ void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
   StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
   if (wrap == nullptr) return;
 
-  Local<External> ext = External::New(args.GetIsolate(), wrap);
+  Local<External> ext = External::New(
+      args.GetIsolate(), wrap, v8::kExternalPointerTypeTagDefault);
   args.GetReturnValue().Set(ext);
 }
 
@@ -708,7 +709,8 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
   if (static_cast<size_t>(nread) != bs->ByteLength()) {
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(isolate, nread);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
     memcpy(bs->Data(), old_bs->Data(), nread);
   }
 

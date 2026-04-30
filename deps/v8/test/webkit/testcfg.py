@@ -25,7 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
 import re
 
 from testrunner.local import testsuite
@@ -33,7 +32,6 @@ from testrunner.objects import testcase
 from testrunner.outproc import webkit
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
-SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 
 class TestLoader(testsuite.JSTestLoader):
@@ -60,7 +58,7 @@ class TestCase(testcase.D8TestCase):
 
   def _parse_source_files(self, source):
     files_list = []  # List of file names to append to command arguments.
-    files_match = FILES_PATTERN.search(source);
+    files_match = FILES_PATTERN.search(source)
     # Accept several lines of 'Files:'.
     while True:
       if files_match:
@@ -69,13 +67,8 @@ class TestCase(testcase.D8TestCase):
       else:
         break
     files = [self.suite.root.parents[1] / f for f in files_list]
-    testfilename = self.suite.root / self.path_js
-    if SELF_SCRIPT_PATTERN.search(source):
-      clean_name = testfilename.as_posix().replace("\\", "\\\\")
-      env = ['-e', f'TEST_FILE_NAME="{clean_name}"']
-      files = env + files
     files.append(self.suite.root / "resources/standalone-pre.js")
-    files.append(testfilename)
+    files.append(self.suite.root / self.path_js)
     files.append(self.suite.root / "resources/standalone-post.js")
     return files
 

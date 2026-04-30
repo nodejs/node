@@ -8,11 +8,8 @@
 #include <stddef.h>
 #include <memory>
 
-// Include first to ensure that V8_USE_PERFETTO can be defined before use.
-#include "v8config.h"  // NOLINT(build/include_directory)
-
 #if defined(V8_USE_PERFETTO)
-#include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/tracing/trace-categories.h"
 #else
 #include "src/tracing/trace-event-no-perfetto.h"
@@ -429,13 +426,12 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
 // structures so that it is portable to third_party libraries.
 // This is the base implementation for integer types (including bool) and enums.
 template <typename T>
-static V8_INLINE typename std::enable_if<
-    std::is_integral<T>::value || std::is_enum<T>::value, void>::type
-SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
-  *type = std::is_same<T, bool>::value
-              ? TRACE_VALUE_TYPE_BOOL
-              : std::is_signed<T>::value ? TRACE_VALUE_TYPE_INT
-                                         : TRACE_VALUE_TYPE_UINT;
+static V8_INLINE void SetTraceValue(T arg, unsigned char* type, uint64_t* value)
+  requires(std::is_integral_v<T> || std::is_enum_v<T>)
+{
+  *type = std::is_same_v<T, bool> ? TRACE_VALUE_TYPE_BOOL
+          : std::is_signed_v<T>   ? TRACE_VALUE_TYPE_INT
+                                  : TRACE_VALUE_TYPE_UINT;
   *value = static_cast<uint64_t>(arg);
 }
 
@@ -461,9 +457,10 @@ static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
 }
 
 template <typename T>
-static V8_INLINE typename std::enable_if<
-    std::is_convertible<T*, ConvertableToTraceFormat*>::value>::type
-SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type, uint64_t* value) {
+static V8_INLINE void SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type,
+                                    uint64_t* value)
+  requires std::is_convertible_v<T*, ConvertableToTraceFormat*>
+{
   SetTraceValue(ptr.release(), type, value);
 }
 
@@ -634,12 +631,15 @@ class CallStatsScopedTracer {
   struct PERFETTO_UID(ScopedEvent) {                                       \
     struct ScopedStats {                                                   \
       ScopedStats(v8::internal::Isolate* isolate_arg, int) {               \
+        isolate_ = isolate_arg;                                            \
+        internal::RuntimeCallStats* table =                                \
+            isolate_->counters()->runtime_call_stats();                    \
+        has_parent_scope_ = table->InUse();                                \
         TRACE_EVENT_BEGIN(category, name, [&](perfetto::EventContext) {    \
-          isolate_ = isolate_arg;                                          \
-          internal::RuntimeCallStats* table =                              \
-              isolate_->counters()->runtime_call_stats();                  \
-          has_parent_scope_ = table->InUse();                              \
-          if (!has_parent_scope_) table->Reset();                          \
+          if (!has_parent_scope_ && !did_reset_) {                         \
+            table->Reset();                                                \
+            did_reset_ = true;                                             \
+          }                                                                \
         });                                                                \
       }                                                                    \
       ~ScopedStats() {                                                     \
@@ -656,6 +656,7 @@ class CallStatsScopedTracer {
       }                                                                    \
       v8::internal::Isolate* isolate_ = nullptr;                           \
       bool has_parent_scope_ = false;                                      \
+      bool did_reset_ = false;                                             \
     } stats;                                                               \
   } PERFETTO_UID(scoped_event) {                                           \
     { isolate, 0 }                                                         \

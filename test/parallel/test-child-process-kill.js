@@ -67,10 +67,10 @@ process.stdout.write('x');`;
 
 const checkProcess = spawn(process.execPath, ['-e', code]);
 
-checkProcess.on('exit', (code, signal) => {
+checkProcess.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
-});
+}));
 
 checkProcess.stdout.on('data', common.mustCall((chunk) => {
   assert.strictEqual(chunk.toString(), 'x');

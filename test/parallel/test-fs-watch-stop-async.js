@@ -14,7 +14,7 @@ triggered = false;
 watch.once('stop', listener);  // Should trigger.
 watch.stop();
 assert.strictEqual(triggered, false);
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.strictEqual(triggered, true);
   watch.removeListener('stop', listener);
-});
+}));

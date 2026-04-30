@@ -20,6 +20,7 @@ const hook = registerHooks({
 });
 
 // Check assert, which is already loaded.
+// eslint-disable-next-line node-core/must-call-assert
 assert.strictEqual(require('assert').exports_for_test, 'redirected assert');
 // Check zlib, which is not yet loaded.
 assert.strictEqual(require('zlib').exports_for_test, 'redirected zlib');

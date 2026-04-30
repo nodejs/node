@@ -123,7 +123,8 @@ async function testImportSpki({ name, publicUsages }, namedCurve, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -165,7 +166,8 @@ async function testImportPkcs8(
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -270,11 +272,13 @@ async function testImportJwk(
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
     await assert.rejects(
       subtle.exportKey('jwk', privateKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -352,14 +356,16 @@ async function testImportJwk(
 async function testImportRaw({ name, publicUsages }, namedCurve) {
   const jwk = keyData[namedCurve].jwk;
 
+  const uncompressedRaw = Buffer.concat([
+    Buffer.alloc(1, 0x04),
+    Buffer.from(jwk.x, 'base64url'),
+    Buffer.from(jwk.y, 'base64url'),
+  ]);
+
   const [publicKey] = await Promise.all([
     subtle.importKey(
       'raw',
-      Buffer.concat([
-        Buffer.alloc(1, 0x04),
-        Buffer.from(jwk.x, 'base64url'),
-        Buffer.from(jwk.y, 'base64url'),
-      ]),
+      uncompressedRaw,
       { name, namedCurve },
       true, publicUsages),
     subtle.importKey(
@@ -378,6 +384,10 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
   assert.strictEqual(publicKey.algorithm.namedCurve, namedCurve);
   assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
   assert.strictEqual(publicKey.usages, publicKey.usages);
+
+  // Test raw export round-trip (always uncompressed)
+  const exported = await subtle.exportKey('raw', publicKey);
+  assert.deepStrictEqual(Buffer.from(exported), uncompressedRaw);
 }
 
 (async function() {
@@ -423,14 +433,14 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
       subtle.importKey(
         'spki',
         rsaPublic.export({ format: 'der', type: 'spki' }),
-        { name, hash: 'SHA-256', namedCurve: 'P-256' },
+        { name, namedCurve: 'P-256' },
         true, publicUsages), { message: /Invalid key type/ },
     ).then(common.mustCall());
     assert.rejects(
       subtle.importKey(
         'pkcs8',
         rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
-        { name, hash: 'SHA-256', namedCurve: 'P-256' },
+        { name, namedCurve: 'P-256' },
         true, privateUsages), { message: /Invalid key type/ },
     ).then(common.mustCall());
   }
@@ -491,7 +501,7 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
         subtle.importKey(
           'pkcs8',
           pkcs8,
-          { name, hash: 'SHA-256', namedCurve },
+          { name, namedCurve },
           true, privateUsages), { name: 'DataError', message: /Invalid keyData/ },
       ).then(common.mustCall());
     }

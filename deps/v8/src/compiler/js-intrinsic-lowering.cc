@@ -31,6 +31,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kIsBeingInterpreted:
       return ReduceIsBeingInterpreted(node);
+    case Runtime::kMajorGCForCompilerTesting:
+      return ReduceMajorGCForCompilerTesting(node);
     case Runtime::kTurbofanStaticAssert:
       return ReduceTurbofanStaticAssert(node);
     case Runtime::kVerifyType:
@@ -74,6 +76,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGeneratorGetResumeMode(node);
     case Runtime::kInlineIncBlockCounter:
       return ReduceIncBlockCounter(node);
+    case Runtime::kInlineAddLhsIsStringConstantInternalize:
+      return ReduceAddLhsIsStringConstantInternalize(node);
+    case Runtime::kInlineAddRhsIsStringConstantInternalize:
+      return ReduceAddRhsIsStringConstantInternalize(node);
     case Runtime::kInlineGetImportMetaObject:
       return ReduceGetImportMetaObject(node);
     default:
@@ -136,7 +142,9 @@ Reduction JSIntrinsicLowering::ReduceCreateJSGeneratorObject(Node* node) {
   Node* const context = NodeProperties::GetContextInput(node);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op = javascript()->CreateGeneratorObject();
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
+  Operator const* const op = javascript()->CreateGeneratorObject(
+      frame_state.frame_state_info().bytecode_array().ToHandleChecked());
   Node* create_generator =
       graph()->NewNode(op, closure, receiver, context, effect, control);
   ReplaceWithValue(node, create_generator, create_generator);
@@ -259,17 +267,27 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
   return Change(node, simplified()->ObjectIsReceiver());
 }
 
+Reduction JSIntrinsicLowering::ReduceMajorGCForCompilerTesting(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  // Removing all inputs and re-inserting the effect/control input in order to
+  // remove all value inputs.
+  node->TrimInputCount(0);
+  node->AppendInput(zone(), effect);
+  node->AppendInput(zone(), control);
+  NodeProperties::ChangeOp(node, common()->MajorGCForCompilerTesting());
+  // Replacing value uses of {node} by uses of UndefinedConstant, since
+  // MajorGCForCompilerTesting doesn't return anything.
+  ReplaceWithValue(node, jsgraph_->UndefinedConstant(), node, node);
+  return Changed(node);
+}
+
 Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
-  if (v8_flags.always_turbofan) {
-    // Ignore static asserts, as we most likely won't have enough information
-    RelaxEffectsAndControls(node);
-  } else {
-    Node* value = NodeProperties::GetValueInput(node, 0);
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* assert = graph()->NewNode(
-        common()->StaticAssert("%TurbofanStaticAssert"), value, effect);
-    ReplaceWithValue(node, node, assert, nullptr);
-  }
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* assert = graph()->NewNode(
+      common()->StaticAssert("%TurbofanStaticAssert"), value, effect);
+  ReplaceWithValue(node, node, assert, nullptr);
   return Changed(jsgraph_->UndefinedConstant());
 }
 
@@ -355,6 +373,18 @@ Reduction JSIntrinsicLowering::ReduceIncBlockCounter(Node* node) {
                 kDoesNotNeedFrameState);
 }
 
+Reduction JSIntrinsicLowering::ReduceAddLhsIsStringConstantInternalize(
+    Node* node) {
+  auto builtin = Builtin::kAddLhsIsStringConstantInternalizeWithVector;
+  return Change(node, Builtins::CallableFor(isolate(), builtin), 0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAddRhsIsStringConstantInternalize(
+    Node* node) {
+  auto builtin = Builtin::kAddRhsIsStringConstantInternalizeWithVector;
+  return Change(node, Builtins::CallableFor(isolate(), builtin), 0);
+}
+
 Reduction JSIntrinsicLowering::ReduceGetImportMetaObject(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->GetImportMeta());
   return Changed(node);
@@ -408,7 +438,9 @@ Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
   return Changed(node);
 }
 
-Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
+TFGraph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
+
+Zone* JSIntrinsicLowering::zone() const { return graph()->zone(); }
 
 Isolate* JSIntrinsicLowering::isolate() const { return jsgraph()->isolate(); }
 

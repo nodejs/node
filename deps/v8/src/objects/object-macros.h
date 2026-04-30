@@ -14,6 +14,13 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
+// First, ensure that we do not include object-macros.h twice without including
+// object-macros-undef.h in between.
+#ifdef V8_OBJECT_MACROS_DEFINED
+#error Include object-macros-undef.h before including object-macros.h again
+#endif
+#define V8_OBJECT_MACROS_DEFINED
+
 #include "src/base/memory.h"
 
 // V8 objects are defined as:
@@ -26,18 +33,24 @@
 // alignment, since we have int32 fields), and to add warnings which ensure that
 // there is no unwanted within-object padding.
 #if V8_CC_GNU
-
 #define V8_OBJECT_PUSH                                                    \
   _Pragma("pack(push)") _Pragma("pack(4)") _Pragma("GCC diagnostic push") \
       _Pragma("GCC diagnostic error \"-Wpadded\"")
 #define V8_OBJECT_POP _Pragma("pack(pop)") _Pragma("GCC diagnostic pop")
+#elif V8_CC_MSVC
+#define V8_OBJECT_PUSH                                           \
+  __pragma(pack(push)) __pragma(pack(4)) __pragma(warning(push)) \
+      __pragma(warning(default : 4820))
+#define V8_OBJECT_POP __pragma(pack(pop)) __pragma(warning(pop))
+#else
+#error Unsupported compiler
+#endif
 
 #define V8_OBJECT V8_OBJECT_PUSH
-
-// GCC wants this pragma to be a new statement, but we prefer to have
+// Compilers wants the pragmas to be a new statement, but we prefer to have
 // V8_OBJECT_END look like part of the definition. Insert a semicolon before the
-// pragma to make gcc happy, and use static_assert(true) to swallow the next
-// semicolon.
+// pragma to make the compilers happy, and use static_assert(true) to swallow
+// the next semicolon.
 #define V8_OBJECT_END \
   ;                   \
   V8_OBJECT_POP static_assert(true)
@@ -46,21 +59,6 @@
 #define V8_OBJECT_INNER_CLASS_END \
   ;                               \
   V8_OBJECT_PUSH static_assert(true)
-
-#elif V8_CC_MSVC
-#define V8_OBJECT_PUSH                                           \
-  __pragma(pack(push)) __pragma(pack(4)) __pragma(warning(push)) \
-      __pragma(warning(default : 4820))
-#define V8_OBJECT_POP __pragma(pack(pop)) __pragma(warning(pop))
-
-#define V8_OBJECT V8_OBJECT_PUSH
-#define V8_OBJECT_END V8_OBJECT_POP
-
-#define V8_OBJECT_INNER_CLASS V8_OBJECT_POP
-#define V8_OBJECT_INNER_CLASS_END V8_OBJECT_PUSH
-#else
-#error Unsupported compiler
-#endif
 
 // Since this changes visibility, it should always be last in a class
 // definition.
@@ -87,18 +85,6 @@
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super)                           \
   inline void Type::CheckTypeOnCast() { SLOW_DCHECK(Is##Type(*this)); } \
   inline Type::Type(Address ptr) : Super(ptr) { CheckTypeOnCast(); }
-
-#define NEVER_READ_ONLY_SPACE   \
-  inline Heap* GetHeap() const; \
-  inline Isolate* GetIsolate() const;
-
-// TODO(leszeks): Add checks in the factory that we never allocate these
-// objects in RO space.
-#define NEVER_READ_ONLY_SPACE_IMPL(Type)                                   \
-  Heap* Type::GetHeap() const { return GetHeapFromWritableObject(*this); } \
-  Isolate* Type::GetIsolate() const {                                      \
-    return GetIsolateFromWritableObject(*this);                            \
-  }
 
 #define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
 
@@ -151,19 +137,19 @@
   }                                                          \
   __VA_ARGS__ holder::name(PtrComprCageBase cage_base) const
 
-#define DEF_RELAXED_GETTER(holder, name, type)               \
-  type holder::name(RelaxedLoadTag tag) const {              \
+#define DEF_RELAXED_GETTER(holder, name, ...)                \
+  __VA_ARGS__ holder::name(RelaxedLoadTag tag) const {       \
     PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
     return holder::name(cage_base, tag);                     \
   }                                                          \
-  type holder::name(PtrComprCageBase cage_base, RelaxedLoadTag) const
+  __VA_ARGS__ holder::name(PtrComprCageBase cage_base, RelaxedLoadTag) const
 
-#define DEF_ACQUIRE_GETTER(holder, name, type)               \
-  type holder::name(AcquireLoadTag tag) const {              \
+#define DEF_ACQUIRE_GETTER(holder, name, ...)                \
+  __VA_ARGS__ holder::name(AcquireLoadTag tag) const {       \
     PtrComprCageBase cage_base = GetPtrComprCageBase(*this); \
     return holder::name(cage_base, tag);                     \
   }                                                          \
-  type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const
+  __VA_ARGS__ holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const
 
 #define DEF_HEAP_OBJECT_PREDICATE(holder, name)            \
   bool name(Tagged<holder> obj) {                          \
@@ -179,45 +165,41 @@
   static const int k##name##Offset = value;        \
   TQ_FIELD_TYPE(name, tq_type)
 
-#define DECL_SETTER(name, type)      \
-  inline void set_##name(type value, \
+#define DECL_SETTER(name, ...)              \
+  inline void set_##name(__VA_ARGS__ value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#define DECL_ACCESSORS(name, type) \
-  DECL_GETTER(name, type)          \
-  DECL_SETTER(name, type)
+#define DECL_ACCESSORS(name, ...) \
+  DECL_GETTER(name, __VA_ARGS__)  \
+  DECL_SETTER(name, __VA_ARGS__)
 
 #define DECL_ACCESSORS_LOAD_TAG(name, type, tag_type) \
-  inline type name(tag_type tag) const;               \
-  inline type name(PtrComprCageBase cage_base, tag_type) const;
+  inline UNPAREN(type) name(tag_type tag) const;      \
+  inline UNPAREN(type) name(PtrComprCageBase cage_base, tag_type) const;
 
-#define DECL_ACCESSORS_STORE_TAG(name, type, tag_type) \
-  inline void set_##name(type value, tag_type,         \
+#define DECL_ACCESSORS_STORE_TAG(name, type, tag_type)  \
+  inline void set_##name(UNPAREN(type) value, tag_type, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-#define DECL_RELAXED_GETTER(name, type) \
-  DECL_ACCESSORS_LOAD_TAG(name, type, RelaxedLoadTag)
+#define DECL_RELAXED_GETTER(name, ...) \
+  DECL_ACCESSORS_LOAD_TAG(name, (__VA_ARGS__), RelaxedLoadTag)
 
-#define DECL_RELAXED_SETTER(name, type) \
-  DECL_ACCESSORS_STORE_TAG(name, type, RelaxedStoreTag)
+#define DECL_RELAXED_SETTER(name, ...) \
+  DECL_ACCESSORS_STORE_TAG(name, (__VA_ARGS__), RelaxedStoreTag)
 
-#define DECL_RELAXED_ACCESSORS(name, type) \
-  DECL_RELAXED_GETTER(name, type)          \
-  DECL_RELAXED_SETTER(name, type)
+#define DECL_RELAXED_ACCESSORS(name, ...) \
+  DECL_RELAXED_GETTER(name, __VA_ARGS__)  \
+  DECL_RELAXED_SETTER(name, __VA_ARGS__)
 
-#define DECL_ACQUIRE_GETTER(name, type) \
-  DECL_ACCESSORS_LOAD_TAG(name, type, AcquireLoadTag)
+#define DECL_ACQUIRE_GETTER(name, ...) \
+  DECL_ACCESSORS_LOAD_TAG(name, (__VA_ARGS__), AcquireLoadTag)
 
-#define DECL_RELEASE_SETTER(name, type) \
-  DECL_ACCESSORS_STORE_TAG(name, type, ReleaseStoreTag)
+#define DECL_RELEASE_SETTER(name, ...) \
+  DECL_ACCESSORS_STORE_TAG(name, (__VA_ARGS__), ReleaseStoreTag)
 
-#define DECL_RELEASE_ACQUIRE_ACCESSORS(name, type) \
-  DECL_ACQUIRE_GETTER(name, type)                  \
-  DECL_RELEASE_SETTER(name, type)
-
-#define DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(name) \
-  DECL_ACQUIRE_GETTER(name, Tagged<MaybeObject>)  \
-  DECL_RELEASE_SETTER(name, Tagged<MaybeObject>)
+#define DECL_RELEASE_ACQUIRE_ACCESSORS(name, ...) \
+  DECL_ACQUIRE_GETTER(name, __VA_ARGS__)          \
+  DECL_RELEASE_SETTER(name, __VA_ARGS__)
 
 #define DEF_PRIMITIVE_ACCESSORS(holder, name, offset, type)     \
   type holder::name() const { return ReadField<type>(offset); } \
@@ -267,17 +249,18 @@
     RELAXED_WRITE_UINT8_FIELD(*this, offset, value);        \
   }
 
-#define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
-                           set_condition)                             \
-  DEF_GETTER(holder, name, type) {                                    \
-    type value = TaggedField<type, offset>::load(cage_base, *this);   \
-    DCHECK(get_condition);                                            \
-    return value;                                                     \
-  }                                                                   \
-  void holder::set_##name(type value, WriteBarrierMode mode) {        \
-    DCHECK(set_condition);                                            \
-    TaggedField<type, offset>::store(*this, value);                   \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);            \
+#define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition,   \
+                           set_condition)                               \
+  DEF_GETTER(holder, name, UNPAREN(type)) {                             \
+    UNPAREN(type)                                                       \
+    value = TaggedField<UNPAREN(type), offset>::load(cage_base, *this); \
+    DCHECK(get_condition);                                              \
+    return value;                                                       \
+  }                                                                     \
+  void holder::set_##name(UNPAREN(type) value, WriteBarrierMode mode) { \
+    DCHECK(set_condition);                                              \
+    TaggedField<UNPAREN(type), offset>::store(*this, value);            \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);              \
   }
 
 #define ACCESSORS_CHECKED(holder, name, type, offset, condition) \
@@ -300,15 +283,15 @@
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);     \
   }
 
-#define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, type)      \
-  inline type holder::name() const {                                  \
-    return TorqueGeneratedClass::torque_name();                       \
-  }                                                                   \
-  inline type holder::name(PtrComprCageBase cage_base) const {        \
-    return TorqueGeneratedClass::torque_name(cage_base);              \
-  }                                                                   \
-  inline void holder::set_##name(type value, WriteBarrierMode mode) { \
-    TorqueGeneratedClass::set_##torque_name(value, mode);             \
+#define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, ...)              \
+  inline __VA_ARGS__ holder::name() const {                                  \
+    return TorqueGeneratedClass::torque_name();                              \
+  }                                                                          \
+  inline __VA_ARGS__ holder::name(PtrComprCageBase cage_base) const {        \
+    return TorqueGeneratedClass::torque_name(cage_base);                     \
+  }                                                                          \
+  inline void holder::set_##name(__VA_ARGS__ value, WriteBarrierMode mode) { \
+    TorqueGeneratedClass::set_##torque_name(value, mode);                    \
   }
 
 #define RENAME_PRIMITIVE_TORQUE_ACCESSORS(holder, name, torque_name, type)  \
@@ -343,15 +326,17 @@
 // Similar to ACCESSORS_RELAXED above but with respective relaxed tags.
 #define RELAXED_ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                                    set_condition)                             \
-  DEF_RELAXED_GETTER(holder, name, type) {                                    \
-    type value = TaggedField<type, offset>::Relaxed_Load(cage_base, *this);   \
+  DEF_RELAXED_GETTER(holder, name, UNPAREN(type)) {                           \
+    UNPAREN(type)                                                             \
+    value =                                                                   \
+        TaggedField<UNPAREN(type), offset>::Relaxed_Load(cage_base, *this);   \
     DCHECK(get_condition);                                                    \
     return value;                                                             \
   }                                                                           \
-  void holder::set_##name(type value, RelaxedStoreTag,                        \
+  void holder::set_##name(UNPAREN(type) value, RelaxedStoreTag,               \
                           WriteBarrierMode mode) {                            \
     DCHECK(set_condition);                                                    \
-    TaggedField<type, offset>::Relaxed_Store(*this, value);                   \
+    TaggedField<UNPAREN(type), offset>::Relaxed_Store(*this, value);          \
     CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);                    \
   }
 
@@ -363,19 +348,21 @@
 
 #define RELEASE_ACQUIRE_GETTER_CHECKED(holder, name, type, offset,          \
                                        get_condition)                       \
-  DEF_ACQUIRE_GETTER(holder, name, type) {                                  \
-    type value = TaggedField<type, offset>::Acquire_Load(cage_base, *this); \
+  DEF_ACQUIRE_GETTER(holder, name, UNPAREN(type)) {                         \
+    UNPAREN(type)                                                           \
+    value =                                                                 \
+        TaggedField<UNPAREN(type), offset>::Acquire_Load(cage_base, *this); \
     DCHECK(get_condition);                                                  \
     return value;                                                           \
   }
 
-#define RELEASE_ACQUIRE_SETTER_CHECKED(holder, name, type, offset, \
-                                       set_condition)              \
-  void holder::set_##name(type value, ReleaseStoreTag,             \
-                          WriteBarrierMode mode) {                 \
-    DCHECK(set_condition);                                         \
-    TaggedField<type, offset>::Release_Store(*this, value);        \
-    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);         \
+#define RELEASE_ACQUIRE_SETTER_CHECKED(holder, name, type, offset,   \
+                                       set_condition)                \
+  void holder::set_##name(UNPAREN(type) value, ReleaseStoreTag,      \
+                          WriteBarrierMode mode) {                   \
+    DCHECK(set_condition);                                           \
+    TaggedField<UNPAREN(type), offset>::Release_Store(*this, value); \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);           \
   }
 
 #define RELEASE_ACQUIRE_ACCESSORS_CHECKED2(holder, name, type, offset,      \
@@ -390,49 +377,6 @@
 
 #define RELEASE_ACQUIRE_ACCESSORS(holder, name, type, offset) \
   RELEASE_ACQUIRE_ACCESSORS_CHECKED(holder, name, type, offset, true)
-
-#define WEAK_ACCESSORS_CHECKED2(holder, name, offset, get_condition,          \
-                                set_condition)                                \
-  DEF_GETTER(holder, name, Tagged<MaybeObject>) {                             \
-    Tagged<MaybeObject> value =                                               \
-        TaggedField<MaybeObject, offset>::load(cage_base, *this);             \
-    DCHECK(get_condition);                                                    \
-    return value;                                                             \
-  }                                                                           \
-  void holder::set_##name(Tagged<MaybeObject> value, WriteBarrierMode mode) { \
-    DCHECK(set_condition);                                                    \
-    TaggedField<MaybeObject, offset>::store(*this, value);                    \
-    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);               \
-  }
-
-#define WEAK_ACCESSORS_CHECKED(holder, name, offset, condition) \
-  WEAK_ACCESSORS_CHECKED2(holder, name, offset, condition, condition)
-
-#define WEAK_ACCESSORS(holder, name, offset) \
-  WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
-
-#define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset,         \
-                                                get_condition, set_condition) \
-  DEF_ACQUIRE_GETTER(holder, name, Tagged<MaybeObject>) {                     \
-    Tagged<MaybeObject> value =                                               \
-        TaggedField<MaybeObject, offset>::Acquire_Load(cage_base, *this);     \
-    DCHECK(get_condition);                                                    \
-    return value;                                                             \
-  }                                                                           \
-  void holder::set_##name(Tagged<MaybeObject> value, ReleaseStoreTag,         \
-                          WriteBarrierMode mode) {                            \
-    DCHECK(set_condition);                                                    \
-    TaggedField<MaybeObject, offset>::Release_Store(*this, value);            \
-    CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);               \
-  }
-
-#define RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED(holder, name, offset,       \
-                                               condition)                  \
-  RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED2(holder, name, offset, condition, \
-                                          condition)
-
-#define RELEASE_ACQUIRE_WEAK_ACCESSORS(holder, name, offset) \
-  RELEASE_ACQUIRE_WEAK_ACCESSORS_CHECKED(holder, name, offset, true)
 
 // Getter that returns a Smi as an int and writes an int as a Smi.
 #define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)   \
@@ -498,6 +442,128 @@
   }
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
+  inline void init_##name();                                                  \
+  inline bool has_##name() const;                                             \
+  inline type name(i::IsolateForSandbox isolate) const;                       \
+  inline void set_##name(i::IsolateForSandbox isolate, const type value);
+
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(      \
+    holder, name, type, offset, tag, get_condition, set_condition)          \
+  void holder::init_##name() {                                              \
+    HeapObject::SetupLazilyInitializedExternalPointerField(offset);         \
+  }                                                                         \
+  bool holder::has_##name() const {                                         \
+    return HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(  \
+        offset);                                                            \
+  }                                                                         \
+  type holder::name(i::IsolateForSandbox isolate) const {                   \
+    DCHECK(get_condition);                                                  \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address result =                                                        \
+        HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
+    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
+  }                                                                         \
+  void holder::set_##name(i::IsolateForSandbox isolate, const type value) { \
+    DCHECK(set_condition);                                                  \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address the_value =                                                     \
+        reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));   \
+    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(            \
+        offset, isolate, the_value);                                        \
+  }
+
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED( \
+    holder, name, type, offset, tag, condition)                       \
+  LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(      \
+      holder, name, type, offset, tag, condition, condition)
+
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(    \
+    holder, name, type, offset, tag)                             \
+  LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2( \
+      holder, name, type, offset, tag, true, true)
+
+// Declares all required accessors for a lazily initialized C function pointer
+// that can be called from native code.
+// In case the host and target architectures are different (i.e. simulator
+// is enabled), we can't just call the C function from native code because
+// of architecture difference and we need to "ask" the simulator to call
+// the C function on behalf of the native code. This is a so-called
+// "redirection". The pointer stored in the object is redirected while C++
+// accessors operate on an original C function pointer (wrapping/unwrapping
+// is done the under the hood).
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(name,    \
+                                                                     type)    \
+ private:                                                                     \
+  /* Returns a potentially redirected callback pointer as it's stored */      \
+  /* in the object. This getter is used for printing of redirected value. */  \
+  inline Address name##_raw(i::IsolateForSandbox isolate) const;              \
+  /* Adds/removes redirection for a callback pointer stored in the object. */ \
+  inline void init_##name##_redirection(i::IsolateForSandbox isolate);        \
+  inline void remove_##name##_redirection(i::IsolateForSandbox isolate);      \
+                                                                              \
+ public:                                                                      \
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type)
+
+// Defines all required accessors for a lazily initialized C function pointer
+// that can be called from native code.
+// See DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST for details.
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(  \
+    holder, name, type, offset, tag, ext_ref_type, get_condition,          \
+    set_condition)                                                         \
+                                                                           \
+  /* Accessors for un-redirected callback pointer that can be used */      \
+  /* in C++ code and an accessor to the raw value for printing. */         \
+  void holder::init_##name() {                                             \
+    HeapObject::SetupLazilyInitializedExternalPointerField(offset);        \
+  }                                                                        \
+  bool holder::has_##name() const {                                        \
+    return HeapObject::IsLazilyInitializedExternalPointerFieldInitialized( \
+        offset);                                                           \
+  }                                                                        \
+  Address holder::name##_raw(i::IsolateForSandbox isolate) const {         \
+    return HeapObject::ReadExternalPointerField<tag>(offset, isolate);     \
+  }                                                                        \
+  type holder::name(i::IsolateForSandbox isolate) const {                  \
+    Address result = name##_raw(isolate);                                  \
+    if (!USE_SIMULATOR_BOOL) return result;                                \
+    if (result == kNullAddress) return kNullAddress;                       \
+    return ExternalReference::UnwrapRedirection(result);                   \
+  }                                                                        \
+  void holder::set_##name(i::IsolateForSandbox isolate, Address value) {   \
+    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(           \
+        offset, isolate, value);                                           \
+    if (USE_SIMULATOR_BOOL) {                                              \
+      init_##name##_redirection(isolate);                                  \
+    }                                                                      \
+  }                                                                        \
+                                                                           \
+  /* Implementation of init/remove callback redirection methods. */        \
+  void holder::init_##name##_redirection(i::IsolateForSandbox isolate) {   \
+    CHECK(USE_SIMULATOR_BOOL);                                             \
+    Address value = name##_raw(isolate);                                   \
+    if (value == kNullAddress) return;                                     \
+    value = ExternalReference::Redirect(value, ext_ref_type);              \
+    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(           \
+        offset, isolate, value);                                           \
+  }                                                                        \
+  void holder::remove_##name##_redirection(i::IsolateForSandbox isolate) { \
+    CHECK(USE_SIMULATOR_BOOL);                                             \
+    Address value = name##_raw(isolate);                                   \
+    if (value == kNullAddress) return;                                     \
+    value = ExternalReference::UnwrapRedirection(value);                   \
+    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(           \
+        offset, isolate, value);                                           \
+  }
+
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
 #define DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
   inline type name(i::IsolateForSandbox isolate) const;                  \
   inline void init_##name(i::IsolateForSandbox isolate,                  \
@@ -533,13 +599,85 @@
     HeapObject::WriteExternalPointerField<tag>(offset, isolate, the_value); \
   }
 
+// Declares all required accessors for C function pointer that can be called
+// from native code.
+// In case the host and target architectures are different (i.e. simulator
+// is enabled), we can't just call the C function from native code because
+// of architecture difference and we need to "ask" the simulator to call
+// the C function on behalf of the native code. This is a so-called
+// "redirection". The pointer stored in the object is redirected while C++
+// accessors operate on an original C function pointer (wrapping/unwrapping
+// is done the under the hood).
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type)   \
+ private:                                                                     \
+  /* Returns a potentially redirected callback pointer as it's stored */      \
+  /* in the object. This getter is used for printing of redirected value. */  \
+  inline Address name##_raw(i::IsolateForSandbox isolate) const;              \
+  /* Adds/removes redirection for a callback pointer stored in the object. */ \
+  inline void init_##name##_redirection(i::IsolateForSandbox isolate);        \
+  inline void remove_##name##_redirection(i::IsolateForSandbox isolate);      \
+                                                                              \
+ public:                                                                      \
+  /* Declare accessors as for a regular external pointer. */                  \
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type)
+
+// Defines all required accessors for C function pointer that can be called
+// from native code.
+// See DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST for details.
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(                    \
+    holder, name, type, offset, tag, ext_ref_type)                             \
+                                                                               \
+  Address holder::name##_raw(i::IsolateForSandbox isolate) const {             \
+    return HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
+  }                                                                            \
+                                                                               \
+  /* Accessors for un-redirected callback pointer that can be used */          \
+  /* in C++ code. */                                                           \
+  type holder::name(i::IsolateForSandbox isolate) const {                      \
+    Address value = name##_raw(isolate);                                       \
+    if (!USE_SIMULATOR_BOOL) return value;                                     \
+    if (value == kNullAddress) return kNullAddress;                            \
+    return ExternalReference::UnwrapRedirection(value);                        \
+  }                                                                            \
+  void holder::init_##name(i::IsolateForSandbox isolate,                       \
+                           Address initial_value) {                            \
+    HeapObject::InitExternalPointerField<tag>(offset, isolate, initial_value); \
+    if (USE_SIMULATOR_BOOL) {                                                  \
+      init_##name##_redirection(isolate);                                      \
+    }                                                                          \
+  }                                                                            \
+  void holder::set_##name(i::IsolateForSandbox isolate, Address value) {       \
+    HeapObject::WriteExternalPointerField<tag>(offset, isolate, value);        \
+    if (USE_SIMULATOR_BOOL) {                                                  \
+      init_##name##_redirection(isolate);                                      \
+    }                                                                          \
+  }                                                                            \
+                                                                               \
+  /* Implementation of init/remove callback redirection methods. */            \
+  void holder::init_##name##_redirection(i::IsolateForSandbox isolate) {       \
+    CHECK(USE_SIMULATOR_BOOL);                                                 \
+    Address value = name##_raw(isolate);                                       \
+    if (value == kNullAddress) return;                                         \
+    value = ExternalReference::Redirect(value, ext_ref_type);                  \
+    HeapObject::WriteExternalPointerField<tag>(offset, isolate, value);        \
+  }                                                                            \
+  void holder::remove_##name##_redirection(i::IsolateForSandbox isolate) {     \
+    CHECK(USE_SIMULATOR_BOOL);                                                 \
+    Address value = name##_raw(isolate);                                       \
+    if (value == kNullAddress) return;                                         \
+    value = ExternalReference::UnwrapRedirection(value);                       \
+    HeapObject::WriteExternalPointerField<tag>(offset, isolate, value);        \
+  }
+
 #define DECL_EXTERNAL_POINTER_ACCESSORS(name, type) \
   inline type name() const;                         \
   DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type)
 
 #define EXTERNAL_POINTER_ACCESSORS(holder, name, type, offset, tag)           \
   type holder::name() const {                                                 \
-    i::IsolateForSandbox isolate = GetIsolateForSandbox(*this);               \
+    i::IsolateForSandbox isolate = GetCurrentIsolateForSandbox();             \
     return holder::name(isolate);                                             \
   }                                                                           \
   EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(holder, name, type, offset, \
@@ -553,7 +691,11 @@
   /* routines for relaxed- and release-acquire semantics in the future. */   \
   inline Tagged<type> name(IsolateForSandbox isolate) const;                 \
   inline Tagged<type> name(IsolateForSandbox isolate, AcquireLoadTag) const; \
-  inline bool has_##name() const;
+  inline bool has_##name() const;                                            \
+  /* Checks if the field in question is populated but unpublished. Most */   \
+  /* code shouldn't need to care (i.e. may assume regularly published */     \
+  /* fields), but some code needs to be robust to both situations. */        \
+  inline bool has_##name##_unpublished(IsolateForSandbox isolate) const;
 
 #define DECL_TRUSTED_POINTER_SETTERS(name, type)                           \
   /* Trusted pointers currently always have release-acquire semantics. */  \
@@ -577,21 +719,29 @@
   }                                                                            \
   Tagged<type> holder::name(IsolateForSandbox isolate, AcquireLoadTag) const { \
     DCHECK(has_##name());                                                      \
-    return Cast<type>(ReadTrustedPointerField<tag>(offset, isolate));          \
+    return i::TrustedPointerField::ReadTrustedPointerField<tag>(*this, offset, \
+                                                                isolate);      \
   }                                                                            \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {         \
     set_##name(value, kReleaseStore, mode);                                    \
   }                                                                            \
   void holder::set_##name(Tagged<type> value, ReleaseStoreTag,                 \
                           WriteBarrierMode mode) {                             \
-    WriteTrustedPointerField<tag>(offset, value);                              \
+    i::TrustedPointerField::WriteTrustedPointerField<tag>(*this, offset,       \
+                                                          value);              \
     CONDITIONAL_TRUSTED_POINTER_WRITE_BARRIER(*this, offset, tag, value,       \
                                               mode);                           \
   }                                                                            \
   bool holder::has_##name() const {                                            \
-    return !IsTrustedPointerFieldEmpty(offset);                                \
+    return !i::TrustedPointerField::IsTrustedPointerFieldEmpty(*this, offset); \
   }                                                                            \
-  void holder::clear_##name() { ClearTrustedPointerField(offset); }
+  bool holder::has_##name##_unpublished(IsolateForSandbox isolate) const {     \
+    return i::TrustedPointerField::IsTrustedPointerFieldUnpublished(           \
+        *this, offset, tag, isolate);                                          \
+  }                                                                            \
+  void holder::clear_##name() {                                                \
+    i::TrustedPointerField::ClearTrustedPointerField(*this, offset);           \
+  }
 
 #define DECL_CODE_POINTER_ACCESSORS(name) \
   DECL_TRUSTED_POINTER_ACCESSORS(name, Code)
@@ -609,10 +759,10 @@
   inline void clear_##name();
 
 #define PROTECTED_POINTER_ACCESSORS(holder, name, type, offset)              \
-  static_assert(std::is_base_of<TrustedObject, holder>::value);              \
+  static_assert(std::is_base_of_v<TrustedObject, holder>);                   \
   Tagged<type> holder::name() const {                                        \
     DCHECK(has_##name());                                                    \
-    return Cast<type>(ReadProtectedPointerField(offset));                    \
+    return ReadProtectedPointerField<type>(offset);                          \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, WriteBarrierMode mode) {       \
     WriteProtectedPointerField(offset, value);                               \
@@ -632,10 +782,10 @@
 
 #define RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(holder, name, type,      \
                                                     offset)                  \
-  static_assert(std::is_base_of<TrustedObject, holder>::value);              \
+  static_assert(std::is_base_of_v<TrustedObject, holder>);                   \
   Tagged<type> holder::name(AcquireLoadTag tag) const {                      \
     DCHECK(has_##name(tag));                                                 \
-    return Cast<type>(ReadProtectedPointerField(offset, tag));               \
+    return ReadProtectedPointerField<type>(offset, tag);                     \
   }                                                                          \
   void holder::set_##name(Tagged<type> value, ReleaseStoreTag tag,           \
                           WriteBarrierMode mode) {                           \
@@ -705,41 +855,27 @@
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
-#define WRITE_BARRIER_CPP(object, offset, value)
 #else
-#define WRITE_BARRIER(object, offset, value)                                \
-  do {                                                                      \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    WriteBarrier::ForValue(object, Tagged(object)->RawField(offset), value, \
-                           UPDATE_WRITE_BARRIER);                           \
+#define WRITE_BARRIER(object, offset, value)                                   \
+  do {                                                                         \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
+    static_assert(kTaggedCanConvertToRawObjects);                              \
+    /* For write barriers, it doesn't matter if the slot is strong or weak, */ \
+    /* so use the most generic slot (a maybe weak one). */                     \
+    WriteBarrier::ForValue(object, Tagged(object)->RawMaybeWeakField(offset),  \
+                           value, UPDATE_WRITE_BARRIER);                       \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define WEAK_WRITE_BARRIER(object, offset, value)
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)
 #else
-#define WEAK_WRITE_BARRIER(object, offset, value)                             \
-  do {                                                                        \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                       \
-    static_assert(kTaggedCanConvertToRawObjects);                             \
-    WriteBarrier::ForValue(object, Tagged(object)->RawMaybeWeakField(offset), \
-                           value, UPDATE_WRITE_BARRIER);                      \
-  } while (false)
-#endif
-
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)
-#elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
-  WRITE_BARRIER(object, offset, value)
-#else
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)                 \
-  do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
-    WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),  \
-                                        (object)->RawField(offset), value, \
-                                        UPDATE_WRITE_BARRIER);             \
+#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag)           \
+  do {                                                                \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));              \
+    WriteBarrier::ForExternalPointer(                                 \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), \
+        UPDATE_WRITE_BARRIER);                                        \
   } while (false)
 #endif
 
@@ -748,7 +884,7 @@
 #else
 #define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
   do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                     \
     WriteBarrier::ForIndirectPointer(                                        \
         object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
         UPDATE_WRITE_BARRIER);                                               \
@@ -760,7 +896,7 @@
 #else
 #define JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle)                     \
   do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                     \
     WriteBarrier::ForJSDispatchHandle(object, handle, UPDATE_WRITE_BARRIER); \
   } while (false)
 #endif
@@ -771,39 +907,26 @@
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)               \
-  do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    WriteBarrier::ForValue(object, (object)->RawField(offset), value, mode); \
-  } while (false)
-#endif
-
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)
-#elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode) \
-  WRITE_BARRIER(object, offset, value)
-#else
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)            \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)                 \
   do {                                                                         \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
+    /* For write barriers, it doesn't matter if the slot is strong or weak, */ \
+    /* so use the most generic slot (a maybe weak one). */                     \
     WriteBarrier::ForValue(object, (object)->RawMaybeWeakField(offset), value, \
                            mode);                                              \
   } while (false)
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode)
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode)
 #else
-#define CONDITIONAL_EPHEMERON_KEY_WRITE_BARRIER(object, offset, value, mode) \
-  do {                                                                       \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
-    WriteBarrier::ForEphemeronHashTable(Cast<EphemeronHashTable>(object),    \
-                                        (object)->RawField(offset), value,   \
-                                        mode);                               \
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, mode) \
+  do {                                                                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
+    WriteBarrier::ForExternalPointer(                                         \
+        object, Tagged(object)->RawExternalPointerField(offset, tag), mode);  \
   } while (false)
 #endif
-
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                    mode)
@@ -811,9 +934,10 @@
 #define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
                                                    mode)                       \
   do {                                                                         \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
     WriteBarrier::ForIndirectPointer(                                          \
-        object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
+        object, Tagged(object)->RawIndirectPointerField(offset, tag), value,   \
+        mode);                                                                 \
   } while (false)
 #endif
 
@@ -833,7 +957,7 @@
 #define CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(object, offset, value, \
                                                     mode)                  \
   do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                   \
     WriteBarrier::ForProtectedPointer(                                     \
         object, (object).RawProtectedPointerField(offset), value, mode);   \
   } while (false)
@@ -843,7 +967,7 @@
 #else
 #define CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(object, handle, mode) \
   do {                                                                     \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                   \
     WriteBarrier::ForJSDispatchHandle(object, handle, mode);               \
   } while (false)
 #endif
@@ -985,8 +1109,8 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #endif
 
 #define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)         \
-  Tagged<type> DeoptimizationData::name() const {          \
-    return Cast<type>(get(k##name##Index));                \
+  auto DeoptimizationData::name() const -> Tagged<type> {  \
+    return TrustedCast<type>(get(k##name##Index));         \
   }                                                        \
   void DeoptimizationData::Set##name(Tagged<type> value) { \
     set(k##name##Index, value);                            \

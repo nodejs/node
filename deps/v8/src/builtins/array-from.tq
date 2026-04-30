@@ -111,7 +111,7 @@ transitioning javascript builtin ArrayFrom(
           mappedValue =
               Call(context, UnsafeCast<Callable>(mapfn), thisArg, nextValue, k);
         } catch (e, message) {
-          iterator::IteratorCloseOnException(iteratorRecord);
+          iterator::IteratorCloseOnException(iteratorRecord.object);
           ReThrowWithMessage(context, e, message);
         }
       } else {
@@ -124,7 +124,7 @@ transitioning javascript builtin ArrayFrom(
       try {
         FastCreateDataProperty(a, k, mappedValue);
       } catch (e, message) deferred {
-        iterator::IteratorCloseOnException(iteratorRecord);
+        iterator::IteratorCloseOnException(iteratorRecord.object);
         ReThrowWithMessage(context, e, message);
       }
       // x. Set k to k + 1.

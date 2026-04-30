@@ -138,6 +138,8 @@ class OffHeapHashTableBase {
   inline void RehashInto(PtrComprCageBase cage_base, Derived* new_table);
 
   inline void IterateElements(Root root, RootVisitor* visitor);
+  inline void IterateElementsRange(Root root, RootVisitor* visitor, int start,
+                                   int end);
 
  protected:
   explicit OffHeapHashTableBase(int capacity);
@@ -187,5 +189,7 @@ class OffHeapHashTableBase {
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_OFF_HEAP_HASH_TABLE_H_

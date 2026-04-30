@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --no-always-turbofan --allow-natives-syntax
+// Flags: --turbofan --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
@@ -18,13 +18,10 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(
       () => Object.prototype.__proto__.call(wasm_obj), TypeError);
   testThrowsRepeated(() => wasm_obj.__proto__ = null, TypeError);
+  // Wasm objects have no properties.
+  repeated(() => { for (let p in wasm_obj) { assertUnreachable(); } });
   testThrowsRepeated(() => {
-    for (let p in wasm_obj) {
-    }
-  }, TypeError);
-  testThrowsRepeated(() => {
-    for (let p of wasm_obj) {
-    }
+    for (let p of wasm_obj) {}
   }, TypeError);
   testThrowsRepeated(() => wasm_obj.toString(), TypeError);
   testThrowsRepeated(() => wasm_obj.valueOf(), TypeError);

@@ -50,9 +50,11 @@
           'defines': [
             'USING_UV_SHARED',
             'USING_V8_SHARED',
+            'USING_V8_PLATFORM_SHARED',
             'BUILDING_NODE_EXTENSION'
           ],
           'defines!': [
+            'BUILDING_V8_PLATFORM_SHARED=1',
             'BUILDING_V8_SHARED=1',
             'BUILDING_UV_SHARED=1'
           ]
@@ -82,8 +84,14 @@
     }, { # POSIX
       'defines': [ '__POSIX__' ],
     }],
+    [ 'OS=="aix" or OS=="os400"', {
+      'cflags': [ '-mcpu=power9' ],
+    }],
     [ 'node_enable_d8=="true"', {
       'dependencies': [ 'tools/v8_gypfiles/d8.gyp:d8' ],
+    }],
+    [ 'node_enable_v8windbg=="true"', {
+      'dependencies': [ 'tools/v8_gypfiles/v8windbg.gyp:build_v8windbg' ],
     }],
     [ 'node_use_bundled_v8=="true"', {
       'dependencies': [
@@ -99,9 +107,6 @@
       'defines': [
         'NODE_USE_V8_PLATFORM=0',
       ],
-    }],
-    [ 'v8_enable_shared_ro_heap==1', {
-      'defines': ['NODE_V8_SHARED_RO_HEAP',],
     }],
     [ 'node_tag!=""', {
       'defines': [ 'NODE_TAG="<(node_tag)"' ],
@@ -224,24 +229,33 @@
         'dependencies': [ 'deps/ada/ada.gyp:ada' ],
     }],
 
+    [ 'node_shared_merve=="false"', {
+        'dependencies': [ 'deps/merve/merve.gyp:merve' ],
+    }],
+
     [ 'node_shared_simdjson=="false"', {
         'dependencies': [ 'deps/simdjson/simdjson.gyp:simdjson' ],
     }],
 
-    [ 'node_shared_simdutf=="false"', {
-        'dependencies': [ 'deps/simdutf/simdutf.gyp:simdutf' ],
+    [ 'node_shared_simdutf=="false" and node_use_bundled_v8!="false"', {
+        'dependencies': [ 'tools/v8_gypfiles/v8.gyp:simdutf' ],
     }],
 
     [ 'node_shared_brotli=="false"', {
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
 
-    [ 'node_shared_sqlite=="false"', {
+    [ 'node_use_sqlite=="true" and node_shared_sqlite=="false"', {
       'dependencies': [ 'deps/sqlite/sqlite.gyp:sqlite' ],
+    }],
+
+    [ 'node_use_ffi=="true" and node_shared_ffi=="false"', {
+      'dependencies': [ 'deps/libffi/libffi.gyp:libffi' ],
     }],
 
     [ 'node_shared_zstd=="false"', {
       'dependencies': [ 'deps/zstd/zstd.gyp:zstd' ],
+      'defines': [ 'NODE_BUNDLED_ZSTD' ],
     }],
 
     [ 'OS=="mac"', {
@@ -310,8 +324,8 @@
         'NODE_PLATFORM="sunos"',
       ],
     }],
-    [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"'
-        ' and force_load=="true"', {
+    [ 'node_use_bundled_v8=="true" and (OS=="freebsd" or OS=="linux" or OS=="openharmony") '
+        'and node_shared=="false" and force_load=="true"', {
       'ldflags': [
         '-Wl,-z,noexecstack',
         '-Wl,--whole-archive <(v8_base)',
@@ -335,7 +349,7 @@
         ],
       },
     }],
-    [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux"', {
+    [ 'coverage=="true" and node_shared=="false" and OS in "mac freebsd linux openharmony"', {
       'cflags!': [ '-O3' ],
       'ldflags': [ '--coverage',
                    '-g',
@@ -367,12 +381,12 @@
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
     }],
-    [ 'OS=="linux"', {
+    [ 'OS=="linux" or OS=="openharmony"', {
       'libraries!': [
         '-lrt'
       ],
     }],
-    [ 'OS in "freebsd linux"', {
+    [ 'OS in "freebsd linux openharmony"', {
       'ldflags': [ '-Wl,-z,relro',
                    '-Wl,-z,now' ]
     }],
@@ -404,9 +418,9 @@
                 },
               },
               'conditions': [
-                ['OS in "linux freebsd" and node_shared=="false"', {
+                ['OS in "linux freebsd openharmony" and node_shared=="false"', {
                   'ldflags': [
-                    '-Wl,--whole-archive,'
+                    '-Wl,--whole-archive',
                       '<(obj_dir)/deps/openssl/<(openssl_product)',
                     '-Wl,--no-whole-archive',
                   ],
@@ -423,12 +437,6 @@
             }],
           ]
         }],
-        [ 'openssl_quic=="true" and node_shared_ngtcp2=="false"', {
-          'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:ngtcp2' ]
-        }],
-        [ 'openssl_quic=="true" and node_shared_nghttp3=="false"', {
-          'dependencies': [ './deps/ngtcp2/ngtcp2.gyp:nghttp3' ]
-        }]
       ]
     }, {
       'defines': [ 'HAVE_OPENSSL=0' ]
@@ -437,6 +445,38 @@
       'defines': [ 'HAVE_AMARO=1' ],
     }, {
       'defines': [ 'HAVE_AMARO=0' ]
+    }],
+    [ 'node_use_sqlite=="true"', {
+      'defines': [ 'HAVE_SQLITE=1' ],
+    }, {
+      'defines': [ 'HAVE_SQLITE=0' ]
+    }],
+    [ 'node_use_ffi=="true"', {
+      'defines': [ 'HAVE_FFI=1' ],
+    }, {
+      'defines': [ 'HAVE_FFI=0' ]
+    }],
+    [ 'node_shared_ffi=="true"', {
+      'defines': [ 'NODE_SHARED_FFI=1' ],
+    }, {
+      'defines': [ 'NODE_SHARED_FFI=0' ]
+    }],
+    [ 'node_use_quic=="true"', {
+      'defines': [ 'HAVE_QUIC=1' ],
+      'conditions': [
+        [ 'node_shared_openssl=="false"', {
+          'dependencies': [
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
+            './deps/ngtcp2/ngtcp2.gyp:nghttp3',
+
+            # For tests
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
+          ],
+        }],
+      ],
+    }, {
+      'defines': [ 'HAVE_QUIC=0' ]
     }],
   ],
 }

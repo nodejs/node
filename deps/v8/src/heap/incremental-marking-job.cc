@@ -8,7 +8,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/incremental-marking-schedule.h"
@@ -45,37 +45,28 @@ class IncrementalMarkingJob::Task final : public CancelableTask {
 
 IncrementalMarkingJob::IncrementalMarkingJob(Heap* heap)
     : heap_(heap),
-      user_blocking_task_runner_(
-          heap->GetForegroundTaskRunner(TaskPriority::kUserBlocking)),
       user_visible_task_runner_(
           heap->GetForegroundTaskRunner(TaskPriority::kUserVisible)) {
   CHECK(v8_flags.incremental_marking_task);
 }
 
-void IncrementalMarkingJob::ScheduleTask(TaskPriority priority) {
+void IncrementalMarkingJob::ScheduleTask() {
   base::MutexGuard guard(&mutex_);
 
   if (pending_task_ || heap_->IsTearingDown()) {
     return;
   }
 
-  IncrementalMarking* incremental_marking = heap_->incremental_marking();
-  v8::TaskRunner* task_runner =
-      v8_flags.incremental_marking_start_user_visible &&
-              incremental_marking->IsStopped() &&
-              (priority != TaskPriority::kUserBlocking)
-          ? user_visible_task_runner_.get()
-          : user_blocking_task_runner_.get();
   const bool non_nestable_tasks_enabled =
-      task_runner->NonNestableTasksEnabled();
+      user_visible_task_runner_->NonNestableTasksEnabled();
   auto task = std::make_unique<Task>(heap_->isolate(), this,
                                      non_nestable_tasks_enabled
                                          ? StackState::kNoHeapPointers
                                          : StackState::kMayContainHeapPointers);
   if (non_nestable_tasks_enabled) {
-    task_runner->PostNonNestableTask(std::move(task));
+    user_visible_task_runner_->PostNonNestableTask(std::move(task));
   } else {
-    task_runner->PostTask(std::move(task));
+    user_visible_task_runner_->PostTask(std::move(task));
   }
 
   pending_task_ = true;
@@ -90,9 +81,10 @@ void IncrementalMarkingJob::Task::RunInternal() {
   VMState<GC> state(isolate());
   TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8",
                                 "V8.IncrementalMarkingJob.Task");
-  // In case multi-cage pointer compression mode is enabled ensure that
-  // current thread's cage base values are properly initialized.
-  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate());
+  // Set the current isolate such that trusted pointer tables etc are
+  // available and the cage base is set correctly for multi-cage mode.
+  SetCurrentIsolateScope isolate_scope(isolate());
+  SetCurrentLocalHeapScope thread_local_scope(isolate());
 
   isolate()->stack_guard()->ClearStartIncrementalMarking();
 
@@ -110,13 +102,14 @@ void IncrementalMarkingJob::Task::RunInternal() {
 
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {
-    if (heap->IncrementalMarkingLimitReached() !=
-        Heap::IncrementalMarkingLimit::kNoLimit) {
+    auto [limit, reason] = heap->IncrementalMarkingLimitReached();
+    if (limit != Heap::IncrementalMarkingLimit::kNoLimit) {
       heap->StartIncrementalMarking(heap->GCFlagsForIncrementalMarking(),
                                     GarbageCollectionReason::kTask,
-                                    kGCCallbackScheduleIdleGarbageCollection);
+                                    kGCCallbackScheduleIdleGarbageCollection,
+                                    GarbageCollector::MARK_COMPACTOR, reason);
     } else if (v8_flags.minor_ms && v8_flags.concurrent_minor_ms_marking) {
-      heap->StartMinorMSIncrementalMarkingIfNeeded();
+      heap->StartMinorMSConcurrentMarkingIfNeeded();
     }
   }
 

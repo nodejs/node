@@ -14,17 +14,17 @@ function pingPongTest(port, host) {
     throw e;
   });
 
-  server.on('listening', function() {
+  server.on('listening', common.mustCall(() => {
     console.log(`server listening on ${port}`);
 
     const client = dgram.createSocket('udp4');
 
-    client.on('message', function(msg) {
+    client.on('message', common.mustCall((msg) => {
       assert.strictEqual(msg.toString('ascii'), 'PONG');
 
       client.close();
       server.close();
-    });
+    }));
 
     client.on('error', function(e) {
       throw e;
@@ -37,7 +37,7 @@ function pingPongTest(port, host) {
     }
 
     clientSend();
-  });
+  }));
   server.bind(port, host);
   return server;
 }

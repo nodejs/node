@@ -1,20 +1,20 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   const store = { foo: 'bar' };
   asyncLocalStorage.enterWith(store);
 
   assert.strictEqual(asyncLocalStorage.getStore(), store);
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     assert.strictEqual(asyncLocalStorage.getStore(), store);
-  }, 10);
-});
+  }), 10);
+}));
 
-setTimeout(() => {
+setTimeout(common.mustCall(() => {
   assert.strictEqual(asyncLocalStorage.getStore(), undefined);
-}, 10);
+}), 10);

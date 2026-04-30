@@ -32,8 +32,8 @@ constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 class Operand {
  public:
   // Immediate.
-  V8_INLINE explicit Operand(int64_t immediate,
-                             RelocInfo::Mode rmode = RelocInfo::NO_INFO)
+  V8_INLINE Operand(int64_t immediate,
+                    RelocInfo::Mode rmode = RelocInfo::NO_INFO)
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -44,12 +44,13 @@ class Operand {
   V8_INLINE explicit Operand(Tagged<Smi> value)
       : Operand(static_cast<intptr_t>(value.ptr())) {}
 
-  explicit Operand(Handle<HeapObject> handle);
+  explicit Operand(Handle<HeapObject> handle,
+                   RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
   // Register.
-  V8_INLINE explicit Operand(Register rm) : rm_(rm) {}
+  V8_INLINE Operand(Register rm) : rm_(rm) {}
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const;
@@ -121,6 +122,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // own buffer. Otherwise it takes ownership of the provided buffer.
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
+  // For compatibility with assemblers that require a zone.
+  Assembler(const MaybeAssemblerZone&, const AssemblerOptions& options,
+            std::unique_ptr<AssemblerBuffer> buffer = {})
+      : Assembler(options, std::move(buffer)) {}
 
   virtual ~Assembler() {}
 
@@ -140,6 +145,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
+  void ClearInternalState() {}
 
   // Loong64 uses BlockTrampolinePool to prevent generating trampoline inside a
   // continuous instruction block. In the destructor of BlockTrampolinePool, it
@@ -228,13 +234,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   inline static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_value_at(pc, target, icache_flush_mode);
+    set_target_value_at(pc, target, jit_allocation, icache_flush_mode);
   }
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_compressed_value_at(pc, target, icache_flush_mode);
+    set_target_compressed_value_at(pc, target, jit_allocation,
+                                   icache_flush_mode);
   }
 
   inline Handle<Code> code_target_object_handle_at(Address pc,
@@ -247,18 +256,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static void set_target_value_at(
       Address pc, uint64_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static void set_target_compressed_value_at(
       Address pc, uint32_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   static void JumpLabelToJumpRegister(Address pc);
-
-  // This sets the branch destination (which gets loaded at the call address).
-  // This is for calls and branches within generated code.  The serializer
-  // has already deserialized the lui/ori instructions etc.
-  inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -266,7 +271,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   inline Handle<HeapObject> compressed_embedded_object_handle_at(
@@ -278,6 +283,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the LUI/ORI instruction pair.
@@ -324,6 +330,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void DataAlign(int m);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
+  void SwitchTargetAlign() { CodeTargetAlign(); }
+  void BranchTargetAlign() {}
   void LoopHeaderAlign() { CodeTargetAlign(); }
 
   // Different nop operations are used by the code generator to detect certain
@@ -719,6 +727,679 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fstx_s(FPURegister fd, Register rj, Register rk);
   void fstx_d(FPURegister fd, Register rj, Register rk);
 
+  void vfmadd_s(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfmadd_d(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfmsub_s(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfmsub_d(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfnmadd_s(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfnmadd_d(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfnmsub_s(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfnmsub_d(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vfcmp_cond_s(FPUCondition cond, VRegister vd, VRegister vj,
+                    VRegister vk);
+  void vfcmp_cond_d(FPUCondition cond, VRegister vd, VRegister vj,
+                    VRegister vk);
+  void vbitsel_v(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vshuf_b(VRegister vd, VRegister vj, VRegister vk, VRegister va);
+  void vld(VRegister vd, Register rj, int32_t si12);
+  void vst(VRegister vd, Register rj, int32_t si12);
+  void vldrepl_d(VRegister vd, Register rj, int32_t si9);
+  void vldrepl_w(VRegister vd, Register rj, int32_t si10);
+  void vldrepl_h(VRegister vd, Register rj, int32_t si11);
+  void vldrepl_b(VRegister vd, Register rj, int32_t si12);
+  void vstelm_d(VRegister vd, Register rj, int32_t si8, int32_t idx);
+  void vstelm_w(VRegister vd, Register rj, int32_t si8, int32_t idx);
+  void vstelm_h(VRegister vd, Register rj, int32_t si8, int32_t idx);
+  void vstelm_b(VRegister vd, Register rj, int32_t si8, int32_t idx);
+  void vldx(VRegister vd, Register rj, Register rk);
+  void vstx(VRegister vd, Register rj, Register rk);
+  void vseq_b(VRegister vd, VRegister vj, VRegister vk);
+  void vseq_h(VRegister vd, VRegister vj, VRegister vk);
+  void vseq_w(VRegister vd, VRegister vj, VRegister vk);
+  void vseq_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vsle_du(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_b(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_h(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_w(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_d(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vslt_du(VRegister vd, VRegister vj, VRegister vk);
+  void vadd_b(VRegister vd, VRegister vj, VRegister vk);
+  void vadd_h(VRegister vd, VRegister vj, VRegister vk);
+  void vadd_w(VRegister vd, VRegister vj, VRegister vk);
+  void vadd_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsub_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsub_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsub_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsub_d(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwev_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vsubwod_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_h_bu_b(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_w_hu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_d_wu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwev_q_du_d(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_h_bu_b(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_w_hu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_d_wu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vaddwod_q_du_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_b(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vsadd_du(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vssub_du(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_hu_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_wu_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_du_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vhaddw_qu_du(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_hu_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_wu_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_du_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vhsubw_qu_du(VRegister vd, VRegister vj, VRegister vk);
+  void vadda_b(VRegister vd, VRegister vj, VRegister vk);
+  void vadda_h(VRegister vd, VRegister vj, VRegister vk);
+  void vadda_w(VRegister vd, VRegister vj, VRegister vk);
+  void vadda_d(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_b(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_h(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_w(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_d(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vabsd_du(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_b(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_h(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_w(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_d(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vavg_du(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_b(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_h(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_w(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_d(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vavgr_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmax_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmin_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmul_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmul_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmul_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmul_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmuh_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_h_bu_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_w_hu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_d_wu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwev_q_du_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_h_bu_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_w_hu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_d_wu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmulwod_q_du_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmadd_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmadd_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmadd_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmadd_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmsub_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmsub_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmsub_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmsub_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_h_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_w_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_d_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_q_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_h_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_w_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_d_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_q_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_h_bu_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_w_hu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_d_wu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwev_q_du_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_h_bu_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_w_hu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_d_wu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmaddwod_q_du_d(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_b(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_h(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_w(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_d(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_b(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_h(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_w(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_d(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vdiv_du(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_bu(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_hu(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_wu(VRegister vd, VRegister vj, VRegister vk);
+  void vmod_du(VRegister vd, VRegister vj, VRegister vk);
+  void vsll_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsll_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsll_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsll_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsrl_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsrl_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsrl_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsrl_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsra_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsra_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsra_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsra_d(VRegister vd, VRegister vj, VRegister vk);
+  void vrotr_b(VRegister vd, VRegister vj, VRegister vk);
+  void vrotr_h(VRegister vd, VRegister vj, VRegister vk);
+  void vrotr_w(VRegister vd, VRegister vj, VRegister vk);
+  void vrotr_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlr_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlr_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlr_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlr_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsrar_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsrar_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsrar_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsrar_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsrln_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsrln_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsrln_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsran_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsran_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsran_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlrn_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlrn_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsrlrn_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vsrarn_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsrarn_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsrarn_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssrln_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssrln_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssrln_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssran_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssran_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssran_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssrlrn_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssrlrn_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssrlrn_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssrarn_b_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssrarn_h_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssrarn_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssrln_bu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssrln_hu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssrln_wu_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssran_bu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssran_hu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssran_wu_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssrlrn_bu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssrlrn_hu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssrlrn_wu_d(VRegister vd, VRegister vj, VRegister vk);
+  void vssrarn_bu_h(VRegister vd, VRegister vj, VRegister vk);
+  void vssrarn_hu_w(VRegister vd, VRegister vj, VRegister vk);
+  void vssrarn_wu_d(VRegister vd, VRegister vj, VRegister vk);
+  void vbitclr_b(VRegister vd, VRegister vj, VRegister vk);
+  void vbitclr_h(VRegister vd, VRegister vj, VRegister vk);
+  void vbitclr_w(VRegister vd, VRegister vj, VRegister vk);
+  void vbitclr_d(VRegister vd, VRegister vj, VRegister vk);
+  void vbitset_b(VRegister vd, VRegister vj, VRegister vk);
+  void vbitset_h(VRegister vd, VRegister vj, VRegister vk);
+  void vbitset_w(VRegister vd, VRegister vj, VRegister vk);
+  void vbitset_d(VRegister vd, VRegister vj, VRegister vk);
+  void vbitrev_b(VRegister vd, VRegister vj, VRegister vk);
+  void vbitrev_h(VRegister vd, VRegister vj, VRegister vk);
+  void vbitrev_w(VRegister vd, VRegister vj, VRegister vk);
+  void vbitrev_d(VRegister vd, VRegister vj, VRegister vk);
+  void vpackev_b(VRegister vd, VRegister vj, VRegister vk);
+  void vpackev_h(VRegister vd, VRegister vj, VRegister vk);
+  void vpackev_w(VRegister vd, VRegister vj, VRegister vk);
+  void vpackev_d(VRegister vd, VRegister vj, VRegister vk);
+  void vpackod_b(VRegister vd, VRegister vj, VRegister vk);
+  void vpackod_h(VRegister vd, VRegister vj, VRegister vk);
+  void vpackod_w(VRegister vd, VRegister vj, VRegister vk);
+  void vpackod_d(VRegister vd, VRegister vj, VRegister vk);
+  void vilvl_b(VRegister vd, VRegister vj, VRegister vk);
+  void vilvl_h(VRegister vd, VRegister vj, VRegister vk);
+  void vilvl_w(VRegister vd, VRegister vj, VRegister vk);
+  void vilvl_d(VRegister vd, VRegister vj, VRegister vk);
+  void vilvh_b(VRegister vd, VRegister vj, VRegister vk);
+  void vilvh_h(VRegister vd, VRegister vj, VRegister vk);
+  void vilvh_w(VRegister vd, VRegister vj, VRegister vk);
+  void vilvh_d(VRegister vd, VRegister vj, VRegister vk);
+  void vpickev_b(VRegister vd, VRegister vj, VRegister vk);
+  void vpickev_h(VRegister vd, VRegister vj, VRegister vk);
+  void vpickev_w(VRegister vd, VRegister vj, VRegister vk);
+  void vpickev_d(VRegister vd, VRegister vj, VRegister vk);
+  void vpickod_b(VRegister vd, VRegister vj, VRegister vk);
+  void vpickod_h(VRegister vd, VRegister vj, VRegister vk);
+  void vpickod_w(VRegister vd, VRegister vj, VRegister vk);
+  void vpickod_d(VRegister vd, VRegister vj, VRegister vk);
+  void vreplve_b(VRegister vd, VRegister vj, Register rk);
+  void vreplve_h(VRegister vd, VRegister vj, Register rk);
+  void vreplve_w(VRegister vd, VRegister vj, Register rk);
+  void vreplve_d(VRegister vd, VRegister vj, Register rk);
+  void vand_v(VRegister vd, VRegister vj, VRegister vk);
+  void vor_v(VRegister vd, VRegister vj, VRegister vk);
+  void vxor_v(VRegister vd, VRegister vj, VRegister vk);
+  void vnor_v(VRegister vd, VRegister vj, VRegister vk);
+  void vandn_v(VRegister vd, VRegister vj, VRegister vk);
+  void vorn_v(VRegister vd, VRegister vj, VRegister vk);
+  void vfrstp_b(VRegister vd, VRegister vj, VRegister vk);
+  void vfrstp_h(VRegister vd, VRegister vj, VRegister vk);
+  void vadd_q(VRegister vd, VRegister vj, VRegister vk);
+  void vsub_q(VRegister vd, VRegister vj, VRegister vk);
+  void vsigncov_b(VRegister vd, VRegister vj, VRegister vk);
+  void vsigncov_h(VRegister vd, VRegister vj, VRegister vk);
+  void vsigncov_w(VRegister vd, VRegister vj, VRegister vk);
+  void vsigncov_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfadd_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfadd_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfsub_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfsub_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfmul_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfmul_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfdiv_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfdiv_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfmax_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfmax_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfmin_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfmin_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfmaxa_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfmaxa_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfmina_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfmina_d(VRegister vd, VRegister vj, VRegister vk);
+  void vfcvt_h_s(VRegister vd, VRegister vj, VRegister vk);
+  void vfcvt_s_d(VRegister vd, VRegister vj, VRegister vk);
+  void vffint_s_l(VRegister vd, VRegister vj, VRegister vk);
+  void vftint_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vftintrm_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vftintrp_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vftintrz_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vftintrne_w_d(VRegister vd, VRegister vj, VRegister vk);
+  void vshuf_h(VRegister vd, VRegister vj, VRegister vk);
+  void vshuf_w(VRegister vd, VRegister vj, VRegister vk);
+  void vshuf_d(VRegister vd, VRegister vj, VRegister vk);
+  void vseqi_b(VRegister vd, VRegister vj, int32_t si5);
+  void vseqi_h(VRegister vd, VRegister vj, int32_t si5);
+  void vseqi_w(VRegister vd, VRegister vj, int32_t si5);
+  void vseqi_d(VRegister vd, VRegister vj, int32_t si5);
+  void vslei_b(VRegister vd, VRegister vj, int32_t si5);
+  void vslei_h(VRegister vd, VRegister vj, int32_t si5);
+  void vslei_w(VRegister vd, VRegister vj, int32_t si5);
+  void vslei_d(VRegister vd, VRegister vj, int32_t si5);
+  void vslei_bu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslei_hu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslei_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslei_du(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslti_b(VRegister vd, VRegister vj, int32_t si5);
+  void vslti_h(VRegister vd, VRegister vj, int32_t si5);
+  void vslti_w(VRegister vd, VRegister vj, int32_t si5);
+  void vslti_d(VRegister vd, VRegister vj, int32_t si5);
+  void vslti_bu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslti_hu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslti_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslti_du(VRegister vd, VRegister vj, uint32_t ui5);
+  void vaddi_bu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vaddi_hu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vaddi_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vaddi_du(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsubi_bu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsubi_hu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsubi_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsubi_du(VRegister vd, VRegister vj, uint32_t ui5);
+  void vbsll_v(VRegister vd, VRegister vj, uint32_t ui5);
+  void vbsrl_v(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmaxi_b(VRegister vd, VRegister vj, int32_t si5);
+  void vmaxi_h(VRegister vd, VRegister vj, int32_t si5);
+  void vmaxi_w(VRegister vd, VRegister vj, int32_t si5);
+  void vmaxi_d(VRegister vd, VRegister vj, int32_t si5);
+  void vmini_b(VRegister vd, VRegister vj, int32_t si5);
+  void vmini_h(VRegister vd, VRegister vj, int32_t si5);
+  void vmini_w(VRegister vd, VRegister vj, int32_t si5);
+  void vmini_d(VRegister vd, VRegister vj, int32_t si5);
+  void vmaxi_bu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmaxi_hu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmaxi_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmaxi_du(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmini_bu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmini_hu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmini_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vmini_du(VRegister vd, VRegister vj, uint32_t ui5);
+  void vfrstpi_b(VRegister vd, VRegister vj, uint32_t ui5);
+  void vfrstpi_h(VRegister vd, VRegister vj, uint32_t ui5);
+  void vclo_b(VRegister vd, VRegister vj);
+  void vclo_h(VRegister vd, VRegister vj);
+  void vclo_w(VRegister vd, VRegister vj);
+  void vclo_d(VRegister vd, VRegister vj);
+  void vclz_b(VRegister vd, VRegister vj);
+  void vclz_h(VRegister vd, VRegister vj);
+  void vclz_w(VRegister vd, VRegister vj);
+  void vclz_d(VRegister vd, VRegister vj);
+  void vpcnt_b(VRegister vd, VRegister vj);
+  void vpcnt_h(VRegister vd, VRegister vj);
+  void vpcnt_w(VRegister vd, VRegister vj);
+  void vpcnt_d(VRegister vd, VRegister vj);
+  void vneg_b(VRegister vd, VRegister vj);
+  void vneg_h(VRegister vd, VRegister vj);
+  void vneg_w(VRegister vd, VRegister vj);
+  void vneg_d(VRegister vd, VRegister vj);
+  void vmskltz_b(VRegister vd, VRegister vj);
+  void vmskltz_h(VRegister vd, VRegister vj);
+  void vmskltz_w(VRegister vd, VRegister vj);
+  void vmskltz_d(VRegister vd, VRegister vj);
+  void vmskgez_b(VRegister vd, VRegister vj);
+  void vmsknz_b(VRegister vd, VRegister vj);
+  void vseteqz_v(CFRegister cd, VRegister vj);
+  void vsetnez_v(CFRegister cd, VRegister vj);
+  void vsetanyeqz_b(CFRegister cd, VRegister vj);
+  void vsetanyeqz_h(CFRegister cd, VRegister vj);
+  void vsetanyeqz_w(CFRegister cd, VRegister vj);
+  void vsetanyeqz_d(CFRegister cd, VRegister vj);
+  void vsetallnez_b(CFRegister cd, VRegister vj);
+  void vsetallnez_h(CFRegister cd, VRegister vj);
+  void vsetallnez_w(CFRegister cd, VRegister vj);
+  void vsetallnez_d(CFRegister cd, VRegister vj);
+  void vflogb_s(VRegister vd, VRegister vj);
+  void vflogb_d(VRegister vd, VRegister vj);
+  void vfclass_s(VRegister vd, VRegister vj);
+  void vfclass_d(VRegister vd, VRegister vj);
+  void vfsqrt_s(VRegister vd, VRegister vj);
+  void vfsqrt_d(VRegister vd, VRegister vj);
+  void vfrecip_s(VRegister vd, VRegister vj);
+  void vfrecip_d(VRegister vd, VRegister vj);
+  void vfrsqrt_s(VRegister vd, VRegister vj);
+  void vfrsqrt_d(VRegister vd, VRegister vj);
+  void vfrint_s(VRegister vd, VRegister vj);
+  void vfrint_d(VRegister vd, VRegister vj);
+  void vfrintrm_s(VRegister vd, VRegister vj);
+  void vfrintrm_d(VRegister vd, VRegister vj);
+  void vfrintrp_s(VRegister vd, VRegister vj);
+  void vfrintrp_d(VRegister vd, VRegister vj);
+  void vfrintrz_s(VRegister vd, VRegister vj);
+  void vfrintrz_d(VRegister vd, VRegister vj);
+  void vfrintrne_s(VRegister vd, VRegister vj);
+  void vfrintrne_d(VRegister vd, VRegister vj);
+  void vfcvtl_s_h(VRegister vd, VRegister vj);
+  void vfcvth_s_h(VRegister vd, VRegister vj);
+  void vfcvtl_d_s(VRegister vd, VRegister vj);
+  void vfcvth_d_s(VRegister vd, VRegister vj);
+  void vffint_s_w(VRegister vd, VRegister vj);
+  void vffint_s_wu(VRegister vd, VRegister vj);
+  void vffint_d_l(VRegister vd, VRegister vj);
+  void vffint_d_lu(VRegister vd, VRegister vj);
+  void vffintl_d_w(VRegister vd, VRegister vj);
+  void vffinth_d_w(VRegister vd, VRegister vj);
+  void vftint_w_s(VRegister vd, VRegister vj);
+  void vftint_l_d(VRegister vd, VRegister vj);
+  void vftintrm_w_s(VRegister vd, VRegister vj);
+  void vftintrm_l_d(VRegister vd, VRegister vj);
+  void vftintrp_w_s(VRegister vd, VRegister vj);
+  void vftintrp_l_d(VRegister vd, VRegister vj);
+  void vftintrz_w_s(VRegister vd, VRegister vj);
+  void vftintrz_l_d(VRegister vd, VRegister vj);
+  void vftintrne_w_s(VRegister vd, VRegister vj);
+  void vftintrne_l_d(VRegister vd, VRegister vj);
+  void vftint_wu_s(VRegister vd, VRegister vj);
+  void vftint_lu_d(VRegister vd, VRegister vj);
+  void vftintrz_wu_s(VRegister vd, VRegister vj);
+  void vftintrz_lu_d(VRegister vd, VRegister vj);
+  void vftintl_l_s(VRegister vd, VRegister vj);
+  void vftinth_l_s(VRegister vd, VRegister vj);
+  void vftintrml_l_s(VRegister vd, VRegister vj);
+  void vftintrmh_l_s(VRegister vd, VRegister vj);
+  void vftintrpl_l_s(VRegister vd, VRegister vj);
+  void vftintrph_l_s(VRegister vd, VRegister vj);
+  void vftintrzl_l_s(VRegister vd, VRegister vj);
+  void vftintrzh_l_s(VRegister vd, VRegister vj);
+  void vftintrnel_l_s(VRegister vd, VRegister vj);
+  void vftintrneh_l_s(VRegister vd, VRegister vj);
+  void vexth_h_b(VRegister vd, VRegister vj);
+  void vexth_w_h(VRegister vd, VRegister vj);
+  void vexth_d_w(VRegister vd, VRegister vj);
+  void vexth_q_d(VRegister vd, VRegister vj);
+  void vexth_hu_bu(VRegister vd, VRegister vj);
+  void vexth_wu_hu(VRegister vd, VRegister vj);
+  void vexth_du_wu(VRegister vd, VRegister vj);
+  void vexth_qu_du(VRegister vd, VRegister vj);
+  void vreplgr2vr_b(VRegister vd, Register rj);
+  void vreplgr2vr_h(VRegister vd, Register rj);
+  void vreplgr2vr_w(VRegister vd, Register rj);
+  void vreplgr2vr_d(VRegister vd, Register rj);
+  void vrotri_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vrotri_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vrotri_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vrotri_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrlri_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsrlri_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrlri_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrlri_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrari_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsrari_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrari_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrari_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vinsgr2vr_b(VRegister vd, Register rj, uint32_t ui4);
+  void vinsgr2vr_h(VRegister vd, Register rj, uint32_t ui3);
+  void vinsgr2vr_w(VRegister vd, Register rj, uint32_t ui2);
+  void vinsgr2vr_d(VRegister vd, Register rj, uint32_t ui1);
+  void vpickve2gr_b(Register rd, VRegister vj, uint32_t ui4);
+  void vpickve2gr_h(Register rd, VRegister vj, uint32_t ui3);
+  void vpickve2gr_w(Register rd, VRegister vj, uint32_t ui2);
+  void vpickve2gr_d(Register rd, VRegister vj, uint32_t ui1);
+  void vpickve2gr_bu(Register rd, VRegister vj, uint32_t ui4);
+  void vpickve2gr_hu(Register rd, VRegister vj, uint32_t ui3);
+  void vpickve2gr_wu(Register rd, VRegister vj, uint32_t ui2);
+  void vpickve2gr_du(Register rd, VRegister vj, uint32_t ui1);
+  void vreplvei_b(VRegister vd, VRegister vj, uint32_t ui4);
+  void vreplvei_h(VRegister vd, VRegister vj, uint32_t ui3);
+  void vreplvei_w(VRegister vd, VRegister vj, uint32_t ui2);
+  void vreplvei_d(VRegister vd, VRegister vj, uint32_t ui1);
+  void vsllwil_h_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsllwil_w_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsllwil_d_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vextl_q_d(VRegister vd, VRegister vj);
+  void vsllwil_hu_bu(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsllwil_wu_hu(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsllwil_du_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vextl_qu_du(VRegister vd, VRegister vj);
+  void vbitclri_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vbitclri_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vbitclri_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vbitclri_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vbitseti_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vbitseti_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vbitseti_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vbitseti_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vbitrevi_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vbitrevi_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vbitrevi_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vbitrevi_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsat_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsat_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsat_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsat_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsat_bu(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsat_hu(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsat_wu(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsat_du(VRegister vd, VRegister vj, uint32_t ui6);
+  void vslli_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vslli_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vslli_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vslli_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrli_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsrli_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrli_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrli_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrai_b(VRegister vd, VRegister vj, uint32_t ui3);
+  void vsrai_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrai_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrai_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrlni_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrlni_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrlni_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrlni_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vsrlrni_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrlrni_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrlrni_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrlrni_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrlni_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrlni_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrlni_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrlni_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrlni_bu_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrlni_hu_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrlni_wu_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrlni_du_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrlrni_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrlrni_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrlrni_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrlrni_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrlrni_bu_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrlrni_hu_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrlrni_wu_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrlrni_du_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vsrani_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrani_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrani_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrani_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vsrarni_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vsrarni_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vsrarni_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vsrarni_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrani_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrani_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrani_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrani_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrani_bu_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrani_hu_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrani_wu_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrani_du_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrarni_b_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrarni_h_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrarni_w_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrarni_d_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vssrarni_bu_h(VRegister vd, VRegister vj, uint32_t ui4);
+  void vssrarni_hu_w(VRegister vd, VRegister vj, uint32_t ui5);
+  void vssrarni_wu_d(VRegister vd, VRegister vj, uint32_t ui6);
+  void vssrarni_du_q(VRegister vd, VRegister vj, uint32_t ui7);
+  void vextrins_d(VRegister vd, VRegister vj, uint32_t ui8);
+  void vextrins_w(VRegister vd, VRegister vj, uint32_t ui8);
+  void vextrins_h(VRegister vd, VRegister vj, uint32_t ui8);
+  void vextrins_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vshuf4i_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vshuf4i_h(VRegister vd, VRegister vj, uint32_t ui8);
+  void vshuf4i_w(VRegister vd, VRegister vj, uint32_t ui8);
+  void vshuf4i_d(VRegister vd, VRegister vj, uint32_t ui8);
+  void vbitseli_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vandi_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vori_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vxori_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vnori_b(VRegister vd, VRegister vj, uint32_t ui8);
+  void vldi(VRegister vd, int32_t i13);
+  void vpermi_w(VRegister vd, VRegister vj, uint32_t ui8);
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -765,10 +1446,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                          SourcePosition position, int id);
 
-  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
-                                       intptr_t pc_delta);
-  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
-                                        intptr_t pc_delta);
+  static void RelocateRelativeReference(
+      RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+      WritableJitAllocation* jit_allocation = nullptr);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -794,14 +1474,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Read/patch instructions.
   static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(Address pc, Instr instr) {
-    *reinterpret_cast<Instr*>(pc) = instr;
+  static void instr_at_put(Address pc, Instr instr,
+                           WritableJitAllocation* jit_allocation = nullptr) {
+    Instruction* i = reinterpret_cast<Instruction*>(pc);
+    i->SetInstructionBits(instr, jit_allocation);
   }
   Instr instr_at(int pos) {
     return *reinterpret_cast<Instr*>(buffer_start_ + pos);
   }
-  void instr_at_put(int pos, Instr instr) {
-    *reinterpret_cast<Instr*>(buffer_start_ + pos) = instr;
+  void instr_at_put(int pos, Instr instr,
+                    WritableJitAllocation* jit_allocation = nullptr) {
+    Instruction* i = reinterpret_cast<Instruction*>(buffer_start_ + pos);
+    i->SetInstructionBits(instr, jit_allocation);
   }
 
   // Check if an instruction is a branch of some kind.
@@ -982,9 +1666,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenBJ(Opcode opcode, Register rj, Register rd, int32_t si16);
   void GenCmp(Opcode opcode, FPUCondition cond, FPURegister fk, FPURegister fj,
               CFRegister cd);
+  void GenCmp(Opcode opcode, FPUCondition cond, VRegister vk, VRegister vj,
+              VRegister vd);
   void GenSel(Opcode opcode, CFRegister ca, FPURegister fk, FPURegister fj,
               FPURegister rd);
-
   void GenRegister(Opcode opcode, Register rj, Register rd, bool rjrd = true);
   void GenRegister(Opcode opcode, FPURegister fj, FPURegister fd);
   void GenRegister(Opcode opcode, Register rj, FPURegister fd);
@@ -1004,6 +1689,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                    FPURegister fj, FPURegister fd);
   void GenRegister(Opcode opcode, Register rk, Register rj, FPURegister fd);
 
+  void GenRegister(Opcode opcode, VRegister va, VRegister vk, VRegister vj,
+                   VRegister vd);
+  void GenRegister(Opcode opcode, VRegister vk, VRegister vj, VRegister vd);
+  void GenRegister(Opcode opcode, Register rj, VRegister vd);
+  void GenRegister(Opcode opcode, VRegister vj, VRegister vd);
+  void GenRegister(Opcode opcode, Register rk, Register rj, VRegister vd);
+  void GenRegister(Opcode opcode, Register rk, VRegister vj, VRegister vd);
+  void GenRegister(Opcode opcode, VRegister vj, CFRegister cd);
+
   void GenImm(Opcode opcode, int32_t bit3, Register rk, Register rj,
               Register rd);
   void GenImm(Opcode opcode, int32_t bit6m, int32_t bit6l, Register rj,
@@ -1013,7 +1707,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenImm(Opcode opcode, int32_t value, Register rj, Register rd,
               int32_t value_bits);  // 6 | 12 | 14 | 16
   void GenImm(Opcode opcode, int32_t bit12, Register rj, FPURegister fd);
-
+  void GenImm(Opcode opcode, uint32_t value, Register rj, VRegister vd,
+              int32_t value_bits);  // 1 | 2 | 3 | 4
+  void GenImm(Opcode opcode, int32_t value, Register rj, VRegister vd,
+              int32_t value_bits);  // 9 | 10 | 11 | 12
+  void GenImm(Opcode opcode, uint32_t value, VRegister vj, Register rd,
+              int32_t value_bits);  // 1 | 2 | 3 | 4
+  void GenImm(Opcode opcode, int32_t idx, int32_t si8, Register rj,
+              VRegister vd, int32_t idx_bits);
+  void GenImm(Opcode opcode, int32_t si5, VRegister vj, VRegister vd);
+  void GenImm(Opcode opcode, uint32_t value, VRegister vj, VRegister vd,
+              int32_t value_bits);  // 1 - 8
+  void GenImm(Opcode opcode, int32_t i13, VRegister vd);
   // Labels.
   void print(const Label* L);
   void bind_to(Label* L, int pos);
@@ -1101,7 +1806,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DoubleRegList scratch_fpregister_list_;
 
  private:
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
 
@@ -1164,11 +1869,31 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
     ExcludeFp(list);
   }
 
+  RegList* Available() { return available_; }
+  void SetAvailable(const RegList& list) { *available_ = list; }
+
+  DoubleRegList* AvailableFP() { return availablefp_; }
+  void SetAvailableFP(const DoubleRegList& list) { *availablefp_ = list; }
+
  private:
   RegList* available_;
   DoubleRegList* availablefp_;
   RegList old_available_;
   DoubleRegList old_availablefp_;
+};
+
+// Helper struct for load lane and store lane to indicate what memory size
+// to be encoded in the opcode, and the new lane index.
+class LoadStoreLaneParams {
+ public:
+  LSXSize sz;
+  uint8_t laneidx;
+
+  LoadStoreLaneParams(MachineRepresentation rep, uint8_t laneidx);
+
+ private:
+  LoadStoreLaneParams(uint8_t laneidx, LSXSize sz, int lanes)
+      : sz(sz), laneidx(laneidx % lanes) {}
 };
 
 }  // namespace internal

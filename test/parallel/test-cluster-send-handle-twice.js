@@ -45,14 +45,14 @@ if (cluster.isPrimary) {
     process.send('send-handle-2', socket);
   }));
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(() => {
     const client = net.connect({
       host: 'localhost',
       port: server.address().port
     });
     client.on('close', common.mustCall(() => { cluster.worker.disconnect(); }));
     client.on('connect', () => { client.end(); });
-  }).on('error', function(e) {
+  })).on('error', function(e) {
     console.error(e);
     assert.fail('server.listen failed');
   });

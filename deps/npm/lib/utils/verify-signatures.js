@@ -17,6 +17,7 @@ class VerifySignatures {
     this.invalid = []
     this.missing = []
     this.checkedPackages = new Set()
+    this.verified = []
     this.auditedWithKeysCount = 0
     this.verifiedSignatureCount = 0
     this.verifiedAttestationCount = 0
@@ -43,9 +44,8 @@ class VerifySignatures {
     log.verbose('verifying registry signatures')
     await pMap(edges, (e) => this.getVerifiedInfo(e), { concurrency: 20, stopOnError: true })
 
-    // Didn't find any dependencies that could be verified, e.g. only local
-    // deps, missing version, not on a registry etc.
-    if (!this.auditedWithKeysCount) {
+    // Didn't find any dependencies that could be verified, e.g. only local deps, missing version, not on a registry etc.
+    if (!this.auditedWithKeysCount && !this.verifiedAttestationCount) {
       throw new Error('found no dependencies to audit that were installed from ' +
                       'a supported registry')
     }
@@ -60,7 +60,11 @@ class VerifySignatures {
     }
 
     if (this.npm.config.get('json')) {
-      output.buffer({ invalid, missing })
+      const result = { invalid, missing }
+      if (this.npm.config.get('include-attestations')) {
+        result.verified = this.verified
+      }
+      output.buffer(result)
       return
     }
     const end = process.hrtime.bigint()
@@ -70,7 +74,7 @@ class VerifySignatures {
     const timing = `audited ${this.auditedWithKeysCount} package${auditedPlural} in ` +
       `${Math.floor(Number(elapsed) / 1e9)}s`
     output.standard(timing)
-    output.standard('')
+    output.standard()
 
     const verifiedBold = this.npm.chalk.bold('verified')
     if (this.verifiedSignatureCount) {
@@ -79,7 +83,7 @@ class VerifySignatures {
       } else {
         output.standard(`${this.verifiedSignatureCount} packages have ${verifiedBold} registry signatures`)
       }
-      output.standard('')
+      output.standard()
     }
 
     if (this.verifiedAttestationCount) {
@@ -88,7 +92,10 @@ class VerifySignatures {
       } else {
         output.standard(`${this.verifiedAttestationCount} packages have ${verifiedBold} attestations`)
       }
-      output.standard('')
+      if (!this.npm.config.get('include-attestations')) {
+        output.standard('(use --json --include-attestations to view attestation details)')
+      }
+      output.standard()
     }
 
     if (missing.length) {
@@ -98,7 +105,7 @@ class VerifySignatures {
       } else {
         output.standard(`${missing.length} packages have ${missingClr} registry signatures but the registry is providing signing keys:`)
       }
-      output.standard('')
+      output.standard()
       missing.map(m =>
         output.standard(`${this.npm.chalk.red(`${m.name}@${m.version}`)} (${m.registry})`)
       )
@@ -106,7 +113,7 @@ class VerifySignatures {
 
     if (invalid.length) {
       if (missing.length) {
-        output.standard('')
+        output.standard()
       }
       const invalidClr = this.npm.chalk.redBright('invalid')
       // We can have either invalid signatures or invalid provenance
@@ -117,11 +124,11 @@ class VerifySignatures {
         } else {
           output.standard(`${invalidSignatures.length} packages have ${invalidClr} registry signatures:`)
         }
-        output.standard('')
+        output.standard()
         invalidSignatures.map(i =>
           output.standard(`${this.npm.chalk.red(`${i.name}@${i.version}`)} (${i.registry})`)
         )
-        output.standard('')
+        output.standard()
       }
 
       const invalidAttestations = this.invalid.filter(i => i.code === 'EATTESTATIONVERIFY')
@@ -131,11 +138,11 @@ class VerifySignatures {
         } else {
           output.standard(`${invalidAttestations.length} packages have ${invalidClr} attestations:`)
         }
-        output.standard('')
+        output.standard()
         invalidAttestations.map(i =>
           output.standard(`${this.npm.chalk.red(`${i.name}@${i.version}`)} (${i.registry})`)
         )
-        output.standard('')
+        output.standard()
       }
 
       if (invalid.length === 1) {
@@ -143,7 +150,7 @@ class VerifySignatures {
       } else {
         output.standard(`Someone might have tampered with these packages since they were published on the registry!`)
       }
-      output.standard('')
+      output.standard()
     }
   }
 
@@ -190,7 +197,7 @@ class VerifySignatures {
         }
       })
 
-    // If keys not found in Sigstore TUF repo, fallback to registry keys API
+    // If keys not found in Sigstore TUF repo, fall back to registry keys API
     if (!keys) {
       log.warn(`Fetching verification keys using TUF failed.  Fetching directly from ${registry}.`)
       keys = await npmFetch.json('/-/npm/v1/keys', {
@@ -264,7 +271,7 @@ class VerifySignatures {
     const { version } = node.package || {}
 
     if (node.isWorkspace || // Skip local workspaces packages
-        !version || // Skip packages that don't have a installed version, e.g. optonal dependencies
+        !version || // Skip packages that don't have an installed version, e.g. optional dependencies
         !spec.registry) { // Skip if not from registry, e.g. git package
       return
     }
@@ -289,6 +296,7 @@ class VerifySignatures {
       _integrity: integrity,
       _signatures,
       _attestations,
+      _attestationBundles,
       _resolved: resolved,
     } = await pacote.manifest(`${name}@${version}`, {
       verifySignatures: true,
@@ -301,6 +309,7 @@ class VerifySignatures {
       integrity,
       signatures,
       attestations: _attestations,
+      attestationBundles: _attestationBundles,
       resolved,
     }
     return result
@@ -318,17 +327,15 @@ class VerifySignatures {
     }
     this.checkedPackages.add(location)
 
-    // We only "audit" or verify the signature, or the presence of it, on
-    // packages whose registry returns signing keys
+    // We only "audit" or verify the signature, or the presence of it, on packages whose registry returns signing keys
     const keys = this.keys.get(registry) || []
     if (keys.length) {
       this.auditedWithKeysCount += 1
     }
 
     try {
-      const { integrity, signatures, attestations, resolved } = await this.verifySignatures(
-        name, version, registry
-      )
+      const { integrity, signatures, attestations, attestationBundles, resolved } =
+        await this.verifySignatures(name, version, registry)
 
       // Currently we only care about missing signatures on registries that provide a public key
       // We could make this configurable in the future with a strict/paranoid mode
@@ -345,11 +352,19 @@ class VerifySignatures {
         })
       }
 
-      // Track verified attestations separately to registry signatures, as all
-      // packages on registries with signing keys are expected to have registry
-      // signatures, but not all packages have provenance and publish attestations.
+      // Track verified attestations separately to registry signatures, as all packages on registries with signing keys are expected to have registry signatures, but not all packages have provenance and publish attestations.
       if (attestations) {
         this.verifiedAttestationCount += 1
+        if (this.npm.config.get('include-attestations')) {
+          this.verified.push({
+            name,
+            version,
+            location,
+            registry,
+            attestations,
+            attestationBundles,
+          })
+        }
       }
     } catch (e) {
       if (e.code === 'EINTEGRITYSIGNATURE' || e.code === 'EATTESTATIONVERIFY') {

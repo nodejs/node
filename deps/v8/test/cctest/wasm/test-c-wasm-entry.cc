@@ -4,14 +4,15 @@
 
 #include <cstdint>
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-arguments.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/value-helper.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -34,14 +35,13 @@ class CWasmEntryArgTester {
   CWasmEntryArgTester(std::initializer_list<uint8_t> wasm_function_bytes,
                       std::function<ReturnType(Args...)> expected_fn)
       : runner_(TestExecutionTier::kTurbofan),
-        isolate_(runner_.main_isolate()),
         expected_fn_(expected_fn),
-        sig_(runner_.template CreateSig<ReturnType, Args...>()) {
+        sig_(WasmRunnerBase::CanonicalizeSig(
+            runner_.template CreateSig<ReturnType, Args...>())) {
     std::vector<uint8_t> code{wasm_function_bytes};
     runner_.Build(code.data(), code.data() + code.size());
     wasm_code_ = runner_.builder().GetFunctionCode(0);
-    c_wasm_entry_ = compiler::CompileCWasmEntry(
-        isolate_, sig_, wasm_code_->native_module()->module());
+    c_wasm_entry_ = compiler::CompileCWasmEntry(runner_.isolate(), sig_);
   }
 
   template <typename... Rest>
@@ -58,17 +58,20 @@ class CWasmEntryArgTester {
   void CheckCall(Args... args) {
     CWasmArgumentsPacker packer(CWasmArgumentsPacker::TotalSize(sig_));
     WriteToBuffer(&packer, args...);
-    Address wasm_call_target = wasm_code_->instruction_start();
+    WasmCodePointer wasm_call_target =
+        GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wasm_code_->instruction_start(), wasm_code_->signature_hash());
     DirectHandle<Object> object_ref = runner_.builder().instance_object();
-    Execution::CallWasm(isolate_, c_wasm_entry_, wasm_call_target, object_ref,
-                        packer.argv());
-    CHECK(!isolate_->has_exception());
+    Execution::CallWasm(runner_.isolate(), c_wasm_entry_, wasm_call_target,
+                        object_ref, packer.argv());
+    GetProcessWideWasmCodePointerTable()->FreeEntry(wasm_call_target);
+    CHECK(!runner_.isolate()->has_exception());
     packer.Reset();
 
     // Check the result.
     ReturnType result = packer.Pop<ReturnType>();
     ReturnType expected = expected_fn_(args...);
-    if (std::is_floating_point<ReturnType>::value) {
+    if (std::is_floating_point_v<ReturnType>) {
       CHECK_DOUBLE_EQ(expected, result);
     } else {
       CHECK_EQ(expected, result);
@@ -77,9 +80,8 @@ class CWasmEntryArgTester {
 
  private:
   WasmRunner<ReturnType, Args...> runner_;
-  Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
-  const FunctionSig* sig_;
+  const CanonicalSig* sig_;
   Handle<Code> c_wasm_entry_;
   WasmCode* wasm_code_;
 };

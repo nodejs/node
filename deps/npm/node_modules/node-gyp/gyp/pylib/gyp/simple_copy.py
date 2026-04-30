@@ -17,15 +17,15 @@ __all__ = ["Error", "deepcopy"]
 
 def deepcopy(x):
     """Deep copy operation on gyp objects such as strings, ints, dicts
-  and lists. More than twice as fast as copy.deepcopy but much less
-  generic."""
+    and lists. More than twice as fast as copy.deepcopy but much less
+    generic."""
 
     try:
         return _deepcopy_dispatch[type(x)](x)
     except KeyError:
         raise Error(
-            "Unsupported type %s for deepcopy. Use copy.deepcopy "
-            + "or expand simple_copy support." % type(x)
+            f"Unsupported type {type(x)} for deepcopy. Use copy.deepcopy "
+            + "or expand simple_copy support."
         )
 
 

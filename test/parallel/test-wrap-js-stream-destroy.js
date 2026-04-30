@@ -11,12 +11,12 @@ const net = require('net');
 // "close" events, and vice versa.
 {
   let port;
-  const server = net.createServer((socket) => {
+  const server = net.createServer(common.mustCall((socket) => {
     socket.on('error', common.mustNotCall());
     socket.on('end', common.mustNotCall());
     socket.on('close', common.mustCall());
     socket.destroy();
-  });
+  }));
 
   server.listen(() => {
     port = server.address().port;
@@ -27,7 +27,7 @@ const net = require('net');
     let streamWrap;
     const socket = new net.connect({
       port,
-    }, () => {
+    }, common.mustCall(() => {
       socket.on('error', common.mustNotCall());
       socket.on('end', common.mustCall());
       socket.on('close', common.mustCall());
@@ -42,7 +42,7 @@ const net = require('net');
       streamWrap.on('close', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
     streamWrap = new StreamWrap(socket);
   }
 }
@@ -50,14 +50,14 @@ const net = require('net');
 // Destroy the streamWrap and test again.
 {
   let port;
-  const server = net.createServer((socket) => {
+  const server = net.createServer(common.mustCall((socket) => {
     socket.on('error', common.mustNotCall());
     socket.on('end', common.mustCall());
     socket.on('close', common.mustCall(() => {
       server.close();
     }));
     // Do not `socket.end()` and directly `socket.destroy()`.
-  });
+  }));
 
   server.listen(() => {
     port = server.address().port;
@@ -68,7 +68,7 @@ const net = require('net');
     let streamWrap;
     const socket = new net.connect({
       port,
-    }, () => {
+    }, common.mustCall(() => {
       socket.on('error', common.mustNotCall());
       socket.on('end', common.mustNotCall());
       socket.on('close', common.mustCall());
@@ -79,7 +79,7 @@ const net = require('net');
       // the corresponding client-side socket closed.
       streamWrap.on('close', common.mustCall());
       streamWrap.destroy();
-    });
+    }));
     streamWrap = new StreamWrap(socket);
   }
 }
@@ -87,13 +87,13 @@ const net = require('net');
 // Destroy the client socket and test again.
 {
   let port;
-  const server = net.createServer((socket) => {
+  const server = net.createServer(common.mustCall((socket) => {
     socket.on('error', common.mustNotCall());
     socket.on('end', common.mustCall());
     socket.on('close', common.mustCall(() => {
       server.close();
     }));
-  });
+  }));
 
   server.listen(() => {
     port = server.address().port;
@@ -104,7 +104,7 @@ const net = require('net');
     let streamWrap;
     const socket = new net.connect({
       port,
-    }, () => {
+    }, common.mustCall(() => {
       socket.on('error', common.mustNotCall());
       socket.on('end', common.mustNotCall());
       socket.on('close', common.mustCall());
@@ -113,7 +113,7 @@ const net = require('net');
       streamWrap.on('end', common.mustNotCall());
       streamWrap.on('close', common.mustCall());
       socket.destroy();
-    });
+    }));
     streamWrap = new StreamWrap(socket);
   }
 }

@@ -342,10 +342,10 @@ function testClosed(factory) {
 
     const s = factory({
       emitClose: false,
-      destroy(err, cb) {
+      destroy: common.mustCall((err, cb) => {
         cb();
         finished(s, common.mustCall());
-      }
+      }),
     });
     s.destroy();
   }
@@ -354,14 +354,14 @@ function testClosed(factory) {
     // Invoke with deep async.
 
     const s = factory({
-      destroy(err, cb) {
-        setImmediate(() => {
+      destroy: common.mustCall((err, cb) => {
+        setImmediate(common.mustCall(() => {
           cb();
-          setImmediate(() => {
+          setImmediate(common.mustCall(() => {
             finished(s, common.mustCall());
-          });
-        });
-      }
+          }));
+        }));
+      }),
     });
     s.destroy();
   }
@@ -567,13 +567,13 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     }));
     res.end();
   }))
-  .listen(0, function() {
+  .listen(0, common.mustCall(function() {
     http.request({
       method: 'GET',
       port: this.address().port
     }).end()
       .on('response', common.mustCall());
-  });
+  }));
 }
 
 {
@@ -584,12 +584,12 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
       }));
     }));
     req.destroy();
-  })).listen(0, function() {
+  })).listen(0, common.mustCall(function() {
     http.request({
       method: 'GET',
       port: this.address().port
     }).end().on('error', common.mustCall());
-  });
+  }));
 }
 
 {
@@ -601,10 +601,10 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   w.aborted = false;
   w.end();
   let closed = false;
-  w.on('finish', () => {
+  w.on('finish', common.mustCall(() => {
     assert.strictEqual(closed, false);
     w.emit('aborted');
-  });
+  }));
   w.on('close', common.mustCall(() => {
     closed = true;
   }));
@@ -655,7 +655,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     finished(res, common.mustCall(function(err) {
       assert.strictEqual(err, undefined);
     }));
-  })).listen(0, function() {
+  })).listen(0, common.mustCall(function() {
     http.request(
       { method: 'GET', port: this.address().port },
       common.mustCall(function(res) {
@@ -665,7 +665,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
         }));
       })
     ).end();
-  });
+  }));
 }
 
 {

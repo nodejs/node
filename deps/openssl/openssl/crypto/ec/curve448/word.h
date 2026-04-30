@@ -11,47 +11,47 @@
  */
 
 #ifndef OSSL_CRYPTO_EC_CURVE448_WORD_H
-# define OSSL_CRYPTO_EC_CURVE448_WORD_H
+#define OSSL_CRYPTO_EC_CURVE448_WORD_H
 
-# include <string.h>
-# include <assert.h>
-# include <stdlib.h>
-# include <openssl/e_os2.h>
-# include "curve448utils.h"
+#include <string.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <openssl/e_os2.h>
+#include "curve448utils.h"
 
-# ifdef INT128_MAX
-#  include "arch_64/arch_intrinsics.h"
-# else
-#  include "arch_32/arch_intrinsics.h"
-# endif
+#ifdef INT128_MAX
+#include "arch_64/arch_intrinsics.h"
+#else
+#include "arch_32/arch_intrinsics.h"
+#endif
 
-# if (ARCH_WORD_BITS == 64)
+#if (ARCH_WORD_BITS == 64)
 typedef uint64_t word_t, mask_t;
 typedef uint128_t dword_t;
 typedef int32_t hsword_t;
 typedef int64_t sword_t;
 typedef int128_t dsword_t;
-# elif (ARCH_WORD_BITS == 32)
+#elif (ARCH_WORD_BITS == 32)
 typedef uint32_t word_t, mask_t;
 typedef uint64_t dword_t;
 typedef int16_t hsword_t;
 typedef int32_t sword_t;
 typedef int64_t dsword_t;
-# else
-#  error "For now, we only support 32- and 64-bit architectures."
-# endif
+#else
+#error "For now, we only support 32- and 64-bit architectures."
+#endif
 
 /*
  * Scalar limbs are keyed off of the API word size instead of the arch word
  * size.
  */
-# if C448_WORD_BITS == 64
-#  define SC_LIMB(x) (x)
-# elif C448_WORD_BITS == 32
-#  define SC_LIMB(x) ((uint32_t)(x)),((x) >> 32)
-# else
-#  error "For now we only support 32- and 64-bit architectures."
-# endif
+#if C448_WORD_BITS == 64
+#define SC_LIMB(x) (x)
+#elif C448_WORD_BITS == 32
+#define SC_LIMB(x) ((uint32_t)(x)), ((x) >> 32)
+#else
+#error "For now we only support 32- and 64-bit architectures."
+#endif
 
 /*
  * The plan on booleans: The external interface uses c448_bool_t, but this
@@ -83,4 +83,4 @@ static ossl_inline mask_t bool_to_mask(c448_bool_t m)
     return ret;
 }
 
-#endif                          /* OSSL_CRYPTO_EC_CURVE448_WORD_H */
+#endif /* OSSL_CRYPTO_EC_CURVE448_WORD_H */

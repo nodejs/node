@@ -60,6 +60,14 @@ for (const moduleName of builtinModules) {
     'crypto',
     'navigator',
   ];
+  if (common.hasSQLite) {
+    // sessionStorage is always enumerable when SQLite is available.
+    // localStorage is only enumerable when --localstorage-file is provided.
+    expected.push('sessionStorage');
+    if (common.hasLocalStorage) {
+      expected.push('localStorage');
+    }
+  }
   assert.deepStrictEqual(new Set(Object.keys(globalThis)), new Set(expected));
   expected.forEach((value) => {
     const desc = Object.getOwnPropertyDescriptor(globalThis, value);

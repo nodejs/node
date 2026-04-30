@@ -10,7 +10,7 @@ const kBuiltinNameFind: constexpr string = '%TypedArray%.prototype.find';
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.find
 transitioning macro FindAllElements(
     implicit context: Context)(
-    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
+    attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
     predicate: Callable, thisArg: JSAny): JSAny {
   let witness =
       typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
@@ -62,8 +62,8 @@ transitioning javascript builtin TypedArrayPrototypeFind(
     // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     // 4. If IsCallable(predicate) is false, throw a TypeError exception.
     const predicate = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
@@ -72,8 +72,9 @@ transitioning javascript builtin TypedArrayPrototypeFind(
     ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFind);
-  } label IsDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFind);
+  } label Fail deferred {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameFind);
   }
 }
 }

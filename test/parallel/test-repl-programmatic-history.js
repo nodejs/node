@@ -131,14 +131,12 @@ const tests = [
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
   {
-    before: function before() {
+    before: common.mustCall(function before() {
       if (common.isWindows) {
         const execSync = require('child_process').execSync;
-        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
-          assert.ifError(err);
-        });
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`);
       }
-    },
+    }),
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
     test: [UP],
     expected: [prompt]
@@ -204,14 +202,14 @@ function runTest(assertCleaned) {
   const clean = opts.clean;
   const before = opts.before;
   const historySize = opts.env.NODE_REPL_HISTORY_SIZE;
-  const historyFile = opts.env.NODE_REPL_HISTORY;
+  const file = opts.env.NODE_REPL_HISTORY;
 
   if (before) before();
 
   const repl = REPL.start({
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
 
         // Ignore escapes and blank lines
@@ -225,22 +223,22 @@ function runTest(assertCleaned) {
           throw err;
         }
         next();
-      }
+      }),
     }),
     prompt: prompt,
     useColors: false,
     terminal: true,
-    historySize: historySize
+    historySize
   });
 
-  repl.setupHistory(historyFile, function(err, repl) {
+  repl.setupHistory(file, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
     repl.once('close', () => {
-      if (repl._flushing) {
+      if (repl.historyManager.isFlushing) {
         repl.once('flushHistory', onClose);
         return;
       }
@@ -248,7 +246,7 @@ function runTest(assertCleaned) {
       onClose();
     });
 
-    function onClose() {
+    const onClose = common.mustCall(() => {
       const cleaned = clean === false ? false : cleanupTmpFile();
 
       try {
@@ -259,8 +257,8 @@ function runTest(assertCleaned) {
         console.error(`Failed test # ${numtests - tests.length}`);
         throw err;
       }
-    }
+    });
 
     repl.inputStream.run(test);
-  });
+  }));
 }

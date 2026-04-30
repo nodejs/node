@@ -91,7 +91,7 @@ t.test('just simple messages', async t => {
   }
 })
 
-t.test('replace message/stack sensistive info', async t => {
+t.test('replace message/stack sensitive info', async t => {
   const { errorMessage } = await loadMockNpm(t, { command: 'audit' })
   const er = Object.assign(new Error('Error at registry: https://user:pass@registry.npmjs.org/'), {
     code: 'ENOAUDIT',
@@ -277,6 +277,17 @@ t.test('eotp/e401', async t => {
     const message = 'one-time pass'
     t.matchSnapshot(errorMessage(Object.assign(new Error(message), {
       code: 'E401',
+    })))
+    t.end()
+  })
+
+  t.test('one-time pass webauth challenge', t => {
+    t.matchSnapshot(errorMessage(Object.assign(new Error('nope'), {
+      code: 'EOTP',
+      body: {
+        authUrl: 'https://registry.npmjs.org/-/auth/login/abc123',
+        doneUrl: 'https://registry.npmjs.org/-/auth/done/abc123',
+      },
     })))
     t.end()
   })

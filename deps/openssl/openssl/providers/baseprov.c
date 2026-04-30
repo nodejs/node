@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,7 +19,7 @@
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/provider_util.h"
-#include "internal/nelem.h"
+#include "prov/names.h"
 
 /*
  * Forward declarations to ensure that interface functions are correctly
@@ -53,7 +53,7 @@ static int base_get_params(void *provctx, OSSL_PARAM params[])
 
     p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_NAME);
     if (p != NULL
-            && !OSSL_PARAM_set_utf8_ptr(p, "OpenSSL Base Provider"))
+        && !OSSL_PARAM_set_utf8_ptr(p, "OpenSSL Base Provider"))
         return 0;
     p = OSSL_PARAM_locate(params, OSSL_PROV_PARAM_VERSION);
     if (p != NULL && !OSSL_PARAM_set_utf8_ptr(p, OPENSSL_VERSION_STR))
@@ -83,7 +83,7 @@ static const OSSL_ALGORITHM base_decoder[] = {
 };
 
 static const OSSL_ALGORITHM base_store[] = {
-#define STORE(name, _fips, func_table)                           \
+#define STORE(name, _fips, func_table) \
     { name, "provider=base,fips=" _fips, (func_table) },
 
 #include "stores.inc"
@@ -91,8 +91,16 @@ static const OSSL_ALGORITHM base_store[] = {
 #undef STORE
 };
 
+static const OSSL_ALGORITHM base_rands[] = {
+    { PROV_NAMES_SEED_SRC, "provider=base", ossl_seed_src_functions },
+#ifndef OPENSSL_NO_JITTER
+    { PROV_NAMES_JITTER, "provider=base", ossl_jitter_functions },
+#endif
+    { NULL, NULL, NULL }
+};
+
 static const OSSL_ALGORITHM *base_query(void *provctx, int operation_id,
-                                         int *no_cache)
+    int *no_cache)
 {
     *no_cache = 0;
     switch (operation_id) {
@@ -102,6 +110,8 @@ static const OSSL_ALGORITHM *base_query(void *provctx, int operation_id,
         return base_decoder;
     case OSSL_OP_STORE:
         return base_store;
+    case OSSL_OP_RAND:
+        return base_rands;
     }
     return NULL;
 }
@@ -116,17 +126,17 @@ static void base_teardown(void *provctx)
 static const OSSL_DISPATCH base_dispatch_table[] = {
     { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))base_teardown },
     { OSSL_FUNC_PROVIDER_GETTABLE_PARAMS,
-      (void (*)(void))base_gettable_params },
+        (void (*)(void))base_gettable_params },
     { OSSL_FUNC_PROVIDER_GET_PARAMS, (void (*)(void))base_get_params },
     { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))base_query },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 OSSL_provider_init_fn ossl_base_provider_init;
 
 int ossl_base_provider_init(const OSSL_CORE_HANDLE *handle,
-                            const OSSL_DISPATCH *in, const OSSL_DISPATCH **out,
-                            void **provctx)
+    const OSSL_DISPATCH *in, const OSSL_DISPATCH **out,
+    void **provctx)
 {
     OSSL_FUNC_core_get_libctx_fn *c_get_libctx = NULL;
     BIO_METHOD *corebiometh;
@@ -162,15 +172,16 @@ int ossl_base_provider_init(const OSSL_CORE_HANDLE *handle,
      * create their own library context.
      */
     if ((*provctx = ossl_prov_ctx_new()) == NULL
-            || (corebiometh = ossl_bio_prov_init_bio_method()) == NULL) {
+        || (corebiometh = ossl_bio_prov_init_bio_method()) == NULL) {
         ossl_prov_ctx_free(*provctx);
         *provctx = NULL;
         return 0;
     }
     ossl_prov_ctx_set0_libctx(*provctx,
-                                       (OSSL_LIB_CTX *)c_get_libctx(handle));
+        (OSSL_LIB_CTX *)c_get_libctx(handle));
     ossl_prov_ctx_set0_handle(*provctx, handle);
     ossl_prov_ctx_set0_core_bio_method(*provctx, corebiometh);
+    ossl_prov_ctx_set0_core_get_params(*provctx, c_get_params);
 
     *out = base_dispatch_table;
 

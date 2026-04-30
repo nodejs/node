@@ -5,31 +5,167 @@
 #ifndef V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 #define V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 
+#include <type_traits>
+
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
-#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/objects/js-function.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8::internal::maglev {
+
+// Recomputes the use hints for all Phi nodes in the graph. This is
+// necessary after inlining, as the original use hints may be out of date.
+// For example, a Phi node in the caller's graph might now be used by a node
+// from the inlined function, and this new use needs to be recorded.
+//
+// This processor first clears all existing use hints on all Phi nodes. Then,
+// it iterates through all nodes in the graph and re-calculates the use hints
+// for any Phi nodes that are used as inputs.
+class RecomputePhiUseHintsProcessor {
+ public:
+#define TRACE_PHI_USE_HINTS(x)                                \
+  do {                                                        \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging)) {   \
+      StdoutStream() << "[phi use hints] " << x << std::endl; \
+    }                                                         \
+  } while (false)
+
+  explicit RecomputePhiUseHintsProcessor(Zone* zone) : live_loop_phis_(zone) {}
+
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    if (!block->has_phi()) return BlockProcessResult::kContinue;
+    Phi::List& phis = *block->phis();
+    bool is_loop_header = block->is_loop();
+    for (auto it = phis.begin(); it != phis.end(); ++it) {
+      TRACE_PHI_USE_HINTS(
+          "cleaning use hints for "
+          << PrintNodeLabel(*it)
+          << " previous values:  use_reprs=" << (*it)->use_repr_hints()
+          << " and same_loop_use_reprs=" << (*it)->same_loop_use_repr_hints());
+      it->ClearUseHints();
+      if (is_loop_header) {
+        live_loop_phis_.insert(*it);
+      }
+    }
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+
+  ProcessResult Process(JumpLoop* node, const ProcessingState& state) {
+    BasicBlock* loop_header = node->target();
+    DCHECK(loop_header->is_loop());
+    if (!loop_header->has_phi()) return ProcessResult::kContinue;
+    Phi::List& phis = *loop_header->phis();
+    for (auto it = phis.begin(); it != phis.end(); ++it) {
+      for (Input input : it->inputs()) {
+        if (!input.node()) continue;
+        if (Phi* input_phi = input.node()->TryCast<Phi>()) {
+          input_phi->RecordUseReprHint((*it)->use_repr_hints());
+          TRACE_PHI_USE_HINTS("updating use hints for "
+                              << PrintNodeLabel(input_phi)
+                              << ": use_reprs=" << input_phi->use_repr_hints()
+                              << " and same_loop_use_reprs="
+                              << input_phi->same_loop_use_repr_hints());
+        }
+      }
+      DCHECK(live_loop_phis_.contains(*it));
+      live_loop_phis_.erase(*it);
+    }
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(Phi* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(CheckSmi* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    DCHECK(!node->Is<Phi>());
+    if (ValueNode* value_node = node->TryCast<ValueNode>()) {
+      if (value_node->use_count() == 0 &&
+          !value_node->properties().is_required_when_unused()) {
+        return ProcessResult::kContinue;
+      }
+    }
+    for (Input input : node->inputs()) {
+      if (!input.node()) continue;
+      if (Phi* phi = input.node()->TryCast<Phi>()) {
+        UseRepresentation use_repr = UseRepresentation::kTagged;
+        if (node->is_conversion()) {
+          use_repr = UseRepresentationFromValue(
+              node->Cast<ValueNode>()->value_representation());
+        } else if (node->Is<ReturnedValue>()) {
+          ValueNode* unwrapped = node->input_node(0);
+          while (unwrapped->Is<ReturnedValue>()) {
+            unwrapped = unwrapped->input_node(0);
+          }
+          DCHECK(!unwrapped->is_conversion());
+          use_repr =
+              UseRepresentationFromValue(unwrapped->value_representation());
+        } else if (IsTruncatingToInt32(node->opcode())) {
+          use_repr = UseRepresentation::kTruncatedInt32;
+        } else if (node->Is<NumberToString>()) {
+          use_repr = UseRepresentation::kTaggedForNumberToString;
+        }
+        phi->RecordUseReprHint(UseRepresentationSet{use_repr},
+                               live_loop_phis_.contains(phi));
+        TRACE_PHI_USE_HINTS(
+            "updating use hints for "
+            << PrintNodeLabel(phi) << ": use_reprs=" << phi->use_repr_hints()
+            << " and same_loop_use_reprs=" << phi->same_loop_use_repr_hints()
+            << " after visiting input " << PrintNode(node));
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  ZoneAbslFlatHashSet<Phi*> live_loop_phis_;
+
+  constexpr UseRepresentation UseRepresentationFromValue(
+      ValueRepresentation repr) {
+    switch (repr) {
+      case ValueRepresentation::kInt32:
+        return UseRepresentation::kInt32;
+      case ValueRepresentation::kUint32:
+        return UseRepresentation::kUint32;
+      case ValueRepresentation::kFloat64:
+        return UseRepresentation::kFloat64;
+      case ValueRepresentation::kHoleyFloat64:
+        return UseRepresentation::kHoleyFloat64;
+      default:
+        return UseRepresentation::kTagged;
+    }
+    UNREACHABLE();
+  }
+#undef TRACE_PHI_USE_HINTS
+};
 
 // Optimizations involving loops which cannot be done at graph building time.
 // Currently mainly loop invariant code motion.
 class LoopOptimizationProcessor {
  public:
-  explicit LoopOptimizationProcessor(MaglevGraphBuilder* builder)
-      : zone(builder->zone()) {
+  explicit LoopOptimizationProcessor(MaglevCompilationInfo* info)
+      : zone(info->zone()) {
     was_deoptimized =
-        builder->compilation_unit()->feedback().was_once_deoptimized();
+        info->toplevel_compilation_unit()->feedback().was_once_deoptimized();
   }
 
   void PreProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
@@ -73,10 +209,10 @@ class LoopOptimizationProcessor {
     return input->owner() != current_block;
   }
 
-  ProcessResult Process(LoadTaggedFieldForContextSlot* ltf,
+  ProcessResult Process(LoadContextSlotNoCells* ltf,
                         const ProcessingState& state) {
     DCHECK(loop_effects);
-    ValueNode* object = ltf->object_input().node();
+    ValueNode* object = ltf->ValueInput().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kContinue;
     }
@@ -89,26 +225,26 @@ class LoopOptimizationProcessor {
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(LoadTaggedFieldForProperty* ltf,
-                        const ProcessingState& state) {
-    return ProcessNamedLoad(ltf, ltf->object_input().node(), ltf->name());
+  ProcessResult Process(LoadTaggedField* ltf, const ProcessingState& state) {
+    if (ltf->property_key().type() != PropertyKey::kName) {
+      return ProcessResult::kContinue;
+    }
+    return ProcessNamedLoad(ltf, ltf->ValueInput().node(), ltf->property_key());
   }
 
   ProcessResult Process(StringLength* len, const ProcessingState& state) {
-    return ProcessNamedLoad(
-        len, len->object_input().node(),
-        KnownNodeAspects::LoadedPropertyMapKey::StringLength());
+    return ProcessNamedLoad(len, len->StringInput().node(),
+                            PropertyKey::StringLength());
   }
 
   ProcessResult Process(LoadTypedArrayLength* len,
                         const ProcessingState& state) {
-    return ProcessNamedLoad(
-        len, len->receiver_input().node(),
-        KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength());
+    return ProcessNamedLoad(len, len->ValueInput().node(),
+                            PropertyKey::TypedArrayLength());
   }
 
   ProcessResult ProcessNamedLoad(Node* load, ValueNode* object,
-                                 KnownNodeAspects::LoadedPropertyMapKey name) {
+                                 PropertyKey name) {
     DCHECK(!load->properties().can_deopt());
     if (!loop_effects) return ProcessResult::kContinue;
     if (IsLoopPhi(object)) {
@@ -124,25 +260,28 @@ class LoopOptimizationProcessor {
 
   ProcessResult Process(CheckMaps* maps, const ProcessingState& state) {
     DCHECK(loop_effects);
-    // Conservatively not hoist map checks if we ever deoptimized this function
-    // to avoid deopt loops.
-    if (was_deoptimized) return ProcessResult::kContinue;
-    ValueNode* object = maps->receiver_input().node();
+    // Hoisting a check out of a loop can cause it to trigger more than actually
+    // needed (i.e., if the loop is executed 0 times). This could lead to
+    // deoptimization loops as there is no feedback to learn here. Thus, we
+    // abort this optimization if the function deoptimized previously. Also, if
+    // hoisting of this check fails we need to abort (and not continue) to
+    // ensure we are not hoisting other instructions over it.
+    if (was_deoptimized) return ProcessResult::kSkipBlock;
+    ValueNode* object = maps->ReceiverInput().node();
     if (IsLoopPhi(object)) {
-      return ProcessResult::kContinue;
+      return ProcessResult::kSkipBlock;
     }
     if (!loop_effects->unstable_aspects_cleared && CanHoist(maps)) {
       if (auto j = current_block->predecessor_at(0)
                        ->control_node()
                        ->TryCast<CheckpointedJump>()) {
-        maps->SetEagerDeoptInfo(zone, j->eager_deopt_info()->top_frame(),
-                                maps->eager_deopt_info()->feedback_to_update());
-      } else {
-        return ProcessResult::kContinue;
+        maps->SetEagerDeoptInfo(
+            zone, zone->New<DeoptFrame>(j->eager_deopt_info()->top_frame()),
+            maps->eager_deopt_info()->feedback_to_update());
+        return ProcessResult::kHoist;
       }
-      return ProcessResult::kHoist;
     }
-    return ProcessResult::kContinue;
+    return ProcessResult::kSkipBlock;
   }
 
   template <typename NodeT>
@@ -165,16 +304,13 @@ class LoopOptimizationProcessor {
 
 template <typename NodeT>
 constexpr bool CanBeStoreToNonEscapedObject() {
-  return std::is_same_v<NodeT, StoreMap> ||
-         std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
-         std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
-         std::is_same_v<NodeT, StoreTrustedPointerFieldWithWriteBarrier> ||
-         std::is_same_v<NodeT, StoreFloat64>;
+  return CanBeStoreToNonEscapedObject(NodeBase::opcode_of<NodeT>);
 }
 
 class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -189,6 +325,9 @@ class AnyUseMarkingProcessor {
         if (!node->unused_inputs_were_visited()) {
           DropInputUses(node);
         }
+        if constexpr (std::is_same_v<NodeT, InitialValue>) {
+          node->mark_unused();
+        }
         return ProcessResult::kRemove;
       }
     }
@@ -202,11 +341,9 @@ class AnyUseMarkingProcessor {
     return ProcessResult::kContinue;
   }
 
-#ifdef DEBUG
   ProcessResult Process(Dead* node, const ProcessingState& state) {
-    UNREACHABLE();
+    return ProcessResult::kRemove;
   }
-#endif  // DEBUG
 
   void PostProcessGraph(Graph* graph) {
     RunEscapeAnalysis(graph);
@@ -228,11 +365,11 @@ class AnyUseMarkingProcessor {
 
   void VerifyEscapeAnalysis(Graph* graph) {
 #ifdef DEBUG
-    for (auto it : graph->allocations_escape_map()) {
-      auto alloc = it.first;
+    for (const auto& it : graph->allocations_escape_map()) {
+      auto* alloc = it.first;
       DCHECK(alloc->HasBeenAnalysed());
       if (alloc->HasEscaped()) {
-        for (auto dep : it.second) {
+        for (auto* dep : it.second) {
           DCHECK(dep->HasEscaped());
         }
       }
@@ -241,8 +378,8 @@ class AnyUseMarkingProcessor {
   }
 
   void RunEscapeAnalysis(Graph* graph) {
-    for (auto it : graph->allocations_escape_map()) {
-      auto alloc = it.first;
+    for (auto& it : graph->allocations_escape_map()) {
+      auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
       if (alloc->IsEscaping()) {
@@ -273,7 +410,7 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input& input) {
+  void DropInputUses(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
         !input_node->Is<ArgumentsElements>())
@@ -285,7 +422,7 @@ class AnyUseMarkingProcessor {
   }
 
   void DropInputUses(ValueNode* node) {
-    for (Input& input : *node) {
+    for (Input input : node->inputs()) {
       DropInputUses(input);
     }
     DCHECK(!node->properties().can_eager_deopt());
@@ -296,14 +433,13 @@ class AnyUseMarkingProcessor {
 
 class DeadNodeSweepingProcessor {
  public:
-  explicit DeadNodeSweepingProcessor(MaglevCompilationInfo* compilation_info) {
-    if (V8_UNLIKELY(compilation_info->has_graph_labeller())) {
-      labeller_ = compilation_info->graph_labeller();
+  void PreProcessGraph(Graph* graph) {
+    if (graph->has_graph_labeller()) {
+      labeller_ = graph->graph_labeller();
     }
   }
-
-  void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -331,8 +467,8 @@ class DeadNodeSweepingProcessor {
     // Remove inlined allocation that became non-escaping.
     if (!node->HasEscaped()) {
       if (v8_flags.trace_maglev_escape_analysis) {
-        std::cout << "* Removing allocation node "
-                  << PrintNodeLabel(labeller_, node) << std::endl;
+        std::cout << "* Removing allocation node " << PrintNodeLabel(node)
+                  << std::endl;
       }
       return ProcessResult::kRemove;
     }
@@ -355,9 +491,9 @@ class DeadNodeSweepingProcessor {
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
         if (!object->HasEscaped()) {
           if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node "
-                      << PrintNodeLabel(labeller_, node) << " to allocation "
-                      << PrintNodeLabel(labeller_, object) << std::endl;
+            std::cout << "* Removing store node " << PrintNodeLabel(node)
+                      << " to allocation " << PrintNodeLabel(object)
+                      << std::endl;
           }
           return ProcessResult::kRemove;
         }

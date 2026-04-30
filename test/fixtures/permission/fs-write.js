@@ -9,6 +9,7 @@ if (!isMainThread) {
 
 const assert = require('assert');
 const fs = require('fs');
+const fsPromises = require('node:fs/promises');
 const path = require('path');
 
 const regularFolder = process.env.ALLOWEDFOLDER;
@@ -199,6 +200,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
   });
 }
 
+// fs.mkdtemp
 {
   assert.throws(() => {
     fs.mkdtempSync(path.join(blockedFolder, 'any-folder'));
@@ -210,6 +212,22 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
   }));
+  assert.rejects(async () => {
+    await fsPromises.mkdtemp(path.join(blockedFolder, 'any-folder'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
+// fs.mkdtempDisposableSync
+{
+  assert.throws(() => {
+    fs.mkdtempDisposableSync(path.join(blockedFolder, 'any-folder'));
+  },{
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
 }
 
 // fs.rename
@@ -343,7 +361,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     permission: 'FileSystemWrite',
   }));
   assert.rejects(async () => {
-    await fs.promises.open(blockedFile, fs.constants.O_RDWR | fs.constants.O_NOFOLLOW);
+    await fsPromises.open(blockedFile, fs.constants.O_RDWR | fs.constants.O_NOFOLLOW);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
@@ -382,7 +400,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     permission: 'FileSystemWrite',
   });
   assert.rejects(async () => {
-    await fs.promises.chmod(blockedFile, 0o755);
+    await fsPromises.chmod(blockedFile, 0o755);
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
@@ -397,7 +415,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
       permission: 'FileSystemWrite',
     }));
     assert.rejects(async () => {
-      await fs.promises.lchmod(blockedFile, 0o755);
+      await fsPromises.lchmod(blockedFile, 0o755);
     }, {
       code: 'ERR_ACCESS_DENIED',
       permission: 'FileSystemWrite',
@@ -422,7 +440,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     permission: 'FileSystemWrite',
   });
   assert.rejects(async () => {
-    await fs.promises.appendFile(blockedFile, 'new data');
+    await fsPromises.appendFile(blockedFile, 'new data');
   }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
@@ -566,4 +584,244 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
   }, {
     code: 'ERR_ACCESS_DENIED',
   });
+}
+
+// fs.utimes with read-only fd
+{
+  assert.throws(() => {
+    // blocked file is allowed to read
+    const fd = fs.openSync(blockedFile, 'r');
+    const date = new Date();
+    date.setFullYear(2100,0,1);
+
+    fs.futimes(fd, date, date, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+    }));
+    fs.futimesSync(fd, date, date);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  });
+}
+
+// fs.fdatasync with read-only fd
+{
+  assert.throws(() => {
+    // blocked file is allowed to read
+    const fd = fs.openSync(blockedFile, 'r');
+    fs.fdatasync(fd, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+    }));
+    fs.fdatasyncSync(fd);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  });
+}
+
+// fs.fsync with read-only fd
+{
+  assert.throws(() => {
+    // blocked file is allowed to read
+    const fd = fs.openSync(blockedFile, 'r');
+    fs.fsync(fd, common.expectsError({
+      code: 'ERR_ACCESS_DENIED',
+    }));
+    fs.fsyncSync(fd);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  });
+}
+
+// fsPromises.writeFile
+{
+  assert.rejects(async () => {
+    await fsPromises.writeFile(blockedFile, 'example');
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.writeFile(blockedFileURL, 'example');
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.writeFile(path.join(blockedFolder, 'anyfile'), 'example');
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'anyfile')),
+  }).then(common.mustCall());
+}
+
+// fsPromises.utimes
+{
+  assert.rejects(async () => {
+    await fsPromises.utimes(blockedFile, new Date(), new Date());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.utimes(blockedFileURL, new Date(), new Date());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.utimes(path.join(blockedFolder, 'anyfile'), new Date(), new Date());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'anyfile')),
+  }).then(common.mustCall());
+}
+
+// fsPromises.lutimes
+{
+  assert.rejects(async () => {
+    await fsPromises.lutimes(blockedFile, new Date(), new Date());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.lutimes(blockedFileURL, new Date(), new Date());
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+}
+
+// fsPromises.mkdir
+{
+  assert.rejects(async () => {
+    await fsPromises.mkdir(path.join(blockedFolder, 'any-folder'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'any-folder')),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.mkdir(path.join(relativeProtectedFolder, 'any-folder'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(relativeProtectedFolder, 'any-folder')),
+  }).then(common.mustCall());
+}
+
+// fsPromises.rename
+{
+  assert.rejects(async () => {
+    await fsPromises.rename(blockedFile, path.join(blockedFile, 'renamed'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.rename(blockedFileURL, path.join(blockedFile, 'renamed'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.rename(regularFile, path.join(blockedFolder, 'renamed'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'renamed')),
+  }).then(common.mustCall());
+}
+
+// fsPromises.copyFile
+{
+  assert.rejects(async () => {
+    await fsPromises.copyFile(regularFile, path.join(blockedFolder, 'any-file'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'any-file')),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.copyFile(regularFile, path.join(relativeProtectedFolder, 'any-file'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(relativeProtectedFolder, 'any-file')),
+  }).then(common.mustCall());
+}
+
+// fsPromises.cp
+{
+  assert.rejects(async () => {
+    await fsPromises.cp(regularFile, path.join(blockedFolder, 'any-file'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'any-file')),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.cp(regularFile, path.join(relativeProtectedFolder, 'any-file'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(path.join(relativeProtectedFolder, 'any-file')),
+  }).then(common.mustCall());
+}
+
+// fsPromises.unlink
+{
+  assert.rejects(async () => {
+    await fsPromises.unlink(blockedFile);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+  assert.rejects(async () => {
+    await fsPromises.unlink(blockedFileURL);
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+    resource: path.toNamespacedPath(blockedFile),
+  }).then(common.mustCall());
+}
+
+// FileHandle.chmod (fchmod) with read-only fd
+{
+  assert.rejects(async () => {
+    // blocked file is allowed to read
+    const fh = await fsPromises.open(blockedFile, 'r');
+    try {
+      await fh.chmod(0o777);
+    } finally {
+      await fh.close();
+    }
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  }).then(common.mustCall());
+}
+
+// FileHandle.chown (fchown) with read-only fd
+{
+  assert.rejects(async () => {
+    // blocked file is allowed to read
+    const fh = await fsPromises.open(blockedFile, 'r');
+    try {
+      await fh.chown(999, 999);
+    } finally {
+      await fh.close();
+    }
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+  }).then(common.mustCall());
 }

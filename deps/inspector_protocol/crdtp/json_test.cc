@@ -90,7 +90,7 @@ TEST(JsonEncoder, EscapesLoneHighSurrogates) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  writer->HandleString16(chars);
   EXPECT_EQ("\"a\\ud800b\\udadac\\udbffd\"", out);
 }
 
@@ -103,7 +103,7 @@ TEST(JsonEncoder, EscapesLoneLowSurrogates) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  writer->HandleString16(chars);
   EXPECT_EQ("\"a\\udc00b\\udedec\\udfffd\"", out);
 }
 
@@ -114,7 +114,7 @@ TEST(JsonEncoder, EscapesFFFF) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars.data(), chars.size()));
+  writer->HandleString16(chars);
   EXPECT_EQ("\"abc\\uffffd\"", out);
 }
 
@@ -123,7 +123,7 @@ TEST(JsonEncoder, Passes0x7FString8) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString8(span<uint8_t>(chars.data(), chars.size()));
+  writer->HandleString8(chars);
   EXPECT_EQ(
       "\"a\x7f"
       "b\"",
@@ -135,7 +135,7 @@ TEST(JsonEncoder, Passes0x7FString16) {
   std::string out;
   Status status;
   std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
-  writer->HandleString16(span<uint16_t>(chars16.data(), chars16.size()));
+  writer->HandleString16(chars16);
   EXPECT_EQ(
       "\"a\x7f"
       "b\"",
@@ -704,15 +704,16 @@ using ContainerTestTypes = ::testing::Types<std::vector<uint8_t>, std::string>;
 TYPED_TEST_SUITE(ConvertJSONToCBORTest, ContainerTestTypes);
 
 TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson) {
-  for (const std::string& json_in : {
-           "{\"msg\":\"Hello, world.\",\"lst\":[1,2,3]}",
-           "3.1415",
-           "false",
-           "true",
-           "\"Hello, world.\"",
-           "[1,2,3]",
-           "[]",
-       }) {
+  const std::array<std::string, 7> jsons = {{
+      "{\"msg\":\"Hello, world.\",\"lst\":[1,2,3]}",
+      "3.1415",
+      "false",
+      "true",
+      "\"Hello, world.\"",
+      "[1,2,3]",
+      "[]",
+  }};
+  for (const std::string& json_in : jsons) {
     SCOPED_TRACE(json_in);
     TypeParam json(json_in.begin(), json_in.end());
     std::vector<uint8_t> cbor;
@@ -736,8 +737,7 @@ TYPED_TEST(ConvertJSONToCBORTest, RoundTripValidJson16) {
       '"', ':', '[', '1',    ',',    '2', ',', '3', ']', '}'};
   std::vector<uint8_t> cbor;
   {
-    Status status =
-        ConvertJSONToCBOR(span<uint16_t>(json16.data(), json16.size()), &cbor);
+    Status status = ConvertJSONToCBOR(json16, &cbor);
     EXPECT_THAT(status, StatusIsOk());
   }
   TypeParam roundtrip_json;

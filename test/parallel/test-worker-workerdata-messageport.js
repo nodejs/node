@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
 
 const {
@@ -38,9 +38,9 @@ const meowScript = () => 'meow';
     transferList: [uint8Array.buffer]
   }).on(
     'message',
-    (message) =>
+    common.mustCall((message) =>
       assert.deepStrictEqual(message, Uint8Array.of(1, 2, 3, 4))
-  );
+    ));
   assert.strictEqual(uint8Array.length, 0);
 }
 
@@ -83,7 +83,7 @@ const meowScript = () => 'meow';
   });
   channel.port1.on(
     'message',
-    (message) =>
+    common.mustCall((message) =>
       assert.strictEqual(message, 'Meow')
-  );
+    ));
 }

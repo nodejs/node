@@ -36,6 +36,10 @@ class MapInference;
 class NodeProperties;
 class SimplifiedOperatorBuilder;
 
+#if V8_ENABLE_WEBASSEMBLY
+bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Performs strength reduction on {JSConstruct} and {JSCall} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
 class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
@@ -75,10 +79,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
 #if V8_ENABLE_WEBASSEMBLY
   bool has_js_wasm_calls() const {
-    return wasm_module_for_inlining_ != nullptr;
+    return wasm_native_module_for_inlining_ != nullptr;
   }
-  const wasm::WasmModule* wasm_module_for_inlining() const {
-    return wasm_module_for_inlining_;
+  const wasm::NativeModule* wasm_native_module_for_inlining() const {
+    return wasm_native_module_for_inlining_;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -160,13 +164,14 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeSlice(Node* node);
   Reduction ReduceStringPrototypeSubstr(Node* node);
-  Reduction ReduceStringPrototypeStringAt(
-      const Operator* string_access_operator, Node* node);
+  Reduction ReduceStringPrototypeStringCharCodeAt(Node* node);
+  Reduction ReduceStringPrototypeStringCodePointAt(Node* node);
   Reduction ReduceStringPrototypeCharAt(Node* node);
   Reduction ReduceStringPrototypeStartsWith(Node* node);
   Reduction ReduceStringPrototypeEndsWith(Node* node);
 
 #ifdef V8_INTL_SUPPORT
+  Reduction ReduceStringPrototypeLocaleCompareIntl(Node* node);
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
   Reduction ReduceStringPrototypeToUpperCaseIntl(Node* node);
 #endif  // V8_INTL_SUPPORT
@@ -174,7 +179,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringFromCharCode(Node* node);
   Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
-  Reduction ReduceStringPrototypeLocaleCompare(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
   Reduction ReduceStringPrototypeConcat(Node* node);
 
@@ -191,7 +195,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                         SharedFunctionInfoRef shared);
   Reduction ReduceTypedArrayPrototypeToStringTag(Node* node);
   Reduction ReduceArrayBufferViewByteLengthAccessor(Node* node,
-                                                    InstanceType instance_type);
+                                                    InstanceType instance_type,
+                                                    Builtin builtin);
+  Reduction ReduceArrayBufferViewByteOffsetAccessor(Node* node,
+                                                    InstanceType instance_type,
+                                                    Builtin builtin);
   Reduction ReduceTypedArrayPrototypeLength(Node* node);
 
   Reduction ReduceForInsufficientFeedback(Node* node, DeoptimizeReason reason);
@@ -236,6 +244,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                  ExternalArrayType element_type);
 
   Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDatePrototypeGetField(Node* node, JSDate::FieldIndex field);
+
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
 
@@ -250,6 +260,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceGetContinuationPreservedEmbedderData(Node* node);
   Reduction ReduceSetContinuationPreservedEmbedderData(Node* node);
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+#if V8_ENABLE_WEBASSEMBLY
+  Reduction ReduceWasmMethodWrapper(Node* node, JSFunctionRef function,
+                                    SharedFunctionInfoRef shared);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // The pendant to ReplaceWithValue when using GraphAssembler-based reductions.
   Reduction ReplaceWithSubgraph(JSCallReducerAssembler* gasm, Node* subgraph);
@@ -282,7 +297,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Node* ConvertHoleToUndefined(Node* value, ElementsKind elements_kind);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* temp_zone() const { return temp_zone_; }
   Isolate* isolate() const;
@@ -303,7 +318,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   std::unordered_set<Node*> generated_calls_with_array_like_or_spread_;
 
 #if V8_ENABLE_WEBASSEMBLY
-  const wasm::WasmModule* wasm_module_for_inlining_ = nullptr;
+  const wasm::NativeModule* wasm_native_module_for_inlining_ = nullptr;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

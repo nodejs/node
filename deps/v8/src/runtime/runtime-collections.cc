@@ -4,9 +4,9 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -25,6 +25,9 @@ RUNTIME_FUNCTION(Runtime_OrderedHashSetGrow) {
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kOutOfMemory, method_name));
   }
@@ -39,6 +42,9 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   MaybeHandle<OrderedHashSet> table_candidate =
       OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewRangeError(MessageTemplate::kCollectionGrowFailed,
@@ -84,6 +90,9 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   MaybeHandle<OrderedHashMap> table_candidate =
       OrderedHashMap::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewRangeError(MessageTemplate::kCollectionGrowFailed,
@@ -101,6 +110,9 @@ RUNTIME_FUNCTION(Runtime_OrderedHashMapGrow) {
   MaybeHandle<OrderedHashMap> table_candidate =
       OrderedHashMap::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
+    // Replace generic RangeError exception with a more descriptive one.
+    DCHECK(isolate->has_exception());
+    isolate->clear_exception();
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kOutOfMemory, methodName));
   }
@@ -111,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   DirectHandle<JSWeakCollection> weak_collection = args.at<JSWeakCollection>(0);
-  Handle<Object> key = args.at(1);
+  DirectHandle<Object> key = args.at(1);
   int hash = args.smi_value_at(2);
 
 #ifdef DEBUG
@@ -126,14 +138,14 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 #endif
 
   bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
-  return isolate->heap()->ToBoolean(was_present);
+  return ReadOnlyRoots(isolate).boolean_value(was_present);
 }
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   DirectHandle<JSWeakCollection> weak_collection = args.at<JSWeakCollection>(0);
-  Handle<Object> key = args.at(1);
+  DirectHandle<Object> key = args.at(1);
   DirectHandle<Object> value = args.at(2);
   int hash = args.smi_value_at(3);
 

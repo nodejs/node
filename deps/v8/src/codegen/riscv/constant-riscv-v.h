@@ -1,6 +1,7 @@
 // Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_CODEGEN_RISCV_CONSTANT_RISCV_V_H_
 #define V8_CODEGEN_RISCV_CONSTANT_RISCV_V_H_
 
@@ -127,6 +128,36 @@ constexpr Opcode RO_V_VSXSEG7 =
     STORE_FP | (0b11 << kRvvMopShift) | (0b110 << kRvvNfShift);
 constexpr Opcode RO_V_VSXSEG8 =
     STORE_FP | (0b11 << kRvvMopShift) | (0b111 << kRvvNfShift);
+
+constexpr Opcode RO_V_VL1R =
+    LOAD_FP | (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+    (0b01000 << kRvvLumopShift) | (0b000 << kRvvNfShift);
+constexpr Opcode RO_V_VL2R =
+    LOAD_FP | (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+    (0b01000 << kRvvLumopShift) | (0b001 << kRvvNfShift);
+constexpr Opcode RO_V_VL4R =
+    LOAD_FP | (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+    (0b01000 << kRvvLumopShift) | (0b011 << kRvvNfShift);
+constexpr Opcode RO_V_VL8R =
+    LOAD_FP | (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+    (0b01000 << kRvvLumopShift) | (0b111 << kRvvNfShift);
+
+constexpr Opcode RO_V_VS1R = STORE_FP | (0b0 << kRvvMewShift) |
+                             (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+                             (0b01000 << kRvvSumopShift) |
+                             (0b000 << kRvvWidthShift) | (0b000 << kRvvNfShift);
+constexpr Opcode RO_V_VS2R = STORE_FP | (0b0 << kRvvMewShift) |
+                             (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+                             (0b01000 << kRvvSumopShift) |
+                             (0b000 << kRvvWidthShift) | (0b001 << kRvvNfShift);
+constexpr Opcode RO_V_VS4R = STORE_FP | (0b0 << kRvvMewShift) |
+                             (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+                             (0b01000 << kRvvSumopShift) |
+                             (0b000 << kRvvWidthShift) | (0b011 << kRvvNfShift);
+constexpr Opcode RO_V_VS8R = STORE_FP | (0b0 << kRvvMewShift) |
+                             (0b00 << kRvvMopShift) | (0b1 << kRvvVmShift) |
+                             (0b01000 << kRvvSumopShift) |
+                             (0b000 << kRvvWidthShift) | (0b111 << kRvvNfShift);
 
 // RVV Vector Arithmetic Instruction
 constexpr Opcode VADD_FUNCT6 = 0b000000;
@@ -340,6 +371,9 @@ constexpr Opcode RO_V_VSLL_VX = OP_IVX | (VSLL_FUNCT6 << kRvvFunct6Shift);
 constexpr Opcode VSMUL_FUNCT6 = 0b100111;
 constexpr Opcode RO_V_VSMUL_VV = OP_IVV | (VSMUL_FUNCT6 << kRvvFunct6Shift);
 constexpr Opcode RO_V_VSMUL_VX = OP_IVX | (VSMUL_FUNCT6 << kRvvFunct6Shift);
+
+constexpr Opcode VMVNR_FUNCT6 = 0b100111;
+constexpr Opcode RO_V_VMVNR_VI = OP_IVI | (VMVNR_FUNCT6 << kRvvFunct6Shift);
 
 constexpr Opcode VADC_FUNCT6 = 0b010000;
 constexpr Opcode RO_V_VADC_VI = OP_IVI | (VADC_FUNCT6 << kRvvFunct6Shift);

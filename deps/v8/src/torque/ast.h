@@ -55,6 +55,7 @@ namespace v8::internal::torque {
   V(ExpressionStatement)                \
   V(IfStatement)                        \
   V(WhileStatement)                     \
+  V(TypeswitchStatement)                \
   V(ForLoopStatement)                   \
   V(BreakStatement)                     \
   V(ContinueStatement)                  \
@@ -722,6 +723,22 @@ struct WhileStatement : Statement {
   Statement* body;
 };
 
+struct TypeswitchCase {
+  SourcePosition pos;
+  std::optional<Identifier*> name;
+  TypeExpression* type;
+  Statement* block;
+};
+
+struct TypeswitchStatement : Statement {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeswitchStatement)
+  TypeswitchStatement(SourcePosition pos, Expression* expr,
+                      std::vector<TypeswitchCase> cases)
+      : Statement(kKind, pos), expr(expr), cases(std::move(cases)) {}
+  Expression* expr;
+  std::vector<TypeswitchCase> cases;
+};
+
 struct ReturnStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ReturnStatement)
   ReturnStatement(SourcePosition pos, std::optional<Expression*> value)
@@ -956,8 +973,7 @@ struct ClassFieldExpression {
   std::vector<ConditionalAnnotation> conditions;
   bool custom_weak_marking;
   bool const_qualified;
-  FieldSynchronization read_synchronization;
-  FieldSynchronization write_synchronization;
+  FieldSynchronization synchronization;
 };
 
 struct LabelAndTypes {
@@ -991,9 +1007,10 @@ struct MacroDeclaration : CallableDeclaration {
   MacroDeclaration(AstNode::Kind kind, SourcePosition pos, bool transitioning,
                    Identifier* name, std::optional<std::string> op,
                    ParameterList parameters, TypeExpression* return_type,
-                   const LabelAndTypesVector& labels)
+                   LabelAndTypesVector labels)
       : CallableDeclaration(kind, pos, transitioning, name,
-                            std::move(parameters), return_type, labels),
+                            std::move(parameters), return_type,
+                            std::move(labels)),
         op(std::move(op)) {
     if (parameters.implicit_kind == ImplicitKind::kJSImplicit) {
       Error("Cannot use \"js-implicit\" with macros, use \"implicit\" instead.")
@@ -1010,9 +1027,9 @@ struct ExternalMacroDeclaration : MacroDeclaration {
                            Identifier* name, std::optional<std::string> op,
                            ParameterList parameters,
                            TypeExpression* return_type,
-                           const LabelAndTypesVector& labels)
+                           LabelAndTypesVector labels)
       : MacroDeclaration(kKind, pos, transitioning, name, std::move(op),
-                         std::move(parameters), return_type, labels),
+                         std::move(parameters), return_type, std::move(labels)),
         external_assembler_name(std::move(external_assembler_name)) {}
   std::string external_assembler_name;
 };
@@ -1034,13 +1051,15 @@ struct TorqueMacroDeclaration : MacroDeclaration {
   TorqueMacroDeclaration(SourcePosition pos, bool transitioning,
                          Identifier* name, std::optional<std::string> op,
                          ParameterList parameters, TypeExpression* return_type,
-                         const LabelAndTypesVector& labels, bool export_to_csa,
-                         std::optional<Statement*> body)
+                         LabelAndTypesVector labels, bool export_to_csa,
+                         bool supports_tsa, std::optional<Statement*> body)
       : MacroDeclaration(kKind, pos, transitioning, name, std::move(op),
-                         std::move(parameters), return_type, labels),
+                         std::move(parameters), return_type, std::move(labels)),
         export_to_csa(export_to_csa),
+        supports_tsa(supports_tsa),
         body(body) {}
   bool export_to_csa;
+  bool supports_tsa;
   std::optional<Statement*> body;
 };
 
@@ -1087,12 +1106,18 @@ struct TorqueBuiltinDeclaration : BuiltinDeclaration {
                            ParameterList parameters,
                            TypeExpression* return_type,
                            bool has_custom_interface_descriptor,
+                           bool supports_tsa,
+                           std::optional<std::string> use_counter_name,
                            std::optional<Statement*> body)
       : BuiltinDeclaration(kKind, pos, javascript_linkage, transitioning, name,
                            std::move(parameters), return_type),
         has_custom_interface_descriptor(has_custom_interface_descriptor),
+        supports_tsa(supports_tsa),
+        use_counter_name(use_counter_name),
         body(body) {}
   bool has_custom_interface_descriptor;
+  bool supports_tsa;
+  std::optional<std::string> use_counter_name;
   std::optional<Statement*> body;
 };
 
@@ -1246,16 +1271,26 @@ struct ClassDeclaration : TypeDeclaration {
   InstanceTypeConstraints instance_type_constraints;
 };
 
-struct CppIncludeDeclaration : Declaration {
-  DEFINE_AST_NODE_LEAF_BOILERPLATE(CppIncludeDeclaration)
-  CppIncludeDeclaration(SourcePosition pos, std::string include_path)
-      : Declaration(kKind, pos), include_path(std::move(include_path)) {}
-  std::string include_path;
+enum class IncludeSelector {
+  kAny,
+  kCSA,
+  kTSA,
 };
 
-#define ENUM_ITEM(name)                     \
-  case AstNode::Kind::k##name:              \
-    return std::is_base_of<T, name>::value; \
+struct CppIncludeDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(CppIncludeDeclaration)
+  CppIncludeDeclaration(SourcePosition pos, std::string include_path,
+                        IncludeSelector include_selector)
+      : Declaration(kKind, pos),
+        include_path(std::move(include_path)),
+        include_selector(include_selector) {}
+  std::string include_path;
+  IncludeSelector include_selector;
+};
+
+#define ENUM_ITEM(name)                \
+  case AstNode::Kind::k##name:         \
+    return std::is_base_of_v<T, name>; \
     break;
 
 template <class T>

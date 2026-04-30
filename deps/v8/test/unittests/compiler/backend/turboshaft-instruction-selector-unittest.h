@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
-#define V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#ifndef V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
+#define V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
 #include <set>
@@ -23,6 +23,14 @@
 #include "test/unittests/test-utils.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+#if V8_ENABLE_WEBASSEMBLY
+#define SIMD_TERNOP_LIST(V) FOREACH_SIMD_128_TERNARY_OPCODE(V)
+#else
+#define SIMD_TERNOP_LIST(V)
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#define TERNOP_LIST(V) SIMD_TERNOP_LIST(V)
 
 #if V8_ENABLE_WEBASSEMBLY
 #define SIMD_BINOP_LIST(V)          \
@@ -70,6 +78,8 @@ namespace v8::internal::compiler::turboshaft {
   V(Int64AddCheckOverflow)      \
   V(Int32SubCheckOverflow)      \
   V(Int64SubCheckOverflow)      \
+  V(Int32MulCheckOverflow)      \
+  V(Int64MulCheckOverflow)      \
   V(Word32Equal)                \
   V(Word64Equal)                \
   V(Word32NotEqual)             \
@@ -91,9 +101,13 @@ namespace v8::internal::compiler::turboshaft {
   V(Uint64GreaterThanOrEqual)   \
   V(Uint64GreaterThan)          \
   V(Float64Add)                 \
+  V(Float32Add)                 \
   V(Float64Sub)                 \
+  V(Float32Sub)                 \
   V(Float64Mul)                 \
+  V(Float32Mul)                 \
   V(Float64Div)                 \
+  V(Float32Div)                 \
   V(Float64Equal)               \
   V(Float64LessThan)            \
   V(Float64LessThanOrEqual)     \
@@ -101,7 +115,15 @@ namespace v8::internal::compiler::turboshaft {
   V(Float32LessThan)            \
   V(Float32LessThanOrEqual)
 
+#if V8_ENABLE_WEBASSEMBLY
+#define SIMD_UNOP_LIST(V) FOREACH_SIMD_128_UNARY_OPCODE(V)
+#else
+#define SIMD_UNOP_LIST(V)
+#endif
+
 #define UNOP_LIST(V)          \
+  SIMD_UNOP_LIST(V)           \
+  V(BitcastFloat32ToWord32)   \
   V(ChangeFloat32ToFloat64)   \
   V(TruncateFloat64ToFloat32) \
   V(ChangeInt32ToInt64)       \
@@ -114,6 +136,7 @@ namespace v8::internal::compiler::turboshaft {
 
 #define DECL(Op) k##Op,
 
+enum class TSTernop { TERNOP_LIST(DECL) };
 enum class TSBinop { BINOP_LIST(DECL) };
 enum class TSUnop { UNOP_LIST(DECL) };
 
@@ -121,8 +144,8 @@ enum class TSUnop { UNOP_LIST(DECL) };
 
 class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
  public:
-  using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer,
-                                    InstructionSelectionNormalizationReducer>;
+  using BaseAssembler = Assembler<LoadStoreSimplificationReducer,
+                                  InstructionSelectionNormalizationReducer>;
 
   TurboshaftInstructionSelectorTest();
   ~TurboshaftInstructionSelectorTest() override;
@@ -133,7 +156,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     pipeline_data_ = std::make_unique<PipelineData>(
         &zone_stats_, TurboshaftPipelineKind::kJS, isolate_, nullptr,
         AssemblerOptions::Default(isolate_));
-    pipeline_data_->InitializeGraphComponent(nullptr);
+    pipeline_data_->InitializeGraphComponent(nullptr,
+                                             Graph::Origin::kPureTurboshaft);
   }
   void TearDown() override { pipeline_data_.reset(); }
 
@@ -192,16 +216,14 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       Init();
     }
 
-    Stream Build(CpuFeature feature) {
-      return Build(InstructionSelector::Features(feature));
-    }
+    Stream Build(CpuFeature feature) { return Build(CpuFeatureSet{feature}); }
     Stream Build(CpuFeature feature1, CpuFeature feature2) {
-      return Build(InstructionSelector::Features(feature1, feature2));
+      return Build(CpuFeatureSet{feature1, feature2});
     }
     Stream Build(StreamBuilderMode mode = kTargetInstructions) {
-      return Build(InstructionSelector::Features(), mode);
+      return Build(CpuFeatureSet(), mode);
     }
-    Stream Build(InstructionSelector::Features features,
+    Stream Build(CpuFeatureSet features,
                  StreamBuilderMode mode = kTargetInstructions,
                  InstructionSelector::SourcePositionMode source_position_mode =
                      InstructionSelector::kAllSourcePositions);
@@ -244,10 +266,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
       return zone->New<CallDescriptor>(  // --
           CallDescriptor::kCallAddress,  // kind
-          kDefaultCodeEntrypointTag,     // tag
+          kCodeEntrypointTagForTesting,  // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
-          locations.Build(),             // location_sig
+          locations.Get(),               // location_sig
           0,                             // stack_parameter_count
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
@@ -284,6 +306,18 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 #undef CASE
       }
     }
+
+#if V8_ENABLE_WEBASSEMBLY
+    OpIndex Emit(TSTernop op, OpIndex first, OpIndex second, OpIndex third) {
+      switch (op) {
+#define CASE(Op)        \
+  case TSTernop::k##Op: \
+    return Op(first, second, third);
+        TERNOP_LIST(CASE)
+#undef CASE
+      }
+    }
+#endif
 
     template <typename T>
     V<T> Emit(TSBinop op, OpIndex left, OpIndex right) {
@@ -360,6 +394,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return Load(base, index, LoadOp::Kind::RawAligned(), mem_rep,
                   mem_rep.ToRegisterRepresentation());
     }
+    OpIndex Load(MemoryRepresentation mem_rep, RegisterRepresentation reg_rep,
+                 OpIndex base, OpIndex index) {
+      return Load(base, index, LoadOp::Kind::RawAligned(), mem_rep, reg_rep);
+    }
     OpIndex Load(MachineType type, OpIndex base) {
       MemoryRepresentation mem_rep =
           MemoryRepresentation::FromMachineType(type);
@@ -371,6 +409,11 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return Load(base, index, LoadOp::Kind::RawAligned().Immutable(), mem_rep);
     }
     using Assembler::Store;
+    void Store(MemoryRepresentation mem_rep, OpIndex base, OpIndex index,
+               OpIndex value, WriteBarrierKind write_barrier) {
+      Store(base, index, value, StoreOp::Kind::RawAligned(), mem_rep,
+            write_barrier);
+    }
     void Store(MachineRepresentation rep, OpIndex base, OpIndex index,
                OpIndex value, WriteBarrierKind write_barrier) {
       MemoryRepresentation mem_rep =
@@ -381,7 +424,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     using Assembler::Projection;
     OpIndex Projection(OpIndex input, int index) {
       const Operation& input_op = output_graph().Get(input);
-      if (const TupleOp* tuple = input_op.TryCast<TupleOp>()) {
+      if (const MakeTupleOp* tuple = input_op.TryCast<MakeTupleOp>()) {
         DCHECK_LT(index, tuple->input_count);
         return tuple->input(index);
       }
@@ -400,6 +443,14 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
   }
     FOREACH_SIMD_128_SPLAT_OPCODE(DECL_SPLAT)
 #undef DECL_SPLAT
+
+#define DECL_SIMD128_TERNOP(Name)                                          \
+  V<Simd128> Name(V<Simd128> first, V<Simd128> second, V<Simd128> third) { \
+    return Simd128Ternary(first, second, third,                            \
+                          Simd128TernaryOp::Kind::k##Name);                \
+  }
+    FOREACH_SIMD_128_TERNARY_OPCODE(DECL_SIMD128_TERNOP)
+#undef DECL_SIMD128_TERNOP
 
 #define DECL_SIMD128_BINOP(Name)                                     \
   V<Simd128> Name(V<Simd128> left, V<Simd128> right) {               \
@@ -426,6 +477,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     DECL_SIMD128_EXTRACT_LANE(I16x8, U, Word32)
     DECL_SIMD128_EXTRACT_LANE(I32x4, , Word32)
     DECL_SIMD128_EXTRACT_LANE(I64x2, , Word64)
+    DECL_SIMD128_EXTRACT_LANE(F16x8, , Float32)
     DECL_SIMD128_EXTRACT_LANE(F32x4, , Float32)
     DECL_SIMD128_EXTRACT_LANE(F64x2, , Float64)
 #undef DECL_SIMD128_EXTRACT_LANE
@@ -458,7 +510,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       MachineSignature::Builder builder(zone, 1, sizeof...(ParamT));
       builder.AddReturn(return_type);
       (builder.AddParam(parameter_type), ...);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     void Init() {
@@ -482,6 +534,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     const Instruction* operator[](size_t index) const {
       EXPECT_LT(index, size());
       return instructions_[index];
+    }
+
+    const InstructionBlock* BlockAt(size_t index) {
+      return instruction_blocks_->at(index);
     }
 
     bool IsDouble(const InstructionOperand* operand) const {
@@ -518,7 +574,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return ToConstant(operand).ToInt64();
     }
 
-    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
+    DirectHandle<HeapObject> ToHeapObject(
+        const InstructionOperand* operand) const {
       return ToConstant(operand).ToHeapObject();
     }
 
@@ -589,6 +646,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     ConstantMap constants_;
     ConstantMap immediates_;
     std::deque<Instruction*> instructions_;
+    InstructionBlocks* instruction_blocks_;
     std::set<int> doubles_;
     std::set<int> references_;
     VirtualRegisters virtual_registers_;
@@ -611,4 +669,4 @@ class TurboshaftInstructionSelectorTestWithParam
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#endif  // V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_

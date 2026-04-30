@@ -4,6 +4,7 @@
 #include "memory_tracker-inl.h"
 #include "nbytes.h"
 #include "node_errors.h"
+#include "node_hash.h"
 #include "node_sockaddr-inl.h"  // NOLINT(build/include_inline)
 #include "uv.h"
 
@@ -77,26 +78,28 @@ bool SocketAddress::New(
 }
 
 size_t SocketAddress::Hash::operator()(const SocketAddress& addr) const {
-  size_t hash = 0;
+  // Hash only the meaningful bytes (family + port + address), not the
+  // full 128-byte sockaddr_storage.
   switch (addr.family()) {
     case AF_INET: {
       const sockaddr_in* ipv4 =
           reinterpret_cast<const sockaddr_in*>(addr.raw());
-      hash_combine(&hash, ipv4->sin_port, ipv4->sin_addr.s_addr);
-      break;
+      uint8_t buf[6];
+      memcpy(buf, &ipv4->sin_port, 2);
+      memcpy(buf + 2, &ipv4->sin_addr, 4);
+      return HashBytes(buf, sizeof(buf));
     }
     case AF_INET6: {
       const sockaddr_in6* ipv6 =
           reinterpret_cast<const sockaddr_in6*>(addr.raw());
-      const uint64_t* a =
-          reinterpret_cast<const uint64_t*>(&ipv6->sin6_addr);
-      hash_combine(&hash, ipv6->sin6_port, a[0], a[1]);
-      break;
+      uint8_t buf[18];
+      memcpy(buf, &ipv6->sin6_port, 2);
+      memcpy(buf + 2, &ipv6->sin6_addr, 16);
+      return HashBytes(buf, sizeof(buf));
     }
     default:
       UNREACHABLE();
   }
-  return hash;
 }
 
 SocketAddress SocketAddress::FromSockName(const uv_tcp_t& handle) {

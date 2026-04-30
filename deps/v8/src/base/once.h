@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_ONCE_H_
+#define V8_BASE_ONCE_H_
+
 // emulates google3/base/once.h
 //
 // This header is intended to be included only by v8's internal code. Users
@@ -49,10 +52,8 @@
 // whatsoever to statically-initialize its synchronization primitives, so our
 // only choice is to assume that dynamic initialization is single-threaded.
 
-#ifndef V8_BASE_ONCE_H_
-#define V8_BASE_ONCE_H_
-
 #include <stddef.h>
+#include <stdint.h>
 
 #include <atomic>
 #include <functional>
@@ -92,11 +93,12 @@ inline void CallOnce(OnceType* once, std::function<void()> init_func) {
   }
 }
 
-template <typename... Args, typename = std::enable_if_t<
-                                std::conjunction_v<std::is_scalar<Args>...>>>
+template <typename... Args>
 inline void CallOnce(OnceType* once,
                      typename FunctionWithArgs<Args...>::type init_func,
-                     Args... args) {
+                     Args... args)
+  requires(std::conjunction_v<std::is_scalar<Args>...>)
+{
   if (once->load(std::memory_order_acquire) != ONCE_STATE_DONE) {
     CallOnceImpl(once, [=]() { init_func(args...); });
   }

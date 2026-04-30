@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
 
@@ -13,6 +13,6 @@ import('fs').then(
 ).then(process.exit)
 `);
 
-child.on('exit', (code) => {
+child.on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 0);
-});
+}));

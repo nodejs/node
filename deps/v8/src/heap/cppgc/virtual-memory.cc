@@ -25,6 +25,13 @@ VirtualMemory::VirtualMemory(PageAllocator* page_allocator, size_t size,
   }
 }
 
+VirtualMemory::VirtualMemory(PageAllocator* page_allocator, void* reserved,
+                             size_t size)
+    : page_allocator_(page_allocator), start_(reserved), size_(size) {
+  DCHECK_NOT_NULL(page_allocator);
+  DCHECK(IsAligned(size, page_allocator->CommitPageSize()));
+}
+
 VirtualMemory::~VirtualMemory() V8_NOEXCEPT {
   if (IsReserved()) {
     page_allocator_->FreePages(start_, size_);

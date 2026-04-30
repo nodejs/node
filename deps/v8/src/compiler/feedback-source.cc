@@ -8,7 +8,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-FeedbackSource::FeedbackSource(Handle<FeedbackVector> vector_,
+FeedbackSource::FeedbackSource(IndirectHandle<FeedbackVector> vector_,
                                FeedbackSlot slot_)
     : vector(vector_), slot(slot_) {
   DCHECK(!slot.IsInvalid());
@@ -22,10 +22,6 @@ int FeedbackSource::index() const {
   return FeedbackVector::GetIndex(slot);
 }
 
-bool operator==(FeedbackSource const& lhs, FeedbackSource const& rhs) {
-  return FeedbackSource::Equal()(lhs, rhs);
-}
-
 bool operator!=(FeedbackSource const& lhs, FeedbackSource const& rhs) {
   return !(lhs == rhs);
 }
@@ -35,6 +31,24 @@ std::ostream& operator<<(std::ostream& os, const FeedbackSource& p) {
     return os << "FeedbackSource(" << p.slot << ")";
   }
   return os << "FeedbackSource(INVALID)";
+}
+
+EmbeddedFeedbackSource::EmbeddedFeedbackSource(
+    IndirectHandle<BytecodeArray> bytecode_array, int offset)
+    : bytecode_array_(bytecode_array), offset_(offset) {
+  DCHECK(!bytecode_array.is_null());
+}
+
+bool operator!=(EmbeddedFeedbackSource const& lhs,
+                EmbeddedFeedbackSource const& rhs) {
+  return !(lhs == rhs);
+}
+
+std::ostream& operator<<(std::ostream& os, const EmbeddedFeedbackSource& p) {
+  if (p.IsValid()) {
+    return os << "EmbeddedFeedbackSource(" << p.offset_ << ")";
+  }
+  return os << "EmbeddedFeedbackSource(INVALID)";
 }
 
 }  // namespace compiler

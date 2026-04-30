@@ -6,6 +6,10 @@ const assert = require('assert');
 
 const { internalBinding } = require('internal/test/binding');
 
+// eslint-disable-next-line no-unused-vars
+const { utf8Write } = require('internal/buffer');
+
+
 function testFastUtf8Write() {
   {
     const buf = Buffer.from('\x80');
@@ -34,14 +38,12 @@ function testFastUtf8Write() {
   }
 }
 
-eval('%PrepareFunctionForOptimization(Buffer.prototype.utf8Write)');
+eval('%PrepareFunctionForOptimization(utf8Write)');
 testFastUtf8Write();
-eval('%OptimizeFunctionOnNextCall(Buffer.prototype.utf8Write)');
+eval('%OptimizeFunctionOnNextCall(utf8Write)');
 testFastUtf8Write();
 
 if (common.isDebug) {
   const { getV8FastApiCallCount } = internalBinding('debug');
-  // TODO: the count should be 4. The function is optimized, but the fast
-  // API is not called.
-  assert.strictEqual(getV8FastApiCallCount('buffer.writeString'), 0);
+  assert.strictEqual(getV8FastApiCallCount('buffer.writeString'), 4);
 }

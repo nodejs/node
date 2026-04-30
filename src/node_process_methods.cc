@@ -163,9 +163,17 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
   if (err) {
-    return env->ThrowUVException(err, "uv_cwd");
+    std::string err_msg =
+        std::string("process.cwd failed with error ") + uv_strerror(err);
+    if (err == UV_ENOENT) {
+      // If err == UV_ENOENT it is necessary to notice the user
+      // that the current working dir was likely removed.
+      err_msg = err_msg +
+                ", the current working directory was likely removed " +
+                "without changing the working directory";
+    }
+    return env->ThrowUVException(err, "uv_cwd", err_msg.c_str());
   }
-
   Local<String> cwd;
   if (String::NewFromUtf8(env->isolate(), buf, NewStringType::kNormal, cwd_len)
           .ToLocal(&cwd)) {
@@ -502,6 +510,10 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 }
 
 #if defined __POSIX__ && !defined(__PASE__)
+// Clears FD_CLOEXEC on `fd` so the descriptor is inherited across execve(2).
+// On success returns the previous F_GETFD flags (>= 0) so callers can
+// restore them if execve(2) subsequently fails. On failure returns -1 with
+// errno set.
 inline int persist_standard_stream(int fd) {
   int flags = fcntl(fd, F_GETFD, 0);
 
@@ -509,17 +521,17 @@ inline int persist_standard_stream(int fd) {
     return flags;
   }
 
-  flags &= ~FD_CLOEXEC;
-  return fcntl(fd, F_SETFD, flags);
+  if (fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC) < 0) {
+    return -1;
+  }
+
+  return flags;
 }
 
 static void Execve(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kChildProcess, "");
 
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsArray());
@@ -530,6 +542,11 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
 
   // Copy arguments and environment
   Utf8Value executable(isolate, args[0]);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kChildProcess,
+                                    executable.ToStringView());
+
   std::vector<std::string> argv_strings(argv_array->Length());
   std::vector<std::string> envp_strings(envp_array->Length());
   std::vector<char*> argv(argv_array->Length() + 1);
@@ -561,32 +578,41 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
 
   envp[envp_array->Length()] = nullptr;
 
-  // Set stdin, stdout and stderr to be non-close-on-exec
-  // so that the new process will inherit it.
-  if (persist_standard_stream(0) < 0 || persist_standard_stream(1) < 0 ||
-      persist_standard_stream(2) < 0) {
-    env->ThrowErrnoException(errno, "fcntl");
-    return;
+  // Set stdin, stdout and stderr to be non-close-on-exec so that the new
+  // process will inherit them. Save the previous flags on each fd so we can
+  // restore them if execve(2) fails and we throw back to JS.
+  int saved_stdio_flags[3] = {-1, -1, -1};
+  for (int fd = 0; fd < 3; fd++) {
+    int prev = persist_standard_stream(fd);
+    if (prev < 0) {
+      int fcntl_errno = errno;
+      // Undo changes already applied to earlier fds before throwing.
+      for (int j = 0; j < fd; j++) {
+        fcntl(j, F_SETFD, saved_stdio_flags[j]);
+      }
+      env->ThrowErrnoException(fcntl_errno, "fcntl");
+      return;
+    }
+    saved_stdio_flags[fd] = prev;
   }
 
   // Perform the execve operation.
-  RunAtExit(env);
+  //
+  // Note: we intentionally do not invoke RunAtExit(env) here. On success the
+  // kernel discards the current address space when loading the new image, so
+  // any in-memory side effects of AtExit callbacks are lost anyway. On
+  // failure we want to leave the environment intact so the thrown exception
+  // can be observed and handled by JS code.
   execve(*executable, argv.data(), envp.data());
 
-  // If it returns, it means that the execve operation failed.
-  // In that case we abort the process.
-  auto error_message = std::string("process.execve failed with error code ") +
-                       errors::errno_string(errno);
-
-  // Abort the process
-  Local<v8::Value> exception =
-      ErrnoException(isolate, errno, "execve", *executable);
-  Local<v8::Message> message = v8::Exception::CreateMessage(isolate, exception);
-
-  std::string info = FormatErrorMessage(
-      isolate, context, error_message.c_str(), message, true);
-  FPrintF(stderr, "%s\n", info);
-  ABORT();
+  // If execve returned, it failed. Restore the FD_CLOEXEC flags we cleared
+  // above so that a failed call leaves no observable side effects, then
+  // throw an ErrnoException so JS can catch it.
+  int execve_errno = errno;
+  for (int fd = 0; fd < 3; fd++) {
+    fcntl(fd, F_SETFD, saved_stdio_flags[fd]);
+  }
+  env->ThrowErrnoException(execve_errno, "execve", nullptr, *executable);
 }
 #endif
 
@@ -611,7 +637,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     case dotenv.ParseResult::InvalidContent: {
       THROW_ERR_INVALID_ARG_TYPE(
-          env, "Contents of '%s' should be a valid string.", path.c_str());
+          env, "Contents of '%s' should be a valid string.", path);
       break;
     }
     case dotenv.ParseResult::FileError: {
@@ -650,30 +676,29 @@ BindingData::BindingData(Realm* realm,
   hrtime_buffer_.MakeWeak();
 }
 
-v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
-v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
+CFunction BindingData::fast_hrtime_(CFunction::Make(FastHrtime));
+CFunction BindingData::fast_hrtime_bigint_(CFunction::Make(FastHrtimeBigInt));
 
 void BindingData::AddMethods(Isolate* isolate, Local<ObjectTemplate> target) {
   SetFastMethodNoSideEffect(
-      isolate, target, "hrtime", SlowNumber, &fast_number_);
+      isolate, target, "hrtime", SlowHrtime, &fast_hrtime_);
   SetFastMethodNoSideEffect(
-      isolate, target, "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+      isolate, target, "hrtimeBigInt", SlowHrtimeBigInt, &fast_hrtime_bigint_);
 }
 
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(SlowNumber);
-  registry->Register(SlowBigInt);
-  registry->Register(FastNumber);
-  registry->Register(FastBigInt);
-  registry->Register(fast_number_.GetTypeInfo());
-  registry->Register(fast_bigint_.GetTypeInfo());
+  registry->Register(SlowHrtime);
+  registry->Register(SlowHrtimeBigInt);
+  registry->Register(fast_hrtime_);
+  registry->Register(fast_hrtime_bigint_);
 }
 
 BindingData* BindingData::FromV8Value(Local<Value> value) {
   Local<Object> v8_object = value.As<Object>();
   return static_cast<BindingData*>(
-      v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot));
+      v8_object->GetAlignedPointerFromInternalField(BaseObject::kSlot,
+                                                    EmbedderDataTag::kDefault));
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
@@ -689,14 +714,14 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 // broken into the upper/lower 32 bits to be converted back in JS,
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
-void BindingData::NumberImpl(BindingData* receiver) {
+void BindingData::HrtimeImpl(BindingData* receiver) {
   uint64_t t = uv_hrtime();
   receiver->hrtime_buffer_[0] = (t / NANOS_PER_SEC) >> 32;
   receiver->hrtime_buffer_[1] = (t / NANOS_PER_SEC) & 0xffffffff;
   receiver->hrtime_buffer_[2] = t % NANOS_PER_SEC;
 }
 
-void BindingData::BigIntImpl(BindingData* receiver) {
+void BindingData::HrtimeBigIntImpl(BindingData* receiver) {
   uint64_t t = uv_hrtime();
   // The buffer is a Uint32Array, so we need to reinterpret it as a
   // Uint64Array to write the value. The buffer is valid at this scope so we
@@ -706,12 +731,12 @@ void BindingData::BigIntImpl(BindingData* receiver) {
   fields[0] = t;
 }
 
-void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
-  BigIntImpl(FromJSObject<BindingData>(args.This()));
+void BindingData::SlowHrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
+  HrtimeBigIntImpl(FromJSObject<BindingData>(args.This()));
 }
 
-void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  NumberImpl(FromJSObject<BindingData>(args.This()));
+void BindingData::SlowHrtime(const FunctionCallbackInfo<Value>& args) {
+  HrtimeImpl(FromJSObject<BindingData>(args.This()));
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
@@ -737,7 +762,7 @@ void BindingData::Deserialize(Local<Context> context,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ int FuzzerInitialize(int *argc, char ***argv)
 {
     FuzzerSetRand();
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS
-       | OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS, NULL);
+            | OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS,
+        NULL);
     ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
     return 1;
@@ -78,9 +79,13 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
     resp = d2i_OCSP_RESPONSE(NULL, &p, len);
 
     store = X509_STORE_new();
+    if (store == NULL)
+        goto err;
     X509_STORE_add_cert(store, x509_2);
 
     param = X509_VERIFY_PARAM_new();
+    if (param == NULL)
+        goto err;
     X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_NO_CHECK_TIME);
     X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_X509_STRICT);
     X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_PARTIAL_CHAIN);
@@ -98,10 +103,10 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
 
     if (crl != NULL) {
         crls = sk_X509_CRL_new_null();
-        if (crls == NULL)
+        if (crls == NULL
+            || !sk_X509_CRL_push(crls, crl))
             goto err;
 
-        sk_X509_CRL_push(crls, crl);
         X509_STORE_CTX_set0_crls(ctx, crls);
     }
 
@@ -115,11 +120,10 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         ASN1_GENERALIZEDTIME *revtime, *thisupd, *nextupd;
 
         certs = sk_X509_new_null();
-        if (certs == NULL)
+        if (certs == NULL
+            || !sk_X509_push(certs, x509_1)
+            || !sk_X509_push(certs, x509_2))
             goto err;
-
-        sk_X509_push(certs, x509_1);
-        sk_X509_push(certs, x509_2);
 
         OCSP_basic_verify(bs, certs, store, OCSP_PARTIAL_CHAIN);
 
@@ -127,7 +131,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         if (id == NULL)
             goto err;
         OCSP_resp_find_status(bs, id, &status, &reason, &revtime, &thisupd,
-                              &nextupd);
+            &nextupd);
     }
 
 err:

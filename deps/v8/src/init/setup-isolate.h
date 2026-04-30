@@ -40,7 +40,8 @@ class V8_EXPORT_PRIVATE SetupIsolateDelegate {
   virtual void SetupBuiltins(Isolate* isolate, bool compile_builtins);
 
  protected:
-  static void SetupBuiltinsInternal(Isolate* isolate);
+  static void SetupBuiltinsInternal(Isolate* isolate,
+                                    bool compute_builtins_effects);
   static void AddBuiltin(Builtins* builtins, Builtin builtin,
                          Tagged<Code> code);
   static void PopulateWithPlaceholders(Isolate* isolate);

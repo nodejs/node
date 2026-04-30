@@ -13,6 +13,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/utils/utils.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,19 +21,52 @@
 namespace v8 {
 namespace internal {
 
+namespace compiler {
+class AccessBuilder;
+}  // namespace compiler
+
+namespace maglev {
+class MaglevGraphBuilder;
+}  // namespace maglev
+
+class AccessorAssembler;
+class CodeStubAssembler;
+class ObjectBuiltinsAssembler;
+class ObjectEntriesValuesBuiltinsAssembler;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
 
 // An EnumCache is a pair used to hold keys and indices caches.
-class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
+V8_OBJECT class EnumCache : public StructLayout {
  public:
+  inline Tagged<FixedArray> keys() const;
+  inline void set_keys(Tagged<FixedArray> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> indices() const;
+  inline void set_indices(Tagged<FixedArray> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(EnumCache)
   DECL_VERIFIER(EnumCache)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(EnumCache)
-};
+ private:
+  friend class TorqueGeneratedEnumCacheAsserts;
+  friend class compiler::AccessBuilder;
+  friend class maglev::MaglevGraphBuilder;
+  friend class CodeStubAssembler;
+  friend class AccessorAssembler;
+  friend class ObjectBuiltinsAssembler;
+  friend class ObjectEntriesValuesBuiltinsAssembler;
+  friend class ObjectKeysAssembler;
+  friend class ObjectGetOwnPropertyNamesAssembler;
+
+  TaggedMember<FixedArray> keys_;
+  TaggedMember<FixedArray> indices_;
+} V8_OBJECT_END;
 
 // A DescriptorArray is a custom array that holds instance descriptors.
 // It has the following layout:
@@ -54,10 +88,35 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 class DescriptorArray
     : public TorqueGeneratedDescriptorArray<DescriptorArray, HeapObject> {
  public:
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
+  static constexpr int kMaxElementsForLinearSearch = 32;
+
   DECL_INT16_ACCESSORS(number_of_all_descriptors)
   DECL_INT16_ACCESSORS(number_of_descriptors)
+  DECL_RELAXED_PRIMITIVE_ACCESSORS(flags, uint32_t)
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
+
+  enum class FastIterableState : uint8_t {
+    // Descriptors are JSON fast iterable, iff all of the following conditions
+    // are met:
+    // - No key is a symbol.
+    // - All keys are enumberable.
+    // - All keys are one-byte and don't contain any character that requires
+    //   escaping.
+    // - All properties are located in field.
+    kJsonFast = 0b00,
+    kJsonSlow = 0b01,
+    kUnknown = 0b11
+  };
+
+  DEFINE_TORQUE_GENERATED_DESCRIPTOR_ARRAY_FLAGS()
+
+  inline FastIterableState fast_iterable() const;
+  inline void set_fast_iterable(FastIterableState value);
+  inline void set_fast_iterable_if(FastIterableState new_value,
+                                   FastIterableState if_value);
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(Tagged<DescriptorArray> array);
@@ -82,6 +141,10 @@ class DescriptorArray
   inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number);
 
+  // Returns true if given entry is already initialized. Useful in cases
+  // when a heap stats collector might see a half-initialized descriptor.
+  inline bool IsInitializedDescriptor(InternalIndex descriptor_number) const;
+
   inline Tagged<Name> GetSortedKey(int descriptor_number);
   inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
                                    int descriptor_number);
@@ -95,23 +158,23 @@ class DescriptorArray
 
   // Generalizes constness, representation and field type of all field
   // descriptors.
-  void GeneralizeAllFields(bool clear_constness);
+  void GeneralizeAllFields();
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
   inline void Append(Descriptor* desc);
 
-  static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
-                                          DirectHandle<DescriptorArray> desc,
-                                          int enumeration_index, int slack = 0);
+  static DirectHandle<DescriptorArray> CopyUpTo(
+      Isolate* isolate, DirectHandle<DescriptorArray> desc,
+      int enumeration_index, int slack = 0);
 
-  static Handle<DescriptorArray> CopyUpToAddAttributes(
+  static DirectHandle<DescriptorArray> CopyUpToAddAttributes(
       Isolate* isolate, DirectHandle<DescriptorArray> desc,
       int enumeration_index, PropertyAttributes attributes, int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  V8_EXPORT_PRIVATE void Sort();
+  inline void Sort();
 
   // Iterate through Name hash collisions in the descriptor array starting from
   // insertion index checking for Name collisions. Note: If we ever add binary
@@ -226,11 +289,18 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
+  V8_EXPORT_PRIVATE void SortImpl(const int len);
+
   inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
   inline void SetValue(InternalIndex descriptor_number,
                        Tagged<MaybeObject> value);
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
+
+  V8_INLINE InternalIndex BinarySearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
+  V8_INLINE InternalIndex LinearSearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.

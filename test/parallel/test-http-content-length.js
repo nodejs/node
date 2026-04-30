@@ -1,28 +1,25 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
-const expectedHeadersMultipleWrites = {
-  'connection': 'keep-alive',
-  'transfer-encoding': 'chunked',
-};
+const expectedHeadersMultipleWrites = { '__proto__': null,
+                                        'connection': 'keep-alive',
+                                        'transfer-encoding': 'chunked' };
 
-const expectedHeadersEndWithData = {
-  'connection': 'keep-alive',
-  'content-length': String('hello world'.length),
-};
+const expectedHeadersEndWithData = { '__proto__': null,
+                                     'connection': 'keep-alive',
+                                     'content-length': String('hello world'.length) };
 
-const expectedHeadersEndNoData = {
-  'connection': 'keep-alive',
-  'content-length': '0',
-};
+const expectedHeadersEndNoData = { '__proto__': null,
+                                   'connection': 'keep-alive',
+                                   'content-length': '0' };
 
 
 const countdown = new Countdown(3, () => server.close());
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast(function(req, res) {
   res.removeHeader('Date');
   res.setHeader('Keep-Alive', 'timeout=1');
 
@@ -48,9 +45,9 @@ const server = http.createServer(function(req, res) {
   }
 
   countdown.dec();
-});
+}));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   let req;
 
   req = http.request({
@@ -61,10 +58,12 @@ server.listen(0, function() {
   req.removeHeader('Date');
   req.write('hello ');
   req.end('world');
-  req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersMultipleWrites, 'keep-alive': 'timeout=1' });
+  req.on('response', common.mustCall((res) => {
+    assert.deepStrictEqual(res.headers, {
+      '__proto__': null, ...expectedHeadersMultipleWrites, 'keep-alive': 'timeout=1',
+    });
     res.resume();
-  });
+  }));
 
   req = http.request({
     port: this.address().port,
@@ -73,10 +72,12 @@ server.listen(0, function() {
   });
   req.removeHeader('Date');
   req.end('hello world');
-  req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersEndWithData, 'keep-alive': 'timeout=1' });
+  req.on('response', common.mustCall((res) => {
+    assert.deepStrictEqual(res.headers, {
+      '__proto__': null, ...expectedHeadersEndWithData, 'keep-alive': 'timeout=1',
+    });
     res.resume();
-  });
+  }));
 
   req = http.request({
     port: this.address().port,
@@ -85,9 +86,9 @@ server.listen(0, function() {
   });
   req.removeHeader('Date');
   req.end();
-  req.on('response', function(res) {
-    assert.deepStrictEqual(res.headers, { ...expectedHeadersEndNoData, 'keep-alive': 'timeout=1' });
+  req.on('response', common.mustCall((res) => {
+    assert.deepStrictEqual(res.headers, { '__proto__': null, ...expectedHeadersEndNoData, 'keep-alive': 'timeout=1' });
     res.resume();
-  });
+  }));
 
-});
+}));

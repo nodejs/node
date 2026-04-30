@@ -136,8 +136,8 @@ class ConcurrentGCThread final : public v8::base::Thread {
   void Run() final {
     while (header_->IsInConstruction<AccessMode::kAtomic>()) {
     }
-    USE(v8::base::AsAtomicPtr(const_cast<size_t*>(&payload_->value))
-            ->load(std::memory_order_relaxed));
+    USE(std::atomic_ref<size_t>(const_cast<size_t&>(payload_->value))
+            .load(std::memory_order_relaxed));
   }
 
  private:
@@ -154,8 +154,8 @@ TEST(HeapObjectHeaderTest, ConstructionBitProtectsNonAtomicWrites) {
   constexpr size_t kSize =
       (sizeof(HeapObjectHeader) + sizeof(Payload) + kAllocationMask) &
       ~kAllocationMask;
-  typename std::aligned_storage<kSize, kAllocationGranularity>::type data;
-  HeapObjectHeader* header = new (&data) HeapObjectHeader(kSize, 1);
+  alignas(kAllocationGranularity) char data[kSize];
+  HeapObjectHeader* header = new (data) HeapObjectHeader(kSize, 1);
   ConcurrentGCThread gc_thread(
       header, reinterpret_cast<Payload*>(header->ObjectStart()));
   CHECK(gc_thread.Start());

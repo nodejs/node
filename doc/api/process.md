@@ -158,7 +158,7 @@ process.on('exit', (code) => {
 added: v0.5.10
 -->
 
-* `message` { Object | boolean | number | string | null } a parsed JSON object
+* `message` {Object|boolean|number|string|null} a parsed JSON object
   or a serializable primitive value.
 * `sendHandle` {net.Server|net.Socket} a [`net.Server`][] or [`net.Socket`][]
   object, or undefined.
@@ -175,95 +175,6 @@ If the `serialization` option was set to `advanced` used when spawning the
 process, the `message` argument can contain data that JSON is not able
 to represent.
 See [Advanced serialization for `child_process`][] for more details.
-
-### Event: `'multipleResolves'`
-
-<!-- YAML
-added: v10.12.0
-deprecated:
-  - v17.6.0
-  - v16.15.0
--->
-
-> Stability: 0 - Deprecated
-
-* `type` {string} The resolution type. One of `'resolve'` or `'reject'`.
-* `promise` {Promise} The promise that resolved or rejected more than once.
-* `value` {any} The value with which the promise was either resolved or
-  rejected after the original resolve.
-
-The `'multipleResolves'` event is emitted whenever a `Promise` has been either:
-
-* Resolved more than once.
-* Rejected more than once.
-* Rejected after resolve.
-* Resolved after reject.
-
-This is useful for tracking potential errors in an application while using the
-`Promise` constructor, as multiple resolutions are silently swallowed. However,
-the occurrence of this event does not necessarily indicate an error. For
-example, [`Promise.race()`][] can trigger a `'multipleResolves'` event.
-
-Because of the unreliability of the event in cases like the
-[`Promise.race()`][] example above it has been deprecated.
-
-```mjs
-import process from 'node:process';
-
-process.on('multipleResolves', (type, promise, reason) => {
-  console.error(type, promise, reason);
-  setImmediate(() => process.exit(1));
-});
-
-async function main() {
-  try {
-    return await new Promise((resolve, reject) => {
-      resolve('First call');
-      resolve('Swallowed resolve');
-      reject(new Error('Swallowed reject'));
-    });
-  } catch {
-    throw new Error('Failed');
-  }
-}
-
-main().then(console.log);
-// resolve: Promise { 'First call' } 'Swallowed resolve'
-// reject: Promise { 'First call' } Error: Swallowed reject
-//     at Promise (*)
-//     at new Promise (<anonymous>)
-//     at main (*)
-// First call
-```
-
-```cjs
-const process = require('node:process');
-
-process.on('multipleResolves', (type, promise, reason) => {
-  console.error(type, promise, reason);
-  setImmediate(() => process.exit(1));
-});
-
-async function main() {
-  try {
-    return await new Promise((resolve, reject) => {
-      resolve('First call');
-      resolve('Swallowed resolve');
-      reject(new Error('Swallowed reject'));
-    });
-  } catch {
-    throw new Error('Failed');
-  }
-}
-
-main().then(console.log);
-// resolve: Promise { 'First call' } 'Swallowed resolve'
-// reject: Promise { 'First call' } Error: Swallowed reject
-//     at Promise (*)
-//     at new Promise (<anonymous>)
-//     at main (*)
-// First call
-```
 
 ### Event: `'rejectionHandled'`
 
@@ -825,13 +736,51 @@ generate a core file.
 
 This feature is not available in [`Worker`][] threads.
 
+## `process.addUncaughtExceptionCaptureCallback(fn)`
+
+<!-- YAML
+added: v25.9.0
+-->
+
+> Stability: 1 - Experimental
+
+* `fn` {Function}
+
+The `process.addUncaughtExceptionCaptureCallback()` function adds a callback
+that will be invoked when an uncaught exception occurs, receiving the exception
+value as its first argument.
+
+Unlike [`process.setUncaughtExceptionCaptureCallback()`][], this function allows
+multiple callbacks to be registered and does not conflict with the
+[`domain`][] module. Callbacks are called in reverse order of registration
+(most recent first). If a callback returns `true`, subsequent callbacks
+and the default uncaught exception handling are skipped.
+
+```mjs
+import process from 'node:process';
+
+process.addUncaughtExceptionCaptureCallback((err) => {
+  console.error('Caught exception:', err.message);
+  return true; // Indicates exception was handled
+});
+```
+
+```cjs
+const process = require('node:process');
+
+process.addUncaughtExceptionCaptureCallback((err) => {
+  console.error('Caught exception:', err.message);
+  return true; // Indicates exception was handled
+});
+```
+
 ## `process.allowedNodeEnvironmentFlags`
 
 <!-- YAML
 added: v10.10.0
 -->
 
-* {Set}
+* Type: {Set}
 
 The `process.allowedNodeEnvironmentFlags` property is a special,
 read-only `Set` of flags allowable within the [`NODE_OPTIONS`][]
@@ -894,7 +843,7 @@ contain what _would have_ been allowable.
 added: v0.5.0
 -->
 
-* {string}
+* Type: {string}
 
 The operating system CPU architecture for which the Node.js binary was compiled.
 Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`, `'mips'`,
@@ -918,13 +867,13 @@ console.log(`This processor architecture is ${arch}`);
 added: v0.1.27
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The `process.argv` property returns an array containing the command-line
 arguments passed when the Node.js process was launched. The first element will
 be [`process.execPath`][]. See `process.argv0` if access to the original value
-of `argv[0]` is needed. The second element will be the path to the JavaScript
-file being executed. The remaining elements will be any additional command-line
+of `argv[0]` is needed. If a [program entry point][] was provided, the second element
+will be the absolute path to it. The remaining elements are additional command-line
 arguments.
 
 For example, assuming the following script for `process-args.js`:
@@ -969,7 +918,7 @@ Would generate the output:
 added: v6.4.0
 -->
 
-* {string}
+* Type: {string}
 
 The `process.argv0` property stores a read-only copy of the original value of
 `argv[0]` passed when Node.js starts.
@@ -982,6 +931,28 @@ $ bash -c 'exec -a customArgv0 ./node'
 'customArgv0'
 ```
 
+## `process.availableMemory()`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.13.0
+changes:
+  - version:
+    - v24.0.0
+    - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
+-->
+
+* Returns: {number}
+
+Gets the amount of free memory that is still available to the process
+(in bytes).
+
+See [`uv_get_available_memory`][uv_get_available_memory] for more
+information.
+
 ## `process.channel`
 
 <!-- YAML
@@ -992,7 +963,7 @@ changes:
     description: The object no longer accidentally exposes native C++ bindings.
 -->
 
-* {Object}
+* Type: {Object}
 
 If the Node.js process was spawned with an IPC channel (see the
 [Child Process][] documentation), the `process.channel`
@@ -1076,7 +1047,7 @@ changes:
     description: Modifying process.config has been deprecated.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.config` property returns a frozen `Object` containing the
 JavaScript representation of the configure options used to compile the current
@@ -1119,7 +1090,7 @@ An example of the possible output looks like:
 added: v0.7.2
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If the Node.js process is spawned with an IPC channel (see the [Child Process][]
 and [Cluster][] documentation), the `process.connected` property will return
@@ -1136,7 +1107,9 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
   - version:
@@ -1146,33 +1119,13 @@ changes:
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
 
-* {number}
+* Returns: {number}
 
 Gets the amount of memory available to the process (in bytes) based on
 limits imposed by the OS. If there is no such constraint, or the constraint
 is unknown, `0` is returned.
 
 See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
-information.
-
-## `process.availableMemory()`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.13.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/57765
-    description: Change stability index for this feature from Experimental to Stable.
--->
-
-* {number}
-
-Gets the amount of free memory that is still available to the process
-(in bytes).
-
-See [`uv_get_available_memory`][uv_get_available_memory] for more
 information.
 
 ## `process.cpuUsage([previousValue])`
@@ -1253,7 +1206,7 @@ console.log(`Current directory: ${cwd()}`);
 added: v0.7.2
 -->
 
-* {number}
+* Type: {number}
 
 The port used by the Node.js debugger when enabled.
 
@@ -1601,7 +1554,7 @@ changes:
     description: Implicit conversion of variable value to string is deprecated.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.env` property returns an object containing the user environment.
 See environ(7).
@@ -1729,7 +1682,7 @@ unlike the main thread.
 added: v0.7.7
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
@@ -1765,7 +1718,7 @@ threads with this property.
 added: v0.1.100
 -->
 
-* {string}
+* Type: {string}
 
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
@@ -1775,6 +1728,51 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 ```js
 '/usr/local/bin/node'
 ```
+
+## `process.execve(file[, args[, env]])`
+
+<!-- YAML
+added:
+  - v23.11.0
+  - v22.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62878
+    description: A failed `execve(2)` system call now throws an exception
+                 instead of aborting the process. Native `AtExit`
+                 callbacks registered via the embedder API are no longer
+                 invoked before the `execve(2)` call.
+-->
+
+> Stability: 1 - Experimental
+
+* `file` {string} The name or path of the executable file to run.
+* `args` {string\[]} List of string arguments. No argument can contain a null-byte (`\u0000`).
+* `env` {Object} Environment key-value pairs.
+  No key or value can contain a null-byte (`\u0000`).
+  **Default:** `process.env`.
+
+Replaces the current process with a new process.
+
+This is achieved by using the `execve` POSIX function and therefore no memory or other
+resources from the current process are preserved, except for the standard input,
+standard output and standard error file descriptor.
+
+On success, all other resources are discarded by the system when the
+processes are swapped, without triggering any exit or close events, without
+running any JavaScript cleanup handler (for example `process.on('exit')`),
+and without invoking native `AtExit` callbacks registered through the
+embedder API. Callers that need to run cleanup logic should do so before
+calling `process.execve()`.
+
+This function does not return on success. If the underlying `execve(2)`
+system call fails, an `Error` is thrown whose `code` property is set to the
+corresponding `errno` string (for example, `'ENOENT'` when `file` does not
+exist), with `syscall` set to `'execve'` and `path` set to `file`. When
+`execve(2)` fails the current process continues to run with its state
+unchanged, so a caller may handle the error and take another action.
+
+This function is not available on Windows or IBM i.
 
 ## `process.exit([code])`
 
@@ -1895,7 +1893,7 @@ changes:
                  represents an integer.
 -->
 
-* {integer|string|null|undefined} The exit code. For string type, only
+* Type: {integer|string|null|undefined} The exit code. For string type, only
   integer strings (e.g.,'1') are allowed. **Default:** `undefined`.
 
 A number which will be the process exit code, when the process either
@@ -1931,7 +1929,7 @@ $ node --input-type=module -e 'process.exitCode = 9; await new Promise(() => {})
 added: v12.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build is caching builtin modules.
 
@@ -1941,7 +1939,7 @@ A boolean value that is `true` if the current Node.js build is caching builtin m
 added: v0.5.5
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build is a debug build.
 
@@ -1951,7 +1949,7 @@ A boolean value that is `true` if the current Node.js build is a debug build.
 added: v11.10.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes the inspector.
 
@@ -1967,7 +1965,7 @@ deprecated:
 > Stability: 0 - Deprecated. This property is always true, and any checks based on it are
 > redundant.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for IPv6.
 
@@ -1982,7 +1980,7 @@ added:
  - v20.19.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build supports
 [loading ECMAScript modules using `require()`][].
@@ -1993,7 +1991,7 @@ A boolean value that is `true` if the current Node.js build supports
 added: v0.5.3
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for TLS.
 
@@ -2008,7 +2006,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for ALPN in TLS.
 
@@ -2026,7 +2024,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for OCSP in TLS.
 
@@ -2044,7 +2042,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for SNI in TLS.
 
@@ -2057,15 +2055,23 @@ This value is therefore identical to that of `process.features.tls`.
 added:
  - v23.0.0
  - v22.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61803
+    description: Removed `transform` value.
+  - version:
+      - v25.2.0
+      - v24.12.0
+    pr-url: https://github.com/nodejs/node/pull/60600
+    description: Type stripping is now stable.
 -->
 
 > Stability: 1.2 - Release candidate
 
-* {boolean|string}
+* Type: {boolean|string}
 
-A value that is `"strip"` by default,
-`"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
-Node.js is run with `--no-experimental-strip-types`.
+A value that is `"strip"` by default, and `false` if
+Node.js is run with `--no-strip-types`.
 
 ## `process.features.uv`
 
@@ -2079,7 +2085,7 @@ deprecated:
 > Stability: 0 - Deprecated. This property is always true, and any checks based on it are
 > redundant.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for libuv.
 
@@ -2305,7 +2311,9 @@ added:
   - v17.3.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -2750,9 +2758,13 @@ debugger. See [Signal Events][].
 added:
   - v21.7.0
   - v20.12.0
+changes:
+  - version:
+     - v24.10.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 * `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
 
@@ -2778,7 +2790,7 @@ deprecated: v14.0.0
 
 > Stability: 0 - Deprecated: Use [`require.main`][] instead.
 
-* {Object}
+* Type: {Object}
 
 The `process.mainModule` property provides an alternative way of retrieving
 [`require.main`][]. The difference is that if the main module changes at
@@ -2860,6 +2872,13 @@ entire process, while the other fields will only refer to the current thread.
 The `process.memoryUsage()` method iterates over each page to gather
 information about memory usage which might be slow depending on the
 program memory allocations.
+
+### A note on process memoryUsage
+
+On Linux or other systems where glibc is commonly used, an application may have sustained
+`rss` growth despite stable `heapTotal` due to fragmentation caused by the glibc `malloc`
+implementation. See [nodejs/node#21973][] on how to switch to an alternative `malloc`
+implementation to address the performance issue.
 
 ## `process.memoryUsage.rss()`
 
@@ -3060,7 +3079,7 @@ is drained immediately after.
 
 So in CJS modules `process.nextTick()` callbacks are always run before `queueMicrotask()` ones.
 However since ESM modules are processed already as part of the microtask queue, there
-`queueMicrotask()` callbacks are always exectued before `process.nextTick()` ones since Node.js
+`queueMicrotask()` callbacks are always executed before `process.nextTick()` ones since Node.js
 is already in the process of draining the microtask queue.
 
 ```mjs
@@ -3139,7 +3158,7 @@ needed, use `queueMicrotask()`.
 added: v0.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `process.noDeprecation` property indicates whether the `--no-deprecation`
 flag is set on the current Node.js process. See the documentation for
@@ -3153,7 +3172,7 @@ flag's behavior.
 added: v20.0.0
 -->
 
-* {Object}
+* Type: {Object}
 
 This API is available through the [`--permission`][] flag.
 
@@ -3186,6 +3205,7 @@ The available scopes are:
 * `fs.write` - File System write operations
 * `child` - Child process spawning operations
 * `worker` - Worker thread spawning operation
+* `ffi` - Foreign function interface operations
 
 ```js
 // Check if the process has permission to read the README file
@@ -3200,7 +3220,7 @@ process.permission.has('fs.read');
 added: v0.1.15
 -->
 
-* {integer}
+* Type: {integer}
 
 The `process.pid` property returns the PID of the process.
 
@@ -3222,7 +3242,7 @@ console.log(`This process is pid ${pid}`);
 added: v0.1.16
 -->
 
-* {string}
+* Type: {string}
 
 The `process.platform` property returns a string identifying the operating
 system platform for which the Node.js binary was compiled.
@@ -3262,7 +3282,7 @@ added:
   - v6.13.0
 -->
 
-* {integer}
+* Type: {integer}
 
 The `process.ppid` property returns the PID of the parent of the
 current process.
@@ -3310,7 +3330,7 @@ changes:
     description: The `lts` property is now supported.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.release` property returns an `Object` containing metadata related
 to the current release, including URLs for the source tarball and headers-only
@@ -3354,35 +3374,6 @@ In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
 
-## `process.execve(file[, args[, env]])`
-
-<!-- YAML
-added:
-  - v23.11.0
-  - v22.15.0
--->
-
-> Stability: 1 - Experimental
-
-* `file` {string} The name or path of the executable file to run.
-* `args` {string\[]} List of string arguments. No argument can contain a null-byte (`\u0000`).
-* `env` {Object} Environment key-value pairs.
-  No key or value can contain a null-byte (`\u0000`).
-  **Default:** `process.env`.
-
-Replaces the current process with a new process.
-
-This is achieved by using the `execve` POSIX function and therefore no memory or other
-resources from the current process are preserved, except for the standard input,
-standard output and standard error file descriptor.
-
-All other resources are discarded by the system when the processes are swapped, without triggering
-any exit or close events and without running any cleanup handler.
-
-This function will never return, unless an error occurred.
-
-This function is not available on Windows or IBM i.
-
 ## `process.report`
 
 <!-- YAML
@@ -3395,7 +3386,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {Object}
+* Type: {Object}
 
 `process.report` is an object whose methods are used to generate diagnostic
 reports for the current process. Additional documentation is available in the
@@ -3409,7 +3400,7 @@ added:
  - v12.17.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
@@ -3439,7 +3430,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 Directory where the report is written. The default value is the empty string,
 indicating that reports are written to the current working directory of the
@@ -3469,7 +3460,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 Filename where the report is written. If set to the empty string, the output
 filename will be comprised of a timestamp, PID, and sequence number. The default
@@ -3547,7 +3538,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated on fatal errors, such as out of
 memory errors or failed C++ assertions.
@@ -3576,7 +3567,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated when the process receives the
 signal specified by `process.report.signal`.
@@ -3605,7 +3596,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated on uncaught exception.
 
@@ -3629,7 +3620,7 @@ added:
   - v22.13.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated without the environment variables.
 
@@ -3645,7 +3636,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 The signal used to trigger the creation of a diagnostic report. Defaults to
 `'SIGUSR2'`.
@@ -3718,7 +3709,7 @@ added: v12.6.0
   * `systemCPUTime` {integer} maps to `ru_stime` computed in microseconds.
     It is the same value as [`process.cpuUsage().system`][process.cpuUsage].
   * `maxRSS` {integer} maps to `ru_maxrss` which is the maximum resident set
-    size used in kilobytes.
+    size used in kibibytes (1024 bytes).
   * `sharedMemorySize` {integer} maps to `ru_ixrss` but is not supported by
     any platform.
   * `unsharedDataSize` {integer} maps to `ru_idrss` but is not supported by
@@ -4069,7 +4060,7 @@ added:
 
 * `val` {boolean}
 
-This function enables or disables the [Source Map v3][Source Map] support for
+This function enables or disables the [Source Map][] support for
 stack traces.
 
 It provides same features as launching Node.js process with commandline options
@@ -4085,6 +4076,11 @@ This implies calling `module.setSourceMapsSupport()` with an option
 
 <!-- YAML
 added: v9.3.0
+changes:
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/61227
+    description: Use `process.addUncaughtExceptionCaptureCallback()` to
+      register multiple callbacks.
 -->
 
 * `fn` {Function|null}
@@ -4104,8 +4100,8 @@ To unset the capture function,
 method with a non-`null` argument while another capture function is set will
 throw an error.
 
-Using this function is mutually exclusive with using the deprecated
-[`domain`][] built-in module.
+To register multiple callbacks that can coexist, use
+[`process.addUncaughtExceptionCaptureCallback()`][] instead.
 
 ## `process.sourceMapsEnabled`
 
@@ -4117,14 +4113,14 @@ added:
 
 > Stability: 1 - Experimental: Use [`module.getSourceMapsSupport()`][] instead.
 
-* {boolean}
+* Type: {boolean}
 
 The `process.sourceMapsEnabled` property returns whether the
-[Source Map v3][Source Map] support for stack traces is enabled.
+[Source Map][] support for stack traces is enabled.
 
 ## `process.stderr`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stderr` property returns a stream connected to
 `stderr` (fd `2`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -4136,7 +4132,7 @@ a [Writable][] stream.
 
 ### `process.stderr.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stderr`. The value is fixed at `2`. In [`Worker`][] threads,
@@ -4144,7 +4140,7 @@ this field does not exist.
 
 ## `process.stdin`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stdin` property returns a stream connected to
 `stdin` (fd `0`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -4163,7 +4159,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 ### `process.stdin.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stdin`. The value is fixed at `0`. In [`Worker`][] threads,
@@ -4171,7 +4167,7 @@ this field does not exist.
 
 ## `process.stdout`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stdout` property returns a stream connected to
 `stdout` (fd `1`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -4197,7 +4193,7 @@ stdin.pipe(stdout);
 
 ### `process.stdout.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stdout`. The value is fixed at `1`. In [`Worker`][] threads,
@@ -4257,7 +4253,7 @@ See the [TTY][] documentation for more information.
 added: v0.9.12
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The initial value of `process.throwDeprecation` indicates whether the
 `--throw-deprecation` flag is set on the current Node.js process.
@@ -4285,7 +4281,9 @@ Thrown:
 ## `process.threadCpuUsage([previousValue])`
 
 <!-- YAML
-added: v23.9.0
+added:
+ - v23.9.0
+ - v22.19.0
 -->
 
 * `previousValue` {Object} A previous return value from calling
@@ -4307,7 +4305,7 @@ argument to the function, to get a diff reading.
 added: v0.1.104
 -->
 
-* {string}
+* Type: {string}
 
 The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
@@ -4317,7 +4315,7 @@ When a new value is assigned, different platforms will impose different maximum
 length restrictions on the title. Usually such restrictions are quite limited.
 For instance, on Linux and macOS, `process.title` is limited to the size of the
 binary name plus the length of the command-line arguments because setting the
-`process.title` overwrites the `argv` memory of the process. Node.js v0.8
+`process.title` overwrites the `argv` memory of the process. Node.js 0.8
 allowed for longer process title strings by also overwriting the `environ`
 memory but that was potentially insecure and confusing in some (rather obscure)
 cases.
@@ -4332,13 +4330,36 @@ Services Manager.
 added: v0.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `process.traceDeprecation` property indicates whether the
 `--trace-deprecation` flag is set on the current Node.js process. See the
 documentation for the [`'warning'` event][process_warning] and the
 [`emitWarning()` method][process_emit_warning] for more information about this
 flag's behavior.
+
+## `process.traceProcessWarnings`
+
+<!-- YAML
+added: v6.10.0
+-->
+
+* {boolean}
+
+The `process.traceProcessWarnings` property indicates whether the `--trace-warnings` flag
+is set on the current Node.js process. This property allows programmatic control over the
+tracing of warnings, enabling or disabling stack traces for warnings at runtime.
+
+```js
+// Enable trace warnings
+process.traceProcessWarnings = true;
+
+// Emit a warning with a stack trace
+process.emitWarning('Warning with stack trace');
+
+// Disable trace warnings
+process.traceProcessWarnings = false;
+```
 
 ## `process.umask()`
 
@@ -4403,7 +4424,7 @@ added:
 
 > Stability: 1 - Experimental
 
-* `maybeUnfefable` {any} An object that may be "unref'd".
+* `maybeRefable` {any} An object that may be "unref'd".
 
 An object is "unrefable" if it implements the Node.js "Refable protocol".
 Specifically, this means that the object implements the `Symbol.for('nodejs.ref')`
@@ -4434,7 +4455,7 @@ seconds.
 added: v0.1.3
 -->
 
-* {string}
+* Type: {string}
 
 The `process.version` property contains the Node.js version string.
 
@@ -4468,7 +4489,7 @@ changes:
     description: The `icu` property is now supported.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.versions` property returns an object listing the version strings of
 Node.js and its dependencies. `process.versions.modules` indicates the current
@@ -4490,32 +4511,35 @@ console.log(versions);
 Will generate an object similar to:
 
 ```console
-{ node: '23.0.0',
-  acorn: '8.11.3',
-  ada: '2.7.8',
-  ares: '1.28.1',
-  base64: '0.5.2',
-  brotli: '1.1.0',
-  cjs_module_lexer: '1.2.2',
-  cldr: '45.0',
-  icu: '75.1',
-  llhttp: '9.2.1',
-  modules: '127',
-  napi: '9',
-  nghttp2: '1.61.0',
-  nghttp3: '0.7.0',
-  ngtcp2: '1.3.0',
-  openssl: '3.0.13+quic',
-  simdjson: '3.8.0',
-  simdutf: '5.2.4',
-  sqlite: '3.46.0',
-  tz: '2024a',
-  undici: '6.13.0',
-  unicode: '15.1',
-  uv: '1.48.0',
-  uvwasi: '0.0.20',
-  v8: '12.4.254.14-node.11',
-  zlib: '1.3.0.1-motley-7d77fb7' }
+{ node: '26.0.0-pre',
+  acorn: '8.15.0',
+  ada: '3.4.1',
+  amaro: '1.1.5',
+  ares: '1.34.6',
+  brotli: '1.2.0',
+  merve: '1.0.0',
+  cldr: '48.0',
+  icu: '78.2',
+  llhttp: '9.3.0',
+  modules: '144',
+  napi: '10',
+  nbytes: '0.1.1',
+  ncrypto: '0.0.1',
+  nghttp2: '1.68.0',
+  nghttp3: '',
+  ngtcp2: '',
+  openssl: '3.5.4',
+  simdjson: '4.2.4',
+  simdutf: '7.3.3',
+  sqlite: '3.51.2',
+  tz: '2025c',
+  undici: '7.18.2',
+  unicode: '17.0',
+  uv: '1.51.0',
+  uvwasi: '0.0.23',
+  v8: '14.3.127.18-node.10',
+  zlib: '1.3.1-e00f703',
+  zstd: '1.5.7' }
 ```
 
 ## Exit codes
@@ -4580,7 +4604,7 @@ cases:
 [Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
-[Source Map]: https://sourcemaps.info/spec.html
+[Source Map]: https://tc39.es/ecma426/
 [Stream compatibility]: stream.md#compatibility-with-older-nodejs-versions
 [TTY]: tty.md#tty
 [Writable]: stream.md#writable-streams
@@ -4597,7 +4621,6 @@ cases:
 [`Error`]: errors.md#class-error
 [`EventEmitter`]: events.md#class-eventemitter
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
-[`Promise.race()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race
 [`Worker`]: worker_threads.md#class-worker
 [`Worker` constructor]: worker_threads.md#new-workerfilename-options
 [`console.error()`]: console.md#consoleerrordata-args
@@ -4609,7 +4632,8 @@ cases:
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
-[`postMessageToThread()`]: worker_threads.md#workerpostmessagetothreadthreadid-value-transferlist-timeout
+[`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
+[`process.addUncaughtExceptionCaptureCallback()`]: #processadduncaughtexceptioncapturecallbackfn
 [`process.argv`]: #processargv
 [`process.config`]: #processconfig
 [`process.execPath`]: #processexecpath
@@ -4631,10 +4655,12 @@ cases:
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
 [loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
+[nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
 [note on process I/O]: #a-note-on-process-io
 [process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
 [process_warning]: #event-warning
+[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [report documentation]: report.md
 [terminal raw mode]: tty.md#readstreamsetrawmodemode
 [uv_get_available_memory]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_get_available_memory

@@ -5,13 +5,16 @@
 #include "src/profiler/sampling-heap-profiler.h"
 
 #include <stdint.h>
+
 #include <memory>
 
 #include "src/api/api-inl.h"
 #include "src/base/ieee754.h"
+#include "src/base/iterator.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
 #include "src/profiler/strings-storage.h"
 
@@ -85,8 +88,9 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   // v8::Utils::ToLocal.
   DCHECK(obj.is_null() ||
          (IsSmi(*obj) ||
-          (V8_EXTERNAL_CODE_SPACE_BOOL && IsCodeSpaceObject(heap_object)) ||
-          IsTrustedSpaceObject(heap_object) || !IsTheHole(*obj)));
+          (V8_EXTERNAL_CODE_SPACE_BOOL &&
+           TrustedHeapLayout::InCodeSpace(heap_object)) ||
+          TrustedHeapLayout::InTrustedSpace(heap_object) || !IsTheHole(*obj)));
   auto loc = Local<v8::Value>::FromSlot(obj.location());
 
   AllocationNode* node = AddStack();
@@ -195,6 +199,9 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       case LOGGING:
         name = "(LOGGING)";
         break;
+      case IDLE_EXTERNAL:
+        name = "(IDLE_EXTERNAL)";
+        break;
       case IDLE:
         name = "(IDLE)";
         break;
@@ -210,8 +217,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
 
   // We need to process the stack in reverse order as the top of the stack is
   // the first element in the list.
-  for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
-    Tagged<SharedFunctionInfo> shared = *it;
+  for (Tagged<SharedFunctionInfo> shared : base::Reversed(stack)) {
     const char* name = this->names()->GetCopy(shared->DebugNameCStr().get());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (IsScript(shared->script())) {
@@ -306,9 +312,10 @@ SamplingHeapProfiler::BuildSamples() const {
   samples.reserve(samples_.size());
   for (const auto& it : samples_) {
     const Sample* sample = it.second.get();
+    const bool is_live = !sample->global.IsEmpty();
     samples.emplace_back(v8::AllocationProfile::Sample{
         sample->owner->id_, sample->size, ScaleSample(sample->size, 1).count,
-        sample->sample_id});
+        sample->sample_id, is_live});
   }
   return samples;
 }

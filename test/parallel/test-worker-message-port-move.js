@@ -14,6 +14,7 @@ context.global = context;
 Object.assign(context, {
   global: context,
   assert,
+  common: { mustCall: (f) => f },
   MessagePort,
   MessageChannel
 });
@@ -34,14 +35,14 @@ vm.runInContext('(' + function() {
 
     assert(!(port instanceof MessagePort));
     assert.strictEqual(port.onmessage, undefined);
-    port.onmessage = function({ data, ports }) {
+    port.onmessage = common.mustCall(function({ data, ports }) {
       assert(data instanceof Object);
       assert(ports instanceof Array);
       assert.strictEqual(ports.length, 1);
       assert.strictEqual(ports[0], data.p);
       assert(!(data.p instanceof MessagePort));
       port.postMessage({});
-    };
+    });
     port.start();
   }
 

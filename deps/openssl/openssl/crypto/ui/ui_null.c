@@ -11,11 +11,11 @@
 
 static const UI_METHOD ui_null = {
     "OpenSSL NULL UI",
-    NULL,                        /* opener */
-    NULL,                        /* writer */
-    NULL,                        /* flusher */
-    NULL,                        /* reader */
-    NULL,                        /* closer */
+    NULL, /* opener */
+    NULL, /* writer */
+    NULL, /* flusher */
+    NULL, /* reader */
+    NULL, /* closer */
     NULL
 };
 

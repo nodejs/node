@@ -146,20 +146,20 @@ ok 9 - no
   ...
 # Subtest: no with todo
     # Subtest: yes
-    ok 1 - yes
+    ok 1 - yes # TODO
       ---
       duration_ms: *
       type: 'test'
       ...
     # Subtest: maybe
         # Subtest: yes
-        ok 1 - yes
+        ok 1 - yes # TODO
           ---
           duration_ms: *
           type: 'test'
           ...
         1..1
-    ok 2 - maybe
+    ok 2 - maybe # TODO
       ---
       duration_ms: *
       type: 'suite'
@@ -193,9 +193,9 @@ ok 11 - DescribeForMatchWithAncestors
 1..11
 # tests 18
 # suites 12
-# pass 16
+# pass 14
 # fail 0
 # cancelled 0
 # skipped 2
-# todo 0
+# todo 2
 # duration_ms *

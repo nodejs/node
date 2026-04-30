@@ -14,7 +14,7 @@ const tmpdir = require('../common/tmpdir');
 const {
   getCpuProfiles,
   kCpuProfInterval,
-  verifyFrames
+  verifyFrames,
 } = require('../common/cpu-prof');
 
 {
@@ -25,8 +25,8 @@ const {
     cwd: tmpdir.path,
     env: {
       ...process.env,
-      CPU_PROF_INTERVAL: kCpuProfInterval
-    }
+      CPU_PROF_INTERVAL: kCpuProfInterval,
+    },
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

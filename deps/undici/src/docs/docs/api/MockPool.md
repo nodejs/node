@@ -323,7 +323,8 @@ try {
     method: 'GET'
   })
 } catch (error) {
-  console.error(error) // Error: kaboom
+  console.error(error) // TypeError: fetch failed
+  console.error(error.cause) // Error: kaboom
 }
 ```
 
@@ -546,3 +547,9 @@ for await (const data of body) {
   console.log('data', data.toString('utf8')) // data foo
 }
 ```
+
+### `MockPool.cleanMocks()`
+
+This method cleans up all the prepared mocks.
+
+Returns: `void`

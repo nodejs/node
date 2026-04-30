@@ -1,6 +1,7 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node.h"
+#include "node_internals.h"
 #include "node_snapshot_builder.h"
 
 using v8::Context;
@@ -116,7 +117,6 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   Isolate::CreateParams params;
   params.array_buffer_allocator = impl_->allocator.get();
   params.external_references = external_references.data();
-  params.external_references = external_references.data();
   params.cpp_heap =
       v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
 
@@ -128,7 +128,7 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   if (flags & Flags::kIsForSnapshotting) {
     // The isolate must be registered before the SnapshotCreator initializes the
     // isolate, so that the memory reducer can be initialized.
-    isolate = impl_->isolate = Isolate::Allocate();
+    isolate = impl_->isolate = Isolate::Allocate(GetOrCreateIsolateGroup());
     platform->RegisterIsolate(isolate, loop);
 
     impl_->snapshot_creator.emplace(isolate, params);
@@ -234,14 +234,17 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
     }
 
     bool platform_finished = false;
-    impl_->platform->AddIsolateFinishedCallback(isolate, [](void* data) {
-      *static_cast<bool*>(data) = true;
-    }, &platform_finished);
-    impl_->platform->UnregisterIsolate(isolate);
+    impl_->platform->AddIsolateFinishedCallback(
+        isolate,
+        [](void* data) {
+          bool* ptr = static_cast<bool*>(data);
+          *ptr = true;
+        },
+        &platform_finished);
     if (impl_->snapshot_creator.has_value()) {
       impl_->snapshot_creator.reset();
     }
-    isolate->Dispose();
+    impl_->platform->DisposeIsolate(isolate);
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)
@@ -352,11 +355,7 @@ EmbedderSnapshotData::EmbedderSnapshotData(const SnapshotData* impl,
     : impl_(impl), owns_impl_(owns_impl) {}
 
 bool EmbedderSnapshotData::CanUseCustomSnapshotPerIsolate() {
-#ifdef NODE_V8_SHARED_RO_HEAP
   return false;
-#else
-  return true;
-#endif
 }
 
 }  // namespace node

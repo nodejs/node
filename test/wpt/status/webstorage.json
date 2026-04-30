@@ -22,5 +22,14 @@
   },
   "storage_session_window_reopen.window.js": {
     "skip": "window.open() is not supported in Node.js."
+  },
+  "symbol-props.window.js": {
+    "fail": {
+      "note": "https://github.com/nodejs/node/issues/59310",
+      "expected": [
+        "localStorage: defineProperty not configurable",
+        "sessionStorage: defineProperty not configurable"
+      ]
+    }
   }
 }

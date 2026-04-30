@@ -1,0 +1,23 @@
+#ifndef SRC_CRYPTO_CRYPTO_PQC_H_
+#define SRC_CRYPTO_CRYPTO_PQC_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "crypto/crypto_keys.h"
+#include "env.h"
+#include "v8.h"
+
+namespace node {
+namespace crypto {
+#if OPENSSL_WITH_PQC
+bool ExportJwkPqcKey(Environment* env,
+                     const KeyObjectData& key,
+                     v8::Local<v8::Object> target);
+
+KeyObjectData ImportJWKPqcKey(Environment* env, v8::Local<v8::Object> jwk);
+#endif
+}  // namespace crypto
+}  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+#endif  // SRC_CRYPTO_CRYPTO_PQC_H_

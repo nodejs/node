@@ -64,7 +64,7 @@ command.
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when any notification from the V8 Inspector is received.
 
@@ -79,13 +79,13 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 
 It is also possible to subscribe only to notifications with specific method:
 
-#### Event: `<inspector-protocol-method>`;
+#### Event: `<inspector-protocol-method>`
 
 <!-- YAML
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
@@ -243,7 +243,7 @@ command.
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when any notification from the V8 Inspector is received.
 
@@ -264,7 +264,7 @@ It is also possible to subscribe only to notifications with specific method:
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
@@ -420,7 +420,7 @@ are closed. Once all connections are closed, deactivates the inspector.
 
 ### `inspector.console`
 
-* {Object} An object to send messages to the remote inspector console.
+* Type: {Object} An object to send messages to the remote inspector console.
 
 ```js
 require('node:inspector').console.log('a message');
@@ -465,12 +465,12 @@ Return the URL of the active inspector, or `undefined` if there is none.
 ```console
 $ node --inspect -p 'inspector.url()'
 Debugger listening on ws://127.0.0.1:9229/166e272e-7a30-4d09-97ce-f1c012b43c34
-For help, see: https://nodejs.org/en/docs/inspector
+For help, see: https://nodejs.org/learn/getting-started/debugging
 ws://127.0.0.1:9229/166e272e-7a30-4d09-97ce-f1c012b43c34
 
 $ node --inspect=localhost:3000 -p 'inspector.url()'
 Debugger listening on ws://localhost:3000/51cf8d0e-3c36-4c59-8efd-54519839e56a
-For help, see: https://nodejs.org/en/docs/inspector
+For help, see: https://nodejs.org/learn/getting-started/debugging
 ws://localhost:3000/51cf8d0e-3c36-4c59-8efd-54519839e56a
 
 $ node -p 'inspector.url()'
@@ -510,6 +510,37 @@ inspector.Network.requestWillBeSent({
   },
 });
 ```
+
+### `inspector.Network.dataReceived([params])`
+
+<!-- YAML
+added:
+ - v24.2.0
+ - v22.17.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.dataReceived` event to connected frontends, or buffers the data if
+`Network.streamResourceContent` command was not invoked for the given request yet.
+
+Also enables `Network.getResponseBody` command to retrieve the response data.
+
+### `inspector.Network.dataSent([params])`
+
+<!-- YAML
+added:
+  - v24.3.0
+  - v22.18.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Enables `Network.getRequestPostData` command to retrieve the request data.
 
 ### `inspector.Network.requestWillBeSent([params])`
 
@@ -570,6 +601,183 @@ This feature is only available with the `--experimental-network-inspection` flag
 
 Broadcasts the `Network.loadingFailed` event to connected frontends. This event indicates that
 HTTP request has failed to load.
+
+### `inspector.Network.webSocketCreated([params])`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketCreated` event to connected frontends. This event indicates that
+a WebSocket connection has been initiated.
+
+### `inspector.Network.webSocketHandshakeResponseReceived([params])`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketHandshakeResponseReceived` event to connected frontends.
+This event indicates that the WebSocket handshake response has been received.
+
+### `inspector.Network.webSocketClosed([params])`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketClosed` event to connected frontends.
+This event indicates that a WebSocket connection has been closed.
+
+### `inspector.NetworkResources.put`
+
+<!-- YAML
+added:
+  - v24.5.0
+  - v22.19.0
+-->
+
+> Stability: 1.1 - Active Development
+
+This feature is only available with the `--experimental-inspector-network-resource` flag enabled.
+
+The inspector.NetworkResources.put method is used to provide a response for a loadNetworkResource
+request issued via the Chrome DevTools Protocol (CDP).
+This is typically triggered when a source map is specified by URL, and a DevTools frontend—such as
+Chrome—requests the resource to retrieve the source map.
+
+This method allows developers to predefine the resource content to be served in response to such CDP requests.
+
+```js
+const inspector = require('node:inspector');
+// By preemptively calling put to register the resource, a source map can be resolved when
+// a loadNetworkResource request is made from the frontend.
+async function setNetworkResources() {
+  const mapUrl = 'http://localhost:3000/dist/app.js.map';
+  const tsUrl = 'http://localhost:3000/src/app.ts';
+  const distAppJsMap = await fetch(mapUrl).then((res) => res.text());
+  const srcAppTs = await fetch(tsUrl).then((res) => res.text());
+  inspector.NetworkResources.put(mapUrl, distAppJsMap);
+  inspector.NetworkResources.put(tsUrl, srcAppTs);
+};
+setNetworkResources().then(() => {
+  require('./dist/app');
+});
+```
+
+For more details, see the official CDP documentation: [Network.loadNetworkResource](https://chromedevtools.github.io/devtools-protocol/tot/Network/#method-loadNetworkResource)
+
+### `inspector.DOMStorage.domStorageItemAdded`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+* `params` {Object}
+  * `storageId` {Object}
+    * `securityOrigin` {string}
+    * `storageKey` {string}
+    * `isLocalStorage` {boolean}
+  * `key` {string}
+  * `newValue` {string}
+
+This feature is only available with the
+`--experimental-storage-inspection` flag enabled.
+
+Broadcasts the `DOMStorage.domStorageItemAdded` event to connected frontends.
+This event indicates that a new item has been added to the storage.
+
+### `inspector.DOMStorage.domStorageItemRemoved`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+* `params` {Object}
+  * `storageId` {Object}
+    * `securityOrigin` {string}
+    * `storageKey` {string}
+    * `isLocalStorage` {boolean}
+  * `key` {string}
+
+This feature is only available with the
+`--experimental-storage-inspection` flag enabled.
+
+Broadcasts the `DOMStorage.domStorageItemRemoved` event to connected frontends.
+This event indicates that an item has been removed from the storage.
+
+### `inspector.DOMStorage.domStorageItemUpdated`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+* `params` {Object}
+  * `storageId` {Object}
+    * `securityOrigin` {string}
+    * `storageKey` {string}
+    * `isLocalStorage` {boolean}
+  * `key` {string}
+  * `oldValue` {string}
+  * `newValue` {string}
+
+This feature is only available with the
+`--experimental-storage-inspection` flag enabled.
+
+Broadcasts the `DOMStorage.domStorageItemUpdated` event to connected frontends.
+This event indicates that a storage item has been updated.
+
+### `inspector.DOMStorage.domStorageItemsCleared`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+* `params` {Object}
+  * `storageId` {Object}
+    * `securityOrigin` {string}
+    * `storageKey` {string}
+    * `isLocalStorage` {boolean}
+
+This feature is only available with the
+`--experimental-storage-inspection` flag enabled.
+
+Broadcasts the `DOMStorage.domStorageItemsCleared` event to connected
+frontends. This event indicates that all items have been cleared from the
+storage.
+
+### `inspector.DOMStorage.registerStorage`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+* `params` {Object}
+  * `isLocalStorage` {boolean}
+  * `storageMap` {Object}
+
+This feature is only available with the
+`--experimental-storage-inspection` flag enabled.
 
 ## Support of breakpoints
 

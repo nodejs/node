@@ -14,12 +14,12 @@ const server = http.createServer(
 );
 
 server.listen(0, common.mustCall(() => {
-  http.get({ port: server.address().port }, (res) => {
+  http.get({ port: server.address().port }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
 
     res.resume();
     server.close();
-  });
+  }));
 }));
 
 

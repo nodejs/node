@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 #define V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 
+#include "src/objects/compilation-cache-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
-#include "src/objects/compilation-cache-table.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -19,13 +21,6 @@
 
 namespace v8::internal {
 
-CompilationCacheTable::CompilationCacheTable(Address ptr)
-    : HashTable<CompilationCacheTable, CompilationCacheShape>(ptr) {
-  SLOW_DCHECK(IsCompilationCacheTable(*this));
-}
-
-NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
-
 Tagged<Object> CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {
   return get(EntryToIndex(entry) + 1);
 }
@@ -36,14 +31,15 @@ void CompilationCacheTable::SetPrimaryValueAt(InternalIndex entry,
   set(EntryToIndex(entry) + 1, value, mode);
 }
 
-Tagged<Object> CompilationCacheTable::EvalFeedbackValueAt(InternalIndex entry) {
+Tagged<UnionOf<TheHole, WeakFixedArray>>
+CompilationCacheTable::EvalJSFunctionsValueAt(InternalIndex entry) {
   static_assert(CompilationCacheShape::kEntrySize == 3);
-  return get(EntryToIndex(entry) + 2);
+  return Cast<UnionOf<TheHole, WeakFixedArray>>(get(EntryToIndex(entry) + 2));
 }
 
-void CompilationCacheTable::SetEvalFeedbackValueAt(InternalIndex entry,
-                                                   Tagged<Object> value,
-                                                   WriteBarrierMode mode) {
+void CompilationCacheTable::SetEvalJSFunctionsValueAt(
+    InternalIndex entry, Tagged<UnionOf<TheHole, WeakFixedArray>> value,
+    WriteBarrierMode mode) {
   set(EntryToIndex(entry) + 2, value, mode);
 }
 
@@ -75,8 +71,8 @@ class ScriptCacheKey : public HashTableKey {
   bool IsMatch(Tagged<Object> other) override;
   bool MatchesScript(Tagged<Script> script);
 
-  Handle<Object> AsHandle(Isolate* isolate,
-                          DirectHandle<SharedFunctionInfo> shared);
+  DirectHandle<Object> AsHandle(Isolate* isolate,
+                                DirectHandle<SharedFunctionInfo> shared);
 
   static std::optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
     DisallowGarbageCollection no_gc;
@@ -153,7 +149,7 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
   // object.
   if (IsRegExpDataWrapper(object)) {
     Tagged<RegExpDataWrapper> re_wrapper = Cast<RegExpDataWrapper>(object);
-    Isolate* isolate = GetIsolateFromWritableObject(re_wrapper);
+    Isolate* isolate = Isolate::Current();
     Tagged<RegExpData> data = re_wrapper->data(isolate);
     return RegExpHash(data->source(), Smi::FromInt(data->flags()));
   }
@@ -173,11 +169,11 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
 }
 
 InfoCellPair::InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
-                           Tagged<FeedbackCell> feedback_cell)
+                           Tagged<JSFunction> js_function)
     : is_compiled_scope_(!shared.is_null() ? shared->is_compiled_scope(isolate)
                                            : IsCompiledScope()),
       shared_(shared),
-      feedback_cell_(feedback_cell) {}
+      js_function_(js_function) {}
 
 }  // namespace v8::internal
 

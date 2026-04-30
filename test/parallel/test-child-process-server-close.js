@@ -24,17 +24,17 @@ if (process.argv[2] !== 'child') {
 }
 
 // Child
-const server = net.createServer((conn) => {
+const server = net.createServer(common.mustCall((conn) => {
   spawn(process.execPath, ['-v'], {
     stdio: ['ignore', conn, 'ignore']
   }).on('close', common.mustCall(() => {
     conn.end();
   }));
-}).listen(common.PIPE, () => {
+})).listen(common.PIPE, common.mustCall(() => {
   const client = net.connect(common.PIPE, common.mustCall());
   client.once('data', () => {
     client.end(() => {
       server.close();
     });
   });
-});
+}));

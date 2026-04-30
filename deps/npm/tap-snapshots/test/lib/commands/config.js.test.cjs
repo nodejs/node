@@ -16,6 +16,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "access": null,
   "all": false,
   "allow-same-version": false,
+  "allow-git": "all",
   "also": null,
   "audit": true,
   "audit-level": null,
@@ -23,6 +24,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "before": null,
   "bin-links": true,
   "browser": null,
+  "bypass-2fa": false,
   "ca": null,
   "cache-max": null,
   "cache-min": 0,
@@ -48,6 +50,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "engine-strict": false,
   "expect-result-count": null,
   "expect-results": null,
+  "expires": null,
   "fetch-retries": 2,
   "fetch-retry-factor": 10,
   "fetch-retry-maxtimeout": 60000,
@@ -69,6 +72,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "include": [],
   "include-staged": false,
   "include-workspace-root": false,
+  "include-attestations": false,
   "init-author-email": "",
   "init-author-name": "",
   "init-author-url": "",
@@ -76,6 +80,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "init-module": "{CWD}/home/.npm-init.js",
   "init-type": "commonjs",
   "init-version": "1.0.0",
+  "init-private": false,
   "init.author.email": "",
   "init.author.name": "",
   "init.author.url": "",
@@ -96,8 +101,10 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "logs-dir": null,
   "logs-max": 10,
   "long": false,
+  "name": null,
   "maxsockets": 15,
   "message": "%s",
+  "min-release-age": null,
   "node-gyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "node-options": null,
   "noproxy": [
@@ -107,6 +114,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "omit": [],
   "omit-lockfile-registry-resolved": false,
   "only": null,
+  "orgs": null,
   "optional": null,
   "os": null,
   "otp": null,
@@ -114,6 +122,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "package-lock": true,
   "package-lock-only": false,
   "pack-destination": ".",
+  "packages": [],
   "parseable": false,
   "prefer-dedupe": false,
   "prefer-offline": false,
@@ -140,6 +149,11 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "sbom-format": null,
   "sbom-type": "library",
   "scope": "",
+  "scopes": null,
+  "packages-all": false,
+  "packages-and-scopes-permission": null,
+  "orgs-permission": null,
+  "token-description": null,
   "script-shell": null,
   "searchexclude": "",
   "searchlimit": 20,
@@ -178,6 +192,7 @@ exports[`test/lib/commands/config.js TAP config list --long > output matches sna
 _auth = (protected)
 access = null
 all = false
+allow-git = "all"
 allow-same-version = false
 also = null
 audit = true
@@ -186,6 +201,7 @@ auth-type = "web"
 before = null
 bin-links = true
 browser = null
+bypass-2fa = false
 ca = null
 ; cache = "{CACHE}" ; overridden by cli
 cache-max = null
@@ -213,6 +229,7 @@ editor = "{EDITOR}"
 engine-strict = false
 expect-result-count = null
 expect-results = null
+expires = null
 fetch-retries = 2
 fetch-retry-factor = 10
 fetch-retry-maxtimeout = 60000
@@ -232,6 +249,7 @@ https-proxy = null
 if-present = false
 ignore-scripts = false
 include = []
+include-attestations = false
 include-staged = false
 include-workspace-root = false
 init-author-email = ""
@@ -239,6 +257,7 @@ init-author-name = ""
 init-author-url = ""
 init-license = "ISC"
 init-module = "{CWD}/home/.npm-init.js"
+init-private = false
 init-type = "commonjs"
 init-version = "1.0.0"
 init.author.email = ""
@@ -264,6 +283,8 @@ logs-max = 10
 ; long = false ; overridden by cli
 maxsockets = 15
 message = "%s"
+min-release-age = null
+name = null
 node-gyp = "{CWD}/node_modules/node-gyp/bin/node-gyp.js"
 node-options = null
 noproxy = [""]
@@ -273,13 +294,19 @@ omit = []
 omit-lockfile-registry-resolved = false
 only = null
 optional = null
+orgs = null
+orgs-permission = null
 os = null
 otp = null
 pack-destination = "."
 package = []
 package-lock = true
 package-lock-only = false
+packages = []
+packages-all = false
+packages-and-scopes-permission = null
 parseable = false
+password = (protected)
 prefer-dedupe = false
 prefer-offline = false
 prefer-online = false
@@ -305,6 +332,7 @@ save-prod = false
 sbom-format = null
 sbom-type = "library"
 scope = ""
+scopes = null
 script-shell = null
 searchexclude = ""
 searchlimit = 20
@@ -319,6 +347,7 @@ strict-ssl = true
 tag = "latest"
 tag-version-prefix = "v"
 timing = false
+token-description = null
 umask = 0
 unicode = false
 update-notifier = true
@@ -424,6 +453,6 @@ registry = "https://some.registry"
 
 exports[`test/lib/commands/config.js TAP config list with publishConfig local > warns about unknown config 1`] = `
 Array [
-  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm.",
+  "Unknown publishConfig config /"other/". This will stop working in the next major version of npm. See \`npm help npmrc\` for supported config options.",
 ]
 `

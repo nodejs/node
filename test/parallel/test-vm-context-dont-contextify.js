@@ -182,4 +182,4 @@ function checkFrozen(context) {
     const promise = script.runInContext(context);
     assert.strictEqual(await promise, namespace);
   }
-})().catch(common.mustNotCall());
+})().then(common.mustCall());

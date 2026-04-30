@@ -44,8 +44,7 @@ class CreateClosureFlags {
   using PretenuredBit = base::BitField8<bool, 0, 1>;
   using FastNewClosureBit = PretenuredBit::Next<bool, 1>;
 
-  static uint8_t Encode(bool pretenure, bool is_function_scope,
-                        bool might_always_turbofan);
+  static uint8_t Encode(bool pretenure, bool is_function_scope);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CreateClosureFlags);
@@ -80,6 +79,7 @@ class TestTypeOfFlags {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(TestTypeOfFlags);
 };
+std::ostream& operator<<(std::ostream& os, TestTypeOfFlags::LiteralFlag type);
 
 class StoreLookupSlotFlags {
  public:

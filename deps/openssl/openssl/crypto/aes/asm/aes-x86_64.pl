@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -2221,6 +2221,7 @@ ___
 }
 
 $code.=<<___;
+.section .rodata align=64
 .align	64
 .LAES_Te:
 ___
@@ -2643,6 +2644,7 @@ $code.=<<___;
 	.long	0x1b1b1b1b, 0x1b1b1b1b, 0, 0
 .asciz  "AES for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 .align	64
+.previous
 ___
 
 # EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,

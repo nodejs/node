@@ -16,12 +16,10 @@
 
 #include "gtest/gtest.h"
 
-#if defined(__native_client__) || defined(__EMSCRIPTEN__)
-// NACL has a less accurate implementation of std::log2 than most of
+#if defined(__EMSCRIPTEN__)
+// Emscripten has a less accurate implementation of std::log2 than most of
 // the other platforms. For some values which should have integral results,
-// sometimes NACL returns slightly larger values.
-//
-// The MUSL libc used by emscripten also has a similar bug.
+// sometimes Emscripten returns slightly larger values.
 #define ABSL_RANDOM_INACCURATE_LOG2
 #endif
 

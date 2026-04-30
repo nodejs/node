@@ -26,9 +26,7 @@ connect({
     key: server.key,
     cert: server.cert,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
-
+}, common.mustSucceed((pair, cleanup) => {
   const client = pair.client.conn;
 
   assert.strictEqual(client.getProtocol(), 'TLSv1.3');
@@ -46,4 +44,4 @@ connect({
   }));
 
   assert.strictEqual(ok, false);
-});
+}));

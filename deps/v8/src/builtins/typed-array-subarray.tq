@@ -24,10 +24,10 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   // 6. Let srcLength be IntegerIndexedObjectLength(O, getSrcBufferByteLength).
   let srcLength: uintptr;
   try {
-    srcLength = LoadJSTypedArrayLengthAndCheckDetached(source)
-        otherwise DetachedOrOutOfBounds;
-  } label DetachedOrOutOfBounds {
-    // 7. If srcLength is out-of-bounds, set srcLength to 0.
+    srcLength =
+        LoadJSTypedArrayLengthAndValidate(source, TypedArrayAccessMode::kRead)
+        otherwise Fail;
+  } label Fail {
     srcLength = 0;
   }
 
@@ -73,6 +73,8 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   const srcByteOffset: uintptr = source.byte_offset;
 
   // 17. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
+  // The subarray can only be too big if the API limits the size of typed
+  // arrays, but doesn't put a similar limit on the size of wasm byte arrays.
   const beginByteOffset =
       srcByteOffset + elementsInfo.CalculateByteLength(begin)
       otherwise ThrowRangeError(MessageTemplate::kInvalidArrayBufferLength);
@@ -83,6 +85,7 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   //   a. Let argumentsList be « buffer, 𝔽(beginByteOffset), 𝔽(newLength) ».
   // 20. Return ? TypedArraySpeciesCreate(O, argumentsList).
   return TypedArraySpeciesCreateByBuffer(
-      methodName, source, buffer, beginByteOffset, newLength);
+      methodName, source, buffer, beginByteOffset, newLength,
+      TypedArrayAccessMode::kRead);
 }
 }

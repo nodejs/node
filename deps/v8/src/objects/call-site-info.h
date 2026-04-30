@@ -7,7 +7,9 @@
 
 #include <optional>
 
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
+#include "src/objects/trusted-pointer.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -21,9 +23,8 @@ class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/call-site-info-tq.inc"
 
-class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
+V8_OBJECT class CallSiteInfo : public StructLayout {
  public:
-  NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_CALL_SITE_INFO_FLAGS()
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -50,10 +51,31 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   bool IsNative() const;
 
   inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
-  inline void set_code_object(Tagged<HeapObject> code, WriteBarrierMode mode);
+  inline void set_code_object(Tagged<HeapObject> code,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> receiver_or_instance() const;
+  inline void set_receiver_or_instance(
+      Tagged<JSAny> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Union<JSFunction, Smi>> function() const;
+  inline void set_function(Tagged<Union<JSFunction, Smi>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int code_offset_or_source_position() const;
+  inline void set_code_offset_or_source_position(
+      int value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int flags() const;
+  inline void set_flags(int value);
+
+  inline Tagged<FixedArray> parameters() const;
+  inline void set_parameters(Tagged<FixedArray> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
+  DECL_PRINTER(CallSiteInfo)
 
   // Used to signal that the requested field is unknown.
   static constexpr int kUnknown = kNoSourcePosition;
@@ -66,8 +88,8 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
 
   // Returns the script ID if one is attached,
   // Message::kNoScriptIdInfo otherwise.
-  static MaybeHandle<Script> GetScript(Isolate* isolate,
-                                       DirectHandle<CallSiteInfo> info);
+  static MaybeDirectHandle<Script> GetScript(Isolate* isolate,
+                                             DirectHandle<CallSiteInfo> info);
   int GetScriptId() const;
   Tagged<Object> GetScriptName() const;
   Tagged<Object> GetScriptNameOrSourceURL() const;
@@ -76,18 +98,20 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
 
   static Handle<PrimitiveHeapObject> GetEvalOrigin(
       DirectHandle<CallSiteInfo> info);
-  V8_EXPORT_PRIVATE static Handle<PrimitiveHeapObject> GetFunctionName(
+  V8_EXPORT_PRIVATE static DirectHandle<PrimitiveHeapObject> GetFunctionName(
       DirectHandle<CallSiteInfo> info);
-  static Handle<String> GetFunctionDebugName(DirectHandle<CallSiteInfo> info);
-  static Handle<Object> GetMethodName(DirectHandle<CallSiteInfo> info);
-  static Handle<String> GetScriptHash(DirectHandle<CallSiteInfo> info);
-  static Handle<Object> GetTypeName(DirectHandle<CallSiteInfo> info);
+  static DirectHandle<String> GetFunctionDebugName(
+      DirectHandle<CallSiteInfo> info);
+  static DirectHandle<Object> GetMethodName(DirectHandle<CallSiteInfo> info);
+  static DirectHandle<String> GetScriptHash(DirectHandle<CallSiteInfo> info);
+  static DirectHandle<Object> GetTypeName(DirectHandle<CallSiteInfo> info);
 
 #if V8_ENABLE_WEBASSEMBLY
   // These methods are only valid for Wasm and asm.js Wasm frames.
   uint32_t GetWasmFunctionIndex() const;
   Tagged<WasmInstanceObject> GetWasmInstance() const;
-  static Handle<Object> GetWasmModuleName(DirectHandle<CallSiteInfo> info);
+  static DirectHandle<Object> GetWasmModuleName(
+      DirectHandle<CallSiteInfo> info);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Returns the 0-based source position, which is the offset into the
@@ -101,23 +125,45 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   static bool ComputeLocation(DirectHandle<CallSiteInfo> info,
                               MessageLocation* location);
 
-  class BodyDescriptor;
-
  private:
   static int ComputeSourcePosition(DirectHandle<CallSiteInfo> info, int offset);
 
   std::optional<Tagged<Script>> GetScript() const;
   Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
-  TQ_OBJECT_CONSTRUCTORS(CallSiteInfo)
+  friend class Factory;
+  friend class TorqueGeneratedCallSiteInfoAsserts;
+  friend struct ObjectTraits<CallSiteInfo>;
+
+  static constexpr IndirectPointerTagRange kCodeObjectTagRange =
+      IndirectPointerTagRange(kBytecodeArrayIndirectPointerTag,
+                              kCodeIndirectPointerTag);
+  static_assert(kCodeObjectTagRange.Size() == 2);
+
+  TrustedPointerMember<Union<Code, BytecodeArray>, kCodeObjectTagRange>
+      code_object_;
+  TaggedMember<JSAny> receiver_or_instance_;
+  TaggedMember<Union<JSFunction, Smi>> function_;
+  TaggedMember<Smi> code_offset_or_source_position_;
+  TaggedMember<Smi> flags_;
+  TaggedMember<FixedArray> parameters_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<CallSiteInfo> {
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptor<offsetof(CallSiteInfo, receiver_or_instance_),
+                          sizeof(CallSiteInfo), sizeof(CallSiteInfo)>,
+      WithStrongTrustedPointer<offsetof(CallSiteInfo, code_object_),
+                               CallSiteInfo::kCodeObjectTagRange>>;
 };
 
 class IncrementalStringBuilder;
 void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder);
 V8_EXPORT_PRIVATE
-MaybeHandle<String> SerializeCallSiteInfo(Isolate* isolate,
-                                          DirectHandle<CallSiteInfo> frame);
+MaybeDirectHandle<String> SerializeCallSiteInfo(
+    Isolate* isolate, DirectHandle<CallSiteInfo> frame);
 
 }  // namespace v8::internal
 

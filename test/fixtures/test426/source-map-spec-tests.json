@@ -101,7 +101,7 @@
     {
       "name": "sourcesContentNotStringOrNull",
       "description": "Test a source map with a sourcesContent list that has non-string and non-null items",
-      "baseFile": "sources-not-string-or-null.js",
+      "baseFile": "sources-content-not-string-or-null.js",
       "sourceMapFile": "sources-content-not-string-or-null.js.map",
       "sourceMapIsValid": false
     },

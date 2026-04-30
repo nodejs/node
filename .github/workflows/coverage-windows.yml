@@ -3,38 +3,62 @@ name: Coverage Windows
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - lib/**/*.js
-      - vcbuild.bat
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-windows.yml
-      - codecov.yml
-      - .nycrc
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/coverage-windows.yml'
   push:
     branches:
       - main
-    paths:
-      - lib/**/*.js
-      - vcbuild.bat
-      - src/**/*.cc
-      - src/**/*.h
-      - test/**
-      - tools/gyp/**
-      - tools/test.py
-      - .github/workflows/coverage-windows.yml
-      - codecov.yml
-      - .nycrc
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - .**
+      - '!.github/workflows/coverage-windows.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
 
 permissions:
@@ -43,21 +67,26 @@ permissions:
 jobs:
   coverage-windows:
     if: github.event.pull_request.draft == false
-    runs-on: windows-2022
+    runs-on: windows-2025
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55  # v5.5.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Install deps
         run: choco install nasm
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set "$RUSTC_VERSION"
+          rustup --version
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat clang-cl
+        run: ./vcbuild.bat clang-cl v8temporal
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
@@ -71,6 +100,6 @@ jobs:
       - name: Clean tmp
         run: npx rimraf ./coverage/tmp
       - name: Upload
-        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574  # v5.4.0
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
         with:
           directory: ./coverage

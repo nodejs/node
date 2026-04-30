@@ -52,7 +52,7 @@ const util = require('util');
   const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
   await m.evaluate({ timeout: 500 })
-    .then(() => assert(false), () => {});
+    .then(() => assert.fail(), () => {});
 })().then(common.mustCall());
 
 // Check the generated identifier for each module
@@ -87,10 +87,7 @@ const util = require('util');
   for (const value of [null, { __proto__: null }, SourceTextModule.prototype]) {
     assert.throws(
       () => m[util.inspect.custom].call(value),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        message: /The "this" argument must be an instance of Module/,
-      },
+      { code: 'ERR_INVALID_THIS' },
     );
   }
 }
@@ -102,7 +99,7 @@ const util = require('util');
   assert.strictEqual(
     util.inspect(m),
     `SyntheticModule {
-  status: 'unlinked',
+  status: 'linked',
   identifier: 'vm:module(0)',
   context: { foo: 'bar' }
 }`
@@ -169,13 +166,13 @@ const util = require('util');
   const module = new SyntheticModule([], () => {});
   module.link(() => {});
   const f = compileFunction('return import("x")', [], {
-    importModuleDynamically(specifier, referrer) {
+    importModuleDynamically: common.mustCall((specifier, referrer) => {
       assert.strictEqual(specifier, 'x');
       assert.strictEqual(referrer, f);
       return module;
-    },
+    }),
   });
   f().then((ns) => {
     assert.strictEqual(ns, module.namespace);
-  });
+  }).then(common.mustCall());
 }

@@ -43,10 +43,12 @@ class NumberBuiltinsReducer : public Next {
       BIND(if_bigint, bigint_value);
       if (__ HasFeedbackCollector()) {
         // Feedback has been set already in `TaggedToWord32OrBigIntImpl`.
-        TSA_DCHECK(this, __ FeedbackIs(BinaryOperationFeedback::kBigInt));
+        TSA_DCHECK(this, __ FeedbackHas(BinaryOperationFeedback::kBigInt));
       }
-      GOTO(done, __ CallRuntime_BigIntUnaryOp(isolate_, context, bigint_value,
-                                              ::Operation::kBitwiseNot));
+      GOTO(done, __ template CallRuntime<runtime::BigIntUnaryOp>(
+                     context, {.x = bigint_value,
+                               .opcode = __ SmiConstant(
+                                   Smi::FromEnum(::Operation::kBitwiseNot))}));
     }
 
     BIND(done, result);

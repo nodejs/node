@@ -11,7 +11,6 @@ const http2 = require('http2');
 
 const optionsToTest = {
   endStream: 'boolean',
-  weight: 'number',
   parent: 'number',
   exclusive: 'boolean',
   silent: 'boolean'
@@ -33,7 +32,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const client = http2.connect(`http://localhost:${port}`);
 
-  client.on('connect', () => {
+  client.on('connect', common.mustCall(() => {
     Object.keys(optionsToTest).forEach((option) => {
       Object.keys(types).forEach((type) => {
         if (type === optionsToTest[option])
@@ -53,5 +52,5 @@ server.listen(0, common.mustCall(() => {
     });
     server.close();
     client.close();
-  });
+  }));
 }));

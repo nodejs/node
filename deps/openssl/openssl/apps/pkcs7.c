@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,33 +22,43 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_NOOUT,
-    OPT_TEXT, OPT_PRINT, OPT_PRINT_CERTS, OPT_ENGINE,
+    OPT_INFORM,
+    OPT_OUTFORM,
+    OPT_IN,
+    OPT_OUT,
+    OPT_NOOUT,
+    OPT_TEXT,
+    OPT_PRINT,
+    OPT_PRINT_CERTS,
+    OPT_QUIET,
+    OPT_ENGINE,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS pkcs7_options[] = {
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
+    { "help", OPT_HELP, '-', "Display this summary" },
 #ifndef OPENSSL_NO_ENGINE
-    {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
+    { "engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device" },
 #endif
 
     OPT_SECTION("Input"),
-    {"in", OPT_IN, '<', "Input file"},
-    {"inform", OPT_INFORM, 'F', "Input format - DER or PEM"},
+    { "in", OPT_IN, '<', "Input file" },
+    { "inform", OPT_INFORM, 'F', "Input format - DER or PEM" },
 
     OPT_SECTION("Output"),
-    {"outform", OPT_OUTFORM, 'F', "Output format - DER or PEM"},
-    {"out", OPT_OUT, '>', "Output file"},
-    {"noout", OPT_NOOUT, '-', "Don't output encoded data"},
-    {"text", OPT_TEXT, '-', "Print full details of certificates"},
-    {"print", OPT_PRINT, '-', "Print out all fields of the PKCS7 structure"},
-    {"print_certs", OPT_PRINT_CERTS, '-',
-     "Print_certs  print any certs or crl in the input"},
+    { "outform", OPT_OUTFORM, 'F', "Output format - DER or PEM" },
+    { "out", OPT_OUT, '>', "Output file" },
+    { "noout", OPT_NOOUT, '-', "Don't output encoded data" },
+    { "text", OPT_TEXT, '-', "Print full details of certificates" },
+    { "print", OPT_PRINT, '-', "Print out all fields of the PKCS7 structure" },
+    { "print_certs", OPT_PRINT_CERTS, '-',
+        "Print_certs  print any certs or crl in the input" },
+    { "quiet", OPT_QUIET, '-',
+        "When used with -print_certs, it produces a cleaner output" },
 
     OPT_PROV_OPTIONS,
-    {NULL}
+    { NULL }
 };
 
 int pkcs7_main(int argc, char **argv)
@@ -58,7 +68,7 @@ int pkcs7_main(int argc, char **argv)
     BIO *in = NULL, *out = NULL;
     int informat = FORMAT_PEM, outformat = FORMAT_PEM;
     char *infile = NULL, *outfile = NULL, *prog;
-    int i, print_certs = 0, text = 0, noout = 0, p7_print = 0, ret = 1;
+    int i, print_certs = 0, text = 0, noout = 0, p7_print = 0, quiet = 0, ret = 1;
     OPTION_CHOICE o;
     OSSL_LIB_CTX *libctx = app_get0_libctx();
 
@@ -67,7 +77,7 @@ int pkcs7_main(int argc, char **argv)
         switch (o) {
         case OPT_EOF:
         case OPT_ERR:
- opthelp:
+        opthelp:
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         case OPT_HELP:
@@ -100,6 +110,9 @@ int pkcs7_main(int argc, char **argv)
         case OPT_PRINT_CERTS:
             print_certs = 1;
             break;
+        case OPT_QUIET:
+            quiet = 1;
+            break;
         case OPT_ENGINE:
             e = setup_engine(opt_arg(), 0);
             break;
@@ -111,8 +124,7 @@ int pkcs7_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     in = bio_open_default(infile, 'r', informat);
@@ -172,7 +184,7 @@ int pkcs7_main(int argc, char **argv)
                 x = sk_X509_value(certs, i);
                 if (text)
                     X509_print(out, x);
-                else
+                else if (!quiet)
                     dump_cert_text(out, x);
 
                 if (!noout)
@@ -211,7 +223,7 @@ int pkcs7_main(int argc, char **argv)
         }
     }
     ret = 0;
- end:
+end:
     PKCS7_free(p7);
     release_engine(e);
     BIO_free(in);

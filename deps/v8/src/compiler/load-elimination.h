@@ -23,7 +23,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 struct FieldAccess;
-class Graph;
+class TFGraph;
 class JSGraph;
 
 class V8_EXPORT_PRIVATE LoadElimination final
@@ -146,6 +146,10 @@ class V8_EXPORT_PRIVATE LoadElimination final
         // We are tracking too many objects, which leads to bad performance.
         // Delete one to avoid the map from becoming bigger.
         that->info_for_node_.erase(that->info_for_node_.begin());
+        if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+          std::cout << "Bailing out in Load Elimination because of "
+                       "kMaxTrackedFields or kMaxTrackedObjects\n";
+        }
       }
       that->info_for_node_[object] = info;
       return that;
@@ -216,6 +220,10 @@ class V8_EXPORT_PRIVATE LoadElimination final
       DCHECK_LE(0, begin);
       DCHECK_LE(1, size);
       if (end_ > static_cast<int>(kMaxTrackedFieldsPerObject)) {
+        if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+          std::cout << "Bailing out in Load Elimination because of "
+                       "kMaxTrackedFieldsPerObject\n";
+        }
         *this = IndexRange::Invalid();
       }
     }
@@ -322,6 +330,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
   Reduction ReduceEnsureWritableFastElements(Node* node);
   Reduction ReduceMaybeGrowFastElements(Node* node);
   Reduction ReduceTransitionElementsKind(Node* node);
+  Reduction ReduceTransitionElementsKindOrCheckMap(Node* node);
   Reduction ReduceLoadField(Node* node, FieldAccess const& access);
   Reduction ReduceStoreField(Node* node, FieldAccess const& access);
   Reduction ReduceLoadElement(Node* node);
@@ -352,7 +361,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
   CommonOperatorBuilder* common() const;
   Isolate* isolate() const;
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return node_states_.zone(); }

@@ -44,12 +44,12 @@ async_hooks.createHook({
   }
 }).enable();
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   req.on('close', common.mustCall(() => {
     req.on('readable', common.mustNotCall());
   }));
   res.end('Hello');
-});
+}));
 
 let keepAliveAgent = new http.Agent({
   keepAlive: true,

@@ -4,8 +4,6 @@
 
 #include "src/compiler/turboshaft/use-map.h"
 
-#include "src/compiler/turboshaft/graph.h"
-
 namespace v8::internal::compiler::turboshaft {
 
 UseMap::UseMap(const Graph& graph, Zone* zone, FunctionType filter)
@@ -41,15 +39,14 @@ UseMap::UseMap(const Graph& graph, Zone* zone, FunctionType filter)
         uses_.resize(offset);
       }
 
-      if (filter(op, zone)) continue;
+      if (filter(graph, op, zone)) continue;
 
       if (block.IsLoop()) {
-        if (op.Is<PhiOp>()) {
-          DCHECK_EQ(op.input_count, 2);
-          DCHECK_EQ(PhiOp::kLoopPhiBackEdgeIndex, 1);
-          AddUse(&graph, op.input(0), op_index);
+        if (const PhiOp* phi = op.TryCast<PhiOp>()) {
+          DCHECK_EQ(phi->input_count, PhiOp::kLoopPhiInputCount);
+          AddUse(&graph, phi->forward_edge(), op_index);
           // Delay back edge of loop Phis.
-          delayed_phi_uses.emplace_back(op.input(1), op_index);
+          delayed_phi_uses.emplace_back(phi->back_edge(), op_index);
           continue;
         }
       }

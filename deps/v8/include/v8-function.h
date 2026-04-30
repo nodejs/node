@@ -18,6 +18,7 @@
 namespace v8 {
 
 class Context;
+class Location;
 class UnboundScript;
 
 /**
@@ -30,8 +31,8 @@ class V8_EXPORT Function : public Object {
    * for a given FunctionCallback.
    */
   static MaybeLocal<Function> New(
-      Local<Context> context, FunctionCallback callback,
-      Local<Value> data = Local<Value>(), int length = 0,
+      Local<Context> context, FunctionCallback callback, Local<Data> data = {},
+      int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -87,6 +88,12 @@ class V8_EXPORT Function : public Object {
    * kLineOffsetNotFound if no information available.
    */
   int GetScriptColumnNumber() const;
+
+  /**
+   * Returns zero based line and column number of function body, else returns
+   * {-1, -1}.
+   */
+  Location GetScriptLocation() const;
 
   /**
    * Returns zero based start position (character offset) of function body and

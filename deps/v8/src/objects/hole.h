@@ -1,12 +1,10 @@
 // Copyright 2023 the V8 project authors. All rights reserved.
-//
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef V8_OBJECTS_HOLE_H_
 #define V8_OBJECTS_HOLE_H_
 
-#include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -15,30 +13,32 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/hole-tq.inc"
 
-class Hole : public HeapObject {
+V8_OBJECT class Hole : public HeapObjectLayout {
  public:
-  inline void set_raw_numeric_value(uint64_t bits);
-
   DECL_VERIFIER(Hole)
-
-  static inline void Initialize(Isolate* isolate, DirectHandle<Hole> hole,
-                                DirectHandle<HeapNumber> numeric_value);
-
-  // Currently, we allow optimized code to treat holes as HeapNumbers to avoid
-  // conditional branching. This works by making Hole::kRawNumericValueOffset
-  // the same as offsetof(HeapNumber, value_) and storing NaN at that offset in
-  // Holes. This way, a hole will look like a NaN HeapNumber to optimized code.
-  DECL_FIELD_OFFSET_TQ(RawNumericValue, HeapObject::kHeaderSize, "float64")
-  static constexpr int kSize = kRawNumericValueOffset + kDoubleSize;
-
-  using BodyDescriptor = FixedBodyDescriptor<kSize, kSize, kSize>;
-
   DECL_PRINTER(Hole)
 
-  OBJECT_CONSTRUCTORS(Hole, HeapObject);
-};
+  class BodyDescriptor;
+
+ private:
+  friend class Heap;
+  friend class Isolate;
+
+  // TODO(leszeks): Make it smaller if able and needed.
+  static constexpr int kPayloadSize = 64 * KB;
+  // Payload should be a multiple of page size.
+  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
+
+  char payload_[kPayloadSize];
+} V8_OBJECT_END;
+
+#define DEFINE_HOLE_TYPE(Name, name, Root) \
+  V8_OBJECT class Name : public Hole {     \
+  } V8_OBJECT_END;
+
+HOLE_LIST(DEFINE_HOLE_TYPE)
+#undef DEFINE_HOLE_TYPE
 
 }  // namespace internal
 }  // namespace v8

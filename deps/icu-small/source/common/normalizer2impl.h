@@ -243,32 +243,36 @@ private:
  * this normalizer2impl.h and in the design doc at
  * https://unicode-org.github.io/icu/design/normalization/custom.html
  */
-class U_COMMON_API Normalizer2Impl : public UObject {
+class U_COMMON_API_CLASS Normalizer2Impl : public UObject {
 public:
-    Normalizer2Impl() : normTrie(nullptr), fCanonIterData(nullptr) {}
-    virtual ~Normalizer2Impl();
+    U_COMMON_API Normalizer2Impl() : normTrie(nullptr), fCanonIterData(nullptr) {}
+    U_COMMON_API virtual ~Normalizer2Impl();
 
-    void init(const int32_t *inIndexes, const UCPTrie *inTrie,
-              const uint16_t *inExtraData, const uint8_t *inSmallFCD);
+    U_COMMON_API void init(const int32_t* inIndexes,
+                           const UCPTrie* inTrie,
+                           const uint16_t* inExtraData,
+                           const uint8_t* inSmallFCD);
 
-    void addLcccChars(UnicodeSet &set) const;
-    void addPropertyStarts(const USetAdder *sa, UErrorCode &errorCode) const;
-    void addCanonIterPropertyStarts(const USetAdder *sa, UErrorCode &errorCode) const;
+    U_COMMON_API void addLcccChars(UnicodeSet& set) const;
+    U_COMMON_API void addPropertyStarts(const USetAdder* sa, UErrorCode& errorCode) const;
+    U_COMMON_API void addCanonIterPropertyStarts(const USetAdder* sa, UErrorCode& errorCode) const;
 
     // low-level properties ------------------------------------------------ ***
 
-    UBool ensureCanonIterData(UErrorCode &errorCode) const;
+    U_COMMON_API UBool ensureCanonIterData(UErrorCode& errorCode) const;
 
     // The trie stores values for lead surrogate code *units*.
     // Surrogate code *points* are inert.
-    uint16_t getNorm16(UChar32 c) const {
+    U_COMMON_API uint16_t getNorm16(UChar32 c) const {
         return U_IS_LEAD(c) ?
             static_cast<uint16_t>(INERT) :
             UCPTRIE_FAST_GET(normTrie, UCPTRIE_16, c);
     }
-    uint16_t getRawNorm16(UChar32 c) const { return UCPTRIE_FAST_GET(normTrie, UCPTRIE_16, c); }
+    U_COMMON_API uint16_t getRawNorm16(UChar32 c) const {
+        return UCPTRIE_FAST_GET(normTrie, UCPTRIE_16, c);
+    }
 
-    UNormalizationCheckResult getCompQuickCheck(uint16_t norm16) const {
+    U_COMMON_API UNormalizationCheckResult getCompQuickCheck(uint16_t norm16) const {
         if(norm16<minNoNo || MIN_YES_YES_WITH_CC<=norm16) {
             return UNORM_YES;
         } else if(minMaybeNo<=norm16) {
@@ -277,11 +281,17 @@ public:
             return UNORM_NO;
         }
     }
-    UBool isAlgorithmicNoNo(uint16_t norm16) const { return limitNoNo<=norm16 && norm16<minMaybeNo; }
-    UBool isCompNo(uint16_t norm16) const { return minNoNo<=norm16 && norm16<minMaybeNo; }
-    UBool isDecompYes(uint16_t norm16) const { return norm16<minYesNo || minMaybeYes<=norm16; }
+    U_COMMON_API UBool isAlgorithmicNoNo(uint16_t norm16) const {
+        return limitNoNo <= norm16 && norm16 < minMaybeNo;
+    }
+    U_COMMON_API UBool isCompNo(uint16_t norm16) const {
+        return minNoNo <= norm16 && norm16 < minMaybeNo;
+    }
+    U_COMMON_API UBool isDecompYes(uint16_t norm16) const {
+        return norm16 < minYesNo || minMaybeYes <= norm16;
+    }
 
-    uint8_t getCC(uint16_t norm16) const {
+    U_COMMON_API uint8_t getCC(uint16_t norm16) const {
         if(norm16>=MIN_NORMAL_MAYBE_YES) {
             return getCCFromNormalYesOrMaybe(norm16);
         }
@@ -290,13 +300,13 @@ public:
         }
         return getCCFromNoNo(norm16);
     }
-    static uint8_t getCCFromNormalYesOrMaybe(uint16_t norm16) {
+    U_COMMON_API static uint8_t getCCFromNormalYesOrMaybe(uint16_t norm16) {
         return static_cast<uint8_t>(norm16 >> OFFSET_SHIFT);
     }
-    static uint8_t getCCFromYesOrMaybeYes(uint16_t norm16) {
+    U_COMMON_API static uint8_t getCCFromYesOrMaybeYes(uint16_t norm16) {
         return norm16>=MIN_NORMAL_MAYBE_YES ? getCCFromNormalYesOrMaybe(norm16) : 0;
     }
-    uint8_t getCCFromYesOrMaybeYesCP(UChar32 c) const {
+    U_COMMON_API uint8_t getCCFromYesOrMaybeYesCP(UChar32 c) const {
         if (c < minCompNoMaybeCP) { return 0; }
         return getCCFromYesOrMaybeYes(getNorm16(c));
     }
@@ -306,7 +316,7 @@ public:
      * @param c A Unicode code point.
      * @return The lccc(c) in bits 15..8 and tccc(c) in bits 7..0.
      */
-    uint16_t getFCD16(UChar32 c) const {
+    U_COMMON_API uint16_t getFCD16(UChar32 c) const {
         if(c<minDecompNoCP) {
             return 0;
         } else if(c<=0xffff) {
@@ -322,7 +332,7 @@ public:
      * @param limit The end of the string, or NULL.
      * @return The lccc(c) in bits 15..8 and tccc(c) in bits 7..0.
      */
-    uint16_t nextFCD16(const char16_t *&s, const char16_t *limit) const {
+    U_COMMON_API uint16_t nextFCD16(const char16_t*& s, const char16_t* limit) const {
         UChar32 c=*s++;
         if(c<minDecompNoCP || !singleLeadMightHaveNonZeroFCD16(c)) {
             return 0;
@@ -340,7 +350,7 @@ public:
      * @param s A valid pointer into a string. Requires start<s.
      * @return The lccc(c) in bits 15..8 and tccc(c) in bits 7..0.
      */
-    uint16_t previousFCD16(const char16_t *start, const char16_t *&s) const {
+    U_COMMON_API uint16_t previousFCD16(const char16_t* start, const char16_t*& s) const {
         UChar32 c=*--s;
         if(c<minDecompNoCP) {
             return 0;
@@ -360,16 +370,16 @@ public:
     }
 
     /** Returns true if the single-or-lead code unit c might have non-zero FCD data. */
-    UBool singleLeadMightHaveNonZeroFCD16(UChar32 lead) const {
+    U_COMMON_API UBool singleLeadMightHaveNonZeroFCD16(UChar32 lead) const {
         // 0<=lead<=0xffff
         uint8_t bits=smallFCD[lead>>8];
         if(bits==0) { return false; }
         return (bits >> ((lead >> 5) & 7)) & 1;
     }
     /** Returns the FCD value from the regular normalization data. */
-    uint16_t getFCD16FromNormData(UChar32 c) const;
+    U_COMMON_API uint16_t getFCD16FromNormData(UChar32 c) const;
 
-    uint16_t getFCD16FromMaybeOrNonZeroCC(uint16_t norm16) const;
+    U_COMMON_API uint16_t getFCD16FromMaybeOrNonZeroCC(uint16_t norm16) const;
 
     /**
      * Gets the decomposition for one code point.
@@ -378,7 +388,7 @@ public:
      * @param length out-only, takes the length of the decomposition, if any
      * @return pointer to the decomposition, or NULL if none
      */
-    const char16_t *getDecomposition(UChar32 c, char16_t buffer[4], int32_t &length) const;
+    U_COMMON_API const char16_t* getDecomposition(UChar32 c, char16_t buffer[4], int32_t& length) const;
 
     /**
      * Gets the raw decomposition for one code point.
@@ -387,12 +397,14 @@ public:
      * @param length out-only, takes the length of the decomposition, if any
      * @return pointer to the decomposition, or NULL if none
      */
-    const char16_t *getRawDecomposition(UChar32 c, char16_t buffer[30], int32_t &length) const;
+    U_COMMON_API const char16_t* getRawDecomposition(UChar32 c,
+                                                     char16_t buffer[30],
+                                                     int32_t& length) const;
 
-    UChar32 composePair(UChar32 a, UChar32 b) const;
+    U_COMMON_API UChar32 composePair(UChar32 a, UChar32 b) const;
 
-    UBool isCanonSegmentStarter(UChar32 c) const;
-    UBool getCanonStartSet(UChar32 c, UnicodeSet &set) const;
+    U_COMMON_API UBool isCanonSegmentStarter(UChar32 c) const;
+    U_COMMON_API UBool getCanonStartSet(UChar32 c, UnicodeSet& set) const;
 
     enum {
         // Fixed norm16 values.
@@ -481,71 +493,90 @@ public:
     // higher-level functionality ------------------------------------------ ***
 
     // NFD without an NFD Normalizer2 instance.
-    UnicodeString &decompose(const UnicodeString &src, UnicodeString &dest,
-                             UErrorCode &errorCode) const;
+    U_COMMON_API UnicodeString& decompose(const UnicodeString& src,
+                                          UnicodeString& dest,
+                                          UErrorCode& errorCode) const;
     /**
      * Decomposes [src, limit[ and writes the result to dest.
      * limit can be NULL if src is NUL-terminated.
      * destLengthEstimate is the initial dest buffer capacity and can be -1.
      */
-    void decompose(const char16_t *src, const char16_t *limit,
-                   UnicodeString &dest, int32_t destLengthEstimate,
-                   UErrorCode &errorCode) const;
+    U_COMMON_API void decompose(const char16_t* src,
+                                const char16_t* limit,
+                                UnicodeString& dest,
+                                int32_t destLengthEstimate,
+                                UErrorCode& errorCode) const;
 
-    const char16_t *decompose(const char16_t *src, const char16_t *limit,
-                           ReorderingBuffer *buffer, UErrorCode &errorCode) const;
-    void decomposeAndAppend(const char16_t *src, const char16_t *limit,
-                            UBool doDecompose,
-                            UnicodeString &safeMiddle,
-                            ReorderingBuffer &buffer,
-                            UErrorCode &errorCode) const;
+    U_COMMON_API const char16_t* decompose(const char16_t* src,
+                                           const char16_t* limit,
+                                           ReorderingBuffer* buffer,
+                                           UErrorCode& errorCode) const;
+    U_COMMON_API void decomposeAndAppend(const char16_t* src,
+                                         const char16_t* limit,
+                                         UBool doDecompose,
+                                         UnicodeString& safeMiddle,
+                                         ReorderingBuffer& buffer,
+                                         UErrorCode& errorCode) const;
 
     /** sink==nullptr: isNormalized()/spanQuickCheckYes() */
-    const uint8_t *decomposeUTF8(uint32_t options,
-                                 const uint8_t *src, const uint8_t *limit,
-                                 ByteSink *sink, Edits *edits, UErrorCode &errorCode) const;
+    U_COMMON_API const uint8_t* decomposeUTF8(uint32_t options,
+                                              const uint8_t* src,
+                                              const uint8_t* limit,
+                                              ByteSink* sink,
+                                              Edits* edits,
+                                              UErrorCode& errorCode) const;
 
-    UBool compose(const char16_t *src, const char16_t *limit,
-                  UBool onlyContiguous,
-                  UBool doCompose,
-                  ReorderingBuffer &buffer,
-                  UErrorCode &errorCode) const;
-    const char16_t *composeQuickCheck(const char16_t *src, const char16_t *limit,
-                                   UBool onlyContiguous,
-                                   UNormalizationCheckResult *pQCResult) const;
-    void composeAndAppend(const char16_t *src, const char16_t *limit,
-                          UBool doCompose,
-                          UBool onlyContiguous,
-                          UnicodeString &safeMiddle,
-                          ReorderingBuffer &buffer,
-                          UErrorCode &errorCode) const;
+    U_COMMON_API UBool compose(const char16_t* src,
+                               const char16_t* limit,
+                               UBool onlyContiguous,
+                               UBool doCompose,
+                               ReorderingBuffer& buffer,
+                               UErrorCode& errorCode) const;
+    U_COMMON_API const char16_t* composeQuickCheck(const char16_t* src,
+                                                   const char16_t* limit,
+                                                   UBool onlyContiguous,
+                                                   UNormalizationCheckResult* pQCResult) const;
+    U_COMMON_API void composeAndAppend(const char16_t* src,
+                                       const char16_t* limit,
+                                       UBool doCompose,
+                                       UBool onlyContiguous,
+                                       UnicodeString& safeMiddle,
+                                       ReorderingBuffer& buffer,
+                                       UErrorCode& errorCode) const;
 
     /** sink==nullptr: isNormalized() */
-    UBool composeUTF8(uint32_t options, UBool onlyContiguous,
-                      const uint8_t *src, const uint8_t *limit,
-                      ByteSink *sink, icu::Edits *edits, UErrorCode &errorCode) const;
+    U_COMMON_API UBool composeUTF8(uint32_t options,
+                                   UBool onlyContiguous,
+                                   const uint8_t* src,
+                                   const uint8_t* limit,
+                                   ByteSink* sink,
+                                   icu::Edits* edits,
+                                   UErrorCode& errorCode) const;
 
-    const char16_t *makeFCD(const char16_t *src, const char16_t *limit,
-                         ReorderingBuffer *buffer, UErrorCode &errorCode) const;
-    void makeFCDAndAppend(const char16_t *src, const char16_t *limit,
-                          UBool doMakeFCD,
-                          UnicodeString &safeMiddle,
-                          ReorderingBuffer &buffer,
-                          UErrorCode &errorCode) const;
+    U_COMMON_API const char16_t* makeFCD(const char16_t* src,
+                                         const char16_t* limit,
+                                         ReorderingBuffer* buffer,
+                                         UErrorCode& errorCode) const;
+    U_COMMON_API void makeFCDAndAppend(const char16_t* src,
+                                       const char16_t* limit,
+                                       UBool doMakeFCD,
+                                       UnicodeString& safeMiddle,
+                                       ReorderingBuffer& buffer,
+                                       UErrorCode& errorCode) const;
 
-    UBool hasDecompBoundaryBefore(UChar32 c) const;
-    UBool norm16HasDecompBoundaryBefore(uint16_t norm16) const;
-    UBool hasDecompBoundaryAfter(UChar32 c) const;
-    UBool norm16HasDecompBoundaryAfter(uint16_t norm16) const;
-    UBool isDecompInert(UChar32 c) const { return isDecompYesAndZeroCC(getNorm16(c)); }
+    U_COMMON_API UBool hasDecompBoundaryBefore(UChar32 c) const;
+    U_COMMON_API UBool norm16HasDecompBoundaryBefore(uint16_t norm16) const;
+    U_COMMON_API UBool hasDecompBoundaryAfter(UChar32 c) const;
+    U_COMMON_API UBool norm16HasDecompBoundaryAfter(uint16_t norm16) const;
+    U_COMMON_API UBool isDecompInert(UChar32 c) const { return isDecompYesAndZeroCC(getNorm16(c)); }
 
-    UBool hasCompBoundaryBefore(UChar32 c) const {
+    U_COMMON_API UBool hasCompBoundaryBefore(UChar32 c) const {
         return c<minCompNoMaybeCP || norm16HasCompBoundaryBefore(getNorm16(c));
     }
-    UBool hasCompBoundaryAfter(UChar32 c, UBool onlyContiguous) const {
+    U_COMMON_API UBool hasCompBoundaryAfter(UChar32 c, UBool onlyContiguous) const {
         return norm16HasCompBoundaryAfter(getNorm16(c), onlyContiguous);
     }
-    UBool isCompInert(UChar32 c, UBool onlyContiguous) const {
+    U_COMMON_API UBool isCompInert(UChar32 c, UBool onlyContiguous) const {
         uint16_t norm16=getNorm16(c);
         return isCompYesAndZeroCC(norm16) &&
             (norm16 & HAS_COMP_BOUNDARY_AFTER) != 0 &&
@@ -553,10 +584,11 @@ public:
             // The last check fetches the mapping's first unit and checks tccc<=1.
     }
 
-    UBool hasFCDBoundaryBefore(UChar32 c) const { return hasDecompBoundaryBefore(c); }
-    UBool hasFCDBoundaryAfter(UChar32 c) const { return hasDecompBoundaryAfter(c); }
-    UBool isFCDInert(UChar32 c) const { return getFCD16(c)<=1; }
-private:
+    U_COMMON_API UBool hasFCDBoundaryBefore(UChar32 c) const { return hasDecompBoundaryBefore(c); }
+    U_COMMON_API UBool hasFCDBoundaryAfter(UChar32 c) const { return hasDecompBoundaryAfter(c); }
+    U_COMMON_API UBool isFCDInert(UChar32 c) const { return getFCD16(c) <= 1; }
+
+  private:
     friend class InitCanonIterData;
     friend class LcccContext;
 

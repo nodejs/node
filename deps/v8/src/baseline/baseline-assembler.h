@@ -34,6 +34,9 @@ class BaselineAssembler {
   V8_INLINE void RecordComment(const char* string);
   inline void Trap();
   inline void DebugBreak();
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  inline void AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   template <typename Field>
   inline void DecodeField(Register reg);
@@ -92,6 +95,14 @@ class BaselineAssembler {
   inline void JumpIfTagged(Condition cc, MemOperand operand, Register value,
                            Label* target,
                            Label::Distance distance = Label::kFar);
+#ifdef V8_STATIC_ROOTS
+  // Jumps to the true or false target if the value is a static root known to by
+  // truthy/falsy, fallthrough otherwise.
+  inline void JumpIfStaticRootToBoolean(Register value, Label* true_target,
+                                        Label::Distance true_distance,
+                                        Label* false_target,
+                                        Label::Distance false_distance);
+#endif
   inline void JumpIfByte(Condition cc, Register value, int32_t byte,
                          Label* target, Label::Distance distance = Label::kFar);
 
@@ -202,9 +213,17 @@ class BaselineAssembler {
   inline void AddToInterruptBudgetAndJumpIfNotExceeded(
       Register weight, Label* skip_interrupt_label);
 
-  inline void LdaContextSlot(Register context, uint32_t index, uint32_t depth);
-  inline void StaContextSlot(Register context, Register value, uint32_t index,
-                             uint32_t depth);
+  // By default, the output register may be compressed on 64-bit architectures
+  // that support pointer compression.
+  enum class CompressionMode {
+    kDefault,
+    kForceDecompression,
+  };
+  inline void LdaContextSlotNoCell(
+      Register context, uint32_t index, uint32_t depth,
+      CompressionMode compression_mode = CompressionMode::kDefault);
+  inline void StaContextSlotNoCell(Register context, Register value,
+                                   uint32_t index, uint32_t depth);
   inline void LdaModuleVariable(Register context, int cell_index,
                                 uint32_t depth);
   inline void StaModuleVariable(Register context, Register value,
@@ -230,6 +249,12 @@ class BaselineAssembler {
 
   inline void LoadFeedbackCell(Register output);
   inline void AssertFeedbackCell(Register object);
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // If CET shadow stack is enabled, reserves a few bytes as NOP that can be
+  // patched later.
+  inline void MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
   inline static void EmitReturn(MacroAssembler* masm);
 

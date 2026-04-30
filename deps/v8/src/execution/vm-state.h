@@ -5,10 +5,10 @@
 #ifndef V8_EXECUTION_VM_STATE_H_
 #define V8_EXECUTION_VM_STATE_H_
 
+#include "include/v8-internal.h"
 #include "include/v8-unwinder.h"
 #include "src/common/globals.h"
 #include "src/logging/counters-scopes.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {
@@ -49,7 +49,7 @@ class V8_NODISCARD ExternalCallbackScope {
 #endif
   }
   ExternalCallbackScope* previous() { return previous_scope_; }
-  inline Address scope_address();
+  inline Address JSStackComparableAddress();
 
   v8::ExceptionContext exception_context() const { return exception_context_; }
   const void* callback_info() { return callback_info_; }
@@ -62,8 +62,8 @@ class V8_NODISCARD ExternalCallbackScope {
   VMState<EXTERNAL> const vm_state_;
   v8::ExceptionContext exception_context_;
   PauseNestedTimedHistogramScope const pause_timed_histogram_scope_;
-#ifdef USE_SIMULATOR
-  Address scope_address_;
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
+  Address js_stack_comparable_address_;
 #endif
 };
 

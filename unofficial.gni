@@ -9,6 +9,11 @@ import("$node_v8_path/gni/v8.gni")
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
 template("node_gn_build") {
+  assert(!node_use_ffi,
+         "The unofficial GN build does not support node:ffi yet.")
+  assert(!node_shared_ffi,
+         "The unofficial GN build does not support shared libffi.")
+
   config("node_features") {
     defines = []
     if (is_component_build) {
@@ -21,6 +26,16 @@ template("node_gn_build") {
       defines += [ "HAVE_OPENSSL=1" ]
     } else {
       defines += [ "HAVE_OPENSSL=0" ]
+    }
+    if (node_use_sqlite) {
+      defines += [ "HAVE_SQLITE=1" ]
+    } else {
+      defines += [ "HAVE_SQLITE=0" ]
+    }
+    if (node_use_ffi) {
+      defines += [ "HAVE_FFI=1" ]
+    } else {
+      defines += [ "HAVE_FFI=0" ]
     }
     if (node_use_amaro) {
       defines += [ "HAVE_AMARO=1" ]
@@ -155,11 +170,11 @@ template("node_gn_build") {
       "deps/cares",
       "deps/histogram",
       "deps/llhttp",
+      "deps/merve",
       "deps/nbytes",
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
-      "deps/sqlite",
       "deps/uvwasi",
       "deps/zstd",
       "//third_party/zlib",
@@ -193,15 +208,20 @@ template("node_gn_build") {
       public_deps += [ "$node_openssl_path" ]
       sources += gypi_values.node_crypto_sources
     }
+    if (node_use_sqlite) {
+      deps += [ "deps/sqlite" ]
+      sources += gypi_values.node_sqlite_sources
+    }
     if (node_enable_inspector) {
       deps += [
-        "src/inspector:crdtp",
+        "$node_inspector_protocol_path:crdtp",
         "src/inspector:node_protocol_generated_sources",
         "src/inspector:v8_inspector_compress_protocol_json",
       ]
       include_dirs = [
         "$target_gen_dir/src",
         "$target_gen_dir/src/inspector",
+        "$node_inspector_protocol_path",
       ]
       node_inspector = exec_script(
           "./tools/gypi_to_gn.py",
@@ -314,6 +334,8 @@ template("node_gn_build") {
       "tools/executable_wrapper.h",
       "src/embedded_data.cc",
       "src/embedded_data.h",
+      "src/builtin_info.cc",
+      "src/builtin_info.h",
     ]
     include_dirs = [ "src" ]
   }

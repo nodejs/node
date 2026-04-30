@@ -548,7 +548,7 @@ class DoubleEndedSplitVector {
   // This allows us to skip calling destructors and use simple copies,
   // which is sufficient for the exclusive use here in the register allocator.
   ASSERT_TRIVIALLY_COPYABLE(T);
-  static_assert(std::is_trivially_destructible<T>::value);
+  static_assert(std::is_trivially_destructible_v<T>);
 
   size_t size() const { return data_end_ - data_begin_; }
   bool empty() const { return size() == 0; }
@@ -1351,7 +1351,8 @@ class ConstraintBuilder final : public ZoneObject {
   Zone* allocation_zone() const { return data()->allocation_zone(); }
 
   InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
-                                    bool is_tagged, bool is_input);
+                                    bool is_tagged, bool is_input,
+                                    bool is_output);
   void MeetRegisterConstraints(const InstructionBlock* block);
   void MeetConstraintsBefore(int index);
   void MeetConstraintsAfter(int index);

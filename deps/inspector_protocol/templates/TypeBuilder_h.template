@@ -74,7 +74,7 @@ namespace {{param.name | to_title_case}}Enum {
 class {{config.protocol.export_macro}} {{type.id}} : public ::{{config.crdtp.namespace}}::ProtocolObject<{{type.id}}>{% if protocol.is_exported(domain.domain, type.id) %},
     public API::{{type.id}}{% endif %} {
 public:
-    ~{{type.id}}() override { }
+    ~{{type.id}}() override;  // Defined below
     {% for property in type.properties %}
       {% set property_type = protocol.resolve_type(property) %}
       {% set property_name = property.name | to_title_case %}
@@ -89,20 +89,23 @@ public:
       {% endif %}
 
       {% if property.optional %}
-    bool {{"has" | to_method_case}}{{property_name}}() { return {{property_field}}.has_value(); }
+    bool {{"has" | to_method_case}}{{property_name}}() { return !!{{property_field}}; }
     {% if property_type.is_primitive %}
     {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}({{property_type.raw_pass_type}} defaultValue) const {
        return {{property_field}}.value_or(defaultValue);
     }
     {% else %}
     {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}({{property_type.raw_pass_type}} defaultValue) {
-       return {{property_field}}.has_value() ? &{{property_field}}.value() : defaultValue;
+       return {{property_field}} ? {{property_field}}.get() : defaultValue;
     }
     {% endif %}
+    const {{protocol.optional_type(property)}}& {{"get" | to_method_case}}{{property_name}}() const {
+       return {{property_field}};
+    }
       {% else %}
     {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}() { return {{property_type.to_raw_type % property_field}}; }
       {% endif %}
-    void {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value) { {{property_field}} = {{property_type.to_rvalue % "value"}}; }
+    void {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value);  // Defined below
     {% endfor %}
 
     template<int STATE>
@@ -123,18 +126,9 @@ public:
       {% set property_name = property.name | to_title_case %}
 
       {% if property.optional %}
-        {{type.id}}Builder<STATE>& {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value)
-        {
-            m_result->{{"set" | to_method_case}}{{property_name}}({{property_type.to_rvalue % "value"}});
-            return *this;
-        }
+        {{type.id}}Builder<STATE>& {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value);  // Defined below
       {% else %}
-        {{type.id}}Builder<STATE | {{property_name}}Set>& {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value)
-        {
-            static_assert(!(STATE & {{property_name}}Set), "property {{property.name}} should not be set yet");
-            m_result->{{"set" | to_method_case}}{{property_name}}({{property_type.to_rvalue % "value"}});
-            return castState<{{property_name}}Set>();
-        }
+        {{type.id}}Builder<STATE | {{property_name}}Set>& {{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value);  // Defined below
       {% endif %}
     {% endfor %}
 
@@ -164,24 +158,62 @@ public:
 private:
     DECLARE_SERIALIZATION_SUPPORT();
 
-    {{type.id}}()
-    {
-    {% for property in type.properties %}
-      {% if not(property.optional) and "default_value" in protocol.resolve_type(property) %}
-          m_{{property.name}} = {{protocol.resolve_type(property).default_value}};
-      {%endif %}
-    {% endfor %}
-    }
+    {{type.id}}();  // Defined below
 
     {% for property in type.properties %}
       {% if property.optional %}
-    Maybe<{{protocol.resolve_type(property).raw_type}}> m_{{property.name}};
+    {{protocol.optional_type(property)}} m_{{property.name}};
       {% else %}
     {{protocol.resolve_type(property).type}} m_{{property.name}};
       {% endif %}
     {% endfor %}
 };
 
+  {% endfor %}
+
+// ------------- Type and builder method definitions.
+//
+// These methods separate from the type declaration because of
+// https://github.com/llvm/llvm-project/issues/59966. The DevTools protocol has
+// mutually recursive types, so we cannot simply reorder the types.
+  {% for type in domain.types %}
+    {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %}{% endif %}
+    {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
+inline {{type.id}}::~{{type.id}}() = default;
+    {% for property in type.properties %}
+      {% set property_type = protocol.resolve_type(property) %}
+      {% set property_name = property.name | to_title_case %}
+      {% set property_field = "m_" + property.name %}
+inline void {{type.id}}::{{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value) { {{property_field}} = {{property_type.to_rvalue % "value"}}; }
+    {% endfor %}
+
+    {% for property in type.properties %}
+      {% set property_type = protocol.resolve_type(property) %}
+      {% set property_name = property.name | to_title_case %}
+      {% if property.optional %}
+template<int STATE>
+inline {{type.id}}::{{type.id}}Builder<STATE>& {{type.id}}::{{type.id}}Builder<STATE>::{{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value) {
+  m_result->{{"set" | to_method_case}}{{property_name}}({{property_type.to_rvalue % "value"}});
+  return *this;
+}
+      {% else %}
+template<int STATE>
+inline {{type.id}}::{{type.id}}Builder<STATE | {{type.id}}::{{type.id}}Builder<STATE>::{{property_name}}Set>&
+{{type.id}}::{{type.id}}Builder<STATE>::{{"set" | to_method_case}}{{property_name}}({{property_type.pass_type}} value) {
+  static_assert(!(STATE & {{property_name}}Set), "property {{property.name}} should not be set yet");
+  m_result->{{"set" | to_method_case}}{{property_name}}({{property_type.to_rvalue % "value"}});
+  return castState<{{property_name}}Set>();
+}
+      {% endif %}
+    {% endfor %}
+
+inline {{type.id}}::{{type.id}}() {
+    {% for property in type.properties %}
+      {% if not(property.optional) and "default_value" in protocol.resolve_type(property) %}
+  m_{{property.name}} = {{protocol.resolve_type(property).default_value}};
+      {%endif %}
+    {% endfor %}
+}
   {% endfor %}
 
 // ------------- Backend interface.
@@ -199,7 +231,7 @@ public:
         virtual void sendSuccess(
       {%- for parameter in command.returns -%}
         {%- if "optional" in parameter -%}
-            Maybe<{{protocol.resolve_type(parameter).raw_type}}> {{parameter.name}}
+            {{protocol.optional_type(parameter)}} {{parameter.name}}
         {%- else -%}
                 {{protocol.resolve_type(parameter).pass_type}} {{parameter.name}}
         {%- endif -%}
@@ -219,7 +251,7 @@ public:
     {%- for parameter in command.parameters -%}
       {%- if not loop.first -%}, {% endif -%}
       {%- if "optional" in parameter -%}
-        Maybe<{{protocol.resolve_type(parameter).raw_type}}> in_{{parameter.name}}
+        {{protocol.optional_type(parameter)}} in_{{parameter.name}}
       {%- else -%}
         {{protocol.resolve_type(parameter).pass_type}} in_{{parameter.name}}
       {%- endif -%}
@@ -231,7 +263,7 @@ public:
       {%- for parameter in command.returns -%}
         {%- if (not loop.first) or command.parameters -%}, {% endif -%}
         {%- if "optional" in parameter -%}
-        Maybe<{{protocol.resolve_type(parameter).raw_type}}>* out_{{parameter.name}}
+        {{protocol.optional_type(parameter)}}* out_{{parameter.name}}
         {%- else -%}
         {{protocol.resolve_type(parameter).type}}* out_{{parameter.name}}
         {%- endif -%}
@@ -258,7 +290,7 @@ public:
     void {{event.name | to_method_case}}(
     {%- for parameter in event.parameters -%}
       {%- if "optional" in parameter -%}
-        Maybe<{{protocol.resolve_type(parameter).raw_type}}> {{parameter.name}} = Maybe<{{protocol.resolve_type(parameter).raw_type}}>()
+        {{protocol.optional_type(parameter)}} {{parameter.name}} = {}
       {%- else -%}
         {{protocol.resolve_type(parameter).pass_type}} {{parameter.name}}
       {%- endif -%}{%- if not loop.last -%}, {% endif -%}

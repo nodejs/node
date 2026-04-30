@@ -13,7 +13,8 @@ namespace v8 {
 namespace internal {
 
 // Atomic memory orders supported by the compiler.
-enum class AtomicMemoryOrder : uint8_t { kAcqRel, kSeqCst };
+// The numeric values must match the encoding in Wasm wire bytes.
+enum class AtomicMemoryOrder : uint8_t { kSeqCst = 0, kAcqRel = 1 };
 
 inline size_t hash_value(AtomicMemoryOrder order) {
   return static_cast<uint8_t>(order);
@@ -21,10 +22,10 @@ inline size_t hash_value(AtomicMemoryOrder order) {
 
 inline std::ostream& operator<<(std::ostream& os, AtomicMemoryOrder order) {
   switch (order) {
-    case AtomicMemoryOrder::kAcqRel:
-      return os << "kAcqRel";
     case AtomicMemoryOrder::kSeqCst:
       return os << "kSeqCst";
+    case AtomicMemoryOrder::kAcqRel:
+      return os << "kAcqRel";
   }
   UNREACHABLE();
 }

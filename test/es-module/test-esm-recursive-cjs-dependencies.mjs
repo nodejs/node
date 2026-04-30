@@ -1,7 +1,7 @@
 import '../common/index.mjs';
-import { strictEqual } from 'node:assert';
+import assert from 'node:assert';
 
 import '../fixtures/recursive-a.cjs';
 
-strictEqual(global.counter, 1);
+assert.strictEqual(global.counter, 1);
 delete global.counter;

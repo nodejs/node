@@ -16,12 +16,26 @@
 namespace v8 {
 namespace internal {
 
+class PrototypeSharedClosureInfo;
+
 #include "torque-generated/src/objects/prototype-info-tq.inc"
 
 // Container for metadata stored on each prototype map.
 class PrototypeInfo
     : public TorqueGeneratedPrototypeInfo<PrototypeInfo, Struct> {
  public:
+  // Cached most commonly used load-non-existent handlers.
+  enum CachedHandlerIndex {
+    // No access check, no lookup on receiver.
+    kLoadNonExistentHandlerDefault = 0,
+    kLoadNonExistentHandlerWithLookupOnReceiver,
+
+    kCachedHandlerCount,
+  };
+
+  static constexpr int kSize =
+      kCachedHandlerOffset + kCachedHandlerCount * kTaggedSize;
+
   static const int UNREGISTERED = -1;
 
   // For caching derived maps for Object.create, Reflect.construct and proxies.

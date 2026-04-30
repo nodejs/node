@@ -25,7 +25,7 @@
 //
 // NOTE: `absl::AnyInvocable` is similar to the C++23 `std::move_only_function`
 // abstraction, but has a slightly different API and is not designed to be a
-// drop-in replacement or C++11-compatible backfill of that type.
+// drop-in replacement or backfill of that type.
 //
 // Credits to Matt Calabrese (https://github.com/mattcalabrese) for the original
 // implementation.
@@ -39,7 +39,9 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/internal/any_invocable.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
@@ -97,11 +99,10 @@ ABSL_NAMESPACE_BEGIN
 // my_func(std::move(func6));
 //
 // `AnyInvocable` also properly respects `const` qualifiers, reference
-// qualifiers, and the `noexcept` specification (only in C++ 17 and beyond) as
-// part of the user-specified function type (e.g.
-// `AnyInvocable<void() const && noexcept>`). These qualifiers will be applied
-// to the `AnyInvocable` object's `operator()`, and the underlying invocable
-// must be compatible with those qualifiers.
+// qualifiers, and the `noexcept` specification  as part of the user-specified
+// function type (e.g. `AnyInvocable<void() const && noexcept>`). These
+// qualifiers will be applied to the `AnyInvocable` object's `operator()`, and
+// the underlying invocable must be compatible with those qualifiers.
 //
 // Comparison of const and non-const function types:
 //
@@ -159,7 +160,8 @@ ABSL_NAMESPACE_BEGIN
 //   AnyInvocable<void()> empty;
 //   empty();  // WARNING: Undefined behavior!
 template <class Sig>
-class AnyInvocable : private internal_any_invocable::Impl<Sig> {
+class ABSL_NULLABILITY_COMPATIBLE ABSL_ATTRIBUTE_OWNER AnyInvocable
+    : private internal_any_invocable::Impl<Sig> {
  private:
   static_assert(
       std::is_function<Sig>::value,
@@ -170,6 +172,7 @@ class AnyInvocable : private internal_any_invocable::Impl<Sig> {
  public:
   // The return type of Sig
   using result_type = typename Impl::result_type;
+  using absl_internal_is_view = std::false_type;
 
   // Constructors
 
@@ -280,11 +283,10 @@ class AnyInvocable : private internal_any_invocable::Impl<Sig> {
   //
   // WARNING: An `AnyInvocable` that wraps an empty `std::function` is not
   // itself empty. This behavior is consistent with the standard equivalent
-  // `std::move_only_function`.
-  //
-  // In other words:
+  // `std::move_only_function`. In the following example, `a()` will actually
+  // invoke `f()`, leading to an `std::bad_function_call` exception:
   //   std::function<void()> f;  // empty
-  //   absl::AnyInvocable<void()> a = std::move(f);  // not empty
+  //   absl::AnyInvocable<void()> a = f;  // not empty
   //
   // Invoking an empty `AnyInvocable` results in undefined behavior.
   explicit operator bool() const noexcept { return this->HasValue(); }
@@ -297,22 +299,22 @@ class AnyInvocable : private internal_any_invocable::Impl<Sig> {
 
   // Equality operators
 
-  // Returns `true` if `*this` is empty.
+  // Returns `true` if `f` is empty.
   friend bool operator==(const AnyInvocable& f, std::nullptr_t) noexcept {
     return !f.HasValue();
   }
 
-  // Returns `true` if `*this` is empty.
+  // Returns `true` if `f` is empty.
   friend bool operator==(std::nullptr_t, const AnyInvocable& f) noexcept {
     return !f.HasValue();
   }
 
-  // Returns `false` if `*this` is empty.
+  // Returns `false` if `f` is empty.
   friend bool operator!=(const AnyInvocable& f, std::nullptr_t) noexcept {
     return f.HasValue();
   }
 
-  // Returns `false` if `*this` is empty.
+  // Returns `false` if `f` is empty.
   friend bool operator!=(std::nullptr_t, const AnyInvocable& f) noexcept {
     return f.HasValue();
   }

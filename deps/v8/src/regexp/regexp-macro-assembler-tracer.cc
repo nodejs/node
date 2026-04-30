@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
 #include "src/objects/fixed-array-inl.h"
@@ -11,10 +13,10 @@ namespace v8 {
 namespace internal {
 
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
-    Isolate* isolate, RegExpMacroAssembler* assembler)
-    : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
+    std::unique_ptr<RegExpMacroAssembler>&& assembler)
+    : RegExpMacroAssembler(*assembler), assembler_(std::move(assembler)) {
   PrintF("RegExpMacroAssembler%s();\n",
-         ImplementationToString(assembler->Implementation()));
+         ImplementationToString(assembler_->Implementation()));
 }
 
 RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() = default;
@@ -43,12 +45,10 @@ void RegExpMacroAssemblerTracer::AdvanceCurrentPosition(int by) {
   assembler_->AdvanceCurrentPosition(by);
 }
 
-
-void RegExpMacroAssemblerTracer::CheckGreedyLoop(Label* label) {
-  PrintF(" CheckGreedyLoop(label[%08x]);\n\n", LabelToInt(label));
-  assembler_->CheckGreedyLoop(label);
+void RegExpMacroAssemblerTracer::CheckFixedLengthLoop(Label* label) {
+  PrintF(" CheckFixedLengthLoop(label[%08x]);\n\n", LabelToInt(label));
+  assembler_->CheckFixedLengthLoop(label);
 }
-
 
 void RegExpMacroAssemblerTracer::PopCurrentPosition() {
   PrintF(" PopCurrentPosition();\n");
@@ -102,9 +102,10 @@ void RegExpMacroAssemblerTracer::PopRegister(int register_index) {
 void RegExpMacroAssemblerTracer::PushRegister(
     int register_index,
     StackCheckFlag check_stack_limit) {
-  PrintF(" PushRegister(register=%d, %s);\n",
-         register_index,
-         check_stack_limit ? "check stack limit" : "");
+  PrintF(" PushRegister(register=%d, %s);\n", register_index,
+         check_stack_limit == StackCheckFlag::kCheckStackLimit
+             ? "check stack limit"
+             : "");
   assembler_->PushRegister(register_index, check_stack_limit);
 }
 
@@ -371,20 +372,18 @@ void RegExpMacroAssemblerTracer::CheckBitInTable(
   assembler_->CheckBitInTable(table, on_bit_set);
 }
 
-void RegExpMacroAssemblerTracer::SkipUntilBitInTable(
-    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by) {
-  PrintF("SkipUntilBitInTable(cp_offset=%d, advance_by=%d\n  ", cp_offset,
-         advance_by);
-  for (int i = 0; i < kTableSize; i++) {
+namespace {
+
+void PrintTables(Handle<ByteArray> table, Handle<ByteArray> nibble_table) {
+  for (int i = 0; i < RegExpMacroAssembler::kTableSize; i++) {
     PrintF("%c", table->get(i) != 0 ? 'X' : '.');
-    if (i % 32 == 31 && i != kTableMask) {
+    if (i % 32 == 31 && i != RegExpMacroAssembler::kTableMask) {
       PrintF("\n  ");
     }
   }
-  static_assert(kTableSize == 128);
+  static_assert(RegExpMacroAssembler::kTableSize == 128);
   static constexpr int kRows = 16;
-  static_assert(kRows * kBitsPerByte == kTableSize);
+  static_assert(kRows * kBitsPerByte == RegExpMacroAssembler::kTableSize);
   if (!nibble_table.is_null()) {
     PrintF("\n");
     PrintF("  +----------------\n");
@@ -401,8 +400,148 @@ void RegExpMacroAssemblerTracer::SkipUntilBitInTable(
       }
     }
   }
+}
+
+}  // namespace
+
+void RegExpMacroAssemblerTracer::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by, Label* on_match, Label* on_no_match) {
+  PrintF(
+      "SkipUntilBitInTable(cp_offset=%d, advance_by=%d, on_match=label[%08x], "
+      "on_no_match=label[%08x]\n  ",
+      cp_offset, advance_by, LabelToInt(on_match), LabelToInt(on_no_match));
+  PrintTables(table, nibble_table);
   PrintF(");\n");
-  assembler_->SkipUntilBitInTable(cp_offset, table, nibble_table, advance_by);
+  assembler_->SkipUntilBitInTable(cp_offset, table, nibble_table, advance_by,
+                                  on_match, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilCharAnd(
+    int cp_offset, int advance_by, unsigned character, unsigned mask,
+    int eats_at_least, Label* on_match, Label* on_no_match) {
+  PrintablePrinter printable(character);
+  PrintF(
+      "SkipUntilCharAnd(cp_offset=%d, advance_by=%d, character=0x%04x%s, "
+      "mask=0x%04x, eats_at_least=%d, on_match=label[%08x], "
+      "on_no_match=label[%08x]\n",
+      cp_offset, advance_by, character, *printable, mask, eats_at_least,
+      LabelToInt(on_match), LabelToInt(on_no_match));
+  assembler_->SkipUntilCharAnd(cp_offset, advance_by, character, mask,
+                               eats_at_least, on_match, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilChar(int cp_offset, int advance_by,
+                                               unsigned character,
+                                               Label* on_match,
+                                               Label* on_no_match) {
+  PrintablePrinter printable(character);
+  PrintF(
+      "SkipUntilChar(cp_offset=%d, advance_by=%d, character=0x%04x%s, "
+      "on_match=label[%08x], "
+      "on_no_match=label[%08x]\n",
+      cp_offset, advance_by, character, *printable, LabelToInt(on_match),
+      LabelToInt(on_no_match));
+  assembler_->SkipUntilChar(cp_offset, advance_by, character, on_match,
+                            on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilCharPosChecked(
+    int cp_offset, int advance_by, unsigned character, int eats_at_least,
+    Label* on_match, Label* on_no_match) {
+  PrintablePrinter printable(character);
+  PrintF(
+      "SkipUntilCharPosChecked(cp_offset=%d, advance_by=%d, "
+      "character=0x%04x%s, eats_at_least=%d, on_match=label[%08x], "
+      "on_no_match=label[%08x]\n",
+      cp_offset, advance_by, character, *printable, eats_at_least,
+      LabelToInt(on_match), LabelToInt(on_no_match));
+  assembler_->SkipUntilCharPosChecked(cp_offset, advance_by, character,
+                                      eats_at_least, on_match, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilCharOrChar(
+    int cp_offset, int advance_by, unsigned char1, unsigned char2,
+    Label* on_match, Label* on_no_match) {
+  PrintablePrinter printable1(char1);
+  PrintablePrinter printable2(char2);
+  PrintF(
+      "SkipUntilCharOrChar(cp_offset=%d, advance_by=%d, char1=0x%04x%s, "
+      "char2=0x%04x%s, on_match=label[%08x], "
+      "on_no_match=label[%08x]\n",
+      cp_offset, advance_by, char1, *printable1, char2, *printable2,
+      LabelToInt(on_match), LabelToInt(on_no_match));
+  assembler_->SkipUntilCharOrChar(cp_offset, advance_by, char1, char2, on_match,
+                                  on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilGtOrNotBitInTable(
+    int cp_offset, int advance_by, unsigned character, Handle<ByteArray> table,
+    Label* on_match, Label* on_no_match) {
+  PrintablePrinter printable(character);
+  PrintF(
+      "SkipUntilGtOrNotBitInTable(cp_offset=%d, advance_by=%d, "
+      "character=0x%04x%s, on_match=label[%08x], "
+      "on_no_match=label[%08x]\n  ",
+      cp_offset, advance_by, character, *printable, LabelToInt(on_match),
+      LabelToInt(on_no_match));
+  for (int i = 0; i < kTableSize; i++) {
+    PrintF("%c", table->get(i) != 0 ? 'X' : '.');
+    if (i % 32 == 31 && i != kTableMask) {
+      PrintF("\n  ");
+    }
+  }
+  PrintF(");\n");
+  assembler_->SkipUntilGtOrNotBitInTable(cp_offset, advance_by, character,
+                                         table, on_match, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilOneOfMasked(
+    int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
+    int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
+    unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
+  PrintablePrinter printable_both(both_chars);
+  PrintablePrinter printable_chars1(chars1);
+  PrintablePrinter printable_chars2(chars2);
+  PrintF(
+      "SkipUntilOneOfMasked(cp_offset=%d, advance_by=%d, both_chars=0x%04x%s, "
+      "both_mask=0x%04x, max_offset=%d, chars1=0x%04x%s, "
+      "mask1=0x%04x, chars2=0x%04x%s, mask2=0x%04x, on_match1=label[%08x], "
+      "on_no_match2=label[%08x], on_failure=label[%08x]\n",
+      cp_offset, advance_by, both_chars, *printable_both, both_mask, max_offset,
+      chars1, *printable_chars1, mask1, chars2, *printable_chars2, mask2,
+      LabelToInt(on_match1), LabelToInt(on_match2), LabelToInt(on_failure));
+  assembler_->SkipUntilOneOfMasked(cp_offset, advance_by, both_chars, both_mask,
+                                   max_offset, chars1, mask1, chars2, mask2,
+                                   on_match1, on_match2, on_failure);
+}
+
+void RegExpMacroAssemblerTracer::SkipUntilOneOfMasked3(
+    const SkipUntilOneOfMasked3Args& args) {
+  PrintF(
+      "SkipUntilOneOfMasked3(bc0_cp_offset=%d, bc0_advance_by=%d, "
+      "bc1_cp_offset=%d, bc1_on_failure=label[%08x], "
+      "bc2_cp_offset=%d, "
+      "bc3_characters=0x%04x%s, bc3_mask=0x%04x, "
+      "bc4_by=%d, "
+      "bc5_cp_offset=%d, "
+      "bc6_characters=0x%04x%s, bc6_mask=0x%04x, bc6_on_equal=label[%08x], "
+      "bc7_characters=0x%04x%s, bc7_mask=0x%04x, bc7_on_equal=label[%08x], "
+      "bc8_characters=0x%04x%s, bc8_mask=0x%04x, "
+      "fallthrough_jump_target=label[%08x]\n  ",
+      args.bc0_cp_offset, args.bc0_advance_by, args.bc1_cp_offset,
+      LabelToInt(args.bc1_on_failure), args.bc2_cp_offset, args.bc3_characters,
+      *PrintablePrinter(args.bc3_characters), args.bc3_mask, args.bc4_by,
+      args.bc5_cp_offset, args.bc6_characters,
+      *PrintablePrinter(args.bc6_characters), args.bc6_mask,
+      LabelToInt(args.bc6_on_equal), args.bc7_characters,
+      *PrintablePrinter(args.bc7_characters), args.bc7_mask,
+      LabelToInt(args.bc7_on_equal), args.bc8_characters,
+      *PrintablePrinter(args.bc8_characters), args.bc8_mask,
+      LabelToInt(args.fallthrough_jump_target));
+  PrintTables(args.bc0_table, args.bc0_nibble_table);
+  PrintF(");\n");
+  assembler_->SkipUntilOneOfMasked3(args);
 }
 
 void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
@@ -429,13 +568,11 @@ void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
   assembler_->CheckPosition(cp_offset, on_outside_input);
 }
 
-bool RegExpMacroAssemblerTracer::CheckSpecialClassRanges(
+void RegExpMacroAssemblerTracer::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
-  bool supported = assembler_->CheckSpecialClassRanges(type, on_no_match);
-  PrintF(" CheckSpecialClassRanges(type='%c', label[%08x]): %s;\n",
-         static_cast<char>(type), LabelToInt(on_no_match),
-         supported ? "true" : "false");
-  return supported;
+  PrintF(" CheckSpecialClassRanges(type='%c', label[%08x])\n",
+         static_cast<char>(type), LabelToInt(on_no_match));
+  assembler_->CheckSpecialClassRanges(type, on_no_match);
 }
 
 void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,
@@ -461,17 +598,41 @@ void RegExpMacroAssemblerTracer::IfRegisterGE(int register_index,
   assembler_->IfRegisterGE(register_index, comparand, if_ge);
 }
 
+void RegExpMacroAssemblerTracer::set_global_mode(GlobalMode mode) {
+  RegExpMacroAssembler::set_global_mode(mode);
+  assembler_->set_global_mode(mode);
+}
+
+void RegExpMacroAssemblerTracer::set_slow_safe(bool ssc) {
+  RegExpMacroAssembler::set_slow_safe(ssc);
+  assembler_->set_slow_safe(ssc);
+}
+
+void RegExpMacroAssemblerTracer::set_backtrack_limit(uint32_t backtrack_limit) {
+  RegExpMacroAssembler::set_backtrack_limit(backtrack_limit);
+  assembler_->set_backtrack_limit(backtrack_limit);
+}
+
+void RegExpMacroAssemblerTracer::set_can_fallback(bool val) {
+  RegExpMacroAssembler::set_can_fallback(val);
+  assembler_->set_can_fallback(val);
+}
 
 RegExpMacroAssembler::IrregexpImplementation
     RegExpMacroAssemblerTracer::Implementation() {
   return assembler_->Implementation();
 }
 
-
-Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
-  PrintF(" GetCode(%s);\n", source->ToCString().get());
-  return assembler_->GetCode(source);
+DirectHandle<HeapObject> RegExpMacroAssemblerTracer::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
+  DirectHandle<String> flags_str =
+      JSRegExp::StringFromFlags(isolate(), JSRegExp::AsJSRegExpFlags(flags));
+  PrintF(" GetCode('%s', '%s');\n", source->ToCString().get(),
+         flags_str->ToCString().get());
+  return assembler_->GetCode(source, flags);
 }
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS

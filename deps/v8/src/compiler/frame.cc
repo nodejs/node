@@ -46,10 +46,6 @@ void FrameAccessState::MarkHasFrame(bool state) {
   SetFrameAccessToDefault();
 }
 
-void FrameAccessState::SetFPRelativeOnly(bool state) {
-  fp_relative_only_ = state;
-}
-
 void FrameAccessState::SetFrameAccessToDefault() {
   if (has_frame()) {
     SetFrameAccessToFP();

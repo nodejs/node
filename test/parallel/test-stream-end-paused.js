@@ -28,15 +28,13 @@ const assert = require('assert');
 const Readable = require('stream').Readable;
 const stream = new Readable();
 let calledRead = false;
-stream._read = function() {
+stream._read = common.mustCall(function() {
   assert(!calledRead);
   calledRead = true;
   this.push(null);
-};
-
-stream.on('data', function() {
-  throw new Error('should not ever get data');
 });
+
+stream.on('data', common.mustNotCall());
 stream.pause();
 
 setTimeout(common.mustCall(function() {

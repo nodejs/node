@@ -154,7 +154,7 @@ std::unique_ptr<protocol::Debugger::Location> currentDebugLocation(
       .build();
 }
 
-volatile int s_lastProfileId = 0;
+int s_lastProfileId = 0;
 
 }  // namespace
 
@@ -267,8 +267,9 @@ void V8ProfilerAgentImpl::restore() {
       bool updatesAllowed = m_state->booleanProperty(
           ProfilerAgentState::preciseCoverageAllowTriggeredUpdates, false);
       double timestamp;
-      startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed),
-                           Maybe<bool>(updatesAllowed), &timestamp);
+      startPreciseCoverage(std::optional<bool>(callCount),
+                           std::optional<bool>(detailed),
+                           std::optional<bool>(updatesAllowed), &timestamp);
     }
   }
 }
@@ -301,8 +302,8 @@ Response V8ProfilerAgentImpl::stop(
 }
 
 Response V8ProfilerAgentImpl::startPreciseCoverage(
-    Maybe<bool> callCount, Maybe<bool> detailed,
-    Maybe<bool> allowTriggeredUpdates, double* out_timestamp) {
+    std::optional<bool> callCount, std::optional<bool> detailed,
+    std::optional<bool> allowTriggeredUpdates, double* out_timestamp) {
   if (!m_enabled) return Response::ServerError("Profiler is not enabled");
   *out_timestamp = v8::base::TimeTicks::Now().since_origin().InSecondsF();
   bool callCountValue = callCount.value_or(false);
@@ -464,7 +465,11 @@ void V8ProfilerAgentImpl::startProfiling(const String16& title) {
     if (interval) m_profiler->SetSamplingInterval(interval);
   }
   ++m_startedProfilesCount;
-  m_profiler->StartProfiling(toV8String(m_isolate, title), true);
+  v8::CpuProfilingOptions options(
+      v8::kLeafNodeLineNumbers, v8::CpuProfilingOptions::kNoSampleLimit,
+      /* sampling_interval_us */ 0, v8::MaybeLocal<v8::Context>(),
+      v8::CpuProfileSource::kInspector);
+  m_profiler->StartProfiling(toV8String(m_isolate, title), std::move(options));
 }
 
 std::unique_ptr<protocol::Profiler::Profile> V8ProfilerAgentImpl::stopProfiling(

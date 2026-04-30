@@ -62,7 +62,9 @@ void ngtcp2_buf_reset(ngtcp2_buf *buf);
  * written to the underlying buffer.  In other words, it returns
  * buf->end - buf->last.
  */
-#define ngtcp2_buf_left(BUF) (size_t)((BUF)->end - (BUF)->last)
+static inline size_t ngtcp2_buf_left(const ngtcp2_buf *buf) {
+  return (size_t)(buf->end - buf->last);
+}
 
 /*
  * ngtcp2_buf_len returns the number of bytes left to read.  In other
@@ -75,6 +77,13 @@ void ngtcp2_buf_reset(ngtcp2_buf *buf);
  * it returns buf->end - buf->begin.
  */
 size_t ngtcp2_buf_cap(const ngtcp2_buf *buf);
+
+/*
+ * ngtcp2_buf_trunc truncates the number of bytes to read to at most
+ * |len|.  In other words, it sets buf->last = buf->pos + len if
+ * ngtcp2_buf_len(buf) > len.
+ */
+void ngtcp2_buf_trunc(ngtcp2_buf *buf, size_t len);
 
 /*
  * ngtcp2_buf_chain is a linked list of ngtcp2_buf.

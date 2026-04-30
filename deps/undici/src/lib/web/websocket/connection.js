@@ -1,23 +1,20 @@
 'use strict'
 
 const { uid, states, sentCloseFrameState, emptyBuffer, opcodes } = require('./constants')
-const { parseExtensions, isClosed, isClosing, isEstablished, validateCloseCodeAndReason } = require('./util')
-const { channels } = require('../../core/diagnostics')
+const { parseExtensions, isClosed, isClosing, isEstablished, isConnecting, validateCloseCodeAndReason } = require('./util')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
 const { Headers, getHeadersList } = require('../fetch/headers')
 const { getDecodeSplit } = require('../fetch/util')
 const { WebsocketFrameSend } = require('./frame')
 const assert = require('node:assert')
+const { runtimeFeatures } = require('../../util/runtime-features')
 
-/** @type {import('crypto')} */
-let crypto
-try {
-  crypto = require('node:crypto')
-/* c8 ignore next 3 */
-} catch {
+const crypto = runtimeFeatures.has('crypto')
+  ? require('node:crypto')
+  : null
 
-}
+let warningEmitted = false
 
 /**
  * @see https://websockets.spec.whatwg.org/#concept-websocket-establish
@@ -36,7 +33,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
   // 2. Let request be a new request, whose URL is requestURL, client is client,
   //    service-workers mode is "none", referrer is "no-referrer", mode is
   //    "websocket", credentials mode is "include", cache mode is "no-store" ,
-  //    and redirect mode is "error".
+  //    redirect mode is "error", and use-URL-credentials flag is set.
   const request = makeRequest({
     urlList: [requestURL],
     client,
@@ -45,7 +42,8 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
     mode: 'websocket',
     credentials: 'include',
     cache: 'no-store',
-    redirect: 'error'
+    redirect: 'error',
+    useURLCredentials: true
   })
 
   // Note: undici extension, allow setting custom headers.
@@ -96,17 +94,27 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
     useParallelQueue: true,
     dispatcher: options.dispatcher,
     processResponse (response) {
-      if (response.type === 'error') {
-        // If the WebSocket connection could not be established, it is also said
-        // that _The WebSocket Connection is Closed_, but not _cleanly_.
-        handler.readyState = states.CLOSED
-      }
-
       // 1. If response is a network error or its status is not 101,
       //    fail the WebSocket connection.
+      // if (response.type === 'error' || ((response.socket?.session != null && response.status !== 200) && response.status !== 101)) {
       if (response.type === 'error' || response.status !== 101) {
-        failWebsocketConnection(handler, 1002, 'Received network error or non-101 status code.')
-        return
+        // The presence of a session property on the socket indicates HTTP2
+        // HTTP1
+        if (response.socket?.session == null) {
+          failWebsocketConnection(handler, 1002, 'Received network error or non-101 status code.', response.error)
+          return
+        }
+
+        // HTTP2
+        if (response.status !== 200) {
+          failWebsocketConnection(handler, 1002, 'Received network error or non-200 status code.', response.error)
+          return
+        }
+      }
+
+      if (warningEmitted === false && response.socket?.session != null) {
+        process.emitWarning('WebSocket over HTTP2 is experimental, and subject to change.', 'ExperimentalWarning')
+        warningEmitted = true
       }
 
       // 2. If protocols is not the empty list and extracting header
@@ -128,7 +136,8 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    header field contains a value that is not an ASCII case-
       //    insensitive match for the value "websocket", the client MUST
       //    _Fail the WebSocket Connection_.
-      if (response.headersList.get('Upgrade')?.toLowerCase() !== 'websocket') {
+      //    For H2, no upgrade header is expected.
+      if (response.socket.session == null && response.headersList.get('Upgrade')?.toLowerCase() !== 'websocket') {
         failWebsocketConnection(handler, 1002, 'Server did not set Upgrade header to "websocket".')
         return
       }
@@ -137,7 +146,8 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    |Connection| header field doesn't contain a token that is an
       //    ASCII case-insensitive match for the value "Upgrade", the client
       //    MUST _Fail the WebSocket Connection_.
-      if (response.headersList.get('Connection')?.toLowerCase() !== 'upgrade') {
+      //    For H2, no connection header is expected.
+      if (response.socket.session == null && response.headersList.get('Connection')?.toLowerCase() !== 'upgrade') {
         failWebsocketConnection(handler, 1002, 'Server did not set Connection header to "upgrade".')
         return
       }
@@ -150,7 +160,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       //    trailing whitespace, the client MUST _Fail the WebSocket
       //    Connection_.
       const secWSAccept = response.headersList.get('Sec-WebSocket-Accept')
-      const digest = crypto.createHash('sha1').update(keyValue + uid).digest('base64')
+      const digest = crypto.hash('sha1', keyValue + uid, 'base64')
       if (secWSAccept !== digest) {
         failWebsocketConnection(handler, 1002, 'Incorrect hash received in Sec-WebSocket-Accept header.')
         return
@@ -199,14 +209,6 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       response.socket.on('data', handler.onSocketData)
       response.socket.on('close', handler.onSocketClose)
       response.socket.on('error', handler.onSocketError)
-
-      if (channels.open.hasSubscribers) {
-        channels.open.publish({
-          address: response.socket.address(),
-          protocol: secProtocol,
-          extensions: secExtension
-        })
-      }
 
       handler.wasEverConnected = true
       handler.onConnectionEstablished(response, extensions)
@@ -298,9 +300,10 @@ function closeWebSocketConnection (object, code, reason, validate = false) {
  * @param {import('./websocket').Handler} handler
  * @param {number} code
  * @param {string|undefined} reason
+ * @param {unknown} cause
  * @returns {void}
  */
-function failWebsocketConnection (handler, code, reason) {
+function failWebsocketConnection (handler, code, reason, cause) {
   // If _The WebSocket Connection is Established_ prior to the point where
   // the endpoint is required to _Fail the WebSocket Connection_, the
   // endpoint SHOULD send a Close frame with an appropriate status code
@@ -311,11 +314,12 @@ function failWebsocketConnection (handler, code, reason) {
 
   handler.controller.abort()
 
-  if (handler.socket?.destroyed === false) {
+  if (isConnecting(handler.readyState)) {
+    // If the connection was not established, we must still emit an 'error' and 'close' events
+    handler.onSocketClose()
+  } else if (handler.socket?.destroyed === false) {
     handler.socket.destroy()
   }
-
-  handler.onFail(code, reason)
 }
 
 module.exports = {

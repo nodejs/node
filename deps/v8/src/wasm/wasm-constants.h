@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_CONSTANTS_H_
+#define V8_WASM_WASM_CONSTANTS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_CONSTANTS_H_
-#define V8_WASM_WASM_CONSTANTS_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -48,11 +48,18 @@ enum ValueTypeCode : uint8_t {
   kRefCode = 0x64,              // -0x1c
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
+  kExactCode = 0x62,            // -0x1e
   kExnRefCode = 0x69,           // -0x17
+  kContRefCode = 0x68,          // -0x18
+  kNoContCode = 0x75,           // -0x0b
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
-  kStringViewWtf16Code = 0x62,  // -0x1e
+  kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
+
+  // For decoding, we build an array for all heap types with these bounds:
+  kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
+  kLastHeapTypeCode = kNoContCode,            // Highest assigned code.
 };
 
 // Binary encoding of type definitions.
@@ -60,17 +67,22 @@ constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
+constexpr uint8_t kWasmContTypeCode = 0x5d;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
 constexpr uint8_t kWasmSubtypeFinalCode = 0x4f;
 constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4e;
+constexpr uint8_t kWasmDescriptorCode = 0x4d;
+constexpr uint8_t kWasmDescribesCode = 0x4c;
 
 // Binary encoding of import/export kinds.
+constexpr uint8_t kExternalExactBit = 1 << 5;
 enum ImportExportKindCode : uint8_t {
   kExternalFunction = 0,
   kExternalTable = 1,
   kExternalMemory = 2,
   kExternalGlobal = 3,
-  kExternalTag = 4
+  kExternalTag = 4,
+  kExternalExactFunction = kExternalFunction | kExternalExactBit,
 };
 
 // The limits structure: valid for both memory and table limits.
@@ -113,13 +125,17 @@ enum SectionCode : int8_t {
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
   // to be consistent.
-  kNameSectionCode,               // Name section (encoded as a string)
-  kSourceMappingURLSectionCode,   // Source Map URL section
-  kDebugInfoSectionCode,          // DWARF section .debug_info
-  kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
-  kInstTraceSectionCode,          // Instruction trace section
-  kCompilationHintsSectionCode,   // Compilation hints section
-  kBranchHintsSectionCode,        // Branch hints section
+  kNameSectionCode,                 // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,     // Source Map URL section
+  kDebugInfoSectionCode,            // DWARF section .debug_info
+  kExternalDebugInfoSectionCode,    // Section encoding the external symbol path
+  kBuildIdSectionCode,              // Unique build id to match the symbol file
+  kInstTraceSectionCode,            // Instruction trace section
+  kBranchHintsSectionCode,          // Branch hints section
+  kCompilationPrioritySectionCode,  // Compilation priority section
+  kInstFrequenciesSectionCode,      // Instruction frequencies section
+  kCallTargetsSectionCode,          // Call targets section
+  kDescriptorsSectionCode,          // Descriptors section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
@@ -127,9 +143,24 @@ enum SectionCode : int8_t {
   kFirstUnorderedSection = kDataCountSectionCode,
 };
 
-// Binary encoding of compilation hints.
-constexpr uint8_t kDefaultCompilationHint = 0x0;
-constexpr uint8_t kNoCompilationHint = kMaxUInt8;
+// Names of custom sections.
+constexpr char kNameString[] = "name";
+constexpr char kSourceMappingURLString[] = "sourceMappingURL";
+constexpr char kInstTraceString[] = "metadata.code.trace_inst";
+constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+#if V8_CC_GNU
+// TODO(miladfarca): remove once switched to using Clang.
+__attribute__((used))
+#endif
+constexpr char kCompilationPriorityString[] =
+    "metadata.code.compilation_priority";
+constexpr char kInstructionFrequenciesString[] = "metadata.code.instr_freq";
+constexpr char kCallTargetsString[] = "metadata.code.call_targets";
+constexpr char kDebugInfoString[] = ".debug_info";
+constexpr char kExternalDebugInfoString[] = "external_debug_info";
+constexpr char kBuildIdString[] = "build_id";
+// TODO(403372470): Rename to "descriptors" when finalized.
+constexpr char kDescriptorsString[] = "experimental-descriptors";
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {
@@ -157,6 +188,14 @@ enum CatchKind : uint8_t {
   kCatchAllRef = 0x3,
   kLastCatchKind = kCatchAllRef,
 };
+
+enum SwitchKind : uint8_t {
+  kOnSuspend = 0x0,
+  kSwitch = 0x1,
+  kLastSwitchKind = kSwitch,
+};
+
+enum MemoryOrdering : uint8_t { kAtomicSeqCst, kAtomicAcqRel };
 
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
@@ -202,6 +241,14 @@ constexpr int kMaxPolymorphism = 4;
 // A struct field beyond this limit needs an explicit null check (trapping null
 // access not guaranteed to behave properly).
 constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
+
+// Compilation-hints proposal: This optimization-priority value signifies that
+// the function is only executed once, thus we only compile it eagerly with the
+// baseline tier. Greater values are not supported.
+constexpr int kOptimizationPriorityExecutedOnceSentinel = 127;
+// Compilation-hints proposal: This value signifies that an optimization
+// priority was not specified.
+constexpr int kOptimizationPriorityNotSpecifiedSentinel = -1;
 
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;

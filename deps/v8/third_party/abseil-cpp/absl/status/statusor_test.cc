@@ -16,6 +16,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <map>
 #include <memory>
@@ -459,7 +460,7 @@ TEST(StatusOr, TestAssignmentStatusOk) {
     EXPECT_EQ(p, *source);
   }
 
-  // Move asssignment
+  // Move assignment
   {
     const auto p = std::make_shared<int>(17);
     absl::StatusOr<std::shared_ptr<int>> source(p);
@@ -1797,6 +1798,327 @@ TEST(StatusOr, ErrorPrinting) {
                   AllOf(StartsWith("["), EndsWith("]"))));
   EXPECT_THAT(stream.str(), error_matcher);
   EXPECT_THAT(absl::StrCat(print_me), error_matcher);
+}
+
+TEST(StatusOr, SupportsReferenceTypes) {
+  int i = 1;
+  absl::StatusOr<int&> s = i;
+  EXPECT_EQ(&i, &*s);
+  *s = 10;
+  EXPECT_EQ(i, 10);
+}
+
+TEST(StatusOr, ReferenceFromStatus) {
+  int i = 10;
+  absl::StatusOr<int&> s = i;
+  s = absl::InternalError("foo");
+  EXPECT_EQ(s.status().message(), "foo");
+
+  absl::StatusOr<int&> s2 = absl::InternalError("foo2");
+  EXPECT_EQ(s2.status().message(), "foo2");
+}
+
+TEST(StatusOr, SupportReferenceValueConstructor) {
+  int i = 1;
+  absl::StatusOr<int&> s = i;
+  absl::StatusOr<const int&> cs = i;
+  absl::StatusOr<const int&> cs2 = std::move(i);  // `T&&` to `const T&` is ok.
+
+  EXPECT_EQ(&i, &*s);
+  EXPECT_EQ(&i, &*cs);
+
+  Derived d;
+  absl::StatusOr<const Base1&> b = d;
+  EXPECT_EQ(&d, &*b);
+
+  // We disallow constructions that cause temporaries.
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<const int&>, double>));
+  EXPECT_FALSE(
+      (std::is_constructible_v<absl::StatusOr<const int&>, const double&>));
+  EXPECT_FALSE(
+      (std::is_constructible_v<absl::StatusOr<const absl::string_view&>,
+                               std::string>));
+
+  // We disallow constructions with wrong reference.
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<int&>, int&&>));
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<int&>, const int&>));
+}
+
+TEST(StatusOr, SupportReferenceConvertingConstructor) {
+  int i = 1;
+  absl::StatusOr<int&> s = i;
+  absl::StatusOr<const int&> cs = s;
+
+  EXPECT_EQ(&i, &*s);
+  EXPECT_EQ(&i, &*cs);
+
+  // The other direction is not allowed.
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<int&>,
+                                        absl::StatusOr<const int&>>));
+
+  Derived d;
+  absl::StatusOr<const Base1&> b = absl::StatusOr<const Derived&>(d);
+  EXPECT_EQ(&d, &*b);
+
+  // The other direction is not allowed.
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<const Derived&>,
+                                        absl::StatusOr<const Base1&>>));
+
+  // We disallow conversions that cause temporaries.
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<const int&>,
+                                        absl::StatusOr<int>>));
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<const int&>,
+                                        absl::StatusOr<double>>));
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<const int&>,
+                                        absl::StatusOr<const double&>>));
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<const double&>,
+                                        absl::StatusOr<const int&>>));
+  EXPECT_FALSE(
+      (std::is_constructible_v<absl::StatusOr<const absl::string_view&>,
+                               absl::StatusOr<std::string>>));
+
+  // We disallow constructions with wrong reference.
+  EXPECT_FALSE((std::is_constructible_v<absl::StatusOr<int&>,
+                                        absl::StatusOr<const int&>>));
+}
+
+TEST(StatusOr, SupportReferenceValueAssignment) {
+  int i = 1;
+  absl::StatusOr<int&> s = i;
+  absl::StatusOr<const int&> cs;
+  cs = i;
+  absl::StatusOr<const int&> cs2;
+  cs2 = std::move(i);  // `T&&` to `const T&` is ok.
+
+  EXPECT_EQ(&i, &*s);
+  EXPECT_EQ(&i, &*cs);
+
+  Derived d;
+  absl::StatusOr<const Base1&> b;
+  b = d;
+  EXPECT_EQ(&d, &*b);
+
+  // We disallow constructions that cause temporaries.
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<const int&>, double>));
+  EXPECT_FALSE(
+      (std::is_assignable_v<absl::StatusOr<const int&>, const double&>));
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<const absl::string_view&>,
+                                     std::string>));
+
+  // We disallow constructions with wrong reference.
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<int&>, int&&>));
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<int&>, const int&>));
+}
+
+TEST(StatusOr, SupportReferenceConvertingAssignment) {
+  int i = 1;
+  absl::StatusOr<int&> s;
+  s = i;
+  absl::StatusOr<const int&> cs;
+  cs = s;
+
+  EXPECT_EQ(&i, &*s);
+  EXPECT_EQ(&i, &*cs);
+
+  // The other direction is not allowed.
+  EXPECT_FALSE(
+      (std::is_assignable_v<absl::StatusOr<int&>, absl::StatusOr<const int&>>));
+
+  Derived d;
+  absl::StatusOr<const Base1&> b;
+  b = absl::StatusOr<const Derived&>(d);
+  EXPECT_EQ(&d, &*b);
+
+  // The other direction is not allowed.
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<const Derived&>,
+                                     absl::StatusOr<const Base1&>>));
+
+  // We disallow conversions that cause temporaries.
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<const int&>,
+                                     absl::StatusOr<const double&>>));
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<const int&>,
+                                     absl::StatusOr<double>>));
+  EXPECT_FALSE((std::is_assignable_v<absl::StatusOr<const absl::string_view&>,
+                                     absl::StatusOr<std::string>>));
+
+  // We disallow constructions with wrong reference.
+  EXPECT_FALSE(
+      (std::is_assignable_v<absl::StatusOr<int&>, absl::StatusOr<const int&>>));
+}
+
+TEST(StatusOr, SupportReferenceToNonReferenceConversions) {
+  int i = 17;
+  absl::StatusOr<int&> si = i;
+  absl::StatusOr<float> sf = si;
+  EXPECT_THAT(sf, IsOkAndHolds(17.));
+
+  i = 20;
+  sf = si;
+  EXPECT_THAT(sf, IsOkAndHolds(20.));
+
+  EXPECT_THAT(absl::StatusOr<int64_t>(absl::StatusOr<int&>(i)),
+              IsOkAndHolds(20));
+  EXPECT_THAT(absl::StatusOr<int64_t>(absl::StatusOr<const int&>(i)),
+              IsOkAndHolds(20));
+
+  std::string str = "str";
+  absl::StatusOr<std::string> sos = absl::StatusOr<std::string&>(str);
+  EXPECT_THAT(sos, IsOkAndHolds("str"));
+  str = "str2";
+  EXPECT_THAT(sos, IsOkAndHolds("str"));
+  sos = absl::StatusOr<std::string&>(str);
+  EXPECT_THAT(sos, IsOkAndHolds("str2"));
+
+  absl::StatusOr<absl::string_view> sosv = absl::StatusOr<std::string&>(str);
+  EXPECT_THAT(sosv, IsOkAndHolds("str2"));
+  str = "str3";
+  sosv = absl::StatusOr<std::string&>(str);
+  EXPECT_THAT(sosv, IsOkAndHolds("str3"));
+
+  absl::string_view view = "view";
+  // This way it is constructible, but not convertible because
+  // string_view->string is explicit
+  EXPECT_THAT(
+      absl::StatusOr<std::string>(absl::StatusOr<absl::string_view&>(view)),
+      IsOkAndHolds("view"));
+#if defined(ABSL_USES_STD_STRING_VIEW)
+  // The assignment doesn't work with normal absl::string_view because
+  // std::string doesn't know about it.
+  sos = absl::StatusOr<absl::string_view&>(view);
+  EXPECT_THAT(sos, IsOkAndHolds("view"));
+#endif
+
+  EXPECT_FALSE((std::is_convertible_v<absl::StatusOr<absl::string_view&>,
+                                      absl::StatusOr<std::string>>));
+}
+
+TEST(StatusOr, ReferenceOperatorStarAndArrow) {
+  std::string str = "Foo";
+  absl::StatusOr<std::string&> s = str;
+  s->assign("Bar");
+  EXPECT_EQ(str, "Bar");
+
+  *s = "Baz";
+  EXPECT_EQ(str, "Baz");
+
+  const absl::StatusOr<std::string&> cs = str;
+  // Even if the StatusOr is const, the reference it gives is non-const so we
+  // can still assign.
+  *cs = "Finally";
+  EXPECT_EQ(str, "Finally");
+
+  cs->clear();
+  EXPECT_EQ(cs.value(), str);
+  EXPECT_EQ(str, "");
+}
+
+TEST(StatusOr, ReferenceValueOr) {
+  int i = 17;
+  absl::StatusOr<int&> si = i;
+
+  int other = 20;
+  EXPECT_EQ(&i, &si.value_or(other));
+
+  si = absl::UnknownError("");
+  EXPECT_EQ(&other, &si.value_or(other));
+
+  absl::StatusOr<const int&> csi = i;
+  EXPECT_EQ(&i, &csi.value_or(1));
+
+  const auto value_or_call = [](auto&& sor, auto&& v)
+      -> decltype(std::forward<decltype(sor)>(sor).value_or(
+          std::forward<decltype(v)>(v))) {};
+  using Probe = decltype(value_or_call);
+  // Just to verify that Probe works as expected in the good cases.
+  EXPECT_TRUE((std::is_invocable_v<Probe, absl::StatusOr<const int&>, int&&>));
+  // Causes temporary conversion.
+  EXPECT_FALSE(
+      (std::is_invocable_v<Probe, absl::StatusOr<const int&>, double&&>));
+  // Const invalid.
+  EXPECT_FALSE((std::is_invocable_v<Probe, absl::StatusOr<int&>, const int&>));
+}
+
+TEST(StatusOr, ReferenceAssignmentFromStatusOr) {
+  std::vector<int> v = {1, 2, 3};
+  absl::StatusOr<int&> si = v[0];
+  absl::StatusOr<int&> si2 = v[1];
+
+  EXPECT_THAT(v, ElementsAre(1, 2, 3));
+  EXPECT_THAT(si, IsOkAndHolds(1));
+  EXPECT_THAT(si2, IsOkAndHolds(2));
+
+  // This rebinds the reference.
+  si = si2;
+  EXPECT_THAT(v, ElementsAre(1, 2, 3));
+  EXPECT_THAT(si, IsOkAndHolds(2));
+  EXPECT_THAT(si2, IsOkAndHolds(2));
+  EXPECT_EQ(&*si, &*si2);
+}
+
+TEST(StatusOr, ReferenceAssignFromReference) {
+  std::vector<int> v = {1, 2, 3};
+  absl::StatusOr<int&> si = v[0];
+
+  EXPECT_THAT(v, ElementsAre(1, 2, 3));
+  EXPECT_THAT(si, IsOkAndHolds(1));
+
+  // This rebinds the reference.
+  si = v[2];
+  EXPECT_THAT(v, ElementsAre(1, 2, 3));
+  EXPECT_THAT(si, IsOkAndHolds(3));
+  EXPECT_EQ(&*si, &v[2]);
+}
+
+TEST(StatusOr, ReferenceIsNotLifetimeBoundForStarValue) {
+  int i = 0;
+
+  // op*/value should not be LIFETIME_BOUND because the ref is not limited to
+  // the lifetime of the StatusOr.
+  int& r = *absl::StatusOr<int&>(i);
+  EXPECT_EQ(&r, &i);
+  int& r2 = absl::StatusOr<int&>(i).value();
+  EXPECT_EQ(&r2, &i);
+
+  struct S {
+    int i;
+  };
+  S s;
+  // op-> should also not be LIFETIME_BOUND for refs.
+  int& r3 = absl::StatusOr<S&>(s)->i;
+  EXPECT_EQ(&r3, &s.i);
+}
+
+template <typename Expected, typename T>
+void TestReferenceDeref() {
+  static_assert(std::is_same_v<Expected, decltype(*std::declval<T>())>);
+  static_assert(std::is_same_v<Expected, decltype(std::declval<T>().value())>);
+}
+
+TEST(StatusOr, ReferenceTypeIsMaintainedOnDeref) {
+  TestReferenceDeref<int&, absl::StatusOr<int&>&>();
+  TestReferenceDeref<int&, absl::StatusOr<int&>&&>();
+  TestReferenceDeref<int&, const absl::StatusOr<int&>&>();
+  TestReferenceDeref<int&, const absl::StatusOr<int&>&&>();
+
+  TestReferenceDeref<const int&, absl::StatusOr<const int&>&>();
+  TestReferenceDeref<const int&, absl::StatusOr<const int&>&&>();
+  TestReferenceDeref<const int&, const absl::StatusOr<const int&>&>();
+  TestReferenceDeref<const int&, const absl::StatusOr<const int&>&&>();
+
+  struct Struct {
+    int value;
+  };
+  EXPECT_TRUE(
+      (std::is_same_v<
+          int&, decltype((std::declval<absl::StatusOr<Struct&>>()->value))>));
+  EXPECT_TRUE(
+      (std::is_same_v<
+          int&,
+          decltype((std::declval<const absl::StatusOr<Struct&>>()->value))>));
+  EXPECT_TRUE(
+      (std::is_same_v<
+          const int&,
+          decltype((std::declval<absl::StatusOr<const Struct&>>()->value))>));
 }
 
 }  // namespace

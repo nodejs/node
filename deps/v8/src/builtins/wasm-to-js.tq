@@ -55,32 +55,35 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
   // done in the very beginning before a GC could be triggered.
   // Caller FP + return address.
   const sigSlot = LoadFramePointer() + kSignatureOffset;
-  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(data.sig);
+  *GetRefAt<RawPtr>(sigSlot, 0) = data.sig;
   const alignment: intptr =
       StackAlignmentInBytes() / torque_internal::SizeOf<intptr>();
   // 1 fixed slot, rounded up to stack alignment.
   const numFixedSlots = alignment;
 
-  ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
-  dcheck(data.wrapper_budget > 0);
-  data.wrapper_budget = data.wrapper_budget - 1;
-  if (data.wrapper_budget == 0) {
+  let budget: Smi = UnsafeCast<Smi>(data.wrapper_budget.value);
+  dcheck(budget > 0);
+  budget -= 1;
+  data.wrapper_budget.value = budget;
+  if (budget == 0) {
     runtime::TierUpWasmToJSWrapper(kNoContext, data);
   }
 
-  const signaturePod = &data.sig.bytes;
-  const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
-      signaturePod.object, signaturePod.offset,
-      signaturePod.length / torque_internal::SizeOf<int32>());
-  const returnCount =
-      Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
-          serializedSig.object, serializedSig.offset));
-  dcheck(returnCount < serializedSig.length);
-  const paramCount: intptr = serializedSig.length - returnCount - 1;
-  const returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
-      otherwise unreachable;
-  const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
+  const returnCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(data.sig + 0));
+  const paramCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(
+          data.sig + torque_internal::SizeOf<intptr>()));
+  const valueTypesStorage = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<RawPtr<uint32>>>(
+          data.sig + 2 * torque_internal::SizeOf<intptr>()));
+  const signatureValueTypes =
+      torque_internal::unsafe::NewOffHeapConstSlice<uint32>(
+          valueTypesStorage, paramCount + returnCount);
+  const returnTypes =
+      Subslice(signatureValueTypes, 0, returnCount) otherwise unreachable;
+  const paramTypes = Subslice(signatureValueTypes, returnCount, paramCount)
       otherwise unreachable;
 
   // The number of parameters that get pushed on the stack is (at least) the
@@ -99,7 +102,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
   const inParams = torque_internal::unsafe::NewOffHeapReference(
       %RawDownCast<RawPtr<intptr>>(stackParamStart));
 
-  let locationAllocator = LocationAllocatorForParams(inParams);
+  let locationAllocator = LocationAllocatorForParams(inParams, 0);
 
   let paramIt = paramTypes.Iterator();
 
@@ -152,8 +155,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       const val = *RefCast<float64>(slot);
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else {
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      dcheck(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
+      check((paramType & kValueTypeIsRefBit) != 0);
       nextIndex++;
       hasTaggedParams = true;
     }
@@ -166,8 +168,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
     paramIt = paramTypes.Iterator();
     while (!paramIt.Empty()) {
       const paramType = paramIt.NextNotEmpty();
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      if (paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull) {
+      if ((paramType & kValueTypeIsRefBit) != 0) {
         const slot = locationAllocator.GetGPSlot();
         const rawRef = *slot;
         const value = BitcastWordToTagged(rawRef);
@@ -191,7 +192,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
   // to JavaScript is finished. For asm.js source positions it is important to
   // know if an exception happened in the call to JS, or in the ToNumber
   // conversion afterwards.
-  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(SmiConstant(-1));
+  *GetRefAt<intptr>(sigSlot, 0) = -1;
   let resultFixedArray: FixedArray;
   if (returnCount > 1) {
     resultFixedArray =
@@ -227,10 +228,10 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
       let toRef = locationAllocator.GetGPSlot();
       typeswitch (retVal) {
         case (smiVal: Smi): {
-          *toRef = Convert<intptr>(Unsigned(SmiToInt32(smiVal)));
+          *toRef = Convert<intptr>(SmiToInt32(smiVal));
         }
         case (heapVal: JSAnyNotSmi): {
-          *toRef = Convert<intptr>(Unsigned(WasmTaggedNonSmiToInt32(heapVal)));
+          *toRef = Convert<intptr>(WasmTaggedNonSmiToInt32(heapVal));
         }
       }
     } else if (retType == kWasmF32Type) {
@@ -257,12 +258,8 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
-      const retKind = retType & kValueTypeKindBitsMask;
-      dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
-      const trustedData = TaggedIsSmi(data.instance_data) ?
-          Undefined :
-          UnsafeCast<WasmTrustedInstanceData>(data.instance_data);
-      const converted = JSToWasmObject(context, trustedData, retType, retVal);
+      check((retType & kValueTypeIsRefBit) != 0);
+      const converted = JSToWasmObject(context, retType, retVal);
       if (returnCount == 1) {
         // There are no other values, we can write the object directly into the
         // result buffer.
@@ -287,8 +284,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
     nextIndex = 0;
     while (!returnIt.Empty()) {
       const retType = returnIt.NextNotEmpty();
-      const retKind = retType & kValueTypeKindBitsMask;
-      if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
+      if ((retType & kValueTypeIsRefBit) != 0) {
         let toRef = locationAllocator.GetGPSlot();
         const value = resultFixedArray.objects[nextIndex];
         *toRef = BitcastTaggedToWord(value);
@@ -302,7 +298,6 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
           torque_internal::SizeOf<intptr>() +
       numFixedSlots;
 
-  ModifyThreadInWasmFlag(1);
   const wasmToJSResult = WasmToJSResult{
     popCount: popCount,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),

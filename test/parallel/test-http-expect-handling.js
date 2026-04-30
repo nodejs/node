@@ -34,7 +34,7 @@ function nextTest() {
     }));
   }
 
-  http.get(options, (response) => {
+  http.get(options, common.mustCall((response) => {
     console.log(`client: expected status: ${test}`);
     console.log(`client: statusCode: ${response.statusCode}`);
     assert.strictEqual(response.statusCode, test);
@@ -46,7 +46,7 @@ function nextTest() {
       nextTest();
     });
     response.resume();
-  });
+  }));
 }
 
 

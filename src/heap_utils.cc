@@ -89,7 +89,7 @@ class JSGraph : public EmbedderGraph {
   }
 
   Node* V8Node(const Local<v8::Value>& value) override {
-    return V8Node(value.As<v8::Data>());
+    return V8Node(v8::Local<v8::Data>(value));
   }
 
   Node* AddNode(std::unique_ptr<Node> node) override {
@@ -180,6 +180,7 @@ class JSGraph : public EmbedderGraph {
       size_t i = 0;
       size_t j = 0;
       for (const auto& edge : edge_info.second) {
+        HandleScope handle_scope(isolate_);
         Local<Object> to_object = info_objects[edge.second];
         Local<Object> edge_obj = Object::New(isolate_);
         Local<Value> edge_name_value;
@@ -266,6 +267,11 @@ class HeapSnapshotStream : public AsyncWrap,
                            public StreamBase,
                            public v8::OutputStream {
  public:
+  enum InternalFields {
+    kInternalFieldCount = std::max<uint32_t>(AsyncWrap::kInternalFieldCount,
+                                             StreamBase::kInternalFieldCount),
+  };
+
   HeapSnapshotStream(
       Environment* env,
       HeapSnapshotPointer&& snapshot,
@@ -400,7 +406,7 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Local<FunctionTemplate> os = FunctionTemplate::New(env->isolate());
     os->Inherit(AsyncWrap::GetConstructorTemplate(env));
     Local<ObjectTemplate> ost = os->InstanceTemplate();
-    ost->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+    ost->SetInternalFieldCount(HeapSnapshotStream::kInternalFieldCount);
     os->SetClassName(
         FIXED_ONE_BYTE_STRING(env->isolate(), "HeapSnapshotStream"));
     StreamBase::AddMethods(env, os);

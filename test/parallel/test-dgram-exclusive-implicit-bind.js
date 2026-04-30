@@ -51,7 +51,7 @@ if (cluster.isPrimary) {
     target.close();
   });
 
-  target.on('message', function(buf, rinfo) {
+  target.on('message', common.mustCallAtLeast((buf, rinfo) => {
     if (pids.includes(buf.toString()))
       return;
     pids.push(buf.toString());
@@ -67,7 +67,7 @@ if (cluster.isPrimary) {
       assert.strictEqual(Object.keys(ports).length, 3);
       done();
     }
-  });
+  }));
 
   target.on('listening', function() {
     cluster.fork({ PORT: target.address().port });

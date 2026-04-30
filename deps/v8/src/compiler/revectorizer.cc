@@ -484,9 +484,7 @@ void SLPTree::PushStack(const ZoneVector<Node*>& node_group) {
   TRACE("Stack Push (%d %s, %d %s)\n", node_group[0]->id(),
         node_group[0]->op()->mnemonic(), node_group[1]->id(),
         node_group[1]->op()->mnemonic());
-  for (auto node : node_group) {
-    on_stack_.insert(node);
-  }
+  on_stack_.insert(node_group.begin(), node_group.end());
   stack_.push({node_group});
 }
 
@@ -884,7 +882,7 @@ void SLPTree::ForEach(FunctionType callback) {
 
 //////////////////////////////////////////////////////
 
-Revectorizer::Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph,
+Revectorizer::Revectorizer(Zone* zone, TFGraph* graph, MachineGraph* mcgraph,
                            SourcePositionTable* source_positions)
     : zone_(zone),
       graph_(graph),
@@ -1060,12 +1058,12 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
         // shuffling across 128-bit lane.
         if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
-              MemoryAccessKind::kProtected,
+              MemoryAccessKind::kProtectedByTrapHandler,
               LoadTransformation::kS256Load32Splat);
           offset = index * 4;
         } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
-              MemoryAccessKind::kProtected,
+              MemoryAccessKind::kProtectedByTrapHandler,
               LoadTransformation::kS256Load64Splat);
           offset = index * 8;
         } else {
@@ -1074,7 +1072,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
         source = node0->InputAt(offset >> 4);
         DCHECK_EQ(source->opcode(), IrOpcode::kProtectedLoad);
-        inputs.resize_no_init(4);
+        inputs.resize(4);
         // Update LoadSplat offset.
         if (index) {
           SourcePositionTable::Scope scope(source_positions_, source);

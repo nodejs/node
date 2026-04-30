@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
+const { hasOpenSSL } = require('../../test/common/crypto.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -18,15 +19,33 @@ function readKeyPair(publicKeyName, privateKeyName) {
 }
 
 const keyFixtures = {
-  ec: readKeyPair('ec_p256_public', 'ec_p256_private'),
-  rsa: readKeyPair('rsa_public_2048', 'rsa_private_2048'),
-  ed25519: readKeyPair('ed25519_public', 'ed25519_private'),
+  'ec': readKeyPair('ec_p256_public', 'ec_p256_private'),
+  'rsa': readKeyPair('rsa_public_2048', 'rsa_private_2048'),
+  'ed25519': readKeyPair('ed25519_public', 'ed25519_private'),
 };
 
+if (hasOpenSSL(3, 5)) {
+  keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private');
+}
+
 const bench = common.createBenchmark(main, {
-  keyType: ['rsa', 'ec', 'ed25519'],
-  keyFormat: ['pkcs8', 'spki', 'der-pkcs8', 'der-spki', 'jwk-public', 'jwk-private'],
+  keyType: Object.keys(keyFixtures),
+  keyFormat: ['pkcs8', 'spki', 'der-pkcs8', 'der-spki', 'jwk-public', 'jwk-private',
+              'raw-public', 'raw-private', 'raw-seed'],
   n: [1e3],
+}, {
+  combinationFilter(p) {
+    // raw-private is not supported for rsa and ml-dsa
+    if (p.keyFormat === 'raw-private')
+      return p.keyType !== 'rsa' && !p.keyType.startsWith('ml-');
+    // raw-public is not supported by rsa
+    if (p.keyFormat === 'raw-public')
+      return p.keyType !== 'rsa';
+    // raw-seed is only supported for ml-dsa
+    if (p.keyFormat === 'raw-seed')
+      return p.keyType.startsWith('ml-');
+    return true;
+  },
 });
 
 function measure(n, fn, input) {
@@ -74,6 +93,29 @@ function main({ n, keyFormat, keyType }) {
     case 'jwk-private': {
       const options = { format: 'jwk' };
       key = { ...options, key: keyPair.privateKey.export(options) };
+      fn = crypto.createPrivateKey;
+      break;
+    }
+    case 'raw-public': {
+      const exportedKey = keyPair.publicKey.export({ format: 'raw-public' });
+      key = { key: exportedKey, format: 'raw-public', asymmetricKeyType: keyType };
+      if (keyType === 'ec') key.namedCurve = keyPair.publicKey.asymmetricKeyDetails.namedCurve;
+      fn = crypto.createPublicKey;
+      break;
+    }
+    case 'raw-private': {
+      const exportedKey = keyPair.privateKey.export({ format: 'raw-private' });
+      key = { key: exportedKey, format: 'raw-private', asymmetricKeyType: keyType };
+      if (keyType === 'ec') key.namedCurve = keyPair.privateKey.asymmetricKeyDetails.namedCurve;
+      fn = crypto.createPrivateKey;
+      break;
+    }
+    case 'raw-seed': {
+      key = {
+        key: keyPair.privateKey.export({ format: 'raw-seed' }),
+        format: 'raw-seed',
+        asymmetricKeyType: keyType,
+      };
       fn = crypto.createPrivateKey;
       break;
     }

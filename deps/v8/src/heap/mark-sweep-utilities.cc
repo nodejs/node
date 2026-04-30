@@ -6,10 +6,13 @@
 
 #include "src/common/globals.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/visit-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/visitors-inl.h"
@@ -34,7 +37,7 @@ void MarkingVerifierBase::VerifyRoots() {
                                       base::EnumSet<SkipRoot>{SkipRoot::kWeak});
 }
 
-void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
+void MarkingVerifierBase::VerifyMarkingOnPage(const NormalPage* page,
                                               Address start, Address end) {
   Address next_object_must_be_here_or_later = start;
 
@@ -44,8 +47,8 @@ void MarkingVerifierBase::VerifyMarkingOnPage(const PageMetadata* page,
     if (current >= end) break;
     CHECK(IsMarked(object));
     CHECK(current >= next_object_must_be_here_or_later);
-    object->Iterate(cage_base(), this);
-    next_object_must_be_here_or_later = current + size;
+    VisitObject(heap_->isolate(), object, this);
+    next_object_must_be_here_or_later = current + size.value();
     // The object is either part of a black area of black allocation or a
     // regular black object
     CHECK(bitmap(page)->AllBitsSetInRange(
@@ -68,13 +71,13 @@ void MarkingVerifierBase::VerifyMarking(NewSpace* space) {
     return;
   }
 
-  for (PageMetadata* page : *space) {
+  for (NormalPage* page : *space) {
     VerifyMarkingOnPage(page, page->area_start(), page->area_end());
   }
 }
 
 void MarkingVerifierBase::VerifyMarking(PagedSpaceBase* space) {
-  for (PageMetadata* p : *space) {
+  for (NormalPage* p : *space) {
     VerifyMarkingOnPage(p, p->area_start(), p->area_end());
   }
 }
@@ -84,14 +87,13 @@ void MarkingVerifierBase::VerifyMarking(LargeObjectSpace* lo_space) {
   LargeObjectSpaceObjectIterator it(lo_space);
   for (Tagged<HeapObject> obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsMarked(obj)) {
-      obj->Iterate(cage_base(), this);
+      VisitObject(heap_->isolate(), obj, this);
     }
   }
 }
 #endif  // VERIFY_HEAP
 
-template <ExternalStringTableCleaningMode mode>
-void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
+void ExternalStringTableCleanerVisitor::VisitRootPointers(
     Root root, const char* description, FullObjectSlot start,
     FullObjectSlot end) {
   // Visit all HeapObject pointers in [start, end).
@@ -107,9 +109,6 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
     // strings that are already in old space.
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, heap_object))
       continue;
-    if ((mode == ExternalStringTableCleaningMode::kYoungOnly) &&
-        !Heap::InYoungGeneration(heap_object))
-      continue;
     if (IsExternalString(o)) {
       heap_->FinalizeExternalString(Cast<String>(o));
     } else {
@@ -123,7 +122,9 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
 
 StringForwardingTableCleanerBase::StringForwardingTableCleanerBase(Heap* heap)
     : isolate_(heap->isolate()),
-      marking_state_(heap->non_atomic_marking_state()) {}
+      marking_state_(heap->non_atomic_marking_state()),
+      marking_visitor_(heap->mark_compact_collector()->marking_visitor_.get()) {
+}
 
 void StringForwardingTableCleanerBase::DisposeExternalResource(
     StringForwardingTable::Record* record) {
@@ -139,7 +140,7 @@ bool IsCppHeapMarkingFinished(
   const auto* cpp_heap = CppHeap::From(heap->cpp_heap());
   if (!cpp_heap) return true;
 
-  return cpp_heap->IsTracingDone() && local_marking_worklists->IsWrapperEmpty();
+  return cpp_heap->IsMarkingDone() && local_marking_worklists->IsWrapperEmpty();
 }
 
 #if DEBUG
@@ -154,7 +155,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   MemoryChunkIterator chunk_iterator(heap);
 
   while (chunk_iterator.HasNext()) {
-    MutablePageMetadata* chunk = chunk_iterator.Next();
+    MutablePage* chunk = chunk_iterator.Next();
 
     // Old-to-old slot sets must be empty after evacuation.
     DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
@@ -177,7 +178,7 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
     // Old-to-shared slots may survive GC but there should never be any slots in
     // new or shared spaces.
     AllocationSpace id = chunk->owner_identity();
-    if (IsAnySharedSpace(id) || IsAnyNewSpace(id)) {
+    if (IsAnyWritableSharedSpace(id) || IsAnyNewSpace(id)) {
       DCHECK_NULL((chunk->slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL((chunk->typed_slot_set<OLD_TO_SHARED, AccessMode::ATOMIC>()));
       DCHECK_NULL(
@@ -189,11 +190,10 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
   }
 
   if (v8_flags.sticky_mark_bits) {
-    OldGenerationMemoryChunkIterator::ForAll(
-        heap, [](MutablePageMetadata* chunk) {
-          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
-          DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
-        });
+    OldGenerationMemoryChunkIterator::ForAll(heap, [](MutablePage* chunk) {
+      DCHECK(!chunk->ContainsSlots<OLD_TO_NEW>());
+      DCHECK(!chunk->ContainsSlots<OLD_TO_NEW_BACKGROUND>());
+    });
   }
 }
 #endif  // DEBUG

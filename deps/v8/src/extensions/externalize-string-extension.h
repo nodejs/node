@@ -24,12 +24,13 @@ class ExternalizeStringExtension : public v8::Extension {
   static void Externalize(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateExternalizableString(
       const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void CreateExternalizableTwoByteString(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void IsOneByte(const v8::FunctionCallbackInfo<v8::Value>& info);
 
  private:
   static const char* BuildSource(char* buf, size_t size);
-  char buffer_[300];
-  static const char* const kSource;
+  char buffer_[400];
 };
 
 }  // namespace internal

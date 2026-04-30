@@ -65,7 +65,7 @@ static void handle_property(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(PropertyHandler) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   fun_templ->InstanceTemplate()->SetNativeDataProperty(v8_str("foo"),
@@ -145,16 +145,22 @@ THREADED_TEST(PropertyHandler) {
   }
 }
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kIntPointerTag = 12;
+
 static void GetIntValue(Local<Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
-  int* value = static_cast<int*>(info.Data().As<v8::External>()->Value());
+  int* value =
+      static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
   info.GetReturnValue().Set(v8_num(*value));
 }
 
 static void SetIntValue(Local<Name> property, Local<Value> value,
                         const v8::PropertyCallbackInfo<void>& info) {
-  int* field = static_cast<int*>(info.Data().As<v8::External>()->Value());
+  int* field =
+      static_cast<int*>(info.Data().As<v8::External>()->Value(kIntPointerTag));
   *field = value->Int32Value(info.GetIsolate()->GetCurrentContext()).FromJust();
 }
 
@@ -169,36 +175,35 @@ THREADED_TEST(GlobalVariableAccess) {
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("foo"), GetIntValue, SetIntValue,
-      v8::External::New(isolate, &foo));
+      v8::External::New(isolate, &foo, kIntPointerTag));
   templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("bar"), GetIntValue, SetIntValue,
-      v8::External::New(isolate, &bar));
+      v8::External::New(isolate, &bar, kIntPointerTag));
   templ->InstanceTemplate()->SetNativeDataProperty(
       v8_str("baz"), GetIntValue, SetIntValue,
-      v8::External::New(isolate, &baz));
+      v8::External::New(isolate, &baz, kIntPointerTag));
   LocalContext env(nullptr, templ->InstanceTemplate());
   v8_compile("foo = (++bar) + baz")->Run(env.local()).ToLocalChecked();
   CHECK_EQ(-3, bar);
   CHECK_EQ(7, foo);
 }
 
-static int x_register[2] = {0, 0};
-static v8::Global<v8::Object> x_receiver_global;
-static v8::Global<v8::Object> x_holder_global;
+namespace {
 
-template<class Info>
-static void XGetter(const Info& info, int offset) {
+int x_register[2] = {0, 0};
+v8::Global<v8::Object> x_receiver_global;
+v8::Global<v8::Object> x_holder_global;
+
+template <class Info>
+void XGetter(const Info& info, int offset) {
   ApiTestFuzzer::Fuzz();
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
-  CHECK(x_receiver_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.This())
-            .FromJust());
   info.GetReturnValue().Set(v8_num(x_register[offset]));
 }
 
-static void XGetter(Local<Name> name,
-                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+void XGetter(Local<Name> name,
+             const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_holder_global.Get(isolate)
             ->Equals(isolate->GetCurrentContext(), info.HolderV2())
@@ -206,11 +211,10 @@ static void XGetter(Local<Name> name,
   XGetter(info, 0);
 }
 
-static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_receiver_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(),
-                     info.HolderSoonToBeDeprecated())
+            ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
   XGetter(info, 1);
 }
@@ -227,16 +231,13 @@ Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<void>>(
 template <>
 Local<v8::Object> GetHolder<v8::FunctionCallbackInfo<v8::Value>>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return info.HolderSoonToBeDeprecated();
+  return info.This();
 }
 
-template<class Info>
-static void XSetter(Local<Value> value, const Info& info, int offset) {
+template <class Info>
+void XSetter(Local<Value> value, const Info& info, int offset) {
   v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(isolate, info.GetIsolate());
-  CHECK(x_holder_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(), info.This())
-            .FromJust());
   CHECK(x_holder_global.Get(isolate)
             ->Equals(isolate->GetCurrentContext(), GetHolder(info))
             .FromJust());
@@ -244,21 +245,22 @@ static void XSetter(Local<Value> value, const Info& info, int offset) {
       value->Int32Value(isolate->GetCurrentContext()).FromJust();
 }
 
-static void XSetter(Local<Name> name, Local<Value> value,
-                    const v8::PropertyCallbackInfo<void>& info) {
+void XSetter(Local<Name> name, Local<Value> value,
+             const v8::PropertyCallbackInfo<void>& info) {
   XSetter(value, info, 0);
 }
 
-static void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void XSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK_EQ(1, info.Length());
   XSetter(info[0], info, 1);
   info.GetReturnValue().Set(v8_num(-1));
 }
 
+}  // namespace
 
 THREADED_TEST(AccessorIC) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("x0"), XGetter, XSetter);
@@ -319,7 +321,7 @@ static void HandleAllocatingGetter(
 
 THREADED_TEST(HandleScopePop) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("one"), HandleAllocatingGetter<1>);
@@ -343,40 +345,29 @@ THREADED_TEST(HandleScopePop) {
   CHECK_EQ(count_before, count_after);
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 static void CheckAccessorArgsCorrect(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::ValidateCallbackInfo(info);
   CHECK(info.GetIsolate() == CcTest::isolate());
-  CHECK(info.This() == info.Holder());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   ApiTestFuzzer::Fuzz();
   CHECK(info.GetIsolate() == CcTest::isolate());
-  CHECK(info.This() == info.Holder());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   CHECK(info.GetIsolate() == CcTest::isolate());
   i::heap::InvokeMajorGC(CcTest::heap());
-  CHECK(info.This() == info.Holder());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   info.GetReturnValue().Set(17);
 }
 
-// Allow usages of v8::PropertyCallbackInfo<T>::Holder() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
-
 THREADED_TEST(DirectCall) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("xxx"), CheckAccessorArgsCorrect, nullptr,
@@ -404,7 +395,7 @@ static void EmptyGetter(Local<Name> name,
 
 THREADED_TEST(EmptyResult) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("xxx"), EmptyGetter, nullptr,
@@ -477,7 +468,7 @@ static void ThrowingSetAccessor(Local<Name> name, Local<Value> value,
 
 THREADED_TEST(Regress1054726) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("x"), ThrowingGetAccessor,
@@ -521,7 +512,7 @@ static void AllocGetter(Local<Name> name,
 
 THREADED_TEST(Gc) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("xxx"), AllocGetter);
@@ -548,9 +539,9 @@ static void StackCheck(Local<Name> name,
     i::StackFrame* frame = iter.frame();
     if (i == 0) {
       // The topmost frame could be either EXIT frame in case the callback
-      // was called from IC miss or API_ACCESSOR_EXIT in case the callback
+      // was called from IC miss or API_NAMED_ACCESSOR_EXIT in case the callback
       // was called via CallApiGetter builtin.
-      CHECK(frame->is_exit() || frame->is_api_accessor_exit());
+      CHECK(frame->is_exit() || frame->is_api_named_accessor_exit());
     }
     i::Tagged<i::Code> code = frame->LookupCode();
     CHECK(code->contains(isolate, frame->pc()));
@@ -560,7 +551,7 @@ static void StackCheck(Local<Name> name,
 
 THREADED_TEST(StackIteration) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   i::StringStream::ClearMentionedObjectCache(
@@ -593,7 +584,7 @@ THREADED_TEST(HandleScopeSegment) {
   // Check that we can return values past popping of handle scope
   // segments.
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetNativeDataProperty(v8_str("xxx"), AllocateHandles);
@@ -628,7 +619,7 @@ v8::Intercepted JSONStringifyGetter(
 
 THREADED_TEST(JSONStringifyNamedInterceptorObject) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
@@ -656,7 +647,7 @@ static void check_contexts(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(AccessorPropertyCrossContext) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Function> fun =
       v8::Function::New(env.local(), check_contexts).ToLocalChecked();
@@ -676,7 +667,7 @@ THREADED_TEST(AccessorPropertyCrossContext) {
 
 THREADED_TEST(GlobalObjectAccessor) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   CompileRun(
       "var set_value = 1;"
@@ -725,7 +716,7 @@ void OneProperty(Local<Name> name,
 
 THREADED_TEST(Regress433458) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
   obj->SetHandler(v8::NamedPropertyHandlerConfiguration(EmptyGenericGetter));
@@ -752,7 +743,7 @@ static bool SecurityTestCallback(Local<v8::Context> accessing_context,
 TEST(PrototypeGetterAccessCheck) {
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   auto fun_templ = v8::FunctionTemplate::New(isolate);
   auto getter_templ = v8::FunctionTemplate::New(isolate, handle_property);
@@ -832,34 +823,9 @@ TEST(PrototypeGetterAccessCheck) {
   }
 }
 
-static void CheckReceiver(Local<Name> name,
-                          const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(info.This()->IsObject());
-}
-
-TEST(Regress609134) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  auto fun_templ = v8::FunctionTemplate::New(isolate);
-  fun_templ->InstanceTemplate()->SetNativeDataProperty(v8_str("foo"),
-                                                       CheckReceiver);
-
-  CHECK(env->Global()
-            ->Set(env.local(), v8_str("Fun"),
-                  fun_templ->GetFunction(env.local()).ToLocalChecked())
-            .FromJust());
-
-  CompileRun(
-      "var f = new Fun();"
-      "Number.prototype.__proto__ = f;"
-      "var a = 42;"
-      "for (var i = 0; i<3; i++) { a.foo; }");
-}
-
 TEST(ObjectSetLazyDataProperty) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
@@ -892,12 +858,69 @@ TEST(ObjectSetLazyDataProperty) {
   ExpectInt32("obj.bar = -1; obj.bar;", -1);
 }
 
-TEST(ObjectSetLazyDataPropertyForIndex) {
-  // Regression test for crbug.com/1136800 .
+TEST(GlobalObjectSetLazyDataProperty) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
-  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  v8::Local<v8::Object> obj = env->Global();
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Despite getting the property multiple times, the getter should only be
+  // called once and data property reads should continue to produce the same
+  // value.
+  static int getter_call_count;
+  getter_call_count = 0;
+  auto result = obj->SetLazyDataProperty(
+      env.local(), v8_str("foo"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+  CHECK(result.FromJust());
+  CHECK_EQ(0, getter_call_count);
+  for (int i = 0; i < 2; i++) {
+    ExpectInt32("obj.foo", 1);
+    CHECK_EQ(1, getter_call_count);
+  }
+
+  // Try with contextful access.
+  getter_call_count = 0;
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("foo2"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        getter_call_count++;
+        info.GetReturnValue().Set(getter_call_count);
+      });
+  CHECK(result.FromJust());
+  CHECK_EQ(0, getter_call_count);
+  for (int i = 0; i < 2; i++) {
+    ExpectInt32("var foo2; foo2", 1);
+    CHECK_EQ(1, getter_call_count);
+  }
+
+  // Setting should overwrite the data property.
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("bar"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        CHECK(false);
+      });
+  CHECK(result.FromJust());
+  ExpectInt32("obj.bar = -1; obj.bar;", -1);
+
+  // Try with contextful access.
+  result = obj->SetLazyDataProperty(
+      env.local(), v8_str("bar2"),
+      [](Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+        CHECK(false);
+      });
+  CHECK(result.FromJust());
+  ExpectInt32("var bar2; bar2 = -11; bar2;", -11);
+}
+
+namespace {
+
+void TestObjectSetLazyDataPropertyForIndex(LocalContext& env,
+                                           v8::Local<v8::Object> obj) {
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
   static int getter_call_count;
@@ -916,10 +939,28 @@ TEST(ObjectSetLazyDataPropertyForIndex) {
   }
 }
 
+}  // namespace
+
+TEST(ObjectSetLazyDataPropertyForIndex) {
+  // Regression test for http://crbug.com/1136800.
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> obj = v8::Object::New(isolate);
+  TestObjectSetLazyDataPropertyForIndex(env, obj);
+}
+
+TEST(GlobalObjectSetLazyDataPropertyForIndex) {
+  LocalContext env;
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  TestObjectSetLazyDataPropertyForIndex(env, env->Global());
+}
+
 TEST(ObjectTemplateSetLazyPropertySurvivesIC) {
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 

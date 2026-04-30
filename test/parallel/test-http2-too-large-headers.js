@@ -16,7 +16,7 @@ for (const prototype of ['maxHeaderListSize', 'maxHeaderSize']) {
   server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
 
-    client.on('remoteSettings', () => {
+    client.on('remoteSettings', common.mustCall(() => {
       const req = client.request({ 'foo': 'a'.repeat(1000) });
       req.on('error', common.expectsError({
         code: 'ERR_HTTP2_STREAM_ERROR',
@@ -28,7 +28,7 @@ for (const prototype of ['maxHeaderListSize', 'maxHeaderSize']) {
         server.close();
         client.close();
       }));
-    });
+    }));
 
   }));
 }

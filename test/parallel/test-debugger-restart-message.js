@@ -14,7 +14,7 @@ const startCLI = require('../common/debugger');
 // Using `restart` should result in only one "Connect/For help" message.
 {
   const script = fixtures.path('debugger', 'three-lines.js');
-  const cli = startCLI(['--port=0', script]);
+  const cli = startCLI([script]);
 
   const listeningRegExp = /Debugger listening on/g;
 
@@ -25,12 +25,18 @@ const startCLI = require('../common/debugger');
       assert.strictEqual(cli.output.match(listeningRegExp).length, 1);
 
       for (let i = 0; i < RESTARTS; i++) {
-        await cli.stepCommand('restart');
+        // For `restart`, sync on attach/prompt instead of BREAK_MESSAGE to avoid flaky races.
+        // https://github.com/nodejs/node/issues/61762
+        await cli.command('restart');
+        await cli.waitFor(/Debugger attached\./);
+        await cli.waitForPrompt();
         assert.strictEqual(cli.output.match(listeningRegExp).length, 1);
       }
     } finally {
       await cli.quit();
     }
+
+    assert.doesNotMatch(cli.stderrOutput, /MaxListenersExceededWarning/);
   }
 
   onWaitForInitialBreak();

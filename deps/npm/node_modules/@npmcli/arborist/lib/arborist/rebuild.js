@@ -1,20 +1,20 @@
 // Arborist.rebuild({path = this.path}) will do all the binlinks and
 // bundle building needed.  Called by reify, and by `npm rebuild`.
 
-const localeCompare = require('@isaacs/string-locale-compare')('en')
-const { depth: dfwalk } = require('treeverse')
-const promiseAllRejectLate = require('promise-all-reject-late')
-const rpj = require('read-package-json-fast')
+const PackageJson = require('@npmcli/package-json')
 const binLinks = require('bin-links')
+const localeCompare = require('@isaacs/string-locale-compare')('en')
+const promiseAllRejectLate = require('promise-all-reject-late')
 const runScript = require('@npmcli/run-script')
 const { callLimit: promiseCallLimit } = require('promise-call-limit')
-const { resolve } = require('node:path')
+const { depth: dfwalk } = require('treeverse')
 const { isNodeGypPackage, defaultGypInstallScript } = require('@npmcli/node-gyp')
+const { promiseRetry } = require('@gar/promise-retry')
 const { log, time } = require('proc-log')
+const { resolve } = require('node:path')
 
 const boolEnv = b => b ? '1' : ''
-const sortNodes = (a, b) =>
-  (a.depth - b.depth) || localeCompare(a.path, b.path)
+const sortNodes = (a, b) => (a.depth - b.depth) || localeCompare(a.path, b.path)
 
 const _checkBins = Symbol.for('checkBins')
 
@@ -25,13 +25,12 @@ const _trashList = Symbol.for('trashList')
 module.exports = cls => class Builder extends cls {
   #doHandleOptionalFailure
   #oldMeta = null
-  #queues
-
-  constructor (options) {
-    super(options)
-
-    this.scriptsRun = new Set()
-    this.#resetQueues()
+  #queues = {
+    preinstall: [],
+    install: [],
+    postinstall: [],
+    prepare: [],
+    bin: [],
   }
 
   async rebuild ({ nodes, handleOptionalFailure = false } = {}) {
@@ -63,7 +62,13 @@ module.exports = cls => class Builder extends cls {
 
     // build link deps
     if (linkNodes.size) {
-      this.#resetQueues()
+      this.#queues = {
+        preinstall: [],
+        install: [],
+        postinstall: [],
+        prepare: [],
+        bin: [],
+      }
       await this.#build(linkNodes, { type: 'links' })
     }
 
@@ -130,16 +135,6 @@ module.exports = cls => class Builder extends cls {
     return {
       depNodes,
       linkNodes,
-    }
-  }
-
-  #resetQueues () {
-    this.#queues = {
-      preinstall: [],
-      install: [],
-      postinstall: [],
-      prepare: [],
-      bin: [],
     }
   }
 
@@ -250,7 +245,9 @@ module.exports = cls => class Builder extends cls {
       // add to the set then remove while we're reading the pj, so we
       // don't accidentally hit it multiple times.
       set.add(node)
-      const pkg = await rpj(node.path + '/package.json').catch(() => ({}))
+      const { content: pkg } = await PackageJson.normalize(node.path).catch(() => {
+        return { content: {} }
+      })
       set.delete(node)
 
       const { scripts = {} } = pkg
@@ -299,12 +296,12 @@ module.exports = cls => class Builder extends cls {
         devOptional,
         package: pkg,
         location,
-        isStoreLink,
       } = node.target
 
       // skip any that we know we'll be deleting
-      // or storeLinks
-      if (this[_trashList].has(path) || isStoreLink) {
+      // or links to store entries (their scripts run on the store
+      // entry itself, not through the link)
+      if (this[_trashList].has(path) || (node.isLink && node.target?.isInStore)) {
         return
       }
 
@@ -385,13 +382,20 @@ module.exports = cls => class Builder extends cls {
 
     const timeEnd = time.start(`build:link:${node.location}`)
 
-    const p = binLinks({
+    // On Windows, antivirus/indexer can transiently lock files, causing EPERM/EACCES/EBUSY on the rename inside write-file-atomic (used by bin-links/fix-bin.js), so, retry with backoff.
+    const p = promiseRetry((retry) => binLinks({
       pkg: node.package,
       path: node.path,
       top: !!(node.isTop || node.globalTop),
       force: this.options.force,
       global: !!node.globalTop,
-    })
+    }).catch(/* istanbul ignore next - Windows-only transient antivirus locks */ err => {
+      if (process.platform === 'win32' &&
+          (err.code === 'EPERM' || err.code === 'EACCES' || err.code === 'EBUSY')) {
+        return retry(err)
+      }
+      throw err
+    }), { retries: 5, minTimeout: 500 })
 
     await (this.#doHandleOptionalFailure
       ? this[_handleOptionalFailure](node, p)

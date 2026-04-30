@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_CPU_H_
+#define V8_BASE_CPU_H_
+
 // This module contains the architecture-specific code. This make the rest of
 // the code less dependent on differences between different processor
 // architecture.
@@ -9,9 +12,6 @@
 // implementation for a particular architecture is put in cpu_<arch>.cc.
 // The build system then uses the implementation for the target architecture.
 //
-
-#ifndef V8_BASE_CPU_H_
-#define V8_BASE_CPU_H_
 
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
@@ -64,7 +64,7 @@ class V8_BASE_EXPORT CPU final {
   static const int kNvidiaDenverV10 = 0x002;
 
   // PPC-specific part codes
-  enum { kPPCPower8, kPPCPower9, kPPCPower10 };
+  enum { kPPCPower9, kPPCPower10, kPPCPower11 };
 
   // General features
   bool has_fpu() const { return has_fpu_; }
@@ -93,6 +93,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_bmi2() const { return has_bmi2_; }
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
+  bool has_apx_f() const { return has_apx_f_; }
   bool is_atom() const { return is_atom_; }
   bool has_intel_jcc_erratum() const { return has_intel_jcc_erratum_; }
   bool has_cetss() const { return has_cetss_; }
@@ -120,21 +121,34 @@ class V8_BASE_EXPORT CPU final {
   bool has_dot_prod() const { return has_dot_prod_; }
   bool has_lse() const { return has_lse_; }
   bool has_mte() const { return has_mte_; }
+  bool has_sha3() const { return has_sha3_; }
   bool has_pmull1q() const { return has_pmull1q_; }
   bool has_fp16() const { return has_fp16_; }
+  bool has_hbc() const { return has_hbc_; }
+  bool has_cssc() const { return has_cssc_; }
+  bool has_mops() const { return has_mops_; }
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
   bool has_msa() const { return has_msa_; }
 
   // riscv-specific part codes
+  unsigned vlen() const { return vlen_; }
   bool has_rvv() const { return has_rvv_; }
+  bool has_zba() const { return has_zba_; }
+  bool has_zbb() const { return has_zbb_; }
+  bool has_zbs() const { return has_zbs_; }
   enum class RV_MMU_MODE {
     kRiscvSV39,
     kRiscvSV48,
     kRiscvSV57,
   };
   RV_MMU_MODE riscv_mmu() const { return riscv_mmu_; }
+  static const unsigned kUnknownVlen = 0;
+
+  // LoongArch features
+  bool has_lsx() const { return has_lsx_; }
+  bool has_lasx() const { return has_lasx_; }
 
  private:
 #if defined(V8_OS_STARBOARD)
@@ -178,6 +192,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_bmi2_;
   bool has_lzcnt_;
   bool has_popcnt_;
+  bool has_apx_f_;
   bool has_idiva_;
   bool has_neon_;
   bool has_thumb2_;
@@ -188,14 +203,24 @@ class V8_BASE_EXPORT CPU final {
   bool has_dot_prod_;
   bool has_lse_;
   bool has_mte_;
+  bool has_sha3_;
   bool has_pmull1q_;
   bool has_fp16_;
+  bool has_hbc_;
+  bool has_cssc_;
+  bool has_mops_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
   bool is_running_in_vm_;
   bool has_msa_;
   RV_MMU_MODE riscv_mmu_;
+  unsigned vlen_;
   bool has_rvv_;
+  bool has_zba_;
+  bool has_zbb_;
+  bool has_zbs_;
+  bool has_lsx_;
+  bool has_lasx_;
 };
 
 }  // namespace base

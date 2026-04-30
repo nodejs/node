@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --harmony --no-always-turbofan --maglev
+// Flags: --allow-natives-syntax --harmony --maglev
 
 function assertMaglevved(f) {
   assertTrue(isMaglevved(f));
@@ -35,6 +35,7 @@ arr2[2] = 42;
 
 // Re-optimizing {f} (which a fresh feedback), now that the protector for
 // detached array buffer doesn't hold anymore.
+%DeoptimizeFunction(f);
 %ClearFunctionFeedback(f);
 %PrepareFunctionForOptimization(f);
 assertEquals(42, f(arr2));

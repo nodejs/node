@@ -7,18 +7,21 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-const { readKey } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 const { hasOpenSSL } = require('../common/crypto');
 
 const https = require('https');
 const { SSL_OP_NO_TICKET } = require('crypto').constants;
 
 const options = {
-  key: readKey('agent1-key.pem'),
-  cert: readKey('agent1-cert.pem'),
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem'),
   secureOptions: SSL_OP_NO_TICKET,
-  ciphers: 'RSA@SECLEVEL=0'
 };
+
+if (!process.features.openssl_is_boringssl) {
+  options.ciphers = 'RSA@SECLEVEL=0';
+}
 
 // Create TLS1.2 server
 https.createServer(options, function(req, res) {

@@ -1,6 +1,6 @@
 const crypto = require('node:crypto')
-const normalizeData = require('normalize-package-data')
 const parseLicense = require('spdx-expression-parse')
+const PackageJson = require('@npmcli/package-json')
 const npa = require('npm-package-arg')
 const ssri = require('ssri')
 
@@ -79,18 +79,25 @@ const toCyclonedxItem = (node, { packageType }) => {
   const purl = npa.toPurl(spec) + (isGitNode(node) ? `?vcs_url=${node.resolved}` : '')
 
   if (node.package) {
-    normalizeData(node.package)
+    const toNormalize = new PackageJson()
+    toNormalize.fromContent(node.package).normalize({ steps: ['normalizeData'] })
+    node.package = toNormalize.content
+  }
+
+  let license = node.package?.license
+  if (license) {
+    if (typeof license === 'object') {
+      license = license.type
+    }
+  } else if (Array.isArray(node.package?.licenses)) {
+    license = node.package.licenses
+      .map(l => (typeof l === 'object' ? l.type : l))
+      .filter(Boolean)
+      .join(' OR ')
   }
 
   let parsedLicense
   try {
-    let license = node.package?.license
-    if (license) {
-      if (typeof license === 'object') {
-        license = license.type
-      }
-    }
-
     parsedLicense = parseLicense(license)
   } catch {
     parsedLicense = null
@@ -156,7 +163,7 @@ const toCyclonedxItem = (node, { packageType }) => {
     component.licenses = [{ license: { id: parsedLicense.license } }]
     // If license is a conjunction, use the expression field
   } else if (parsedLicense?.conjunction) {
-    component.licenses = [{ expression: node.package.license }]
+    component.licenses = [{ expression: license }]
   }
 
   return component

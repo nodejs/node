@@ -1,24 +1,13 @@
 'use strict';
-require('../common');
-const repl = require('repl');
+const common = require('../common');
 const assert = require('assert');
-const Stream = require('stream');
+const { startNewREPLServer } = require('../common/repl');
 
-const output = new Stream();
-let text = '';
-output.write = output.pause = output.resume = function(buf) {
-  text += buf.toString();
-};
+const { replServer, output } = startNewREPLServer();
 
-const replserver = repl.start({
-  output: output,
-  input: process.stdin
-});
+replServer.emit('line', 'process.nextTick(() => { throw null; })');
+replServer.emit('line', '.exit');
 
-replserver.emit('line', 'process.nextTick(() => { throw null; })');
-replserver.emit('line', '.exit');
-
-setTimeout(() => {
-  console.log(text);
-  assert(text.includes('Uncaught null'));
-}, 0);
+setTimeout(common.mustCall(() => {
+  assert(output.accumulator.includes('Uncaught null'));
+}), 0);

@@ -36,7 +36,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
          resume_mode == JSGeneratorObject::kThrow);
 
   TNode<JSAsyncFunctionObject> async_function_object =
-      CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(context, Context::EXTENSION_INDEX));
 
   // Inline version of GeneratorPrototypeNext / GeneratorPrototypeReturn with
   // unnecessary runtime checks removed.
@@ -93,7 +93,7 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
 
   // Allocate and initialize the async function object.
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> async_function_object_map = CAST(LoadContextElement(
+  TNode<Map> async_function_object_map = CAST(LoadContextElementNoCell(
       native_context, Context::ASYNC_FUNCTION_OBJECT_MAP_INDEX));
   TNode<JSAsyncFunctionObject> async_function_object =
       UncheckedCast<JSAsyncFunctionObject>(
@@ -126,6 +126,16 @@ TF_BUILTIN(AsyncFunctionEnter, AsyncFunctionBuiltinsAssembler) {
       parameters_and_registers);
   StoreObjectFieldNoWriteBarrier(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset, promise);
+
+  // Initialize closure fields to undefined. They will be lazily allocated
+  // on first await. This saves memory for async functions that never suspend
+  // (e.g., conditional awaits, early returns).
+  StoreObjectFieldRoot(async_function_object,
+                       JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+                       RootIndex::kUndefinedValue);
+  StoreObjectFieldRoot(async_function_object,
+                       JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+                       RootIndex::kUndefinedValue);
 
   Return(async_function_object);
 }
@@ -199,14 +209,14 @@ template <typename Descriptor>
 void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
   auto async_function_object =
       Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       async_function_object, JSAsyncFunctionObject::kPromiseOffset);
-  Await(context, async_function_object, value, outer_promise,
-        RootIndex::kAsyncFunctionAwaitResolveClosureSharedFun,
-        RootIndex::kAsyncFunctionAwaitRejectClosureSharedFun);
+
+  AwaitWithReusableClosures(context, async_function_object, value,
+                            outer_promise);
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.

@@ -33,10 +33,6 @@ struct uv_loop_s;  // Forward declaration.
 #define NAPI_NO_RETURN
 #endif
 
-typedef napi_value(NAPI_CDECL* napi_addon_register_func)(napi_env env,
-                                                         napi_value exports);
-typedef int32_t(NAPI_CDECL* node_api_addon_get_api_version_func)(void);
-
 // Used by deprecated registration method napi_module_register.
 typedef struct napi_module {
   int nm_version;

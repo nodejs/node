@@ -533,7 +533,7 @@ static char *ares_uri_path_normalize(const char *path)
   status = ares_buf_split_str_array(inpath, (const unsigned char *)"/", 1,
                                     ARES_BUF_SPLIT_TRIM, 0, &arr);
   if (status != ARES_SUCCESS) {
-    return NULL;
+    goto done;
   }
 
   for (i = 0; i < (ares_ssize_t)ares_array_len(arr); i++) {

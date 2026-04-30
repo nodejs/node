@@ -26,6 +26,7 @@
 
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "json_utils.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -85,10 +86,13 @@ constexpr int kMaximumCopyMode =
 
 namespace node {
 
+using v8::AllocationProfile;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Context;
 using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
@@ -125,12 +129,8 @@ static void MakeUtf8String(Isolate* isolate,
   size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
 
-  // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
-  // implemented
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length =
-      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
+  size_t length = string->WriteUtf8V2(
+      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
   target->SetLengthAndZeroTerminate(length);
 }
 
@@ -150,12 +150,10 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
-  // Allocate enough space to include the null terminator
-  const size_t storage = string->Length() + 1;
-  AllocateSufficientStorage(storage);
-
-  const int flags = String::NO_NULL_TERMINATION;
-  const int length = string->Write(isolate, out(), 0, storage, flags);
+  // Allocate enough space to include the null terminator.
+  const size_t length = string->Length();
+  AllocateSufficientStorage(length + 1);
+  string->WriteV2(isolate, 0, length, out());
   SetLengthAndZeroTerminate(length);
 }
 
@@ -229,96 +227,6 @@ double GetCurrentTimeInMicroseconds() {
   uv_timeval64_t tv;
   CHECK_EQ(0, uv_gettimeofday(&tv));
   return kMicrosecondsPerSecond * tv.tv_sec + tv.tv_usec;
-}
-
-int WriteFileSync(const char* path, uv_buf_t buf) {
-  return WriteFileSync(path, &buf, 1);
-}
-
-int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count) {
-  uv_fs_t req;
-  int fd = uv_fs_open(nullptr,
-                      &req,
-                      path,
-                      O_WRONLY | O_CREAT | O_TRUNC,
-                      S_IWUSR | S_IRUSR,
-                      nullptr);
-  uv_fs_req_cleanup(&req);
-  if (fd < 0) {
-    return fd;
-  }
-
-  int err = uv_fs_write(nullptr, &req, fd, bufs, buf_count, 0, nullptr);
-  uv_fs_req_cleanup(&req);
-  if (err < 0) {
-    return err;
-  }
-
-  err = uv_fs_close(nullptr, &req, fd, nullptr);
-  uv_fs_req_cleanup(&req);
-  return err;
-}
-
-int WriteFileSync(v8::Isolate* isolate,
-                  const char* path,
-                  v8::Local<v8::String> string) {
-  node::Utf8Value utf8(isolate, string);
-  uv_buf_t buf = uv_buf_init(utf8.out(), utf8.length());
-  return WriteFileSync(path, buf);
-}
-
-int ReadFileSync(std::string* result, const char* path) {
-  uv_fs_t req;
-  auto defer_req_cleanup = OnScopeLeave([&req]() {
-    uv_fs_req_cleanup(&req);
-  });
-
-  uv_file file = uv_fs_open(nullptr, &req, path, O_RDONLY, 0, nullptr);
-  if (req.result < 0) {
-    // req will be cleaned up by scope leave.
-    return req.result;
-  }
-  uv_fs_req_cleanup(&req);
-
-  auto defer_close = OnScopeLeave([file]() {
-    uv_fs_t close_req;
-    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
-    uv_fs_req_cleanup(&close_req);
-  });
-
-  *result = std::string("");
-  char buffer[4096];
-  uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
-
-  while (true) {
-    const int r =
-        uv_fs_read(nullptr, &req, file, &buf, 1, result->length(), nullptr);
-    if (req.result < 0) {
-      // req will be cleaned up by scope leave.
-      return req.result;
-    }
-    uv_fs_req_cleanup(&req);
-    if (r <= 0) {
-      break;
-    }
-    result->append(buf.base, r);
-  }
-  return 0;
-}
-
-std::vector<char> ReadFileSync(FILE* fp) {
-  CHECK_EQ(ftell(fp), 0);
-  int err = fseek(fp, 0, SEEK_END);
-  CHECK_EQ(err, 0);
-  size_t size = ftell(fp);
-  CHECK_NE(size, static_cast<size_t>(-1L));
-  err = fseek(fp, 0, SEEK_SET);
-  CHECK_EQ(err, 0);
-
-  std::vector<char> contents(size);
-  size_t num_read = fread(contents.data(), size, 1, fp);
-  CHECK_EQ(num_read, 1);
-  return contents;
 }
 
 void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
@@ -397,7 +305,7 @@ void SetMethod(Local<v8::Context> context,
                Local<v8::Object> that,
                const std::string_view name,
                v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -458,7 +366,7 @@ void SetFastMethod(Local<v8::Context> context,
                    const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -480,7 +388,7 @@ void SetFastMethodNoSideEffect(Local<v8::Context> context,
                                const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           slow_callback,
@@ -568,7 +476,7 @@ void SetMethodNoSideEffect(Local<v8::Context> context,
                            Local<v8::Object> that,
                            const std::string_view name,
                            v8::FunctionCallback callback) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Function> function =
       NewFunctionTemplate(isolate,
                           callback,
@@ -602,6 +510,32 @@ void SetMethodNoSideEffect(Isolate* isolate,
       v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
           .ToLocalChecked();
   that->Set(name_string, t);
+}
+
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetDispose(isolate), t);
+}
+
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetAsyncDispose(isolate), t);
 }
 
 void SetProtoMethod(v8::Isolate* isolate,
@@ -669,7 +603,7 @@ void SetConstructorFunction(Local<v8::Context> context,
                             const char* name,
                             Local<v8::FunctionTemplate> tmpl,
                             SetConstructorFunctionFlag flag) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   SetConstructorFunction(
       context, that, OneByteString(isolate, name), tmpl, flag);
 }
@@ -726,12 +660,14 @@ RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     SnapshotBuilder::InitializeIsolateParams(data, &params);
   }
   params.array_buffer_allocator = allocator_.get();
+  params.cpp_heap = v8::CppHeap::Create(per_process::v8_platform.Platform(),
+                                        v8::CppHeapCreateParams{{}})
+                        .release();
   Isolate::Initialize(isolate_, params);
 }
 
 RAIIIsolateWithoutEntering::~RAIIIsolateWithoutEntering() {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
-  isolate_->Dispose();
+  per_process::v8_platform.Platform()->DisposeIsolate(isolate_);
 }
 
 RAIIIsolate::RAIIIsolate(const SnapshotData* data)
@@ -880,4 +816,96 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
   return v8::Just(mode);
 }
 
+static void BuildHeapProfileNode(Isolate* isolate,
+                                 const AllocationProfile::Node* node,
+                                 JSONWriter* writer) {
+  size_t selfSize = 0;
+  for (const auto& allocation : node->allocations)
+    selfSize += allocation.size * allocation.count;
+
+  writer->json_keyvalue("selfSize", selfSize);
+  writer->json_keyvalue("id", node->node_id);
+  writer->json_objectstart("callFrame");
+  writer->json_keyvalue("scriptId", node->script_id);
+  writer->json_keyvalue("lineNumber", node->line_number - 1);
+  writer->json_keyvalue("columnNumber", node->column_number - 1);
+  Utf8Value name(isolate, node->name);
+  Utf8Value script_name(isolate, node->script_name);
+  writer->json_keyvalue("functionName", *name);
+  writer->json_keyvalue("url", *script_name);
+  writer->json_objectend();
+
+  writer->json_arraystart("children");
+  for (const auto* child : node->children) {
+    writer->json_start();
+    BuildHeapProfileNode(isolate, child, writer);
+    writer->json_end();
+  }
+  writer->json_arrayend();
+}
+
+bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
+  HandleScope scope(isolate);
+  HeapProfiler* profiler = isolate->GetHeapProfiler();
+  std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
+  if (!profile) {
+    return false;
+  }
+  profiler->StopSamplingHeapProfiler();
+  JSONWriter writer(out_stream, true);
+  writer.json_start();
+
+  writer.json_arraystart("samples");
+  for (const auto& sample : profile->GetSamples()) {
+    writer.json_start();
+    writer.json_keyvalue("size", sample.size * sample.count);
+    writer.json_keyvalue("nodeId", sample.node_id);
+    writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
+    writer.json_end();
+  }
+  writer.json_arrayend();
+
+  writer.json_objectstart("head");
+  BuildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
+  writer.json_objectend();
+
+  writer.json_end();
+  return true;
+}
+
+HeapProfileOptions ParseHeapProfileOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HeapProfileOptions options;
+  CHECK_LE(args.Length(), 3);
+  if (args.Length() > 0) {
+    CHECK(args[0]->IsNumber());
+    options.sample_interval =
+        static_cast<uint64_t>(args[0].As<v8::Number>()->Value());
+  }
+  if (args.Length() > 1) {
+    CHECK(args[1]->IsInt32());
+    options.stack_depth = args[1].As<v8::Int32>()->Value();
+  }
+  if (args.Length() > 2) {
+    CHECK(args[2]->IsUint32());
+    options.flags = static_cast<v8::HeapProfiler::SamplingFlags>(
+        args[2].As<v8::Uint32>()->Value());
+  }
+  return options;
+}
+
+CpuProfileOptions ParseCpuProfileOptions(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  CpuProfileOptions options;
+  CHECK_LE(args.Length(), 2);
+  if (args.Length() > 0) {
+    CHECK(args[0]->IsInt32());
+    options.sampling_interval_us = args[0].As<v8::Int32>()->Value();
+  }
+  if (args.Length() > 1) {
+    CHECK(args[1]->IsUint32());
+    options.max_samples = args[1].As<v8::Uint32>()->Value();
+  }
+  return options;
+}
 }  // namespace node

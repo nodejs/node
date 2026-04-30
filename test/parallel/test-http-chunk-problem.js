@@ -61,7 +61,7 @@ function executeRequest(cb) {
            file,
            'shasum' ].join(' '),
           { env },
-          (err, stdout, stderr) => {
+          common.mustCall((err, stdout, stderr) => {
             if (stderr.trim() !== '') {
               console.log(stderr);
             }
@@ -69,7 +69,7 @@ function executeRequest(cb) {
             assert.strictEqual(stdout.slice(0, 40),
                                '8c206a1a87599f532ce68675536f0b1546900d7a');
             cb();
-          }
+          })
   );
 }
 

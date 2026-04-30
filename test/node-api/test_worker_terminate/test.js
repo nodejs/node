@@ -5,7 +5,7 @@ const { Worker, isMainThread, workerData } = require('worker_threads');
 
 if (isMainThread) {
   // Load the addon in the main thread first.
-  // This checks that N-API addons can be loaded from multiple contexts
+  // This checks that Node-API addons can be loaded from multiple contexts
   // when they are not loaded through NAPI_MODULE().
   require(`./build/${common.buildType}/test_worker_terminate`);
 

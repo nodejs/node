@@ -7,11 +7,11 @@ const { Readable, pipeline } = require('stream');
 const http2 = require('http2');
 
 {
-  const server = http2.createServer((req, res) => {
+  const server = http2.createServer(common.mustCallAtLeast((req, res) => {
     pipeline(req, res, common.mustCall());
-  });
+  }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const url = `http://localhost:${server.address().port}`;
     const client = http2.connect(url);
     const req = client.request({ ':method': 'POST' });
@@ -32,5 +32,5 @@ const http2 = require('http2');
       cnt--;
       if (cnt === 0) rs.destroy();
     });
-  });
+  }));
 }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_RANDOM_INTERNAL_PLATFORM_H_
 #define ABSL_RANDOM_INTERNAL_PLATFORM_H_
 
@@ -33,7 +35,6 @@
 //   Darwin (macOS and iOS)            __APPLE__
 //   Akaros (http://akaros.org)        __ros__
 //   Windows                           _WIN32
-//   NaCL                              __native_client__
 //   AsmJS                             __asmjs__
 //   WebAssembly                       __wasm__
 //   Fuchsia                           __Fuchsia__
@@ -123,41 +124,10 @@
 
 #endif
 
-// NaCl does not allow AES.
-#if defined(__native_client__)
-#undef ABSL_HAVE_ACCELERATED_AES
-#define ABSL_HAVE_ACCELERATED_AES 0
-#endif
-
 // ABSL_RANDOM_INTERNAL_AES_DISPATCH indicates whether the currently active
 // platform has, or should use run-time dispatch for selecting the
 // accelerated Randen implementation.
 #define ABSL_RANDOM_INTERNAL_AES_DISPATCH 0
-
-#if defined(ABSL_ARCH_X86_64)
-// Dispatch is available on x86_64
-#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
-#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
-#elif defined(__linux__) && defined(ABSL_ARCH_PPC)
-// Or when running linux PPC
-#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
-#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
-#elif defined(__linux__) && defined(ABSL_ARCH_AARCH64)
-// Or when running linux AArch64
-#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
-#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
-#elif defined(__linux__) && defined(ABSL_ARCH_ARM) && (__ARM_ARCH >= 8)
-// Or when running linux ARM v8 or higher.
-// (This captures a lot of Android configurations.)
-#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
-#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
-#endif
-
-// NaCl does not allow dispatch.
-#if defined(__native_client__)
-#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
-#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 0
-#endif
 
 // iOS does not support dispatch, even on x86, since applications
 // should be bundled as fat binaries, with a different build tailored for
@@ -166,6 +136,23 @@
     (defined(TARGET_OS_IPHONE_SIMULATOR) && TARGET_OS_IPHONE_SIMULATOR)
 #undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
 #define ABSL_RANDOM_INTERNAL_AES_DISPATCH 0
+#elif defined(ABSL_ARCH_X86_64)
+// Dispatch is available on x86_64
+#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
+#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
+#elif defined(__linux__) && defined(ABSL_ARCH_PPC)
+// Or when running linux PPC
+#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
+#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
+#elif (defined(__linux__) || defined(__APPLE__)) && defined(ABSL_ARCH_AARCH64)
+// Or when running linux or macOS AArch64
+#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
+#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
+#elif defined(__linux__) && defined(ABSL_ARCH_ARM) && (__ARM_ARCH >= 8)
+// Or when running linux ARM v8 or higher.
+// (This captures a lot of Android configurations.)
+#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
+#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
 #endif
 
 #endif  // ABSL_RANDOM_INTERNAL_PLATFORM_H_

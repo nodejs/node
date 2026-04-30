@@ -64,7 +64,13 @@ class V8_EXPORT UnboundScript : public Data {
    */
   Local<Script> BindToCurrentContext();
 
+  /*
+   * A unique id.
+   */
+  int ScriptId() const;
+  V8_DEPRECATE_SOON("Use ScriptId")
   int GetId() const;
+
   Local<Value> GetScriptName();
 
   /**
@@ -104,7 +110,16 @@ class V8_EXPORT UnboundModuleScript : public Data {
    * Data read from magic sourceMappingURL comments.
    */
   Local<Value> GetSourceMappingURL();
+
+  /*
+   * A unique id.
+   */
+  int ScriptId() const;
+
+  static const int kNoScriptId = 0;
 };
+
+static_assert(UnboundModuleScript::kNoScriptId == UnboundScript::kNoScriptId);
 
 /**
  * A location in JavaScript source.
@@ -155,7 +170,7 @@ class V8_EXPORT ModuleRequest : public Data {
    */
   Local<FixedArray> GetImportAttributes() const;
 
-  V8_DEPRECATE_SOON("Use GetImportAttributes instead")
+  V8_DEPRECATED("Use GetImportAttributes instead")
   Local<FixedArray> GetImportAssertions() const {
     return GetImportAttributes();
   }
@@ -186,6 +201,13 @@ class V8_EXPORT Module : public Data {
     kEvaluated,
     kErrored
   };
+
+  /**
+   * If the module is a Source Text Module, returns the name that was passed
+   * by the embedder as resource_name to the ScriptOrigin. If it's a Synthetic
+   * Module, returns the module_name passed to CreateSyntheticModule().
+   */
+  Local<Value> GetResourceName() const;
 
   /**
    * Returns the module's current status.
@@ -220,6 +242,13 @@ class V8_EXPORT Module : public Data {
       Local<Context> context, Local<String> specifier,
       Local<FixedArray> import_attributes, Local<Module> referrer);
 
+  using ResolveModuleByIndexCallback = MaybeLocal<Module> (*)(
+      Local<Context> context, size_t module_request_index,
+      Local<Module> referrer);
+  using ResolveSourceByIndexCallback = MaybeLocal<Object> (*)(
+      Local<Context> context, size_t module_request_index,
+      Local<Module> referrer);
+
   /**
    * Instantiates the module and its dependencies.
    *
@@ -230,6 +259,16 @@ class V8_EXPORT Module : public Data {
   V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(
       Local<Context> context, ResolveModuleCallback module_callback,
       ResolveSourceCallback source_callback = nullptr);
+
+  /**
+   * Similar to the variant that takes ResolveModuleCallback and
+   * ResolveSourceCallback, but uses the index into the array that is returned
+   * by GetModuleRequests() instead of the specifier and import attributes to
+   * identify the requests.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> InstantiateModule(
+      Local<Context> context, ResolveModuleByIndexCallback module_callback,
+      ResolveSourceByIndexCallback source_callback = nullptr);
 
   /**
    * Evaluates the module and its dependencies.
@@ -272,6 +311,13 @@ class V8_EXPORT Module : public Data {
    * The module's status must be at least kInstantiated.
    */
   bool IsGraphAsync() const;
+
+  /**
+   * Returns whether this module is individually asynchronous (for example,
+   * if it's a Source Text Module Record containing a top-level await).
+   * See [[HasTLA]] in https://tc39.es/ecma262/#sec-cyclic-module-records
+   */
+  bool HasTopLevelAwait() const;
 
   /**
    * Returns whether the module is a SourceTextModule.
@@ -365,6 +411,11 @@ class V8_EXPORT Script : public Data {
    * Returns the corresponding context-unbound script.
    */
   Local<UnboundScript> GetUnboundScript();
+
+  /**
+   * Returns the id of the corresponding context-unbound script.
+   */
+  int ScriptId() const;
 
   /**
    * The name that was passed by the embedder as ResourceName to the
@@ -670,6 +721,7 @@ class V8_EXPORT ScriptCompiler {
     kProduceCompileHints = 1 << 2,
     kConsumeCompileHints = 1 << 3,
     kFollowCompileHintsMagicComment = 1 << 4,
+    kFollowCompileHintsPerFunctionMagicComment = 1 << 5,
   };
 
   static inline bool CompileOptionsIsValid(CompileOptions compile_options) {
@@ -710,7 +762,8 @@ class V8_EXPORT ScriptCompiler {
     kNoCacheBecausePacScript,
     kNoCacheBecauseInDocumentWrite,
     kNoCacheBecauseResourceWithNoCacheHandler,
-    kNoCacheBecauseDeferredProduceCodeCache
+    kNoCacheBecauseDeferredProduceCodeCache,
+    kNoCacheBecauseStaticCodeCache,
   };
 
   /**

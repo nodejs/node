@@ -7,8 +7,11 @@
 
 #include <memory>
 
+#include "include/v8-external-memory-accounter.h"
+#include "include/v8config.h"
+#include "src/api/api.h"
 #include "src/base/logging.h"
-#include "src/base/platform/mutex.h"
+#include "src/base/macros.h"
 #include "src/heap/sweeper.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/tasks/cancelable-task.h"
@@ -30,7 +33,7 @@ struct ArrayBufferList final {
   size_t ApproximateBytes() const { return bytes_; }
   size_t BytesSlow() const;
 
-  void Append(ArrayBufferExtension* extension);
+  size_t Append(ArrayBufferExtension* extension);
   void Append(ArrayBufferList& list);
 
   V8_EXPORT_PRIVATE bool ContainsSlow(ArrayBufferExtension* extension) const;
@@ -61,8 +64,10 @@ class ArrayBufferSweeper final {
                     TreatAllYoungAsPromoted treat_all_young_as_promoted);
   void EnsureFinished();
 
-  // Track the given ArrayBufferExtension for the given JSArrayBuffer.
-  void Append(Tagged<JSArrayBuffer> object, ArrayBufferExtension* extension);
+  // Track the given ArrayBufferExtension.
+  void Append(ArrayBufferExtension* extension);
+
+  void Resize(ArrayBufferExtension* extension, int64_t delta);
 
   // Detaches an ArrayBufferExtension.
   void Detach(ArrayBufferExtension* extension);
@@ -70,14 +75,16 @@ class ArrayBufferSweeper final {
   const ArrayBufferList& young() const { return young_; }
   const ArrayBufferList& old() const { return old_; }
 
-  // Bytes accounted in the young generation. Rebuilt during sweeping.
+  // Bytes accounted in the young generation. Rebuilt during sweeping. Used for
+  // triggering Minor GCs.
   size_t YoungBytes() const { return young().ApproximateBytes(); }
-  // Bytes accounted in the old generation. Rebuilt during sweeping.
-  size_t OldBytes() const { return old().ApproximateBytes(); }
+
+  V8_EXPORT_PRIVATE size_t BytesForTesting() const;
+  V8_EXPORT_PRIVATE uint64_t GetBytes() const;
 
   bool sweeping_in_progress() const { return state_.get(); }
 
-  uint64_t GetTraceIdForFlowEvent(GCTracer::Scope::ScopeId scope_id) const;
+  uint64_t GetTraceIdForFlowEvent() const;
 
  private:
   class SweepingState;
@@ -85,6 +92,8 @@ class ArrayBufferSweeper final {
   // Finishes sweeping if it is already done.
   void FinishIfDone();
   void Finish();
+
+  void UpdateApproximateBytes(int64_t delta, ArrayBufferExtension::Age age);
 
   // Increments external memory counters outside of ArrayBufferSweeper.
   // Increment may trigger GC.
@@ -104,6 +113,13 @@ class ArrayBufferSweeper final {
   std::unique_ptr<SweepingState> state_;
   ArrayBufferList young_{ArrayBufferList::Age::kYoung};
   ArrayBufferList old_{ArrayBufferList::Age::kOld};
+  // Track accounting bytes adjustment during sweeping including freeing, and
+  // resizing. Adjustment are applied to the accounted bytes when sweeping
+  // finishes.
+  int64_t young_bytes_adjustment_while_sweeping_{0};
+  int64_t old_bytes_adjustment_while_sweeping_{0};
+  uint64_t total_bytes_{0};
+  V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 };
 
 }  // namespace internal

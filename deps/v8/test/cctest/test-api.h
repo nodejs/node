@@ -60,7 +60,7 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
       if (IsSmi(obj)) return true;
       Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
       if (i::IsSymbol(heap_object)) {
-        return !Cast<Symbol>(heap_object)->is_private();
+        return !Cast<Symbol>(heap_object)->is_any_private();
       }
       return IsPrimitiveHeapObject(heap_object) || IsJSReceiver(heap_object);
     }
@@ -103,7 +103,7 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {
-    CHECK_EQ(v8::EXTERNAL, isolate->current_vm_state());
+    CHECK(v8::IsExternal(isolate->current_vm_state()));
     CHECK(isolate->external_callback_scope());
     CHECK_EQ(callback, isolate->external_callback_scope()->callback());
   }

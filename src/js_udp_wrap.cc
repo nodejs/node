@@ -55,8 +55,9 @@ JSUDPWrap::JSUDPWrap(Environment* env, Local<Object> obj)
   : AsyncWrap(env, obj, PROVIDER_JSUDPWRAP) {
   MakeWeak();
 
-  obj->SetAlignedPointerInInternalField(
-      kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
+  obj->SetAlignedPointerInInternalField(kUDPWrapBaseField,
+                                        static_cast<UDPWrapBase*>(this),
+                                        EmbedderDataTag::kDefault);
 }
 
 int JSUDPWrap::RecvStart() {
@@ -157,7 +158,7 @@ void JSUDPWrap::EmitReceived(const FunctionCallbackInfo<Value>& args) {
   int family = args[1].As<Int32>()->Value() == 4 ? AF_INET : AF_INET6;
   Utf8Value address(env->isolate(), args[2]);
   int port = args[3].As<Int32>()->Value();
-  int flags = args[3].As<Int32>()->Value();
+  int flags = args[4].As<Int32>()->Value();
 
   sockaddr_storage addr;
   CHECK_EQ(sockaddr_for_family(family, *address, port, &addr), 0);

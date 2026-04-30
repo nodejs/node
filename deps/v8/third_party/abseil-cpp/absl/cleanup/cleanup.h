@@ -19,6 +19,10 @@
 // `absl::Cleanup` implements the scope guard idiom, invoking the contained
 // callback's `operator()() &&` on scope exit.
 //
+// This class doesn't allocate or take any locks, and is safe to use in a signal
+// handler. Of course the callback with which it is constructed also must be
+// signal safe in order for this to be useful.
+//
 // Example:
 //
 // ```
@@ -78,7 +82,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 template <typename Arg, typename Callback = void()>
-class ABSL_MUST_USE_RESULT Cleanup final {
+class [[nodiscard]] Cleanup final {
   static_assert(cleanup_internal::WasDeduced<Arg>(),
                 "Explicit template parameters are not supported.");
 
@@ -115,10 +119,8 @@ class ABSL_MUST_USE_RESULT Cleanup final {
 // `absl::Cleanup c = /* callback */;`
 //
 // C++17 type deduction API for creating an instance of `absl::Cleanup`
-#if defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
 template <typename Callback>
 Cleanup(Callback callback) -> Cleanup<cleanup_internal::Tag, Callback>;
-#endif  // defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
 
 // `auto c = absl::MakeCleanup(/* callback */);`
 //

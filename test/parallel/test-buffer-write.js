@@ -28,21 +28,14 @@ const resultMap = new Map([
 ]);
 
 // utf8, ucs2, ascii, latin1, utf16le
-const encodings = ['utf8', 'utf-8', 'ucs2', 'ucs-2', 'ascii', 'latin1',
-                   'binary', 'utf16le', 'utf-16le'];
+for (const encoding of ['utf8', 'utf-8', 'ucs2', 'ucs-2', 'ascii', 'latin1',
+                        'binary', 'utf16le', 'utf-16le'].flatMap((e) => [e, e.toUpperCase()])) {
+  const buf = Buffer.alloc(9);
+  const len = Buffer.byteLength('foo', encoding);
+  assert.strictEqual(buf.write('foo', 0, len, encoding), len);
 
-encodings
-  .reduce((es, e) => es.concat(e, e.toUpperCase()), [])
-  .forEach((encoding) => {
-    const buf = Buffer.alloc(9);
-    const len = Buffer.byteLength('foo', encoding);
-    assert.strictEqual(buf.write('foo', 0, len, encoding), len);
-
-    if (encoding.includes('-'))
-      encoding = encoding.replace('-', '');
-
-    assert.deepStrictEqual(buf, resultMap.get(encoding.toLowerCase()));
-  });
+  assert.deepStrictEqual(buf, resultMap.get(encoding.replace('-', '').toLowerCase()));
+}
 
 // base64
 ['base64', 'BASE64', 'base64url', 'BASE64URL'].forEach((encoding) => {

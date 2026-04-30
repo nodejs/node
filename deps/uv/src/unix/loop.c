@@ -32,12 +32,11 @@ int uv_loop_init(uv_loop_t* loop) {
   void* saved_data;
   int err;
 
-
   saved_data = loop->data;
   memset(loop, 0, sizeof(*loop));
   loop->data = saved_data;
 
-  lfields = (uv__loop_internal_fields_t*) uv__calloc(1, sizeof(*lfields));
+  lfields = uv__calloc(1, sizeof(*lfields));
   if (lfields == NULL)
     return UV_ENOMEM;
   loop->internal_fields = lfields;
@@ -84,7 +83,7 @@ int uv_loop_init(uv_loop_t* loop) {
   uv__signal_global_once_init();
   err = uv__process_init(loop);
   if (err)
-    goto fail_signal_init;
+    goto fail_process_init;
   uv__queue_init(&loop->process_handles);
 
   err = uv_rwlock_init(&loop->cloexec_lock);
@@ -111,10 +110,14 @@ fail_mutex_init:
   uv_rwlock_destroy(&loop->cloexec_lock);
 
 fail_rwlock_init:
+fail_process_init:
   uv__signal_loop_cleanup(loop);
-
-fail_signal_init:
   uv__platform_loop_delete(loop);
+
+  if (loop->backend_fd != -1) {
+    uv__close(loop->backend_fd);
+    loop->backend_fd = -1;
+  }
 
 fail_platform_init:
   uv_mutex_destroy(&lfields->loop_metrics.lock);

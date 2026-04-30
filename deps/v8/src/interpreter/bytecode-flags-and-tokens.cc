@@ -29,10 +29,9 @@ uint8_t CreateObjectLiteralFlags::Encode(int runtime_flags,
 }
 
 // static
-uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope,
-                                   bool might_always_turbofan) {
+uint8_t CreateClosureFlags::Encode(bool pretenure, bool is_function_scope) {
   uint8_t result = PretenuredBit::encode(pretenure);
-  if (!might_always_turbofan && !pretenure && is_function_scope) {
+  if (!pretenure && is_function_scope) {
     result |= FastNewClosureBit::encode(true);
   }
   return result;
@@ -85,6 +84,10 @@ const char* TestTypeOfFlags::ToString(LiteralFlag literal_flag) {
     default:
       return "<invalid>";
   }
+}
+
+std::ostream& operator<<(std::ostream& os, TestTypeOfFlags::LiteralFlag type) {
+  return os << TestTypeOfFlags::ToString(type);
 }
 
 // static

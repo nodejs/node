@@ -12,7 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/cctest/wasm/wasm-runner.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
@@ -188,7 +188,7 @@ TEST(FillStackSlotsWithZero_CheckStartOffset) {
   // Function that takes in 32 i64 arguments, returns i64. This gets us a large
   // enough starting offset from which we spill locals.
   // start = 32 * 8 + 16 (instance) = 272 (cannot fit in signed int9).
-  FunctionSig* sig =
+  const FunctionSig* sig =
       r.CreateSig<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
                   int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
                   int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,

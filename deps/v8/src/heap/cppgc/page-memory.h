@@ -45,43 +45,18 @@ class V8_EXPORT_PRIVATE MemoryRegion final {
   size_t size_ = 0;
 };
 
-// PageMemory provides the backing of a single normal or large page.
-class V8_EXPORT_PRIVATE PageMemory final {
- public:
-  PageMemory(MemoryRegion overall, MemoryRegion writeable)
-      : overall_(overall), writable_(writeable) {
-    DCHECK(overall.Contains(writeable));
-  }
-
-  const MemoryRegion writeable_region() const { return writable_; }
-  const MemoryRegion overall_region() const { return overall_; }
-
- private:
-  MemoryRegion overall_;
-  MemoryRegion writable_;
-};
-
 class V8_EXPORT_PRIVATE PageMemoryRegion final {
  public:
   PageMemoryRegion(PageAllocator&, MemoryRegion);
   ~PageMemoryRegion();
 
-  const MemoryRegion reserved_region() const { return reserved_region_; }
-
-  const PageMemory GetPageMemory() const {
-    return PageMemory(
-        MemoryRegion(reserved_region().base(), reserved_region().size()),
-        MemoryRegion(reserved_region().base() + kGuardPageSize,
-                     reserved_region().size() - 2 * kGuardPageSize));
-  }
+  const MemoryRegion region() const { return reserved_region_; }
 
   // Lookup writeable base for an |address| that's contained in
-  // PageMemoryRegion. Filters out addresses that are contained in non-writeable
-  // regions (e.g. guard pages).
+  // PageMemoryRegion.
   inline Address Lookup(ConstAddress address) const {
-    const MemoryRegion writeable_region = GetPageMemory().writeable_region();
-    return writeable_region.Contains(address) ? writeable_region.base()
-                                              : nullptr;
+    const MemoryRegion memory_region = region();
+    return memory_region.Contains(address) ? memory_region.base() : nullptr;
   }
 
   PageAllocator& allocator() const { return allocator_; }
@@ -131,12 +106,9 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
   // actual cost of pooled memory.
   size_t PooledMemory() const;
 
-  void DiscardPooledPages(PageAllocator& allocator);
+  void ReleasePooledPages(PageAllocator& allocator);
 
   auto& get_raw_pool_for_testing() { return pool_; }
-
-  void SetDecommitPooledPages(bool value) { decommit_pooled_pages_ = value; }
-  static constexpr bool kDefaultDecommitPooledPage = false;
 
  private:
   // The pool of pages that are not returned to the OS. Bounded by
@@ -151,7 +123,6 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
     bool is_discarded = false;
   };
   std::vector<PooledPageMemoryRegion> pool_;
-  bool decommit_pooled_pages_ = kDefaultDecommitPooledPage;
 };
 
 // A backend that is used for allocating and freeing normal and large pages.
@@ -171,7 +142,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
 
   // Returns normal page memory back to the backend. Expects the
   // |writeable_base| returned by |AllocateNormalMemory()|.
-  void FreeNormalPageMemory(Address writeable_base, FreeMemoryHandling);
+  void FreeNormalPageMemory(Address writeable_base);
 
   // Allocates a large page from the backend.
   //
@@ -190,7 +161,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
   PageBackend(const PageBackend&) = delete;
   PageBackend& operator=(const PageBackend&) = delete;
 
-  void DiscardPooledPages();
+  void ReleasePooledPages();
 
   PageMemoryRegionTree& get_page_memory_region_tree_for_testing() {
     return page_memory_region_tree_;
@@ -217,20 +188,17 @@ class V8_EXPORT_PRIVATE PageBackend final {
       large_page_memory_regions_;
 };
 
-// Returns true if the provided allocator supports committing at the required
-// granularity.
-inline bool SupportsCommittingGuardPages(PageAllocator& allocator) {
-  return kGuardPageSize != 0 &&
-         kGuardPageSize % allocator.CommitPageSize() == 0;
-}
-
 PageMemoryRegion* PageMemoryRegionTree::Lookup(ConstAddress address) const {
   auto it = set_.upper_bound(address);
   // This check also covers set_.size() > 0, since for empty container it is
   // guaranteed that begin() == end().
-  if (it == set_.begin()) return nullptr;
+  if (it == set_.begin()) {
+    return nullptr;
+  }
   auto* result = std::next(it, -1)->second;
-  if (address < result->reserved_region().end()) return result;
+  if (address < result->region().end()) {
+    return result;
+  }
   return nullptr;
 }
 

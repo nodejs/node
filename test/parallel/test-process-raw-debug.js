@@ -46,10 +46,10 @@ function parent() {
 
   child.stderr.setEncoding('utf8');
 
-  child.stderr.on('end', function() {
+  child.stderr.on('end', common.mustCall(() => {
     assert.strictEqual(output, `I can still debug!${os.EOL}`);
     console.log('ok - got expected message');
-  });
+  }));
 
   child.on('exit', common.mustCall(function(c) {
     assert(!c);

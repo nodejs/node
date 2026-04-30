@@ -18,9 +18,9 @@ function doCheck(arg, expression, check) {
     .on('error', common.mustNotCall())
     .stdout.on('data', function(chunk) {
       out += chunk;
-    }).on('end', function() {
+    }).on('end', common.mustCall(() => {
       assert.strictEqual(out.trim(), check);
-    }).on('error', common.mustNotCall());
+    })).on('error', common.mustNotCall());
 }
 
 // Test the default unmodified version

@@ -8,6 +8,7 @@
 #include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/logging.h"
 
 namespace v8 {
 namespace base {
@@ -37,7 +38,7 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
-                              PlatformSharedMemoryHandle handle,
+                              SharedMemoryHandle handle,
                               uint64_t offset) override;
 
   void FreeSharedPages(Address address, size_t size) override;
@@ -62,9 +63,15 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
 
   bool CanAllocateSubspaces() override { return vas_->CanAllocateSubspaces(); }
 
+  std::optional<MemoryProtectionKeyId> ActiveMemoryProtectionKey() override {
+    return std::nullopt;
+  }
+
   std::unique_ptr<VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_page_permissions) override;
+      PagePermissions max_page_permissions,
+      std::optional<MemoryProtectionKeyId> key,
+      std::optional<SharedMemoryHandle> handle) override;
 
   bool DiscardSystemPages(Address address, size_t size) override {
     return vas_->DiscardSystemPages(address, size);

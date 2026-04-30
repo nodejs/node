@@ -1,8 +1,14 @@
 // Based on https://github.com/octet-stream/form-data/blob/2d0f0dc371517444ce1f22cdde13f51995d0953a/lib/FormData.ts (MIT)
 /// <reference types="node" />
 
-import { File } from 'buffer'
+import { File } from 'node:buffer'
 import { SpecIterableIterator } from './fetch'
+
+declare module 'node:buffer' {
+  interface File {
+    readonly [Symbol.toStringTag]: string
+  }
+}
 
 /**
  * A `string` or `File` that represents a single value from a set of `FormData` key-value pairs.

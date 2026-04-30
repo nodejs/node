@@ -222,6 +222,8 @@ class Profile extends BaseCommand {
   }
 
   async enable2fa (args) {
+    const conf = { ...this.npm.flatOptions }
+
     if (args.length > 1) {
       throw new Error('npm profile enable-2fa [auth-and-writes|auth-only]')
     }
@@ -244,14 +246,20 @@ class Profile extends BaseCommand {
       )
     }
 
+    const userInfo = await get(conf)
+
+    if (!userInfo?.tfa?.pending && userInfo?.tfa?.mode === mode) {
+      output.standard('Two factor authentication is already enabled and set to ' + mode)
+      return
+    }
+
     const info = {
       tfa: {
-        mode: mode,
+        mode,
       },
     }
 
-    // if they're using legacy auth currently then we have to
-    // update them to a bearer token before continuing.
+    // if they're using legacy auth currently then we have to update them to a bearer token before continuing.
     const creds = this.npm.config.getCredentialsByURI(this.npm.config.get('registry'))
     const auth = {}
 
@@ -278,11 +286,7 @@ class Profile extends BaseCommand {
       )
 
       if (!result.token) {
-        throw new Error(
-          `Your registry ${this.npm.config.get('registry')} does not seem to ` +
-          'support bearer tokens. Bearer tokens are required for ' +
-          'two-factor authentication'
-        )
+        throw new Error(`Your registry ${this.npm.config.get('registry')} does not seem to support bearer tokens. Bearer tokens are required for two-factor authentication.`)
       }
 
       this.npm.config.setCredentialsByURI(
@@ -296,25 +300,15 @@ class Profile extends BaseCommand {
     const password = await readUserInfo.password()
     info.tfa.password = password
 
-    log.info('profile', 'Determine if tfa is pending')
-    const userInfo = await get({ ...this.npm.flatOptions })
-
-    const conf = { ...this.npm.flatOptions }
     if (userInfo && userInfo.tfa && userInfo.tfa.pending) {
       log.info('profile', 'Resetting two-factor authentication')
       await set({ tfa: { password, mode: 'disable' } }, conf)
-    } else if (userInfo && userInfo.tfa) {
-      if (!conf.otp) {
-        conf.otp = await readUserInfo.otp(
-          'Enter one-time password: '
-        )
-      }
     }
 
     log.info('profile', 'Setting two-factor authentication to ' + mode)
-    const challenge = await set(info, conf)
+    const challenge = await otplease(this.npm, conf, o => set(info, o))
 
-    if (challenge.tfa === null) {
+    if (challenge.tfa && challenge.tfa.mode) {
       output.standard('Two factor authentication mode changed to: ' + mode)
       return
     }
@@ -322,35 +316,23 @@ class Profile extends BaseCommand {
     const badResponse = typeof challenge.tfa !== 'string'
       || !/^otpauth:[/][/]/.test(challenge.tfa)
     if (badResponse) {
-      throw new Error(
-        'Unknown error enabling two-factor authentication. Expected otpauth URL' +
-        ', got: ' + inspect(challenge.tfa)
-      )
+      throw new Error(`Unknown error enabling two-factor authentication. Expected otpauth URL, got: ${inspect(challenge.tfa)}`)
     }
 
     const otpauth = new URL(challenge.tfa)
     const secret = otpauth.searchParams.get('secret')
     const code = await qrcode(challenge.tfa)
 
-    output.standard(
-      'Scan into your authenticator app:\n' + code + '\n Or enter code:', secret
-    )
+    output.standard('Scan into your authenticator app:\n' + code + '\n Or enter code:', secret)
 
-    const interactiveOTP =
-      await readUserInfo.otp('And an OTP code from your authenticator: ')
+    const interactiveOTP = await readUserInfo.otp('And an OTP code from your authenticator: ')
 
     log.info('profile', 'Finalizing two-factor authentication')
 
     const result = await set({ tfa: [interactiveOTP] }, conf)
 
-    output.standard(
-      '2FA successfully enabled. Below are your recovery codes, ' +
-      'please print these out.'
-    )
-    output.standard(
-      'You will need these to recover access to your account ' +
-      'if you lose your authentication device.'
-    )
+    output.standard('2FA successfully enabled. Below are your recovery codes, please print these out.')
+    output.standard('You will need these to recover access to your account if you lose your authentication device.')
 
     for (const tfaCode of result.tfa) {
       output.standard('\t' + tfaCode)
@@ -358,8 +340,8 @@ class Profile extends BaseCommand {
   }
 
   async disable2fa () {
-    const conf = { ...this.npm.flatOptions }
-    const info = await get(conf)
+    const opts = { ...this.npm.flatOptions }
+    const info = await get(opts)
 
     if (!info.tfa || info.tfa.pending) {
       output.standard('Two factor authentication not enabled.')
@@ -368,14 +350,8 @@ class Profile extends BaseCommand {
 
     const password = await readUserInfo.password()
 
-    if (!conf.otp) {
-      const msg = 'Enter one-time password: '
-      conf.otp = await readUserInfo.otp(msg)
-    }
-
     log.info('profile', 'disabling tfa')
-
-    await set({ tfa: { password: password, mode: 'disable' } }, conf)
+    await otplease(this.npm, opts, o => set({ tfa: { password: password, mode: 'disable' } }, o))
 
     if (this.npm.config.get('json')) {
       output.buffer({ tfa: false })

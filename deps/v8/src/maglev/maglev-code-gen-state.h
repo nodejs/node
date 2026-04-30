@@ -9,6 +9,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/maglev-safepoint-table.h"
+#include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
@@ -22,6 +23,7 @@ namespace maglev {
 
 class InterpreterFrameState;
 class MaglevAssembler;
+class Graph;
 
 class DeferredCodeInfo {
  public:
@@ -32,9 +34,13 @@ class DeferredCodeInfo {
 class MaglevCodeGenState {
  public:
   MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
-                     MaglevSafepointTableBuilder* safepoint_table_builder)
+                     MaglevSafepointTableBuilder* safepoint_table_builder,
+                     SourcePositionTableBuilder* source_position_table_builder,
+                     uint32_t max_block_id)
       : compilation_info_(compilation_info),
-        safepoint_table_builder_(safepoint_table_builder) {}
+        safepoint_table_builder_(safepoint_table_builder),
+        source_position_table_builder_(source_position_table_builder),
+        real_jump_target_(max_block_id) {}
 
   void set_tagged_slots(int slots) { tagged_slots_ = slots; }
   void set_untagged_slots(int slots) { untagged_slots_ = slots; }
@@ -74,10 +80,13 @@ class MaglevCodeGenState {
     return compilation_info_->toplevel_compilation_unit()->parameter_count();
   }
 
+  MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
   MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
-  MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
+  SourcePositionTableBuilder* source_position_table_builder() const {
+    return source_position_table_builder_;
+  }
 
   Label* entry_label() { return &entry_label_; }
 
@@ -113,9 +122,12 @@ class MaglevCodeGenState {
 
   Label* osr_entry() { return &osr_entry_; }
 
+  inline BasicBlock* RealJumpTarget(BasicBlock* block);
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
+  SourcePositionTableBuilder* const source_position_table_builder_;
 
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<EagerDeoptInfo*> eager_deopts_;
@@ -130,6 +142,9 @@ class MaglevCodeGenState {
   // Entry point label for recursive calls.
   Label entry_label_;
   Label osr_entry_;
+
+  // Cached jump targets skipping empty blocks.
+  std::vector<BasicBlock*> real_jump_target_;
 };
 
 // Some helpers for codegen.
@@ -162,9 +177,13 @@ inline auto ToRegisterT(const compiler::InstructionOperand& operand) {
 inline Register ToRegister(const ValueLocation& location) {
   return ToRegister(location.operand());
 }
+inline Register ToRegister(Input input) { return ToRegister(input.operand()); }
 
 inline DoubleRegister ToDoubleRegister(const ValueLocation& location) {
   return ToDoubleRegister(location.operand());
+}
+inline DoubleRegister ToDoubleRegister(Input input) {
+  return ToDoubleRegister(input.operand());
 }
 
 }  // namespace maglev

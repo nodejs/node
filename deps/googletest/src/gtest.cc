@@ -58,6 +58,7 @@
 #include <ostream>  // NOLINT
 #include <set>
 #include <sstream>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -270,6 +271,13 @@ GTEST_DEFINE_bool_(
     "disabled test cases) is linked.");
 
 GTEST_DEFINE_bool_(
+    fail_if_no_test_selected,
+    testing::internal::BoolFromGTestEnv("fail_if_no_test_selected", false),
+    "True if and only if the test should fail if no test case is selected to "
+    "run. A test case is selected to run if it is not disabled and is matched "
+    "by the filter flag so that it starts executing.");
+
+GTEST_DEFINE_bool_(
     also_run_disabled_tests,
     testing::internal::BoolFromGTestEnv("also_run_disabled_tests", false),
     "Run disabled tests too, in addition to the tests normally being run.");
@@ -399,6 +407,18 @@ GTEST_DEFINE_bool_(
     "if exceptions are enabled or exit the program with a non-zero code "
     "otherwise. For use with an external test framework.");
 
+GTEST_DEFINE_int32_(
+    shard_index,
+    testing::internal::Int32FromEnvOrDie(testing::kTestShardIndex, -1),
+    "The zero-based index of the shard to run. A value of -1 "
+    "(the default) indicates that sharding is disabled.");
+
+GTEST_DEFINE_int32_(
+    total_shards,
+    testing::internal::Int32FromEnvOrDie(testing::kTestTotalShards, -1),
+    "The total number of shards to use when running tests in parallel. "
+    "A value of -1 (the default) indicates that sharding is disabled.");
+
 #if GTEST_USE_OWN_FLAGFILE_FLAG_
 GTEST_DEFINE_string_(
     flagfile, testing::internal::StringFromGTestEnv("flagfile", ""),
@@ -478,6 +498,15 @@ bool ShouldEmitStackTraceForResultType(TestPartResult::Type type) {
 // AssertHelper constructor.
 AssertHelper::AssertHelper(TestPartResult::Type type, const char* file,
                            int line, const char* message)
+    : AssertHelper(
+          type, file == nullptr ? std::string_view() : std::string_view(file),
+          line,
+          message == nullptr ? std::string_view() : std::string_view(message)) {
+}
+
+AssertHelper::AssertHelper(TestPartResult::Type type,
+                           const std::string_view file, int line,
+                           const std::string_view message)
     : data_(new AssertHelperData(type, file, line, message)) {}
 
 AssertHelper::~AssertHelper() { delete data_; }
@@ -706,7 +735,7 @@ std::string UnitTestOptions::GetAbsolutePathToOutputFile() {
   const char* const gtest_output_flag = s.c_str();
 
   std::string format = GetOutputFormat();
-  if (format.empty()) format = std::string(kDefaultOutputFormat);
+  if (format.empty()) format = kDefaultOutputFormat;
 
   const char* const colon = strchr(gtest_output_flag, ':');
   if (colon == nullptr)
@@ -868,7 +897,11 @@ class PositiveAndNegativeUnitTestFilter {
   // and does not match the negative filter.
   bool MatchesTest(const std::string& test_suite_name,
                    const std::string& test_name) const {
+#ifdef GTEST_HAS_ABSL
+    return MatchesName(absl::StrCat(test_suite_name, ".", test_name));
+#else
     return MatchesName(test_suite_name + "." + test_name);
+#endif
   }
 
   // Returns true if and only if name matches the positive filter and does not
@@ -1079,14 +1112,14 @@ void DefaultPerThreadTestPartResultReporter::ReportTestPartResult(
 // Returns the global test part result reporter.
 TestPartResultReporterInterface*
 UnitTestImpl::GetGlobalTestPartResultReporter() {
-  internal::MutexLock lock(&global_test_part_result_reporter_mutex_);
+  internal::MutexLock lock(global_test_part_result_reporter_mutex_);
   return global_test_part_result_reporter_;
 }
 
 // Sets the global test part result reporter.
 void UnitTestImpl::SetGlobalTestPartResultReporter(
     TestPartResultReporterInterface* reporter) {
-  internal::MutexLock lock(&global_test_part_result_reporter_mutex_);
+  internal::MutexLock lock(global_test_part_result_reporter_mutex_);
   global_test_part_result_reporter_ = reporter;
 }
 
@@ -1488,17 +1521,17 @@ class Hunk {
   // Print a unified diff header for one hunk.
   // The format is
   //   "@@ -<left_start>,<left_length> +<right_start>,<right_length> @@"
-  // where the left/right parts are omitted if unnecessary.
+  // where the left/right lengths are omitted if unnecessary.
   void PrintHeader(std::ostream* ss) const {
-    *ss << "@@ ";
-    if (removes_) {
-      *ss << "-" << left_start_ << "," << (removes_ + common_);
+    size_t left_length = removes_ + common_;
+    size_t right_length = adds_ + common_;
+    *ss << "@@ " << "-" << left_start_;
+    if (left_length != 1) {
+      *ss << "," << left_length;
     }
-    if (removes_ && adds_) {
-      *ss << " ";
-    }
-    if (adds_) {
-      *ss << "+" << right_start_ << "," << (adds_ + common_);
+    *ss << " " << "+" << right_start_;
+    if (right_length != 1) {
+      *ss << "," << right_length;
     }
     *ss << " @@\n";
   }
@@ -2340,7 +2373,7 @@ void TestResult::RecordProperty(const std::string& xml_element,
   if (!ValidateTestProperty(xml_element, test_property)) {
     return;
   }
-  internal::MutexLock lock(&test_properties_mutex_);
+  internal::MutexLock lock(test_properties_mutex_);
   const std::vector<TestProperty>::iterator property_with_matching_key =
       std::find_if(test_properties_.begin(), test_properties_.end(),
                    internal::TestPropertyKeyIs(test_property.key()));
@@ -2540,8 +2573,9 @@ void ReportFailureInUnknownLocation(TestPartResult::Type result_type,
   // AddTestPartResult.
   UnitTest::GetInstance()->AddTestPartResult(
       result_type,
-      nullptr,  // No info about the source file where the exception occurred.
-      -1,       // We have no info on which line caused the exception.
+      std::string_view(),  // No info about the source file where the exception
+                           // occurred.
+      -1,  // We have no info on which line caused the exception.
       message,
       "");  // No stack trace, either.
 }
@@ -3298,6 +3332,7 @@ bool ShouldUseColor(bool stdout_is_tty) {
     const bool term_supports_color =
         term != nullptr && (String::CStringEquals(term, "xterm") ||
                             String::CStringEquals(term, "xterm-color") ||
+                            String::CStringEquals(term, "xterm-ghostty") ||
                             String::CStringEquals(term, "xterm-kitty") ||
                             String::CStringEquals(term, "alacritty") ||
                             String::CStringEquals(term, "screen") ||
@@ -3452,11 +3487,11 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
                   filter);
   }
 
-  if (internal::ShouldShard(kTestTotalShards, kTestShardIndex, false)) {
-    const int32_t shard_index = Int32FromEnvOrDie(kTestShardIndex, -1);
-    ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %s.\n",
+  if (internal::ShouldShard(false)) {
+    const int32_t shard_index = GTEST_FLAG_GET(shard_index);
+    ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %d.\n",
                   static_cast<int>(shard_index) + 1,
-                  internal::posix::GetEnv(kTestTotalShards));
+                  GTEST_FLAG_GET(total_shards));
   }
 
   if (GTEST_FLAG_GET(shuffle)) {
@@ -4347,8 +4382,8 @@ void XmlUnitTestResultPrinter::OutputXmlTestResult(::std::ostream* stream,
           internal::FormatCompilerIndependentFileLocation(part.file_name(),
                                                           part.line_number());
       const std::string summary = location + "\n" + part.summary();
-      *stream << "      <skipped message=\""
-              << EscapeXmlAttribute(summary.c_str()) << "\">";
+      *stream << "      <skipped message=\"" << EscapeXmlAttribute(summary)
+              << "\">";
       const std::string detail = location + "\n" + part.message();
       OutputXmlCDataSection(stream, RemoveInvalidXmlCharacters(detail).c_str());
       *stream << "</skipped>\n";
@@ -5080,7 +5115,7 @@ std::string OsStackTraceGetter::CurrentStackTrace(int max_depth, int skip_count)
 
   void* caller_frame = nullptr;
   {
-    MutexLock lock(&mutex_);
+    MutexLock lock(mutex_);
     caller_frame = caller_frame_;
   }
 
@@ -5119,12 +5154,12 @@ void OsStackTraceGetter::UponLeavingGTest() GTEST_LOCK_EXCLUDED_(mutex_) {
     caller_frame = nullptr;
   }
 
-  MutexLock lock(&mutex_);
+  MutexLock lock(mutex_);
   caller_frame_ = caller_frame;
 #endif  // GTEST_HAS_ABSL
 }
 
-#ifdef GTEST_HAS_DEATH_TEST
+#ifdef GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
 // A helper class that creates the premature-exit file in its
 // constructor and deletes the file in its destructor.
 class ScopedPrematureExitFile {
@@ -5162,7 +5197,7 @@ class ScopedPrematureExitFile {
   ScopedPrematureExitFile(const ScopedPrematureExitFile&) = delete;
   ScopedPrematureExitFile& operator=(const ScopedPrematureExitFile&) = delete;
 };
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
 
 }  // namespace internal
 
@@ -5382,13 +5417,13 @@ void UnitTest::UponLeavingGTest() {
 
 // Sets the TestSuite object for the test that's currently running.
 void UnitTest::set_current_test_suite(TestSuite* a_current_test_suite) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->set_current_test_suite(a_current_test_suite);
 }
 
 // Sets the TestInfo object for the test that's currently running.
 void UnitTest::set_current_test_info(TestInfo* a_current_test_info) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->set_current_test_info(a_current_test_info);
 }
 
@@ -5420,14 +5455,14 @@ Environment* UnitTest::AddEnvironment(Environment* env) {
 // this to report their results.  The user code should use the
 // assertion macros instead of calling this directly.
 void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
-                                 const char* file_name, int line_number,
-                                 const std::string& message,
+                                 const std::string_view file_name,
+                                 int line_number, const std::string& message,
                                  const std::string& os_stack_trace)
     GTEST_LOCK_EXCLUDED_(mutex_) {
   Message msg;
   msg << message;
 
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   if (!impl_->gtest_trace_stack().empty()) {
     msg << "\n" << GTEST_NAME_ << " trace:";
 
@@ -5507,7 +5542,7 @@ void UnitTest::RecordProperty(const std::string& key,
 // We don't protect this under mutex_, as we only support calling it
 // from the main thread.
 int UnitTest::Run() {
-#ifdef GTEST_HAS_DEATH_TEST
+#ifdef GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
   const bool in_death_test_child_process =
       !GTEST_FLAG_GET(internal_run_death_test).empty();
 
@@ -5538,7 +5573,7 @@ int UnitTest::Run() {
           : internal::posix::GetEnv("TEST_PREMATURE_EXIT_FILE"));
 #else
   const bool in_death_test_child_process = false;
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
 
   // Captures the value of GTEST_FLAG(catch_exceptions).  This value will be
   // used for the duration of the program.
@@ -5610,7 +5645,7 @@ const char* UnitTest::original_working_dir() const {
 // or NULL if no test is running.
 const TestSuite* UnitTest::current_test_suite() const
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   return impl_->current_test_suite();
 }
 
@@ -5618,7 +5653,7 @@ const TestSuite* UnitTest::current_test_suite() const
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 const TestCase* UnitTest::current_test_case() const
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   return impl_->current_test_suite();
 }
 #endif
@@ -5627,7 +5662,7 @@ const TestCase* UnitTest::current_test_case() const
 // or NULL if no test is running.
 const TestInfo* UnitTest::current_test_info() const
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   return impl_->current_test_info();
 }
 
@@ -5651,13 +5686,13 @@ UnitTest::~UnitTest() { delete impl_; }
 // Google Test trace stack.
 void UnitTest::PushGTestTrace(const internal::TraceInfo& trace)
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->gtest_trace_stack().push_back(trace);
 }
 
 // Pops a trace from the per-thread Google Test trace stack.
 void UnitTest::PopGTestTrace() GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->gtest_trace_stack().pop_back();
 }
 
@@ -5960,8 +5995,7 @@ bool UnitTestImpl::RunAllTests() {
 #endif  // defined(GTEST_EXTRA_DEATH_TEST_CHILD_SETUP_)
 #endif  // GTEST_HAS_DEATH_TEST
 
-  const bool should_shard = ShouldShard(kTestTotalShards, kTestShardIndex,
-                                        in_subprocess_for_death_test);
+  const bool should_shard = ShouldShard(in_subprocess_for_death_test);
 
   // Compares the full test names with the filter to decide which
   // tests to run.
@@ -6079,6 +6113,20 @@ bool UnitTestImpl::RunAllTests() {
                       TearDownEnvironment);
         repeater->OnEnvironmentsTearDownEnd(*parent_);
       }
+    } else if (GTEST_FLAG_GET(fail_if_no_test_selected)) {
+      // If there were no tests to run, bail if we were requested to be
+      // strict.
+      constexpr char kNoTestsSelectedMessage[] =
+          "No tests ran. Check that tests exist and are not disabled or "
+          "filtered out.\n\n"
+          "For sharded runs, this error indicates an empty shard. This can "
+          "happen if you have more shards than tests, or if --gtest_filter "
+          "leaves a shard with no tests.\n\n"
+          "To permit empty shards (e.g., when debugging with a filter), "
+          "specify \n"
+          "--gtest_fail_if_no_test_selected=false.";
+      ColoredPrintf(GTestColor::kRed, "%s\n", kNoTestsSelectedMessage);
+      return false;
     }
 
     elapsed_time_ = timer.Elapsed();
@@ -6159,45 +6207,44 @@ void WriteToShardStatusFileIfNeeded() {
 }
 #endif  // GTEST_HAS_FILE_SYSTEM
 
-// Checks whether sharding is enabled by examining the relevant
-// environment variable values. If the variables are present,
-// but inconsistent (i.e., shard_index >= total_shards), prints
-// an error and exits. If in_subprocess_for_death_test, sharding is
-// disabled because it must only be applied to the original test
-// process. Otherwise, we could filter out death tests we intended to execute.
-bool ShouldShard(const char* total_shards_env, const char* shard_index_env,
-                 bool in_subprocess_for_death_test) {
+// Checks whether sharding is enabled by examining the relevant command line
+// arguments. If the arguments are present, but inconsistent
+// (i.e., shard_index >= total_shards), prints an error and exits.
+// If in_subprocess_for_death_test, sharding is disabled because it must only
+// be applied to the original test process. Otherwise, we could filter out death
+// tests we intended to execute.
+bool ShouldShard(bool in_subprocess_for_death_test) {
   if (in_subprocess_for_death_test) {
     return false;
   }
 
-  const int32_t total_shards = Int32FromEnvOrDie(total_shards_env, -1);
-  const int32_t shard_index = Int32FromEnvOrDie(shard_index_env, -1);
+  const int32_t total_shards = GTEST_FLAG_GET(total_shards);
+  const int32_t shard_index = GTEST_FLAG_GET(shard_index);
 
   if (total_shards == -1 && shard_index == -1) {
     return false;
   } else if (total_shards == -1 && shard_index != -1) {
-    const Message msg = Message() << "Invalid environment variables: you have "
-                                  << kTestShardIndex << " = " << shard_index
-                                  << ", but have left " << kTestTotalShards
-                                  << " unset.\n";
+    const Message msg = Message()
+                        << "Invalid sharding: you have " << kTestShardIndex
+                        << " = " << shard_index << ", but have left "
+                        << kTestTotalShards << " unset.\n";
     ColoredPrintf(GTestColor::kRed, "%s", msg.GetString().c_str());
     fflush(stdout);
     exit(EXIT_FAILURE);
   } else if (total_shards != -1 && shard_index == -1) {
     const Message msg = Message()
-                        << "Invalid environment variables: you have "
-                        << kTestTotalShards << " = " << total_shards
-                        << ", but have left " << kTestShardIndex << " unset.\n";
+                        << "Invalid sharding: you have " << kTestTotalShards
+                        << " = " << total_shards << ", but have left "
+                        << kTestShardIndex << " unset.\n";
     ColoredPrintf(GTestColor::kRed, "%s", msg.GetString().c_str());
     fflush(stdout);
     exit(EXIT_FAILURE);
   } else if (shard_index < 0 || shard_index >= total_shards) {
     const Message msg =
-        Message() << "Invalid environment variables: we require 0 <= "
-                  << kTestShardIndex << " < " << kTestTotalShards
-                  << ", but you have " << kTestShardIndex << "=" << shard_index
-                  << ", " << kTestTotalShards << "=" << total_shards << ".\n";
+        Message() << "Invalid sharding: we require 0 <= " << kTestShardIndex
+                  << " < " << kTestTotalShards << ", but you have "
+                  << kTestShardIndex << "=" << shard_index << ", "
+                  << kTestTotalShards << "=" << total_shards << ".\n";
     ColoredPrintf(GTestColor::kRed, "%s", msg.GetString().c_str());
     fflush(stdout);
     exit(EXIT_FAILURE);
@@ -6240,11 +6287,10 @@ bool ShouldRunTestOnShard(int total_shards, int shard_index, int test_id) {
 // . Returns the number of tests that should run.
 int UnitTestImpl::FilterTests(ReactionToSharding shard_tests) {
   const int32_t total_shards = shard_tests == HONOR_SHARDING_PROTOCOL
-                                   ? Int32FromEnvOrDie(kTestTotalShards, -1)
+                                   ? GTEST_FLAG_GET(total_shards)
                                    : -1;
-  const int32_t shard_index = shard_tests == HONOR_SHARDING_PROTOCOL
-                                  ? Int32FromEnvOrDie(kTestShardIndex, -1)
-                                  : -1;
+  const int32_t shard_index =
+      shard_tests == HONOR_SHARDING_PROTOCOL ? GTEST_FLAG_GET(shard_index) : -1;
 
   const PositiveAndNegativeUnitTestFilter gtest_flag_filter(
       GTEST_FLAG_GET(filter));
@@ -6763,6 +6809,7 @@ static bool ParseGoogleTestFlag(const char* const arg) {
   GTEST_INTERNAL_PARSE_FLAG(death_test_use_fork);
   GTEST_INTERNAL_PARSE_FLAG(fail_fast);
   GTEST_INTERNAL_PARSE_FLAG(fail_if_no_test_linked);
+  GTEST_INTERNAL_PARSE_FLAG(fail_if_no_test_selected);
   GTEST_INTERNAL_PARSE_FLAG(filter);
   GTEST_INTERNAL_PARSE_FLAG(internal_run_death_test);
   GTEST_INTERNAL_PARSE_FLAG(list_tests);
@@ -6772,6 +6819,8 @@ static bool ParseGoogleTestFlag(const char* const arg) {
   GTEST_INTERNAL_PARSE_FLAG(print_utf8);
   GTEST_INTERNAL_PARSE_FLAG(random_seed);
   GTEST_INTERNAL_PARSE_FLAG(repeat);
+  GTEST_INTERNAL_PARSE_FLAG(shard_index);
+  GTEST_INTERNAL_PARSE_FLAG(total_shards);
   GTEST_INTERNAL_PARSE_FLAG(recreate_environments_when_repeating);
   GTEST_INTERNAL_PARSE_FLAG(shuffle);
   GTEST_INTERNAL_PARSE_FLAG(stack_trace_depth);

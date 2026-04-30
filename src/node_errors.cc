@@ -65,7 +65,7 @@ static std::string GetSourceMapErrorSource(Isolate* isolate,
   // the source texts.
   Local<Value> script_resource_name = message->GetScriptResourceName();
   int linenum = message->GetLineNumber(context).FromJust();
-  int columnum = message->GetStartColumn(context).FromJust();
+  int columnum = message->GetStartColumn();
 
   Local<Value> argv[] = {script_resource_name,
                          v8::Int32::New(isolate, linenum),
@@ -148,23 +148,19 @@ static std::string GetErrorSource(Isolate* isolate,
   int script_start = (linenum - origin.LineOffset()) == 1
                          ? origin.ColumnOffset()
                          : 0;
-  int start = message->GetStartColumn(context).FromMaybe(0);
-  int end = message->GetEndColumn(context).FromMaybe(0);
-  if (start >= script_start) {
-    CHECK_GE(end, start);
+  int start = message->GetStartColumn();
+  int end = message->GetEndColumn();
+  if (start >= script_start && end >= script_start) {
     start -= script_start;
     end -= script_start;
   }
 
-  std::string buf = SPrintF("%s:%i\n%s\n",
-                            filename_string,
-                            linenum,
-                            sourceline.c_str());
+  std::string buf =
+      SPrintF("%s:%i\n%s\n", filename_string, linenum, sourceline);
   CHECK_GT(buf.size(), 0);
   *added_exception_line = true;
 
-  if (start > end ||
-      start < 0 ||
+  if (start > end || start < 0 || end < 0 ||
       static_cast<size_t>(end) > sourceline.size()) {
     return buf;
   }
@@ -194,7 +190,7 @@ static std::string GetErrorSource(Isolate* isolate,
 }
 
 static std::atomic<bool> is_in_oom{false};
-static std::atomic<bool> is_retrieving_js_stacktrace{false};
+static thread_local std::atomic<bool> is_retrieving_js_stacktrace{false};
 MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
   if (isolate == nullptr) {
     return MaybeLocal<StackTrace>();
@@ -222,9 +218,6 @@ MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
       StackTrace::CurrentStackTrace(isolate, frame_count, options);
 
   is_retrieving_js_stacktrace.store(false);
-  if (stack->GetFrameCount() == 0) {
-    return MaybeLocal<StackTrace>();
-  }
 
   return scope.Escape(stack);
 }
@@ -299,7 +292,8 @@ void PrintStackTrace(Isolate* isolate,
 
 void PrintCurrentStackTrace(Isolate* isolate, StackTracePrefix prefix) {
   Local<StackTrace> stack;
-  if (GetCurrentStackTrace(isolate).ToLocal(&stack)) {
+  if (GetCurrentStackTrace(isolate).ToLocal(&stack) &&
+      stack->GetFrameCount() > 0) {
     PrintStackTrace(isolate, stack, prefix);
   }
 }
@@ -553,7 +547,7 @@ static void ReportFatalException(Environment* env,
   }
 
   if (env->isolate_data()->options()->report_uncaught_exception) {
-    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
+    TriggerNodeReport(env, report_message, "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
@@ -633,7 +627,7 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> source,
     bool is_code_like) {
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
 
   if (context->GetNumberOfEmbedderDataFields() <=
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings) {
@@ -671,13 +665,52 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
   };
 }
 
+// Check if an exception is a stack overflow error (RangeError with
+// "Maximum call stack size exceeded" message). This is used to handle
+// stack overflow specially in TryCatchScope - instead of immediately
+// exiting, we can use the red zone to re-throw to user code.
+static bool IsStackOverflowError(Isolate* isolate, Local<Value> exception) {
+  if (!exception->IsNativeError()) return false;
+
+  Local<Object> err_obj = exception.As<Object>();
+  Local<String> constructor_name = err_obj->GetConstructorName();
+
+  // Must be a RangeError
+  Utf8Value name(isolate, constructor_name);
+  if (name.ToStringView() != "RangeError") return false;
+
+  // Check for the specific stack overflow message
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Value> message_val;
+  if (!err_obj->Get(context, String::NewFromUtf8Literal(isolate, "message"))
+           .ToLocal(&message_val)) {
+    return false;
+  }
+
+  if (!message_val->IsString()) return false;
+
+  Utf8Value message(isolate, message_val.As<String>());
+  return message.ToStringView() == "Maximum call stack size exceeded";
+}
+
 namespace errors {
 
 TryCatchScope::~TryCatchScope() {
-  if (HasCaught() && !HasTerminated() && mode_ == CatchMode::kFatal) {
+  if (HasCaught() && !HasTerminated() && mode_ != CatchMode::kNormal) {
     HandleScope scope(env_->isolate());
     Local<v8::Value> exception = Exception();
     Local<v8::Message> message = Message();
+
+    // Special handling for stack overflow errors in async_hooks: instead of
+    // immediately exiting, re-throw the exception. This allows the exception
+    // to propagate to user code's try-catch blocks.
+    if (mode_ == CatchMode::kFatalRethrowStackOverflow &&
+        IsStackOverflowError(env_->isolate(), exception)) {
+      ReThrow();
+      Reset();
+      return;
+    }
+
     EnhanceFatalException enhance = CanContinue() ?
         EnhanceFatalException::kEnhance : EnhanceFatalException::kDontEnhance;
     if (message.IsEmpty())
@@ -1016,7 +1049,7 @@ const char* errno_string(int errorno) {
 }
 
 void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   switch (message->ErrorLevel()) {
     case Isolate::MessageErrorLevel::kMessageWarning: {
       Environment* env = Environment::GetCurrent(isolate);
@@ -1024,21 +1057,60 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
         break;
       }
       Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
+      Utf8Value msg(isolate, message->Get());
       // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
+      std::string warning =
+          SPrintF("%s:%s %s",
+                  filename,
+                  message->GetLineNumber(env->context()).FromMaybe(-1),
+                  msg);
+      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
       TriggerUncaughtException(isolate, error, message);
       break;
   }
+}
+
+void GetErrorSourcePositions(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  Realm* realm = Realm::GetCurrent(args);
+  Local<Context> context = realm->context();
+
+  CHECK(args[0]->IsObject());
+
+  Local<Message> msg = Exception::CreateMessage(isolate, args[0]);
+
+  // Message::GetEndColumn may not reflect the actual end column in all cases.
+  // So only expose startColumn to JS land.
+  Local<v8::Name> names[] = {
+      OneByteString(isolate, "sourceLine"),
+      OneByteString(isolate, "scriptResourceName"),
+      OneByteString(isolate, "lineNumber"),
+      OneByteString(isolate, "startColumn"),
+  };
+
+  Local<String> source_line;
+  if (!msg->GetSourceLine(context).ToLocal(&source_line)) {
+    return;
+  }
+  int line_number;
+  if (!msg->GetLineNumber(context).To(&line_number)) {
+    return;
+  }
+
+  Local<Value> values[] = {
+      source_line,
+      msg->GetScriptOrigin().ResourceName(),
+      v8::Integer::New(isolate, line_number),
+      v8::Integer::New(isolate, msg->GetStartColumn()),
+  };
+  Local<Object> info =
+      Object::New(isolate, v8::Null(isolate), names, values, arraysize(names));
+
+  args.GetReturnValue().Set(info);
 }
 
 void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
@@ -1106,6 +1178,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
+  registry->Register(GetErrorSourcePositions);
 }
 
 void Initialize(Local<Object> target,
@@ -1133,8 +1206,10 @@ void Initialize(Local<Object> target,
       context, target, "noSideEffectsToString", NoSideEffectsToString);
   SetMethod(
       context, target, "triggerUncaughtException", TriggerUncaughtException);
+  SetMethod(
+      context, target, "getErrorSourcePositions", GetErrorSourcePositions);
 
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> exit_codes = Object::New(isolate);
   READONLY_PROPERTY(target, "exitCodes", exit_codes);
 
@@ -1235,8 +1310,26 @@ void TriggerUncaughtException(Isolate* isolate,
   if (env->can_call_into_js()) {
     // We do not expect the global uncaught exception itself to throw any more
     // exceptions. If it does, exit the current Node.js instance.
-    errors::TryCatchScope try_catch(env,
-                                    errors::TryCatchScope::CatchMode::kFatal);
+    // Special case: if the original error was a stack overflow and calling
+    // _fatalException causes another stack overflow, rethrow it to allow
+    // user code's try-catch blocks to potentially catch it.
+    auto is_stack_overflow = [&] {
+      return IsStackOverflowError(env->isolate(), error);
+    };
+    // Without a JS stack, rethrowing may or may not do anything.
+    // TODO(addaleax): In V8, expose a way to check whether there is a JS stack
+    // or TryCatch that would capture the rethrown exception.
+    auto has_js_stack = [&] {
+      HandleScope handle_scope(env->isolate());
+      Local<StackTrace> stack;
+      return GetCurrentStackTrace(env->isolate(), 1).ToLocal(&stack) &&
+             stack->GetFrameCount() > 0;
+    };
+    errors::TryCatchScope::CatchMode mode =
+        is_stack_overflow() && has_js_stack()
+            ? errors::TryCatchScope::CatchMode::kFatalRethrowStackOverflow
+            : errors::TryCatchScope::CatchMode::kFatal;
+    errors::TryCatchScope try_catch(env, mode);
     // Explicitly disable verbose exception reporting -
     // if process._fatalException() throws an error, we don't want it to
     // trigger the per-isolate message listener which will call this

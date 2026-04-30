@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --use-osr
+// Flags: --allow-natives-syntax
 
 function foo(a) {
   var i = a | 0;
@@ -15,7 +15,7 @@ function foo(a) {
     if (i == 5) { i = 6; continue; }
     if (i == 6) { i = 7; continue; }
     if (i == 7) { i = 8; continue; }
-    for (var j = 0; j < 10; j++) { if (i == 5) %OptimizeOsr(); }
+    for (var j = 0; j < 10; j++) { if (j == 5) %OptimizeOsr(); }
     break;
   }
   return j;
@@ -28,4 +28,5 @@ function test(func, tv, fv) {
   assertEquals(fv, func(9));
 }
 
+%PrepareFunctionForOptimization(foo);
 test(foo, 10, 10);

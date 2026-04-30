@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fixtures = require('../common/fixtures');
 
 // Check cert chain is received by client, and is completed with the ca cert
@@ -25,8 +25,7 @@ connect({
     key: keys.agent6.key,
     ca: agent6Middle,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
 
   const peer = pair.client.conn.getPeerCertificate();
   debug('peer:\n', peer);
@@ -42,4 +41,4 @@ connect({
   assert.match(root.serialNumber, /4AB16C8DFD6A7D0D2DFCABDF9C4B0E92C6AD0229/i);
 
   return cleanup();
-});
+}));

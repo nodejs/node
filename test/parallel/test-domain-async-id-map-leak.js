@@ -16,7 +16,7 @@ const isEnumerable = Function.call.bind(Object.prototype.propertyIsEnumerable);
 let d = domain.create();
 let resourceGCed = false; let domainGCed = false; let
   emitterGCed = false;
-d.run(() => {
+d.run(common.mustCall(() => {
   const resource = new async_hooks.AsyncResource('TestResource');
   const emitter = new EventEmitter();
 
@@ -36,7 +36,7 @@ d.run(() => {
   onGC(resource, { ongc: common.mustCall(() => { resourceGCed = true; }) });
   onGC(d, { ongc: common.mustCall(() => { domainGCed = true; }) });
   onGC(emitter, { ongc: common.mustCall(() => { emitterGCed = true; }) });
-});
+}));
 
 d = null;
 

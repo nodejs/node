@@ -19,6 +19,7 @@ class Audit extends ArboristWorkspaceCmd {
     'include',
     'foreground-scripts',
     'ignore-scripts',
+    'include-attestations',
     ...super.params,
   ]
 
@@ -36,7 +37,7 @@ class Audit extends ArboristWorkspaceCmd {
       case 'signatures':
         return []
       default:
-        throw Object.assign(new Error(argv[2] + ' not recognized'), {
+        throw Object.assign(new Error(`${argv[2]} not recognized`), {
           code: 'EUSAGE',
         })
     }
@@ -53,7 +54,7 @@ class Audit extends ArboristWorkspaceCmd {
   async auditAdvisories (args) {
     const fix = args[0] === 'fix'
     if (this.npm.config.get('package-lock') === false && fix) {
-      throw this.usageError('fix can not be used without a package-lock')
+      throw this.usageError('fix cannot be used without a package-lock')
     }
     const reporter = this.npm.config.get('json') ? 'json' : 'detail'
     const Arborist = require('@npmcli/arborist')

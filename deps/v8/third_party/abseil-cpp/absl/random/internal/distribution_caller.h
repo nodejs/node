@@ -17,11 +17,13 @@
 #ifndef ABSL_RANDOM_INTERNAL_DISTRIBUTION_CALLER_H_
 #define ABSL_RANDOM_INTERNAL_DISTRIBUTION_CALLER_H_
 
-#include <utility>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/fast_type_id.h"
+#include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
@@ -36,7 +38,7 @@ struct DistributionCaller {
   static_assert(!std::is_pointer<URBG>::value,
                 "You must pass a reference, not a pointer.");
   // SFINAE to detect whether the URBG type includes a member matching
-  // bool InvokeMock(base_internal::FastTypeIdType, void*, void*).
+  // bool InvokeMock(key_id, args_tuple*, result*).
   //
   // These live inside BitGenRef so that they have friend access
   // to MockingBitGen. (see similar methods in DistributionCaller).
@@ -48,8 +50,8 @@ struct DistributionCaller {
 
   template <class T>
   using invoke_mock_t = decltype(std::declval<T*>()->InvokeMock(
-      std::declval<::absl::base_internal::FastTypeIdType>(),
-      std::declval<void*>(), std::declval<void*>()));
+      std::declval<FastTypeIdType>(), std::declval<void*>(),
+      std::declval<void*>()));
 
   using HasInvokeMock = typename detector<invoke_mock_t, void, URBG>::type;
 
@@ -72,8 +74,7 @@ struct DistributionCaller {
 
     ArgTupleT arg_tuple(std::forward<Args>(args)...);
     ResultT result;
-    if (!urbg->InvokeMock(::absl::base_internal::FastTypeId<KeyT>(), &arg_tuple,
-                          &result)) {
+    if (!urbg->InvokeMock(FastTypeId<KeyT>(), &arg_tuple, &result)) {
       auto dist = absl::make_from_tuple<DistrT>(arg_tuple);
       result = dist(*urbg);
     }

@@ -157,10 +157,11 @@ int ngtcp2_dcidtr_bind_dcid(ngtcp2_dcidtr *dtr, ngtcp2_dcid **pdest,
   return 0;
 }
 
-static int verify_stateless_reset(const ngtcp2_ringbuf *rb,
-                                  const ngtcp2_path *path,
-                                  const uint8_t *token) {
+int ngtcp2_dcidtr_verify_stateless_reset(
+  const ngtcp2_dcidtr *dtr, const ngtcp2_path *path,
+  const ngtcp2_stateless_reset_token *token) {
   const ngtcp2_dcid *dcid;
+  const ngtcp2_ringbuf *rb = &dtr->bound.rb;
   size_t i, len = ngtcp2_ringbuf_len(rb);
 
   for (i = 0; i < len; ++i) {
@@ -173,22 +174,9 @@ static int verify_stateless_reset(const ngtcp2_ringbuf *rb,
   return NGTCP2_ERR_INVALID_ARGUMENT;
 }
 
-int ngtcp2_dcidtr_verify_stateless_reset(const ngtcp2_dcidtr *dtr,
-                                         const ngtcp2_path *path,
-                                         const uint8_t *token) {
-  int rv;
-
-  rv = verify_stateless_reset(&dtr->retired.rb, path, token);
-  if (rv == 0) {
-    return 0;
-  }
-
-  return verify_stateless_reset(&dtr->bound.rb, path, token);
-}
-
 static int verify_token_uniqueness(const ngtcp2_ringbuf *rb, int *pfound,
                                    uint64_t seq, const ngtcp2_cid *cid,
-                                   const uint8_t *token) {
+                                   const ngtcp2_stateless_reset_token *token) {
   const ngtcp2_dcid *dcid;
   size_t i, len = ngtcp2_ringbuf_len(rb);
   int rv;
@@ -208,9 +196,9 @@ static int verify_token_uniqueness(const ngtcp2_ringbuf *rb, int *pfound,
   return 0;
 }
 
-int ngtcp2_dcidtr_verify_token_uniqueness(const ngtcp2_dcidtr *dtr, int *pfound,
-                                          uint64_t seq, const ngtcp2_cid *cid,
-                                          const uint8_t *token) {
+int ngtcp2_dcidtr_verify_token_uniqueness(
+  const ngtcp2_dcidtr *dtr, int *pfound, uint64_t seq, const ngtcp2_cid *cid,
+  const ngtcp2_stateless_reset_token *token) {
   int rv;
 
   rv = verify_token_uniqueness(&dtr->bound.rb, pfound, seq, cid, token);
@@ -418,7 +406,8 @@ ngtcp2_tstamp ngtcp2_dcidtr_earliest_retired_ts(const ngtcp2_dcidtr *dtr) {
 }
 
 void ngtcp2_dcidtr_push_unused(ngtcp2_dcidtr *dtr, uint64_t seq,
-                               const ngtcp2_cid *cid, const uint8_t *token) {
+                               const ngtcp2_cid *cid,
+                               const ngtcp2_stateless_reset_token *token) {
   ngtcp2_dcid *dcid = ngtcp2_ringbuf_push_back(&dtr->unused.rb);
 
   ngtcp2_dcid_init(dcid, seq, cid, token);

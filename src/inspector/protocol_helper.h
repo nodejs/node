@@ -19,7 +19,7 @@ inline std::unique_ptr<v8_inspector::StringBuffer> ToInspectorString(
 inline protocol::String ToProtocolString(v8::Isolate* isolate,
                                          v8::Local<v8::Value> value) {
   Utf8Value buffer(isolate, value);
-  return *buffer;
+  return buffer.ToString();
 }
 
 }  // namespace node::inspector

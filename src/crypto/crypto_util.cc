@@ -34,6 +34,8 @@ using ncrypto::EnginePointer;
 using ncrypto::SSLPointer;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -136,6 +138,23 @@ void InitCryptoOnce() {
 #endif
 
   OPENSSL_init_ssl(0, settings);
+
+#if OPENSSL_WITH_PQC
+  // Configure all loaded providers to prefer seed-only format for ML-KEM and
+  // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
+  // seed is not available. The provider encoder reads these parameters at
+  // encoding time via ossl_prov_ctx_get_param().
+  OSSL_PROVIDER_do_all(
+      nullptr,
+      [](OSSL_PROVIDER* provider, void*) -> int {
+        OSSL_PROVIDER_add_conf_parameter(
+            provider, "ml-kem.output_formats", "seed-only,priv-only");
+        OSSL_PROVIDER_add_conf_parameter(
+            provider, "ml-dsa.output_formats", "seed-only,priv-only");
+        return 1;
+      },
+      nullptr);
+#endif
   OPENSSL_INIT_free(settings);
   settings = nullptr;
 
@@ -211,12 +230,14 @@ void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
 
 void CryptoErrorStore::Capture() {
   errors_.clear();
+  primary_openssl_error_ = 0;
   while (const uint32_t err = ERR_get_error()) {
+    if (primary_openssl_error_ == 0) primary_openssl_error_ = err;
     char buf[256];
     ERR_error_string_n(err, buf, sizeof(buf));
     errors_.emplace_back(buf);
   }
-  std::reverse(std::begin(errors_), std::end(errors_));
+  std::ranges::reverse(errors_);
 }
 
 bool CryptoErrorStore::Empty() const {
@@ -278,6 +299,12 @@ MaybeLocal<Value> cryptoErrorListToException(Environment* env,
   return exception;
 }
 
+namespace error {
+v8::Maybe<void> Decorate(Environment* env,
+                         v8::Local<v8::Object> obj,
+                         unsigned long err);  // NOLINT(runtime/int)
+}  // namespace error
+
 MaybeLocal<Value> CryptoErrorStore::ToException(
     Environment* env,
     Local<String> exception_string) const {
@@ -302,13 +329,27 @@ MaybeLocal<Value> CryptoErrorStore::ToException(
 
   Local<Value> exception_v = Exception::Error(exception_string);
   CHECK(!exception_v.IsEmpty());
+  CHECK(exception_v->IsObject());
+  Local<Object> exception = exception_v.As<Object>();
 
   if (!Empty()) {
-    CHECK(exception_v->IsObject());
-    Local<Object> exception = exception_v.As<Object>();
     Local<Value> stack;
     if (!ToV8Value(env->context(), errors_).ToLocal(&stack) ||
         exception->Set(env->context(), env->openssl_error_stack(), stack)
+            .IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+  }
+
+  if (primary_openssl_error_ != 0) {
+    if (error::Decorate(env, exception, primary_openssl_error_).IsNothing()) {
+      return MaybeLocal<Value>();
+    }
+  } else if (node_error_code_ != nullptr) {
+    if (exception
+            ->Set(env->context(),
+                  env->code_string(),
+                  OneByteString(env->isolate(), node_error_code_))
             .IsNothing()) {
       return MaybeLocal<Value>();
     }
@@ -339,16 +380,37 @@ ByteSource& ByteSource::operator=(ByteSource&& other) noexcept {
   return *this;
 }
 
-std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore() {
+std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore(
+    Environment* env) {
   // It's ok for allocated_data_ to be nullptr but
   // only if size_ is zero.
   CHECK_IMPLIES(size_ > 0, allocated_data_ != nullptr);
+#ifdef V8_ENABLE_SANDBOX
+  // If the v8 sandbox is enabled, then all array buffers must be allocated
+  // via the isolate. External buffers are not allowed. So, instead of wrapping
+  // the allocated data we'll copy it instead.
+
+  // TODO(@jasnell): It would be nice to use an abstracted utility to do this
+  // branch instead of duplicating the V8_ENABLE_SANDBOX check each time.
+  std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      size(),
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!ptr) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return nullptr;
+  }
+  memcpy(ptr->Data(), allocated_data_, size());
+  OPENSSL_clear_free(allocated_data_, size_);
+#else
   std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
       allocated_data_,
       size(),
       [](void* data, size_t length, void* deleter_data) {
         OPENSSL_clear_free(deleter_data, length);
       }, allocated_data_);
+#endif  // V8_ENABLE_SANDBOX
   CHECK(ptr);
   allocated_data_ = nullptr;
   data_ = nullptr;
@@ -357,7 +419,7 @@ std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore() {
 }
 
 Local<ArrayBuffer> ByteSource::ToArrayBuffer(Environment* env) {
-  std::unique_ptr<BackingStore> store = ReleaseToBackingStore();
+  std::unique_ptr<BackingStore> store = ReleaseToBackingStore(env);
   return ArrayBuffer::New(env->isolate(), std::move(store));
 }
 
@@ -399,13 +461,13 @@ ByteSource ByteSource::FromStringOrBuffer(Environment* env,
 ByteSource ByteSource::FromString(Environment* env, Local<String> str,
                                   bool ntc) {
   CHECK(str->IsString());
-  size_t size = str->Utf8Length(env->isolate());
+  size_t size = str->Utf8LengthV2(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
   auto out = DataPointer::Alloc(alloc_size);
-  int opts = String::NO_OPTIONS;
-  if (!ntc) opts |= String::NO_NULL_TERMINATION;
-  str->WriteUtf8(
-      env->isolate(), static_cast<char*>(out.get()), alloc_size, nullptr, opts);
+  int flags = String::WriteFlags::kNone;
+  if (ntc) flags |= String::WriteFlags::kNullTerminate;
+  str->WriteUtf8V2(
+      env->isolate(), static_cast<char*>(out.get()), alloc_size, flags);
   return ByteSource::Allocated(out.release());
 }
 
@@ -533,7 +595,9 @@ Maybe<void> Decorate(Environment* env,
 #define V(name) case ERR_LIB_##name: lib = #name "_"; break;
     const char* lib = "";
     const char* prefix = "OSSL_";
-    switch (ERR_GET_LIB(err)) { OSSL_ERROR_CODES_MAP(V) }
+    switch (ERR_GET_LIB(err)) { /* NOLINT(whitespace/newline) */
+      OSSL_ERROR_CODES_MAP(V)
+    }
 #undef V
 #undef OSSL_ERROR_CODES_MAP
     // Don't generate codes like "ERR_OSSL_SSL_".
@@ -648,8 +712,19 @@ namespace {
 // using OPENSSL_malloc. However, if the secure heap is
 // initialized, SecureBuffer will automatically use it.
 void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
+#ifdef V8_ENABLE_SANDBOX
+  // The v8 sandbox is enabled, so we cannot use the secure heap because
+  // the sandbox requires that all array buffers be allocated via the isolate.
+  // That is fundamentally incompatible with the secure heap which allocates
+  // in openssl's secure heap area. Instead we'll just throw an error here.
+  //
+  // That said, we really shouldn't get here in the first place since the
+  // option to enable the secure heap is only available when the sandbox
+  // is disabled.
+  UNREACHABLE();
+#else
+  CHECK(args[0]->IsUint32());
   uint32_t len = args[0].As<Uint32>()->Value();
 
   auto data = DataPointer::SecureAlloc(len);
@@ -676,12 +751,12 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
   args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   args.GetReturnValue().Set(
-      BigInt::New(env->isolate(), DataPointer::GetSecureHeapUsed()));
+      BigInt::New(args.GetIsolate(), DataPointer::GetSecureHeapUsed()));
 }
 }  // namespace
 

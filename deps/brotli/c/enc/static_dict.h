@@ -9,10 +9,8 @@
 #ifndef BROTLI_ENC_STATIC_DICT_H_
 #define BROTLI_ENC_STATIC_DICT_H_
 
-#include <brotli/types.h>
-
-#include "../common/dictionary.h"
 #include "../common/platform.h"
+
 #include "encoder_dict.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -4,6 +4,7 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_process-inl.h"
+#include "util.h"
 
 #include <time.h>  // tzset(), _tzset()
 #include <optional>
@@ -16,6 +17,7 @@ using v8::DontDelete;
 using v8::DontEnum;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::IndexedPropertyHandlerConfiguration;
 using v8::Integer;
 using v8::Intercepted;
 using v8::Isolate;
@@ -273,7 +275,7 @@ void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
 
 int32_t MapKVStore::Query(const char* key) const {
   Mutex::ScopedLock lock(mutex_);
-  return map_.find(key) == map_.end() ? -1 : 0;
+  return map_.contains(key) ? 0 : -1;
 }
 
 int32_t MapKVStore::Query(Isolate* isolate, Local<String> key) const {
@@ -311,7 +313,7 @@ std::shared_ptr<KVStore> KVStore::CreateMapKVStore() {
 
 Maybe<void> KVStore::AssignFromObject(Local<Context> context,
                                       Local<Object> entries) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
   Local<Array> keys;
   if (!entries->GetOwnPropertyNames(context).ToLocal(&keys))
@@ -358,9 +360,9 @@ Maybe<void> KVStore::AssignToObject(v8::Isolate* isolate,
 }
 
 struct TraceEnvVarOptions {
-  bool print_message : 1 = 0;
-  bool print_js_stack : 1 = 0;
-  bool print_native_stack : 1 = 0;
+  bool print_message : 1 = false;
+  bool print_js_stack : 1 = false;
+  bool print_native_stack : 1 = false;
 };
 
 template <typename... Args>
@@ -385,13 +387,13 @@ TraceEnvVarOptions GetTraceEnvVarOptions(Environment* env) {
                          ? env->options()
                          : per_process::cli_options->per_isolate->per_env;
   if (cli_options->trace_env) {
-    options.print_message = 1;
+    options.print_message = true;
   };
   if (cli_options->trace_env_js_stack) {
-    options.print_js_stack = 1;
+    options.print_js_stack = true;
   };
   if (cli_options->trace_env_native_stack) {
-    options.print_native_stack = 1;
+    options.print_native_stack = true;
   };
   return options;
 }
@@ -570,6 +572,43 @@ static Intercepted EnvDefiner(Local<Name> property,
   }
 }
 
+static Intercepted EnvGetterIndexed(uint32_t index,
+                                    const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvGetter(name, info);
+}
+
+static Intercepted EnvSetterIndexed(uint32_t index,
+                                    Local<Value> value,
+                                    const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvSetter(name, value, info);
+}
+
+static Intercepted EnvQueryIndexed(uint32_t index,
+                                   const PropertyCallbackInfo<Integer>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvQuery(name, info);
+}
+
+static Intercepted EnvDeleterIndexed(
+    uint32_t index, const PropertyCallbackInfo<Boolean>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvDeleter(name, info);
+}
+
+static Intercepted EnvDefinerIndexed(uint32_t index,
+                                     const PropertyDescriptor& desc,
+                                     const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvDefiner(name, desc, info);
+}
+
 void CreateEnvProxyTemplate(IsolateData* isolate_data) {
   Isolate* isolate = isolate_data->isolate();
   HandleScope scope(isolate);
@@ -588,6 +627,16 @@ void CreateEnvProxyTemplate(IsolateData* isolate_data) {
       nullptr,
       Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
+  env_proxy_template->SetHandler(IndexedPropertyHandlerConfiguration(
+      EnvGetterIndexed,
+      EnvSetterIndexed,
+      EnvQueryIndexed,
+      EnvDeleterIndexed,
+      nullptr,
+      EnvDefinerIndexed,
+      nullptr,
+      Local<Value>(),
+      PropertyHandlerFlags::kHasNoSideEffect));
   isolate_data->set_env_proxy_template(env_proxy_template);
   isolate_data->set_env_proxy_ctor_template(env_proxy_ctor_template);
 }
@@ -599,6 +648,11 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnvDeleter);
   registry->Register(EnvEnumerator);
   registry->Register(EnvDefiner);
+  registry->Register(EnvGetterIndexed);
+  registry->Register(EnvSetterIndexed);
+  registry->Register(EnvQueryIndexed);
+  registry->Register(EnvDeleterIndexed);
+  registry->Register(EnvDefinerIndexed);
 }
 }  // namespace node
 

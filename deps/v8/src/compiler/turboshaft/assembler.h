@@ -14,13 +14,17 @@
 #include <type_traits>
 #include <utility>
 
+#include "include/v8-primitive.h"
 #include "include/v8-source-location.h"
+#include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
+#include "src/base/template-meta-programming/common.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
+#include "src/builtins/constants-table-builder.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/heap-object-list.h"
@@ -46,8 +50,10 @@
 #include "src/compiler/turboshaft/uniform-reducer-adapter.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/logging/runtime-call-stats.h"
+#include "src/maglev/maglev-node-type.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
@@ -58,6 +64,7 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
+#include "src/utils/utils.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -99,8 +106,6 @@ static_assert((ConditionalGotoStatus::kGotoDestination |
                ConditionalGotoStatus::kGotoEliminated) ==
               ConditionalGotoStatus::kBranch);
 
-#ifdef HAS_CPP_CONCEPTS
-
 template <typename It, typename A>
 concept ForeachIterable = requires(It iterator, A& assembler) {
   { iterator.Begin(assembler) } -> std::same_as<typename It::iterator_type>;
@@ -114,8 +119,6 @@ concept ForeachIterable = requires(It iterator, A& assembler) {
     iterator.Dereference(assembler, typename It::iterator_type{})
   } -> std::same_as<typename It::value_type>;
 };
-
-#endif
 
 // `Range<T>` implements the `ForeachIterable` concept to iterate over a range
 // of values inside a `FOREACH` loop. The range can be specified with a begin,
@@ -339,10 +342,11 @@ class ConditionWithHint final {
       BranchHint hint = BranchHint::kNone)  // NOLINT(runtime/explicit)
       : condition_(condition), hint_(hint) {}
 
-  template <typename T, typename = std::enable_if_t<std::is_same_v<T, OpIndex>>>
+  template <typename T>
   ConditionWithHint(
       T condition,
       BranchHint hint = BranchHint::kNone)  // NOLINT(runtime/explicit)
+    requires(std::is_same_v<T, OpIndex>)
       : ConditionWithHint(V<Word32>{condition}, hint) {}
 
   V<Word32> condition() const { return condition_; }
@@ -391,12 +395,19 @@ class LabelBase {
 
   LabelBase(const LabelBase&) = delete;
   LabelBase& operator=(const LabelBase&) = delete;
+  ~LabelBase() { data_.CheckLabelWasBound(); }
 
  public:
   static constexpr bool is_loop = loop;
   using values_t = std::tuple<V<Ts>...>;
   using const_or_values_t = std::tuple<maybe_const_or_v_t<Ts>...>;
   using recorded_values_t = std::tuple<base::SmallVector<V<Ts>, 2>...>;
+
+  enum Likelyness {
+    kUnknown,
+    kLikely,
+    kUnlikely,
+  };
 
   Block* block() { return data_.block; }
 
@@ -419,6 +430,9 @@ class LabelBase {
     has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
+    // We give the block likelyness a preference here.
+    if (data_.likelyness == Likelyness::kLikely) hint = BranchHint::kTrue;
+    if (data_.likelyness == Likelyness::kUnlikely) hint = BranchHint::kFalse;
     if (assembler.GotoIf(condition, data_.block, hint) &
         ConditionalGotoStatus::kGotoDestination) {
       RecordValues(current_block, data_, values);
@@ -432,6 +446,9 @@ class LabelBase {
     has_incoming_jump_ = true;
     Block* current_block = assembler.current_block();
     DCHECK_NOT_NULL(current_block);
+    // We give the block likelyness a preference here.
+    if (data_.likelyness == Likelyness::kLikely) hint = BranchHint::kFalse;
+    if (data_.likelyness == Likelyness::kUnlikely) hint = BranchHint::kTrue;
     if (assembler.GotoIfNot(condition, data_.block, hint) &
         ConditionalGotoStatus::kGotoDestination) {
       RecordValues(current_block, data_, values);
@@ -439,9 +456,20 @@ class LabelBase {
   }
 
   template <typename A>
-  base::prepend_tuple_type<bool, values_t> Bind(A& assembler) {
-    DCHECK(!data_.block->IsBound());
-    if (!assembler.Bind(data_.block)) {
+  base::prepend_tuple_type<bool, values_t> Bind(
+      A& assembler,
+      SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
+#ifdef DEBUG
+    if (data_.block->IsBound()) {
+      FATAL_WITH_LOC(
+          bind_location,
+          "TSA: Trying to BIND a Label that is already bound. The Label "
+          "is defined here: %s, line %d",
+          data_.def_location.FileName(),
+          static_cast<int>(data_.def_location.Line()));
+    }
+#endif
+    if (!assembler.Bind(data_.block, bind_location)) {
       return std::tuple_cat(std::tuple{false}, values_t{});
     }
     DCHECK_EQ(data_.block, assembler.current_block());
@@ -453,17 +481,68 @@ class LabelBase {
     Block* block;
     base::SmallVector<Block*, 4> predecessors;
     recorded_values_t recorded_values;
+    Likelyness likelyness;
+    SourceLocation def_location;
 
-    explicit BlockData(Block* block) : block(block) {}
+    explicit BlockData(Block* block, Likelyness likelyness,
+                       SourceLocation def_location)
+        : block(block), likelyness(likelyness), def_location(def_location) {}
+#ifdef DEBUG
+    BlockData(BlockData&& other) V8_NOEXCEPT
+        : block(other.block),
+          predecessors(std::move(other.predecessors)),
+          recorded_values(std::move(other.recorded_values)),
+          likelyness(other.likelyness),
+          def_location(std::move(other.def_location)) {
+      other.block = nullptr;
+    }
+    BlockData& operator=(BlockData&& other) V8_NOEXCEPT {
+      CheckLabelWasBound();
+
+      block = other.block;
+      other.block = nullptr;
+      predecessors = std::move(other.predecessors);
+      recorded_values = std::move(other.recorded_values);
+      likelyness = other.likelyness;
+      def_location = std::move(other.def_location);
+      return *this;
+    }
+
+    void CheckLabelWasBound() {
+      if (block != nullptr) {
+        // TODO(nicohartmann, dmercadier): Somehow Label's has_incoming_jumps_
+        // and block->PredecessorCount() > 0 don't match. Shouldn't those be
+        // identical? Need to figure out if that's on purpose.
+
+        // Did you forget to BIND this Label?
+        if (block->PredecessorCount() > 0 && !block->IsBound()) {
+          FATAL_WITH_LOC(
+              def_location,
+              "TSA: Label defined here has incoming control flow but is never "
+              "bound.");
+        }
+      }
+    }
+
+#else
+
+    BlockData(BlockData&&) V8_NOEXCEPT = default;
+    BlockData& operator=(BlockData&&) V8_NOEXCEPT = default;
+    void CheckLabelWasBound() {}
+#endif  // DEBUG
   };
 
-  explicit LabelBase(Block* block) : data_(block) {
+  explicit LabelBase(Block* block, Likelyness likelyness,
+                     SourceLocation def_location)
+      : data_(block, likelyness, def_location) {
     DCHECK_NOT_NULL(data_.block);
   }
 
   LabelBase(LabelBase&& other) V8_NOEXCEPT
       : data_(std::move(other.data_)),
-        has_incoming_jump_(other.has_incoming_jump_) {}
+        has_incoming_jump_(other.has_incoming_jump_) {
+    other.has_incoming_jump_ = false;
+  }
 
   static void RecordValues(Block* source, BlockData& data,
                            const values_t& values) {
@@ -536,8 +615,11 @@ class Label : public LabelBase<false, Ts...> {
   Label& operator=(const Label&) = delete;
 
  public:
+  using Likelyness = super::Likelyness;
   template <typename Reducer>
-  explicit Label(Reducer* reducer) : super(reducer->Asm().NewBlock()) {}
+  explicit Label(Reducer* reducer, Likelyness likelyness = Likelyness::kUnknown,
+                 SourceLocation l = SourceLocation::CurrentIfDebug())
+      : super(reducer->Asm().NewBlock(), likelyness, l) {}
 
   Label(Label&& other) V8_NOEXCEPT : super(std::move(other)) {}
 };
@@ -552,10 +634,14 @@ class LoopLabel : public LabelBase<true, Ts...> {
 
  public:
   using values_t = typename super::values_t;
+
   template <typename Reducer>
-  explicit LoopLabel(Reducer* reducer)
-      : super(reducer->Asm().NewBlock()),
-        loop_header_data_{reducer->Asm().NewLoopHeader()} {}
+  explicit LoopLabel(Reducer* reducer, SourceLocation def_location =
+                                           SourceLocation::CurrentIfDebug())
+      : super(reducer->Asm().NewBlock(), super::Likelyness::kUnknown,
+              def_location),
+        loop_header_data_{reducer->Asm().NewLoopHeader(),
+                          super::Likelyness::kUnknown, def_location} {}
 
   LoopLabel(LoopLabel&& other) V8_NOEXCEPT
       : super(std::move(other)),
@@ -626,14 +712,24 @@ class LoopLabel : public LabelBase<true, Ts...> {
 
   template <typename A>
   base::prepend_tuple_type<bool, values_t> Bind(A& assembler) {
-    // LoopLabels must not be bound  using `Bind`, but with `Loop`.
+    // LoopLabels must not be bound using `Bind`, but with `BindLoop`.
     UNREACHABLE();
   }
 
   template <typename A>
-  base::prepend_tuple_type<bool, values_t> BindLoop(A& assembler) {
-    DCHECK(!loop_header_data_.block->IsBound());
-    if (!assembler.Bind(loop_header_data_.block)) {
+  base::prepend_tuple_type<bool, values_t> BindLoop(
+      A& assembler,
+      SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
+#ifdef DEBUG
+    if (loop_header_data_.block->IsBound()) {
+      V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
+               "TSA: Trying to BIND a Label that is already bound. The Label "
+               "is defined here: %s, line %d",
+               loop_header_data_.def_location.FileName(),
+               static_cast<int>(loop_header_data_.def_location.Line()));
+    }
+#endif
+    if (!assembler.Bind(loop_header_data_.block, bind_location)) {
       return std::tuple_cat(std::tuple{false}, values_t{});
     }
     DCHECK_EQ(loop_header_data_.block, assembler.current_block());
@@ -734,9 +830,11 @@ template <typename T>
 using LoopLabelFor = detail::LoopLabelForHelper<T>::type;
 
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
+V8_EXPORT_PRIVATE void CanonicalizeEmbeddedBuiltinsConstantIfNeededImpl(
+    Isolate* isolate, Handle<HeapObject> object);
 
 template <typename Next>
-class TurboshaftAssemblerOpInterface;
+class AssemblerOpInterface;
 
 template <typename T>
 class Uninitialized {
@@ -747,7 +845,7 @@ class Uninitialized {
 
  private:
   template <typename Next>
-  friend class TurboshaftAssemblerOpInterface;
+  friend class AssemblerOpInterface;
 
   V<T> object() const {
     DCHECK(object_.has_value());
@@ -764,101 +862,149 @@ class Uninitialized {
   std::optional<V<T>> object_;
 };
 
-// Forward declarations
-template <class Assembler>
-class GraphVisitor;
-template <class Next>
-class ValueNumberingReducer;
-template <class Next>
-class EmitProjectionReducer;
+namespace detail {
+template <typename T>
+struct MemoryRepresentationFor {
+  static_assert(is_subtype_v<T, HeapObject>);
+  static constexpr MemoryRepresentation value =
+      MemoryRepresentation::TaggedPointer();
+};
+template <>
+struct MemoryRepresentationFor<Smi> {
+  static constexpr MemoryRepresentation value =
+      MemoryRepresentation::TaggedSigned();
+};
+template <typename... Ts>
+struct MemoryRepresentationFor<Union<Ts...>> {
+  static constexpr MemoryRepresentation value =
+      (std::is_same_v<Ts, Smi> || ...) ? MemoryRepresentation::AnyTagged()
+                                       : MemoryRepresentation::TaggedPointer();
+};
+}  // namespace detail
 
-template <class Assembler, bool has_gvn, template <class> class... Reducers>
-class ReducerStack {};
+template <typename C, typename F>
+struct HeapObjectField;
 
-// The following overloads of ReducerStack build the reducer stack, with 2
-// subtleties:
-//  - Inserting an EmitProjectionReducer in the right place: right before the
-//    ValueNumberingReducer if the stack has a ValueNumberingReducer, and right
-//    before the last reducer of the stack otherwise.
-//  - Inserting a GenericReducerBase right before the last reducer of the stack.
-//    This last reducer should have a kIsBottomOfStack member defined, and
-//    should be an IR-specific reducer (like TSReducerBase).
+template <typename C, typename F>
+struct HeapObjectField<C, TaggedMember<F>> {
+  using class_type = C;
+  using field_type = F;
+  static constexpr MemoryRepresentation rep =
+      detail::MemoryRepresentationFor<F>::value;
 
-// Insert the GenericReducerBase before the bottom-most reducer of the stack.
-template <class Assembler, template <class> class LastReducer>
-class ReducerStack<Assembler, true, LastReducer>
-    : public GenericReducerBase<LastReducer<ReducerStack<Assembler, true>>> {
-  static_assert(LastReducer<ReducerStack<Assembler, false>>::kIsBottomOfStack);
+  size_t offset;
+  const char* name;
 
- public:
-  using GenericReducerBase<
-      LastReducer<ReducerStack<Assembler, true>>>::GenericReducerBase;
+  constexpr HeapObjectField(size_t offset, const char* name)
+      : offset(offset), name(name) {}
 };
 
-// The stack has no ValueNumberingReducer, so we insert the
-// EmitProjectionReducer right before the GenericReducerBase (which we insert
-// before the bottom-most reducer).
-template <class Assembler, template <class> class LastReducer>
-class ReducerStack<Assembler, false, LastReducer>
-    : public EmitProjectionReducer<
-          GenericReducerBase<LastReducer<ReducerStack<Assembler, false>>>> {
-  static_assert(LastReducer<ReducerStack<Assembler, false>>::kIsBottomOfStack);
-
+// FrameStateForCall is mostly just a wrapper around V<FrameState>, but when
+// compiling a builtin, we cannot lazy deopt and we can pass NoFrameState()
+// instead.
+// TODO(nicohartmann): This is a temporary solution to allow builtins calling
+// other builtins to be able to not pass a FrameState (because those calls
+// cannot lazy deopt). We should ideally remove `kNeedsFrameState` from the
+// `BuiltinCallDescriptor`s because that's not an inherent property
+// of the callee, but also depends on the caller.
+class FrameStateForCall {
  public:
-  using EmitProjectionReducer<GenericReducerBase<
-      LastReducer<ReducerStack<Assembler, false>>>>::EmitProjectionReducer;
-};
-
-// We insert an EmitProjectionReducer right before the ValueNumberingReducer
-template <class Assembler, template <class> class... Reducers>
-class ReducerStack<Assembler, true, ValueNumberingReducer, Reducers...>
-    : public EmitProjectionReducer<
-          ValueNumberingReducer<ReducerStack<Assembler, true, Reducers...>>> {
- public:
-  using EmitProjectionReducer<ValueNumberingReducer<
-      ReducerStack<Assembler, true, Reducers...>>>::EmitProjectionReducer;
-};
-
-template <class Assembler, bool has_gvn, template <class> class FirstReducer,
-          template <class> class... Reducers>
-class ReducerStack<Assembler, has_gvn, FirstReducer, Reducers...>
-    : public FirstReducer<ReducerStack<Assembler, has_gvn, Reducers...>> {
- public:
-  using FirstReducer<
-      ReducerStack<Assembler, has_gvn, Reducers...>>::FirstReducer;
-};
-
-template <class Reducers, bool has_gvn>
-class ReducerStack<Assembler<Reducers>, has_gvn> {
- public:
-  using AssemblerType = Assembler<Reducers>;
-  using ReducerList = Reducers;
-  Assembler<ReducerList>& Asm() {
-    return *static_cast<Assembler<ReducerList>*>(this);
+  FrameStateForCall(
+      V<turboshaft::FrameState> framestate)  // NOLINT(runtime/explicit)
+      : framestate_(framestate) {
+    DCHECK(framestate_.valid());
   }
+
+  template <typename Assembler>
+  static FrameStateForCall NoFrameState(const Assembler* assembler) {
+    // Use only for TSA builtins that cannot lazy deopt on calls.
+    DCHECK_EQ(assembler->data()->pipeline_kind(),
+              TurboshaftPipelineKind::kTSABuiltin);
+    return FrameStateForCall{};
+  }
+
+  OptionalV<turboshaft::FrameState> get() const { return framestate_; }
+  bool valid() const { return framestate_.valid(); }
+
+ private:
+  FrameStateForCall() : framestate_() {}
+
+  OptionalV<turboshaft::FrameState> framestate_;
 };
 
-template <class Reducers>
-struct reducer_stack_type {};
+// Meta-class to map a root index to the corresponding C++-type.
+template <RootIndex>
+struct RootType;
 
-template <template <class> class... Reducers>
-struct reducer_stack_type<reducer_list<Reducers...>> {
-  using type =
-      ReducerStack<Assembler<reducer_list<Reducers...>>,
-                   (is_same_reducer<ValueNumberingReducer, Reducers>::value ||
-                    ...),
-                   Reducers...>;
-};
+#define DEFINE_ROOT_TYPE(ctype, name, CamelName) \
+  template <>                                    \
+  struct RootType<RootIndex::k##CamelName> {     \
+    using type = ctype;                          \
+  };
+ROOT_LIST(DEFINE_ROOT_TYPE)
+#undef DEFINE_ROOT_TYPE
 
+template <RootIndex index>
+using root_type_t = RootType<index>::type;
+
+// Forward declarations
 template <typename Next>
-class GenericReducerBase;
+class GraphVisitor;
+template <typename Next>
+class ValueNumberingReducer;
+template <typename Next>
+class EmitProjectionReducer;
+template <typename Next>
+class ReducerBase;
+template <typename Next>
+class GraphEmitter;
+
+template <typename Assembler, typename Reducers>
+struct StackBottom {
+  using assembler_t = Assembler;
+  using ReducerList = Reducers;
+  assembler_t& Asm() { return *static_cast<assembler_t*>(this); }
+};
+
+namespace detail {
+template <typename Assembler, template <typename> typename... Reducers>
+struct BuildReducerStack {
+  using ReducerList = reducer_list<Reducers...>;
+  static constexpr size_t length = reducer_list_length_v<ReducerList>;
+
+  static_assert(!reducer_list_contains_v<ReducerList, EmitProjectionReducer>);
+  // We need to insert an EmitProjectionReducer. If we have a
+  // ValueNumberingReducer in the stack, then we put it before that. Otherwise
+  // it goes to the bottom of the stack.
+  static constexpr size_t vnr_index =
+      reducer_list_index_of_v<ReducerList, ValueNumberingReducer, length>;
+  using WithEmitProjection =
+      reducer_list_insert_at_t<ReducerList, vnr_index, EmitProjectionReducer>;
+
+  // Next, we need to insert these reducers at the bottom of the stack:
+  //  AssemblerOpInterface, ReducerBase, GraphEmitter.
+  using WithEmitProjectionAndRequiredReducers =
+      reducer_list_append_t<WithEmitProjection, AssemblerOpInterface,
+                            ReducerBase, GraphEmitter>;
+
+  using type = reducer_list_to_stack_t<
+      WithEmitProjectionAndRequiredReducers,
+      StackBottom<Assembler, WithEmitProjectionAndRequiredReducers>>;
+
+  static_assert(reducer_list_length_v<typename type::ReducerList> ==
+                length + 4);
+};
+}  // namespace detail
+
+template <typename Assembler, template <typename> typename... Reducers>
+using ReducerStack = detail::BuildReducerStack<Assembler, Reducers...>::type;
 
 // TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE should almost never be needed: it
 // should only be used by the IR-specific base class, while other reducers
 // should simply use `TURBOSHAFT_REDUCER_BOILERPLATE`.
 #define TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(Name)                    \
   using ReducerList = typename Next::ReducerList;                       \
-  using assembler_t = compiler::turboshaft::Assembler<ReducerList>;     \
+  using assembler_t = typename Next::assembler_t;                       \
   assembler_t& Asm() { return *static_cast<assembler_t*>(this); }       \
   template <class T>                                                    \
   using ScopedVar = compiler::turboshaft::ScopedVar<T, assembler_t>;    \
@@ -901,23 +1047,23 @@ class Var : protected Variable {
   V<T> Get() const { return assembler_.GetVariable(*this); }
 
   void operator=(value_type new_value) { Set(new_value); }
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<U>::template implicitly_constructible_from<T>::value>>
-  operator V<U>() const {
+  template <typename U>
+  operator V<U>() const
+    requires v_traits<U>::template
+  implicitly_constructible_from<T>::value {
     return Get();
   }
-  template <typename U,
-            typename = std::enable_if_t<
-                v_traits<U>::template implicitly_constructible_from<T>::value>>
-  operator OptionalV<U>() const {
+  template <typename U>
+  operator OptionalV<U>() const
+    requires v_traits<U>::template
+  implicitly_constructible_from<T>::value {
     return Get();
   }
-  template <typename U,
-            typename = std::enable_if_t<
-                const_or_v_exists_v<U> &&
-                v_traits<U>::template implicitly_constructible_from<T>::value>>
-  operator ConstOrV<U>() const {
+  template <typename U>
+  operator ConstOrV<U>() const
+    requires(const_or_v_exists_v<U> &&
+             v_traits<U>::template implicitly_constructible_from<T>::value)
+  {
     return Get();
   }
   operator OpIndex() const { return Get(); }
@@ -1002,31 +1148,53 @@ class EmitProjectionReducer
       for (int i = 0; i < static_cast<int>(reps.size()); i++) {
         projections.push_back(Asm().Projection(idx, i, reps[i]));
       }
-      return Asm().Tuple(base::VectorOf(projections));
+      return Asm().MakeTuple(base::VectorOf(projections));
     }
     return idx;
   }
 };
 
+namespace detail {
+template <typename T>
+inline T&& MakeShadowy(T&& value) {
+  static_assert(!std::is_same_v<std::remove_reference_t<T>, OpIndex>);
+  return std::forward<T>(value);
+}
+inline ShadowyOpIndex MakeShadowy(OpIndex value) {
+  return ShadowyOpIndex{value};
+}
+template <typename T>
+inline ShadowyOpIndex MakeShadowy(V<T> value) {
+  return ShadowyOpIndex{value};
+}
+inline ShadowyOpIndexVectorWrapper MakeShadowy(
+    base::Vector<const OpIndex> value) {
+  return ShadowyOpIndexVectorWrapper{value};
+}
+template <typename T>
+inline ShadowyOpIndexVectorWrapper MakeShadowy(base::Vector<const V<T>> value) {
+  return ShadowyOpIndexVectorWrapper{value};
+}
+}  // namespace detail
+
 // This reducer takes care of emitting Turboshaft operations. Ideally, the rest
 // of the Assembler stack would be generic, and only TSReducerBase (and
-// TurboshaftAssemblerOpInterface) would be Turboshaft-specific.
+// AssemblerOpInterface) would be Turboshaft-specific.
 // TODO(dmercadier): this is currently not quite at the very bottom of the stack
 // but actually before ReducerBase and ReducerBaseForwarder. This doesn't
 // matter, because Emit should be unique on the reducer stack, but still, it
 // would be nice to have the TSReducerBase at the very bottom of the stack.
 template <class Next>
-class TSReducerBase : public Next {
+class GraphEmitter : public Next {
  public:
-  static constexpr bool kIsBottomOfStack = true;
-  TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(TSReducerBase)
+  TURBOSHAFT_REDUCER_GENERIC_BOILERPLATE(GraphEmitter)
   using node_t = OpIndex;
   using block_t = Block;
 
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
-    static_assert((std::is_base_of<Operation, Op>::value));
-    static_assert(!(std::is_same<Op, Operation>::value));
+    static_assert((std::is_base_of_v<Operation, Op>));
+    static_assert(!(std::is_same_v<Op, Operation>));
     DCHECK_NOT_NULL(Asm().current_block());
     OpIndex result = Asm().output_graph().next_operation_index();
     Op& op = Asm().output_graph().template Add<Op>(args...);
@@ -1043,6 +1211,17 @@ class TSReducerBase : public Next {
     if (op.IsBlockTerminator()) Asm().FinalizeBlock();
     return result;
   }
+
+#define EMIT_OP(Name)                                                    \
+  OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) { \
+    return this->Asm().AssembleOutputGraph##Name(op);                    \
+  }                                                                      \
+  template <class... Args>                                               \
+  OpIndex Reduce##Name(Args... args) {                                   \
+    return Emit<Name##Op>(detail::MakeShadowy(args)...);                 \
+  }
+  TURBOSHAFT_OPERATION_LIST(EMIT_OP)
+#undef EMIT_OP
 
  private:
 #ifdef DEBUG
@@ -1081,58 +1260,14 @@ class TSReducerBase : public Next {
 #endif  // DEBUG
 };
 
-namespace detail {
-template <typename T>
-inline T&& MakeShadowy(T&& value) {
-  static_assert(!std::is_same_v<std::remove_reference_t<T>, OpIndex>);
-  return std::forward<T>(value);
-}
-inline ShadowyOpIndex MakeShadowy(OpIndex value) {
-  return ShadowyOpIndex{value};
-}
-template <typename T>
-inline ShadowyOpIndex MakeShadowy(V<T> value) {
-  return ShadowyOpIndex{value};
-}
-inline ShadowyOpIndexVectorWrapper MakeShadowy(
-    base::Vector<const OpIndex> value) {
-  return ShadowyOpIndexVectorWrapper{value};
-}
-template <typename T>
-inline ShadowyOpIndexVectorWrapper MakeShadowy(base::Vector<const V<T>> value) {
-  return ShadowyOpIndexVectorWrapper{value};
-}
-}  // namespace detail
-
-// This empty base-class is used to provide default-implementations of plain
-// methods emitting operations.
-template <class Next>
-class ReducerBaseForwarder : public Next {
- public:
-  TURBOSHAFT_REDUCER_BOILERPLATE(ReducerBaseForwarder)
-
-#define EMIT_OP(Name)                                                         \
-  OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) {      \
-    return this->Asm().AssembleOutputGraph##Name(op);                         \
-  }                                                                           \
-  template <class... Args>                                                    \
-  OpIndex Reduce##Name(Args... args) {                                        \
-    return this->Asm().template Emit<Name##Op>(detail::MakeShadowy(args)...); \
-  }
-  TURBOSHAFT_OPERATION_LIST(EMIT_OP)
-#undef EMIT_OP
-};
-
-// GenericReducerBase provides default implementations of Branch-related
+// ReducerBase provides default implementations of Branch-related
 // Operations (Goto, Branch, Switch, CheckException), and takes care of updating
 // Block predecessors (and calls the Assembler to maintain split-edge form).
 // ReducerBase is always added by Assembler at the bottom of the reducer stack.
-template <class Next>
-class GenericReducerBase : public ReducerBaseForwarder<Next> {
+template <typename Next>
+class ReducerBase : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE(GenericReducerBase)
-
-  using Base = ReducerBaseForwarder<Next>;
+  TURBOSHAFT_REDUCER_BOILERPLATE(ReducerBase)
 
   void Bind(Block* block) {}
 
@@ -1171,13 +1306,13 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     // computed with the VariableReducer Snapshot right before the loop was
     // emitted).
     DCHECK_IMPLIES(
-        pending_phi.first() != Asm().MapToNewGraph(input_phi.input(0)),
+        pending_phi.first() != Asm().MapToNewGraph(input_phi.forward_edge()),
         output_graph_loop->has_peeled_iteration());
 #endif
     Asm().output_graph().template Replace<PhiOp>(
         output_index,
         base::VectorOf<OpIndex>(
-            {pending_phi.first(), Asm().MapToNewGraph(input_phi.input(1))}),
+            {pending_phi.first(), Asm().MapToNewGraph(input_phi.back_edge())}),
         input_phi.rep);
   }
 
@@ -1185,28 +1320,28 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                       RegisterRepresentation rep) {
     DCHECK(Asm().current_block()->IsMerge() &&
            inputs.size() == Asm().current_block()->Predecessors().size());
-    return Base::ReducePhi(inputs, rep);
+    return Next::ReducePhi(inputs, rep);
   }
 
   OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep) {
     DCHECK(Asm().current_block()->IsLoop());
-    return Base::ReducePendingLoopPhi(first, rep);
+    return Next::ReducePendingLoopPhi(first, rep);
   }
 
   V<None> REDUCE(Goto)(Block* destination, bool is_backedge) {
-    // Calling Base::Goto will call Emit<Goto>, which will call FinalizeBlock,
+    // Calling Next::Goto will call Emit<Goto>, which will call FinalizeBlock,
     // which will reset {current_block_}. We thus save {current_block_} before
-    // calling Base::Goto, as we'll need it for AddPredecessor. Note also that
+    // calling Next::Goto, as we'll need it for AddPredecessor. Note also that
     // AddPredecessor might introduce some new blocks/operations if it needs to
-    // split an edge, which means that it has to run after Base::Goto
+    // split an edge, which means that it has to run after Next::Goto
     // (otherwise, the current Goto could be inserted in the wrong block).
     Block* saved_current_block = Asm().current_block();
-    V<None> new_opindex = Base::ReduceGoto(destination, is_backedge);
+    V<None> new_opindex = Next::ReduceGoto(destination, is_backedge);
     Asm().AddPredecessor(saved_current_block, destination, false);
     return new_opindex;
   }
 
-  OpIndex REDUCE(Branch)(OpIndex condition, Block* if_true, Block* if_false,
+  V<None> REDUCE(Branch)(V<Word32> condition, Block* if_true, Block* if_false,
                          BranchHint hint) {
     // There should never be a good reason to generate a Branch where both the
     // {if_true} and {if_false} are the same Block. If we ever decide to lift
@@ -1214,8 +1349,8 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     // accordingly.
     DCHECK_NE(if_true, if_false);
     Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex =
-        Base::ReduceBranch(condition, if_true, if_false, hint);
+    V<None> new_opindex =
+        Next::ReduceBranch(condition, if_true, if_false, hint);
     Asm().AddPredecessor(saved_current_block, if_true, true);
     Asm().AddPredecessor(saved_current_block, if_false, true);
     return new_opindex;
@@ -1225,12 +1360,18 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
     Block* current_block = Asm().current_block();
     if (current_block->IsBranchTarget()) {
       DCHECK_EQ(current_block->PredecessorCount(), 1);
-      DCHECK_EQ(current_block->LastPredecessor()
-                    ->LastOperation(Asm().output_graph())
-                    .template Cast<CheckExceptionOp>()
-                    .catch_block,
-                current_block);
-      return Base::ReduceCatchBlockBegin();
+      const CheckExceptionOp& check_op =
+          current_block->LastPredecessor()
+              ->LastOperation(Asm().output_graph())
+              .template Cast<CheckExceptionOp>();
+      USE(check_op);
+      DCHECK(check_op.catch_block == current_block ||
+             std::count_if(check_op.effect_handlers.begin(),
+                           check_op.effect_handlers.end(),
+                           [current_block](EffectHandler& handler) {
+                             return handler.block == current_block;
+                           }));
+      return Next::ReduceCatchBlockBegin();
     }
     // We are trying to emit a CatchBlockBegin into a block that used to be the
     // catch_block successor but got edge-splitted into a merge. Therefore, we
@@ -1262,7 +1403,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
 #endif
     Block* saved_current_block = Asm().current_block();
     V<None> new_opindex =
-        Base::ReduceSwitch(input, cases, default_case, default_hint);
+        Next::ReduceSwitch(input, cases, default_case, default_hint);
     for (SwitchOp::Case c : cases) {
       Asm().AddPredecessor(saved_current_block, c.destination, true);
     }
@@ -1275,9 +1416,10 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
     V<Any> raw_call =
-        Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
+        Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
     bool has_catch_block = false;
-    if (descriptor->can_throw == CanThrow::kYes) {
+    if (descriptor->can_throw == CanThrow::kYes ||
+        !Asm().effect_handlers_for_next_call().empty()) {
       // TODO(nicohartmann@): Unfortunately, we have many descriptors where
       // effects are not set consistently with {can_throw}. We should fix those
       // and reenable this DCHECK.
@@ -1294,7 +1436,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
       base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
-    OpIndex raw_call = Base::ReduceFastApiCall(
+    OpIndex raw_call = Next::ReduceFastApiCall(
         frame_state, data_argument, context, arguments, parameters, out_reps);
     bool has_catch_block = CatchIfInCatchScope(raw_call);
     return ReduceDidntThrow(raw_call, has_catch_block,
@@ -1309,7 +1451,7 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
 #define REDUCE_THROWING_OP(Name)                                             \
   template <typename... Args>                                                \
   V<Any> Reduce##Name(Args... args) {                                        \
-    OpIndex raw_op_index = Base::Reduce##Name(args...);                      \
+    OpIndex raw_op_index = Next::Reduce##Name(args...);                      \
     bool has_catch_block = CatchIfInCatchScope(raw_op_index);                \
     const Name##Op& raw_op =                                                 \
         Asm().output_graph().Get(raw_op_index).template Cast<Name##Op>();    \
@@ -1323,25 +1465,34 @@ class GenericReducerBase : public ReducerBaseForwarder<Next> {
   // These reduce functions are private, as they should only be emitted
   // automatically by `CatchIfInCatchScope` and `DoNotCatch` defined below and
   // never explicitly.
-  using Base::ReduceDidntThrow;
+  using Next::ReduceDidntThrow;
   V<None> REDUCE(CheckException)(V<Any> throwing_operation, Block* successor,
-                                 Block* catch_block) {
+                                 Block* catch_block,
+                                 base::Vector<EffectHandler> effect_handlers) {
     // {successor} and {catch_block} should never be the same.  AddPredecessor
     // and SplitEdge rely on this.
     DCHECK_NE(successor, catch_block);
     Block* saved_current_block = Asm().current_block();
-    V<None> new_opindex =
-        Base::ReduceCheckException(throwing_operation, successor, catch_block);
+    V<None> new_opindex = Next::ReduceCheckException(
+        throwing_operation, successor, catch_block, effect_handlers);
     Asm().AddPredecessor(saved_current_block, successor, true);
-    Asm().AddPredecessor(saved_current_block, catch_block, true);
+    DCHECK(catch_block || !effect_handlers.empty());
+    if (catch_block) {
+      Asm().AddPredecessor(saved_current_block, catch_block, true);
+    }
+    for (auto& effect_handler : effect_handlers) {
+      Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+    }
     return new_opindex;
   }
 
   bool CatchIfInCatchScope(OpIndex throwing_operation) {
-    if (Asm().current_catch_block()) {
+    if (Asm().current_catch_block() ||
+        !Asm().effect_handlers_for_next_call().empty()) {
       Block* successor = Asm().NewBlock();
       ReduceCheckException(throwing_operation, successor,
-                           Asm().current_catch_block());
+                           Asm().current_catch_block(),
+                           Asm().effect_handlers_for_next_call());
       Asm().BindReachable(successor);
       return true;
     }
@@ -1388,209 +1539,36 @@ auto BuildResultTuple(bool bound, Iterable&& iterable, LoopLabel&& loop_header,
 
 }  // namespace detail
 
-template <class Next>
-class GenericAssemblerOpInterface : public Next {
+template <typename Next>
+class AssemblerOpInterface : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE(GenericAssemblerOpInterface)
-
-  // These methods are used by the assembler macros (BIND, BIND_LOOP, GOTO,
-  // GOTO_IF).
-  template <typename L>
-  auto ControlFlowHelper_Bind(L& label)
-      -> base::prepend_tuple_type<bool, typename L::values_t> {
-    // LoopLabels need to be bound with `BIND_LOOP` instead of `BIND`.
-    static_assert(!L::is_loop);
-    return label.Bind(Asm());
-  }
-
-  template <typename L>
-  auto ControlFlowHelper_BindLoop(L& label)
-      -> base::prepend_tuple_type<bool, typename L::values_t> {
-    // Only LoopLabels can be bound with `BIND_LOOP`. Otherwise use `BIND`.
-    static_assert(L::is_loop);
-    return label.BindLoop(Asm());
-  }
-
-  template <typename L>
-  void ControlFlowHelper_EndLoop(L& label) {
-    static_assert(L::is_loop);
-    label.EndLoop(Asm());
-  }
-
-  template <CONCEPT(ForeachIterable<assembler_t>) It>
-  auto ControlFlowHelper_Foreach(It iterable) {
-    // We need to take ownership over the `iterable` instance as we need to make
-    // sure that the `ControlFlowHelper_Foreach` and
-    // `ControlFlowHelper_EndForeachLoop` functions operate on the same object.
-    // This can potentially involve copying the `iterable` if it is not moved to
-    // the `FOREACH` macro. `ForeachIterable`s should be cheap to copy and they
-    // MUST NOT emit any code in their constructors/destructors.
-#ifdef DEBUG
-    OpIndex next_index = Asm().output_graph().next_operation_index();
-    {
-      It temp_copy = iterable;
-      USE(temp_copy);
-    }
-    // Make sure we have not emitted any operations.
-    DCHECK_EQ(next_index, Asm().output_graph().next_operation_index());
-#endif
-
-    LoopLabelFor<typename It::iterator_type> loop_header(this);
-    Label<> loop_exit(this);
-
-    typename It::iterator_type begin = iterable.Begin(Asm());
-
-    ControlFlowHelper_Goto(loop_header, {begin});
-
-    auto bound_and_current_iterator = loop_header.BindLoop(Asm());
-    auto [bound] = base::tuple_head<1>(bound_and_current_iterator);
-    auto current_iterator = detail::unwrap_unary_tuple(
-        base::tuple_drop<1>(bound_and_current_iterator));
-    OptionalV<Word32> is_end = iterable.IsEnd(Asm(), current_iterator);
-    if (is_end.has_value()) {
-      ControlFlowHelper_GotoIf(is_end.value(), loop_exit, {});
-    }
-
-    typename It::value_type current_value =
-        iterable.Dereference(Asm(), current_iterator);
-
-    return detail::BuildResultTuple(
-        bound, std::move(iterable), std::move(loop_header),
-        std::move(loop_exit), current_iterator, current_value);
-  }
-
-  template <CONCEPT(ForeachIterable<assembler_t>) It>
-  void ControlFlowHelper_EndForeachLoop(
-      It iterable, LoopLabelFor<typename It::iterator_type>& header_label,
-      Label<>& exit_label, typename It::iterator_type current_iterator) {
-    typename It::iterator_type next_iterator =
-        iterable.Advance(Asm(), current_iterator);
-    ControlFlowHelper_Goto(header_label, {next_iterator});
-    ControlFlowHelper_EndLoop(header_label);
-    ControlFlowHelper_Bind(exit_label);
-  }
-
-  std::tuple<bool, LoopLabel<>, Label<>> ControlFlowHelper_While(
-      std::function<V<Word32>()> cond_builder) {
-    LoopLabel<> loop_header(this);
-    Label<> loop_exit(this);
-
-    ControlFlowHelper_Goto(loop_header, {});
-
-    auto [bound] = loop_header.BindLoop(Asm());
-    V<Word32> cond = cond_builder();
-    ControlFlowHelper_GotoIfNot(cond, loop_exit, {});
-
-    return std::make_tuple(bound, std::move(loop_header), std::move(loop_exit));
-  }
-
-  template <typename L1, typename L2>
-  void ControlFlowHelper_EndWhileLoop(L1& header_label, L2& exit_label) {
-    static_assert(L1::is_loop);
-    static_assert(!L2::is_loop);
-    ControlFlowHelper_Goto(header_label, {});
-    ControlFlowHelper_EndLoop(header_label);
-    ControlFlowHelper_Bind(exit_label);
-  }
-
-  template <typename L>
-  void ControlFlowHelper_Goto(L& label,
-                              const typename L::const_or_values_t& values) {
-    auto resolved_values = detail::ResolveAll(Asm(), values);
-    label.Goto(Asm(), resolved_values);
-  }
-
-  template <typename L>
-  void ControlFlowHelper_GotoIf(ConditionWithHint condition, L& label,
-                                const typename L::const_or_values_t& values) {
-    auto resolved_values = detail::ResolveAll(Asm(), values);
-    label.GotoIf(Asm(), condition.condition(), condition.hint(),
-                 resolved_values);
-  }
-
-  template <typename L>
-  void ControlFlowHelper_GotoIfNot(
-      ConditionWithHint condition, L& label,
-      const typename L::const_or_values_t& values) {
-    auto resolved_values = detail::ResolveAll(Asm(), values);
-    label.GotoIfNot(Asm(), condition.condition(), condition.hint(),
-                    resolved_values);
-  }
-
-  struct ControlFlowHelper_IfState {
-    block_t* else_block;
-    block_t* end_block;
-  };
-
-  bool ControlFlowHelper_BindIf(ConditionWithHint condition,
-                                ControlFlowHelper_IfState* state) {
-    block_t* then_block = Asm().NewBlock();
-    state->else_block = Asm().NewBlock();
-    state->end_block = Asm().NewBlock();
-    Asm().Branch(condition, then_block, state->else_block);
-    return Asm().Bind(then_block);
-  }
-
-  bool ControlFlowHelper_BindIfNot(ConditionWithHint condition,
-                                   ControlFlowHelper_IfState* state) {
-    block_t* then_block = Asm().NewBlock();
-    state->else_block = Asm().NewBlock();
-    state->end_block = Asm().NewBlock();
-    Asm().Branch(condition, state->else_block, then_block);
-    return Asm().Bind(then_block);
-  }
-
-  bool ControlFlowHelper_BindElse(ControlFlowHelper_IfState* state) {
-    block_t* else_block = state->else_block;
-    state->else_block = nullptr;
-    return Asm().Bind(else_block);
-  }
-
-  void ControlFlowHelper_FinishIfBlock(ControlFlowHelper_IfState* state) {
-    if (Asm().current_block() == nullptr) return;
-    Asm().Goto(state->end_block);
-  }
-
-  void ControlFlowHelper_EndIf(ControlFlowHelper_IfState* state) {
-    if (state->else_block) {
-      if (Asm().Bind(state->else_block)) {
-        Asm().Goto(state->end_block);
-      }
-    }
-    Asm().Bind(state->end_block);
-  }
-};
-
-template <class Next>
-class TurboshaftAssemblerOpInterface
-    : public GenericAssemblerOpInterface<Next> {
- public:
-  TURBOSHAFT_REDUCER_BOILERPLATE(TurboshaftAssemblerOpInterface)
+  TURBOSHAFT_REDUCER_BOILERPLATE(AssemblerOpInterface)
 
   template <typename... Args>
-  explicit TurboshaftAssemblerOpInterface(Args... args)
-      : GenericAssemblerOpInterface<Next>(args...),
-        matcher_(Asm().output_graph()) {}
+  explicit AssemblerOpInterface(Args... args)
+      : Next(args...), matcher_(Asm().output_graph()) {}
 
   const OperationMatcher& matcher() const { return matcher_; }
 
-  // ReduceProjection eliminates projections to tuples and returns instead the
-  // corresponding tuple input. We do this at the top of the stack to avoid
-  // passing this Projection around needlessly. This is in particular important
-  // to ValueNumberingReducer, which assumes that it's at the bottom of the
-  // stack, and that the BaseReducer will actually emit an Operation. If we put
-  // this projection-to-tuple-simplification in the BaseReducer, then this
-  // assumption of the ValueNumberingReducer will break.
-  V<Any> REDUCE(Projection)(V<Any> tuple, uint16_t index,
-                            RegisterRepresentation rep) {
-    if (auto* tuple_op = Asm().matcher().template TryCast<TupleOp>(tuple)) {
-      return tuple_op->input(index);
-    }
-    return Next::ReduceProjection(tuple, index, rep);
-  }
-
   // Methods to be used by the reducers to reducer operations with the whole
   // reducer stack.
+
+  V<Float64OrWord32> TypeHint(V<Float64OrWord32> input, TypeHintOp::Type type) {
+    return ReduceIfReachableTypeHint(input, type);
+  }
+
+  V<Word32> TypeHintUint32(V<Word32> input) {
+    return V<Word32>::Cast(TypeHint(input, TypeHintOp::Type::kUint32));
+  }
+  V<Word32> TypeHintInt32(V<Word32> input) {
+    return V<Word32>::Cast(TypeHint(input, TypeHintOp::Type::kInt32));
+  }
+  V<Float64> TypeHintFloat64(V<Float64> input) {
+    return V<Float64>::Cast(TypeHint(input, TypeHintOp::Type::kFloat64));
+  }
+  V<Float64> TypeHintHoleyFloat64(V<Float64> input) {
+    return V<Float64>::Cast(TypeHint(input, TypeHintOp::Type::kHoleyFloat64));
+  }
 
   V<Object> GenericBinop(V<Object> left, V<Object> right,
                          V<turboshaft::FrameState> frame_state,
@@ -1751,6 +1729,8 @@ class TurboshaftAssemblerOpInterface
                                 SignedAdd, Word32)
   DECL_SINGLE_REP_CHECK_BINOP_V(Int64AddCheckOverflow, OverflowCheckedBinop,
                                 SignedAdd, Word64)
+  DECL_SINGLE_REP_CHECK_BINOP_V(IntPtrAddCheckOverflow, OverflowCheckedBinop,
+                                SignedAdd, WordPtr)
   DECL_MULTI_REP_CHECK_BINOP_V(IntSubCheckOverflow, OverflowCheckedBinop,
                                SignedSub, Word)
   DECL_SINGLE_REP_CHECK_BINOP_V(Int32SubCheckOverflow, OverflowCheckedBinop,
@@ -1788,9 +1768,9 @@ class TurboshaftAssemblerOpInterface
   DECL_SINGLE_REP_BINOP_V(Float64Power, FloatBinop, Power, Float64)
   DECL_SINGLE_REP_BINOP_V(Float64Atan2, FloatBinop, Atan2, Float64)
 
-  OpIndex Shift(OpIndex left, OpIndex right, ShiftOp::Kind kind,
+  V<Word> Shift(V<Word> left, ConstOrV<Word32> right, ShiftOp::Kind kind,
                 WordRepresentation rep) {
-    return ReduceIfReachableShift(left, right, kind, rep);
+    return ReduceIfReachableShift(left, resolve(right), kind, rep);
   }
 
 #define DECL_SINGLE_REP_SHIFT_V(name, kind, tag)                        \
@@ -1798,63 +1778,74 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableShift(resolve(left), resolve(right),        \
                                   ShiftOp::Kind::k##kind, V<tag>::rep); \
   }
+#define DECL_MULTI_REP_SHIFT_V(name)                                           \
+  V<Word> name(V<Word> left, ConstOrV<Word32> right, WordRepresentation rep) { \
+    return ReduceIfReachableShift(left, resolve(right),                        \
+                                  ShiftOp::Kind::k##name, rep);                \
+  }
 
-  DECL_MULTI_REP_BINOP(ShiftRightArithmeticShiftOutZeros, Shift,
-                       WordRepresentation, ShiftRightArithmeticShiftOutZeros)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightArithmeticShiftOutZeros)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, WordRepresentation,
-                       ShiftRightArithmetic)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightArithmetic)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmetic, ShiftRightArithmetic,
                           Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmetic, ShiftRightArithmetic,
                           Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmetic, ShiftRightArithmetic,
                           WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, WordRepresentation,
-                       ShiftRightLogical)
+  DECL_MULTI_REP_SHIFT_V(ShiftRightLogical)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightLogical, ShiftRightLogical, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightLogical, ShiftRightLogical, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightLogical, ShiftRightLogical, WordPtr)
-  DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
+  DECL_MULTI_REP_SHIFT_V(ShiftLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32ShiftLeft, ShiftLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64ShiftLeft, ShiftLeft, Word64)
   DECL_SINGLE_REP_SHIFT_V(WordPtrShiftLeft, ShiftLeft, WordPtr)
-  DECL_MULTI_REP_BINOP(RotateRight, Shift, WordRepresentation, RotateRight)
+  DECL_MULTI_REP_SHIFT_V(RotateRight)
   DECL_SINGLE_REP_SHIFT_V(Word32RotateRight, RotateRight, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateRight, RotateRight, Word64)
-  DECL_MULTI_REP_BINOP(RotateLeft, Shift, WordRepresentation, RotateLeft)
+  DECL_MULTI_REP_SHIFT_V(RotateLeft)
   DECL_SINGLE_REP_SHIFT_V(Word32RotateLeft, RotateLeft, Word32)
   DECL_SINGLE_REP_SHIFT_V(Word64RotateLeft, RotateLeft, Word64)
 
-  OpIndex ShiftRightLogical(OpIndex left, uint32_t right,
-                            WordRepresentation rep) {
-    DCHECK_GE(right, 0);
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftRightLogical(left, this->Word32Constant(right), rep);
-  }
-  OpIndex ShiftRightArithmetic(OpIndex left, uint32_t right,
-                               WordRepresentation rep) {
-    DCHECK_GE(right, 0);
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftRightArithmetic(left, this->Word32Constant(right), rep);
-  }
-  OpIndex ShiftLeft(OpIndex left, uint32_t right, WordRepresentation rep) {
-    DCHECK_LT(right, rep.bit_width());
-    return ShiftLeft(left, this->Word32Constant(right), rep);
-  }
+#undef DECL_SINGLE_REP_SHIFT_V
+#undef DECL_MULTI_REP_SHIFT_V
 
   V<Word32> Equal(V<Any> left, V<Any> right, RegisterRepresentation rep) {
     return Comparison(left, right, ComparisonOp::Kind::kEqual, rep);
   }
 
-  V<Word32> TaggedEqual(V<Object> left, V<Object> right) {
+  V<Word32> TaggedEqual(V<MaybeObject> left, V<MaybeObject> right) {
     return Equal(left, right, RegisterRepresentation::Tagged());
   }
+
+  V<Word32> SmiEqual(ConstOrV<Smi> left, ConstOrV<Smi> right) {
+    return TaggedEqual(resolve(left), resolve(right));
+  }
+
+#define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName, Int32OpName)            \
+  V<Word32> SmiOpName(ConstOrV<Smi> left, ConstOrV<Smi> right) {           \
+    V<WordPtr> l = BitcastTaggedToWordPtrForTagAndSmiBits(resolve(left));  \
+    V<WordPtr> r = BitcastTaggedToWordPtrForTagAndSmiBits(resolve(right)); \
+    if constexpr (kTaggedSize == kInt64Size) {                             \
+      return IntPtrOpName(l, r);                                           \
+    } else {                                                               \
+      static_assert(kTaggedSize == kInt32Size);                            \
+      static_assert(v8::internal::SmiValuesAre31Bits());                   \
+      return Int32OpName(TruncateWordPtrToWord32(l),                       \
+                         TruncateWordPtrToWord32(r));                      \
+    }                                                                      \
+  }
+
+  SMI_COMPARISON_OP(SmiLessThan, IntPtrLessThan, Int32LessThan)
+  SMI_COMPARISON_OP(SmiLessThanOrEqual, IntPtrLessThanOrEqual,
+                    Int32LessThanOrEqual)
+#undef SMI_COMPARISON_OP
 
   V<Word32> RootEqual(V<Object> input, RootIndex root, Isolate* isolate) {
     return __ TaggedEqual(
@@ -1921,8 +1912,8 @@ class TurboshaftAssemblerOpInterface
                                Float64)
 #undef DECL_SINGLE_REP_COMPARISON_V
 
-  OpIndex Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
-                     RegisterRepresentation rep) {
+  V<Word32> Comparison(OpIndex left, OpIndex right, ComparisonOp::Kind kind,
+                       RegisterRepresentation rep) {
     return ReduceIfReachableComparison(left, right, kind, rep);
   }
 
@@ -1935,6 +1926,12 @@ class TurboshaftAssemblerOpInterface
   }
   V<Float64> Float64Unary(V<Float64> input, FloatUnaryOp::Kind kind) {
     return ReduceIfReachableFloatUnary(input, kind,
+                                       FloatRepresentation::Float64());
+  }
+
+  V<Float64> Float64Binary(V<Float64> lhs, V<Float64> rhs,
+                           FloatBinopOp::Kind kind) {
+    return ReduceIfReachableFloatBinop(lhs, rhs, kind,
                                        FloatRepresentation::Float64());
   }
 
@@ -2113,8 +2110,8 @@ class TurboshaftAssemblerOpInterface
   DECL_TAGGED_BITCAST(WordPtr, HeapObject, kHeapObject)
   DECL_TAGGED_BITCAST(HeapObject, WordPtr, kHeapObject)
 #undef DECL_TAGGED_BITCAST
-  V<Object> BitcastWordPtrToTagged(V<WordPtr> input) {
-    return TaggedBitcast(input, V<WordPtr>::rep, V<Object>::rep,
+  V<Object> BitcastWordPtrToTagged(ConstOrV<WordPtr> input) {
+    return TaggedBitcast(resolve(input), V<WordPtr>::rep, V<Object>::rep,
                          TaggedBitcastOp::Kind::kAny);
   }
 
@@ -2148,6 +2145,7 @@ class TurboshaftAssemblerOpInterface
   DECL_OBJECT_IS(InternalizedString)
   DECL_OBJECT_IS(NonCallable)
   DECL_OBJECT_IS(Number)
+  DECL_OBJECT_IS(NumberFitsInt32)
   DECL_OBJECT_IS(NumberOrBigInt)
   DECL_OBJECT_IS(Receiver)
   DECL_OBJECT_IS(ReceiverOrNullOrUndefined)
@@ -2158,6 +2156,11 @@ class TurboshaftAssemblerOpInterface
   DECL_OBJECT_IS(Undetectable)
 #undef DECL_OBJECT_IS
 
+  V<Word32> HeapObjectIsNumber(V<HeapObject> heap_object) {
+    return ObjectIs(heap_object, ObjectIsOp::Kind::kNumber,
+                    ObjectIsOp::InputAssumptions::kHeapObject);
+  }
+
   V<Word32> Float64Is(V<Float64> input, NumericKind kind) {
     return ReduceIfReachableFloat64Is(input, kind);
   }
@@ -2167,6 +2170,14 @@ class TurboshaftAssemblerOpInterface
   V<Word32> Float64IsHole(V<Float64> input) {
     return Float64Is(input, NumericKind::kFloat64Hole);
   }
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  V<Word32> Float64IsUndefined(V<Float64> input) {
+    return Float64Is(input, NumericKind::kFloat64Undefined);
+  }
+  V<Word32> Float64IsUndefinedOrHole(V<Float64> input) {
+    return Float64Is(input, NumericKind::kFloat64UndefinedOrHole);
+  }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
   // Float64IsSmi returns true if {input} is an integer in smi range.
   V<Word32> Float64IsSmi(V<Float64> input) {
     return Float64Is(input, NumericKind::kSmi);
@@ -2217,6 +2228,8 @@ class TurboshaftAssemblerOpInterface
   }
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertIntPtrToNumber, Number, WordPtr, Signed)
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt64ToNumber, Number, Word64, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertWord32ToBoolean, Boolean, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertCharCodeToString, String, Word32, CharCode)
 #undef CONVERT_PRIMITIVE_TO_OBJECT
@@ -2229,16 +2242,41 @@ class TurboshaftAssemblerOpInterface
         minus_zero_mode));
   }
 
-  V<JSPrimitive> ConvertUntaggedToJSPrimitiveOrDeopt(
-      V<Untagged> input, V<turboshaft::FrameState> frame_state,
-      ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind,
-      RegisterRepresentation input_rep,
-      ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
-          input_interpretation,
-      const FeedbackSource& feedback) {
-    return ReduceIfReachableConvertUntaggedToJSPrimitiveOrDeopt(
-        input, frame_state, kind, input_rep, input_interpretation, feedback);
+  V<BigInt> ConvertInt64ToBigInt(V<Word64> input) {
+    DCHECK(Is64());
+    return V<BigInt>::Cast(ConvertUntaggedToJSPrimitive(
+        input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
+        RegisterRepresentation::Word64(),
+        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
+        CheckForMinusZeroMode::kCheckForMinusZero));
   }
+
+  V<Smi> ConvertWordToSmiOrDeopt(
+      V<Word> input, V<turboshaft::FrameState> frame_state,
+      RegisterRepresentation input_rep,
+      ConvertWordToSmiOrDeoptOp::InputInterpretation input_interpretation,
+      const FeedbackSource& feedback) {
+    return ReduceIfReachableConvertWordToSmiOrDeopt(
+        input, frame_state, input_rep, input_interpretation, feedback);
+  }
+
+#define DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(From, repr, sign)                  \
+  V<Smi> Convert##From##ToSmiOrDeopt(V<repr> input,                         \
+                                     V<turboshaft::FrameState> frame_state, \
+                                     const FeedbackSource& feedback) {      \
+    return ConvertWordToSmiOrDeopt(                                         \
+        input, frame_state, RegisterRepresentation::repr(),                 \
+        ConvertWordToSmiOrDeoptOp::InputInterpretation::k##sign, feedback); \
+  }
+
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Int32, Word32, Signed)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Uint32, Word32, Unsigned)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Int64, Word64, Signed)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(Uint64, Word64, Unsigned)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(IntPtr, WordPtr, Signed)
+  DEF_CONVERT_WORD_TO_SMI_OR_DEOPT(UintPtr, WordPtr, Unsigned)
+
+#undef DEF_CONVERT_WORD_TO_SMI_OR_DEOPT
 
   V<Untagged> ConvertJSPrimitiveToUntagged(
       V<JSPrimitive> primitive,
@@ -2246,6 +2284,12 @@ class TurboshaftAssemblerOpInterface
       ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     return ReduceIfReachableConvertJSPrimitiveToUntagged(primitive, kind,
                                                          input_assumptions);
+  }
+
+  V<Word32> ConvertBooleanToWord32(V<Boolean> boolean) {
+    return V<Word32>::Cast(ConvertJSPrimitiveToUntagged(
+        boolean, ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kBit,
+        ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kBoolean));
   }
 
   V<Untagged> ConvertJSPrimitiveToUntaggedOrDeopt(
@@ -2277,6 +2321,13 @@ class TurboshaftAssemblerOpInterface
     return V<Word32>::Cast(TruncateJSPrimitiveToUntagged(
         value, TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32,
         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball));
+  }
+
+  V<Word64> TruncateBigIntToWord64(V<BigInt> bigint) {
+    DCHECK(Is64());
+    return V<Word64>::Cast(TruncateJSPrimitiveToUntagged(
+        bigint, TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt64,
+        TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt));
   }
 
   V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
@@ -2325,15 +2376,11 @@ class TurboshaftAssemblerOpInterface
     return UintPtrConstant(static_cast<uintptr_t>(value));
   }
   V<WordPtr> UintPtrConstant(uintptr_t value) { return WordPtrConstant(value); }
-  // TODO(nicohartmann): I would like to get rid of this overload as it is
-  // non-obvious that this doesnt perform Smi-tagging.
-  V<Smi> SmiConstant(intptr_t value) {
-    return SmiConstant(i::Tagged<Smi>(value));
-  }
   V<Smi> SmiConstant(i::Tagged<Smi> value) {
     return V<Smi>::Cast(
         ReduceIfReachableConstant(ConstantOp::Kind::kSmi, value));
   }
+  V<Smi> SmiZeroConstant() { return SmiConstant(Smi::zero()); }
   V<Float32> Float32Constant(i::Float32 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kFloat32, value);
   }
@@ -2370,10 +2417,10 @@ class TurboshaftAssemblerOpInterface
         return Float64Constant(value);
     }
   }
-  OpIndex NumberConstant(i::Float64 value) {
+  V<Number> NumberConstant(i::Float64 value) {
     return ReduceIfReachableConstant(ConstantOp::Kind::kNumber, value);
   }
-  OpIndex NumberConstant(double value) {
+  V<Number> NumberConstant(double value) {
     // Passing the NaN Hole as input is allowed, but there is no guarantee that
     // it will remain a hole (it will remain NaN though).
     if (std::isnan(value)) {
@@ -2389,20 +2436,24 @@ class TurboshaftAssemblerOpInterface
   }
   // TODO(nicohartmann): Maybe we should replace all uses of `HeapConstant` with
   // `HeapConstant[No|Maybe]?Hole` version.
-  template <typename T,
-            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
-  V<T> HeapConstant(Handle<T> value) {
+  template <typename T>
+  V<T> HeapConstant(Handle<T> value)
+    requires(is_subtype_v<T, HeapObject>)
+  {
+    CanonicalizeEmbeddedBuiltinsConstantIfNeeded(value);
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject,
                                      ConstantOp::Storage{value});
   }
-  template <typename T,
-            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
-  V<T> HeapConstantMaybeHole(Handle<T> value) {
+  template <typename T>
+  V<T> HeapConstantMaybeHole(Handle<T> value)
+    requires(is_subtype_v<T, HeapObject>)
+  {
     return __ HeapConstant(value);
   }
-  template <typename T,
-            typename = std::enable_if_t<is_subtype_v<T, HeapObject>>>
-  V<T> HeapConstantNoHole(Handle<T> value) {
+  template <typename T>
+  V<T> HeapConstantNoHole(Handle<T> value)
+    requires(is_subtype_v<T, HeapObject>)
+  {
     CHECK(!IsAnyHole(*value));
     return __ HeapConstant(value);
   }
@@ -2414,10 +2465,12 @@ class TurboshaftAssemblerOpInterface
     return HeapConstant(BuiltinCodeHandle(builtin, isolate));
   }
   OpIndex CompressedHeapConstant(Handle<HeapObject> value) {
+    CanonicalizeEmbeddedBuiltinsConstantIfNeeded(value);
     return ReduceIfReachableConstant(ConstantOp::Kind::kHeapObject, value);
   }
   OpIndex TrustedHeapConstant(Handle<HeapObject> value) {
     DCHECK(IsTrustedObject(*value));
+    CanonicalizeEmbeddedBuiltinsConstantIfNeeded(value);
     return ReduceIfReachableConstant(ConstantOp::Kind::kTrustedHeapObject,
                                      value);
   }
@@ -2441,15 +2494,19 @@ class TurboshaftAssemblerOpInterface
                                RelocInfo::WASM_STUB_CALL);
   }
 
-  V<Word32> RelocatableWasmCanonicalSignatureId(int32_t canonical_id) {
-    DCHECK_LE(0, canonical_id);
+  V<Word32> RelocatableWasmCanonicalSignatureId(uint32_t canonical_id) {
     return ReduceIfReachableConstant(
         ConstantOp::Kind::kRelocatableWasmCanonicalSignatureId,
         static_cast<uint64_t>(canonical_id));
   }
 
+  V<Word32> RelocatableWasmIndirectCallTarget(uint32_t function_index) {
+    return ReduceIfReachableConstant(
+        ConstantOp::Kind::kRelocatableWasmIndirectCallTarget, function_index);
+  }
+
   V<Context> NoContextConstant() {
-    return V<Context>::Cast(TagSmi(Context::kNoContext));
+    return V<Context>::Cast(SmiConstant(Smi::FromInt(Context::kNoContext)));
   }
 
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
@@ -2472,16 +2529,23 @@ class TurboshaftAssemblerOpInterface
     return HeapConstant(cached_centry_stub_constants_[index].ToHandleChecked());
   }
 
+  V<turboshaft::Tuple<Word, Word32>> TryChange(V<Float> input,
+                                               TryChangeOp::Kind kind,
+                                               FloatRepresentation from,
+                                               WordRepresentation to) {
+    return ReduceIfReachableTryChange(input, kind, from, to);
+  }
+
 #define DECL_CHANGE_V(name, kind, assumption, from, to)                  \
   V<to> name(ConstOrV<from> input) {                                     \
     return ReduceIfReachableChange(resolve(input), ChangeOp::Kind::kind, \
                                    ChangeOp::Assumption::assumption,     \
                                    V<from>::rep, V<to>::rep);            \
   }
-#define DECL_TRY_CHANGE_V(name, kind, from, to)                       \
-  V<turboshaft::Tuple<to, Word32>> name(V<from> input) {              \
-    return ReduceIfReachableTryChange(input, TryChangeOp::Kind::kind, \
-                                      V<from>::rep, V<to>::rep);      \
+#define DECL_TRY_CHANGE_V(name, kind, from, to)                               \
+  V<turboshaft::Tuple<to, Word32>> name(V<from> input) {                      \
+    return V<turboshaft::Tuple<to, Word32>>::Cast(                            \
+        TryChange(input, TryChangeOp::Kind::kind, V<from>::rep, V<to>::rep)); \
   }
 
   DECL_CHANGE_V(BitcastWord32ToWord64, kBitcast, kNoAssumption, Word32, Word64)
@@ -2516,6 +2580,8 @@ class TurboshaftAssemblerOpInterface
                 Word64, Float64)
   DECL_CHANGE_V(ChangeUint32ToFloat64, kUnsignedToFloat, kNoAssumption, Word32,
                 Float64)
+  DECL_CHANGE_V(ChangeIntPtrToFloat64, kSignedToFloat, kNoAssumption, WordPtr,
+                Float64)
   DECL_CHANGE_V(TruncateFloat64ToFloat32, kFloatConversion, kNoAssumption,
                 Float64, Float32)
   DECL_CHANGE_V(ChangeFloat32ToFloat64, kFloatConversion, kNoAssumption,
@@ -2537,12 +2603,12 @@ class TurboshaftAssemblerOpInterface
       return V<Word32>::Cast(resolve(input));
     }
   }
-  V<WordPtr> ChangeInt32ToIntPtr(V<Word32> input) {
+  V<WordPtr> ChangeInt32ToIntPtr(ConstOrV<Word32> input) {
     if constexpr (Is64()) {
       return ChangeInt32ToInt64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(input);
+      return V<WordPtr>::Cast(resolve(input));
     }
   }
   V<WordPtr> ChangeUint32ToUintPtr(V<Word32> input) {
@@ -2572,6 +2638,16 @@ class TurboshaftAssemblerOpInterface
     }
   }
 
+  V<Word64> ChangeShiftedInt53ToInt64(V<Word64> input) {
+    DCHECK(Is64());
+    return Word64ShiftRightArithmetic(input, 11);
+  }
+
+  V<Word64> TruncateInt64ToShiftedInt53(V<Word64> input) {
+    DCHECK(Is64());
+    return Word64ShiftLeft(input, 11);
+  }
+
   V<Word32> IsSmi(V<Object> object) {
     if constexpr (COMPRESS_POINTERS_BOOL) {
       return Word32Equal(Word32BitwiseAnd(V<Word32>::Cast(object), kSmiTagMask),
@@ -2581,6 +2657,8 @@ class TurboshaftAssemblerOpInterface
           WordPtrBitwiseAnd(V<WordPtr>::Cast(object), kSmiTagMask), kSmiTag);
     }
   }
+
+  V<Word32> IsNotSmi(V<Object> object) { return Word32Equal(IsSmi(object), 0); }
 
 #define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
   DECL_CHANGE_V(                                                             \
@@ -2661,6 +2739,14 @@ class TurboshaftAssemblerOpInterface
         input, frame_state, ChangeOrDeoptOp::Kind::kFloat64ToUint32,
         minus_zero_mode, feedback));
   }
+  V<Word64> ChangeFloat64ToAdditiveSafeIntegerOrDeopt(
+      V<Float64> input, V<turboshaft::FrameState> frame_state,
+      CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
+    return V<Word64>::Cast(
+        ChangeOrDeopt(input, frame_state,
+                      ChangeOrDeoptOp::Kind::kFloat64ToAdditiveSafeInteger,
+                      minus_zero_mode, feedback));
+  }
   V<Word64> ChangeFloat64ToInt64OrDeopt(V<Float64> input,
                                         V<turboshaft::FrameState> frame_state,
                                         CheckForMinusZeroMode minus_zero_mode,
@@ -2694,25 +2780,38 @@ class TurboshaftAssemblerOpInterface
         BitcastSmiToWordPtr(input), kSmiShiftBits));
   }
 
-  OpIndex AtomicRMW(V<WordPtr> base, V<WordPtr> index, OpIndex value,
+  V<WordPtr> LoadPageFlags(V<HeapObject> object) {
+    V<WordPtr> header = MemoryChunkFromAddress(BitcastTaggedToWordPtr(object));
+    return Load(header, {}, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr(), MemoryChunk::FlagsOffset());
+  }
+
+  V<WordPtr> MemoryChunkFromAddress(V<WordPtr> address) {
+    return WordPtrBitwiseAnd(address,
+                             ~MemoryChunk::GetAlignmentMaskForAssembler());
+  }
+
+  OpIndex AtomicRMW(V<Any> base, V<WordPtr> index, OpIndex value,
                     AtomicRMWOp::BinOp bin_op,
                     RegisterRepresentation in_out_rep,
                     MemoryRepresentation memory_rep,
-                    MemoryAccessKind memory_access_kind) {
+                    MemoryAccessKind memory_access_kind,
+                    RegisterRepresentation base_rep) {
     DCHECK_NE(bin_op, AtomicRMWOp::BinOp::kCompareExchange);
     return ReduceIfReachableAtomicRMW(base, index, value, OpIndex::Invalid(),
                                       bin_op, in_out_rep, memory_rep,
-                                      memory_access_kind);
+                                      memory_access_kind, base_rep);
   }
 
-  OpIndex AtomicCompareExchange(V<WordPtr> base, V<WordPtr> index,
-                                OpIndex expected, OpIndex new_value,
+  OpIndex AtomicCompareExchange(V<Any> base, V<WordPtr> index, OpIndex expected,
+                                OpIndex new_value,
                                 RegisterRepresentation result_rep,
                                 MemoryRepresentation input_rep,
-                                MemoryAccessKind memory_access_kind) {
+                                MemoryAccessKind memory_access_kind,
+                                RegisterRepresentation base_rep) {
     return ReduceIfReachableAtomicRMW(
         base, index, new_value, expected, AtomicRMWOp::BinOp::kCompareExchange,
-        result_rep, input_rep, memory_access_kind);
+        result_rep, input_rep, memory_access_kind, base_rep);
   }
 
   OpIndex AtomicWord32Pair(V<WordPtr> base, OptionalV<WordPtr> index,
@@ -2755,6 +2854,14 @@ class TurboshaftAssemblerOpInterface
   OpIndex MemoryBarrier(AtomicMemoryOrder memory_order) {
     return ReduceIfReachableMemoryBarrier(memory_order);
   }
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  OpIndex SwitchSandboxMode(CodeSandboxingMode sandbox_mode) {
+    return ReduceIfReachableSwitchSandboxMode(sandbox_mode);
+  }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
+  OpIndex Pause() { return ReduceIfReachablePause(); }
 
   OpIndex Load(OpIndex base, OptionalOpIndex index, LoadOp::Kind kind,
                MemoryRepresentation loaded_rep,
@@ -2809,42 +2916,53 @@ class TurboshaftAssemblerOpInterface
   }
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointerField(V<HeapObject> base, OptionalV<Word32> index,
-                                    LoadOp::Kind kind, IndirectPointerTag tag,
-                                    int offset = 0) {
+  V<Object> LoadTrustedPointer(V<HeapObject> base, OptionalV<Word32> index,
+                               LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range,
+                               int offset = 0) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
     V<Word32> handle =
         Load(base, index, kind, MemoryRepresentation::Uint32(), offset);
-    V<Word32> table_index =
-        Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
-    V<Word64> table_offset = __ ChangeUint32ToUint64(
-        Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
     V<WordPtr> table =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
-                 Internals::kTrustedPointerTableBasePointerOffset);
-    V<WordPtr> decoded_ptr =
-        Load(table, table_offset, LoadOp::Kind::RawAligned(),
-             MemoryRepresentation::UintPtr());
-
-    // Untag the pointer and remove the marking bit in one operation.
-    decoded_ptr =
-        __ Word64BitwiseAnd(decoded_ptr, ~(tag | kTrustedPointerTableMarkBit));
-
-    // Bitcast to tagged to this gets scanned by the GC properly.
-    return BitcastWordPtrToTagged(decoded_ptr);
+                 Internals::kExternalEntityTableBasePointerOffset);
+    return LoadTrustedPointer(table, handle, kind.is_immutable, tag_range);
 #else
     return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
                 offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 
+#if V8_ENABLE_SANDBOX
+  V<Object> LoadTrustedPointer(V<WordPtr> table, V<Word32> handle,
+                               bool is_immutable,
+                               IndirectPointerTagRange tag_range) {
+    return ReduceIfReachableLoadTrustedPointer(table, handle, is_immutable,
+                                               tag_range);
+  }
+#endif
+
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointerField(V<HeapObject> base, LoadOp::Kind kind,
-                                    IndirectPointerTag tag, int offset = 0) {
-    return LoadTrustedPointerField(base, OpIndex::Invalid(), kind, tag, offset);
+  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range,
+                               int offset = 0) {
+    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag_range,
+                              offset);
+  }
+
+  V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
+                                           ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+    V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::Uint32(), offset);
+    return __ LoadExternalPointer(handle, tag);
+#else
+    return __ Load(object, LoadOp::Kind::TaggedBase(),
+                   MemoryRepresentation::UintPtr(), offset);
+#endif  // V8_ENABLE_SANDBOX
   }
 
   V<Object> LoadFixedArrayElement(V<FixedArray> array, int index) {
@@ -2884,6 +3002,59 @@ class TurboshaftAssemblerOpInterface
     return LoadProtectedPointerField(
         array, LoadOp::Kind::TaggedBase(),
         ProtectedFixedArray::OffsetOfElementAt(index));
+  }
+
+  V<Word32> DecodeWord32(V<Word32> word32, uint32_t shift, uint32_t mask) {
+    DCHECK_EQ((mask >> shift) << shift, mask);
+    if ((std::numeric_limits<uint32_t>::max() >> shift) ==
+        ((std::numeric_limits<uint32_t>::max() & mask) >> shift)) {
+      return Word32ShiftRightLogical(word32, shift);
+    } else {
+      return Word32BitwiseAnd(Word32ShiftRightLogical(word32, shift),
+                              mask >> shift);
+    }
+  }
+
+  template <typename BitField>
+  V<Word32> DecodeWord32(V<Word32> word32) {
+    return DecodeWord32(word32, BitField::kShift, BitField::kMask);
+  }
+
+  V<Word32> IsSetWord32(V<Word32> word32, uint32_t mask) {
+    return Word32Equal(Word32Equal(Word32BitwiseAnd(word32, mask), 0), 0);
+  }
+
+  template <typename BitField>
+  V<Word32> IsSetWord32(V<Word32> word) {
+    return IsSetWord32(word, BitField::kMask);
+  }
+
+  V<Word32> IsNotSetWord32(V<Word32> word32, uint32_t mask) {
+    return Word32Equal(Word32BitwiseAnd(word32, mask), 0);
+  }
+
+  template <typename BitField>
+  V<Word32> IsNotSetWord32(V<Word32> word) {
+    return IsNotSetWord32(word, BitField::kMask);
+  }
+
+  V<Word32> IsSetWordPtr(V<WordPtr> word, uintptr_t mask) {
+    return Word32Equal(WordPtrEqual(WordPtrBitwiseAnd(word, mask), 0), 0);
+  }
+
+  template <typename BitField>
+  V<Word32> IsSetWordPtr(V<WordPtr> word) {
+    return IsSetWordPtr(word, BitField::kMask);
+  }
+
+  V<Word32> IsSetSmi(V<Smi> smi, int untagged_mask) {
+    uintptr_t mask = base::bit_cast<uintptr_t>(Smi::FromInt(untagged_mask));
+    return IsSetWordPtr(BitcastTaggedToWordPtrForTagAndSmiBits(smi), mask);
+  }
+
+  template <typename BitField>
+  V<Word32> IsSetSmi(V<Smi> smi) {
+    return IsSetSmi(smi, BitField::kMask);
   }
 
   void Store(
@@ -2939,11 +3110,17 @@ class TurboshaftAssemblerOpInterface
     return LoadFieldImpl<Rep>(raw_base, access);
   }
 
-  template <typename Obj, typename Class, typename T,
-            typename = std::enable_if_t<v_traits<
-                Class>::template implicitly_constructible_from<Obj>::value>>
-  V<T> LoadField(V<Obj> object, const FieldAccessTS<Class, T>& field) {
+  template <typename Obj, typename Class, typename T>
+  V<T> LoadField(V<Obj> object, const FieldAccessTS<Class, T>& field)
+    requires v_traits<Class>::template
+  implicitly_constructible_from<Obj>::value {
     return LoadFieldImpl<T>(object, field);
+  }
+
+  template <typename Obj, typename Field>
+  V<typename Field::field_type> LoadField(V<Obj> object, const Field& field) {
+    LoadOp::Kind kind = LoadOp::Kind::Aligned(BaseTaggedness::kTaggedBase);
+    return Load(object, kind, field.rep, static_cast<int32_t>(field.offset));
   }
 
   template <typename Rep>
@@ -2973,12 +3150,14 @@ class TurboshaftAssemblerOpInterface
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = DecodeExternalPointer(value, access.external_pointer_tag);
+      value = V<Rep>::Cast(LoadExternalPointer(V<Word32>::Cast(value),
+                                               access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
-      value = ShiftRightLogical(value, kBoundedSizeShift,
-                                WordRepresentation::WordPtr());
+      value = V<Rep>::Cast(ShiftRightLogical(V<WordPtr>::Cast(value),
+                                             kBoundedSizeShift,
+                                             WordRepresentation::WordPtr()));
     }
 #endif  // V8_ENABLE_SANDBOX
     return value;
@@ -2994,9 +3173,15 @@ class TurboshaftAssemblerOpInterface
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }
 
+  V<Word32> LoadElementsKind(V<Map> map) {
+    V<Word32> bit_field2 =
+        LoadField<Word32>(map, AccessBuilder::ForMapBitField2());
+    return DecodeWord32<Map::Bits2::ElementsKindBits>(bit_field2);
+  }
+
   V<Word32> HasInstanceType(V<Object> object, InstanceType instance_type) {
     return Word32Equal(LoadInstanceTypeField(LoadMapField(object)),
-                       Word32Constant(instance_type));
+                       instance_type);
   }
 
   V<Float64> LoadHeapNumberValue(V<HeapNumber> heap_number) {
@@ -3004,9 +3189,10 @@ class TurboshaftAssemblerOpInterface
         heap_number, AccessBuilderTS::ForHeapNumberValue());
   }
 
-  template <typename Type = Object,
-            typename = std::enable_if_t<is_subtype_v<Type, Object>>>
-  V<Type> LoadTaggedField(V<Object> object, int field_offset) {
+  template <typename Type = Object>
+  V<Type> LoadTaggedField(V<Object> object, int field_offset)
+    requires(is_subtype_v<Type, Object>)
+  {
     return Load(object, LoadOp::Kind::TaggedBase(),
                 MemoryRepresentation::AnyTagged(), field_offset);
   }
@@ -3050,8 +3236,8 @@ class TurboshaftAssemblerOpInterface
 
 #ifdef V8_ENABLE_SANDBOX
     if (access.is_bounded_size_access) {
-      value =
-          ShiftLeft(value, kBoundedSizeShift, WordRepresentation::WordPtr());
+      value = ShiftLeft(V<WordPtr>::Cast(value), kBoundedSizeShift,
+                        WordRepresentation::WordPtr());
     }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -3073,7 +3259,7 @@ class TurboshaftAssemblerOpInterface
                               compiler::WriteBarrierKind write_barrier) {
     Store(array, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::AnyTagged(), write_barrier,
-          FixedArray::kHeaderSize + index * kTaggedSize);
+          FixedArray::OffsetOfElementAt(index));
   }
 
   void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
@@ -3081,7 +3267,7 @@ class TurboshaftAssemblerOpInterface
                               compiler::WriteBarrierKind write_barrier) {
     Store(array, index, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::AnyTagged(), write_barrier,
-          FixedArray::kHeaderSize, kTaggedSizeLog2);
+          OFFSET_OF_DATA_START(FixedArray), kTaggedSizeLog2);
   }
   void StoreFixedDoubleArrayElement(V<FixedDoubleArray> array, V<WordPtr> index,
                                     V<Float64> value) {
@@ -3089,7 +3275,7 @@ class TurboshaftAssemblerOpInterface
                   ElementsKindToShiftSize(HOLEY_DOUBLE_ELEMENTS));
     Store(array, index, value, LoadOp::Kind::TaggedBase(),
           MemoryRepresentation::Float64(), WriteBarrierKind::kNoWriteBarrier,
-          FixedDoubleArray::kHeaderSize,
+          sizeof(FixedDoubleArray::Header),
           ElementsKindToShiftSize(PACKED_DOUBLE_ELEMENTS));
   }
 
@@ -3162,20 +3348,35 @@ class TurboshaftAssemblerOpInterface
     StoreNonArrayBufferElement(object.object(), access, index, value);
   }
 
-  V<Word32> ArrayBufferIsDetached(V<JSArrayBufferView> object) {
+#if V8_STATIC_ROOTS_BOOL
+  // Note that we don't provide this helper when STATIC_ROOTS is false, because
+  // it requires loading the InstanceType of {obj}, which requires knowing that
+  // it's actually a Map (which we don't always know from the callsite of this
+  // helper).
+  V<Word32> IsStringMap(V<HeapObject> obj) {
+    return __ Uint32LessThanOrEqual(
+        __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(obj)),
+        InstanceTypeChecker::kStringMapUpperBound);
+  }
+#endif  // V8_STATIC_ROOTS_BOOL
+
+  V<Word32> ArrayBufferNotValid(V<JSArrayBufferView> object,
+                                TypedArrayAccessMode mode) {
     V<HeapObject> buffer = __ template LoadField<HeapObject>(
         object, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
     V<Word32> bitfield = __ template LoadField<Word32>(
         buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
-    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::WasDetachedBit::kMask);
+    return __ Word32BitwiseAnd(bitfield, JSArrayBuffer::NotValidMask(mode));
   }
 
   template <typename T = HeapObject>
-  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type) {
+  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type,
+                            AllocationAlignment alignment) {
     static_assert(is_subtype_v<T, HeapObject>);
     DCHECK(!in_object_initialization_);
     in_object_initialization_ = true;
-    return Uninitialized<T>{ReduceIfReachableAllocate(resolve(size), type)};
+    return Uninitialized<T>{
+        ReduceIfReachableAllocate(resolve(size), type, alignment)};
   }
 
   template <typename T>
@@ -3188,20 +3389,32 @@ class TurboshaftAssemblerOpInterface
   V<HeapNumber> AllocateHeapNumberWithValue(V<Float64> value,
                                             Factory* factory) {
     auto result = __ template Allocate<HeapNumber>(
-        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung);
+        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung,
+        kTaggedAligned);
     __ InitializeField(result, AccessBuilder::ForMap(),
                        __ HeapConstant(factory->heap_number_map()));
     __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);
     return __ FinishInitialization(std::move(result));
   }
 
-  OpIndex DecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
-    return ReduceIfReachableDecodeExternalPointer(handle, tag);
+#if V8_ENABLE_SANDBOX
+  V<WordPtr> LoadExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
+    return ReduceIfReachableLoadExternalPointer(handle, tag);
   }
+#endif
 
 #if V8_ENABLE_WEBASSEMBLY
-  void WasmStackCheck(WasmStackCheckOp::Kind kind, int parameter_slots) {
-    ReduceIfReachableWasmStackCheck(kind, parameter_slots);
+  void WasmStackCheck(WasmStackCheckOp::Kind kind) {
+    ReduceIfReachableWasmStackCheck(kind);
+  }
+
+  void MemoryCopy(V<WordPtr> dst_base, V<WordPtr> src_base,
+                  V<WordPtr> num_bytes) {
+    ReduceIfReachableMemoryCopy(dst_base, src_base, num_bytes);
+  }
+
+  void MemoryFill(V<WordPtr> dst_base, V<Word32> value, V<WordPtr> num_bytes) {
+    ReduceIfReachableMemoryFill(dst_base, value, num_bytes);
   }
 #endif
 
@@ -3277,12 +3490,14 @@ class TurboshaftAssemblerOpInterface
                   implem);
   }
 
+  // Using Word32Select/Word64Select/Float64Select/Float64Select lowers to a
+  // CMove if possible and a Branch otherwise.
 #define DEF_SELECT(Rep)                                                  \
   V<Rep> Rep##Select(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,         \
                      ConstOrV<Rep> vfalse) {                             \
     return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
                        RegisterRepresentation::Rep(), BranchHint::kNone, \
-                       SelectOp::Implementation::kCMove);                \
+                       SelectOp::Implementation::kAny);                  \
   }
   DEF_SELECT(Word32)
   DEF_SELECT(Word64)
@@ -3291,20 +3506,39 @@ class TurboshaftAssemblerOpInterface
   DEF_SELECT(Float64)
 #undef DEF_SELECT
 
+  // CMove always lowers to a conditional move and crashes if the target
+  // architecture doesn't support it.
+#define DEF_CMOVE(Rep, rep)                                              \
+  V<Rep> Rep##CMove(ConstOrV<Word32> cond, ConstOrV<Rep> vtrue,          \
+                    ConstOrV<Rep> vfalse) {                              \
+    DCHECK(SupportedOperations::rep##_select());                         \
+    return Select<Rep>(resolve(cond), resolve(vtrue), resolve(vfalse),   \
+                       RegisterRepresentation::Rep(), BranchHint::kNone, \
+                       SelectOp::Implementation::kForceCMove);           \
+  }
+  DEF_CMOVE(Word32, word32)
+  DEF_CMOVE(Word64, word64)
+  DEF_CMOVE(Float32, float32)
+  DEF_CMOVE(Float64, float64)
+#undef DEF_CMOVE
+
   template <typename T, typename U>
   V<std::common_type_t<T, U>> Conditional(ConstOrV<Word32> cond, V<T> vtrue,
                                           V<U> vfalse,
                                           BranchHint hint = BranchHint::kNone) {
     return Select(resolve(cond), vtrue, vfalse,
                   V<std::common_type_t<T, U>>::rep, hint,
-                  SelectOp::Implementation::kBranch);
+                  SelectOp::Implementation::kForceBranch);
   }
   void Switch(V<Word32> input, base::Vector<SwitchOp::Case> cases,
               Block* default_case,
               BranchHint default_hint = BranchHint::kNone) {
     ReduceIfReachableSwitch(input, cases, default_case, default_hint);
   }
-  void Unreachable() { ReduceIfReachableUnreachable(); }
+  V<None> Unreachable() {
+    ReduceIfReachableUnreachable();
+    return V<None>::Invalid();
+  }
 
   OpIndex Parameter(int index, RegisterRepresentation rep,
                     const char* debug_name = nullptr) {
@@ -3312,7 +3546,7 @@ class TurboshaftAssemblerOpInterface
     int cache_location = index - kMinParameterIndex;
     DCHECK_GE(cache_location, 0);
     if (static_cast<size_t>(cache_location) >= cached_parameters_.size()) {
-      cached_parameters_.resize_and_init(cache_location + 1);
+      cached_parameters_.resize(cache_location + 1, {});
     }
     OpIndex& cached_param = cached_parameters_[cache_location];
     if (!cached_param.valid()) {
@@ -3330,8 +3564,9 @@ class TurboshaftAssemblerOpInterface
     return Parameter(index, V<T>::rep, debug_name);
   }
   V<Object> OsrValue(int index) { return ReduceIfReachableOsrValue(index); }
-  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values) {
-    ReduceIfReachableReturn(pop_count, return_values);
+  void Return(V<Word32> pop_count, base::Vector<const OpIndex> return_values,
+              bool spill_caller_frame_slots = false) {
+    ReduceIfReachableReturn(pop_count, return_values, spill_caller_frame_slots);
   }
   void Return(OpIndex result) {
     Return(Word32Constant(0), base::VectorOf({result}));
@@ -3354,16 +3589,19 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              V<Context> context, const typename Descriptor::arguments_t& args,
-              LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, FrameStateForCall frame_state, V<Context> context,
+      const typename Descriptor::arguments_t& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+    requires(Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    DCHECK(frame_state.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
     DCHECK(context.valid());
     auto arguments = std::apply(
         [context](auto&&... as) {
@@ -3373,18 +3611,20 @@ class TurboshaftAssemblerOpInterface
         },
         args);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
+        isolate, Descriptor::kFunction, frame_state.get(),
+        base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone(),
-                           lazy_deopt_on_throw),
+                           lazy_deopt_on_throw, compiling_builtins),
         Descriptor::kEffects));
   }
 
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, V<Context> context,
-              const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, V<Context> context,
+      const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsFrameState && Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3405,33 +3645,39 @@ class TurboshaftAssemblerOpInterface
         Descriptor::kEffects));
   }
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              const typename Descriptor::arguments_t& args,
-              LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, FrameStateForCall frame_state,
+      const typename Descriptor::arguments_t& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo)
+    requires(Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
-    DCHECK(frame_state.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
     auto arguments = std::apply(
         [](auto&&... as) {
-          return base::SmallVector<OpIndex, std::tuple_size_v<decltype(args)>>{
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t>>{
               std::forward<decltype(as)>(as)...};
         },
         args);
     return result_t::Cast(CallBuiltinImpl(
-        isolate, Descriptor::kFunction, frame_state, base::VectorOf(arguments),
+        isolate, Descriptor::kFunction, frame_state.get(),
+        base::VectorOf(arguments),
         Descriptor::Create(StubCallMode::kCallCodeObject,
                            Asm().output_graph().graph_zone(),
-                           lazy_deopt_on_throw),
+                           lazy_deopt_on_throw, compiling_builtins),
         Descriptor::kEffects));
   }
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t> CallBuiltin(
+      Isolate* isolate, const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsFrameState && !Descriptor::kNeedsContext)
+  {
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3454,10 +3700,10 @@ class TurboshaftAssemblerOpInterface
 #if V8_ENABLE_WEBASSEMBLY
 
   template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  WasmCallBuiltinThroughJumptable(
-      const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t>
+  WasmCallBuiltinThroughJumptable(const typename Descriptor::arguments_t& args)
+    requires(!Descriptor::kNeedsContext)
+  {
     static_assert(!Descriptor::kNeedsFrameState);
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3481,10 +3727,11 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsContext,
-                   detail::index_type_for_t<typename Descriptor::results_t>>
-  WasmCallBuiltinThroughJumptable(
-      V<Context> context, const typename Descriptor::arguments_t& args) {
+  detail::index_type_for_t<typename Descriptor::results_t>
+  WasmCallBuiltinThroughJumptable(V<Context> context,
+                                  const typename Descriptor::arguments_t& args)
+    requires Descriptor::kNeedsContext
+  {
     static_assert(!Descriptor::kNeedsFrameState);
     using result_t = detail::index_type_for_t<typename Descriptor::results_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
@@ -3510,6 +3757,196 @@ class TurboshaftAssemblerOpInterface
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  template <typename Desc>
+    requires(!Desc::kNeedsContext && !Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      const Desc::Arguments& args) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    auto arguments = builtin::ArgumentsToVector(args);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, OptionalV<turboshaft::FrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects));
+  }
+
+  template <typename Desc>
+    requires(Desc::kNeedsContext && !Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      V<Context> context, const Desc::Arguments& args) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    DCHECK(context.valid());
+    auto arguments = builtin::ArgumentsToVector(args);
+    arguments.push_back(context);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, OptionalV<turboshaft::FrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects));
+  }
+
+  template <typename Desc>
+    requires(!Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      OptionalV<turboshaft::FrameState> frame_state,
+      const Desc::Arguments& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
+    auto arguments = builtin::ArgumentsToVector(args);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
+                     !compiling_builtins),
+        Desc::kEffects));
+  }
+
+  template <typename Desc>
+    requires(Desc::kNeedsContext && Desc::kCanTriggerLazyDeopt)
+  detail::index_type_for_t<typename Desc::returns_t> CallBuiltin(
+      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      const Desc::Arguments& args,
+      LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo) {
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    DCHECK(context.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins, frame_state.valid());
+    auto arguments = builtin::ArgumentsToVector(args);
+    arguments.push_back(context);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+    return result_t::Cast(CallBuiltinImpl(
+        isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallCodeObject,
+                     Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
+                     !compiling_builtins),
+        Desc::kEffects));
+  }
+
+#if V8_ENABLE_WEBASSEMBLY
+
+  template <typename Desc>
+    requires(!Desc::kNeedsContext)
+  detail::index_type_for_t<typename Desc::returns_t>
+  WasmCallBuiltinThroughJumptable(const typename Desc::Arguments& args) {
+    static_assert(!Desc::kCanTriggerLazyDeopt);
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    auto arguments = builtin::ArgumentsToVector(args);
+    V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
+    auto result =
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                          Asm().output_graph().graph_zone()),
+             Desc::kEffects);
+    if constexpr (requires { result_t::Cast(result); }) {
+      return result_t::Cast(result);
+    } else {
+      return result;
+    }
+  }
+
+  template <typename Desc>
+    requires(Desc::kNeedsContext)
+  detail::index_type_for_t<typename Desc::returns_t>
+  WasmCallBuiltinThroughJumptable(V<Context> context,
+                                  const typename Desc::Arguments& args) {
+    static_assert(!Desc::kCanTriggerLazyDeopt);
+    using result_t = detail::index_type_for_t<typename Desc::returns_t>;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return result_t::Invalid();
+    }
+    auto arguments = builtin::ArgumentsToVector(args);
+    arguments.push_back(context);
+    V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
+    return result_t::Cast(Call(call_target,
+                               OptionalV<turboshaft::FrameState>::Nullopt(),
+                               base::VectorOf(arguments),
+                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                                            Asm().output_graph().graph_zone()),
+                               Desc::kEffects));
+  }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  template <typename Desc>
+  typename Desc::returns_t CallRuntimeImpl(
+      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    using returns_t = typename Desc::returns_t;
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
+      return returns_t::Invalid();
+    }
+    const int result_size =
+        Runtime::FunctionForId(Desc::kFunction)->result_size;
+    DCHECK(context.valid());
+    bool compiling_builtins =
+        Asm().data()->pipeline_kind() == TurboshaftPipelineKind::kTSABuiltin;
+    DCHECK_IMPLIES(!compiling_builtins,
+                   frame_state.valid() == Desc::kCanTriggerLazyDeopt);
+    auto arguments = runtime::ArgumentsToVector(args);
+    const size_t actual_argument_count = arguments.size();
+    DCHECK_GE(runtime::GetArgumentCount<typename Desc::Arguments>(),
+              actual_argument_count);  // We may have some optional arguments.
+    arguments.push_back(
+        ExternalConstant(ExternalReference::Create(Desc::kFunction)));
+    arguments.push_back(
+        Word32Constant(static_cast<int>(actual_argument_count)));
+    arguments.push_back(context);
+    Isolate* isolate = Asm().data()->isolate();
+    DCHECK_NOT_NULL(isolate);
+
+    const TSCallDescriptor* desc =
+        Desc::Create(actual_argument_count, Asm().output_graph().graph_zone(),
+                     lazy_deopt_on_throw, !compiling_builtins);
+    return returns_t::Cast(Call(CEntryStubConstant(isolate, result_size),
+                                frame_state, base::VectorOf(arguments), desc));
+  }
+
+  template <typename Desc>
+    requires(Desc::kCanTriggerLazyDeopt)
+  typename Desc::returns_t CallRuntime(
+      OptionalV<turboshaft::FrameState> frame_state, V<Context> context,
+      const Desc::Arguments& args, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return CallRuntimeImpl<Desc>(frame_state, context, args,
+                                 lazy_deopt_on_throw);
+  }
+
+  template <typename Desc>
+    requires(!Desc::kCanTriggerLazyDeopt)
+  typename Desc::returns_t CallRuntime(V<Context> context,
+                                       const Desc::Arguments& args) {
+    return CallRuntimeImpl<Desc>(OptionalV<turboshaft::FrameState>::Nullopt(),
+                                 context, args, LazyDeoptOnThrow::kNo);
+  }
+
   V<Any> CallBuiltinImpl(Isolate* isolate, Builtin builtin,
                          OptionalV<turboshaft::FrameState> frame_state,
                          base::Vector<const OpIndex> arguments,
@@ -3517,225 +3954,6 @@ class TurboshaftAssemblerOpInterface
     Callable callable = Builtins::CallableFor(isolate, builtin);
     return Call(HeapConstant(callable.code()), frame_state, arguments, desc,
                 effects);
-  }
-
-#define DECL_GENERIC_BINOP_BUILTIN_CALL(Name)                            \
-  V<Object> CallBuiltin_##Name(                                          \
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,           \
-      V<Context> context, V<Object> lhs, V<Object> rhs,                  \
-      LazyDeoptOnThrow lazy_deopt_on_throw) {                            \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(            \
-        isolate, frame_state, context, {lhs, rhs}, lazy_deopt_on_throw); \
-  }
-  GENERIC_BINOP_LIST(DECL_GENERIC_BINOP_BUILTIN_CALL)
-#undef DECL_GENERIC_BINOP_BUILTIN_CALL
-
-#define DECL_GENERIC_UNOP_BUILTIN_CALL(Name)                           \
-  V<Object> CallBuiltin_##Name(Isolate* isolate,                       \
-                               V<turboshaft::FrameState> frame_state,  \
-                               V<Context> context, V<Object> input,    \
-                               LazyDeoptOnThrow lazy_deopt_on_throw) { \
-    return CallBuiltin<typename BuiltinCallDescriptor::Name>(          \
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);  \
-  }
-  GENERIC_UNOP_LIST(DECL_GENERIC_UNOP_BUILTIN_CALL)
-#undef DECL_GENERIC_UNOP_BUILTIN_CALL
-
-  V<Number> CallBuiltin_ToNumber(Isolate* isolate,
-                                 V<turboshaft::FrameState> frame_state,
-                                 V<Context> context, V<Object> input,
-                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToNumber>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-  V<Numeric> CallBuiltin_ToNumeric(Isolate* isolate,
-                                   V<turboshaft::FrameState> frame_state,
-                                   V<Context> context, V<Object> input,
-                                   LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToNumeric>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-
-  void CallBuiltin_CheckTurbofanType(Isolate* isolate, V<Context> context,
-                                     V<Object> object,
-                                     V<TurbofanType> allocated_type,
-                                     V<Smi> node_id) {
-    CallBuiltin<typename BuiltinCallDescriptor::CheckTurbofanType>(
-        isolate, context, {object, allocated_type, node_id});
-  }
-  V<Object> CallBuiltin_CopyFastSmiOrObjectElements(Isolate* isolate,
-                                                    V<Object> object) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(isolate,
-                                                                     {object});
-  }
-  void CallBuiltin_DebugPrintFloat64(Isolate* isolate, V<Context> context,
-                                     V<Float64> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintFloat64>(
-        isolate, context, {value});
-  }
-  void CallBuiltin_DebugPrintWordPtr(Isolate* isolate, V<Context> context,
-                                     V<WordPtr> value) {
-    CallBuiltin<typename BuiltinCallDescriptor::DebugPrintWordPtr>(
-        isolate, context, {value});
-  }
-  V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
-                                             V<Context> context,
-                                             V<Object> table, V<Smi> key) {
-    return CallBuiltin<typename BuiltinCallDescriptor::FindOrderedHashMapEntry>(
-        isolate, context, {table, key});
-  }
-  V<Smi> CallBuiltin_FindOrderedHashSetEntry(Isolate* isolate,
-                                             V<Context> context, V<Object> set,
-                                             V<Smi> key) {
-    return CallBuiltin<typename BuiltinCallDescriptor::FindOrderedHashSetEntry>(
-        isolate, context, {set, key});
-  }
-  V<Object> CallBuiltin_GrowFastDoubleElements(Isolate* isolate,
-                                               V<Object> object, V<Smi> size) {
-    return CallBuiltin<typename BuiltinCallDescriptor::GrowFastDoubleElements>(
-        isolate, {object, size});
-  }
-  V<Object> CallBuiltin_GrowFastSmiOrObjectElements(Isolate* isolate,
-                                                    V<Object> object,
-                                                    V<Smi> size) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::GrowFastSmiOrObjectElements>(
-        isolate, {object, size});
-  }
-  V<FixedArray> CallBuiltin_NewSloppyArgumentsElements(
-      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
-      V<Smi> arguments_count) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::NewSloppyArgumentsElements>(
-        isolate, {frame, formal_parameter_count, arguments_count});
-  }
-  V<FixedArray> CallBuiltin_NewStrictArgumentsElements(
-      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
-      V<Smi> arguments_count) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::NewStrictArgumentsElements>(
-        isolate, {frame, formal_parameter_count, arguments_count});
-  }
-  V<FixedArray> CallBuiltin_NewRestArgumentsElements(
-      Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,
-      V<Smi> arguments_count) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::NewRestArgumentsElements>(
-        isolate, {frame, formal_parameter_count, arguments_count});
-  }
-  V<String> CallBuiltin_NumberToString(Isolate* isolate, V<Number> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::NumberToString>(isolate,
-                                                                       {input});
-  }
-  V<String> CallBuiltin_ToString(Isolate* isolate,
-                                 V<turboshaft::FrameState> frame_state,
-                                 V<Context> context, V<Object> input,
-                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToString>(
-        isolate, frame_state, context, {input}, lazy_deopt_on_throw);
-  }
-  V<Number> CallBuiltin_PlainPrimitiveToNumber(Isolate* isolate,
-                                               V<PlainPrimitive> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::PlainPrimitiveToNumber>(
-        isolate, {input});
-  }
-  V<Boolean> CallBuiltin_SameValue(Isolate* isolate, V<Object> left,
-                                   V<Object> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::SameValue>(
-        isolate, {left, right});
-  }
-  V<Boolean> CallBuiltin_SameValueNumbersOnly(Isolate* isolate, V<Object> left,
-                                              V<Object> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::SameValueNumbersOnly>(
-        isolate, {left, right});
-  }
-  V<String> CallBuiltin_StringAdd_CheckNone(Isolate* isolate,
-                                            V<Context> context, V<String> left,
-                                            V<String> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringAdd_CheckNone>(
-        isolate, context, {left, right});
-  }
-  V<Boolean> CallBuiltin_StringEqual(Isolate* isolate, V<String> left,
-                                     V<String> right, V<WordPtr> length) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringEqual>(
-        isolate, {left, right, length});
-  }
-  V<Boolean> CallBuiltin_StringLessThan(Isolate* isolate, V<String> left,
-                                        V<String> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringLessThan>(
-        isolate, {left, right});
-  }
-  V<Boolean> CallBuiltin_StringLessThanOrEqual(Isolate* isolate, V<String> left,
-                                               V<String> right) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringLessThanOrEqual>(
-        isolate, {left, right});
-  }
-  V<Smi> CallBuiltin_StringIndexOf(Isolate* isolate, V<String> string,
-                                   V<String> search, V<Smi> position) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringIndexOf>(
-        isolate, {string, search, position});
-  }
-  V<String> CallBuiltin_StringFromCodePointAt(Isolate* isolate,
-                                              V<String> string,
-                                              V<WordPtr> index) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringFromCodePointAt>(
-        isolate, {string, index});
-  }
-#ifdef V8_INTL_SUPPORT
-  V<String> CallBuiltin_StringToLowerCaseIntl(Isolate* isolate,
-                                              V<Context> context,
-                                              V<String> string) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringToLowerCaseIntl>(
-        isolate, context, {string});
-  }
-#endif  // V8_INTL_SUPPORT
-  V<Number> CallBuiltin_StringToNumber(Isolate* isolate, V<String> input) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringToNumber>(isolate,
-                                                                       {input});
-  }
-  V<String> CallBuiltin_StringSubstring(Isolate* isolate, V<String> string,
-                                        V<WordPtr> start, V<WordPtr> end) {
-    return CallBuiltin<typename BuiltinCallDescriptor::StringSubstring>(
-        isolate, {string, start, end});
-  }
-  V<Boolean> CallBuiltin_ToBoolean(Isolate* isolate, V<Object> object) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToBoolean>(isolate,
-                                                                  {object});
-  }
-  V<JSReceiver> CallBuiltin_ToObject(Isolate* isolate, V<Context> context,
-                                     V<JSPrimitive> object) {
-    return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
-        isolate, context, {object});
-  }
-  V<Context> CallBuiltin_FastNewFunctionContextFunction(
-      Isolate* isolate, OpIndex frame_state, V<Context> context,
-      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::FastNewFunctionContextFunction>(
-        isolate, frame_state, context, {scope_info, resolve(slot_count)},
-        lazy_deopt_on_throw);
-  }
-  V<Context> CallBuiltin_FastNewFunctionContextEval(
-      Isolate* isolate, OpIndex frame_state, V<Context> context,
-      V<ScopeInfo> scope_info, ConstOrV<Word32> slot_count,
-      LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallBuiltin<
-        typename BuiltinCallDescriptor::FastNewFunctionContextEval>(
-        isolate, frame_state, context, {scope_info, resolve(slot_count)},
-        lazy_deopt_on_throw);
-  }
-  V<JSFunction> CallBuiltin_FastNewClosure(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<SharedFunctionInfo> shared_function_info,
-      V<FeedbackCell> feedback_cell) {
-    return CallBuiltin<typename BuiltinCallDescriptor::FastNewClosure>(
-        isolate, frame_state, context, {shared_function_info, feedback_cell});
-  }
-  V<String> CallBuiltin_Typeof(Isolate* isolate, V<Object> object) {
-    return CallBuiltin<typename BuiltinCallDescriptor::Typeof>(isolate,
-                                                               {object});
   }
 
   V<Object> CallBuiltinWithVarStackArgs(Isolate* isolate, Zone* graph_zone,
@@ -3810,215 +4028,59 @@ class TurboshaftAssemblerOpInterface
         isolate, graph_zone, builtin, frame_state, num_args,
         base::VectorOf(arguments), lazy_deopt_on_throw);
   }
-
-  template <typename Descriptor>
-  std::enable_if_t<Descriptor::kNeedsFrameState, typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, V<turboshaft::FrameState> frame_state,
-              V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-              const typename Descriptor::arguments_t& args) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    DCHECK(frame_state.valid());
-    DCHECK(context.valid());
-    return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(Asm().output_graph().graph_zone(),
-                           lazy_deopt_on_throw),
-        frame_state, context, args);
-  }
-  template <typename Descriptor>
-  std::enable_if_t<!Descriptor::kNeedsFrameState, typename Descriptor::result_t>
-  CallRuntime(Isolate* isolate, V<Context> context,
-              const typename Descriptor::arguments_t& args) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    DCHECK(context.valid());
-    return CallRuntimeImpl<typename Descriptor::result_t>(
-        isolate, Descriptor::kFunction,
-        Descriptor::Create(Asm().output_graph().graph_zone(),
-                           LazyDeoptOnThrow::kNo),
-        {}, context, args);
-  }
-
-  template <typename Ret, typename Args>
-  Ret CallRuntimeImpl(Isolate* isolate, Runtime::FunctionId function,
-                      const TSCallDescriptor* desc,
-                      V<turboshaft::FrameState> frame_state, V<Context> context,
-                      const Args& args) {
-    const int result_size = Runtime::FunctionForId(function)->result_size;
-    constexpr size_t kMaxNumArgs = 6;
-    const size_t argc = std::tuple_size_v<Args>;
-    static_assert(kMaxNumArgs >= argc);
-    // Convert arguments from `args` tuple into a `SmallVector<OpIndex>`.
-    using vector_t = base::SmallVector<OpIndex, argc + 4>;
-    auto inputs = std::apply(
-        [](auto&&... as) {
-          return vector_t{std::forward<decltype(as)>(as)...};
-        },
-        args);
-    DCHECK(context.valid());
-    inputs.push_back(ExternalConstant(ExternalReference::Create(function)));
-    inputs.push_back(Word32Constant(static_cast<int>(argc)));
-    inputs.push_back(context);
-
-    if constexpr (std::is_same_v<Ret, void>) {
-      Call(CEntryStubConstant(isolate, result_size), frame_state,
-           base::VectorOf(inputs), desc);
-    } else {
-      return Ret::Cast(Call(CEntryStubConstant(isolate, result_size),
-                            frame_state, base::VectorOf(inputs), desc));
-    }
-  }
-
-  void CallRuntime_Abort(Isolate* isolate, V<Context> context, V<Smi> reason) {
-    CallRuntime<typename RuntimeCallDescriptor::Abort>(isolate, context,
-                                                       {reason});
-  }
-  V<BigInt> CallRuntime_BigIntUnaryOp(Isolate* isolate, V<Context> context,
-                                      V<BigInt> input, ::Operation operation) {
-    DCHECK_EQ(operation,
-              any_of(::Operation::kBitwiseNot, ::Operation::kNegate,
-                     ::Operation::kIncrement, ::Operation::kDecrement));
-    return CallRuntime<typename RuntimeCallDescriptor::BigIntUnaryOp>(
-        isolate, context, {input, __ SmiConstant(Smi::FromEnum(operation))});
-  }
-  V<Number> CallRuntime_DateCurrentTime(Isolate* isolate, V<Context> context) {
-    return CallRuntime<typename RuntimeCallDescriptor::DateCurrentTime>(
-        isolate, context, {});
-  }
-  void CallRuntime_DebugPrint(Isolate* isolate, V<Object> object) {
-    CallRuntime<typename RuntimeCallDescriptor::DebugPrint>(
-        isolate, NoContextConstant(), {object});
-  }
-  V<Object> CallRuntime_HandleNoHeapWritesInterrupts(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context) {
-    return CallRuntime<
-        typename RuntimeCallDescriptor::HandleNoHeapWritesInterrupts>(
-        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
-  }
-  V<Object> CallRuntime_StackGuard(Isolate* isolate, V<Context> context) {
-    return CallRuntime<typename RuntimeCallDescriptor::StackGuard>(isolate,
-                                                                   context, {});
-  }
-  V<Object> CallRuntime_StackGuardWithGap(Isolate* isolate,
-                                          V<turboshaft::FrameState> frame_state,
-                                          V<Context> context, V<Smi> gap) {
-    return CallRuntime<typename RuntimeCallDescriptor::StackGuardWithGap>(
-        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {gap});
-  }
-  V<Object> CallRuntime_StringCharCodeAt(Isolate* isolate, V<Context> context,
-                                         V<String> string, V<Number> index) {
-    return CallRuntime<typename RuntimeCallDescriptor::StringCharCodeAt>(
-        isolate, context, {string, index});
-  }
-#ifdef V8_INTL_SUPPORT
-  V<String> CallRuntime_StringToUpperCaseIntl(Isolate* isolate,
-                                              V<Context> context,
-                                              V<String> string) {
-    return CallRuntime<typename RuntimeCallDescriptor::StringToUpperCaseIntl>(
-        isolate, context, {string});
-  }
-#endif  // V8_INTL_SUPPORT
-  V<String> CallRuntime_SymbolDescriptiveString(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, V<Symbol> symbol,
+  V<Object> CallBuiltin_ConstructForwardVarargs(
+      Isolate* isolate, Zone* graph_zone, Builtin builtin,
+      V<turboshaft::FrameState> frame_state, V<Context> context,
+      V<JSFunction> target, V<JSFunction> new_target, int num_args,
+      int start_index, base::Vector<V<Object>> args,
       LazyDeoptOnThrow lazy_deopt_on_throw) {
-    return CallRuntime<typename RuntimeCallDescriptor::SymbolDescriptiveString>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {symbol});
+    DCHECK(builtin == Builtin::kConstructFunctionForwardVarargs ||
+           builtin == Builtin::kConstructForwardVarargs);
+    base::SmallVector<OpIndex, 16> arguments;
+    arguments.push_back(target);
+    arguments.push_back(new_target);
+    arguments.push_back(__ Word32Constant(num_args));
+    arguments.push_back(__ Word32Constant(start_index));
+    arguments.insert(arguments.end(), args.begin(), args.end());
+    arguments.push_back(context);
+
+    return CallBuiltinWithVarStackArgs(
+        isolate, graph_zone, builtin, frame_state, num_args,
+        base::VectorOf(arguments), lazy_deopt_on_throw);
   }
-  V<Object> CallRuntime_TerminateExecution(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context) {
-    return CallRuntime<typename RuntimeCallDescriptor::TerminateExecution>(
-        isolate, frame_state, context, LazyDeoptOnThrow::kNo, {});
+
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(14108): Annotate runtime functions as not having side effects
+  // where appropriate.
+  OpIndex WasmCallRuntime(Zone* zone, Runtime::FunctionId f,
+                          std::initializer_list<const OpIndex> args,
+                          V<Context> context) {
+    const Runtime::Function* fun = Runtime::FunctionForId(f);
+    OpIndex isolate_root = __ LoadRootRegister();
+    DCHECK_EQ(1, fun->result_size);
+    int builtin_slot_offset =
+        IsolateData::BuiltinSlotOffset(Builtin::kWasmCEntry);
+    OpIndex centry_stub =
+        __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::UintPtr(), builtin_slot_offset);
+    // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
+    // always suffices.
+    SmallZoneVector<OpIndex, 4> centry_args(zone);
+    for (OpIndex arg : args) centry_args.emplace_back(arg);
+    centry_args.emplace_back(__ ExternalConstant(ExternalReference::Create(f)));
+    centry_args.emplace_back(__ Word32Constant(fun->nargs));
+    centry_args.emplace_back(context);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetRuntimeCallDescriptor(
+            __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
+            CallDescriptor::kNoFlags);
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kYes,
+        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+    return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
+                   ts_call_descriptor);
   }
-  V<Object> CallRuntime_TransitionElementsKind(Isolate* isolate,
-                                               V<Context> context,
-                                               V<HeapObject> object,
-                                               V<Map> target_map) {
-    return CallRuntime<typename RuntimeCallDescriptor::TransitionElementsKind>(
-        isolate, context, {object, target_map});
-  }
-  V<Object> CallRuntime_TryMigrateInstance(Isolate* isolate, V<Context> context,
-                                           V<HeapObject> heap_object) {
-    return CallRuntime<typename RuntimeCallDescriptor::TryMigrateInstance>(
-        isolate, context, {heap_object});
-  }
-  void CallRuntime_ThrowAccessedUninitializedVariable(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      V<Object> object) {
-    CallRuntime<
-        typename RuntimeCallDescriptor::ThrowAccessedUninitializedVariable>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {object});
-  }
-  void CallRuntime_ThrowConstructorReturnedNonObject(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<
-        typename RuntimeCallDescriptor::ThrowConstructorReturnedNonObject>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  void CallRuntime_ThrowNotSuperConstructor(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      V<Object> constructor, V<Object> function) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowNotSuperConstructor>(
-        isolate, frame_state, context, lazy_deopt_on_throw,
-        {constructor, function});
-  }
-  void CallRuntime_ThrowSuperAlreadyCalledError(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowSuperAlreadyCalledError>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  void CallRuntime_ThrowSuperNotCalled(Isolate* isolate,
-                                       V<turboshaft::FrameState> frame_state,
-                                       V<Context> context,
-                                       LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowSuperNotCalled>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  void CallRuntime_ThrowCalledNonCallable(Isolate* isolate,
-                                          V<turboshaft::FrameState> frame_state,
-                                          V<Context> context,
-                                          LazyDeoptOnThrow lazy_deopt_on_throw,
-                                          V<Object> value) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowCalledNonCallable>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {value});
-  }
-  void CallRuntime_ThrowInvalidStringLength(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw) {
-    CallRuntime<typename RuntimeCallDescriptor::ThrowInvalidStringLength>(
-        isolate, frame_state, context, lazy_deopt_on_throw, {});
-  }
-  V<JSFunction> CallRuntime_NewClosure(
-      Isolate* isolate, V<Context> context,
-      V<SharedFunctionInfo> shared_function_info,
-      V<FeedbackCell> feedback_cell) {
-    return CallRuntime<typename RuntimeCallDescriptor::NewClosure>(
-        isolate, context, {shared_function_info, feedback_cell});
-  }
-  V<JSFunction> CallRuntime_NewClosure_Tenured(
-      Isolate* isolate, V<Context> context,
-      V<SharedFunctionInfo> shared_function_info,
-      V<FeedbackCell> feedback_cell) {
-    return CallRuntime<typename RuntimeCallDescriptor::NewClosure_Tenured>(
-        isolate, context, {shared_function_info, feedback_cell});
-  }
-  V<Boolean> CallRuntime_HasInPrototypeChain(
-      Isolate* isolate, V<turboshaft::FrameState> frame_state,
-      V<Context> context, LazyDeoptOnThrow lazy_deopt_on_throw,
-      V<Object> object, V<HeapObject> prototype) {
-    return CallRuntime<typename RuntimeCallDescriptor::HasInPrototypeChain>(
-        isolate, frame_state, context, lazy_deopt_on_throw,
-        {object, prototype});
-  }
+#endif
 
   void TailCall(V<CallTarget> callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
@@ -4078,26 +4140,31 @@ class TurboshaftAssemblerOpInterface
 
 #if V8_ENABLE_WEBASSEMBLY
   // TrapIf and TrapIfNot in Wasm code do not pass a frame state.
-  void TrapIf(V<Word32> condition, TrapId trap_id) {
-    ReduceIfReachableTrapIf(condition, OptionalV<turboshaft::FrameState>{},
-                            false, trap_id);
+  void TrapIf(ConstOrV<Word32> condition, TrapId trap_id) {
+    ReduceIfReachableTrapIf(resolve(condition),
+                            OptionalV<turboshaft::FrameState>{}, false,
+                            trap_id);
   }
-  void TrapIfNot(V<Word32> condition, TrapId trap_id) {
-    ReduceIfReachableTrapIf(condition, OptionalV<turboshaft::FrameState>{},
-                            true, trap_id);
+  void TrapIfNot(ConstOrV<Word32> condition, TrapId trap_id) {
+    ReduceIfReachableTrapIf(resolve(condition),
+                            OptionalV<turboshaft::FrameState>{}, true, trap_id);
   }
 
   // TrapIf and TrapIfNot from Wasm inlined into JS pass a frame state.
-  void TrapIf(V<Word32> condition,
+  void TrapIf(ConstOrV<Word32> condition,
               OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
-    ReduceIfReachableTrapIf(condition, frame_state, false, trap_id);
+    ReduceIfReachableTrapIf(resolve(condition), frame_state, false, trap_id);
   }
-  void TrapIfNot(V<Word32> condition,
+  void TrapIfNot(ConstOrV<Word32> condition,
                  OptionalV<turboshaft::FrameState> frame_state,
                  TrapId trap_id) {
-    ReduceIfReachableTrapIf(condition, frame_state, true, trap_id);
+    ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  void MajorGCForCompilerTesting() {
+    ReduceIfReachableMajorGCForCompilerTesting();
+  }
 
   void StaticAssert(V<Word32> condition, const char* source) {
     ReduceIfReachableStaticAssert(condition, source);
@@ -4128,22 +4195,22 @@ class TurboshaftAssemblerOpInterface
     return PendingLoopPhi(first, V<T>::rep);
   }
 
-  V<Any> Tuple(base::Vector<const V<Any>> indices) {
-    return ReduceIfReachableTuple(indices);
+  V<Any> MakeTuple(base::Vector<const V<Any>> indices) {
+    return ReduceIfReachableMakeTuple(indices);
   }
-  V<Any> Tuple(std::initializer_list<V<Any>> indices) {
-    return ReduceIfReachableTuple(base::VectorOf(indices));
+  V<Any> MakeTuple(std::initializer_list<V<Any>> indices) {
+    return ReduceIfReachableMakeTuple(base::VectorOf(indices));
   }
   template <typename... Ts>
-  V<turboshaft::Tuple<Ts...>> Tuple(V<Ts>... indices) {
+  V<turboshaft::Tuple<Ts...>> MakeTuple(V<Ts>... indices) {
     std::initializer_list<V<Any>> inputs{V<Any>::Cast(indices)...};
-    return V<turboshaft::Tuple<Ts...>>::Cast(Tuple(base::VectorOf(inputs)));
+    return V<turboshaft::Tuple<Ts...>>::Cast(MakeTuple(base::VectorOf(inputs)));
   }
   // TODO(chromium:331100916): Remove this overload once everything is properly
   // V<>ified.
-  V<turboshaft::Tuple<Any, Any>> Tuple(OpIndex left, OpIndex right) {
+  V<turboshaft::Tuple<Any, Any>> MakeTuple(OpIndex left, OpIndex right) {
     return V<turboshaft::Tuple<Any, Any>>::Cast(
-        Tuple(base::VectorOf({V<Any>::Cast(left), V<Any>::Cast(right)})));
+        MakeTuple(base::VectorOf({V<Any>::Cast(left), V<Any>::Cast(right)})));
   }
 
   V<Any> Projection(V<Any> tuple, uint16_t index, RegisterRepresentation rep) {
@@ -4171,9 +4238,14 @@ class TurboshaftAssemblerOpInterface
                                                   successful);
   }
 
+  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+    CHECK(v8_flags.maglev_assert_types);
+    ReduceIfReachableCheckMaglevType(input, type);
+  }
+
   // This is currently only usable during graph building on the main thread.
   void Dcheck(V<Word32> condition, const char* message, const char* file,
-              int line, const SourceLocation& loc = SourceLocation::Current()) {
+              int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
     USE(isolate);
     DCHECK_NOT_NULL(isolate);
@@ -4187,7 +4259,7 @@ class TurboshaftAssemblerOpInterface
 
   // This is currently only usable during graph building on the main thread.
   void Check(V<Word32> condition, const char* message, const char* file,
-             int line, const SourceLocation& loc = SourceLocation::Current()) {
+             int line, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
     Isolate* isolate = Asm().data()->isolate();
     USE(isolate);
     DCHECK_NOT_NULL(isolate);
@@ -4211,13 +4283,12 @@ class TurboshaftAssemblerOpInterface
 
   void FailAssert(const char* message,
                   const std::vector<FileAndLine>& files_and_lines,
-                  const SourceLocation& loc) {
+                  SourceLocation loc) {
     std::stringstream stream;
     if (message) stream << message;
-    for (auto it = files_and_lines.rbegin(); it != files_and_lines.rend();
-         ++it) {
-      if (it->first != nullptr) {
-        stream << " [" << it->first << ":" << it->second << "]";
+    for (const auto& [file, line] : base::Reversed(files_and_lines)) {
+      if (file != nullptr) {
+        stream << " [" << file << ":" << line << "]";
 #ifndef DEBUG
         // To limit the size of these strings in release builds, we include only
         // the innermost macro's file name and line number.
@@ -4229,9 +4300,11 @@ class TurboshaftAssemblerOpInterface
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
     DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-    V<String> string_constant =
-        __ HeapConstantNoHole(isolate->factory()->NewStringFromAsciiChecked(
-            stream.str().c_str(), AllocationType::kOld));
+    const std::string str = stream.str();
+    Handle<String> internalized_string = isolate->factory()->InternalizeString(
+        base::OneByteVector(str.c_str(), str.length()));
+    CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
+    V<String> string_constant = __ HeapConstantNoHole(internalized_string);
 
     AbortCSADcheck(string_constant);
     Unreachable();
@@ -4320,7 +4393,7 @@ class TurboshaftAssemblerOpInterface
   // `4: CatchBlockBegin` from the input graph.
   //
   // Besides AddPredecessor and SplitEdge in Assembler, most of the machinery to
-  // make this work is in GenericReducerBase (in particular,
+  // make this work is in ReducerBase (in particular,
   // `REDUCE(CatchBlockBegin)`, `REDUCE(Call)`, `REDUCE(CheckException)` and
   // `CatchIfInCatchScope`).
   V<Object> CatchBlockBegin() { return ReduceIfReachableCatchBlockBegin(); }
@@ -4396,21 +4469,29 @@ class TurboshaftAssemblerOpInterface
                               V<String> second) {
     return ReduceIfReachableNewConsString(length, first, second);
   }
-  V<Object> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,
-                     AllocationType allocation_type) {
-    return ReduceIfReachableNewArray(length, kind, allocation_type);
-  }
-  V<Object> NewDoubleArray(V<WordPtr> length, AllocationType allocation_type) {
-    return NewArray(length, NewArrayOp::Kind::kDouble, allocation_type);
+
+  V<String> StringSlice(V<String> string, V<Word32> start, V<Word32> end) {
+    return ReduceIfReachableStringSlice(string, start, end);
   }
 
-  V<Object> DoubleArrayMinMax(V<Object> array, DoubleArrayMinMaxOp::Kind kind) {
+  V<AnyFixedArray> NewArray(V<WordPtr> length, NewArrayOp::Kind kind,
+                            AllocationType allocation_type) {
+    return ReduceIfReachableNewArray(length, kind, allocation_type);
+  }
+  V<FixedDoubleArray> NewDoubleArray(V<WordPtr> length,
+                                     AllocationType allocation_type) {
+    return V<FixedDoubleArray>::Cast(
+        NewArray(length, NewArrayOp::Kind::kDouble, allocation_type));
+  }
+
+  V<Number> DoubleArrayMinMax(V<JSArray> array,
+                              DoubleArrayMinMaxOp::Kind kind) {
     return ReduceIfReachableDoubleArrayMinMax(array, kind);
   }
-  V<Object> DoubleArrayMin(V<Object> array) {
+  V<Number> DoubleArrayMin(V<JSArray> array) {
     return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMin);
   }
-  V<Object> DoubleArrayMax(V<Object> array) {
+  V<Number> DoubleArrayMax(V<JSArray> array) {
     return DoubleArrayMinMax(array, DoubleArrayMinMaxOp::Kind::kMax);
   }
 
@@ -4443,18 +4524,90 @@ class TurboshaftAssemblerOpInterface
 #endif
   }
 
-  void DebugPrint(OpIndex input, RegisterRepresentation rep) {
+  void DebugPrint(const std::string& label, OpIndex input,
+                  RegisterRepresentation rep) {
     CHECK(v8_flags.turboshaft_enable_debug_features);
-    ReduceIfReachableDebugPrint(input, rep);
+    CHECK(!__ data()->is_wasm());
+    OptionalV<String> label_string;
+    if (!label.empty()) {
+      JSHeapBroker* broker = Asm().data()->broker();
+      Handle<String> internalized_string;
+      if (broker) {
+        UnparkedScopeIfNeeded scope(broker);
+        LocalIsolate* isolate = broker->local_isolate_or_isolate();
+        internalized_string = isolate->factory()->InternalizeString(
+            base::OneByteVector(label.c_str(), label.length()));
+        internalized_string =
+            broker->CanonicalPersistentHandle(internalized_string);
+      } else {
+        Isolate* isolate = Asm().data()->isolate();
+        // If we don't have a broker, we can only allocate the string on the
+        // main thread.
+        DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+        internalized_string = isolate->factory()->InternalizeString(
+            base::OneByteVector(label.c_str(), label.length()));
+        CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
+      }
+      label_string = __ HeapConstantNoHole(internalized_string);
+    }
+    ReduceIfReachableDebugPrint(input, label_string, rep);
   }
-  void DebugPrint(V<Object> input) {
-    DebugPrint(input, RegisterRepresentation::Tagged());
+  void DebugPrint(OpIndex value, RegisterRepresentation rep) {
+    DebugPrint({}, value, rep);
   }
-  void DebugPrint(V<WordPtr> input) {
-    DebugPrint(input, RegisterRepresentation::WordPtr());
+  void DebugPrint(const std::string& str) {
+    CHECK(v8_flags.turboshaft_enable_debug_features);
+    CHECK(!__ data()->is_wasm());
+    JSHeapBroker* broker = Asm().data()->broker();
+    Handle<String> internalized_string;
+    if (broker) {
+      UnparkedScopeIfNeeded scope(broker);
+      LocalIsolate* isolate = broker->local_isolate_or_isolate();
+      internalized_string = isolate->factory()->InternalizeString(
+          base::OneByteVector(str.c_str(), str.length()));
+      internalized_string =
+          broker->CanonicalPersistentHandle(internalized_string);
+    } else {
+      Isolate* isolate = Asm().data()->isolate();
+      // If we don't have a broker, we can only allocate the string on the main
+      // thread.
+      DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+      internalized_string = isolate->factory()->InternalizeString(
+          base::OneByteVector(str.c_str(), str.length()));
+      CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
+    }
+    V<String> string_constant = __ HeapConstantNoHole(internalized_string);
+    DebugPrint({}, string_constant, RegisterRepresentation::Tagged());
   }
-  void DebugPrint(V<Float64> input) {
-    DebugPrint(input, RegisterRepresentation::Float64());
+  void DebugPrint(const std::string& label, V<Object> value) {
+    DebugPrint(label, value, RegisterRepresentation::Tagged());
+  }
+  void DebugPrint(V<Object> value) {
+    DebugPrint({}, value, RegisterRepresentation::Tagged());
+  }
+  void DebugPrint(V<Word32> value) {
+    DebugPrint({}, value, RegisterRepresentation::Word32());
+  }
+  void DebugPrint(const std::string& label, V<Word32> value) {
+    DebugPrint(label, value, RegisterRepresentation::Word32());
+  }
+  void DebugPrint(V<Word64> value) {
+    DebugPrint({}, value, RegisterRepresentation::Word64());
+  }
+  void DebugPrint(const std::string& label, V<Word64> value) {
+    DebugPrint(label, value, RegisterRepresentation::Word64());
+  }
+  void DebugPrint(const std::string& label, V<Float32> value) {
+    DebugPrint(label, value, RegisterRepresentation::Float32());
+  }
+  void DebugPrint(V<Float32> value) {
+    DebugPrint({}, value, RegisterRepresentation::Float32());
+  }
+  void DebugPrint(const std::string& label, V<Float64> value) {
+    DebugPrint(label, value, RegisterRepresentation::Float64());
+  }
+  void DebugPrint(V<Float64> value) {
+    DebugPrint({}, value, RegisterRepresentation::Float64());
   }
 
   void Comment(const char* message) { ReduceIfReachableComment(message); }
@@ -4471,9 +4624,7 @@ class TurboshaftAssemblerOpInterface
     if (!v8_flags.code_comments) return;
     std::ostringstream s;
     USE(s << message.message, (s << std::forward<Args>(args))...);
-    if (message.loc.FileName()) {
-      s << " - " << message.loc.ToString();
-    }
+    if (message.loc) s << " - " << message.loc.ToString();
     Comment(std::move(s).str());
   }
 
@@ -4520,9 +4671,9 @@ class TurboshaftAssemblerOpInterface
     return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 
-  OpIndex Word32PairBinop(V<Word32> left_low, V<Word32> left_high,
-                          V<Word32> right_low, V<Word32> right_high,
-                          Word32PairBinopOp::Kind kind) {
+  V<Word32Pair> Word32PairBinop(V<Word32> left_low, V<Word32> left_high,
+                                V<Word32> right_low, V<Word32> right_high,
+                                Word32PairBinopOp::Kind kind) {
     return ReduceIfReachableWord32PairBinop(left_low, left_high, right_low,
                                             right_high, kind);
   }
@@ -4539,19 +4690,34 @@ class TurboshaftAssemblerOpInterface
   }
 
 #ifdef V8_INTL_SUPPORT
-  V<String> StringToCaseIntl(V<String> string, StringToCaseIntlOp::Kind kind) {
-    return ReduceIfReachableStringToCaseIntl(string, kind);
+  V<String> StringToCaseIntl(V<String> string,
+                             V<turboshaft::FrameState> frame_state,
+                             V<Context> context,
+                             StringToCaseIntlOp::Kind kind) {
+    return ReduceIfReachableStringToCaseIntl(string, frame_state, context, kind,
+                                             LazyDeoptOnThrow::kNo);
   }
-  V<String> StringToLowerCaseIntl(V<String> string) {
-    return StringToCaseIntl(string, StringToCaseIntlOp::Kind::kLower);
+  V<String> StringToLowerCaseIntl(V<String> string,
+                                  V<turboshaft::FrameState> frame_state,
+                                  V<Context> context) {
+    return StringToCaseIntl(string, frame_state, context,
+                            StringToCaseIntlOp::Kind::kLower);
   }
-  V<String> StringToUpperCaseIntl(V<String> string) {
-    return StringToCaseIntl(string, StringToCaseIntlOp::Kind::kUpper);
+  V<String> StringToUpperCaseIntl(V<String> string,
+                                  V<turboshaft::FrameState> frame_state,
+                                  V<Context> context) {
+    return StringToCaseIntl(string, frame_state, context,
+                            StringToCaseIntlOp::Kind::kUpper);
   }
 #endif  // V8_INTL_SUPPORT
 
   V<Word32> StringLength(V<String> string) {
     return ReduceIfReachableStringLength(string);
+  }
+
+  V<WordPtr> TypedArrayLength(V<JSTypedArray> typed_array,
+                              ElementsKind elements_kind) {
+    return ReduceIfReachableTypedArrayLength(typed_array, elements_kind);
   }
 
   V<Smi> StringIndexOf(V<String> string, V<String> search, V<Smi> position) {
@@ -4566,16 +4732,18 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableStringSubstring(string, start, end);
   }
 
-  V<String> StringConcat(V<String> left, V<String> right) {
-    return ReduceIfReachableStringConcat(left, right);
+  V<String> StringConcat(V<Smi> length, V<String> left, V<String> right) {
+    return ReduceIfReachableStringConcat(length, left, right);
   }
 
   V<Boolean> StringComparison(V<String> left, V<String> right,
                               StringComparisonOp::Kind kind) {
     return ReduceIfReachableStringComparison(left, right, kind);
   }
-  V<Boolean> StringEqual(V<String> left, V<String> right) {
-    return StringComparison(left, right, StringComparisonOp::Kind::kEqual);
+  V<Boolean> StringEqual(
+      V<String> left, V<String> right,
+      StringComparisonOp::Kind kind = StringComparisonOp::Kind::kEqual) {
+    return StringComparison(left, right, kind);
   }
   V<Boolean> StringLessThan(V<String> left, V<String> right) {
     return StringComparison(left, right, StringComparisonOp::Kind::kLessThan);
@@ -4583,6 +4751,9 @@ class TurboshaftAssemblerOpInterface
   V<Boolean> StringLessThanOrEqual(V<String> left, V<String> right) {
     return StringComparison(left, right,
                             StringComparisonOp::Kind::kLessThanOrEqual);
+  }
+  V<Boolean> StringOrOddballStrictEqual(V<String> left, V<String> right) {
+    return ReduceIfReachableStringOrOddballStrictEqual(left, right);
   }
 
   V<Smi> ArgumentsLength() {
@@ -4636,30 +4807,31 @@ class TurboshaftAssemblerOpInterface
   }
 
   void TransitionAndStoreArrayElement(
-      V<Object> array, V<WordPtr> index, OpIndex value,
+      V<JSArray> array, V<WordPtr> index, V<Any> value,
       TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<Map> fast_map,
       MaybeHandle<Map> double_map) {
     ReduceIfReachableTransitionAndStoreArrayElement(array, index, value, kind,
                                                     fast_map, double_map);
   }
 
-  void StoreSignedSmallElement(V<Object> array, V<WordPtr> index,
+  void StoreSignedSmallElement(V<JSArray> array, V<WordPtr> index,
                                V<Word32> value) {
     TransitionAndStoreArrayElement(
         array, index, value,
         TransitionAndStoreArrayElementOp::Kind::kSignedSmallElement, {}, {});
   }
 
-  V<Word32> CompareMaps(V<HeapObject> heap_object,
+  V<Word32> CompareMaps(V<HeapObject> heap_object, OptionalV<Map> map,
                         const ZoneRefSet<Map>& maps) {
-    return ReduceIfReachableCompareMaps(heap_object, maps);
+    return ReduceIfReachableCompareMaps(heap_object, map, maps);
   }
 
   void CheckMaps(V<HeapObject> heap_object,
-                 V<turboshaft::FrameState> frame_state,
+                 V<turboshaft::FrameState> frame_state, OptionalV<Map> map,
                  const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                  const FeedbackSource& feedback) {
-    ReduceIfReachableCheckMaps(heap_object, frame_state, maps, flags, feedback);
+    ReduceIfReachableCheckMaps(heap_object, frame_state, map, maps, flags,
+                               feedback);
   }
 
   void AssumeMap(V<HeapObject> heap_object, const ZoneRefSet<Map>& maps) {
@@ -4678,6 +4850,18 @@ class TurboshaftAssemblerOpInterface
                                                    frame_state);
   }
 
+  V<Word32> TruncateFloat64ToFloat16RawBits(V<Float64> input) {
+    return V<Word32>::Cast(__ ReduceChange(
+        input, ChangeOp::Kind::kJSFloat16TruncateWithBitcast,
+        ChangeOp::Assumption::kNoAssumption, V<Float64>::rep, V<Word32>::rep));
+  }
+
+  V<Float64> ChangeFloat16RawBitsToFloat64(V<Word32> input) {
+    return V<Float64>::Cast(__ ReduceChange(
+        input, ChangeOp::Kind::kJSFloat16ChangeWithBitcast,
+        ChangeOp::Assumption::kNoAssumption, V<Word32>::rep, V<Float64>::rep));
+  }
+
   V<Object> LoadMessage(V<WordPtr> offset) {
     return ReduceIfReachableLoadMessage(offset);
   }
@@ -4691,8 +4875,8 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSameValue(left, right, mode);
   }
 
-  V<Word32> Float64SameValue(V<Float64> left, V<Float64> right) {
-    return ReduceIfReachableFloat64SameValue(left, right);
+  V<Word32> Float64SameValue(ConstOrV<Float64> left, ConstOrV<Float64> right) {
+    return ReduceIfReachableFloat64SameValue(resolve(left), resolve(right));
   }
 
   OpIndex FastApiCall(V<turboshaft::FrameState> frame_state,
@@ -4704,8 +4888,13 @@ class TurboshaftAssemblerOpInterface
                                         arguments, parameters, out_reps);
   }
 
-  void RuntimeAbort(AbortReason reason) {
+  V<None> RuntimeAbort(AbortReason reason) {
     ReduceIfReachableRuntimeAbort(reason);
+    // RuntimeAbort exits the function and should thus be a block terminator,
+    // but we currently don't allow Simplified operations to be block
+    // terminators. We thus manually add an Unreachable after it.
+    Unreachable();
+    return V<None>::Invalid();
   }
 
   V<Object> EnsureWritableFastElements(V<Object> object, V<Object> elements) {
@@ -4724,6 +4913,12 @@ class TurboshaftAssemblerOpInterface
   void TransitionElementsKind(V<HeapObject> object,
                               const ElementsTransition& transition) {
     ReduceIfReachableTransitionElementsKind(object, transition);
+  }
+  void TransitionElementsKindOrCheckMap(
+      V<HeapObject> object, V<Map> map, V<turboshaft::FrameState> frame_state,
+      const ElementsTransitionWithMultipleSources& transition) {
+    ReduceIfReachableTransitionElementsKindOrCheckMap(object, map, frame_state,
+                                                      transition);
   }
 
   OpIndex FindOrderedHashEntry(V<Object> data_structure, OpIndex key,
@@ -4744,76 +4939,42 @@ class TurboshaftAssemblerOpInterface
         table, key,
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
-  V<Object> SpeculativeNumberBinop(V<Object> left, V<Object> right,
-                                   V<turboshaft::FrameState> frame_state,
-                                   SpeculativeNumberBinopOp::Kind kind) {
-    return ReduceIfReachableSpeculativeNumberBinop(left, right, frame_state,
-                                                   kind);
-  }
 
-  V<Object> LoadRoot(RootIndex root_index) {
+  template <RootIndex index>
+  V<root_type_t<index>> LoadRoot() {
+    using RootObjectType = root_type_t<index>;
     Isolate* isolate = __ data() -> isolate();
-    DCHECK_NOT_NULL(isolate);
-    if (RootsTable::IsImmortalImmovable(root_index)) {
-      Handle<Object> root = isolate->root_handle(root_index);
-      if (i::IsSmi(*root)) {
-        return __ SmiConstant(Cast<Smi>(*root));
-      } else {
-        return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
+    if (RootsTable::IsImmortalImmovable(index)) {
+      if (isolate != nullptr) {
+        Handle<Object> root = isolate->root_handle(index);
+        const bool is_smi = i::IsSmi(*root);
+        // For Root types that could be a smi, emit a smi constant if the actual
+        // value can be stored in a smi.
+        if constexpr (std::is_convertible_v<Smi, RootObjectType>) {
+          if (is_smi) {
+            return SmiConstant(Cast<Smi>(*root));
+          }
+        }
+        CHECK(!is_smi);
+        return HeapConstantMaybeHole(i::Cast<RootObjectType>(root));
       }
+      return Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
+                  MemoryRepresentation::AnyUncompressedTagged(),
+                  IsolateData::root_slot_offset(index));
+    } else {
+      return Load(LoadRootRegister(), LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::AnyUncompressedTagged(),
+                  IsolateData::root_slot_offset(index));
     }
-
-    // TODO(jgruber): In theory we could generate better code for this by
-    // letting the macro assembler decide how to load from the roots list. In
-    // most cases, it would boil down to loading from a fixed kRootRegister
-    // offset.
-    OpIndex isolate_root =
-        __ ExternalConstant(ExternalReference::isolate_root(isolate));
-    int offset = IsolateData::root_slot_offset(root_index);
-    return __ LoadOffHeap(isolate_root, offset,
-                          MemoryRepresentation::AnyTagged());
   }
 
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)          \
-  V<RemoveTagged<                                                              \
-      decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>       \
-      name##Constant() {                                                       \
-    const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();          \
-    if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                    \
-                    kind == TurboshaftPipelineKind::kTSABuiltin)) {            \
-      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName));    \
-      return V<RemoveTagged<                                                   \
-          decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type>:: \
-          Cast(__ LoadRoot(RootIndex::k##rootIndexName));                      \
-    } else {                                                                   \
-      Isolate* isolate = __ data() -> isolate();                               \
-      DCHECK_NOT_NULL(isolate);                                                \
-      Factory* factory = isolate->factory();                                   \
-      DCHECK_NOT_NULL(factory);                                                \
-      return __ HeapConstant(factory->rootAccessorName());                     \
-    }                                                                          \
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
+  decltype(auto) name##Constant() {                                    \
+    static_assert(                                                     \
+        RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName)); \
+    return LoadRoot<RootIndex::k##rootIndexName>();                    \
   }
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
-#undef HEAP_CONSTANT_ACCESSOR
-
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)       \
-  V<RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>::type>  \
-      name##Constant() {                                                    \
-    const TurboshaftPipelineKind kind = __ data() -> pipeline_kind();       \
-    if (V8_UNLIKELY(kind == TurboshaftPipelineKind::kCSA ||                 \
-                    kind == TurboshaftPipelineKind::kTSABuiltin)) {         \
-      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::k##rootIndexName)); \
-      return V<                                                             \
-          RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>:: \
-              type>::Cast(__ LoadRoot(RootIndex::k##rootIndexName));        \
-    } else {                                                                \
-      Isolate* isolate = __ data() -> isolate();                            \
-      DCHECK_NOT_NULL(isolate);                                             \
-      Factory* factory = isolate->factory();                                \
-      DCHECK_NOT_NULL(factory);                                             \
-      return __ HeapConstant(factory->rootAccessorName());                  \
-    }                                                                       \
-  }
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
@@ -4838,6 +4999,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableGlobalSet(trusted_instance_data, value, global);
   }
 
+  V<HeapObject> RootConstant(RootIndex index) {
+    return ReduceIfReachableRootConstant(index);
+  }
+
+  V<Word32> IsRootConstant(V<Object> input, RootIndex index) {
+    return ReduceIfReachableIsRootConstant(input, index);
+  }
+
   V<HeapObject> Null(wasm::ValueType type) {
     return ReduceIfReachableNull(type);
   }
@@ -4851,22 +5020,26 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableAssertNotNull(object, type, trap_id);
   }
 
-  V<Map> RttCanon(V<FixedArray> rtts, uint32_t type_index) {
+  V<Map> RttCanon(V<FixedArray> rtts, wasm::ModuleTypeIndex type_index) {
     return ReduceIfReachableRttCanon(rtts, type_index);
   }
 
   V<Word32> WasmTypeCheck(V<Object> object, OptionalV<Map> rtt,
                           WasmTypeCheckConfig config) {
+    DCHECK(__ generating_unreachable_operations() ||
+           rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
                          WasmTypeCheckConfig config) {
+    DCHECK(__ generating_unreachable_operations() ||
+           rtt.valid() != config.to.is_abstract_ref());
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
 
-  V<Object> AnyConvertExtern(V<Object> input) {
-    return ReduceIfReachableAnyConvertExtern(input);
+  V<Object> AnyConvertExtern(V<Object> input, bool is_shared) {
+    return ReduceIfReachableAnyConvertExtern(input, is_shared);
   }
 
   V<Object> ExternConvertAny(V<Object> input) {
@@ -4874,32 +5047,60 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename T>
-  V<T> AnnotateWasmType(V<T> value, const wasm::ValueType type) {
+  V<T> AnnotateWasmType(V<T> value, const wasm::ValueType type)
+    requires(is_subtype_v<T, Object>)
+  {
     return ReduceIfReachableWasmTypeAnnotation(value, type);
   }
 
   V<Any> StructGet(V<WasmStructNullable> object, const wasm::StructType* type,
-                   uint32_t type_index, int field_index, bool is_signed,
-                   CheckForNull null_check) {
+                   wasm::ModuleTypeIndex type_index, int field_index,
+                   bool is_signed, CheckForNull null_check,
+                   std::optional<AtomicMemoryOrder> memory_order) {
     return ReduceIfReachableStructGet(object, type, type_index, field_index,
-                                      is_signed, null_check);
+                                      is_signed, null_check, memory_order);
   }
 
   void StructSet(V<WasmStructNullable> object, V<Any> value,
-                 const wasm::StructType* type, uint32_t type_index,
-                 int field_index, CheckForNull null_check) {
+                 const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
+                 int field_index, CheckForNull null_check,
+                 std::optional<AtomicMemoryOrder> memory_order) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check);
+                               null_check, memory_order);
+  }
+
+  V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
+                         OptionalV<Any> expected,
+                         StructAtomicRMWOp::BinOp bin_op,
+                         const wasm::StructType* type,
+                         wasm::ModuleTypeIndex type_index, int field_index,
+                         CheckForNull null_check,
+                         AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableStructAtomicRMW(object, value, expected, bin_op,
+                                            type, type_index, field_index,
+                                            null_check, memory_order);
+  }
+
+  V<Any> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
+                        V<Any> value, OptionalV<Any> expected,
+                        ArrayAtomicRMWOp::BinOp bin_op,
+                        wasm::ValueType element_type,
+                        AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableArrayAtomicRMW(array, index, value, expected,
+                                           bin_op, element_type, memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
-                  const wasm::ArrayType* array_type, bool is_signed) {
-    return ReduceIfReachableArrayGet(array, index, array_type, is_signed);
+                  const wasm::ArrayType* array_type, bool is_signed,
+                  std::optional<AtomicMemoryOrder> memory_order) {
+    return ReduceIfReachableArrayGet(array, index, array_type, is_signed,
+                                     memory_order);
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-                wasm::ValueType element_type) {
-    ReduceIfReachableArraySet(array, index, value, element_type);
+                wasm::ValueType element_type,
+                std::optional<AtomicMemoryOrder> memory_order) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
@@ -4907,13 +5108,16 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
-                                 const wasm::ArrayType* array_type) {
-    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
+                                 const wasm::ArrayType* array_type,
+                                 bool is_shared) {
+    return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
+                                              is_shared);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
-                                   const wasm::StructType* struct_type) {
-    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type);
+                                   const wasm::StructType* struct_type,
+                                   bool is_shared) {
+    return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, is_shared);
   }
 
   V<WasmFuncRef> WasmRefFunc(V<Object> wasm_instance, uint32_t function_index) {
@@ -4978,7 +5182,14 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableSimd128ReplaceLane(into, new_lane, kind, lane);
   }
 
-  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<WordPtr> value,
+  V<Simd128> Simd128MoveLane(V<Simd128> into, V<Simd128> from,
+                             Simd128MoveLaneOp::Kind kind, uint8_t into_lane,
+                             uint8_t from_lane) {
+    return ReduceIfReachableSimd128MoveLane(into, from, kind, into_lane,
+                                            from_lane);
+  }
+
+  OpIndex Simd128LaneMemory(V<WordPtr> base, V<WordPtr> index, V<Simd128> value,
                             Simd128LaneMemoryOp::Mode mode,
                             Simd128LaneMemoryOp::Kind kind,
                             Simd128LaneMemoryOp::LaneKind lane_kind,
@@ -4996,8 +5207,16 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<Simd128> Simd128Shuffle(V<Simd128> left, V<Simd128> right,
+                            Simd128ShuffleOp::Kind kind,
                             const uint8_t shuffle[kSimd128Size]) {
-    return ReduceIfReachableSimd128Shuffle(left, right, shuffle);
+    return ReduceIfReachableSimd128Shuffle(left, right, kind, shuffle);
+  }
+
+  V<Simd256> Simd128LoadPairDeinterleave(
+      V<WordPtr> base, V<WordPtr> index, LoadOp::Kind load_kind,
+      Simd128LoadPairDeinterleaveOp::Kind kind) {
+    return ReduceIfReachableSimd128LoadPairDeinterleave(base, index, load_kind,
+                                                        kind);
   }
 
   // SIMD256
@@ -5085,6 +5304,12 @@ class TurboshaftAssemblerOpInterface
   void SetStackPointer(V<WordPtr> value) {
     ReduceIfReachableSetStackPointer(value);
   }
+
+  V<None> WasmIncCoverageCounter(Address counter_addr) {
+    return ReduceIfReachableWasmIncCoverageCounter(counter_addr);
+  }
+
+  V<WordPtr> WasmFXArgBuffer() { return ReduceIfReachableWasmFXArgBuffer(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
@@ -5113,34 +5338,230 @@ class TurboshaftAssemblerOpInterface
   V<Float64> resolve(const ConstOrV<Float64>& v) {
     return v.is_constant() ? Float64Constant(v.constant_value()) : v.value();
   }
+  V<Smi> resolve(const ConstOrV<Smi>& v) {
+    return v.is_constant() ? SmiConstant(v.constant_value()) : v.value();
+  }
+
+  void CanonicalizeEmbeddedBuiltinsConstantIfNeeded(Handle<HeapObject> object) {
+    Isolate* isolate = __ data() -> isolate();
+    if (!isolate) return;
+    if (!isolate->IsGeneratingEmbeddedBuiltins()) return;
+    CanonicalizeEmbeddedBuiltinsConstantIfNeededImpl(isolate, object);
+  }
+
+  // These methods are used by the assembler macros (BIND, BIND_LOOP, GOTO,
+  // GOTO_IF).
+  template <typename L>
+  auto ControlFlowHelper_Bind(
+      L& label, SourceLocation bind_location = SourceLocation::CurrentIfDebug())
+      -> base::prepend_tuple_type<bool, typename L::values_t> {
+    // LoopLabels need to be bound with `BIND_LOOP` instead of `BIND`.
+    static_assert(!L::is_loop);
+    return label.Bind(Asm(), bind_location);
+  }
+
+  template <typename L>
+  auto ControlFlowHelper_BindLoop(
+      L& label, SourceLocation bind_location = SourceLocation::CurrentIfDebug())
+      -> base::prepend_tuple_type<bool, typename L::values_t> {
+    // Only LoopLabels can be bound with `BIND_LOOP`. Otherwise use `BIND`.
+    static_assert(L::is_loop);
+    return label.BindLoop(Asm(), bind_location);
+  }
+
+  template <typename L>
+  void ControlFlowHelper_EndLoop(L& label) {
+    static_assert(L::is_loop);
+    label.EndLoop(Asm());
+  }
+
+  template <ForeachIterable<assembler_t> It>
+  auto ControlFlowHelper_Foreach(It iterable) {
+    // We need to take ownership over the `iterable` instance as we need to make
+    // sure that the `ControlFlowHelper_Foreach` and
+    // `ControlFlowHelper_EndForeachLoop` functions operate on the same object.
+    // This can potentially involve copying the `iterable` if it is not moved to
+    // the `FOREACH` macro. `ForeachIterable`s should be cheap to copy and they
+    // MUST NOT emit any code in their constructors/destructors.
+#ifdef DEBUG
+    OpIndex next_index = Asm().output_graph().next_operation_index();
+    {
+      It temp_copy = iterable;
+      USE(temp_copy);
+    }
+    // Make sure we have not emitted any operations.
+    DCHECK_EQ(next_index, Asm().output_graph().next_operation_index());
+#endif
+
+    LoopLabelFor<typename It::iterator_type> loop_header(this);
+    Label<> loop_exit(this);
+
+    typename It::iterator_type begin = iterable.Begin(Asm());
+
+    ControlFlowHelper_Goto(loop_header, {begin});
+
+    auto bound_and_current_iterator = loop_header.BindLoop(Asm());
+    auto [bound] = base::tuple_head<1>(bound_and_current_iterator);
+    auto current_iterator = detail::unwrap_unary_tuple(
+        base::tuple_drop<1>(bound_and_current_iterator));
+    OptionalV<Word32> is_end = iterable.IsEnd(Asm(), current_iterator);
+    if (is_end.has_value()) {
+      ControlFlowHelper_GotoIf(is_end.value(), loop_exit, {});
+    }
+
+    typename It::value_type current_value =
+        iterable.Dereference(Asm(), current_iterator);
+
+    return detail::BuildResultTuple(
+        bound, std::move(iterable), std::move(loop_header),
+        std::move(loop_exit), current_iterator, current_value);
+  }
+
+  template <ForeachIterable<assembler_t> It>
+  void ControlFlowHelper_EndForeachLoop(
+      It iterable, LoopLabelFor<typename It::iterator_type>& header_label,
+      Label<>& exit_label, typename It::iterator_type current_iterator) {
+    typename It::iterator_type next_iterator =
+        iterable.Advance(Asm(), current_iterator);
+    ControlFlowHelper_Goto(header_label, {next_iterator});
+    ControlFlowHelper_EndLoop(header_label);
+    ControlFlowHelper_Bind(exit_label);
+  }
+
+  std::tuple<bool, LoopLabel<>, Label<>> ControlFlowHelper_While(
+      std::function<V<Word32>()> cond_builder) {
+    LoopLabel<> loop_header(this);
+    Label<> loop_exit(this);
+
+    ControlFlowHelper_Goto(loop_header, {});
+
+    auto [bound] = loop_header.BindLoop(Asm());
+    V<Word32> cond = cond_builder();
+    ControlFlowHelper_GotoIfNot(cond, loop_exit, {});
+
+    return std::make_tuple(bound, std::move(loop_header), std::move(loop_exit));
+  }
+
+  template <typename L1, typename L2>
+  void ControlFlowHelper_EndWhileLoop(L1& header_label, L2& exit_label) {
+    static_assert(L1::is_loop);
+    static_assert(!L2::is_loop);
+    ControlFlowHelper_Goto(header_label, {});
+    ControlFlowHelper_EndLoop(header_label);
+    ControlFlowHelper_Bind(exit_label);
+  }
+
+  template <typename L>
+  void ControlFlowHelper_Goto(L& label,
+                              const typename L::const_or_values_t& values) {
+    auto resolved_values = detail::ResolveAll(Asm(), values);
+    label.Goto(Asm(), resolved_values);
+  }
+
+  template <typename L>
+  void ControlFlowHelper_GotoIf(ConditionWithHint condition, L& label,
+                                const typename L::const_or_values_t& values) {
+    auto resolved_values = detail::ResolveAll(Asm(), values);
+    label.GotoIf(Asm(), condition.condition(), condition.hint(),
+                 resolved_values);
+  }
+
+  template <typename L>
+  void ControlFlowHelper_GotoIfNot(
+      ConditionWithHint condition, L& label,
+      const typename L::const_or_values_t& values) {
+    auto resolved_values = detail::ResolveAll(Asm(), values);
+    label.GotoIfNot(Asm(), condition.condition(), condition.hint(),
+                    resolved_values);
+  }
+
+  struct ControlFlowHelper_IfState {
+    block_t* else_block;
+    block_t* end_block;
+  };
+
+  bool ControlFlowHelper_BindIf(ConditionWithHint condition,
+                                ControlFlowHelper_IfState* state) {
+    block_t* then_block = Asm().NewBlock();
+    state->else_block = Asm().NewBlock();
+    state->end_block = Asm().NewBlock();
+    Asm().Branch(condition, then_block, state->else_block);
+    return Asm().Bind(then_block);
+  }
+
+  bool ControlFlowHelper_BindIfNot(ConditionWithHint condition,
+                                   ControlFlowHelper_IfState* state) {
+    block_t* then_block = Asm().NewBlock();
+    state->else_block = Asm().NewBlock();
+    state->end_block = Asm().NewBlock();
+    Asm().Branch(condition, state->else_block, then_block);
+    return Asm().Bind(then_block);
+  }
+
+  bool ControlFlowHelper_BindElse(ControlFlowHelper_IfState* state) {
+    block_t* else_block = state->else_block;
+    state->else_block = nullptr;
+    return Asm().Bind(else_block);
+  }
+
+  void ControlFlowHelper_FinishIfBlock(ControlFlowHelper_IfState* state) {
+    if (Asm().current_block() == nullptr) return;
+    Asm().Goto(state->end_block);
+  }
+
+  void ControlFlowHelper_EndIf(ControlFlowHelper_IfState* state) {
+    if (state->else_block) {
+      if (Asm().Bind(state->else_block)) {
+        Asm().Goto(state->end_block);
+      }
+    }
+    Asm().Bind(state->end_block);
+  }
 
  private:
 #ifdef DEBUG
-#define REDUCE_OP(Op)                                                    \
-  template <class... Args>                                               \
-  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                \
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {        \
-      DCHECK(Asm().conceptually_in_a_block());                           \
-      return OpIndex::Invalid();                                         \
-    }                                                                    \
-    OpIndex result = Asm().Reduce##Op(args...);                          \
-    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                   \
-      if (Asm().current_block() == nullptr) {                            \
-        /* The input operation was not a block terminator, but a reducer \
-         * lowered it into a block terminator. */                        \
-        Asm().set_conceptually_in_a_block(true);                         \
-      }                                                                  \
-    }                                                                    \
-    return result;                                                       \
+#define REDUCE_OP(Op)                                                        \
+  template <class... Args>                                                   \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                    \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {            \
+      if (V8_UNLIKELY(!Asm().conceptually_in_a_block())) {                   \
+        const auto location = SourceLocation::Current();                     \
+        V8_Fatal(location.FileName(), static_cast<int>(location.Line()),     \
+                 "TSA: Trying to emit an operation while no Block/Label is " \
+                 "bound. Most likely you are missing to Bind/BIND a new "    \
+                 "Block/Label after an unconditional jump.");                \
+      }                                                                      \
+      return OpIndex::Invalid();                                             \
+    }                                                                        \
+    OpIndex result = Asm().Reduce##Op(args...);                              \
+    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                       \
+      if (Asm().current_block() == nullptr) {                                \
+        /* The input operation was not a block terminator, but a reducer     \
+         * lowered it into a block terminator. */                            \
+        Asm().set_conceptually_in_a_block(true);                             \
+      }                                                                      \
+    }                                                                        \
+    return result;                                                           \
   }
 #else
-#define REDUCE_OP(Op)                                             \
-  template <class... Args>                                        \
-  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {         \
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) { \
-      return OpIndex::Invalid();                                  \
-    }                                                             \
-    return Asm().Reduce##Op(args...);                             \
+#define REDUCE_OP(Op)                                                        \
+  template <class... Args>                                                   \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                    \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {            \
+      return OpIndex::Invalid();                                             \
+    }                                                                        \
+    /* With an empty reducer stack, `Asm().Reduce##Op` will just create a */ \
+    /* new `Op` operation (defined in operations.h). To figure out where  */ \
+    /* this operation is lowered or optimized (if anywhere), search for   */ \
+    /* `REDUCE(<your operation>)`. Then, to know when this lowering       */ \
+    /* actually happens, search for phases that are instantiated with     */ \
+    /* that reducer. You can also look in operation.h where the opcode is */ \
+    /* declared: operations declared in                                   */ \
+    /* TURBOSHAFT_SIMPLIFIED_OPERATION_LIST are typically lowered in      */ \
+    /* machine-lowering-reducer-inl.h, and operations in                  */ \
+    /* TURBOSHAFT_MACHINE_OPERATION_LIST are typically not lowered before */ \
+    /* reaching instruction-selector.h.                                   */ \
+    return Asm().Reduce##Op(args...);                                        \
   }
 #endif
   TURBOSHAFT_OPERATION_LIST(REDUCE_OP)
@@ -5234,18 +5655,28 @@ struct AssemblerData {
   Graph& output_graph;
 };
 
-template <class Reducers>
+template <template <typename> typename... Reducers>
 class Assembler : public AssemblerData,
-                  public reducer_stack_type<Reducers>::type {
-  using Stack = typename reducer_stack_type<Reducers>::type;
-  using node_t = typename Stack::node_t;
+                  public ReducerStack<Assembler<Reducers...>, Reducers...> {
+  using Stack = ReducerStack<Assembler<Reducers...>, Reducers...>;
 
  public:
   explicit Assembler(PipelineData* data, Graph& input_graph,
                      Graph& output_graph, Zone* phase_zone)
       : AssemblerData(data, input_graph, output_graph, phase_zone), Stack() {
     SupportedOperations::Initialize();
+#ifdef DEBUG
+    DCHECK_NULL(detail::current_assembler_block);
+    detail::current_assembler_block = &this->current_block_;
+#endif
   }
+
+#ifdef DEBUG
+  ~Assembler() {
+    DCHECK_EQ(detail::current_assembler_block, &this->current_block_);
+    detail::current_assembler_block = nullptr;
+  }
+#endif
 
   using Stack::Asm;
 
@@ -5262,13 +5693,40 @@ class Assembler : public AssemblerData,
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
   Block* NewBlock() { return this->output_graph().NewBlock(); }
 
-  V8_INLINE bool Bind(Block* block) {
+// This condition is true for any compiler except GCC.
+#if defined(__clang__) || !defined(V8_CC_GNU)
+  V8_INLINE
+#endif
+  bool Bind(Block* block,
+            SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
 #ifdef DEBUG
     set_conceptually_in_a_block(true);
 #endif
+
+    if (block->IsLoop() && block->single_loop_predecessor()) {
+      // {block} is a loop header that had multiple incoming forward edges, and
+      // for which we've created a "single_predecessor" block. We bind it now,
+      // and insert a single Goto to the original loop header.
+      BindReachable(block->single_loop_predecessor());
+      // We need to go through a raw Emit because calling this->Goto would go
+      // through AddPredecessor and SplitEdge, which would wrongly try to
+      // prevent adding more predecessors to the loop header.
+      this->template Emit<GotoOp>(block, /*is_backedge*/ false);
+    }
+
     if (!this->output_graph().Add(block)) {
       return false;
     }
+#ifdef DEBUG
+    // Did you forget to terminate the previous block?
+    if (V8_UNLIKELY(current_block_ != nullptr)) {
+      V8_Fatal(
+          bind_location.FileName(), static_cast<int>(bind_location.Line()),
+          "TSA: Cannot bind a new Block/Label without terminating the previous "
+          "block. Most likely you are missing an unconditional Goto/GOTO.");
+    }
+#endif
+
     DCHECK_NULL(current_block_);
     current_block_ = block;
     Stack::Bind(block);
@@ -5318,9 +5776,36 @@ class Assembler : public AssemblerData,
   // this is sometimes impractical.
   void set_current_catch_block(Block* block) { current_catch_block_ = block; }
 
+  base::Vector<EffectHandler> effect_handlers_for_next_call() const {
+    return effect_handlers_for_next_call_;
+  }
+  void set_effect_handlers_for_next_call(base::Vector<EffectHandler> handlers) {
+    effect_handlers_for_next_call_ = handlers;
+  }
+  void clear_effect_handlers() { effect_handlers_for_next_call_ = {}; }
+
 #ifdef DEBUG
   int& intermediate_tracing_depth() { return intermediate_tracing_depth_; }
 #endif
+
+  IsSmiDecision DecideObjectIsSmi(V<Object> og_index) {
+    return turboshaft::DecideObjectIsSmi(__ output_graph(), og_index);
+  }
+
+  // ReduceProjection eliminates projections to tuples and returns the
+  // corresponding tuple input instead. We do this at the top of the stack to
+  // avoid passing this Projection around needlessly. This is in particular
+  // important to ValueNumberingReducer, which assumes that it's at the bottom
+  // of the stack, and that the BaseReducer will actually emit an Operation. If
+  // we put this projection-to-tuple-simplification in the BaseReducer, then
+  // this assumption of the ValueNumberingReducer will break.
+  V<Any> ReduceProjection(V<Any> tuple, uint16_t index,
+                          RegisterRepresentation rep) {
+    if (auto* tuple_op = Asm().matcher().template TryCast<MakeTupleOp>(tuple)) {
+      return tuple_op->input(index);
+    }
+    return Stack::ReduceProjection(tuple, index, rep);
+  }
 
   // Adds {source} to the predecessors of {destination}.
   void AddPredecessor(Block* source, Block* destination, bool branch) {
@@ -5364,6 +5849,21 @@ class Assembler : public AssemblerData,
 
     DCHECK(destination->IsLoopOrMerge());
 
+    if (destination->IsLoop() && !destination->IsBound()) {
+      DCHECK(!branch);
+      DCHECK_EQ(destination->PredecessorCount(), 1);
+      // We are trying to add an additional forward edge to this loop, which is
+      // not allowed (all loops in Turboshaft should have exactly one incoming
+      // forward edge). Instead, we'll create a new predecessor for the loop,
+      // where all previous and future forward predecessors will be routed to.
+      Block* single_predecessor =
+          destination->single_loop_predecessor()
+              ? destination->single_loop_predecessor()
+              : CreateSinglePredecessorForLoop(destination);
+      AddLoopPredecessor(single_predecessor, source);
+      return;
+    }
+
     if (branch) {
       // A branch always goes to a BranchTarget. We thus split the edge: we'll
       // insert a new Block, to which {source} will branch, and which will
@@ -5383,6 +5883,45 @@ class Assembler : public AssemblerData,
 #ifdef DEBUG
     set_conceptually_in_a_block(false);
 #endif
+  }
+
+  Block* CreateSinglePredecessorForLoop(Block* loop_header) {
+    DCHECK(loop_header->IsLoop());
+    DCHECK(!loop_header->IsBound());
+    DCHECK_EQ(loop_header->PredecessorCount(), 1);
+
+    Block* old_predecessor = loop_header->LastPredecessor();
+    // Because we always split edges going to loop headers, we know that
+    // {predecessor} ends with a Goto.
+    GotoOp& old_predecessor_goto =
+        old_predecessor->LastOperation(this->output_graph())
+            .template Cast<GotoOp>();
+
+    Block* single_loop_predecessor = NewBlock();
+    single_loop_predecessor->SetKind(Block::Kind::kMerge);
+    single_loop_predecessor->SetOrigin(loop_header->OriginForLoopHeader());
+
+    // Re-routing the final Goto of {old_predecessor} to go to
+    // {single_predecessor} instead of {loop_header}.
+    single_loop_predecessor->AddPredecessor(old_predecessor);
+    old_predecessor_goto.destination = single_loop_predecessor;
+
+    // Resetting the predecessors of {loop_header}: it will now have a single
+    // predecessor, {old_predecessor}, which isn't bound yet. (and which will be
+    // bound automatically in Bind)
+    loop_header->ResetAllPredecessors();
+    loop_header->AddPredecessor(single_loop_predecessor);
+    loop_header->SetSingleLoopPredecessor(single_loop_predecessor);
+
+    return single_loop_predecessor;
+  }
+
+  void AddLoopPredecessor(Block* single_predecessor, Block* new_predecessor) {
+    GotoOp& new_predecessor_goto =
+        new_predecessor->LastOperation(this->output_graph())
+            .template Cast<GotoOp>();
+    new_predecessor_goto.destination = single_predecessor;
+    single_predecessor->AddPredecessor(new_predecessor);
   }
 
   // Insert a new Block between {source} and {destination}, in order to maintain
@@ -5426,12 +5965,27 @@ class Assembler : public AssemblerData,
           // can never be the same (there is a DCHECK in
           // CheckExceptionOp::Validate enforcing that).
           DCHECK_NE(catch_exception_op.catch_block, destination);
-        } else {
-          DCHECK_EQ(catch_exception_op.catch_block, destination);
+        } else if (catch_exception_op.catch_block == destination) {
           catch_exception_op.catch_block = intermediate_block;
           // A catch block always has to start with a `CatchBlockBeginOp`.
           BindReachable(intermediate_block);
           intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          this->CatchBlockBegin();
+          this->Goto(destination);
+          return;
+        } else {
+          auto handler =
+              std::find_if(catch_exception_op.effect_handlers.begin(),
+                           catch_exception_op.effect_handlers.end(),
+                           [destination](const EffectHandler& handler) {
+                             return handler.block == destination;
+                           });
+          DCHECK_NE(handler, catch_exception_op.effect_handlers.end());
+          handler->block = intermediate_block;
+          BindReachable(intermediate_block);
+          intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          // An effect handler block always has to start with a
+          // `CatchBlockBeginOp`.
           this->CatchBlockBegin();
           this->Goto(destination);
           return;
@@ -5537,8 +6091,10 @@ class Assembler : public AssemblerData,
   int intermediate_tracing_depth_ = 0;
 #endif
 
+  base::Vector<EffectHandler> effect_handlers_for_next_call_;
+
   template <class Next>
-  friend class TSReducerBase;
+  friend class GraphEmitter;
   template <class AssemblerT>
   friend class CatchScopeImpl;
 };
@@ -5572,17 +6128,8 @@ class CatchScopeImpl {
   Block* catch_block = nullptr;
 #endif
 
-  template <class Reducers>
+  template <template <typename> typename... Reducers>
   friend class Assembler;
-};
-
-template <template <class> class... Reducers>
-class TSAssembler
-    : public Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
-                                    TSReducerBase>> {
- public:
-  using Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
-                               TSReducerBase>>::Assembler;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

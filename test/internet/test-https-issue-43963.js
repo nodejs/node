@@ -18,7 +18,7 @@ server.on(
   }),
 );
 
-server.listen(0, () => {
+server.listen(0, common.mustCallAtLeast(() => {
   const req = https.request({
     hostname: '127.0.0.1',
     port: server.address().port,
@@ -28,4 +28,4 @@ server.listen(0, () => {
     common.mustCall(() => server.close()),
   );
   req.end();
-});
+}));

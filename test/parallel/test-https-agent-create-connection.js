@@ -19,7 +19,7 @@ const expectedHeader = /^HTTP\/1\.1 200 OK/;
 const expectedBody = /hello world\n/;
 const expectCertError = /^UNABLE_TO_VERIFY_LEAF_SIGNATURE$/;
 
-const checkRequest = (socket, server) => {
+function checkRequest(socket, server) {
   let result = '';
   socket.on('connect', common.mustCall((data) => {
     socket.write('GET / HTTP/1.1\r\nHost: example.com\r\n\r\n');

@@ -25,14 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --mock-arraybuffer-allocator
+// Flags: --allow-natives-syntax --mock-arraybuffer-allocator --external-memory-max-reasonable-size=0
 
 let kArrayBufferByteLengthLimit = %ArrayBufferMaxByteLength() + 1;
 
 function TestArray(constr, elementSize) {
   assertEquals(elementSize, constr.BYTES_PER_ELEMENT);
-  assertEquals(kArrayBufferByteLengthLimit % elementSize, 0);
-  let ta_limit = kArrayBufferByteLengthLimit / elementSize;
+  let ta_limit = Math.ceil(kArrayBufferByteLengthLimit / elementSize);
 
   assertThrows(() => new constr(ta_limit), RangeError);
 

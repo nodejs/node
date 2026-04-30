@@ -15,13 +15,17 @@
 #include "absl/functional/any_invocable.h"
 
 #include <cstddef>
+#include <cstdlib>
+#include <functional>
 #include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <type_traits>
 
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 
@@ -30,15 +34,6 @@ static_assert(absl::internal_any_invocable::kStorageSize >= sizeof(void*),
               "the size of a pointer.");
 
 namespace {
-
-// Helper macro used to avoid spelling `noexcept` in language versions older
-// than C++17, where it is not part of the type system, in order to avoid
-// compilation failures and internal compiler errors.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#define ABSL_INTERNAL_NOEXCEPT_SPEC(noex) noexcept(noex)
-#else
-#define ABSL_INTERNAL_NOEXCEPT_SPEC(noex)
-#endif
 
 // A dummy type we use when passing qualifiers to metafunctions
 struct _ {};
@@ -104,9 +99,6 @@ struct GiveQualifiersToFunImpl<T&&, R(P...)> {
       absl::conditional_t<std::is_const<T>::value, R(P...) const&&, R(P...) &&>;
 };
 
-// If noexcept is a part of the type system, then provide the noexcept forms.
-#if defined(__cpp_noexcept_function_type)
-
 template <class T, class R, class... P>
 struct GiveQualifiersToFunImpl<T, R(P...) noexcept> {
   using type = absl::conditional_t<std::is_const<T>::value,
@@ -126,8 +118,6 @@ struct GiveQualifiersToFunImpl<T&&, R(P...) noexcept> {
       absl::conditional_t<std::is_const<T>::value, R(P...) const && noexcept,
                           R(P...) && noexcept>;
 };
-
-#endif  // defined(__cpp_noexcept_function_type)
 
 template <class T, class Fun>
 using GiveQualifiersToFun = typename GiveQualifiersToFunImpl<T, Fun>::type;
@@ -200,7 +190,7 @@ struct add;
                 tail) {}                                                      \
     add(add&& other) = default; /*NOLINT*/                                    \
     Int operator()(int a, int b, int c) qual                                  \
-        ABSL_INTERNAL_NOEXCEPT_SPEC(CallExceptionSpec == NothrowCall::yes) {  \
+        noexcept(CallExceptionSpec == NothrowCall::yes) {                     \
       return state + a + b + c;                                               \
     }                                                                         \
     int state;                                                                \
@@ -218,7 +208,7 @@ struct add;
     ~add() noexcept {}                                                        \
     add(add&& other) = default; /*NOLINT*/                                    \
     Int operator()(int a, int b, int c) qual                                  \
-        ABSL_INTERNAL_NOEXCEPT_SPEC(CallExceptionSpec == NothrowCall::yes) {  \
+        noexcept(CallExceptionSpec == NothrowCall::yes) {                     \
       return state + a + b + c;                                               \
     }                                                                         \
     int state;                                                                \
@@ -322,8 +312,8 @@ struct TestParams {
   static constexpr ObjAlign kAlignment = Alignment;
 
   // These types are used when testing with member object pointer Invocables
-  using UnqualifiedUnaryFunType = int(Int const&&)
-      ABSL_INTERNAL_NOEXCEPT_SPEC(CallExceptionSpec == NothrowCall::yes);
+  using UnqualifiedUnaryFunType = int(Int const&&) noexcept(CallExceptionSpec ==
+                                                            NothrowCall::yes);
   using UnaryFunType = GiveQualifiersToFun<Qualifiers, UnqualifiedUnaryFunType>;
   using MemObjPtrType = int(Int::*);
   using UnaryAnyInvType = AnyInvocable<UnaryFunType>;
@@ -666,8 +656,8 @@ TYPED_TEST_P(AnyInvTestBasic, InPlaceVoidCovarianceConstruction) {
 TYPED_TEST_P(AnyInvTestBasic, MoveConstructionFromEmpty) {
   using AnyInvType = typename TypeParam::AnyInvType;
 
-  AnyInvType source_fun;
-  AnyInvType fun(std::move(source_fun));
+  absl_nullable AnyInvType source_fun;
+  absl_nullable AnyInvType fun(std::move(source_fun));
 
   EXPECT_FALSE(static_cast<bool>(fun));
 
@@ -1233,9 +1223,6 @@ class AnyInvTestNoexceptTrue : public ::testing::Test {};
 TYPED_TEST_SUITE_P(AnyInvTestNoexceptTrue);
 
 TYPED_TEST_P(AnyInvTestNoexceptTrue, ConversionConstructionConstraints) {
-#if ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-  GTEST_SKIP() << "Noexcept was not part of the type system before C++17.";
-#else
   using AnyInvType = typename TypeParam::AnyInvType;
 
   EXPECT_FALSE((std::is_constructible<
@@ -1244,13 +1231,9 @@ TYPED_TEST_P(AnyInvTestNoexceptTrue, ConversionConstructionConstraints) {
   EXPECT_FALSE((
       std::is_constructible<AnyInvType,
                             typename TypeParam::IncompatibleInvocable>::value));
-#endif
 }
 
 TYPED_TEST_P(AnyInvTestNoexceptTrue, ConversionAssignConstraints) {
-#if ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-  GTEST_SKIP() << "Noexcept was not part of the type system before C++17.";
-#else
   using AnyInvType = typename TypeParam::AnyInvType;
 
   EXPECT_FALSE((std::is_assignable<
@@ -1259,7 +1242,6 @@ TYPED_TEST_P(AnyInvTestNoexceptTrue, ConversionAssignConstraints) {
   EXPECT_FALSE(
       (std::is_assignable<AnyInvType&,
                           typename TypeParam::IncompatibleInvocable>::value));
-#endif
 }
 
 template <class T>
@@ -1283,9 +1265,6 @@ TYPED_TEST_P(AnyInvTestNonRvalue, ConversionConstructionReferenceWrapper) {
 }
 
 TYPED_TEST_P(AnyInvTestNonRvalue, NonMoveableResultType) {
-#if ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-  GTEST_SKIP() << "Copy/move elision was not standard before C++17";
-#else
   // Define a result type that cannot be copy- or move-constructed.
   struct Result {
     int x;
@@ -1312,7 +1291,6 @@ TYPED_TEST_P(AnyInvTestNonRvalue, NonMoveableResultType) {
 
   AnyInvocable<Fun> any_inv(return_17);
   EXPECT_EQ(17, any_inv().x);
-#endif
 }
 
 TYPED_TEST_P(AnyInvTestNonRvalue, ConversionAssignReferenceWrapperEmptyLhs) {
@@ -1367,9 +1345,6 @@ TYPED_TEST_P(AnyInvTestRvalue, ConversionConstructionReferenceWrapper) {
 }
 
 TYPED_TEST_P(AnyInvTestRvalue, NonMoveableResultType) {
-#if ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-  GTEST_SKIP() << "Copy/move elision was not standard before C++17";
-#else
   // Define a result type that cannot be copy- or move-constructed.
   struct Result {
     int x;
@@ -1395,7 +1370,6 @@ TYPED_TEST_P(AnyInvTestRvalue, NonMoveableResultType) {
       GiveQualifiersToFun<typename TypeParam::Qualifiers, UnqualifiedFun>;
 
   EXPECT_EQ(17, AnyInvocable<Fun>(return_17)().x);
-#endif
 }
 
 TYPED_TEST_P(AnyInvTestRvalue, ConversionAssignReferenceWrapper) {
@@ -1507,9 +1481,6 @@ using TestParameterListRemoteMovable = ::testing::Types<
     TestParams<Movable::yes, Destructible::nothrow, _, NothrowCall::no,
                ObjSize::large, ObjAlign::normal>  //
 
-// Dynamic memory allocation for over-aligned data was introduced in C++17.
-// See https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0035r4.html
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
     // Types that must use remote storage because of a large alignment.
     ,
     TestParams<Movable::trivial, Destructible::trivial, _, NothrowCall::no,
@@ -1520,7 +1491,6 @@ using TestParameterListRemoteMovable = ::testing::Types<
                ObjSize::small, ObjAlign::large>,  //
     TestParams<Movable::nothrow, Destructible::nothrow, _, NothrowCall::no,
                ObjSize::small, ObjAlign::large>  //
-#endif
     >;
 using TestParameterListRemoteNonMovable = ::testing::Types<
     // "Normal" aligned types that are large and have trivial destructors
@@ -1713,7 +1683,5 @@ static_assert(
     std::is_convertible<void (*)(), absl::AnyInvocable<void() &&>>::value, "");
 static_assert(!std::is_convertible<void*, absl::AnyInvocable<void() &&>>::value,
               "");
-
-#undef ABSL_INTERNAL_NOEXCEPT_SPEC
 
 }  // namespace

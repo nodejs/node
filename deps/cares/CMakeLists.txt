@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.34.5" )
+PROJECT (c-ares LANGUAGES C VERSION "1.34.6" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "21:4:19")
+SET (CARES_LIB_VERSIONINFO "21:5:19")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -44,15 +44,6 @@ OPTION (CARES_SYMBOL_HIDING "Hide private symbols in shared libraries"          
 OPTION (CARES_THREADS       "Build with thread-safety support"                                      ON)
 OPTION (CARES_COVERAGE      "Build for code coverage"                                               OFF)
 SET    (CARES_RANDOM_FILE "/dev/urandom" CACHE STRING "Suitable File / Device Path for entropy, such as /dev/urandom")
-
-
-# Tests require a C++14 compiler
-IF (CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS)
-	set(CMAKE_CXX_STANDARD 14)
-	set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-	set(CMAKE_CXX_EXTENSIONS FALSE)
-	enable_language(CXX)
-ENDIF ()
 
 # Tests require static to be enabled on Windows to be able to access otherwise hidden symbols
 IF ((CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS) AND (NOT CARES_STATIC) AND WIN32)
@@ -269,7 +260,7 @@ ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 	LIST (APPEND SYSFLAGS -D__EXTENSIONS__ -D_REENTRANT -D_XOPEN_SOURCE=600)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "AIX")
 	LIST (APPEND SYSFLAGS -D_ALL_SOURCE -D_XOPEN_SOURCE=700 -D_USE_IRS)
-ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "MidnightBSD")
 	# Don't define _XOPEN_SOURCE on FreeBSD, it actually reduces visibility instead of increasing it
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "QNX")
 	LIST (APPEND SYSFLAGS -D_QNX_SOURCE)
@@ -630,6 +621,7 @@ IF (HAVE_GETADDRINFO)
 		CMAKE_SYSTEM_NAME STREQUAL "NetBSD" OR
 		CMAKE_SYSTEM_NAME STREQUAL "SunOS" OR
 		CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR
+		CMAKE_SYSTEM_NAME STREQUAL "MidnightBSD" OR
 		CMAKE_SYSTEM_NAME STREQUAL "AIX" OR
 		WIN32)
 			SET (HAVE_GETADDRINFO_THREADSAFE 1)

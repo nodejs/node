@@ -219,6 +219,7 @@ long int process_output_size(process_info_t *p) {
 
 int process_copy_output(process_info_t* p, FILE* stream) {
   char buf[1024];
+  int partial;
   int fd, r;
 
   fd = _open_osfhandle((intptr_t)p->stdio_out, _O_RDONLY | _O_TEXT);
@@ -229,8 +230,9 @@ int process_copy_output(process_info_t* p, FILE* stream) {
   if (r < 0)
     return -1;
 
+  partial = 0;
   while ((r = _read(fd, buf, sizeof(buf))) != 0)
-    print_lines(buf, r, stream);
+    partial = print_lines(buf, r, stream, partial);
 
   _close(fd);
   return 0;
@@ -338,7 +340,7 @@ static int clear_line(void) {
 }
 
 
-void rewind_cursor() {
+void rewind_cursor(void) {
   if (clear_line() == -1) {
     /* If clear_line fails (stdout is not a console), print a newline. */
     fprintf(stderr, "\n");

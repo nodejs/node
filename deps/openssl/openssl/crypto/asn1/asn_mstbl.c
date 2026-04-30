@@ -96,21 +96,21 @@ static int do_tcreate(const char *value, const char *name)
             goto err;
     }
     rv = 1;
- err:
+err:
     if (rv == 0) {
         if (cnf)
             ERR_raise_data(ERR_LIB_ASN1, ASN1_R_INVALID_STRING_TABLE_VALUE,
-                           "field=%s, value=%s", cnf->name,
-                                                 cnf->value != NULL ? cnf->value
-                                                 : value);
+                "field=%s, value=%s", cnf->name,
+                cnf->value != NULL ? cnf->value
+                                   : value);
         else
             ERR_raise_data(ERR_LIB_ASN1, ASN1_R_INVALID_STRING_TABLE_VALUE,
-                           "name=%s, value=%s", name, value);
+                "name=%s, value=%s", name, value);
     } else {
         rv = ASN1_STRING_TABLE_add(nid, tbl_min, tbl_max,
-                                   tbl_mask, tbl_flags);
+            tbl_mask, tbl_flags);
         if (!rv)
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
     }
     sk_CONF_VALUE_pop_free(lst, X509V3_conf_free);
     return rv;

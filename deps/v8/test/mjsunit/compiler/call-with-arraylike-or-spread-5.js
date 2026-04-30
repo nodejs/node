@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
-// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
@@ -28,7 +27,11 @@
     },
   });
 
-  var log_got_interpreted = true;
+  // This will be allocated in a const ContextCell.
+  var log_got_interpreted = null;
+  // Ensures that we break the context cell and avoid log to compile it
+  // as a constant.
+  log_got_interpreted = true;
 
   function log(a) {
     assertEquals(1, arguments.length);

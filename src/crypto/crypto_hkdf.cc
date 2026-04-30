@@ -57,7 +57,7 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   Utf8Value hash(env->isolate(), args[offset]);
   params->digest = Digest::FromName(*hash);
   if (!params->digest) [[unlikely]] {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", hash);
     return Nothing<void>();
   }
 
@@ -97,10 +97,11 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HKDFTraits::DeriveBits(
-    Environment* env,
-    const HKDFConfig& params,
-    ByteSource* out) {
+bool HKDFTraits::DeriveBits(Environment* env,
+                            const HKDFConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   auto dp = ncrypto::hkdf(params.digest,
                           ncrypto::Buffer<const unsigned char>{
                               .data = reinterpret_cast<const unsigned char*>(
@@ -116,7 +117,10 @@ bool HKDFTraits::DeriveBits(
                               .len = params.salt.size(),
                           },
                           params.length);
-  if (!dp) return false;
+  if (!dp) {
+    errors->Insert(NodeCryptoError::HKDF_FAILED);
+    return false;
+  }
 
   DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());

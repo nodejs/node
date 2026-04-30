@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-const { strictEqual } = require('node:assert');
+const assert = require('node:assert');
 const test = require('node:test');
 
-strictEqual(test.test, test);
-strictEqual(test.it, test);
-strictEqual(test.describe, test.suite);
+assert.strictEqual(test.test, test);
+assert.strictEqual(test.it, test);
+assert.strictEqual(test.describe, test.suite);

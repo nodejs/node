@@ -1,1 +1,1 @@
-export const dirname = import.meta.dirname;
+export default () => import.meta.dirname;

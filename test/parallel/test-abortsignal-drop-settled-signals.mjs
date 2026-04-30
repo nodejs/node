@@ -1,6 +1,6 @@
 // Flags: --expose_gc
 //
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { gcUntil } from '../common/gc.js';
 import { describe, it } from 'node:test';
 
@@ -23,7 +23,9 @@ function makeSubsequentCalls(limit, done, holdReferences = false) {
     }
 
     if (holdReferences) {
-      retainedSignals.push(AbortSignal.any([ac.signal]));
+      const signal = AbortSignal.any([ac.signal]);
+      signal.addEventListener('abort', handler);
+      retainedSignals.push(signal);
     } else {
       // Using a WeakRef to avoid retaining information that will interfere with the test
       signalRef = new WeakRef(AbortSignal.any([ac.signal]));
@@ -103,21 +105,42 @@ function runWithOrphanListeners(limit, done) {
 const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
-  it('drops settled dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
+  it('drops settled dependent signals', (t, done) => {
+    makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
       setImmediate(() => {
-        t.assert.strictEqual(signal[depandantSignalsKey].size, 0);
+        t.assert.strictEqual(signal[dependantSignalsKey].size, 0);
         done();
       });
     });
   });
 
-  it('keeps all active dependant signals', (t, done) => {
-    makeSubsequentCalls(limit, (signal, depandantSignalsKey) => {
-      t.assert.strictEqual(signal[depandantSignalsKey].size, limit);
+  it('keeps all active dependent signals', (t, done) => {
+    makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
+      t.assert.strictEqual(signal[dependantSignalsKey].size, limit);
 
       done();
     }, true);
+  });
+
+  it('does not keep retained dependent signals without listeners', (t, done) => {
+    const ac = new AbortController();
+    const retainedSignals = [];
+    const kDependantSignals = Object.getOwnPropertySymbols(ac.signal).find(
+      (s) => s.toString() === 'Symbol(kDependantSignals)'
+    );
+
+    function run(iteration) {
+      if (iteration > limit) {
+        t.assert.strictEqual(ac.signal[kDependantSignals]?.size ?? 0, 0);
+        done();
+        return;
+      }
+
+      retainedSignals.push(AbortSignal.any([ac.signal]));
+      setImmediate(() => run(iteration + 1));
+    }
+
+    run(1);
   });
 });
 
@@ -132,12 +155,15 @@ it('does not prevent source signal from being GCed if it is short-lived', (t, do
   });
 });
 
-it('drops settled dependant signals when signal is composite', (t, done) => {
+it('drops settled dependent signals when signal is composite', (t, done) => {
   const controllers = Array.from({ length: 2 }, () => new AbortController());
+  const handler = () => {};
 
   // Using WeakRefs to avoid this test to retain information that will make the test fail
   const composedSignal1 = new WeakRef(AbortSignal.any([controllers[0].signal]));
   const composedSignalRef = new WeakRef(AbortSignal.any([composedSignal1.deref(), controllers[1].signal]));
+  composedSignal1.deref().addEventListener('abort', handler);
+  composedSignalRef.deref().addEventListener('abort', handler);
 
   const kDependantSignals = Object.getOwnPropertySymbols(controllers[0].signal).find(
     (s) => s.toString() === 'Symbol(kDependantSignals)'
@@ -146,7 +172,10 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
   t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 2);
   t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 1);
 
-  setImmediate(() => {
+  setImmediate(mustCall(() => {
+    composedSignal1.deref()?.removeEventListener('abort', handler);
+    composedSignalRef.deref()?.removeEventListener('abort', handler);
+
     globalThis.gc({ execution: 'async' }).then(async () => {
       await gcUntil('all signals are GCed', () => {
         const totalDependantSignals = Math.max(
@@ -158,8 +187,8 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
       });
 
       done();
-    });
-  });
+    }).then(mustCall());
+  }));
 });
 
 it('drops settled signals even when there are listeners', (t, done) => {

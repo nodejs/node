@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
@@ -38,17 +38,17 @@ class MyWritable extends stream.Writable {
 }
 
 (function defaultCondingIsUtf8() {
-  const m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert.strictEqual(enc, 'utf8');
-  }, { decodeStrings: false });
+  }), { decodeStrings: false });
   m.write('foo');
   m.end();
 }());
 
 (function changeDefaultEncodingToAscii() {
-  const m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert.strictEqual(enc, 'ascii');
-  }, { decodeStrings: false });
+  }), { decodeStrings: false });
   m.setDefaultEncoding('ascii');
   m.write('bar');
   m.end();
@@ -69,9 +69,9 @@ assert.throws(() => {
 });
 
 (function checkVariableCaseEncoding() {
-  const m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(common.mustCall((isBuffer, type, enc) => {
     assert.strictEqual(enc, 'ascii');
-  }, { decodeStrings: false });
+  }), { decodeStrings: false });
   m.setDefaultEncoding('AsCii');
   m.write('bar');
   m.end();

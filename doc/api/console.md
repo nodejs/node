@@ -102,6 +102,9 @@ const { Console } = console;
 
 <!-- YAML
 changes:
+  - version: v24.10.0
+    pr-url: https://github.com/nodejs/node/pull/60082
+    description: The `inspectOptions` option can be a `Map` from stream to options.
   - version:
      - v14.2.0
      - v12.17.0
@@ -131,8 +134,9 @@ changes:
     and the value returned by `getColorDepth()` on the respective stream. This
     option can not be used, if `inspectOptions.colors` is set as well.
     **Default:** `'auto'`.
-  * `inspectOptions` {Object} Specifies options that are passed along to
-    [`util.inspect()`][].
+  * `inspectOptions` {Object|Map} Specifies options that are passed along to
+    [`util.inspect()`][]. Can be an options object or, if different options
+    for stdout and stderr are desired, a `Map` from stream objects to options.
   * `groupIndentation` {number} Set group indentation.
     **Default:** `2`.
 

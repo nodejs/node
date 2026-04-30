@@ -2,7 +2,7 @@
 
 const { parseSetCookie } = require('./parse')
 const { stringify } = require('./util')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { Headers } = require('../fetch/headers')
 
 const brandChecks = webidl.brandCheckMultiple([Headers, globalThis.Headers].filter(Boolean))
@@ -186,7 +186,7 @@ webidl.converters.Cookie = webidl.dictionaryConverter([
   {
     converter: webidl.sequenceConverter(webidl.converters.DOMString),
     key: 'unparsed',
-    defaultValue: () => new Array(0)
+    defaultValue: () => []
   }
 ])
 

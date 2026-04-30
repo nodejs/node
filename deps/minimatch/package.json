@@ -2,10 +2,10 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "name": "minimatch",
   "description": "a glob matcher in javascript",
-  "version": "10.0.1",
+  "version": "10.2.5",
   "repository": {
     "type": "git",
-    "url": "git://github.com/isaacs/minimatch.git"
+    "url": "git@github.com:isaacs/minimatch"
   },
   "main": "./dist/commonjs/index.js",
   "types": "./dist/commonjs/index.d.ts",
@@ -34,49 +34,42 @@
     "presnap": "npm run prepare",
     "test": "tap",
     "snap": "tap",
-    "format": "prettier --write . --loglevel warn",
+    "format": "prettier --write .",
     "benchmark": "node benchmark/index.js",
-    "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts",
+    "typedoc": "typedoc --tsconfig .tshy/esm.json ./src/*.ts",
+    "lint": "oxlint --fix src test",
+    "postsnap": "npm run lint",
+    "postlint": "npm run format",
     "node-build": "esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
   },
-  "prettier": {
-    "semi": false,
-    "printWidth": 80,
-    "tabWidth": 2,
-    "useTabs": false,
-    "singleQuote": true,
-    "jsxSingleQuote": false,
-    "bracketSameLine": true,
-    "arrowParens": "avoid",
-    "endOfLine": "lf"
-  },
   "engines": {
-    "node": "20 || >=22"
-  },
-  "dependencies": {
-    "brace-expansion": "^2.0.1"
+    "node": "18 || 20 || >=22"
   },
   "devDependencies": {
-    "@types/brace-expansion": "^1.1.2",
-    "@types/node": "^20.14.10",
-    "esbuild": "^0.23.0",
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.28.0",
     "mkdirp": "^3.0.1",
-    "prettier": "^3.3.2",
-    "tap": "^20.0.3",
-    "tshy": "^2.0.1",
-    "typedoc": "^0.26.3",
-    "typescript": "^5.5.3"
+    "oxlint": "^1.57.0",
+    "oxlint-tsgolint": "^0.18.1",
+    "prettier": "^3.8.1",
+    "tap": "^21.6.2",
+    "tshy": "^4.0.0",
+    "typedoc": "^0.28.18"
   },
   "funding": {
     "url": "https://github.com/sponsors/isaacs"
   },
-  "license": "ISC",
+  "license": "BlueOak-1.0.0",
   "tshy": {
     "exports": {
       "./package.json": "./package.json",
       ".": "./src/index.ts"
-    }
+    },
+    "selfLink": false
   },
   "type": "module",
-  "module": "./dist/esm/index.js"
+  "module": "./dist/esm/index.js",
+  "dependencies": {
+    "brace-expansion": "^5.0.5"
+  }
 }

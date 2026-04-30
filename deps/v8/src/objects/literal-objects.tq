@@ -2,27 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ObjectBoilerplateDescription extends HeapObject {
-  const capacity: Smi;
+  const length: Smi;
   backing_store_size: Smi;
   flags: Smi;
-  raw_entries[capacity]: Object;
+  raw_entries[length]: Object;
 }
 
+@cppObjectLayoutDefinition
 extern class ArrayBoilerplateDescription extends Struct {
   flags: Smi;
   constant_elements: FixedArrayBase;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class RegExpBoilerplateDescription extends Struct {
   data: TrustedPointer<RegExpData>;
   source: String;
   flags: SmiTagged<JSRegExpFlags>;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ClassBoilerplate extends Struct {
   arguments_count: Smi;
   static_properties_template: Object;
@@ -31,4 +32,10 @@ extern class ClassBoilerplate extends Struct {
   instance_properties_template: Object;
   instance_elements_template: Object;
   instance_computed_properties: FixedArray;
+}
+
+extern class PrototypeSharedClosureInfo extends Struct {
+  boilerplate_description: ObjectBoilerplateDescription;
+  closure_feedback_cell_array: ClosureFeedbackCellArray;
+  context: Context;
 }

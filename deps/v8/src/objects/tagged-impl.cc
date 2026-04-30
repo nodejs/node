@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-impl-inl.h"
@@ -22,9 +23,17 @@ namespace internal {
 
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 bool CheckObjectComparisonAllowed(Address a, Address b) {
+  // LINT.IfChange(CheckObjectComparisonAllowed)
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
+
+  // This function may be called while a DisallowSandboxAccess scope is active
+  // when comparing pointers to in-sandbox objects (which is allowed even when
+  // sandbox access is forbidden). As it ends up reading in-sandbox data, we
+  // need to temporarily allow sandbox access here.
+  AllowSandboxAccess sandbox_access("Access for object comparison check");
+
   Tagged<HeapObject> obj_a = UncheckedCast<HeapObject>(Tagged<Object>(a));
   Tagged<HeapObject> obj_b = UncheckedCast<HeapObject>(Tagged<Object>(b));
   // This check might fail when we try to compare objects in different pointer
@@ -32,11 +41,14 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   // each other. The main legitimate case when such "mixed" comparison could
   // happen is comparing two AbstractCode objects. If that's the case one must
   // use AbstractCode's == operator instead of Object's one or SafeEquals().
-  CHECK_EQ(IsCodeSpaceObject(obj_a), IsCodeSpaceObject(obj_b));
+  CHECK_EQ(TrustedHeapLayout::InCodeSpace(obj_a),
+           TrustedHeapLayout::InCodeSpace(obj_b));
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_EQ(IsTrustedSpaceObject(obj_a), IsTrustedSpaceObject(obj_b));
+  CHECK_EQ(TrustedHeapLayout::InTrustedSpace(obj_a),
+           TrustedHeapLayout::InTrustedSpace(obj_b));
 #endif
   return true;
+  // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 

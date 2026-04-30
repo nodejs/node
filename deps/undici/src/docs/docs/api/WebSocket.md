@@ -11,11 +11,19 @@ Arguments:
 * **url** `URL | string`
 * **protocol** `string | string[] | WebSocketInit` (optional) - Subprotocol(s) to request the server use, or a [`Dispatcher`](/docs/docs/api/Dispatcher.md).
 
+### WebSocketInit
+
+When passing an object as the second argument, the following options are available:
+
+* **protocols** `string | string[]` (optional) - Subprotocol(s) to request the server use.
+* **dispatcher** `Dispatcher` (optional) - A custom [`Dispatcher`](/docs/docs/api/Dispatcher.md) to use for the connection.
+* **headers** `HeadersInit` (optional) - Custom headers to include in the WebSocket handshake request.
+
 ### Example:
 
 This example will not work in browsers or other platforms that don't allow passing an object.
 
-```mjs
+```js
 import { WebSocket, ProxyAgent } from 'undici'
 
 const proxyAgent = new ProxyAgent('my.proxy.server')
@@ -28,10 +36,31 @@ const ws = new WebSocket('wss://echo.websocket.events', {
 
 If you do not need a custom Dispatcher, it's recommended to use the following pattern:
 
-```mjs
+```js
 import { WebSocket } from 'undici'
 
 const ws = new WebSocket('wss://echo.websocket.events', ['echo', 'chat'])
+```
+
+### Example with HTTP/2:
+
+> ⚠️ Warning: WebSocket over HTTP/2 is experimental, it is likely to change in the future.
+
+> 🗒️ Note: WebSocket over HTTP/2 may be enabled by default in a future version,
+> this will happen by enabling HTTP/2 connections as the default behavior of Undici's Agent as well the global dispatcher.
+> Stay tuned to the changelog for more information.
+
+This example will not work in browsers or other platforms that don't allow passing an object.
+
+```js
+import { Agent } from 'undici'
+
+const agent = new Agent({ allowH2: true })
+
+const ws = new WebSocket('wss://echo.websocket.events', {
+  dispatcher: agent,
+  protocols: ['echo', 'chat']
+})
 ```
 
 # Class: WebSocketStream
@@ -77,6 +106,33 @@ read()
 setInterval(() => write(), 5000)
 
 ```
+
+## ping(websocket, payload)
+Arguments:
+
+* **websocket** `WebSocket` - The WebSocket instance to send the ping frame on
+* **payload** `Buffer|undefined` (optional) - Optional payload data to include with the ping frame. Must not exceed 125 bytes.
+
+Sends a ping frame to the WebSocket server. The server must respond with a pong frame containing the same payload data. This can be used for keepalive purposes or to verify that the connection is still active.
+
+### Example:
+
+```js
+import { WebSocket, ping } from 'undici'
+
+const ws = new WebSocket('wss://echo.websocket.events')
+
+ws.addEventListener('open', () => {
+  // Send ping with no payload
+  ping(ws)
+
+  // Send ping with payload
+  const payload = Buffer.from('hello')
+  ping(ws, payload)
+})
+```
+
+**Note**: A ping frame cannot have a payload larger than 125 bytes. The ping will only be sent if the WebSocket connection is in the OPEN state.
 
 ## Read More
 

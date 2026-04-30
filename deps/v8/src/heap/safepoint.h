@@ -6,6 +6,8 @@
 #define V8_HEAP_SAFEPOINT_H_
 
 #include <optional>
+#include <type_traits>
+#include <vector>
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -18,6 +20,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
+class IsolateSafepointScope;
 class LocalHeap;
 class PerClientSafepointData;
 class RootVisitor;
@@ -45,7 +48,14 @@ class IsolateSafepoint final {
 
   V8_EXPORT_PRIVATE void AssertMainThreadIsOnlyThread();
 
+  // This method ensures a safepoint for this Isolate but only if it can avoid a
+  // GC. This will always succeed without a shared heap but it might fail when a
+  // shared GC already locked this local_heaps_mutex_.
+  std::optional<IsolateSafepointScope> ReachSafepointWithoutTriggeringGC();
+
  private:
+  using RunningLocalHeaps = base::SmallVector<LocalHeap*, 4>;
+
   class Barrier {
     base::Mutex mutex_;
     base::ConditionVariable cv_resume_;
@@ -61,7 +71,8 @@ class IsolateSafepoint final {
 
     void Arm();
     void Disarm();
-    void WaitUntilRunningThreadsInSafepoint(size_t running);
+    void WaitUntilRunningThreadsInSafepoint(
+        const IsolateSafepoint::RunningLocalHeaps& running_threads);
 
     void WaitInSafepoint();
     void WaitInUnpark();
@@ -100,7 +111,9 @@ class IsolateSafepoint final {
 
   void LockMutex(LocalHeap* local_heap);
 
-  size_t SetSafepointRequestedFlags(IncludeMainThread include_main_thread);
+  void SetSafepointRequestedFlags(
+      IncludeMainThread include_main_thread,
+      IsolateSafepoint::RunningLocalHeaps& running_local_heaps);
   void ClearSafepointRequestedFlags(IncludeMainThread include_main_thread);
 
   template <typename Callback>
@@ -152,12 +165,19 @@ class IsolateSafepoint final {
   friend class Isolate;
   friend class IsolateSafepointScope;
   friend class LocalHeap;
+  friend class PerClientSafepointData;
 };
 
 class V8_NODISCARD IsolateSafepointScope {
  public:
   V8_EXPORT_PRIVATE explicit IsolateSafepointScope(Heap* heap);
   V8_EXPORT_PRIVATE ~IsolateSafepointScope();
+
+  IsolateSafepointScope(const IsolateSafepointScope& other) = delete;
+  IsolateSafepointScope(IsolateSafepointScope&& other) V8_NOEXCEPT;
+
+  IsolateSafepointScope& operator=(IsolateSafepointScope& other) = delete;
+  IsolateSafepointScope& operator=(IsolateSafepointScope&& other) = delete;
 
  private:
   IsolateSafepoint* safepoint_;
@@ -174,9 +194,11 @@ class GlobalSafepoint final {
 
   template <typename Callback>
   void IterateClientIsolates(Callback callback) {
+    AssertActive();
     for (Isolate* current = clients_head_; current;
          current = current->global_safepoint_next_client_isolate_) {
       DCHECK(!current->is_shared_space_isolate());
+      SetCurrentIsolateScope current_isolate_scope{current};
       callback(current);
     }
   }
@@ -219,11 +241,17 @@ class V8_NODISCARD GlobalSafepointScope {
 };
 
 enum class SafepointKind { kIsolate, kGlobal };
+struct GlobalSafepointForSharedSpaceIsolateTag {};
+
+static constexpr GlobalSafepointForSharedSpaceIsolateTag
+    kGlobalSafepointForSharedSpaceIsolate;
 
 class V8_NODISCARD SafepointScope {
  public:
   V8_EXPORT_PRIVATE explicit SafepointScope(Isolate* initiator,
                                             SafepointKind kind);
+  V8_EXPORT_PRIVATE explicit SafepointScope(
+      Isolate* initiator, GlobalSafepointForSharedSpaceIsolateTag);
 
  private:
   std::optional<IsolateSafepointScope> isolate_safepoint_;

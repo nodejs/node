@@ -40,7 +40,7 @@ await libexec({
   - `runPath`: Location to where to execute the script **String**, defaults to `.`
   - `scriptShell`: Default shell to be used **String**, defaults to `sh` on POSIX systems, `process.env.ComSpec` OR `cmd` on Windows
   - `yes`: Should skip download confirmation prompt when fetching missing packages from the registry? **Boolean**
-  - `registry`, `cache`, and more options that are forwarded to [@npmcli/arborist](https://github.com/npm/arborist/) and [pacote](https://github.com/npm/pacote/#options) **Object**
+  - `registry`, `cache`, and more options that are forwarded to [@npmcli/arborist](https://github.com/npm/cli/blob/latest/workspaces/arborist/README.md) and [pacote](https://github.com/npm/pacote/#options) **Object**
 
 ## LICENSE
 

@@ -5,9 +5,12 @@
 #ifndef V8_SANDBOX_TRUSTED_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_TRUSTED_POINTER_TABLE_INL_H_
 
+#include "src/sandbox/trusted-pointer-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/sandbox.h"
-#include "src/sandbox/trusted-pointer-table.h"
+#include "src/sandbox/trusted-pointer-scope.h"
 
 #ifdef V8_ENABLE_SANDBOX
 
@@ -17,24 +20,25 @@ namespace internal {
 void TrustedPointerTableEntry::MakeTrustedPointerEntry(Address pointer,
                                                        IndirectPointerTag tag,
                                                        bool mark_as_alive) {
-  auto payload = Payload::ForTrustedPointerEntry(pointer, tag);
+  auto payload = Payload(pointer, tag);
   if (mark_as_alive) payload.SetMarkBit();
   payload_.store(payload, std::memory_order_relaxed);
 }
 
 void TrustedPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
-  auto payload = Payload::ForFreelistEntry(next_entry_index);
+  auto payload = Payload(next_entry_index, kIndirectPointerFreeEntryTag);
   payload_.store(payload, std::memory_order_relaxed);
 }
 
 void TrustedPointerTableEntry::MakeZappedEntry() {
-  auto payload = Payload::ForZappedEntry();
+  auto payload = Payload(kNullAddress, kIndirectPointerZappedEntryTag);
   payload_.store(payload, std::memory_order_relaxed);
 }
 
-Address TrustedPointerTableEntry::GetPointer(IndirectPointerTag tag) const {
+Address TrustedPointerTableEntry::GetPointer(
+    IndirectPointerTagRange tag_range) const {
   DCHECK(!IsFreelistEntry());
-  return payload_.load(std::memory_order_relaxed).Untag(tag);
+  return payload_.load(std::memory_order_relaxed).Untag(tag_range);
 }
 
 void TrustedPointerTableEntry::SetPointer(Address pointer,
@@ -44,15 +48,31 @@ void TrustedPointerTableEntry::SetPointer(Address pointer,
   // ever changes, we'd need to check the marking state of the old entry and
   // set the marking state of the new entry accordingly.
   DCHECK(!payload_.load(std::memory_order_relaxed).HasMarkBitSet());
-  auto new_payload = Payload::ForTrustedPointerEntry(pointer, tag);
+  auto new_payload = Payload(pointer, tag);
   DCHECK(!new_payload.HasMarkBitSet());
   payload_.store(new_payload, std::memory_order_relaxed);
 }
 
-bool TrustedPointerTableEntry::HasPointer(IndirectPointerTag tag) const {
+bool TrustedPointerTableEntry::HasPointer(
+    IndirectPointerTagRange tag_range) const {
   auto payload = payload_.load(std::memory_order_relaxed);
   if (!payload.ContainsPointer()) return false;
-  return tag == kUnknownIndirectPointerTag || payload.IsTaggedWith(tag);
+  return payload.IsTaggedWithTagIn(tag_range);
+}
+
+void TrustedPointerTableEntry::Unpublish() {
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  auto new_payload = old_payload;
+  new_payload.SetTag(kUnpublishedIndirectPointerTag);
+  payload_.store(new_payload, std::memory_order_relaxed);
+}
+
+void TrustedPointerTableEntry::Publish(IndirectPointerTag tag) {
+  auto old_payload = payload_.load(std::memory_order_relaxed);
+  CHECK(old_payload.IsTaggedWith(kUnpublishedIndirectPointerTag));
+  auto new_payload = old_payload;
+  new_payload.SetTag(tag);
+  payload_.store(new_payload, std::memory_order_relaxed);
 }
 
 bool TrustedPointerTableEntry::IsFreelistEntry() const {
@@ -60,7 +80,8 @@ bool TrustedPointerTableEntry::IsFreelistEntry() const {
   return payload.ContainsFreelistLink();
 }
 
-uint32_t TrustedPointerTableEntry::GetNextFreelistEntryIndex() const {
+std::optional<uint32_t> TrustedPointerTableEntry::GetNextFreelistEntryIndex()
+    const {
   return payload_.load(std::memory_order_relaxed).ExtractFreelistLink();
 }
 
@@ -91,26 +112,20 @@ bool TrustedPointerTableEntry::IsMarked() const {
 }
 
 Address TrustedPointerTable::Get(TrustedPointerHandle handle,
-                                 IndirectPointerTag tag) const {
+                                 IndirectPointerTagRange tag_range) const {
   uint32_t index = HandleToIndex(handle);
-#if defined(V8_USE_ADDRESS_SANITIZER)
-  // We rely on the tagging scheme to produce non-canonical addresses when an
-  // entry isn't tagged with the expected tag. Such "safe" crashes can then be
-  // filtered out by our sandbox crash filter. However, when ASan is active, it
-  // may perform its shadow memory access prior to the actual memory access.
-  // For a non-canonical address, this can lead to a segfault at a _canonical_
-  // address, which our crash filter can then not distinguish from a "real"
-  // crash. Therefore, in ASan builds, we perform an additional CHECK here that
-  // the entry is tagged with the expected tag. The resulting CHECK failure
-  // will then be ignored by the crash filter.
-  // This check is, however, not needed when accessing the null entry, as that
-  // is always valid (it just contains nullptr).
-  CHECK(index == 0 || at(index).HasPointer(tag));
-#else
-  // Otherwise, this is just a DCHECK.
-  DCHECK(index == 0 || at(index).HasPointer(tag));
-#endif
-  return at(index).GetPointer(tag);
+  DCHECK(index == 0 || at(index).HasPointer(tag_range));
+  return at(index).GetPointer(tag_range);
+}
+
+Address TrustedPointerTable::GetMaybeUnpublished(
+    TrustedPointerHandle handle, IndirectPointerTagRange tag_range) const {
+  uint32_t index = HandleToIndex(handle);
+  const TrustedPointerTableEntry& entry = at(index);
+  if (entry.HasPointer(kUnpublishedIndirectPointerTag)) {
+    return entry.GetPointer(kUnpublishedIndirectPointerTag);
+  }
+  return Get(handle, tag_range);
 }
 
 void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,
@@ -122,11 +137,13 @@ void TrustedPointerTable::Set(TrustedPointerHandle handle, Address pointer,
 }
 
 TrustedPointerHandle TrustedPointerTable::AllocateAndInitializeEntry(
-    Space* space, Address pointer, IndirectPointerTag tag) {
+    Space* space, Address pointer, IndirectPointerTag tag,
+    TrustedPointerPublishingScope* scope) {
   DCHECK(space->BelongsTo(this));
   Validate(pointer, tag);
   uint32_t index = AllocateEntry(space);
   at(index).MakeTrustedPointerEntry(pointer, tag, space->allocate_black());
+  if (scope != nullptr) scope->TrackPointer(&at(index));
   return IndexToHandle(index);
 }
 
@@ -146,12 +163,25 @@ void TrustedPointerTable::Zap(TrustedPointerHandle handle) {
   at(index).MakeZappedEntry();
 }
 
+void TrustedPointerTable::Publish(TrustedPointerHandle handle,
+                                  IndirectPointerTag tag) {
+  uint32_t index = HandleToIndex(handle);
+  at(index).Publish(tag);
+}
+
+bool TrustedPointerTable::IsUnpublished(TrustedPointerHandle handle) const {
+  uint32_t index = HandleToIndex(handle);
+  return at(index).HasPointer(kUnpublishedIndirectPointerTag);
+}
+
 template <typename Callback>
 void TrustedPointerTable::IterateActiveEntriesIn(Space* space,
                                                  Callback callback) {
   IterateEntriesIn(space, [&](uint32_t index) {
     if (!at(index).IsFreelistEntry()) {
-      Address pointer = at(index).GetPointer(kUnknownIndirectPointerTag);
+      // We might see unpublished entries here and also need to handle them.
+      Address pointer =
+          at(index).GetPointer(kAllIndirectPointerTagsIncludingUnpublished);
       callback(IndexToHandle(index), pointer);
     }
   });
@@ -174,13 +204,13 @@ void TrustedPointerTable::Validate(Address pointer, IndirectPointerTag tag) {
     // This CHECK is mostly just here to force tags to be taken out of the
     // IsTrustedSpaceMigrationInProgressForObjectsWithTag function once the
     // objects are fully migrated into trusted space.
-    DCHECK(GetProcessWideSandbox()->Contains(pointer));
+    DCHECK(Sandbox::current()->Contains(pointer));
     return;
   }
 
   // Entries must never point into the sandbox, as they couldn't be trusted in
   // that case. This CHECK is a defense-in-depth mechanism to guarantee this.
-  CHECK(!InsideSandbox(pointer));
+  CHECK(OutsideSandbox(pointer));
 }
 
 }  // namespace internal

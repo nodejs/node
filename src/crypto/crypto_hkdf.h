@@ -42,10 +42,11 @@ struct HKDFTraits final {
       unsigned int offset,
       HKDFConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const HKDFConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const HKDFConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode,
+                         CryptoErrorStore* errors);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const HKDFConfig& params,

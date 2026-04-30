@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_MODULE_DECODER_H_
+#define V8_WASM_MODULE_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_MODULE_DECODER_H_
-#define V8_WASM_MODULE_DECODER_H_
 
 #include <memory>
 
@@ -22,7 +22,7 @@
 namespace v8 {
 namespace internal {
 
-class Counters;
+class DelayedCounterUpdates;
 
 namespace wasm {
 
@@ -85,39 +85,35 @@ enum class DecodingMethod {
 };
 
 // Decodes the bytes of a wasm module in {wire_bytes} while recording events and
-// updating counters.
+// updating counters in the given isolate.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
+// Decodes the bytes of a wasm module in {wire_bytes} and returns delayed
+// counter updates and the metrics event to the caller.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, Counters* counters,
-    std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id,
-    DecodingMethod decoding_method);
+    ModuleOrigin origin, DelayedCounterUpdates* delayed_counters,
+    std::optional<v8::metrics::WasmModuleDecoded>* metrics_event,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
 // Decodes the bytes of a wasm module in {wire_bytes} without recording events
 // or updating counters.
-V8_EXPORT_PRIVATE ModuleResult
-DecodeWasmModule(WasmEnabledFeatures enabled_features,
-                 base::Vector<const uint8_t> wire_bytes,
-                 bool validate_functions, ModuleOrigin origin);
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    WasmEnabledFeatures enabled_features,
+    base::Vector<const uint8_t> wire_bytes, bool validate_functions,
+    ModuleOrigin origin, WasmDetectedFeatures* detected_features);
 // Stripped down version for disassembler needs.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
     base::Vector<const uint8_t> wire_bytes, ITracer* tracer);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone.
-V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    base::Vector<const uint8_t> bytes);
-
-// Decodes the bytes of a wasm function in {function_bytes} (part of
-// {wire_bytes}).
-V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
-    WasmEnabledFeatures enabled, Zone* zone, ModuleWireBytes wire_bytes,
-    const WasmModule* module, base::Vector<const uint8_t> function_bytes);
-
-V8_EXPORT_PRIVATE ConstantExpression DecodeWasmInitExprForTesting(
-    WasmEnabledFeatures enabled_features, base::Vector<const uint8_t> bytes,
-    ValueType expected);
+V8_EXPORT_PRIVATE
+Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>>
+DecodeWasmSignatureForTesting(WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> bytes);
 
 struct CustomSectionOffset {
   WireBytesRef section;
@@ -138,6 +134,16 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 // are resolved by choosing the last name read.
 void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
                          NameMap& names);
+// Decode the type names from the type section, store them in the provided
+// vector/map indexed by *canonical* index.
+// The vector {typenames} must have sufficient size.
+// Existing non-empty names won't be overwritten.
+// The number of allocated characters will be added to {total_allocated_size}.
+void DecodeCanonicalTypeNames(
+    base::Vector<const uint8_t> wire_bytes, const WasmModule* module,
+    std::vector<base::OwnedVector<char>>& typenames,
+    std::map<uint32_t, std::vector<base::OwnedVector<char>>>& fieldnames,
+    size_t* total_allocated_size);
 
 // Validate specific functions in the module. Return the first validation error
 // (deterministically), or an empty {WasmError} if all validated functions are
@@ -145,7 +151,8 @@ void DecodeFunctionNames(base::Vector<const uint8_t> wire_bytes,
 // function for "all functions". The {filter} callback needs to be thread-safe.
 V8_EXPORT_PRIVATE WasmError ValidateFunctions(
     const WasmModule*, WasmEnabledFeatures enabled_features,
-    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter);
+    base::Vector<const uint8_t> wire_bytes, std::function<bool(int)> filter,
+    WasmDetectedFeatures* detected_features);
 
 WasmError GetWasmErrorWithName(base::Vector<const uint8_t> wire_bytes,
                                int func_index, const WasmModule* module,
@@ -155,7 +162,8 @@ class ModuleDecoderImpl;
 
 class ModuleDecoder {
  public:
-  explicit ModuleDecoder(WasmEnabledFeatures enabled_feature);
+  explicit ModuleDecoder(WasmEnabledFeatures enabled_features,
+                         WasmDetectedFeatures* detected_features);
   ~ModuleDecoder();
 
   void DecodeModuleHeader(base::Vector<const uint8_t> bytes);
@@ -175,7 +183,7 @@ class ModuleDecoder {
 
   WasmModule* module() const { return shared_module().get(); }
 
-  bool ok();
+  bool ok() const;
 
   // Translates the unknown section that decoder is pointing to to an extended
   // SectionCode if the unknown section is known to decoder.

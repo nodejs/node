@@ -38,14 +38,14 @@
 
 /* Long header specific macros */
 #define NGTCP2_LONG_TYPE_MASK 0x30
-#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0c
+#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0C
 
 /* Short header specific macros */
 #define NGTCP2_SHORT_RESERVED_BIT_MASK 0x18
 #define NGTCP2_SHORT_KEY_PHASE_BIT 0x04
 
 /* NGTCP2_SR_TYPE is a Type field of Stateless Reset. */
-#define NGTCP2_SR_TYPE 0x1f
+#define NGTCP2_SR_TYPE 0x1F
 
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
    That is (1|1|TT|RR|PP)<1> + VERSION<4> + DCIL<1> + SCIL<1> +
@@ -78,23 +78,23 @@
 
 /* NGTCP2_MAX_SERVER_STREAM_ID_BIDI is the maximum bidirectional
    server stream ID. */
-#define NGTCP2_MAX_SERVER_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffdll)
+#define NGTCP2_MAX_SERVER_STREAM_ID_BIDI ((int64_t)0x3FFFFFFFFFFFFFFDLL)
 /* NGTCP2_MAX_CLIENT_STREAM_ID_BIDI is the maximum bidirectional
    client stream ID. */
-#define NGTCP2_MAX_CLIENT_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffcll)
+#define NGTCP2_MAX_CLIENT_STREAM_ID_BIDI ((int64_t)0x3FFFFFFFFFFFFFFCLL)
 /* NGTCP2_MAX_SERVER_STREAM_ID_UNI is the maximum unidirectional
    server stream ID. */
-#define NGTCP2_MAX_SERVER_STREAM_ID_UNI ((int64_t)0x3fffffffffffffffll)
+#define NGTCP2_MAX_SERVER_STREAM_ID_UNI ((int64_t)0x3FFFFFFFFFFFFFFFLL)
 /* NGTCP2_MAX_CLIENT_STREAM_ID_UNI is the maximum unidirectional
    client stream ID. */
-#define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3ffffffffffffffell)
+#define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3FFFFFFFFFFFFFFELL)
 
 /* NGTCP2_MAX_NUM_ACK_RANGES is the maximum number of Additional ACK
    ranges which this library can create, or decode. */
 #define NGTCP2_MAX_ACK_RANGES 32
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
-#define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
+#define NGTCP2_MAX_PKT_NUM ((int64_t)((1LL << 62) - 1))
 
 /* NGTCP2_MIN_PKT_EXPANDLEN is the minimum packet size expansion to
    hide/trigger Stateless Reset. */
@@ -102,10 +102,6 @@
 
 /* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
 #define NGTCP2_RETRY_TAGLEN 16
-
-/* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP datagram
-   payload size that this library can write. */
-#define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE ((1 << 24) - 1)
 
 /* NGTCP2_PKT_LENGTHLEN is the number of bytes that is occupied by
    Length field in Long packet header. */
@@ -137,6 +133,19 @@
    v2. */
 #define NGTCP2_PKT_TYPE_RETRY_V2 0x0
 
+/* NGTCP2_MIN_STREAM_DATALEN is the minimum length of STREAM frame to
+   avoid too small frame.  It is not always enforced for various
+   reasons.  For example, due to flow control, we might have fewer
+   bytes available to send.  Therefore, it is only applied when the
+   length of data to send is larger than this limit. */
+#define NGTCP2_MIN_STREAM_DATALEN 256
+
+/* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
+   a ngtcp2_stream can include. */
+#define NGTCP2_MAX_STREAM_DATACNT 256
+
+typedef struct ngtcp2_pcg32 ngtcp2_pcg32;
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   uint8_t *token;
@@ -163,13 +172,17 @@ typedef struct ngtcp2_pkt_retry {
 #define NGTCP2_FRAME_STREAMS_BLOCKED_UNI 0x17
 #define NGTCP2_FRAME_NEW_CONNECTION_ID 0x18
 #define NGTCP2_FRAME_RETIRE_CONNECTION_ID 0x19
-#define NGTCP2_FRAME_PATH_CHALLENGE 0x1a
-#define NGTCP2_FRAME_PATH_RESPONSE 0x1b
-#define NGTCP2_FRAME_CONNECTION_CLOSE 0x1c
-#define NGTCP2_FRAME_CONNECTION_CLOSE_APP 0x1d
-#define NGTCP2_FRAME_HANDSHAKE_DONE 0x1e
+#define NGTCP2_FRAME_PATH_CHALLENGE 0x1A
+#define NGTCP2_FRAME_PATH_RESPONSE 0x1B
+#define NGTCP2_FRAME_CONNECTION_CLOSE 0x1C
+#define NGTCP2_FRAME_CONNECTION_CLOSE_APP 0x1D
+#define NGTCP2_FRAME_HANDSHAKE_DONE 0x1E
 #define NGTCP2_FRAME_DATAGRAM 0x30
 #define NGTCP2_FRAME_DATAGRAM_LEN 0x31
+
+typedef struct ngtcp2_frame_hd {
+  uint64_t type;
+} ngtcp2_frame_hd;
 
 /* ngtcp2_stream represents STREAM and CRYPTO frames. */
 typedef struct ngtcp2_stream {
@@ -182,7 +195,7 @@ typedef struct ngtcp2_stream {
   uint8_t flags;
   /* CRYPTO frame does not include this field, and must set it to
      0. */
-  uint8_t fin;
+  int fin;
   /* CRYPTO frame does not include this field, and must set it to
      0. */
   int64_t stream_id;
@@ -191,8 +204,9 @@ typedef struct ngtcp2_stream {
      the length of data is 1 in this definition, the library may
      allocate extra bytes to hold more elements. */
   size_t datacnt;
-  /* data is the array of ngtcp2_vec which references data. */
-  ngtcp2_vec data[1];
+  /* data points to ngtcp2_vec array which references data.  If
+     datacnt == 0, this field may be NULL. */
+  ngtcp2_vec *data;
 } ngtcp2_stream;
 
 typedef struct ngtcp2_ack_range {
@@ -216,7 +230,7 @@ typedef struct ngtcp2_ack {
   } ecn;
   uint64_t first_ack_range;
   size_t rangecnt;
-  ngtcp2_ack_range ranges[1];
+  ngtcp2_ack_range *ranges;
 } ngtcp2_ack;
 
 typedef struct ngtcp2_padding {
@@ -286,7 +300,7 @@ typedef struct ngtcp2_new_connection_id {
   uint64_t seq;
   uint64_t retire_prior_to;
   ngtcp2_cid cid;
-  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  ngtcp2_stateless_reset_token token;
 } ngtcp2_new_connection_id;
 
 typedef struct ngtcp2_stop_sending {
@@ -297,12 +311,12 @@ typedef struct ngtcp2_stop_sending {
 
 typedef struct ngtcp2_path_challenge {
   uint64_t type;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_path_challenge;
 
 typedef struct ngtcp2_path_response {
   uint64_t type;
-  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_path_response;
 
 typedef struct ngtcp2_new_token {
@@ -326,17 +340,13 @@ typedef struct ngtcp2_datagram {
   uint64_t dgram_id;
   /* datacnt is the number of elements that data contains. */
   size_t datacnt;
-  /* data is a pointer to ngtcp2_vec array that stores data. */
+  /* data is a pointer to ngtcp2_vec array that stores data.  If
+     datacnt == 0, this field may be NULL.*/
   ngtcp2_vec *data;
-  /* rdata is conveniently embedded to ngtcp2_datagram, so that data
-     field can just point to the address of this field to store a
-     single vector which is the case when DATAGRAM is received from a
-     remote endpoint. */
-  ngtcp2_vec rdata[1];
 } ngtcp2_datagram;
 
 typedef union ngtcp2_frame {
-  uint64_t type;
+  ngtcp2_frame_hd hd;
   ngtcp2_stream stream;
   ngtcp2_ack ack;
   ngtcp2_padding padding;
@@ -357,11 +367,6 @@ typedef union ngtcp2_frame {
   ngtcp2_retire_connection_id retire_connection_id;
   ngtcp2_handshake_done handshake_done;
   ngtcp2_datagram datagram;
-  /* Extend ngtcp2_frame so that ngtcp2_stream has at least additional
-     3 ngtcp2_vec, totaling 4 slots, which can store HEADERS header,
-     HEADERS payload, DATA header, and DATA payload in the standard
-     sized ngtcp2_frame_chain. */
-  uint8_t pad[sizeof(ngtcp2_stream) + sizeof(ngtcp2_vec) * 3];
 } ngtcp2_frame;
 
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -441,10 +446,22 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
                                         const ngtcp2_pkt_hd *hd);
 
+/*
+ * ngtcp2_frame_decoder is QUIC frame decoder.  For frames that
+ * require the external buffers (e.g., ngtcp2_stream and ngtcp2_ack),
+ * it provides those buffers on demand.
+ */
+typedef struct ngtcp2_frame_decoder {
+  union {
+    ngtcp2_vec data;
+    ngtcp2_ack_range ack_ranges[NGTCP2_MAX_ACK_RANGES];
+  } buf;
+} ngtcp2_frame_decoder;
+
 /**
  * @function
  *
- * `ngtcp2_pkt_decode_frame` decodes a QUIC frame from the buffer
+ * `ngtcp2_frame_decoder_decode` decodes a QUIC frame from the buffer
  * pointed by |payload| whose length is |payloadlen|.
  *
  * This function returns the number of bytes read to decode a single
@@ -454,8 +471,10 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  *     Frame is badly formatted; or frame type is unknown; or
  *     |payloadlen| is 0.
  */
-ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
-                                     size_t payloadlen);
+ngtcp2_ssize ngtcp2_frame_decoder_decode(ngtcp2_frame_decoder *frd,
+                                         ngtcp2_frame *dest,
+                                         const uint8_t *payload,
+                                         size_t payloadlen);
 
 /**
  * @function
@@ -495,7 +514,7 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Payloadlen is too short.
  */
-int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
+int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset2 *sr,
                                       const uint8_t *payload,
                                       size_t payloadlen);
 
@@ -1226,5 +1245,89 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type);
  * library, it returns 0.
  */
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c);
+
+/*
+ * ngtcp2_pkt_split_vec_rand appends ngtcp2_vec at most |max_add|
+ * times to the array pointed by |data| of length |datacnt| by
+ * splitting the existing ngtcp2_vec into two.  Which ngtcp2_vec to
+ * split is chosen randomly.  |offsets| contains the offset of each
+ * ngtcp2_vec pointed by |data|.  |offsets| is also updated.  The
+ * arrays must have the capacity at least |datacnt| + |max_add|.
+ * |pcg| is a random number generator.
+ *
+ * This function returns |datacnt| plus the number of ngtcp2_vec that
+ * are appended.
+ */
+size_t ngtcp2_pkt_split_vec_rand(ngtcp2_vec *data, size_t datacnt,
+                                 uint64_t *offsets, ngtcp2_pcg32 *pcg,
+                                 size_t max_add);
+
+/*
+ * ngtcp2_pkt_split_vec_at splits data[0] at offset |at|, and the
+ * right side of ngtcp2_vec is assigned to data[datacnt].  Similarly,
+ * offsets[0] + |at| is assigned to offsets[datacnt].  |data| must
+ * point to the array of ngtcp2_vec of length |datacnt|, and |datacnt|
+ * must be greater than 0.  |at| must be strictly less than data->len.
+ *
+ * This function returns |datacnt| + 1.
+ */
+size_t ngtcp2_pkt_split_vec_at(ngtcp2_vec *data, size_t datacnt,
+                               uint64_t *offsets, size_t at);
+
+/*
+ * ngtcp2_pkt_find_server_name searches TLS Server Name Indication
+ * extension in |v|.  If it is found, assign the portion of server
+ * name to the object pointed by |server_name|, and returns nonzero.
+ * Otherwise, it returns 0.  If |v| contains the extension partially,
+ * the function returns 0.  |v| must not be empty.
+ */
+int ngtcp2_pkt_find_server_name(ngtcp2_vec *server_name, const ngtcp2_vec *v);
+
+/*
+ * ngtcp2_pkt_append_ping_and_padding appends PING and PADDING frames
+ * to the array pointed by |data| of length |datacnt|.  The capacity
+ * of array must be at least NGTCP2_MAX_STREAM_DATACNT.  |n| is the
+ * number of bytes available for serialized PING and PADDING frames.
+ * |pcg| is a random number generator.  Which frames to add is
+ * determined randomly.
+ *
+ * The special encoding of PING and PADDING frames into ngtcp2_vec:
+ *
+ * - .base is NULL.
+ * - If .len is 0, it represents PING.  Otherwise, PADDING of .len
+ *   length.
+ *
+ * This function returns |datacnt| plus the number of frames added.
+ */
+size_t ngtcp2_pkt_append_ping_and_padding(ngtcp2_vec *data, size_t datacnt,
+                                          ngtcp2_pcg32 *pcg, size_t n);
+
+/*
+ * ngtcp2_pkt_permutate_vec permutates |data| and |offsets|, both have
+ * the |datacnt| elements.  |pcg| is a random number generator.
+ */
+void ngtcp2_pkt_permutate_vec(ngtcp2_vec *data, size_t datacnt,
+                              uint64_t *offsets, ngtcp2_pcg32 *pcg);
+
+/*
+ * ngtcp2_pkt_remove_vec_partial removes the portion of data that
+ * contains part of |part| from data[0].  This function does not
+ * remove whole range of |part|.  The length of removed data is chosen
+ * randomly.  The removed portion of data is assigned to the object
+ * pointed by |removed_data|.  If there is data located after the
+ * removed data, it will be assigned to data[datacnt].
+ * offsets[datacnt] is also updated, and the function returns
+ * |datacnt| + 1.  Otherwise, this function returns |datacnt|.
+ */
+size_t ngtcp2_pkt_remove_vec_partial(ngtcp2_vec *removed_data, ngtcp2_vec *data,
+                                     size_t datacnt, uint64_t *offsets,
+                                     ngtcp2_pcg32 *pcg, const ngtcp2_vec *part);
+
+/*
+ * ngtcp2_stateless_reset_token_eq returns nonzero if |a| and |b|
+ * share the same token.
+ */
+int ngtcp2_stateless_reset_token_eq(const ngtcp2_stateless_reset_token *a,
+                                    const ngtcp2_stateless_reset_token *b);
 
 #endif /* !defined(NGTCP2_PKT_H) */

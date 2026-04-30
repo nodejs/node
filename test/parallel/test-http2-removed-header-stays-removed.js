@@ -12,9 +12,9 @@ const server = http2.createServer(common.mustCall((request, response) => {
 server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);
   const req = session.request();
-  req.on('response', (headers, flags) => {
+  req.on('response', common.mustCall((headers, flags) => {
     assert.strictEqual(headers.date, 'snacks o clock');
-  });
+  }));
   req.on('end', () => {
     session.close();
     server.close();

@@ -57,7 +57,7 @@ inline Node* SkipValueIdentities(Node* node) {
   return node;
 }
 
-// A pattern matcher for abitrary value constants.
+// A pattern matcher for arbitrary value constants.
 //
 // Note that value identities on the input node are skipped when matching. The
 // resolved value may not be a parameter of the input node. The node() method
@@ -65,6 +65,13 @@ inline Node* SkipValueIdentities(Node* node) {
 // match value constants but delay reducing the node until a later phase.
 template <typename T, IrOpcode::Value kOpcode>
 struct ValueMatcher : public NodeMatcher {
+  // TODO(42203211): Although value matchers will work with if `T` is a direct
+  // handle type, the special instance for indirect handles uses handle location
+  // equality for performing the match. This is designed to work with canonical
+  // handles, used by the compiler. As of now, it is not clear if direct handles
+  // can replace such canonical handles, hence the following assertion.
+  static_assert(!is_direct_handle_v<T>);
+
   using ValueType = T;
 
   explicit ValueMatcher(Node* node)
@@ -212,17 +219,61 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
 };
 
 using Float32Matcher = FloatMatcher<float, IrOpcode::kFloat32Constant>;
-using Float64Matcher = FloatMatcher<double, IrOpcode::kFloat64Constant>;
 using NumberMatcher = FloatMatcher<double, IrOpcode::kNumberConstant>;
+
+// A pattern matcher for floating point constants.
+template <typename T, IrOpcode::Value kOpcode>
+struct BoxedFloatMatcher final : public ValueMatcher<T, kOpcode> {
+  explicit BoxedFloatMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
+
+  double ScalarValue() const { return this->ResolvedValue().get_scalar(); }
+
+  bool Is(const double& value) const {
+    // Compare double with ScalarValue so that we get IEEE comparison semantics.
+    return this->HasResolvedValue() && this->ScalarValue() == value;
+  }
+  bool IsInRange(const T& low, const T& high) const {
+    return this->HasResolvedValue() && low <= this->ResolvedValue() &&
+           this->ResolvedValue() <= high;
+  }
+  bool IsMinusZero() const {
+    return this->Is(0.0) && std::signbit(this->ScalarValue());
+  }
+  bool IsNegative() const {
+    return this->HasResolvedValue() && this->ScalarValue() < 0.0;
+  }
+  bool IsNaN() const {
+    return this->HasResolvedValue() && this->ResolvedValue().is_nan();
+  }
+  bool IsZero() const {
+    return this->Is(0.0) && !std::signbit(this->ScalarValue());
+  }
+  bool IsNormal() const {
+    return this->HasResolvedValue() && std::isnormal(this->ScalarValue());
+  }
+  bool IsInteger() const {
+    return this->HasResolvedValue() &&
+           std::nearbyint(this->ScalarValue()) == this->ScalarValue();
+  }
+  bool IsPositiveOrNegativePowerOf2() const {
+    if (!this->HasResolvedValue() || (this->ScalarValue() == 0.0)) {
+      return false;
+    }
+    base::Double value = base::Double(this->ResolvedValue().get_bits());
+    return !value.IsInfinite() && base::bits::IsPowerOfTwo(value.Significand());
+  }
+};
+
+using Float64Matcher = BoxedFloatMatcher<Float64, IrOpcode::kFloat64Constant>;
 
 // A pattern matcher for heap object constants.
 template <IrOpcode::Value kHeapConstantOpcode>
 struct HeapObjectMatcherImpl final
-    : public ValueMatcher<Handle<HeapObject>, kHeapConstantOpcode> {
+    : public ValueMatcher<IndirectHandle<HeapObject>, kHeapConstantOpcode> {
   explicit HeapObjectMatcherImpl(Node* node)
-      : ValueMatcher<Handle<HeapObject>, kHeapConstantOpcode>(node) {}
+      : ValueMatcher<IndirectHandle<HeapObject>, kHeapConstantOpcode>(node) {}
 
-  bool Is(Handle<HeapObject> const& value) const {
+  bool Is(IndirectHandle<HeapObject> const& value) const {
     return this->HasResolvedValue() &&
            this->ResolvedValue().address() == value.address();
   }

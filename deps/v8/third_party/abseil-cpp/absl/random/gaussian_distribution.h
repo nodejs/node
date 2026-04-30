@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <istream>
 #include <limits>
+#include <ostream>
 #include <type_traits>
 
 #include "absl/base/config.h"
@@ -57,7 +58,7 @@ class ABSL_DLL gaussian_distribution_base {
                                 bool neg);
 
   // Constants used for the gaussian distribution.
-  static constexpr double kR = 3.442619855899;  // Start of the tail.
+  static constexpr double kR = 3.442619855899;          // Start of the tail.
   static constexpr double kRInv = 0.29047645161474317;  // ~= (1.0 / kR) .
   static constexpr double kV = 9.91256303526217e-3;
   static constexpr uint64_t kMask = 0x07f;
@@ -243,7 +244,7 @@ inline double gaussian_distribution_base::zignor(
         bits);  // U(-1, 1)
     const double x = j * zg_.x[i];
 
-    // Retangular box. Handles >97% of all cases.
+    // Rectangular box. Handles >97% of all cases.
     // For any given box, this handles between 75% and 99% of values.
     // Equivalent to U(01) < (x[i+1] / x[i]), and when i == 0, ~93.5%
     if (std::abs(x) < zg_.x[i + 1]) {

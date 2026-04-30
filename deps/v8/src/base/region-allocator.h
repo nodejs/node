@@ -40,6 +40,14 @@ class V8_BASE_EXPORT RegionAllocator final {
     kAllocated,
   };
 
+  enum class AllocationStrategy {
+    // Allocates in the first large enough free region.
+    kFirstFit,
+
+    // Allocates in the largest free region.
+    kLargestFit,
+  };
+
   RegionAllocator(Address address, size_t size, size_t page_size);
   RegionAllocator(const RegionAllocator&) = delete;
   RegionAllocator& operator=(const RegionAllocator&) = delete;
@@ -68,7 +76,8 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   // Allocates region of |size| (must be |page_size|-aligned). Returns
   // the address of the region on success or kAllocationFailure.
-  Address AllocateRegion(size_t size);
+  Address AllocateRegion(size_t size, AllocationStrategy allocation_strategy =
+                                          AllocationStrategy::kFirstFit);
   // Same as above but tries to randomize the region displacement.
   Address AllocateRegion(RandomNumberGenerator* rng, size_t size);
 
@@ -105,6 +114,10 @@ class V8_BASE_EXPORT RegionAllocator final {
   // frees the region.
   size_t TrimRegion(Address address, size_t new_size);
 
+  // Tries to grow the region at |address| to the size |new_size|. Returns true
+  // on success.
+  bool TryGrowRegion(Address address, size_t new_size);
+
   // If there is a used region starting at given address returns its size
   // otherwise 0.
   size_t CheckRegion(Address address);
@@ -126,6 +139,8 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   // Total size of not yet acquired regions.
   size_t free_size() const { return free_size_; }
+
+  size_t GetLargestFreeRegionSize() const;
 
   // The alignment of the allocated region's addresses and granularity of
   // the allocated region's sizes.
@@ -198,6 +213,9 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   // Finds best-fit free region for given size.
   Region* FreeListFindRegion(size_t size);
+
+  // Finds largest free region for given size.
+  Region* FreeListFindLargestRegion(size_t size) const;
 
   // Removes given region from the set of free regions.
   void FreeListRemoveRegion(Region* region);

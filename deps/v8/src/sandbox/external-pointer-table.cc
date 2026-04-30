@@ -4,6 +4,8 @@
 
 #include "src/sandbox/external-pointer-table.h"
 
+#include <inttypes.h>
+
 #include "src/execution/isolate.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/logging/counters.h"
@@ -11,8 +13,7 @@
 
 #ifdef V8_COMPRESS_POINTERS
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 void ExternalPointerTable::SetUpFromReadOnlyArtifacts(
     Space* read_only_space, const ReadOnlyArtifacts* artifacts) {
@@ -175,13 +176,7 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
         // field that owns the entry that is to be evacuated.
         Address handle_location =
             payload.ExtractEvacuationEntryHandleLocation();
-
-        // The evacuation entry may be invalidated by the Scavenger that has
-        // freed the object.
-        if (handle_location == kNullAddress) {
-          AddToFreelist(i);
-          continue;
-        }
+        DCHECK_NE(handle_location, kNullAddress);
 
         // The external pointer field may have been invalidated in the meantime
         // (for example if the host object has been in-place converted to a
@@ -214,7 +209,7 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
         // the entry that was evacuated must have been processed already (it
         // is in an evacuated segment, which are processed first as they are
         // at the end of the space). This will have cleared the marking bit.
-        DCHECK(at(i).GetRawPayload().ContainsPointer());
+        DCHECK(at(i).HasExternalPointer(kAnyExternalPointerTagRange));
         DCHECK(!at(i).GetRawPayload().HasMarkBitSet());
       } else if (!payload.HasMarkBitSet()) {
         FreeManagedResourceIfPresent(i);
@@ -248,6 +243,15 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
 
   // We cannot deallocate the segments during the above loop, so do it now.
   for (auto segment : segments_to_deallocate) {
+#ifdef DEBUG
+    // There should not be any live entries in the segments we are freeing.
+    // TODO(saelo): we should be able to assert here that we're not freeing any
+    // entries here. Otherwise, we'd have to FreeManagedResourceIfPresent.
+    // for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--)
+    // {
+    //  CHECK(!at(i).HasExternalPointer(kAnyExternalPointerTag));
+    //}
+#endif
     FreeTableSegment(segment);
     space->segments_.erase(segment);
   }
@@ -302,41 +306,51 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   }
 }
 
-void ExternalPointerTable::UpdateAllEvacuationEntries(
-    Space* space, std::function<Address(Address)> function) {
-  DCHECK(space->BelongsTo(this));
-  DCHECK(!space->is_internal_read_only_space());
+#ifdef OBJECT_PRINT
 
-  if (!space->IsCompacting()) return;
+namespace {
 
-  // Lock the space. Technically this is not necessary since no other thread can
-  // allocate entries at this point, but some of the methods we call on the
-  // space assert that the lock is held.
-  base::MutexGuard guard(&space->mutex_);
-  // Same for the invalidated fields mutex.
-  base::MutexGuard invalidated_fields_guard(&space->invalidated_fields_mutex_);
+constexpr std::string_view entry_spacer =
+    "+-----------------------------------------+\n";
 
-  const uint32_t start_of_evacuation_area =
-      space->start_of_evacuation_area_.load(std::memory_order_relaxed);
+}  // namespace
 
-  // Iterate until the start of evacuation area.
-  for (auto& segment : space->segments_) {
-    if (segment.first_entry() == start_of_evacuation_area) return;
-    for (uint32_t i = segment.first_entry(); i < segment.last_entry() + 1;
-         ++i) {
-      ExternalPointerTableEntry& entry = at(i);
-      ExternalPointerTableEntry::Payload payload = entry.GetRawPayload();
-      if (!payload.ContainsEvacuationEntry()) {
-        continue;
-      }
-      Address new_location =
-          function(payload.ExtractEvacuationEntryHandleLocation());
-      entry.MakeEvacuationEntry(new_location);
-    }
-  }
+// static
+void ExternalPointerTableEntryPrinter::PrintHeader(const char* space_name) {
+  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "| %*s |\n", static_cast<int>(entry_spacer.size() - 5),
+         space_name);
+  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "|     handle |   tag |   external pointer |\n");
+  PrintF(stderr, "%s", entry_spacer.data());
 }
 
-}  // namespace internal
-}  // namespace v8
+// static
+void ExternalPointerTableEntryPrinter::PrintIfInUse(
+    ExternalPointerHandle handle, const ExternalPointerTableEntry& entry,
+    std::function<bool(ExternalPointerTag)> entry_callback) {
+  const auto payload = entry.GetRawPayload();
+  const ExternalPointerTag tag = payload.ExtractTag();
+  if (tag == kExternalPointerFreeEntryTag ||
+      tag == kExternalPointerZappedEntryTag) {
+    return;
+  }
+  if (!entry_callback(tag)) {
+    return;
+  }
+
+  Address address = payload.Untag(tag);
+  PrintF(stderr, "| %10" PRIu32 " | %5" PRIu16 " | 0x%016" PRIxPTR " |\n",
+         handle, tag, address);
+}
+
+// static
+void ExternalPointerTableEntryPrinter::PrintFooter() {
+  PrintF(stderr, "%s", entry_spacer.data());
+}
+
+#endif  // OBJECT_PRINT
+
+}  // namespace v8::internal
 
 #endif  // V8_COMPRESS_POINTERS

@@ -205,15 +205,15 @@ class SyncProcessRunner {
   uv_loop_t* uv_loop_;
 
   uint32_t stdio_count_;
-  uv_stdio_container_t* uv_stdio_containers_;
+  std::vector<uv_stdio_container_t> uv_stdio_containers_;
   std::vector<std::unique_ptr<SyncProcessStdioPipe>> stdio_pipes_;
   bool stdio_pipes_initialized_;
 
   uv_process_options_t uv_process_options_;
-  const char* file_buffer_;
-  char* args_buffer_;
-  char* env_buffer_;
-  const char* cwd_buffer_;
+  std::unique_ptr<const char[]> file_buffer_;
+  std::unique_ptr<char[]> args_buffer_;
+  std::unique_ptr<char[]> env_buffer_;
+  std::unique_ptr<const char[]> cwd_buffer_;
 
   uv_process_t uv_process_;
   bool killed_;

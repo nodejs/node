@@ -21,9 +21,9 @@
 #include <openssl/x509.h>
 
 int RSA_sign_ASN1_OCTET_STRING(int type,
-                               const unsigned char *m, unsigned int m_len,
-                               unsigned char *sigret, unsigned int *siglen,
-                               RSA *rsa)
+    const unsigned char *m, unsigned int m_len,
+    unsigned char *sigret, unsigned int *siglen,
+    RSA *rsa)
 {
     ASN1_OCTET_STRING sig;
     int i, j, ret = 1;
@@ -40,10 +40,8 @@ int RSA_sign_ASN1_OCTET_STRING(int type,
         return 0;
     }
     s = OPENSSL_malloc((unsigned int)j + 1);
-    if (s == NULL) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+    if (s == NULL)
         return 0;
-    }
     p = s;
     i2d_ASN1_OCTET_STRING(&sig, &p);
     i = RSA_private_encrypt(i, s, sigret, rsa, RSA_PKCS1_PADDING);
@@ -57,9 +55,9 @@ int RSA_sign_ASN1_OCTET_STRING(int type,
 }
 
 int RSA_verify_ASN1_OCTET_STRING(int dtype,
-                                 const unsigned char *m,
-                                 unsigned int m_len, unsigned char *sigbuf,
-                                 unsigned int siglen, RSA *rsa)
+    const unsigned char *m,
+    unsigned int m_len, unsigned char *sigbuf,
+    unsigned int siglen, RSA *rsa)
 {
     int i, ret = 0;
     unsigned char *s;
@@ -72,10 +70,8 @@ int RSA_verify_ASN1_OCTET_STRING(int dtype,
     }
 
     s = OPENSSL_malloc((unsigned int)siglen);
-    if (s == NULL) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+    if (s == NULL)
         goto err;
-    }
     i = RSA_public_decrypt((int)siglen, sigbuf, s, rsa, RSA_PKCS1_PADDING);
 
     if (i <= 0)
@@ -86,13 +82,12 @@ int RSA_verify_ASN1_OCTET_STRING(int dtype,
     if (sig == NULL)
         goto err;
 
-    if (((unsigned int)sig->length != m_len) ||
-        (memcmp(m, sig->data, m_len) != 0)) {
+    if (((unsigned int)sig->length != m_len) || (memcmp(m, sig->data, m_len) != 0)) {
         ERR_raise(ERR_LIB_RSA, RSA_R_BAD_SIGNATURE);
     } else {
         ret = 1;
     }
- err:
+err:
     ASN1_OCTET_STRING_free(sig);
     OPENSSL_clear_free(s, (unsigned int)siglen);
     return ret;

@@ -81,18 +81,21 @@ class MemoryProtectionTest : public TestWithNativeContext {
         SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
         SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0 /* locals */, kExprEnd))};
 
+    base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(module_bytes);
+
+    WasmDetectedFeatures detected_features;
     ModuleResult result =
-        DecodeWasmModule(WasmEnabledFeatures::All(),
-                         base::ArrayVector(module_bytes), false, kWasmOrigin);
+        DecodeWasmModule(WasmEnabledFeatures::All(), bytes.as_vector(), false,
+                         kWasmOrigin, &detected_features);
     CHECK(result.ok());
 
     ErrorThrower thrower(isolate(), "");
     constexpr int kNoCompilationId = 0;
     constexpr ProfileInformation* kNoProfileInformation = nullptr;
     std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-        isolate(), WasmEnabledFeatures::All(), CompileTimeImports{}, &thrower,
-        std::move(result).value(),
-        ModuleWireBytes{base::ArrayVector(module_bytes)}, kNoCompilationId,
+        isolate(), WasmEnabledFeatures::All(), detected_features,
+        CompileTimeImports{}, &thrower, std::move(result).value(),
+        std::move(bytes), kNoCompilationId,
         v8::metrics::Recorder::ContextId::Empty(), kNoProfileInformation);
     CHECK(!thrower.error());
     CHECK_NOT_NULL(native_module);
@@ -211,6 +214,15 @@ TEST_P(ParameterizedMemoryProtectionTestWithSignalHandling, TestSignalHandler) {
   // that we use in the wild.
   // (see https://google.github.io/googletest/reference/assertions.html)
   CHECK_EQ("threadsafe", GTEST_FLAG_GET(death_test_style));
+
+  // This test isn't currently compatible with sandbox hardware support, mostly
+  // because the signal handler attempts to write to stack memory which is now
+  // protected with a PKEY to which the handler has no access.
+  // TODO(428680013): if we use an untrusted stack for sandboxed execution
+  // mode, then this test should just work again.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  if (SandboxHardwareSupport::IsActive()) return;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   const bool write_in_signal_handler = std::get<0>(GetParam());
   const bool open_write_scope = std::get<1>(GetParam());

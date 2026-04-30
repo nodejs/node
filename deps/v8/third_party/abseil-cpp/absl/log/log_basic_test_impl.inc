@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 // The testcases in this file are expected to pass or be skipped with any value
 // of ABSL_MIN_LOG_LEVEL
 
@@ -92,6 +94,7 @@ TEST_P(BasicLogTest, Info) {
   absl::log_internal::ScopedMinLogLevel scoped_min_log_level(GetParam());
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int log_line = __LINE__ + 1;
   auto do_log = [] { ABSL_TEST_LOG(INFO) << "hello world"; };
@@ -111,7 +114,7 @@ TEST_P(BasicLogTest, Info) {
             ENCODED_MESSAGE(MatchesEvent(
                 Eq(__FILE__), Eq(log_line), InMatchWindow(),
                 Eq(logging::proto::INFO), Eq(absl::base_internal::GetTID()),
-                ElementsAre(EqualsProto(R"pb(literal: "hello world")pb")))),
+                ElementsAre(ValueWithLiteral(Eq("hello world"))))),
             Stacktrace(IsEmpty()))));
   }
 
@@ -123,6 +126,7 @@ TEST_P(BasicLogTest, Warning) {
   absl::log_internal::ScopedMinLogLevel scoped_min_log_level(GetParam());
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int log_line = __LINE__ + 1;
   auto do_log = [] { ABSL_TEST_LOG(WARNING) << "hello world"; };
@@ -142,7 +146,7 @@ TEST_P(BasicLogTest, Warning) {
             ENCODED_MESSAGE(MatchesEvent(
                 Eq(__FILE__), Eq(log_line), InMatchWindow(),
                 Eq(logging::proto::WARNING), Eq(absl::base_internal::GetTID()),
-                ElementsAre(EqualsProto(R"pb(literal: "hello world")pb")))),
+                ElementsAre(ValueWithLiteral(Eq("hello world"))))),
             Stacktrace(IsEmpty()))));
   }
 
@@ -154,6 +158,7 @@ TEST_P(BasicLogTest, Error) {
   absl::log_internal::ScopedMinLogLevel scoped_min_log_level(GetParam());
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int log_line = __LINE__ + 1;
   auto do_log = [] { ABSL_TEST_LOG(ERROR) << "hello world"; };
@@ -173,7 +178,39 @@ TEST_P(BasicLogTest, Error) {
             ENCODED_MESSAGE(MatchesEvent(
                 Eq(__FILE__), Eq(log_line), InMatchWindow(),
                 Eq(logging::proto::ERROR), Eq(absl::base_internal::GetTID()),
-                ElementsAre(EqualsProto(R"pb(literal: "hello world")pb")))),
+                ElementsAre(ValueWithLiteral(Eq("hello world"))))),
+            Stacktrace(IsEmpty()))));
+  }
+
+  test_sink.StartCapturingLogs();
+  do_log();
+}
+
+TEST_P(BasicLogTest, DoNotSubmit) {
+  absl::log_internal::ScopedMinLogLevel scoped_min_log_level(GetParam());
+
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  const int log_line = __LINE__ + 1;
+  auto do_log = [] { ABSL_TEST_LOG(DO_NOT_SUBMIT) << "hello world"; };
+
+  if (LoggingEnabledAt(absl::LogSeverity::kError)) {
+    EXPECT_CALL(
+        test_sink,
+        Send(AllOf(
+            SourceFilename(Eq(__FILE__)),
+            SourceBasename(Eq("log_basic_test_impl.inc")),
+            SourceLine(Eq(log_line)), Prefix(IsTrue()),
+            LogSeverity(Eq(absl::LogSeverity::kError)),
+            Timestamp(InMatchWindow()),
+            ThreadID(Eq(absl::base_internal::GetTID())),
+            TextMessage(Eq("hello world")),
+            Verbosity(Eq(absl::LogEntry::kNoVerbosityLevel)),
+            ENCODED_MESSAGE(MatchesEvent(
+                Eq(__FILE__), Eq(log_line), InMatchWindow(),
+                Eq(logging::proto::ERROR), Eq(absl::base_internal::GetTID()),
+                ElementsAre(ValueWithLiteral(Eq("hello world"))))),
             Stacktrace(IsEmpty()))));
   }
 
@@ -200,6 +237,7 @@ TEST_P(BasicLogDeathTest, Fatal) {
       {
         absl::ScopedMockLog test_sink(
             absl::MockLogDefault::kDisallowUnexpected);
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -226,8 +264,7 @@ TEST_P(BasicLogDeathTest, Fatal) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(IsEmpty()))))
               .WillOnce(DeathTestExpectedLogging());
 
@@ -246,8 +283,7 @@ TEST_P(BasicLogDeathTest, Fatal) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(Not(IsEmpty())))))
               .WillOnce(DeathTestExpectedLogging());
         }
@@ -268,6 +304,7 @@ TEST_P(BasicLogDeathTest, QFatal) {
       {
         absl::ScopedMockLog test_sink(
             absl::MockLogDefault::kDisallowUnexpected);
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -288,8 +325,7 @@ TEST_P(BasicLogDeathTest, QFatal) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(IsEmpty()))))
               .WillOnce(DeathTestExpectedLogging());
         }
@@ -306,6 +342,7 @@ TEST_P(BasicLogTest, DFatal) {
   absl::log_internal::ScopedMinLogLevel scoped_min_log_level(GetParam());
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int log_line = __LINE__ + 1;
   auto do_log = [] { ABSL_TEST_LOG(DFATAL) << "hello world"; };
@@ -325,7 +362,7 @@ TEST_P(BasicLogTest, DFatal) {
             ENCODED_MESSAGE(MatchesEvent(
                 Eq(__FILE__), Eq(log_line), InMatchWindow(),
                 Eq(logging::proto::ERROR), Eq(absl::base_internal::GetTID()),
-                ElementsAre(EqualsProto(R"pb(literal: "hello world")pb")))),
+                ElementsAre(ValueWithLiteral(Eq("hello world"))))),
             Stacktrace(IsEmpty()))));
   }
 
@@ -345,6 +382,7 @@ TEST_P(BasicLogDeathTest, DFatal) {
       {
         absl::ScopedMockLog test_sink(
             absl::MockLogDefault::kDisallowUnexpected);
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -368,8 +406,7 @@ TEST_P(BasicLogDeathTest, DFatal) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(IsEmpty()))))
               .WillOnce(DeathTestExpectedLogging());
 
@@ -388,8 +425,7 @@ TEST_P(BasicLogDeathTest, DFatal) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(Not(IsEmpty())))))
               .WillOnce(DeathTestExpectedLogging());
         }
@@ -428,6 +464,7 @@ TEST_P(BasicLogTest, Level) {
   for (auto severity : {absl::LogSeverity::kInfo, absl::LogSeverity::kWarning,
                         absl::LogSeverity::kError}) {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
 
     const int log_line = __LINE__ + 2;
     auto do_log = [severity] {
@@ -454,7 +491,7 @@ TEST_P(BasicLogTest, Level) {
                          ? logging::proto::ERROR
                          : 0),
                   Eq(absl::base_internal::GetTID()),
-                  ElementsAre(EqualsProto(R"pb(literal: "hello world")pb")))),
+                  ElementsAre(ValueWithLiteral(Eq("hello world"))))),
               Stacktrace(IsEmpty()))));
     }
     test_sink.StartCapturingLogs();
@@ -478,6 +515,7 @@ TEST_P(BasicLogDeathTest, Level) {
       {
         absl::ScopedMockLog test_sink(
             absl::MockLogDefault::kDisallowUnexpected);
+        EXPECT_CALL(test_sink, Send).Times(0);
 
         EXPECT_CALL(test_sink, Send)
             .Times(AnyNumber())
@@ -500,8 +538,7 @@ TEST_P(BasicLogDeathTest, Level) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(IsEmpty()))))
               .WillOnce(DeathTestExpectedLogging());
 
@@ -519,8 +556,7 @@ TEST_P(BasicLogDeathTest, Level) {
                              Eq(__FILE__), Eq(log_line), InMatchWindow(),
                              Eq(logging::proto::FATAL),
                              Eq(absl::base_internal::GetTID()),
-                             ElementsAre(EqualsProto(
-                                 R"pb(literal: "hello world")pb")))),
+                             ElementsAre(ValueWithLiteral(Eq("hello world"))))),
                          Stacktrace(Not(IsEmpty())))))
               .WillOnce(DeathTestExpectedLogging());
         }
@@ -541,6 +577,7 @@ TEST_P(BasicLogTest, LevelClampsNegativeValues) {
   }
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink, Send(LogSeverity(Eq(absl::LogSeverity::kInfo))));
 
@@ -557,6 +594,7 @@ TEST_P(BasicLogTest, LevelClampsLargeValues) {
   }
 
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   EXPECT_CALL(test_sink, Send(LogSeverity(Eq(absl::LogSeverity::kError))));
 

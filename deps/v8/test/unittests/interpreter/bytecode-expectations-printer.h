@@ -12,6 +12,7 @@
 #include "include/v8-local-handle.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/objects.h"
+#include "test/unittests/interpreter/bytecode-expectations-parser.h"
 
 namespace v8 {
 
@@ -30,32 +31,14 @@ class BytecodeArrayIterator;
 
 class BytecodeExpectationsPrinter final {
  public:
-  explicit BytecodeExpectationsPrinter(v8::Isolate* i)
-      : isolate_(i),
-        module_(false),
-        wrap_(true),
-        top_level_(false),
-        print_callee_(false),
-        test_function_name_(kDefaultTopFunctionName) {}
+  explicit BytecodeExpectationsPrinter(v8::Isolate* i) : isolate_(i) {}
 
   void PrintExpectation(std::ostream* stream, const std::string& snippet) const;
+  void PrintCodeSnippet(std::ostream* stream, const std::string& body) const;
 
-  void set_module(bool module) { module_ = module; }
-  bool module() const { return module_; }
-
-  void set_wrap(bool wrap) { wrap_ = wrap; }
-  bool wrap() const { return wrap_; }
-
-  void set_top_level(bool top_level) { top_level_ = top_level; }
-  bool top_level() const { return top_level_; }
-
-  void set_print_callee(bool print_callee) { print_callee_ = print_callee; }
-  bool print_callee() { return print_callee_; }
-
-  void set_test_function_name(const std::string& test_function_name) {
-    test_function_name_ = test_function_name;
+  void set_options(const BytecodeExpectationsHeaderOptions& options) {
+    options_ = options;
   }
-  std::string test_function_name() const { return test_function_name_; }
 
  private:
   void PrintEscapedString(std::ostream* stream,
@@ -79,7 +62,6 @@ class BytecodeExpectationsPrinter final {
                              i::Handle<i::BytecodeArray> bytecode_array) const;
   void PrintConstantPool(std::ostream* stream,
                          i::Tagged<i::TrustedFixedArray> constant_pool) const;
-  void PrintCodeSnippet(std::ostream* stream, const std::string& body) const;
   void PrintBytecodeArray(std::ostream* stream,
                           i::Handle<i::BytecodeArray> bytecode_array) const;
   void PrintHandlers(std::ostream* stream,
@@ -106,13 +88,8 @@ class BytecodeExpectationsPrinter final {
   }
 
   v8::Isolate* isolate_;
-  bool module_;
-  bool wrap_;
-  bool top_level_;
-  bool print_callee_;
-  std::string test_function_name_;
+  BytecodeExpectationsHeaderOptions options_;
 
-  static const char* const kDefaultTopFunctionName;
   static const char* const kIndent;
 };
 

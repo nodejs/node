@@ -3,7 +3,7 @@ const common = require('../common');
 
 const { Worker } = require('worker_threads');
 const { createHook } = require('async_hooks');
-const { deepStrictEqual, strictEqual } = require('assert');
+const assert = require('assert');
 
 const m = new Map();
 createHook({
@@ -30,16 +30,16 @@ function getActiveWorkerAndMessagePortTypes() {
 }
 
 const w = new Worker('', { eval: true });
-deepStrictEqual(getActiveWorkerAndMessagePortTypes(), ['WORKER']);
+assert.deepStrictEqual(getActiveWorkerAndMessagePortTypes(), ['WORKER']);
 w.unref();
-deepStrictEqual(getActiveWorkerAndMessagePortTypes(), []);
+assert.deepStrictEqual(getActiveWorkerAndMessagePortTypes(), []);
 w.ref();
-deepStrictEqual(getActiveWorkerAndMessagePortTypes(), ['WORKER', 'MESSAGEPORT']);
+assert.deepStrictEqual(getActiveWorkerAndMessagePortTypes(), ['WORKER', 'MESSAGEPORT']);
 
 w.on('exit', common.mustCall((exitCode) => {
-  strictEqual(exitCode, 0);
-  deepStrictEqual(getActiveWorkerAndMessagePortTypes(), ['WORKER']);
+  assert.strictEqual(exitCode, 0);
+  assert.deepStrictEqual(getActiveWorkerAndMessagePortTypes(), ['WORKER']);
   setTimeout(common.mustCall(() => {
-    deepStrictEqual(getActiveWorkerAndMessagePortTypes(), []);
+    assert.deepStrictEqual(getActiveWorkerAndMessagePortTypes(), []);
   }), 0);
 }));

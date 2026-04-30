@@ -104,12 +104,18 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
 
   zx_vm_option_t options = GetProtectionFromMemoryPermission(access);
 
-  zx_vm_option_t alignment_option = GetAlignmentOptionFromAlignment(alignment);
-  CHECK_NE(0, alignment_option);  // Invalid alignment specified
-  options |= alignment_option;
-
   size_t vmar_offset = 0;
-  if (placement != PlacementMode::kAnywhere) {
+  if (placement == PlacementMode::kAnywhere) {
+    zx_vm_option_t alignment_option =
+        GetAlignmentOptionFromAlignment(alignment);
+    if (alignment_option == 0) {
+      // Invalid alignment specified, it is not possible to provide an
+      // allocation with correct alignment.
+      return nullptr;
+    }
+    options |= alignment_option;
+  } else {
+    CHECK_EQ(reinterpret_cast<intptr_t>(address) % alignment, 0);
     // Try placing the mapping at the specified address.
     uintptr_t target_addr = reinterpret_cast<uintptr_t>(address);
     uintptr_t base = reinterpret_cast<uintptr_t>(vmar_base);
@@ -121,26 +127,54 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   zx_vaddr_t result;
   zx_status_t status = vmar.map(options, vmar_offset, vmo, 0, size, &result);
 
-  if (status != ZX_OK && placement == PlacementMode::kUseHint) {
-    // If a placement hint was specified but couldn't be used (for example,
-    // because the offset overlapped another mapping), then retry again without
-    // a vmar_offset to let the kernel pick another location.
-    options &= ~(ZX_VM_SPECIFIC);
-    status = vmar.map(options, 0, vmo, 0, size, &result);
+  if (status == ZX_OK) {
+    DCHECK_EQ(result % alignment, 0);
+    return reinterpret_cast<void*>(result);
   }
 
-  if (status != ZX_OK) {
+  if (placement != PlacementMode::kUseHint) {
     return nullptr;
   }
+  // The hint failed, so we try again without the hint but with alignment
+  // options.
+  // TODO(404563927): Support alignment > 4GB. CppGC's HeapCage allocates with a
+  // 32GB alignment, and the allocation fails on Fuchsia at the moment if the
+  // provided placement hint is not available. PartitionAlloc already solved
+  // this issue, so maybe that solution could be used here as well.
+  return MapVmo(vmar, vmar_base, page_size, nullptr, vmo, offset,
+                PlacementMode::kAnywhere, size, alignment, access);
+}
 
-  return reinterpret_cast<void*>(result);
+void* TrimMapping(const zx::vmar& vmar, void* base_address, size_t base_length,
+                  size_t target_length, size_t alignment) {
+  uintptr_t base = reinterpret_cast<uintptr_t>(base_address);
+  uintptr_t new_base = (base + alignment - 1) & ~(alignment - 1);
+  DCHECK_GE(new_base, base);
+  size_t pre_slack = new_base - base;
+  size_t post_slack = base_length - pre_slack - target_length;
+  DCHECK_LE(pre_slack, base_length);
+  DCHECK_LE(post_slack, base_length);
+
+  if (pre_slack) {
+    vmar.unmap(base, pre_slack);
+  }
+  if (post_slack) {
+    vmar.unmap(new_base + target_length, post_slack);
+  }
+  return reinterpret_cast<void*>(new_base);
 }
 
 void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
                       void* address, PlacementMode placement, size_t size,
                       size_t alignment, OS::MemoryPermission access) {
+  bool huge_alignment = (GetAlignmentOptionFromAlignment(alignment) == 0);
+  size_t mapped_size = size;
+  if (huge_alignment) {
+    mapped_size = size + alignment - page_size;
+  }
+
   zx::vmo vmo;
-  if (zx::vmo::create(size, 0, &vmo) != ZX_OK) {
+  if (zx::vmo::create(mapped_size, 0, &vmo) != ZX_OK) {
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
@@ -156,8 +190,28 @@ void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
     return nullptr;
   }
 
-  return MapVmo(vmar, vmar_base, page_size, address, vmo, 0, placement, size,
-                alignment, access);
+  size_t request_size = size;
+  size_t request_align = alignment;
+  if (placement == PlacementMode::kAnywhere && huge_alignment) {
+    request_size = mapped_size;
+    request_align = page_size;
+  }
+
+  void* addr = MapVmo(vmar, vmar_base, page_size, address, vmo, 0, placement,
+                      request_size, request_align, access);
+
+  if (!addr && placement == PlacementMode::kUseHint && huge_alignment) {
+    request_size = mapped_size;
+    request_align = page_size;
+    addr =
+        MapVmo(vmar, vmar_base, page_size, nullptr, vmo, 0,
+               PlacementMode::kAnywhere, request_size, request_align, access);
+  }
+
+  if (addr && huge_alignment && request_size == mapped_size) {
+    return TrimMapping(vmar, addr, mapped_size, size, alignment);
+  }
+  return addr;
 }
 
 bool UnmapVmo(const zx::vmar& vmar, size_t page_size, void* address,
@@ -242,8 +296,8 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 // static
-void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
-  PosixInitializeCommon(abort_mode, gc_fake_mmap);
+void OS::Initialize(const char* const gc_fake_mmap) {
+  PosixInitializeCommon(gc_fake_mmap);
 
   // Determine base address of root VMAR.
   zx_info_vmar_t info;
@@ -257,7 +311,10 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
-                   MemoryPermission access) {
+                   MemoryPermission access,
+                   std::optional<SharedMemoryHandle> handle) {
+  // File handles aren't supported.
+  DCHECK(!handle.has_value());
   PlacementMode placement =
       address != nullptr ? PlacementMode::kUseHint : PlacementMode::kAnywhere;
   return CreateAndMapVmo(*zx::vmar::root_self(), g_root_vmar_base,
@@ -272,11 +329,11 @@ void OS::Free(void* address, size_t size) {
 
 // static
 void* OS::AllocateShared(void* address, size_t size,
-                         OS::MemoryPermission access,
-                         PlatformSharedMemoryHandle handle, uint64_t offset) {
+                         OS::MemoryPermission access, SharedMemoryHandle handle,
+                         uint64_t offset) {
   PlacementMode placement =
       address != nullptr ? PlacementMode::kUseHint : PlacementMode::kAnywhere;
-  zx::unowned_vmo vmo(VMOFromSharedMemoryHandle(handle));
+  zx::unowned_vmo vmo(handle.GetPlatformHandle());
   return MapVmo(*zx::vmar::root_self(), g_root_vmar_base, AllocatePageSize(),
                 address, *vmo, offset, placement, size, AllocatePageSize(),
                 access);
@@ -298,6 +355,13 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
 void OS::SetDataReadOnly(void* address, size_t size) {
   CHECK(OS::SetPermissions(address, size, MemoryPermission::kRead));
+}
+
+// static
+bool OS::SetMemoryRegionName(const void* address, size_t size,
+                             const char* name) {
+  // Not currently implemented but should be possible using ZX_PROP_NAME.
+  return false;
 }
 
 // static
@@ -328,8 +392,9 @@ bool OS::CanReserveAddressSpace() { return true; }
 
 // static
 std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
-    void* hint, size_t size, size_t alignment,
-    MemoryPermission max_permission) {
+    void* hint, size_t size, size_t alignment, MemoryPermission max_permission,
+    std::optional<SharedMemoryHandle> handle) {
+  DCHECK(!handle.has_value());
   DCHECK_EQ(0, reinterpret_cast<Address>(hint) % alignment);
   zx::vmar child;
   zx_vaddr_t child_addr;
@@ -351,18 +416,18 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 }
 
 // static
-PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+std::optional<SharedMemoryHandle> OS::CreateSharedMemoryHandleForTesting(
+    size_t size) {
   zx::vmo vmo;
   if (zx::vmo::create(size, 0, &vmo) != ZX_OK) {
-    return kInvalidSharedMemoryHandle;
+    return std::nullopt;
   }
-  return SharedMemoryHandleFromVMO(vmo.release());
+  return SharedMemoryHandle::FromPlatformHandle(vmo.release());
 }
 
 // static
-void OS::DestroySharedMemoryHandle(PlatformSharedMemoryHandle handle) {
-  DCHECK_NE(kInvalidSharedMemoryHandle, handle);
-  zx_handle_t vmo = VMOFromSharedMemoryHandle(handle);
+void OS::DestroySharedMemoryHandle(SharedMemoryHandle handle) {
+  zx_handle_t vmo = handle.GetPlatformHandle();
   zx_handle_close(vmo);
 }
 
@@ -446,10 +511,10 @@ bool AddressSpaceReservation::Free(void* address, size_t size) {
 
 bool AddressSpaceReservation::AllocateShared(void* address, size_t size,
                                              OS::MemoryPermission access,
-                                             PlatformSharedMemoryHandle handle,
+                                             SharedMemoryHandle handle,
                                              uint64_t offset) {
   DCHECK(Contains(address, size));
-  zx::unowned_vmo vmo(VMOFromSharedMemoryHandle(handle));
+  zx::unowned_vmo vmo(handle.GetPlatformHandle());
   return MapVmo(*zx::unowned_vmar(vmar_), base(), OS::AllocatePageSize(),
                 address, *vmo, offset, PlacementMode::kFixed, size,
                 OS::AllocatePageSize(), access);

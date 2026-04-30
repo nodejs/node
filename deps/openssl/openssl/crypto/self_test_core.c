@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,15 +11,14 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include "internal/cryptlib.h"
+#include "crypto/context.h"
 
-typedef struct self_test_cb_st
-{
+typedef struct self_test_cb_st {
     OSSL_CALLBACK *cb;
     void *cbarg;
 } SELF_TEST_CB;
 
-struct ossl_self_test_st
-{
+struct ossl_self_test_st {
     /* local state variables */
     const char *phase;
     const char *type;
@@ -32,7 +31,7 @@ struct ossl_self_test_st
 };
 
 #ifndef FIPS_MODULE
-static void *self_test_set_callback_new(OSSL_LIB_CTX *ctx)
+void *ossl_self_test_set_callback_new(OSSL_LIB_CTX *ctx)
 {
     SELF_TEST_CB *stcb;
 
@@ -40,25 +39,18 @@ static void *self_test_set_callback_new(OSSL_LIB_CTX *ctx)
     return stcb;
 }
 
-static void self_test_set_callback_free(void *stcb)
+void ossl_self_test_set_callback_free(void *stcb)
 {
     OPENSSL_free(stcb);
 }
 
-static const OSSL_LIB_CTX_METHOD self_test_set_callback_method = {
-    OSSL_LIB_CTX_METHOD_DEFAULT_PRIORITY,
-    self_test_set_callback_new,
-    self_test_set_callback_free,
-};
-
 static SELF_TEST_CB *get_self_test_callback(OSSL_LIB_CTX *libctx)
 {
-    return ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_SELF_TEST_CB_INDEX,
-                                 &self_test_set_callback_method);
+    return ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_SELF_TEST_CB_INDEX);
 }
 
 void OSSL_SELF_TEST_set_callback(OSSL_LIB_CTX *libctx, OSSL_CALLBACK *cb,
-                                 void *cbarg)
+    void *cbarg)
 {
     SELF_TEST_CB *stcb = get_self_test_callback(libctx);
 
@@ -69,7 +61,7 @@ void OSSL_SELF_TEST_set_callback(OSSL_LIB_CTX *libctx, OSSL_CALLBACK *cb,
 }
 
 void OSSL_SELF_TEST_get_callback(OSSL_LIB_CTX *libctx, OSSL_CALLBACK **cb,
-                                 void **cbarg)
+    void **cbarg)
 {
     SELF_TEST_CB *stcb = get_self_test_callback(libctx);
 
@@ -85,15 +77,12 @@ static void self_test_setparams(OSSL_SELF_TEST *st)
     size_t n = 0;
 
     if (st->cb != NULL) {
-        st->params[n++] =
-            OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_SELF_TEST_PHASE,
-                                             (char *)st->phase, 0);
-        st->params[n++] =
-            OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_SELF_TEST_TYPE,
-                                             (char *)st->type, 0);
-        st->params[n++] =
-            OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_SELF_TEST_DESC,
-                                             (char *)st->desc, 0);
+        st->params[n++] = OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_SELF_TEST_PHASE,
+            (char *)st->phase, 0);
+        st->params[n++] = OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_SELF_TEST_TYPE,
+            (char *)st->type, 0);
+        st->params[n++] = OSSL_PARAM_construct_utf8_string(OSSL_PROV_PARAM_SELF_TEST_DESC,
+            (char *)st->desc, 0);
     }
     st->params[n++] = OSSL_PARAM_construct_end();
 }
@@ -121,7 +110,7 @@ void OSSL_SELF_TEST_free(OSSL_SELF_TEST *st)
 
 /* Can be used during application testing to log that a test has started. */
 void OSSL_SELF_TEST_onbegin(OSSL_SELF_TEST *st, const char *type,
-                            const char *desc)
+    const char *desc)
 {
     if (st != NULL && st->cb != NULL) {
         st->phase = OSSL_SELF_TEST_PHASE_START;
@@ -139,8 +128,7 @@ void OSSL_SELF_TEST_onbegin(OSSL_SELF_TEST *st, const char *type,
 void OSSL_SELF_TEST_onend(OSSL_SELF_TEST *st, int ret)
 {
     if (st != NULL && st->cb != NULL) {
-        st->phase =
-            (ret == 1 ? OSSL_SELF_TEST_PHASE_PASS : OSSL_SELF_TEST_PHASE_FAIL);
+        st->phase = (ret == 1 ? OSSL_SELF_TEST_PHASE_PASS : OSSL_SELF_TEST_PHASE_FAIL);
         self_test_setparams(st);
         (void)st->cb(st->params, st->cb_arg);
 

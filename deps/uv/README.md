@@ -189,9 +189,7 @@ $ make install
 To build with [CMake][]:
 
 ```bash
-$ mkdir -p build
-
-$ (cd build && cmake .. -DBUILD_TESTING=ON) # generate project with tests
+$ cmake -B build -DBUILD_TESTING=ON         # generate project with tests
 $ cmake --build build                       # add `-j <n>` with cmake >= 3.12
 
 # Run tests:
@@ -217,7 +215,7 @@ $ cmake ../..                 \
 $ brew install --HEAD libuv
 ```
 
-Note to OS X users:
+Note to macOS users:
 
 Make sure that you specify the architecture you wish to build for in the
 "ARCHS" flag. You can specify more than one by delimiting with a space

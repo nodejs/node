@@ -49,21 +49,6 @@ declare namespace Errors {
     headers: IncomingHttpHeaders | string[] | null
   }
 
-  export class ResponseStatusCodeError extends UndiciError {
-    constructor (
-      message?: string,
-      statusCode?: number,
-      headers?: IncomingHttpHeaders | string[] | null,
-      body?: null | Record<string, any> | string
-    )
-    name: 'ResponseStatusCodeError'
-    code: 'UND_ERR_RESPONSE_STATUS_CODE'
-    body: null | Record<string, any> | string
-    status: number
-    statusCode: number
-    headers: IncomingHttpHeaders | string[] | null
-  }
-
   /** Passed an invalid argument. */
   export class InvalidArgumentError extends UndiciError {
     name: 'InvalidArgumentError'
@@ -167,5 +152,26 @@ declare namespace Errors {
     )
     name: 'SecureProxyConnectionError'
     code: 'UND_ERR_PRX_TLS'
+  }
+
+  export class MaxOriginsReachedError extends UndiciError {
+    name: 'MaxOriginsReachedError'
+    code: 'UND_ERR_MAX_ORIGINS_REACHED'
+  }
+
+  /** SOCKS5 proxy related error. */
+  export class Socks5ProxyError extends UndiciError {
+    constructor (
+      message?: string,
+      code?: string
+    )
+    name: 'Socks5ProxyError'
+    code: string
+  }
+
+  /** WebSocket decompressed message exceeded maximum size. */
+  export class MessageSizeExceededError extends UndiciError {
+    name: 'MessageSizeExceededError'
+    code: 'UND_ERR_WS_MESSAGE_SIZE_EXCEEDED'
   }
 }

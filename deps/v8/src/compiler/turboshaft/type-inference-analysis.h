@@ -158,12 +158,14 @@ class TypeInferenceAnalysis {
         case Opcode::kRetain:
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
-        case Opcode::kTuple:
+        case Opcode::kMakeTuple:
+        case Opcode::kMajorGCForCompilerTesting:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
         case Opcode::kDebugPrint:
 #if V8_ENABLE_WEBASSEMBLY
         case Opcode::kGlobalSet:
+        case Opcode::kWasmIncCoverageCounter:
         case Opcode::kTrapIf:
 #endif
         case Opcode::kCheckException:
@@ -288,6 +290,9 @@ class TypeInferenceAnalysis {
   }
 
   void ProcessConstant(OpIndex index, const ConstantOp& constant) {
+    // TODO(nicohartmann): Hole and Undefined NaNs should have special types.
+    // For now we track them as NaNs, but we don't optimize float constants that
+    // contain NaNs.
     Type type = Typer::TypeConstant(constant.kind, constant.storage);
     SetType(index, type);
   }

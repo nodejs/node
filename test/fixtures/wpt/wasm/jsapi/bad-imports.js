@@ -183,3 +183,4 @@ function test_bad_imports(t) {
       });
   }
 }
+globalThis.test_bad_imports = test_bad_imports;

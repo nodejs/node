@@ -15,12 +15,14 @@
 
 #include <math.h>
 
+#include <cstring>
 #include <iomanip>
 #include <ios>
 #include <limits>
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #ifdef __ANDROID__
@@ -28,6 +30,7 @@
 #endif
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/log/check.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
@@ -44,6 +47,7 @@ using ::absl::log_internal::MatchesOstream;
 using ::absl::log_internal::RawEncodedMessage;
 using ::absl::log_internal::TextMessage;
 using ::absl::log_internal::TextPrefix;
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::AnyOf;
 using ::testing::Each;
@@ -69,6 +73,7 @@ std::ostringstream ComparisonStream() {
 
 TEST(LogFormatTest, NoMessage) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int log_line = __LINE__ + 1;
   auto do_log = [] { LOG(INFO); };
@@ -91,16 +96,17 @@ TYPED_TEST_SUITE(CharLogFormatTest, CharTypes);
 
 TYPED_TEST(CharLogFormatTest, Printable) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = 'x';
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("x")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "x")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("x")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("x"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -108,19 +114,50 @@ TYPED_TEST(CharLogFormatTest, Printable) {
 
 TYPED_TEST(CharLogFormatTest, Unprintable) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   constexpr auto value = static_cast<TypeParam>(0xeeu);
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("\xee")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "\xee")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("\xee")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("\xee"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
+}
+
+TEST(WideCharLogFormatTest, Printable) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("€")),
+                                    ENCODED_MESSAGE(HasValues(
+                                        ElementsAre(ValueWithStr(Eq("€"))))))));
+
+  test_sink.StartCapturingLogs();
+  const wchar_t value = L'\u20AC';
+  LOG(INFO) << value;
+}
+
+TEST(WideCharLogFormatTest, Unprintable) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  // Using NEL (Next Line) Unicode character (U+0085).
+  // It is encoded as "\xC2\x85" in UTF-8.
+  constexpr wchar_t wide_value = L'\u0085';
+  constexpr char value[] = "\xC2\x85";
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << wide_value;
 }
 
 template <typename T>
@@ -131,16 +168,18 @@ TYPED_TEST_SUITE(UnsignedIntLogFormatTest, UnsignedIntTypes);
 
 TYPED_TEST(UnsignedIntLogFormatTest, Positive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = 224;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("224")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "224")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("224")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("224"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -148,6 +187,7 @@ TYPED_TEST(UnsignedIntLogFormatTest, Positive) {
 
 TYPED_TEST(UnsignedIntLogFormatTest, BitfieldPositive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const struct {
     TypeParam bits : 6;
@@ -155,11 +195,11 @@ TYPED_TEST(UnsignedIntLogFormatTest, BitfieldPositive) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value.bits;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("42")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "42")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("42")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("42"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value.bits;
@@ -173,16 +213,18 @@ TYPED_TEST_SUITE(SignedIntLogFormatTest, SignedIntTypes);
 
 TYPED_TEST(SignedIntLogFormatTest, Positive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = 224;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("224")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "224")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("224")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("224"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -190,16 +232,18 @@ TYPED_TEST(SignedIntLogFormatTest, Positive) {
 
 TYPED_TEST(SignedIntLogFormatTest, Negative) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = -112;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("-112")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-112")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("-112")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("-112"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -207,6 +251,7 @@ TYPED_TEST(SignedIntLogFormatTest, Negative) {
 
 TYPED_TEST(SignedIntLogFormatTest, BitfieldPositive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const struct {
     TypeParam bits : 6;
@@ -214,11 +259,11 @@ TYPED_TEST(SignedIntLogFormatTest, BitfieldPositive) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value.bits;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("21")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "21")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("21")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("21"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value.bits;
@@ -226,6 +271,7 @@ TYPED_TEST(SignedIntLogFormatTest, BitfieldPositive) {
 
 TYPED_TEST(SignedIntLogFormatTest, BitfieldNegative) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const struct {
     TypeParam bits : 6;
@@ -233,11 +279,12 @@ TYPED_TEST(SignedIntLogFormatTest, BitfieldNegative) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value.bits;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("-21")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "-21")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("-21")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("-21"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value.bits;
@@ -269,16 +316,18 @@ TYPED_TEST_SUITE(UnsignedEnumLogFormatTest, UnsignedEnumTypes);
 
 TYPED_TEST(UnsignedEnumLogFormatTest, Positive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = static_cast<TypeParam>(224);
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("224")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "224")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("224")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("224"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -286,6 +335,7 @@ TYPED_TEST(UnsignedEnumLogFormatTest, Positive) {
 
 TYPED_TEST(UnsignedEnumLogFormatTest, BitfieldPositive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const struct {
     TypeParam bits : 6;
@@ -293,11 +343,11 @@ TYPED_TEST(UnsignedEnumLogFormatTest, BitfieldPositive) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value.bits;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("42")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "42")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("42")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("42"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value.bits;
@@ -328,16 +378,18 @@ TYPED_TEST_SUITE(SignedEnumLogFormatTest, SignedEnumTypes);
 
 TYPED_TEST(SignedEnumLogFormatTest, Positive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = static_cast<TypeParam>(224);
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("224")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "224")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("224")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("224"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -345,16 +397,18 @@ TYPED_TEST(SignedEnumLogFormatTest, Positive) {
 
 TYPED_TEST(SignedEnumLogFormatTest, Negative) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = static_cast<TypeParam>(-112);
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("-112")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-112")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("-112")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("-112"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -362,6 +416,7 @@ TYPED_TEST(SignedEnumLogFormatTest, Negative) {
 
 TYPED_TEST(SignedEnumLogFormatTest, BitfieldPositive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const struct {
     TypeParam bits : 6;
@@ -369,11 +424,11 @@ TYPED_TEST(SignedEnumLogFormatTest, BitfieldPositive) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value.bits;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("21")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "21")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("21")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("21"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value.bits;
@@ -381,6 +436,7 @@ TYPED_TEST(SignedEnumLogFormatTest, BitfieldPositive) {
 
 TYPED_TEST(SignedEnumLogFormatTest, BitfieldNegative) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const struct {
     TypeParam bits : 6;
@@ -388,11 +444,12 @@ TYPED_TEST(SignedEnumLogFormatTest, BitfieldNegative) {
   auto comparison_stream = ComparisonStream();
   comparison_stream << value.bits;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("-21")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "-21")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("-21")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("-21"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value.bits;
@@ -401,6 +458,7 @@ TYPED_TEST(SignedEnumLogFormatTest, BitfieldNegative) {
 
 TEST(FloatLogFormatTest, Positive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const float value = 6.02e23f;
   auto comparison_stream = ComparisonStream();
@@ -409,8 +467,8 @@ TEST(FloatLogFormatTest, Positive) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("6.02e+23")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "6.02e+23")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("6.02e+23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -418,6 +476,7 @@ TEST(FloatLogFormatTest, Positive) {
 
 TEST(FloatLogFormatTest, Negative) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const float value = -6.02e23f;
   auto comparison_stream = ComparisonStream();
@@ -426,8 +485,8 @@ TEST(FloatLogFormatTest, Negative) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("-6.02e+23")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-6.02e+23")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("-6.02e+23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -435,6 +494,7 @@ TEST(FloatLogFormatTest, Negative) {
 
 TEST(FloatLogFormatTest, NegativeExponent) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const float value = 6.02e-23f;
   auto comparison_stream = ComparisonStream();
@@ -443,8 +503,8 @@ TEST(FloatLogFormatTest, NegativeExponent) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("6.02e-23")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "6.02e-23")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("6.02e-23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -452,6 +512,7 @@ TEST(FloatLogFormatTest, NegativeExponent) {
 
 TEST(DoubleLogFormatTest, Positive) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 6.02e23;
   auto comparison_stream = ComparisonStream();
@@ -460,8 +521,8 @@ TEST(DoubleLogFormatTest, Positive) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("6.02e+23")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "6.02e+23")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("6.02e+23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -469,6 +530,7 @@ TEST(DoubleLogFormatTest, Positive) {
 
 TEST(DoubleLogFormatTest, Negative) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = -6.02e23;
   auto comparison_stream = ComparisonStream();
@@ -477,8 +539,8 @@ TEST(DoubleLogFormatTest, Negative) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("-6.02e+23")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-6.02e+23")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("-6.02e+23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -486,6 +548,7 @@ TEST(DoubleLogFormatTest, Negative) {
 
 TEST(DoubleLogFormatTest, NegativeExponent) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 6.02e-23;
   auto comparison_stream = ComparisonStream();
@@ -494,8 +557,8 @@ TEST(DoubleLogFormatTest, NegativeExponent) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("6.02e-23")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "6.02e-23")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("6.02e-23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -508,16 +571,17 @@ TYPED_TEST_SUITE(FloatingPointLogFormatTest, FloatingPointTypes);
 
 TYPED_TEST(FloatingPointLogFormatTest, Zero) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = 0.0;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("0")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "0")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("0")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("0"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -525,16 +589,17 @@ TYPED_TEST(FloatingPointLogFormatTest, Zero) {
 
 TYPED_TEST(FloatingPointLogFormatTest, Integer) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = 1.0;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("1")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "1")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("1")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("1"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -542,16 +607,18 @@ TYPED_TEST(FloatingPointLogFormatTest, Integer) {
 
 TYPED_TEST(FloatingPointLogFormatTest, Infinity) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = std::numeric_limits<TypeParam>::infinity();
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(AnyOf(Eq("inf"), Eq("Inf"))),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "inf")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(AnyOf(Eq("inf"), Eq("Inf"))),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("inf"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -559,16 +626,18 @@ TYPED_TEST(FloatingPointLogFormatTest, Infinity) {
 
 TYPED_TEST(FloatingPointLogFormatTest, NegativeInfinity) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = -std::numeric_limits<TypeParam>::infinity();
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(AnyOf(Eq("-inf"), Eq("-Inf"))),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-inf")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(AnyOf(Eq("-inf"), Eq("-Inf"))),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("-inf"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -576,22 +645,25 @@ TYPED_TEST(FloatingPointLogFormatTest, NegativeInfinity) {
 
 TYPED_TEST(FloatingPointLogFormatTest, NaN) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = std::numeric_limits<TypeParam>::quiet_NaN();
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(AnyOf(Eq("nan"), Eq("NaN"))),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "nan")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(AnyOf(Eq("nan"), Eq("NaN"))),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("nan"))))))));
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
 }
 
 TYPED_TEST(FloatingPointLogFormatTest, NegativeNaN) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value =
       std::copysign(std::numeric_limits<TypeParam>::quiet_NaN(), -1.0);
@@ -602,24 +674,20 @@ TYPED_TEST(FloatingPointLogFormatTest, NegativeNaN) {
   // streaming it. #ifdefing out just the relevant line breaks the MSVC build,
   // so duplicate the entire EXPECT_CALL.
 #ifdef __riscv
-  EXPECT_CALL(
-      test_sink,
-      Send(AllOf(
-          TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"), Eq("-nan(ind)"))),
-          ENCODED_MESSAGE(HasValues(
-              ElementsAre(AnyOf(EqualsProto(R"pb(str: "-nan")pb"),
-                                EqualsProto(R"pb(str: "nan")pb"),
-                                EqualsProto(R"pb(str: "-nan(ind)")pb"))))))));
+  EXPECT_CALL(test_sink,
+              Send(AllOf(TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"),
+                                           Eq("-nan(ind)"))),
+                         ENCODED_MESSAGE(HasValues(ElementsAre(AnyOf(
+                             ValueWithStr(Eq("-nan")), ValueWithStr(Eq("nan")),
+                             ValueWithStr(Eq("-nan(ind)")))))))));
 #else
-  EXPECT_CALL(
-      test_sink,
-      Send(AllOf(
-          TextMessage(MatchesOstream(comparison_stream)),
-          TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"), Eq("-nan(ind)"))),
-          ENCODED_MESSAGE(HasValues(
-              ElementsAre(AnyOf(EqualsProto(R"pb(str: "-nan")pb"),
-                                EqualsProto(R"pb(str: "nan")pb"),
-                                EqualsProto(R"pb(str: "-nan(ind)")pb"))))))));
+  EXPECT_CALL(test_sink,
+              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                         TextMessage(AnyOf(Eq("-nan"), Eq("nan"), Eq("NaN"),
+                                           Eq("-nan(ind)"))),
+                         ENCODED_MESSAGE(HasValues(ElementsAre(AnyOf(
+                             ValueWithStr(Eq("-nan")), ValueWithStr(Eq("nan")),
+                             ValueWithStr(Eq("-nan(ind)")))))))));
 #endif
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -627,11 +695,12 @@ TYPED_TEST(FloatingPointLogFormatTest, NegativeNaN) {
 
 template <typename T>
 class VoidPtrLogFormatTest : public testing::Test {};
-using VoidPtrTypes = Types<void *, const void *>;
+using VoidPtrTypes = Types<void*, const void*>;
 TYPED_TEST_SUITE(VoidPtrLogFormatTest, VoidPtrTypes);
 
 TYPED_TEST(VoidPtrLogFormatTest, Null) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = nullptr;
   auto comparison_stream = ComparisonStream();
@@ -649,19 +718,19 @@ TYPED_TEST(VoidPtrLogFormatTest, Null) {
 
 TYPED_TEST(VoidPtrLogFormatTest, NonNull) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = reinterpret_cast<TypeParam>(0xdeadbeefULL);
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(
-      test_sink,
-      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                 TextMessage(AnyOf(Eq("0xdeadbeef"), Eq("DEADBEEF"),
-                                   Eq("00000000DEADBEEF"))),
-                 ENCODED_MESSAGE(HasValues(ElementsAre(
-                     AnyOf(EqualsProto(R"pb(str: "0xdeadbeef")pb"),
-                           EqualsProto(R"pb(str: "00000000DEADBEEF")pb"))))))));
+  EXPECT_CALL(test_sink,
+              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                         TextMessage(AnyOf(Eq("0xdeadbeef"), Eq("DEADBEEF"),
+                                           Eq("00000000DEADBEEF"))),
+                         ENCODED_MESSAGE(HasValues(ElementsAre(
+                             AnyOf(ValueWithStr(Eq("0xdeadbeef")),
+                                   ValueWithStr(Eq("00000000DEADBEEF")))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -669,25 +738,35 @@ TYPED_TEST(VoidPtrLogFormatTest, NonNull) {
 
 template <typename T>
 class VolatilePtrLogFormatTest : public testing::Test {};
-using VolatilePtrTypes =
-    Types<volatile void*, const volatile void*, volatile char*,
-          const volatile char*, volatile signed char*,
-          const volatile signed char*, volatile unsigned char*,
-          const volatile unsigned char*>;
+using VolatilePtrTypes = Types<
+    volatile void*, const volatile void*, volatile char*, const volatile char*,
+    volatile signed char*, const volatile signed char*, volatile unsigned char*,
+    const volatile unsigned char*, volatile wchar_t*, const volatile wchar_t*>;
 TYPED_TEST_SUITE(VolatilePtrLogFormatTest, VolatilePtrTypes);
 
 TYPED_TEST(VolatilePtrLogFormatTest, Null) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = nullptr;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("false")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "false")pb")))))));
+  // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p1147r1.html
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202302L
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(AnyOf(Eq("(nil)"), Eq("0"), Eq("0x0"),
+                                   Eq("00000000"), Eq("0000000000000000"))))));
+#else
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("false")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("false"))))))));
+#endif
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -695,16 +774,29 @@ TYPED_TEST(VolatilePtrLogFormatTest, Null) {
 
 TYPED_TEST(VolatilePtrLogFormatTest, NonNull) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const TypeParam value = reinterpret_cast<TypeParam>(0xdeadbeefLL);
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
+  // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p1147r1.html
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202302L
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("true")),
+                         TextMessage(AnyOf(Eq("0xdeadbeef"), Eq("DEADBEEF"),
+                                           Eq("00000000DEADBEEF"))),
                          ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "true")pb")))))));
+                             AnyOf(ValueWithStr(Eq("0xdeadbeef")),
+                                   ValueWithStr(Eq("00000000DEADBEEF")))))))));
+#else
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("true")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("true"))))))));
+#endif
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -718,6 +810,7 @@ TYPED_TEST_SUITE(CharPtrLogFormatTest, CharPtrTypes);
 
 TYPED_TEST(CharPtrLogFormatTest, Null) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   // Streaming `([cv] char *)nullptr` into a `std::ostream` is UB, and some C++
   // standard library implementations choose to crash.  We take measures to log
@@ -729,9 +822,8 @@ TYPED_TEST(CharPtrLogFormatTest, Null) {
       test_sink,
       Send(AllOf(
           // `MatchesOstream` deliberately omitted since we deliberately differ.
-          TextMessage(Eq("(null)")),
-          ENCODED_MESSAGE(
-              HasValues(ElementsAre(EqualsProto(R"pb(str: "(null)")pb")))))));
+          TextMessage(Eq("(null)")), ENCODED_MESSAGE(HasValues(ElementsAre(
+                                         ValueWithStr(Eq("(null)"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -739,17 +831,53 @@ TYPED_TEST(CharPtrLogFormatTest, Null) {
 
 TYPED_TEST(CharPtrLogFormatTest, NonNull) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   TypeParam data[] = {'v', 'a', 'l', 'u', 'e', '\0'};
   TypeParam* const value = data;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("value")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "value")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("value")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("value"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+template <typename T>
+class WideCharPtrLogFormatTest : public testing::Test {};
+using WideCharPtrTypes = Types<wchar_t, const wchar_t>;
+TYPED_TEST_SUITE(WideCharPtrLogFormatTest, WideCharPtrTypes);
+
+TYPED_TEST(WideCharPtrLogFormatTest, Null) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam* const value = nullptr;
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("(null)")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq("(null)"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideCharPtrLogFormatTest, NonNull) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam data[] = {'v', 'a', 'l', 'u', 'e', '\0'};
+  TypeParam* const value = data;
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("value")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq("value"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -757,16 +885,18 @@ TYPED_TEST(CharPtrLogFormatTest, NonNull) {
 
 TEST(BoolLogFormatTest, True) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const bool value = true;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("true")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "true")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("true")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("true"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -774,16 +904,18 @@ TEST(BoolLogFormatTest, True) {
 
 TEST(BoolLogFormatTest, False) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const bool value = false;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("false")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "false")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("false")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("false"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -791,6 +923,7 @@ TEST(BoolLogFormatTest, False) {
 
 TEST(LogFormatTest, StringLiteral) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   auto comparison_stream = ComparisonStream();
   comparison_stream << "value";
@@ -798,28 +931,239 @@ TEST(LogFormatTest, StringLiteral) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("value")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(literal: "value")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithLiteral(Eq("value"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << "value";
 }
 
+TEST(LogFormatTest, WideStringLiteral) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("value")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithLiteral(Eq("value"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << L"value";
+}
+
 TEST(LogFormatTest, CharArray) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   char value[] = "value";
   auto comparison_stream = ComparisonStream();
   comparison_stream << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("value")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "value")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("value")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("value"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
+}
+
+TEST(LogFormatTest, WideCharArray) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  wchar_t value[] = L"value";
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("value")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq("value"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+// Comprehensive test string for validating wchar_t to UTF-8 conversion.
+// See details in absl/strings/internal/utf8_test.cc.
+//
+// clang-format off
+#define ABSL_LOG_INTERNAL_WIDE_LITERAL L"Holá €1 你好 שָׁלוֹם 👍🏻🇺🇸👩‍❤️‍💋‍👨 中"
+#define ABSL_LOG_INTERNAL_UTF8_LITERAL u8"Holá €1 你好 שָׁלוֹם 👍🏻🇺🇸👩‍❤️‍💋‍👨 中"
+// clang-format on
+
+absl::string_view GetUtf8TestString() {
+  // `u8""` forces UTF-8 encoding; MSVC will default to e.g. CP1252 (and warn)
+  // without it. However, the resulting character type differs between pre-C++20
+  // (`char`) and C++20 (`char8_t`). So we reinterpret_cast to `char*` and wrap
+  // it in a `string_view`.
+  static const absl::string_view kUtf8TestString(
+      reinterpret_cast<const char*>(ABSL_LOG_INTERNAL_UTF8_LITERAL),
+      sizeof(ABSL_LOG_INTERNAL_UTF8_LITERAL) - 1);
+  return kUtf8TestString;
+}
+
+template <typename T>
+class WideStringLogFormatTest : public testing::Test {};
+using StringTypes =
+    Types<std::wstring, const std::wstring, wchar_t[], const wchar_t*>;
+TYPED_TEST_SUITE(WideStringLogFormatTest, StringTypes);
+
+TYPED_TEST(WideStringLogFormatTest, NonLiterals) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = ABSL_LOG_INTERNAL_WIDE_LITERAL;
+  absl::string_view utf8_value = GetUtf8TestString();
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TEST(WideStringLogFormatTest, StringView) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  std::wstring_view value = ABSL_LOG_INTERNAL_WIDE_LITERAL;
+  absl::string_view utf8_value = GetUtf8TestString();
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TEST(WideStringLogFormatTest, Literal) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  absl::string_view utf8_value = GetUtf8TestString();
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithLiteral(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << ABSL_LOG_INTERNAL_WIDE_LITERAL;
+}
+
+#undef ABSL_LOG_INTERNAL_WIDE_LITERAL
+#undef ABSL_LOG_INTERNAL_UTF8_LITERAL
+
+TYPED_TEST(WideStringLogFormatTest, IsolatedLowSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = L"AAA \xDC00 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA � BBB";
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_IsolatedHighSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = L"AAA \xD800 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA � BBB";
+  // Currently, this is "AAA \xF0\x90 BBB".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_ConsecutiveHighSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = L"AAA \xD800\xD800 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA �� BBB";
+  // Currently, this is "AAA \xF0\x90\xF0\x90 BBB".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_HighHighLowSurrogateSequencesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = L"AAA \xD800\xD800\xDC00 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA �𐀀 BBB";
+  // Currently, this is "AAA \xF0\x90𐀀 BBB".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_TrailingHighSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = L"AAA \xD800";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA �";
+  // Currently, this is "AAA \xF0\x90".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest, EmptyWideString) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  TypeParam value = L"";
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("")),
+                                    ENCODED_MESSAGE(HasValues(
+                                        ElementsAre(ValueWithStr(Eq(""))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TEST(WideStringLogFormatTest, MixedNarrowAndWideStrings) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  EXPECT_CALL(test_sink, Log(_, _, "1234"));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << "1" << L"2" << "3" << L"4";
 }
 
 class CustomClass {};
@@ -829,6 +1173,7 @@ std::ostream& operator<<(std::ostream& os, const CustomClass&) {
 
 TEST(LogFormatTest, Custom) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   CustomClass value;
   auto comparison_stream = ComparisonStream();
@@ -838,7 +1183,7 @@ TEST(LogFormatTest, Custom) {
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("CustomClass{}")),
                          ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "CustomClass{}")pb")))))));
+                             ValueWithStr(Eq("CustomClass{}"))))))));
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
 }
@@ -855,6 +1200,7 @@ std::ostream& operator<<(std::ostream& os, const CustomClassNonCopyable&) {
 
 TEST(LogFormatTest, CustomNonCopyable) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   CustomClassNonCopyable value;
   auto comparison_stream = ComparisonStream();
@@ -863,8 +1209,8 @@ TEST(LogFormatTest, CustomNonCopyable) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("CustomClassNonCopyable{}")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(EqualsProto(
-                             R"pb(str: "CustomClassNonCopyable{}")pb")))))));
+                         ENCODED_MESSAGE(HasValues(ElementsAre(
+                             ValueWithStr(Eq("CustomClassNonCopyable{}"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
@@ -882,14 +1228,15 @@ struct Point {
 
 TEST(LogFormatTest, AbslStringifyExample) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   Point p;
 
   EXPECT_CALL(
       test_sink,
       Send(AllOf(TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "(10, 20)")pb")))))));
+                 ENCODED_MESSAGE(
+                     HasValues(ElementsAre(ValueWithStr(Eq("(10, 20)"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << p;
@@ -913,14 +1260,15 @@ ABSL_ATTRIBUTE_UNUSED std::ostream& operator<<(
 
 TEST(LogFormatTest, CustomWithAbslStringifyAndOstream) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   PointWithAbslStringifiyAndOstream p;
 
   EXPECT_CALL(
       test_sink,
       Send(AllOf(TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "(10, 20)")pb")))))));
+                 ENCODED_MESSAGE(
+                     HasValues(ElementsAre(ValueWithStr(Eq("(10, 20)"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << p;
@@ -936,13 +1284,15 @@ struct PointStreamsNothing {
 
 TEST(LogFormatTest, AbslStringifyStreamsNothing) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   PointStreamsNothing p;
 
-  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("77")),
-                                    TextMessage(Eq(absl::StrCat(p, 77))),
-                                    ENCODED_MESSAGE(HasValues(ElementsAre(
-                                        EqualsProto(R"pb(str: "77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(Eq("77")), TextMessage(Eq(absl::StrCat(p, 77))),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << p << 77;
@@ -961,15 +1311,15 @@ struct PointMultipleAppend {
 
 TEST(LogFormatTest, AbslStringifyMultipleAppend) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   PointMultipleAppend p;
 
   EXPECT_CALL(
       test_sink,
       Send(AllOf(TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "(")pb"),
-                                 EqualsProto(R"pb(str: "10, 20)")pb")))))));
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("(")), ValueWithStr(Eq("10, 20)"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << p;
@@ -977,6 +1327,7 @@ TEST(LogFormatTest, AbslStringifyMultipleAppend) {
 
 TEST(ManipulatorLogFormatTest, BoolAlphaTrue) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const bool value = true;
   auto comparison_stream = ComparisonStream();
@@ -984,15 +1335,14 @@ TEST(ManipulatorLogFormatTest, BoolAlphaTrue) {
                     << std::boolalpha << value << " "    //
                     << std::noboolalpha << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("1 true 1")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "1")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "true")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "1")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("1 true 1")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("1")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("true")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("1"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::noboolalpha << value << " "  //
@@ -1002,6 +1352,7 @@ TEST(ManipulatorLogFormatTest, BoolAlphaTrue) {
 
 TEST(ManipulatorLogFormatTest, BoolAlphaFalse) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const bool value = false;
   auto comparison_stream = ComparisonStream();
@@ -1009,15 +1360,14 @@ TEST(ManipulatorLogFormatTest, BoolAlphaFalse) {
                     << std::boolalpha << value << " "    //
                     << std::noboolalpha << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("0 false 0")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "0")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "false")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "0")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("0 false 0")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("0")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("false")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("0"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::noboolalpha << value << " "  //
@@ -1027,6 +1377,7 @@ TEST(ManipulatorLogFormatTest, BoolAlphaFalse) {
 
 TEST(ManipulatorLogFormatTest, ShowPoint) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 77.0;
   auto comparison_stream = ComparisonStream();
@@ -1034,15 +1385,14 @@ TEST(ManipulatorLogFormatTest, ShowPoint) {
                     << std::showpoint << value << " "    //
                     << std::noshowpoint << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("77 77.0000 77")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "77")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "77.0000")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("77 77.0000 77")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("77")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("77.0000")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::noshowpoint << value << " "  //
@@ -1052,6 +1402,7 @@ TEST(ManipulatorLogFormatTest, ShowPoint) {
 
 TEST(ManipulatorLogFormatTest, ShowPos) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 77;
   auto comparison_stream = ComparisonStream();
@@ -1062,12 +1413,10 @@ TEST(ManipulatorLogFormatTest, ShowPos) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("77 +77 77")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "77")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "+77")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "77")pb")))))));
+                         ENCODED_MESSAGE(HasValues(ElementsAre(
+                             ValueWithStr(Eq("77")), ValueWithLiteral(Eq(" ")),
+                             ValueWithStr(Eq("+77")), ValueWithLiteral(Eq(" ")),
+                             ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::noshowpos << value << " "  //
@@ -1077,6 +1426,7 @@ TEST(ManipulatorLogFormatTest, ShowPos) {
 
 TEST(ManipulatorLogFormatTest, UppercaseFloat) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 7.7e7;
   auto comparison_stream = ComparisonStream();
@@ -1084,15 +1434,14 @@ TEST(ManipulatorLogFormatTest, UppercaseFloat) {
                     << std::uppercase << value << " "    //
                     << std::nouppercase << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("7.7e+07 7.7E+07 7.7e+07")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "7.7e+07")pb"),
-                             EqualsProto(R"pb(literal: " ")pb"),
-                             EqualsProto(R"pb(str: "7.7E+07")pb"),
-                             EqualsProto(R"pb(literal: " ")pb"),
-                             EqualsProto(R"pb(str: "7.7e+07")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("7.7e+07 7.7E+07 7.7e+07")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("7.7e+07")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("7.7E+07")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("7.7e+07"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::nouppercase << value << " "  //
@@ -1102,32 +1451,36 @@ TEST(ManipulatorLogFormatTest, UppercaseFloat) {
 
 TEST(ManipulatorLogFormatTest, Hex) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 0x77;
   auto comparison_stream = ComparisonStream();
   comparison_stream << std::hex << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("0x77")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "0x77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("0x77")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("0x77"))))))));
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hex << value;
 }
 
 TEST(ManipulatorLogFormatTest, Oct) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 077;
   auto comparison_stream = ComparisonStream();
   comparison_stream << std::oct << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("077")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "077")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)),
+          TextMessage(Eq("077")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("077"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::oct << value;
@@ -1135,16 +1488,17 @@ TEST(ManipulatorLogFormatTest, Oct) {
 
 TEST(ManipulatorLogFormatTest, Dec) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 77;
   auto comparison_stream = ComparisonStream();
   comparison_stream << std::hex << std::dec << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("77")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("77")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hex << std::dec << value;
@@ -1152,6 +1506,7 @@ TEST(ManipulatorLogFormatTest, Dec) {
 
 TEST(ManipulatorLogFormatTest, ShowbaseHex) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 0x77;
   auto comparison_stream = ComparisonStream();
@@ -1160,15 +1515,14 @@ TEST(ManipulatorLogFormatTest, ShowbaseHex) {
                     << std::showbase << value << " "    //
                     << std::noshowbase << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("77 0x77 77")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "77")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "0x77")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("77 0x77 77")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("77")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("0x77")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hex                         //
@@ -1179,6 +1533,7 @@ TEST(ManipulatorLogFormatTest, ShowbaseHex) {
 
 TEST(ManipulatorLogFormatTest, ShowbaseOct) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 077;
   auto comparison_stream = ComparisonStream();
@@ -1190,12 +1545,10 @@ TEST(ManipulatorLogFormatTest, ShowbaseOct) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("77 077 77")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "77")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "077")pb"),
-                                         EqualsProto(R"pb(literal: " ")pb"),
-                                         EqualsProto(R"pb(str: "77")pb")))))));
+                         ENCODED_MESSAGE(HasValues(ElementsAre(
+                             ValueWithStr(Eq("77")), ValueWithLiteral(Eq(" ")),
+                             ValueWithStr(Eq("077")), ValueWithLiteral(Eq(" ")),
+                             ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::oct                         //
@@ -1206,6 +1559,7 @@ TEST(ManipulatorLogFormatTest, ShowbaseOct) {
 
 TEST(ManipulatorLogFormatTest, UppercaseHex) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 0xbeef;
   auto comparison_stream = ComparisonStream();
@@ -1215,15 +1569,14 @@ TEST(ManipulatorLogFormatTest, UppercaseHex) {
       << std::uppercase << value << " "    //
       << std::nouppercase << value;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("0xbeef 0XBEEF 0xbeef")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "0xbeef")pb"),
-                             EqualsProto(R"pb(literal: " ")pb"),
-                             EqualsProto(R"pb(str: "0XBEEF")pb"),
-                             EqualsProto(R"pb(literal: " ")pb"),
-                             EqualsProto(R"pb(str: "0xbeef")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("0xbeef 0XBEEF 0xbeef")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("0xbeef")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("0XBEEF")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("0xbeef"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hex                          //
@@ -1234,6 +1587,7 @@ TEST(ManipulatorLogFormatTest, UppercaseHex) {
 
 TEST(ManipulatorLogFormatTest, FixedFloat) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 7.7e7;
   auto comparison_stream = ComparisonStream();
@@ -1243,7 +1597,7 @@ TEST(ManipulatorLogFormatTest, FixedFloat) {
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("77000000.000000")),
                          ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "77000000.000000")pb")))))));
+                             ValueWithStr(Eq("77000000.000000"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::fixed << value;
@@ -1251,6 +1605,7 @@ TEST(ManipulatorLogFormatTest, FixedFloat) {
 
 TEST(ManipulatorLogFormatTest, ScientificFloat) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 7.7e7;
   auto comparison_stream = ComparisonStream();
@@ -1259,8 +1614,8 @@ TEST(ManipulatorLogFormatTest, ScientificFloat) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("7.700000e+07")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "7.700000e+07")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("7.700000e+07"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::scientific << value;
@@ -1274,6 +1629,7 @@ TEST(ManipulatorLogFormatTest, ScientificFloat) {
 #else
 TEST(ManipulatorLogFormatTest, FixedAndScientificFloat) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 7.7e7;
   auto comparison_stream = ComparisonStream();
@@ -1286,9 +1642,9 @@ TEST(ManipulatorLogFormatTest, FixedAndScientificFloat) {
       Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                  TextMessage(AnyOf(Eq("0x1.25bb50p+26"), Eq("0x1.25bb5p+26"),
                                    Eq("0x1.25bb500000000p+26"))),
-                 ENCODED_MESSAGE(HasValues(ElementsAre(AnyOf(
-                     EqualsProto(R"pb(str: "0x1.25bb5p+26")pb"),
-                     EqualsProto(R"pb(str: "0x1.25bb500000000p+26")pb"))))))));
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     AnyOf(ValueWithStr(Eq("0x1.25bb5p+26")),
+                           ValueWithStr(Eq("0x1.25bb500000000p+26")))))))));
 
   test_sink.StartCapturingLogs();
 
@@ -1307,6 +1663,7 @@ TEST(ManipulatorLogFormatTest, FixedAndScientificFloat) {
 #else
 TEST(ManipulatorLogFormatTest, HexfloatFloat) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 7.7e7;
   auto comparison_stream = ComparisonStream();
@@ -1317,9 +1674,9 @@ TEST(ManipulatorLogFormatTest, HexfloatFloat) {
       Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                  TextMessage(AnyOf(Eq("0x1.25bb50p+26"), Eq("0x1.25bb5p+26"),
                                    Eq("0x1.25bb500000000p+26"))),
-                 ENCODED_MESSAGE(HasValues(ElementsAre(AnyOf(
-                     EqualsProto(R"pb(str: "0x1.25bb5p+26")pb"),
-                     EqualsProto(R"pb(str: "0x1.25bb500000000p+26")pb"))))))));
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     AnyOf(ValueWithStr(Eq("0x1.25bb5p+26")),
+                           ValueWithStr(Eq("0x1.25bb500000000p+26")))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hexfloat << value;
@@ -1328,6 +1685,7 @@ TEST(ManipulatorLogFormatTest, HexfloatFloat) {
 
 TEST(ManipulatorLogFormatTest, DefaultFloatFloat) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 7.7e7;
   auto comparison_stream = ComparisonStream();
@@ -1336,8 +1694,8 @@ TEST(ManipulatorLogFormatTest, DefaultFloatFloat) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("7.7e+07")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "7.7e+07")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("7.7e+07"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hexfloat << std::defaultfloat << value;
@@ -1345,6 +1703,7 @@ TEST(ManipulatorLogFormatTest, DefaultFloatFloat) {
 
 TEST(ManipulatorLogFormatTest, Ends) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   auto comparison_stream = ComparisonStream();
   comparison_stream << std::ends;
@@ -1352,8 +1711,8 @@ TEST(ManipulatorLogFormatTest, Ends) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq(absl::string_view("\0", 1))),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "\0")pb")))))));
+                         ENCODED_MESSAGE(HasValues(ElementsAre(
+                             ValueWithStr(Eq(absl::string_view("\0", 1)))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::ends;
@@ -1361,6 +1720,7 @@ TEST(ManipulatorLogFormatTest, Ends) {
 
 TEST(ManipulatorLogFormatTest, Endl) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   auto comparison_stream = ComparisonStream();
   comparison_stream << std::endl;
@@ -1370,8 +1730,7 @@ TEST(ManipulatorLogFormatTest, Endl) {
       Send(AllOf(
           TextMessage(MatchesOstream(comparison_stream)),
           TextMessage(Eq("\n")),
-          ENCODED_MESSAGE(HasValues(ElementsAre(EqualsProto(R"pb(str:
-          "\n")pb")))))));
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("\n"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::endl;
@@ -1379,6 +1738,7 @@ TEST(ManipulatorLogFormatTest, Endl) {
 
 TEST(ManipulatorLogFormatTest, SetIosFlags) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 0x77;
   auto comparison_stream = ComparisonStream();
@@ -1395,10 +1755,9 @@ TEST(ManipulatorLogFormatTest, SetIosFlags) {
           // `std::setiosflags` and `std::resetiosflags` aren't manipulators.
           // We're unable to distinguish their return type(s) from arbitrary
           // user-defined types and thus don't suppress the empty str value.
-          ENCODED_MESSAGE(
-              HasValues(ElementsAre(EqualsProto(R"pb(str: "0x77")pb"),
-                                    EqualsProto(R"pb(literal: " ")pb"),
-                                    EqualsProto(R"pb(str: "119")pb")))))));
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("0x77")),
+                                                ValueWithLiteral(Eq(" ")),
+                                                ValueWithStr(Eq("119"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::resetiosflags(std::ios_base::basefield)
@@ -1409,6 +1768,7 @@ TEST(ManipulatorLogFormatTest, SetIosFlags) {
 
 TEST(ManipulatorLogFormatTest, SetBase) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 0x77;
   auto comparison_stream = ComparisonStream();
@@ -1422,10 +1782,9 @@ TEST(ManipulatorLogFormatTest, SetBase) {
                  // `std::setbase` isn't a manipulator.  We're unable to
                  // distinguish its return type from arbitrary user-defined
                  // types and thus don't suppress the empty str value.
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "0x77")pb"),
-                                 EqualsProto(R"pb(literal: " ")pb"),
-                                 EqualsProto(R"pb(str: "119")pb")))))));
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("0x77")), ValueWithLiteral(Eq(" ")),
+                     ValueWithStr(Eq("119"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::setbase(16) << value << " "  //
@@ -1434,6 +1793,7 @@ TEST(ManipulatorLogFormatTest, SetBase) {
 
 TEST(ManipulatorLogFormatTest, SetPrecision) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 6.022140857e23;
   auto comparison_stream = ComparisonStream();
@@ -1446,8 +1806,8 @@ TEST(ManipulatorLogFormatTest, SetPrecision) {
                  // `std::setprecision` isn't a manipulator.  We're unable to
                  // distinguish its return type from arbitrary user-defined
                  // types and thus don't suppress the empty str value.
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "6.022e+23")pb")))))));
+                 ENCODED_MESSAGE(
+                     HasValues(ElementsAre(ValueWithStr(Eq("6.022e+23"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::setprecision(4) << value;
@@ -1455,6 +1815,7 @@ TEST(ManipulatorLogFormatTest, SetPrecision) {
 
 TEST(ManipulatorLogFormatTest, SetPrecisionOverflow) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const double value = 6.022140857e23;
   auto comparison_stream = ComparisonStream();
@@ -1463,8 +1824,8 @@ TEST(ManipulatorLogFormatTest, SetPrecisionOverflow) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("602214085700000015187968")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(EqualsProto(
-                             R"pb(str: "602214085700000015187968")pb")))))));
+                         ENCODED_MESSAGE(HasValues(ElementsAre(
+                             ValueWithStr(Eq("602214085700000015187968"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::setprecision(200) << value;
@@ -1472,6 +1833,7 @@ TEST(ManipulatorLogFormatTest, SetPrecisionOverflow) {
 
 TEST(ManipulatorLogFormatTest, SetW) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 77;
   auto comparison_stream = ComparisonStream();
@@ -1484,8 +1846,8 @@ TEST(ManipulatorLogFormatTest, SetW) {
                  // `std::setw` isn't a manipulator.  We're unable to
                  // distinguish its return type from arbitrary user-defined
                  // types and thus don't suppress the empty str value.
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "      77")pb")))))));
+                 ENCODED_MESSAGE(
+                     HasValues(ElementsAre(ValueWithStr(Eq("      77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::setw(8) << value;
@@ -1493,6 +1855,7 @@ TEST(ManipulatorLogFormatTest, SetW) {
 
 TEST(ManipulatorLogFormatTest, Left) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = -77;
   auto comparison_stream = ComparisonStream();
@@ -1501,8 +1864,8 @@ TEST(ManipulatorLogFormatTest, Left) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("-77     ")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-77     ")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("-77     "))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::left << std::setw(8) << value;
@@ -1510,6 +1873,7 @@ TEST(ManipulatorLogFormatTest, Left) {
 
 TEST(ManipulatorLogFormatTest, Right) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = -77;
   auto comparison_stream = ComparisonStream();
@@ -1518,8 +1882,8 @@ TEST(ManipulatorLogFormatTest, Right) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("     -77")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "     -77")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("     -77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::right << std::setw(8) << value;
@@ -1527,6 +1891,7 @@ TEST(ManipulatorLogFormatTest, Right) {
 
 TEST(ManipulatorLogFormatTest, Internal) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = -77;
   auto comparison_stream = ComparisonStream();
@@ -1535,8 +1900,8 @@ TEST(ManipulatorLogFormatTest, Internal) {
   EXPECT_CALL(test_sink,
               Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
                          TextMessage(Eq("-     77")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "-     77")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("-     77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::internal << std::setw(8) << value;
@@ -1544,6 +1909,7 @@ TEST(ManipulatorLogFormatTest, Internal) {
 
 TEST(ManipulatorLogFormatTest, SetFill) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   const int value = 77;
   auto comparison_stream = ComparisonStream();
@@ -1556,8 +1922,8 @@ TEST(ManipulatorLogFormatTest, SetFill) {
                          // unable to distinguish its return
                          // type from arbitrary user-defined types and
                          // thus don't suppress the empty str value.
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "00000077")pb")))))));
+                         ENCODED_MESSAGE(HasValues(
+                             ElementsAre(ValueWithStr(Eq("00000077"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::setfill('0') << std::setw(8) << value;
@@ -1570,18 +1936,19 @@ std::ostream& operator<<(std::ostream& os, const FromCustomClass&) {
 
 TEST(ManipulatorLogFormatTest, FromCustom) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   FromCustomClass value;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value << " " << 0x77;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("FromCustomClass{} 0x77")),
-                         ENCODED_MESSAGE(HasValues(ElementsAre(
-                             EqualsProto(R"pb(str: "FromCustomClass{}")pb"),
-                             EqualsProto(R"pb(literal: " ")pb"),
-                             EqualsProto(R"pb(str: "0x77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
+                 TextMessage(Eq("FromCustomClass{} 0x77")),
+                 ENCODED_MESSAGE(HasValues(ElementsAre(
+                     ValueWithStr(Eq("FromCustomClass{}")),
+                     ValueWithLiteral(Eq(" ")), ValueWithStr(Eq("0x77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value << " " << 0x77;
@@ -1592,16 +1959,17 @@ std::ostream& operator<<(std::ostream& os, const StreamsNothing&) { return os; }
 
 TEST(ManipulatorLogFormatTest, CustomClassStreamsNothing) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   StreamsNothing value;
   auto comparison_stream = ComparisonStream();
   comparison_stream << value << 77;
 
-  EXPECT_CALL(test_sink,
-              Send(AllOf(TextMessage(MatchesOstream(comparison_stream)),
-                         TextMessage(Eq("77")),
-                         ENCODED_MESSAGE(HasValues(
-                             ElementsAre(EqualsProto(R"pb(str: "77")pb")))))));
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(MatchesOstream(comparison_stream)), TextMessage(Eq("77")),
+          ENCODED_MESSAGE(HasValues(ElementsAre(ValueWithStr(Eq("77"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value << 77;
@@ -1619,14 +1987,15 @@ struct PointPercentV {
 
 TEST(ManipulatorLogFormatTest, IOManipsDoNotAffectAbslStringify) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   PointPercentV p;
 
   EXPECT_CALL(
       test_sink,
       Send(AllOf(TextMessage(Eq("(10, 20)")), TextMessage(Eq(absl::StrCat(p))),
-                 ENCODED_MESSAGE(HasValues(
-                     ElementsAre(EqualsProto(R"pb(str: "(10, 20)")pb")))))));
+                 ENCODED_MESSAGE(
+                     HasValues(ElementsAre(ValueWithStr(Eq("(10, 20)"))))))));
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::hex << p;
@@ -1634,6 +2003,7 @@ TEST(ManipulatorLogFormatTest, IOManipsDoNotAffectAbslStringify) {
 
 TEST(StructuredLoggingOverflowTest, TruncatesStrings) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   // This message is too long and should be truncated to some unspecified size
   // no greater than the buffer size but not too much less either.  It should be
@@ -1654,6 +2024,30 @@ TEST(StructuredLoggingOverflowTest, TruncatesStrings) {
   LOG(INFO) << std::string(2 * absl::log_internal::kLogMessageBufferSize, 'x');
 }
 
+TEST(StructuredLoggingOverflowTest, TruncatesWideStrings) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
+
+  // This message is too long and should be truncated to some unspecified size
+  // no greater than the buffer size but not too much less either.  It should be
+  // truncated rather than discarded.
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(AllOf(
+              SizeIs(AllOf(Ge(absl::log_internal::kLogMessageBufferSize - 256),
+                           Le(absl::log_internal::kLogMessageBufferSize))),
+              Each(Eq('x')))),
+          ENCODED_MESSAGE(HasOneStrThat(AllOf(
+              SizeIs(AllOf(Ge(absl::log_internal::kLogMessageBufferSize - 256),
+                           Le(absl::log_internal::kLogMessageBufferSize))),
+              Each(Eq('x'))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << std::wstring(2 * absl::log_internal::kLogMessageBufferSize,
+                            L'x');
+}
+
 struct StringLike {
   absl::string_view data;
 };
@@ -1663,6 +2057,7 @@ std::ostream& operator<<(std::ostream& os, StringLike str) {
 
 TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperators) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+  EXPECT_CALL(test_sink, Send).Times(0);
 
   // This message is too long and should be truncated to some unspecified size
   // no greater than the buffer size but not too much less either.  It should be
@@ -1714,6 +2109,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesStringsCleanly) {
   // sizes.  To put any data in the field we need a fifth byte.
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit), Each(Eq('x'))))),
@@ -1724,6 +2120,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesStringsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 1), Each(Eq('x'))))),
@@ -1734,6 +2131,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesStringsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 2), Each(Eq('x'))))),
@@ -1744,6 +2142,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesStringsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 3), Each(Eq('x'))))),
@@ -1754,6 +2153,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesStringsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrAndOneLiteralThat(
                                AllOf(SizeIs(longest_fit - 4), Each(Eq('x'))),
@@ -1766,6 +2166,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesStringsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(
         test_sink,
         Send(AllOf(ENCODED_MESSAGE(HasOneStrAndOneLiteralThat(
@@ -1783,6 +2184,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperatorsCleanly) {
   // sizes.  To put any data in the field we need a fifth byte.
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit), Each(Eq('x'))))),
@@ -1793,6 +2195,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperatorsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 1), Each(Eq('x'))))),
@@ -1804,6 +2207,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperatorsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 2), Each(Eq('x'))))),
@@ -1815,6 +2219,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperatorsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 3), Each(Eq('x'))))),
@@ -1826,6 +2231,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperatorsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(test_sink,
                 Send(AllOf(ENCODED_MESSAGE(HasOneStrThat(
                                AllOf(SizeIs(longest_fit - 4), Each(Eq('x'))))),
@@ -1839,6 +2245,7 @@ TEST(StructuredLoggingOverflowTest, TruncatesInsertionOperatorsCleanly) {
   }
   {
     absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+    EXPECT_CALL(test_sink, Send).Times(0);
     EXPECT_CALL(
         test_sink,
         Send(AllOf(ENCODED_MESSAGE(HasTwoStrsThat(

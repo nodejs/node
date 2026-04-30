@@ -44,6 +44,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -378,15 +379,30 @@ void SyncProcessRunner::RegisterExternalReferences(
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+
+  std::string resource = "";
+  if (env->permission()->enabled() && args[0]->IsObject()) {
+    Local<Object> js_options = args[0].As<Object>();
+    Local<Value> js_file;
+    if (!js_options->Get(context, env->file_string()).ToLocal(&js_file)) {
+      return;
+    }
+
+    if (js_file->IsString()) {
+      node::Utf8Value executable(env->isolate(), js_file.As<String>());
+      resource = executable.ToString();
+    }
+  }
+
   THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kChildProcess, "");
+      env, permission::PermissionScope::kChildProcess, resource);
   env->PrintSyncTrace();
   SyncProcessRunner p(env);
   Local<Value> result;
   if (!p.Run(args[0]).ToLocal(&result)) return;
   args.GetReturnValue().Set(result);
 }
-
 
 SyncProcessRunner::SyncProcessRunner(Environment* env)
     : max_buffer_(0),
@@ -396,14 +412,9 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
       uv_loop_(nullptr),
 
       stdio_count_(0),
-      uv_stdio_containers_(nullptr),
       stdio_pipes_initialized_(false),
 
       uv_process_options_(),
-      file_buffer_(nullptr),
-      args_buffer_(nullptr),
-      env_buffer_(nullptr),
-      cwd_buffer_(nullptr),
 
       uv_process_(),
       killed_(false),
@@ -420,19 +431,12 @@ SyncProcessRunner::SyncProcessRunner(Environment* env)
 
       lifecycle_(kUninitialized),
 
-      env_(env) {
-}
-
+      env_(env) {}
 
 SyncProcessRunner::~SyncProcessRunner() {
   CHECK_EQ(lifecycle_, kHandlesClosed);
 
   stdio_pipes_.clear();
-  delete[] file_buffer_;
-  delete[] args_buffer_;
-  delete[] cwd_buffer_;
-  delete[] env_buffer_;
-  delete[] uv_stdio_containers_;
 }
 
 
@@ -792,12 +796,14 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   Local<Object> js_options = js_value.As<Object>();
 
   Local<Value> js_file;
+  const char* file_buffer;
   if (!js_options->Get(context, env()->file_string()).ToLocal(&js_file) ||
-      !CopyJsString(js_file, &file_buffer_).To(&r)) {
+      !CopyJsString(js_file, &file_buffer).To(&r)) {
     return Nothing<int>();
   }
   if (r < 0) return Just(r);
-  uv_process_options_.file = file_buffer_;
+  file_buffer_.reset(file_buffer);
+  uv_process_options_.file = file_buffer_.get();
 
   // Undocumented feature of Win32 CreateProcess API allows spawning
   // batch files directly but is potentially insecure because arguments
@@ -809,23 +815,27 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 #endif
 
   Local<Value> js_args;
+  char* args_buffer;
   if (!js_options->Get(context, env()->args_string()).ToLocal(&js_args) ||
-      !CopyJsStringArray(js_args, &args_buffer_).To(&r)) {
+      !CopyJsStringArray(js_args, &args_buffer).To(&r)) {
     return Nothing<int>();
   }
   if (r < 0) return Just(r);
-  uv_process_options_.args = reinterpret_cast<char**>(args_buffer_);
+  args_buffer_.reset(args_buffer);
+  uv_process_options_.args = reinterpret_cast<char**>(args_buffer_.get());
 
   Local<Value> js_cwd;
   if (!js_options->Get(context, env()->cwd_string()).ToLocal(&js_cwd)) {
     return Nothing<int>();
   }
   if (!js_cwd->IsNullOrUndefined()) {
-    if (!CopyJsString(js_cwd, &cwd_buffer_).To(&r)) {
+    const char* cwd_buffer;
+    if (!CopyJsString(js_cwd, &cwd_buffer).To(&r)) {
       return Nothing<int>();
     }
     if (r < 0) return Just(r);
-    uv_process_options_.cwd = cwd_buffer_;
+    cwd_buffer_.reset(cwd_buffer);
+    uv_process_options_.cwd = cwd_buffer_.get();
   }
 
   Local<Value> js_env_pairs;
@@ -834,12 +844,13 @@ Maybe<int> SyncProcessRunner::ParseOptions(Local<Value> js_value) {
     return Nothing<int>();
   }
   if (!js_env_pairs->IsNullOrUndefined()) {
-    if (!CopyJsStringArray(js_env_pairs, &env_buffer_).To(&r)) {
+    char* env_buffer;
+    if (!CopyJsStringArray(js_env_pairs, &env_buffer).To(&r)) {
       return Nothing<int>();
     }
     if (r < 0) return Just(r);
-
-    uv_process_options_.env = reinterpret_cast<char**>(env_buffer_);
+    env_buffer_.reset(env_buffer);
+    uv_process_options_.env = reinterpret_cast<char**>(env_buffer_.get());
   }
   Local<Value> js_uid;
   if (!js_options->Get(context, env()->uid_string()).ToLocal(&js_uid)) {
@@ -966,7 +977,7 @@ Maybe<int> SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   js_stdio_options = js_value.As<Array>();
 
   stdio_count_ = js_stdio_options->Length();
-  uv_stdio_containers_ = new uv_stdio_container_t[stdio_count_];
+  uv_stdio_containers_.resize(stdio_count_);
 
   stdio_pipes_.clear();
   stdio_pipes_.resize(stdio_count_);
@@ -991,7 +1002,7 @@ Maybe<int> SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
     }
   }
 
-  uv_process_options_.stdio = uv_stdio_containers_;
+  uv_process_options_.stdio = uv_stdio_containers_.data();
   uv_process_options_.stdio_count = stdio_count_;
 
   return Just<int>(0);
@@ -1145,16 +1156,17 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   if (!js_value->IsArray()) return Just<int>(UV_EINVAL);
 
   Local<Context> context = env()->context();
-  js_array = js_value.As<Array>()->Clone().As<Array>();
+  js_array = js_value.As<Array>();
   length = js_array->Length();
   data_size = 0;
+
+  LocalVector<String> values(isolate, length);
 
   // Index has a pointer to every string element, plus one more for a final
   // null pointer.
   list_size = (length + 1) * sizeof *list;
 
-  // Convert all array elements to string. Modify the js object itself if
-  // needed - it's okay since we cloned the original object. Also compute the
+  // Convert all array elements to string. Also compute the
   // length of all strings, including room for a null terminator after every
   // string. Align strings to cache lines.
   for (uint32_t i = 0; i < length; i++) {
@@ -1163,17 +1175,19 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
       return Nothing<int>();
     }
 
-    if (!value->IsString()) {
+    if (value->IsString()) {
+      values[i] = value.As<String>();
+    } else {
       Local<String> string;
       if (!value->ToString(env()->isolate()->GetCurrentContext())
-               .ToLocal(&string) ||
-          js_array->Set(context, i, string).IsNothing()) {
+               .ToLocal(&string)) {
         return Nothing<int>();
       }
+      values[i] = string;
     }
 
     size_t maybe_size;
-    if (!StringBytes::StorageSize(isolate, value, UTF8).To(&maybe_size)) {
+    if (!StringBytes::StorageSize(isolate, values[i], UTF8).To(&maybe_size)) {
       return Nothing<int>();
     }
     data_size += maybe_size + 1;
@@ -1187,15 +1201,8 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
 
   for (uint32_t i = 0; i < length; i++) {
     list[i] = buffer + data_offset;
-    Local<Value> value;
-    if (!js_array->Get(context, i).ToLocal(&value)) {
-      return Nothing<int>();
-    }
-    data_offset += StringBytes::Write(isolate,
-                                      buffer + data_offset,
-                                      -1,
-                                      value,
-                                      UTF8);
+    data_offset +=
+        StringBytes::Write(isolate, buffer + data_offset, -1, values[i], UTF8);
     buffer[data_offset++] = '\0';
     data_offset = nbytes::RoundUp(data_offset, sizeof(void*));
   }

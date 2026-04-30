@@ -27,6 +27,10 @@
 //  http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1355r2.html
 // P1956R1:
 //  http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p1956r1.pdf
+// P0463R1
+//  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0463r1.html
+// P1272R4
+//  https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p1272r4.html
 //
 // When using a standard library that implements these functions, we use the
 // standard library's implementation.
@@ -45,6 +49,7 @@
 #endif
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/endian.h"
 #include "absl/numeric/internal/bits.h"
 
 namespace absl {
@@ -63,14 +68,14 @@ using std::rotr;
 
 // Rotating functions
 template <class T>
-ABSL_MUST_USE_RESULT constexpr
+[[nodiscard]] constexpr
     typename std::enable_if<std::is_unsigned<T>::value, T>::type
     rotl(T x, int s) noexcept {
   return numeric_internal::RotateLeft(x, s);
 }
 
 template <class T>
-ABSL_MUST_USE_RESULT constexpr
+[[nodiscard]] constexpr
     typename std::enable_if<std::is_unsigned<T>::value, T>::type
     rotr(T x, int s) noexcept {
   return numeric_internal::RotateRight(x, s);
@@ -189,6 +194,67 @@ ABSL_INTERNAL_CONSTEXPR_CLZ inline
 }
 
 #endif
+
+#if defined(__cpp_lib_endian) && __cpp_lib_endian >= 201907L
+
+// https://en.cppreference.com/w/cpp/types/endian
+//
+// Indicates the endianness of all scalar types:
+//   * If all scalar types are little-endian, `absl::endian::native` equals
+//     absl::endian::little.
+//   * If all scalar types are big-endian, `absl::endian::native` equals
+//     `absl::endian::big`.
+//   * Platforms that use anything else are unsupported.
+using std::endian;
+
+#else
+
+enum class endian {
+  little,
+  big,
+#if defined(ABSL_IS_LITTLE_ENDIAN)
+  native = little
+#elif defined(ABSL_IS_BIG_ENDIAN)
+  native = big
+#else
+#error "Endian detection needs to be set up for this platform"
+#endif
+};
+
+#endif  // defined(__cpp_lib_endian) && __cpp_lib_endian >= 201907L
+
+#if defined(__cpp_lib_byteswap) && __cpp_lib_byteswap >= 202110L
+
+// https://en.cppreference.com/w/cpp/numeric/byteswap
+//
+// Reverses the bytes in the given integer value `x`.
+//
+// `absl::byteswap` participates in overload resolution only if `T` satisfies
+// integral, i.e., `T` is an integer type. The program is ill-formed if `T` has
+// padding bits.
+using std::byteswap;
+
+#else
+
+template <class T>
+[[nodiscard]] constexpr T byteswap(T x) noexcept {
+  static_assert(std::is_integral_v<T>,
+                "byteswap requires an integral argument");
+  static_assert(
+      sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8,
+      "byteswap works only with 8, 16, 32, or 64-bit integers");
+  if constexpr (sizeof(T) == 1) {
+    return x;
+  } else if constexpr (sizeof(T) == 2) {
+    return static_cast<T>(gbswap_16(static_cast<uint16_t>(x)));
+  } else if constexpr (sizeof(T) == 4) {
+    return static_cast<T>(gbswap_32(static_cast<uint32_t>(x)));
+  } else if constexpr (sizeof(T) == 8) {
+    return static_cast<T>(gbswap_64(static_cast<uint64_t>(x)));
+  }
+}
+
+#endif  // defined(__cpp_lib_byteswap) && __cpp_lib_byteswap >= 202110L
 
 ABSL_NAMESPACE_END
 }  // namespace absl

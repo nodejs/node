@@ -24,7 +24,7 @@ server.on('stream', (stream) => {
     statCheck: common.mustNotCall()
   });
 });
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
@@ -38,4 +38,4 @@ server.listen(0, () => {
     server.close();
   }));
   req.end();
-});
+}));

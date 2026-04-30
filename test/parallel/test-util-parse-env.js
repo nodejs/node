@@ -10,7 +10,8 @@ const fs = require('node:fs');
   const validEnvFilePath = fixtures.path('dotenv/valid.env');
   const validContent = fs.readFileSync(validEnvFilePath, 'utf8');
 
-  assert.deepStrictEqual(util.parseEnv(validContent), {
+  const checkObj = {
+    __proto__: null,
     A: 'B=C',
     B: 'C=D',
     AFTER_LINE: 'after_line',
@@ -56,11 +57,14 @@ const fs = require('node:fs');
     SPACED_KEY: 'parsed',
     SPACE_BEFORE_DOUBLE_QUOTES: 'space before double quotes',
     TRIM_SPACE_FROM_UNQUOTED: 'some spaced out string',
-  });
+  };
+
+  assert.deepStrictEqual(util.parseEnv(validContent), checkObj);
 }
 
-assert.deepStrictEqual(util.parseEnv(''), {});
-assert.deepStrictEqual(util.parseEnv('FOO=bar\nFOO=baz\n'), { FOO: 'baz' });
+assert.deepStrictEqual(util.parseEnv(''), { __proto__: null });
+assert.deepStrictEqual(util.parseEnv('FOO=bar\nFOO=baz\n'),
+                       { __proto__: null, FOO: 'baz' });
 
 // Test for invalid input.
 assert.throws(() => {

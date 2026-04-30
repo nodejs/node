@@ -20,16 +20,18 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/hash/md5.h"
 #include "base/i18n/time_formatting.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "crypto/sha2.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -44,7 +46,8 @@ using ::testing::SizeIs;
 
 namespace {
 
-const static std::string kQuuxExpectedMD5 = "d1ae4ac8a17a0e09317113ab284b57a6";
+const static std::string kQuuxExpectedSHA256 =
+    "8B50F75A113622698B1DBA78B799A0D242F0369DA2E58DA8522A334197241C6E";
 
 class FileWrapper {
  public:
@@ -148,6 +151,38 @@ const zip::ZipReader::Entry* LocateAndOpenEntry(
 
 using Paths = std::vector<base::FilePath>;
 
+// A reader delegate that reads from a string.
+class StringReaderDelegate : public zip::ReaderDelegate {
+ public:
+  explicit StringReaderDelegate(std::string data) : data_(std::move(data)) {}
+
+  int64_t ReadBytes(base::span<uint8_t> data) override {
+    auto full_span = base::as_byte_span(data_);
+    if (offset_ >= full_span.size())
+      return 0;
+    auto source = full_span.subspan(offset_);
+    size_t to_read = std::min(data.size(), source.size());
+    data.first(to_read).copy_from(source.first(to_read));
+    offset_ += to_read;
+    return to_read;
+  }
+
+  bool Seek(int64_t offset) override {
+    if (offset < 0 || static_cast<size_t>(offset) > data_.size())
+      return false;
+    offset_ = offset;
+    return true;
+  }
+
+  int64_t Tell() override { return offset_; }
+
+  int64_t GetLength() override { return data_.size(); }
+
+ private:
+  std::string data_;
+  size_t offset_ = 0;
+};
+
 }  // namespace
 
 namespace zip {
@@ -222,6 +257,39 @@ TEST_F(ZipReaderTest, Open_ValidZipPlatformFile) {
   FileWrapper zip_fd_wrapper(test_zip_file_, FileWrapper::READ_ONLY);
   EXPECT_TRUE(reader.OpenFromPlatformFile(zip_fd_wrapper.platform_file()));
   EXPECT_TRUE(reader.ok());
+}
+
+TEST_F(ZipReaderTest, OpenFromReaderDelegate) {
+  const char kTestData[] =
+      "\x50\x4b\x03\x04\x0a\x00\x00\x00\x00\x00\xa4\x66\x24\x41\x13\xe8"
+      "\xcb\x27\x10\x00\x00\x00\x10\x00\x00\x00\x08\x00\x1c\x00\x74\x65"
+      "\x73\x74\x2e\x74\x78\x74\x55\x54\x09\x00\x03\x34\x89\x45\x50\x34"
+      "\x89\x45\x50\x75\x78\x0b\x00\x01\x04\x8e\xf0\x00\x00\x04\x88\x13"
+      "\x00\x00\x54\x68\x69\x73\x20\x69\x73\x20\x61\x20\x74\x65\x73\x74"
+      "\x2e\x0a\x50\x4b\x01\x02\x1e\x03\x0a\x00\x00\x00\x00\x00\xa4\x66"
+      "\x24\x41\x13\xe8\xcb\x27\x10\x00\x00\x00\x10\x00\x00\x00\x08\x00"
+      "\x18\x00\x00\x00\x00\x00\x01\x00\x00\x00\xa4\x81\x00\x00\x00\x00"
+      "\x74\x65\x73\x74\x2e\x74\x78\x74\x55\x54\x05\x00\x03\x34\x89\x45"
+      "\x50\x75\x78\x0b\x00\x01\x04\x8e\xf0\x00\x00\x04\x88\x13\x00\x00"
+      "\x50\x4b\x05\x06\x00\x00\x00\x00\x01\x00\x01\x00\x4e\x00\x00\x00"
+      "\x52\x00\x00\x00\x00\x00";
+  std::string data(kTestData, std::size(kTestData));
+  auto delegate = std::make_unique<StringReaderDelegate>(data);
+
+  ZipReader reader;
+  EXPECT_FALSE(reader.ok());
+  EXPECT_TRUE(reader.OpenFromReaderDelegate(delegate.get()));
+  EXPECT_TRUE(reader.ok());
+
+  base::FilePath target_path(FILE_PATH_LITERAL("test.txt"));
+  ASSERT_TRUE(LocateAndOpenEntry(&reader, target_path));
+  ASSERT_TRUE(ExtractCurrentEntryToFilePath(&reader,
+                                            test_dir_.AppendASCII("test.txt")));
+
+  std::string actual;
+  ASSERT_TRUE(
+      base::ReadFileToString(test_dir_.AppendASCII("test.txt"), &actual));
+  EXPECT_EQ(std::string("This is a test.\n"), actual);
 }
 
 TEST_F(ZipReaderTest, Open_NonExistentFile) {
@@ -550,11 +618,11 @@ TEST_F(ZipReaderTest, ExtractToFileAsync_RegularFile) {
   EXPECT_EQ(0, listener.failure_calls());
   EXPECT_LE(1, listener.progress_calls());
 
-  std::string output;
-  ASSERT_TRUE(
-      base::ReadFileToString(test_dir_.AppendASCII("quux.txt"), &output));
-  const std::string md5 = base::MD5String(output);
-  EXPECT_EQ(kQuuxExpectedMD5, md5);
+  std::optional<std::vector<uint8_t>> output =
+      base::ReadFileToBytes(test_dir_.AppendASCII("quux.txt"));
+  ASSERT_TRUE(output.has_value());
+  const std::string sha256 = base::HexEncode(crypto::SHA256Hash(*output));
+  EXPECT_EQ(kQuuxExpectedSHA256, sha256);
 
   std::optional<int64_t> file_size = base::GetFileSize(target_file);
   ASSERT_TRUE(file_size.has_value());
@@ -885,6 +953,31 @@ TEST_F(ZipReaderTest, WrongCrc) {
   EXPECT_FALSE(
       reader.ExtractCurrentEntryToString(entry->original_size - 1, &contents));
   EXPECT_EQ("This file has been changed after its CRC was computed.", contents);
+}
+
+// The Unicode Path Extra field overrides the regular filename. Make sure the
+// size_filename field is also correctly updated (ZipReader has a DCHECK for
+// this).
+TEST_F(ZipReaderTest, WrongFilenameLength) {
+  static const char test_data[] = {
+      0x50, 0x4b, 0x03, 0x04, 0x0a, 0x03, 0x00, 0x00, 0x00, 0x00, 0xd0, 0x71,
+      0x91, 0x4e, 0xbc, 0x2c, 0x7f, 0x06, 0x09, 0x00, 0x00, 0x00, 0x09, 0x00,
+      0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0xc8, 0xfe, 0x20, 0xc8, 0xfe, 0xc8,
+      0xfe, 0x2e, 0x74, 0x78, 0x74, 0xed, 0x95, 0x9c, 0xea, 0xb5, 0xad, 0xeb,
+      0xa7, 0x90, 0x50, 0x4b, 0x01, 0x02, 0x3f, 0x03, 0x0a, 0x03, 0x00, 0x00,
+      0x00, 0x00, 0xd0, 0x71, 0x91, 0x4e, 0xbc, 0x2c, 0x7f, 0x06, 0x09, 0x00,
+      0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x17, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x20, 0x80, 0xc9, 0x81, 0x00, 0x00, 0x00, 0x00,
+      0xc8, 0xfe, 0x20, 0xc8, 0xfe, 0xc8, 0xfe, 0x2e, 0x74, 0x78, 0x74, 0x75,
+      0x70, 0x13, 0x00, 0x01, 0xe9, 0x73, 0xbf, 0xc8, 0xec, 0x83, 0x88, 0x20,
+      0xeb, 0xac, 0xb8, 0xec, 0x84, 0x9c, 0x2e, 0x74, 0x78, 0x74, 0x50, 0x4b,
+      0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x50, 0x00,
+      0x00, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+  std::string test_string(test_data, sizeof(test_data));
+  ZipReader reader;
+  ASSERT_TRUE(reader.OpenFromString(test_string));
+  reader.Next();
 }
 
 class FileWriterDelegateTest : public ::testing::Test {

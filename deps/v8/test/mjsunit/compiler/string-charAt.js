@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 // Variable index and constant string
 (function() {
@@ -43,10 +43,16 @@
   assertEquals("e", foo("hello"));
   assertEquals("y", foo("hya"));
   assertOptimized(foo);
-  // deoptimisation happens because of
-  // index being out of bounds
+  // deoptimisation happens because of index being out of bounds.
   assertEquals("", foo(""));
   assertEquals("", foo("a"));
+  assertUnoptimized(foo);
+  %DeoptimizeFunction(foo);
+  // deoptimization happens again if the arg is not a string at all.
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals("", foo(""));
+  assertOptimized(foo);
+  foo({charAt: function(x) {}});
   assertUnoptimized(foo);
 })();
 
@@ -131,9 +137,13 @@
   // index being not a smi
   assertEquals("", foo("abc", 4294967297));
   assertUnoptimized(foo);
+  %DeoptimizeFunction(foo);
   %OptimizeFunctionOnNextCall(foo);
   assertEquals("o", foo("hello", 4));
   assertEquals("", foo("abc", 4294967297));
+  // The above might deopt again, depending on how SpeculationMode::kOutOfBounds is
+  // implemented.
+  %OptimizeFunctionOnNextCall(foo);
   assertEquals("a", foo("abc", {}));
   assertEquals("b", foo("abc", 1.5));
   assertEquals("a", foo("abc", NaN));

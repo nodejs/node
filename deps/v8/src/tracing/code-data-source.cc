@@ -4,9 +4,6 @@
 
 #include "src/tracing/code-data-source.h"
 
-#include "protos/perfetto/common/data_source_descriptor.gen.h"
-#include "protos/perfetto/config/chrome/v8_config.gen.h"
-#include "protos/perfetto/trace/chrome/v8.pbzero.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/code-range.h"
@@ -15,7 +12,12 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string-inl.h"
 #include "src/tracing/perfetto-logger.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/tracing/perfetto-utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(v8::internal::CodeDataSource,
                                            v8::internal::CodeDataSourceTraits);
@@ -29,6 +31,7 @@ using ::perfetto::protos::pbzero::InternedV8JsFunction;
 using ::perfetto::protos::pbzero::InternedV8JsScript;
 using ::perfetto::protos::pbzero::InternedV8String;
 using ::perfetto::protos::pbzero::TracePacket;
+using ::protozero::ConstChars;
 
 InternedV8JsScript::Type GetJsScriptType(Tagged<Script> script) {
   if (script->compilation_type() == Script::CompilationType::kEval) {
@@ -52,6 +55,7 @@ InternedV8JsScript::Type GetJsScriptType(Tagged<Script> script) {
     case Script::Type::kInspector:
       return InternedV8JsScript::TYPE_INSPECTOR;
   }
+  UNREACHABLE();
 }
 
 InternedV8JsFunction::Kind GetJsFunctionKind(FunctionKind kind) {
@@ -105,8 +109,10 @@ InternedV8JsFunction::Kind GetJsFunctionKind(FunctionKind kind) {
     case FunctionKind::kStaticConciseMethod:
       return InternedV8JsFunction::KIND_STATIC_CONCISE_METHOD;
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
       return InternedV8JsFunction::KIND_CLASS_MEMBERS_INITIALIZER_FUNCTION;
     case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return InternedV8JsFunction::KIND_CLASS_STATIC_INITIALIZER_FUNCTION;
     case FunctionKind::kInvalid:
       return InternedV8JsFunction::KIND_INVALID;
@@ -195,9 +201,10 @@ uint64_t CodeDataSourceIncrementalState::InternJsScript(Isolate& isolate,
 }
 
 uint64_t CodeDataSourceIncrementalState::InternJsFunction(
-    Isolate& isolate, Handle<SharedFunctionInfo> info,
+    Isolate& isolate, DirectHandle<SharedFunctionInfo> info,
     uint64_t v8_js_script_iid, int line_num, int column_num) {
-  Handle<String> function_name = SharedFunctionInfo::DebugName(&isolate, info);
+  DirectHandle<String> function_name =
+      SharedFunctionInfo::DebugName(&isolate, info);
   uint64_t v8_js_function_name_iid = InternJsFunctionName(*function_name);
 
   auto [it, was_inserted] = functions_.emplace(
@@ -218,12 +225,18 @@ uint64_t CodeDataSourceIncrementalState::InternJsFunction(
   if (start_position >= 0) {
     function_proto->set_byte_offset(static_cast<uint32_t>(start_position));
   }
+  if (line_num > 0 && column_num > 0) {
+    function_proto->set_line(static_cast<uint32_t>(line_num));
+    function_proto->set_column(static_cast<uint32_t>(column_num));
+  }
 
   return iid;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 uint64_t CodeDataSourceIncrementalState::InternWasmScript(
-    Isolate& isolate, int script_id, const std::string& url) {
+    Isolate& isolate, int script_id, std::string_view url,
+    wasm::NativeModule* native_module) {
   auto [it, was_inserted] = scripts_.emplace(
       CodeDataSourceIncrementalState::ScriptUniqueId{isolate.id(), script_id},
       next_script_iid());
@@ -235,12 +248,16 @@ uint64_t CodeDataSourceIncrementalState::InternWasmScript(
   auto* script = serialized_interned_data_->add_v8_wasm_script();
   script->set_iid(iid);
   script->set_script_id(script_id);
-  script->set_url(url);
-
-  // TODO(carlscab): Log scrip source if needed.
+  script->set_url(ConstChars{url.data(), url.size()});
+  if (log_script_sources()) {
+    base::Vector<const uint8_t> bytes_vec = native_module->wire_bytes();
+    script->set_wire_bytes(bytes_vec.begin(), bytes_vec.size());
+    // TODO(carlscab): Log script source if needed.
+  }
 
   return iid;
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 uint64_t CodeDataSourceIncrementalState::InternJsFunctionName(
     Tagged<String> function_name) {

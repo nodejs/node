@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_ESCAPE_ANALYSIS_H_
 #define V8_COMPILER_ESCAPE_ANALYSIS_H_
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/common/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
@@ -40,7 +40,7 @@ class EffectGraphReducer {
     bool effect_changed_ = false;
   };
 
-  EffectGraphReducer(Graph* graph,
+  EffectGraphReducer(TFGraph* graph,
                      std::function<void(Node*, Reduction*)> reduce,
                      TickCounter* tick_counter, Zone* zone);
 
@@ -70,7 +70,7 @@ class EffectGraphReducer {
   void ReduceFrom(Node* node);
   enum class State : uint8_t { kUnvisited = 0, kRevisit, kOnStack, kVisited };
   const uint8_t kNumStates = static_cast<uint8_t>(State::kVisited) + 1;
-  Graph* graph_;
+  TFGraph* graph_;
   NodeMarker<State> state_;
   ZoneStack<Node*> revisit_;
   ZoneStack<NodeState> stack_;

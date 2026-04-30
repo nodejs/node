@@ -350,8 +350,9 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source = "(function() { throw 'ball'; })";
-  Handle<JSFunction> js_function = Cast<JSFunction>(v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
+          *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, &import);
   constexpr uint32_t kResult0 = 23;
@@ -377,8 +378,9 @@ WASM_COMPILED_EXEC_TEST(TryCatchAllCallExternal) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source = "(function() { throw 'ball'; })";
-  Handle<JSFunction> js_function = Cast<JSFunction>(v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
+          *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, &import);
   constexpr uint32_t kResult0 = 23;
@@ -465,7 +467,7 @@ WASM_EXEC_TEST(TryCatchTrapTableFill) {
 }
 
 namespace {
-// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+// TODO(cleanup): Define in cctest.h and reuse where appropriate.
 class IsolateScope {
  public:
   IsolateScope() {
@@ -496,8 +498,7 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   IsolateScope isolate_scope;
   LocalContext context(isolate_scope.isolate());
 
-  WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                         isolate_scope.i_isolate());
+  WasmRunner<uint32_t> r(isolate_scope.i_isolate(), execution_tier);
 
   // Build a function that calls itself until stack overflow.
   WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());

@@ -8,8 +8,8 @@
  */
 
 #ifndef OSSL_CRYPTO_ERR_H
-# define OSSL_CRYPTO_ERR_H
-# pragma once
+#define OSSL_CRYPTO_ERR_H
+#pragma once
 
 int ossl_err_load_ERR_strings(void);
 int ossl_err_load_crypto_strings(void);

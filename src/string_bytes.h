@@ -99,8 +99,7 @@ class StringBytes {
   static size_t WriteUCS2(v8::Isolate* isolate,
                           char* buf,
                           size_t buflen,
-                          v8::Local<v8::String> str,
-                          int flags);
+                          v8::Local<v8::String> str);
 };
 
 }  // namespace node

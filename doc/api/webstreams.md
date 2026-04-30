@@ -807,7 +807,7 @@ queue.
 added: v16.5.0
 -->
 
-* `chunk`: {Buffer|TypedArray|DataView}
+* `chunk` {Buffer|TypedArray|DataView}
 
 Appends a new chunk of data to the {ReadableStream}'s queue.
 
@@ -1077,7 +1077,7 @@ Releases this writer's lock on the underlying {ReadableStream}.
 added: v16.5.0
 -->
 
-* `chunk`: {any}
+* `chunk` {any}
 * Returns: A promise fulfilled with `undefined`.
 
 Appends a new chunk of data to the {WritableStream}'s queue.
@@ -1148,6 +1148,12 @@ await Promise.all([
 
 <!-- YAML
 added: v16.5.0
+changes:
+  - version:
+    - v21.5.0
+    - v20.14.0
+    pr-url: https://github.com/nodejs/node/pull/50126
+    description: Supports the `cancel` transformer callback.
 -->
 
 * `transformer` {Object}
@@ -1165,6 +1171,11 @@ added: v16.5.0
     the writable side of the `TransformStream` is closed, signaling the end of
     the transformation process.
     * `controller` {TransformStreamDefaultController}
+    * Returns: A promise fulfilled with `undefined`.
+  * `cancel` {Function} A user-defined function that is called when either the
+    readable side of the `TransformStream` is canceled or the writable side is
+    aborted.
+    * `reason` {any}
     * Returns: A promise fulfilled with `undefined`.
   * `readableType` {any} the `readableType` option is reserved for future use
     and _must_ be `undefined`.
@@ -1481,13 +1492,18 @@ changes:
 added: v17.0.0
 changes:
   - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
     - v21.2.0
     - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `compressionStream.readable`
 
@@ -1521,13 +1537,18 @@ changes:
 added: v17.0.0
 changes:
   - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
     - v21.2.0
     - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `decompressionStream.readable`
 
@@ -1684,6 +1705,45 @@ buffer(readable).then((data) => {
 });
 ```
 
+#### `streamConsumers.bytes(stream)`
+
+<!-- YAML
+added:
+ - v25.6.0
+ - v24.14.0
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with a {Uint8Array} containing the full
+  contents of the stream.
+
+```mjs
+import { bytes } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
+import { Buffer } from 'node:buffer';
+
+const dataBuffer = Buffer.from('hello world from consumers!');
+
+const readable = Readable.from(dataBuffer);
+const data = await bytes(readable);
+console.log(`from readable: ${data.length}`);
+// Prints: from readable: 27
+```
+
+```cjs
+const { bytes } = require('node:stream/consumers');
+const { Readable } = require('node:stream');
+const { Buffer } = require('node:buffer');
+
+const dataBuffer = Buffer.from('hello world from consumers!');
+
+const readable = Readable.from(dataBuffer);
+bytes(readable).then((data) => {
+  console.log(`from readable: ${data.length}`);
+  // Prints: from readable: 27
+});
+```
+
 #### `streamConsumers.json(stream)`
 
 <!-- YAML
@@ -1767,7 +1827,7 @@ text(readable).then((data) => {
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
 [`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
-[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex
+[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex-options
 [`stream.Duplex`]: stream.md#class-streamduplex
 [`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
 [`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options

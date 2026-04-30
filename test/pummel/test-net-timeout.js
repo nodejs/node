@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -53,7 +53,7 @@ const echo_server = net.createServer((socket) => {
   });
 });
 
-echo_server.listen(0, () => {
+echo_server.listen(0, common.mustCall(() => {
   const port = echo_server.address().port;
   console.log(`server listening at ${port}`);
 
@@ -65,7 +65,7 @@ echo_server.listen(0, () => {
     client.write('hello\r\n');
   });
 
-  client.on('data', (chunk) => {
+  client.on('data', common.mustCallAtLeast((chunk) => {
     assert.strictEqual(chunk, 'hello\r\n');
     if (exchanges++ < 5) {
       setTimeout(() => {
@@ -79,7 +79,7 @@ echo_server.listen(0, () => {
         console.dir(starttime);
       }
     }
-  });
+  }));
 
   client.on('timeout', () => {
     throw new Error("client timeout - this shouldn't happen");
@@ -94,7 +94,7 @@ echo_server.listen(0, () => {
     console.log('client disconnect');
     echo_server.close();
   });
-});
+}));
 
 process.on('exit', () => {
   assert.ok(starttime != null);

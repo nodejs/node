@@ -9,7 +9,9 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
+#include "src/codegen/interface-descriptors.h"
 #include "src/common/globals.h"
+#include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/zone/zone-containers.h"
 
@@ -33,7 +35,6 @@ struct CompilationEnv;
 struct FunctionBody;
 struct WasmCompilationResult;
 class WasmDetectedFeatures;
-struct WasmModule;
 }  // namespace wasm
 
 namespace compiler::turboshaft {
@@ -44,8 +45,9 @@ class TurboshaftCompilationJob;
 
 namespace compiler {
 
+class CodeAssemblerState;
 class CallDescriptor;
-class Graph;
+class TFGraph;
 class InstructionSequence;
 class JSGraph;
 class JSHeapBroker;
@@ -71,17 +73,48 @@ class Pipeline : public AllStatic {
                     CodeKind code_kind, bool has_script,
                     BytecodeOffset osr_offset = BytecodeOffset::None());
 
-#if V8_ENABLE_WEBASSEMBLY
-  // Run the pipeline for the WebAssembly compilation info.
-  // Note: We pass a pointer to {detected} as it might get mutated while
-  // inlining.
-  static void GenerateCodeForWasmFunction(
-      OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
-      WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-      CallDescriptor* call_descriptor,
-      ZoneVector<WasmInliningPosition>* inlining_positions,
-      wasm::WasmDetectedFeatures* detected);
+  using CodeAssemblerGenerator =
+      std::function<void(compiler::CodeAssemblerState*)>;
+  using CodeAssemblerInstaller =
+      std::function<void(Builtin builtin, Handle<Code> code)>;
 
+  static std::unique_ptr<TurbofanCompilationJob>
+  NewCSLinkageCodeStubBuiltinCompilationJob(
+      Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+      CodeAssemblerInstaller installer,
+      const AssemblerOptions& assembler_options,
+      CallDescriptors::Key interface_descriptor, const char* name,
+      const ProfileDataFromFile* profile_data, int finalize_order);
+
+  static std::unique_ptr<TurbofanCompilationJob>
+  NewJSLinkageCodeStubBuiltinCompilationJob(
+      Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+      CodeAssemblerInstaller installer,
+      const AssemblerOptions& assembler_options, int argc, const char* name,
+      const ProfileDataFromFile* profile_data, int finalize_order);
+
+  using TurboshaftAssemblerGenerator =
+      std::function<void(compiler::turboshaft::PipelineData*, Isolate*,
+                         compiler::turboshaft::Graph&, Zone*)>;
+  using TurboshaftAssemblerInstaller = CodeAssemblerInstaller;
+
+  static std::unique_ptr<TurbofanCompilationJob>
+  NewBytecodeHandlerCompilationJob(Isolate* isolate, Builtin builtin,
+                                   CodeAssemblerGenerator generator,
+                                   CodeAssemblerInstaller installer,
+                                   const AssemblerOptions& assembler_options,
+                                   const char* name,
+                                   const ProfileDataFromFile* profile_data,
+                                   int finalize_order);
+  static std::unique_ptr<TurbofanCompilationJob>
+  NewBytecodeHandlerCompilationJobTSA(
+      Isolate* isolate, Builtin builtin, TurboshaftAssemblerGenerator generator,
+      TurboshaftAssemblerInstaller installer,
+      const AssemblerOptions& assembler_options, const char* name,
+      interpreter::BytecodeHandlerData bytecode_handler_data,
+      const ProfileDataFromFile* profile_data, int finalize_order);
+
+#if V8_ENABLE_WEBASSEMBLY
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
@@ -90,40 +123,35 @@ class Pipeline : public AllStatic {
 
   static wasm::WasmCompilationResult
   GenerateCodeForWasmNativeStubFromTurboshaft(
-      const wasm::WasmModule* module, const wasm::FunctionSig* sig,
-      wasm::WrapperCompilationInfo wrapper_info, const char* debug_name,
-      const AssemblerOptions& assembler_options,
-      SourcePositionTable* source_positions);
+      const wasm::CanonicalSig* sig, wasm::WrapperCompilationInfo wrapper_info,
+      const char* debug_name, const AssemblerOptions& assembler_options);
 
-  static bool GenerateWasmCodeFromTurboshaftGraph(
-      OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
-      WasmCompilationData& compilation_data, MachineGraph* mcgraph,
-      wasm::WasmDetectedFeatures* detected, CallDescriptor* call_descriptor);
+  static wasm::WasmCompilationResult GenerateWasmCode(
+      wasm::CompilationEnv* env, WasmCompilationData& compilation_data,
+      wasm::WasmDetectedFeatures* detected,
+      DelayedCounterUpdates* counter_updates);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
       Isolate* isolate, CallDescriptor* call_descriptor,
-      std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
+      std::unique_ptr<Zone> zone, TFGraph* graph, CodeKind kind,
       std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 
   static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
   NewWasmTurboshaftWrapperCompilationJob(
-      Isolate* isolate, const wasm::FunctionSig* sig,
-      wasm::WrapperCompilationInfo wrapper_info, const wasm::WasmModule* module,
+      Isolate* isolate, const wasm::CanonicalSig* sig,
+      wasm::WrapperCompilationInfo wrapper_info,
       std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
 #endif
-
-  // Run the pipeline on a machine graph and generate code.
-  static MaybeHandle<Code> GenerateCodeForCodeStub(
-      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      JSGraph* jsgraph, SourcePositionTable* source_positions, CodeKind kind,
-      const char* debug_name, Builtin builtin, const AssemblerOptions& options,
-      const ProfileDataFromFile* profile_data);
 
   static MaybeHandle<Code> GenerateCodeForTurboshaftBuiltin(
       turboshaft::PipelineData* turboshaft_data,
       CallDescriptor* call_descriptor, Builtin builtin, const char* debug_name,
       const ProfileDataFromFile* profile_data);
+
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
+      turboshaft::PipelineData* turboshaft_data,
+      CallDescriptor* call_descriptor, const char* debug_name);
 
   // ---------------------------------------------------------------------------
   // The following methods are for testing purposes only. Avoid production use.
@@ -137,17 +165,12 @@ class Pipeline : public AllStatic {
   // {nullptr}, then compute a new schedule for code generation.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
-      CallDescriptor* call_descriptor, Graph* graph,
+      CallDescriptor* call_descriptor, TFGraph* graph,
       const AssemblerOptions& options, Schedule* schedule = nullptr);
 
   // Run the instruction selector on a turboshaft graph and generate code.
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateTurboshaftCodeForTesting(
       CallDescriptor* call_descriptor, turboshaft::PipelineData* data);
-
-  // Run just the register allocator phases.
-  V8_EXPORT_PRIVATE static void AllocateRegistersForTesting(
-      const RegisterConfiguration* config, InstructionSequence* sequence,
-      bool run_verifier);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);

@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 #define V8_REGEXP_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 
+#include "src/base/functional/function-ref.h"
 #include "src/base/strings.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/macro-assembler.h"
@@ -20,7 +21,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                             int registers_to_save);
   ~RegExpMacroAssemblerARM64() override;
   void AbortedCodeGeneration() override;
-  int stack_limit_slack() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -33,9 +33,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
   void CheckCharacters(base::Vector<const base::uc16> str, int cp_offset,
                        Label* on_failure, bool check_end_of_string);
-  // A "greedy loop" is a loop that is both greedy and with a simple
+  // A "fixed length loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
@@ -58,18 +58,28 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
-                           Handle<ByteArray> nibble_table,
-                           int advance_by) override;
+                           Handle<ByteArray> nibble_table, int advance_by,
+                           Label* on_match, Label* on_no_match) override;
   bool SkipUntilBitInTableUseSimd(int advance_by) override;
+  void SkipUntilOneOfMasked(int cp_offset, int advance_by, unsigned both_chars,
+                            unsigned both_mask, int max_offset, unsigned chars1,
+                            unsigned mask1, unsigned chars2, unsigned mask2,
+                            Label* on_match1, Label* on_match2,
+                            Label* on_failure) override;
+  bool SkipUntilOneOfMaskedUseSimd(int advance_by);
+  bool SkipUntilOneOfMasked3UseSimd(
+      const SkipUntilOneOfMasked3Args& args) override;
+  void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void BindJumpTarget(Label* label = nullptr) override;
   void Fail() override;
-  Handle<HeapObject> GetCode(Handle<String> source) override;
+  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+                                   RegExpFlags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
@@ -91,6 +101,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
+
+  void RecordComment(std::string_view comment) override {
+    masm_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return masm_.get(); }
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -178,6 +193,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
+  void AssertAboveStackLimitMinusSlack();
 
   void CallCheckStackGuardState(Register scratch,
                                 Operand extra_space = Operand(0));
@@ -225,9 +241,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // The top 32 bit of this register is used to store this value
   // twice. This is used for clearing more than one register at a time.
   static constexpr Register twice_non_position_value() { return x24; }
-
-  // Byte size of chars in the string to match (decided by the Mode argument)
-  int char_size() const { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
@@ -298,13 +311,15 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void PushRegExpBasePointer(Register stack_pointer, Register scratch);
   void PopRegExpBasePointer(Register stack_pointer_out, Register scratch);
 
+  void EmitSkipUntilBitInTableSimdHelper(
+      int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
+      int max_on_match_lookahead, Label* scalar_fallback,
+      base::FunctionRef<void(Register, Register)> on_match);
+
   Isolate* isolate() const { return masm_->isolate(); }
 
   const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
-
-  // Which mode to generate code for (LATIN1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

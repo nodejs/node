@@ -200,3 +200,17 @@ t.test('non ENOENT error reading from localPrefix package.json', async t => {
     'should throw non ENOENT error'
   )
 })
+
+t.test('completion', async t => {
+  const { uninstall } = await _mockNpm(t, {
+    command: 'uninstall',
+    prefixDir: {
+      node_modules: {
+        foo: {},
+        bar: {},
+      },
+    },
+  })
+  const res = await uninstall.completion({ conf: { argv: { remain: ['npm', 'uninstall'] } } })
+  t.match(res, ['bar', 'foo'])
+})

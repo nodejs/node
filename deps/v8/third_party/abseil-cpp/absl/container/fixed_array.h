@@ -41,13 +41,16 @@
 #include <type_traits>
 
 #include "absl/algorithm/algorithm.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/internal/iterator_traits.h"
 #include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/container/internal/compressed_tuple.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
 
 namespace absl {
@@ -74,19 +77,16 @@ constexpr static auto kFixedArrayUseDefault = static_cast<size_t>(-1);
 // `std::vector`.
 template <typename T, size_t N = kFixedArrayUseDefault,
           typename A = std::allocator<T>>
-class FixedArray {
+class ABSL_ATTRIBUTE_WARN_UNUSED FixedArray {
   static_assert(!std::is_array<T>::value || std::extent<T>::value > 0,
                 "Arrays with unknown bounds cannot be used with FixedArray.");
 
   static constexpr size_t kInlineBytesDefault = 256;
 
   using AllocatorTraits = std::allocator_traits<A>;
-  // std::iterator_traits isn't guaranteed to be SFINAE-friendly until C++17,
-  // but this seems to be mostly pedantic.
   template <typename Iterator>
-  using EnableIfForwardIterator = absl::enable_if_t<std::is_convertible<
-      typename std::iterator_traits<Iterator>::iterator_category,
-      std::forward_iterator_tag>::value>;
+  using EnableIfInputIterator =
+      std::enable_if_t<base_internal::IsAtLeastInputIterator<Iterator>::value>;
   static constexpr bool NoexceptCopyable() {
     return std::is_nothrow_copy_constructible<StorageElement>::value &&
            absl::allocator_is_nothrow<allocator_type>::value;
@@ -159,8 +159,8 @@ class FixedArray {
 
   // Creates an array initialized with the elements from the input
   // range. The array's size will always be `std::distance(first, last)`.
-  // REQUIRES: Iterator must be a forward_iterator or better.
-  template <typename Iterator, EnableIfForwardIterator<Iterator>* = nullptr>
+  // REQUIRES: Iterator must be a input_iterator or better.
+  template <typename Iterator, EnableIfInputIterator<Iterator>* = nullptr>
   FixedArray(Iterator first, Iterator last,
              const allocator_type& a = allocator_type())
       : storage_(std::distance(first, last), a) {
@@ -390,8 +390,7 @@ class FixedArray {
 
   template <typename H>
   friend H AbslHashValue(H h, const FixedArray& v) {
-    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
-                      v.size());
+    return H::combine_contiguous(std::move(h), v.data(), v.size());
   }
 
  private:
@@ -446,7 +445,8 @@ class FixedArray {
 
    private:
     ABSL_ADDRESS_SANITIZER_REDZONE(redzone_begin_);
-    alignas(StorageElement) char buff_[sizeof(StorageElement[inline_elements])];
+    alignas(StorageElement) unsigned char buff_[sizeof(
+        StorageElement[inline_elements])];
     ABSL_ADDRESS_SANITIZER_REDZONE(redzone_end_);
   };
 
@@ -515,15 +515,6 @@ class FixedArray {
 
   Storage storage_;
 };
-
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-template <typename T, size_t N, typename A>
-constexpr size_t FixedArray<T, N, A>::kInlineBytesDefault;
-
-template <typename T, size_t N, typename A>
-constexpr typename FixedArray<T, N, A>::size_type
-    FixedArray<T, N, A>::inline_elements;
-#endif
 
 template <typename T, size_t N, typename A>
 void FixedArray<T, N, A>::NonEmptyInlinedStorage::AnnotateConstruct(

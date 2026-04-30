@@ -603,10 +603,10 @@ myEmitter.emit('event', 1, 2, 3, 4, 5);
 added: v6.0.0
 -->
 
-* Returns: {Array}
+* Returns: {string\[]|symbol\[]}
 
 Returns an array listing the events for which the emitter has registered
-listeners. The values in the array are strings or `Symbol`s.
+listeners.
 
 ```mjs
 import { EventEmitter } from 'node:events';
@@ -1099,7 +1099,7 @@ changes:
     description: No longer experimental.
 -->
 
-* `err` Error
+* `err` {Error}
 * `eventName` {string|symbol}
 * `...args` {any}
 
@@ -1489,14 +1489,25 @@ foo(ee, 'foo', ac.signal);
 ac.abort(); // Prints: Waiting for the event was canceled!
 ```
 
-### Awaiting multiple events emitted on `process.nextTick()`
+### Caveats when awaiting multiple events
 
-There is an edge case worth noting when using the `events.once()` function
-to await multiple events emitted on in the same batch of `process.nextTick()`
-operations, or whenever multiple events are emitted synchronously. Specifically,
-because the `process.nextTick()` queue is drained before the `Promise` microtask
-queue, and because `EventEmitter` emits all events synchronously, it is possible
-for `events.once()` to miss an event.
+It is important to be aware of execution order when using the `events.once()`
+method to await multiple events.
+
+Conventional event listeners are called synchronously when the event is
+emitted. This guarantees that execution will not proceed beyond the emitted
+event until all listeners have finished executing.
+
+The same is _not_ true when awaiting Promises returned by `events.once()`.
+Promise tasks are not handled until after the current execution stack runs to
+completion, which means that multiple events could be emitted before
+asynchronous execution continues from the relevant `await` statement.
+
+As a result, events can be "missed" if a series of `await events.once()`
+statements is used to listen to multiple events, since there might be times
+where more than one event is emitted during the same phase of the event loop.
+(The same is true when using `process.nextTick()` to emit events, because the
+tasks queued by `process.nextTick()` are executed before Promise tasks.)
 
 ```mjs
 import { EventEmitter, once } from 'node:events';
@@ -1504,22 +1515,22 @@ import process from 'node:process';
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await once(myEE, 'bar');
-  console.log('bar');
-
-  // This Promise will never resolve because the 'foo' event will
-  // have already been emitted before the Promise is created.
+async function listen() {
   await once(myEE, 'foo');
   console.log('foo');
+
+  // This Promise will never resolve, because the 'bar' event will
+  // have already been emitted before the next line is executed.
+  await once(myEE, 'bar');
+  console.log('bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
 ```cjs
@@ -1527,26 +1538,26 @@ const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await once(myEE, 'bar');
-  console.log('bar');
-
-  // This Promise will never resolve because the 'foo' event will
-  // have already been emitted before the Promise is created.
+async function listen() {
   await once(myEE, 'foo');
   console.log('foo');
+
+  // This Promise will never resolve, because the 'bar' event will
+  // have already been emitted before the next line is executed.
+  await once(myEE, 'bar');
+  console.log('bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
-To catch both events, create each of the Promises _before_ awaiting either
-of them, then it becomes possible to use `Promise.all()`, `Promise.race()`,
+To catch multiple events, create all of the Promises _before_ awaiting any of
+them. This is usually made easier by using `Promise.all()`, `Promise.race()`,
 or `Promise.allSettled()`:
 
 ```mjs
@@ -1555,17 +1566,20 @@ import process from 'node:process';
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await Promise.all([once(myEE, 'bar'), once(myEE, 'foo')]);
+async function listen() {
+  await Promise.all([
+    once(myEE, 'foo'),
+    once(myEE, 'bar'),
+  ]);
   console.log('foo', 'bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
 ```cjs
@@ -1573,17 +1587,20 @@ const { EventEmitter, once } = require('node:events');
 
 const myEE = new EventEmitter();
 
-async function foo() {
-  await Promise.all([once(myEE, 'bar'), once(myEE, 'foo')]);
+async function listen() {
+  await Promise.all([
+    once(myEE, 'bar'),
+    once(myEE, 'foo'),
+  ]);
   console.log('foo', 'bar');
 }
 
 process.nextTick(() => {
-  myEE.emit('bar');
   myEE.emit('foo');
+  myEE.emit('bar');
 });
 
-foo().then(() => console.log('done'));
+listen().then(() => console.log('done'));
 ```
 
 ## `events.captureRejections`
@@ -1600,7 +1617,7 @@ changes:
     description: No longer experimental.
 -->
 
-Value: {boolean}
+* Type: {boolean}
 
 Change the default `captureRejections` option on all new `EventEmitter` objects.
 
@@ -1618,43 +1635,74 @@ changes:
     description: No longer experimental.
 -->
 
-Value: `Symbol.for('nodejs.rejection')`
+* Type: {symbol} `Symbol.for('nodejs.rejection')`
 
 See how to write a custom [rejection handler][rejection].
 
-## `events.listenerCount(emitter, eventName)`
+## `events.listenerCount(emitterOrTarget, eventName)`
 
 <!-- YAML
 added: v0.9.12
-deprecated: v3.2.0
+changes:
+  - version:
+     - v25.4.0
+     - v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Now accepts EventTarget arguments.
+  - version:
+     - v25.4.0
+     - v24.14.0
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
+  - version: v3.2.0
+    pr-url: https://github.com/nodejs/node/pull/2349
+    description: Documentation-only deprecation.
 -->
 
-> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
+* `emitterOrTarget` {EventEmitter|EventTarget}
+* `eventName` {string|symbol}
+* Returns: {integer}
 
-* `emitter` {EventEmitter} The emitter to query
-* `eventName` {string|symbol} The event name
+Returns the number of registered listeners for the event named `eventName`.
 
-A class method that returns the number of listeners for the given `eventName`
-registered on the given `emitter`.
+For `EventEmitter`s this behaves exactly the same as calling `.listenerCount`
+on the emitter.
+
+For `EventTarget`s this is the only way to obtain the listener count. This can
+be useful for debugging and diagnostic purposes.
 
 ```mjs
 import { EventEmitter, listenerCount } from 'node:events';
 
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(listenerCount(myEmitter, 'event'));
-// Prints: 2
+{
+  const ee = new EventEmitter();
+  ee.on('event', () => {});
+  ee.on('event', () => {});
+  console.log(listenerCount(ee, 'event')); // 2
+}
+{
+  const et = new EventTarget();
+  et.addEventListener('event', () => {});
+  et.addEventListener('event', () => {});
+  console.log(listenerCount(et, 'event')); // 2
+}
 ```
 
 ```cjs
 const { EventEmitter, listenerCount } = require('node:events');
 
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(listenerCount(myEmitter, 'event'));
-// Prints: 2
+{
+  const ee = new EventEmitter();
+  ee.on('event', () => {});
+  ee.on('event', () => {});
+  console.log(listenerCount(ee, 'event')); // 2
+}
+{
+  const et = new EventTarget();
+  et.addEventListener('event', () => {});
+  et.addEventListener('event', () => {});
+  console.log(listenerCount(et, 'event')); // 2
+}
 ```
 
 ## `events.on(emitter, eventName[, options])`
@@ -1681,12 +1729,12 @@ changes:
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
-  * `close` - {string\[]} Names of events that will end the iteration.
-  * `highWaterMark` - {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+  * `close` {string\[]} Names of events that will end the iteration.
+  * `highWaterMark` {integer} **Default:** `Number.MAX_SAFE_INTEGER`
     The high watermark. The emitter is paused every time the size of events
     being buffered is higher than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
-  * `lowWaterMark` - {integer} **Default:** `1`
+  * `lowWaterMark` {integer} **Default:** `1`
     The low watermark. The emitter is resumed every time the size of events
     being buffered is lower than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
@@ -1835,7 +1883,9 @@ added:
  - v20.5.0
  - v18.18.0
 changes:
- - version: REPLACEME
+ - version:
+   - v24.0.0
+   - v22.16.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -1862,15 +1912,12 @@ Returns a disposable so that it may be unsubscribed from more easily.
 const { addAbortListener } = require('node:events');
 
 function example(signal) {
-  let disposable;
-  try {
-    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
-    disposable = addAbortListener(signal, (e) => {
-      // Do something when signal is aborted.
-    });
-  } finally {
-    disposable?.[Symbol.dispose]();
-  }
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  // addAbortListener() returns a disposable, so the `using` keyword ensures
+  // the abort listener is automatically removed when this scope exits.
+  using _ = addAbortListener(signal, (e) => {
+    // Do something when signal is aborted.
+  });
 }
 ```
 
@@ -1878,15 +1925,12 @@ function example(signal) {
 import { addAbortListener } from 'node:events';
 
 function example(signal) {
-  let disposable;
-  try {
-    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
-    disposable = addAbortListener(signal, (e) => {
-      // Do something when signal is aborted.
-    });
-  } finally {
-    disposable?.[Symbol.dispose]();
-  }
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+  // addAbortListener() returns a disposable, so the `using` keyword ensures
+  // the abort listener is automatically removed when this scope exits.
+  using _ = addAbortListener(signal, (e) => {
+    // Do something when signal is aborted.
+  });
 }
 ```
 
@@ -1986,7 +2030,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
 
 ### `eventemitterasyncresource.asyncResource`
 
-* Type: The underlying {AsyncResource}.
+* Type: {AsyncResource} The underlying {AsyncResource}.
 
 The returned `AsyncResource` object has an additional `eventEmitter` property
 that provides a reference to this `EventEmitterAsyncResource`.
@@ -2646,7 +2690,6 @@ to the `EventTarget`.
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`domain`]: domain.md
 [`e.stopImmediatePropagation()`]: #eventstopimmediatepropagation
-[`emitter.listenerCount()`]: #emitterlistenercounteventname-listener
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
 [`event.defaultPrevented`]: #eventdefaultprevented

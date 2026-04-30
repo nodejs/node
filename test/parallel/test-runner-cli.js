@@ -62,10 +62,10 @@ for (const isolation of ['none', 'process']) {
     assert.doesNotMatch(stdout, /ok 4 - this should pass/);
   }
 
-  for (const type of ['strip', 'transform']) {
+  {
     // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
     const args = ['--test', '--test-reporter=tap', '--no-warnings',
-                  `--experimental-${type}-types`, `--test-isolation=${isolation}`];
+                  '--experimental-strip-types', `--test-isolation=${isolation}`];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
 
     if (!process.config.variables.node_use_amaro) {
@@ -428,4 +428,60 @@ for (const isolation of ['none', 'process']) {
 
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
+}
+
+{
+  // Should not propagate config file options to sub tests in isolation process.
+  const fixturePath = join(testFixtures, 'options-propagation');
+  const configFlagVariants = [
+    ['--experimental-config-file=node.config.json'],
+    ['--experimental-config-file'],
+    ['--experimental-default-config-file'],
+  ];
+
+  for (const configArgs of configFlagVariants) {
+    const args = [
+      '--test-reporter=tap',
+      '--no-warnings',
+      ...configArgs,
+      '--expose-internals',
+      '--test',
+    ];
+    const child = spawnSync(process.execPath, args, { cwd: fixturePath });
+
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
+
+    assert.match(stdout, /tests 1/);
+    assert.match(stdout, /suites 0/);
+    assert.match(stdout, /pass 1/);
+    assert.match(stdout, /fail 0/);
+    assert.match(stdout, /cancelled 0/);
+    assert.match(stdout, /skipped 0/);
+    assert.match(stdout, /todo 0/);
+
+    assert.strictEqual(child.status, 0);
+  }
+}
+
+{
+  if (process.features.inspector) {
+    // https://github.com/nodejs/node/issues/58828
+    // Should not print report twice when --experimental-test-coverage is set via config file
+    const fixturePath = join(testFixtures, 'options-propagation');
+    const args = [
+      '--test-reporter=tap',
+      '--no-warnings',
+      `--experimental-config-file=node.config.json`,
+      '--expose-internals',
+      '--test',
+    ];
+
+    const child = spawnSync(process.execPath, args, { cwd: fixturePath });
+    const stdout = child.stdout.toString();
+
+    const coverageReportMatches = stdout.match(/# start of coverage report/g);
+    assert.strictEqual(coverageReportMatches?.length, 1);
+    assert.strictEqual(child.stderr.toString(), '');
+  }
 }

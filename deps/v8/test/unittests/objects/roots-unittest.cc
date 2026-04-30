@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-cell.h"
 #include "src/objects/script.h"
@@ -82,7 +82,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
 
 // Some mutable roots may initially point to undefined until they are properly
 // initialized.
-bool IsUninitialized(DirectHandle<Object> object) {
+bool IsUninitializedHole(DirectHandle<Object> object) {
   return !IsTrustedObject(*object) && IsUndefined(*object);
 }
 }  // namespace
@@ -94,7 +94,7 @@ bool IsUninitialized(DirectHandle<Object> object) {
   Handle<Object> name = factory->name();                             \
   CHECK_EQ(*name, heap->name());                                     \
   if (IsHeapObject(*name) && !CanBeInReadOnlySpace(factory, name) && \
-      !IsUninitialized(name)) {                                      \
+      !IsUninitializedHole(name)) {                                  \
     CHECK_NE(RO_SPACE, GetSpaceFromObject(Cast<HeapObject>(*name))); \
   }
 

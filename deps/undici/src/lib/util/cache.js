@@ -1,8 +1,12 @@
 'use strict'
 
 const {
-  safeHTTPMethods
+  safeHTTPMethods,
+  pathHasQueryOrFragment,
+  hasSafeIterator
 } = require('../core/util')
+
+const { serializePathWithQuery } = require('../core/util')
 
 /**
  * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
@@ -12,41 +16,46 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  const headers = normaliseHeaders(opts)
+  let fullPath = opts.path || '/'
+
+  if (opts.query && !pathHasQueryOrFragment(opts.path)) {
+    fullPath = serializePathWithQuery(fullPath, opts.query)
+  }
 
   return {
     origin: opts.origin.toString(),
     method: opts.method,
-    path: opts.path,
-    headers
+    path: fullPath,
+    headers: opts.headers
   }
 }
 
 /**
  * @param {Record<string, string[] | string>}
- * @return {Record<string, string[] | string>}
+ * @returns {Record<string, string[] | string>}
  */
-function normaliseHeaders (opts) {
+function normalizeHeaders (opts) {
   let headers
   if (opts.headers == null) {
     headers = {}
-  } else if (typeof opts.headers[Symbol.iterator] === 'function') {
-    headers = {}
-    for (const x of opts.headers) {
-      if (!Array.isArray(x)) {
-        throw new Error('opts.headers is not a valid header map')
-      }
-      const [key, val] = x
-      if (typeof key !== 'string' || typeof val !== 'string') {
-        throw new Error('opts.headers is not a valid header map')
-      }
-      headers[key.toLowerCase()] = val
-    }
   } else if (typeof opts.headers === 'object') {
     headers = {}
 
-    for (const key of Object.keys(opts.headers)) {
-      headers[key.toLowerCase()] = opts.headers[key]
+    if (hasSafeIterator(opts.headers)) {
+      for (const x of opts.headers) {
+        if (!Array.isArray(x)) {
+          throw new Error('opts.headers is not a valid header map')
+        }
+        const [key, val] = x
+        if (typeof key !== 'string' || typeof val !== 'string') {
+          throw new Error('opts.headers is not a valid header map')
+        }
+        headers[key.toLowerCase()] = val
+      }
+    } else {
+      for (const key of Object.keys(opts.headers)) {
+        headers[key.toLowerCase()] = opts.headers[key]
+      }
     }
   } else {
     throw new Error('opts.headers is not an object')
@@ -226,7 +235,7 @@ function parseCacheControlHeader (header) {
               }
             }
           } else {
-            // Something like `no-cache=some-header`
+            // Something like `no-cache="some-header"`
             if (key in output) {
               output[key] = output[key].concat(value)
             } else {
@@ -357,14 +366,43 @@ function assertCacheMethods (methods, name = 'CacheMethods') {
   }
 }
 
+/**
+ * Creates a string key for request deduplication purposes.
+ * This key is used to identify in-flight requests that can be shared.
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheKey} cacheKey
+ * @param {Set<string>} [excludeHeaders] Set of lowercase header names to exclude from the key
+ * @returns {string}
+ */
+function makeDeduplicationKey (cacheKey, excludeHeaders) {
+  // Use JSON.stringify to produce a collision-resistant key.
+  // Previous format used `:` and `=` delimiters without escaping, which
+  // allowed different header sets to produce identical keys (e.g.
+  // {a:"x:b=y"} vs {a:"x", b:"y"}). See: https://github.com/nodejs/undici/issues/5012
+  const headers = {}
+
+  if (cacheKey.headers) {
+    const sortedHeaders = Object.keys(cacheKey.headers).sort()
+    for (const header of sortedHeaders) {
+      // Skip excluded headers
+      if (excludeHeaders?.has(header.toLowerCase())) {
+        continue
+      }
+      headers[header] = cacheKey.headers[header]
+    }
+  }
+
+  return JSON.stringify([cacheKey.origin, cacheKey.method, cacheKey.path, headers])
+}
+
 module.exports = {
   makeCacheKey,
-  normaliseHeaders,
+  normalizeHeaders,
   assertCacheKey,
   assertCacheValue,
   parseCacheControlHeader,
   parseVaryHeader,
   isEtagUsable,
   assertCacheMethods,
-  assertCacheStore
+  assertCacheStore,
+  makeDeduplicationKey
 }

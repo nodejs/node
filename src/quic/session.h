@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <async_wrap.h>
 #include <base_object.h>
@@ -55,10 +54,11 @@ class Endpoint;
 // is created. This ngtcp2_conn is destroyed when the session object is freed.
 // However, the session can be in a closed/destroyed state and still have a
 // valid ngtcp2_conn pointer. This is important because the ngtcp2 still might
-// be processsing data within the scope of an ngtcp2_conn after the session
+// be processing data within the scope of an ngtcp2_conn after the session
 // object itself is closed/destroyed by user code.
 class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  public:
+  SessionTicket::AppData::Source& ticket_app_data_source() { return *this; }
   // For simplicity, we use the same Application::Options struct for all
   // Application types. This may change in the future. Not all of the options
   // are going to be relevant for all Application types.
@@ -99,17 +99,19 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // of a QUIC Session.
   class Application;
 
-  // The ApplicationProvider optionally supplies the underlying application
-  // protocol handler used by a session. The ApplicationProvider is supplied
-  // in the *internal* options (that is, it is not exposed as a public, user
-  // facing API. If the ApplicationProvider is not specified, then the
-  // DefaultApplication is used (see application.cc).
-  class ApplicationProvider : public BaseObject {
-   public:
-    using BaseObject::BaseObject;
-    virtual std::unique_ptr<Application> Create(Session* session) = 0;
-  };
+  // Decode the first ALPN protocol name from wire format (length-prefixed).
+  static std::string_view DecodeAlpn(std::string_view wire);
 
+  // Select the Application implementation based on the negotiated ALPN.
+  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
+  // to DefaultApplication. Sets the application_type state field.
+  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+
+  // Install the Application on the session. Called at construction for
+  // clients (ALPN known upfront) or from OnSelectAlpn for servers
+  // (ALPN negotiated during handshake). Must be called before any
+  // application data is received.
+  void SetApplication(std::unique_ptr<Application> app);
   // The options used to configure a session. Most of these deal directly with
   // the transport parameters that are exchanged with the remote peer during
   // handshake.
@@ -129,6 +131,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     TransportParams::Options transport_params =
         TransportParams::Options::kDefault;
     TLSContext::Options tls_options = TLSContext::Options::kDefault;
+    std::unordered_map<std::string, TLSContext::Options> sni;
 
     // A reference to the CID::Factory used to generate CID instances
     // for this session.
@@ -137,9 +140,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // so that it cannot be garbage collected.
     BaseObjectPtr<BaseObject> cid_factory_ref;
 
-    // If the application provider is specified, it will be used to create
-    // the underlying Application instance for the session.
-    BaseObjectPtr<ApplicationProvider> application_provider;
+    // Application-specific options (used for HTTP/3 if the negotiated
+    // ALPN selects Http3ApplicationImpl).
+    Application_Options application_options = Application_Options::kDefault;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
@@ -176,6 +179,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
     ngtcp2_cc_algo cc_algorithm = CC_ALGO_CUBIC;
+
+    // An optional NEW_TOKEN from a previous connection to the same
+    // server. When set, the token is included in the Initial packet
+    // to skip address validation. Client-side only.
+    std::optional<Store> token;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Session::Options)
@@ -251,13 +259,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     std::string ToString() const;
   };
 
-  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
-  static void InitPerIsolate(IsolateData* isolate_data,
-                             v8::Local<v8::ObjectTemplate> target);
-  static void InitPerContext(Realm* env, v8::Local<v8::Object> target);
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  JS_CONSTRUCTOR(Session);
+  JS_BINDING_INIT_BOILERPLATE();
 
   static BaseObjectPtr<Session> Create(
       Endpoint* endpoint,
@@ -313,7 +316,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  private:
   struct Impl;
 
-  using StreamsMap = std::unordered_map<int64_t, BaseObjectPtr<Stream>>;
+  using StreamsMap = std::unordered_map<stream_id, BaseObjectPtr<Stream>>;
   using QuicConnectionPointer = DeleteFnPtr<ngtcp2_conn, ngtcp2_conn_del>;
 
   struct PathValidationFlags final {
@@ -328,29 +331,29 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                const SocketAddress& local_address,
                const SocketAddress& remote_address);
 
-  void Send(const BaseObjectPtr<Packet>& packet);
-  void Send(const BaseObjectPtr<Packet>& packet, const PathStorage& path);
-  uint64_t SendDatagram(Store&& data);
+  void Send(Packet::Ptr packet);
+  void Send(Packet::Ptr packet, const PathStorage& path);
+  datagram_id SendDatagram(Store&& data);
 
   // A non-const variation to allow certain modifications.
   Config& config();
 
-  enum class CreateStreamOption {
+  enum class CreateStreamOption : uint8_t {
     NOTIFY,
     DO_NOT_NOTIFY,
   };
-  BaseObjectPtr<Stream> FindStream(int64_t id) const;
+  BaseObjectPtr<Stream> FindStream(stream_id id) const;
   BaseObjectPtr<Stream> CreateStream(
-      int64_t id,
+      stream_id id,
       CreateStreamOption option = CreateStreamOption::NOTIFY,
       std::shared_ptr<DataQueue> data_source = nullptr);
   void AddStream(BaseObjectPtr<Stream> stream,
                  CreateStreamOption option = CreateStreamOption::NOTIFY);
-  void RemoveStream(int64_t id);
-  void ResumeStream(int64_t id);
-  void StreamDataBlocked(int64_t id);
-  void ShutdownStream(int64_t id, QuicError error = QuicError());
-  void ShutdownStreamWrite(int64_t id, QuicError code = QuicError());
+  void RemoveStream(stream_id id);
+  void ResumeStream(stream_id id);
+  void StreamDataBlocked(stream_id id);
+  void ShutdownStream(stream_id id, QuicError error = QuicError());
+  void ShutdownStreamWrite(stream_id id, QuicError code = QuicError());
 
   // Use the configured CID::Factory to generate a new CID.
   CID new_cid(size_t len = CID::kMaxLength) const;
@@ -370,7 +373,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   v8::MaybeLocal<v8::Object> OpenStream(
       Direction direction, std::shared_ptr<DataQueue> data_source = nullptr);
 
-  void ExtendStreamOffset(int64_t id, size_t amount);
+  void ExtendStreamOffset(stream_id id, size_t amount);
   void ExtendOffset(size_t amount);
   void SetLastError(QuicError&& error);
   uint64_t max_data_left() const;
@@ -424,7 +427,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // defined there to manage it.
   void set_wrapped();
 
-  enum class CloseMethod {
+  enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
     // currently opened streams to be closed. An attempt will be made to
     // send a CONNECTION_CLOSE frame to the peer. If closing while within
@@ -469,7 +472,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   void EmitClose(const QuicError& error = QuicError());
   void EmitDatagram(Store&& datagram, DatagramReceivedFlags flag);
-  void EmitDatagramStatus(uint64_t id, DatagramStatus status);
+  void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
 
@@ -483,11 +486,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                           const ValidatedPath& newPath,
                           const std::optional<ValidatedPath>& oldPath);
   void EmitSessionTicket(Store&& ticket);
+  void EmitNewToken(const uint8_t* token, size_t len);
   void EmitStream(const BaseObjectWeakPtr<Stream>& stream);
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
-  void DatagramStatus(uint64_t datagramId, DatagramStatus status);
+  void DatagramStatus(datagram_id datagramId, DatagramStatus status);
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
                         DatagramReceivedFlags flag);
@@ -495,9 +499,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool HandshakeCompleted();
   void HandshakeConfirmed();
   void SelectPreferredAddress(PreferredAddress* preferredAddress);
-
-  static std::unique_ptr<Application> SelectApplication(Session* session,
-                                                        const Config& config);
 
   QuicConnectionPointer InitConnection();
 
@@ -524,5 +525,4 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

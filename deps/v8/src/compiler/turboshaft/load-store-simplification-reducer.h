@@ -9,17 +9,26 @@
 #include "src/compiler/turboshaft/operation-matcher.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/value-numbering-reducer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+// Turboshaft's loads and stores follow the pattern of
+// *(base + index * element_size_log2 + displacement), but some architectures
+// are more restrictive and only support a simpler addressing mode.
+// LoadStoreSimplificationReducer transforms these loads/stores into
+// architecture-compatible ones.
+#define V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE                             \
+  V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || \
+      V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 ||                  \
+      V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_RISCV32
+
 struct LoadStoreSimplificationConfiguration {
   // TODO(12783): This needs to be extended for all architectures that don't
   // have loads with the base + index * element_size + offset pattern.
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 ||    \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_RISCV32
+#if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
   // As tagged loads result in modfiying the offset by -1, those loads are
   // converted into raw loads.
   static constexpr bool kNeedsUntaggedBase = true;
@@ -66,7 +75,8 @@ class LoadStoreSimplificationReducer : public Next,
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_size_log2) {
-    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    SimplifyLoadStore(base, index, kind, offset, element_size_log2,
+                      !kind.tagged_base);
     return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
                             element_size_log2);
   }
@@ -77,7 +87,9 @@ class LoadStoreSimplificationReducer : public Next,
                         uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
-    SimplifyLoadStore(base, index, kind, offset, element_size_log2);
+    SimplifyLoadStore(base, index, kind, offset, element_size_log2,
+                      (write_barrier == WriteBarrierKind::kNoWriteBarrier &&
+                       !kind.tagged_base));
     if (write_barrier != WriteBarrierKind::kNoWriteBarrier &&
         !index.has_value() && __ Get(base).template Is<ConstantOp>()) {
       const ConstantOp& const_base = __ Get(base).template Cast<ConstantOp>();
@@ -120,6 +132,64 @@ class LoadStoreSimplificationReducer : public Next,
                                         offset);
   }
 
+#if V8_ENABLE_SANDBOX
+  V<Object> REDUCE(LoadTrustedPointer)(V<WordPtr> table, V<Word32> handle,
+                                       bool is_immutable,
+                                       IndirectPointerTagRange tag_range) {
+    // We need to disable GVN in this function so that the `Load` isn't GVNed
+    // (because it's actually load a pointer but isn't marked as such (because
+    // the pointer it loads needs to be decoded before it can be used, so the GC
+    // wouldn't know how to interpret it)), and the Word64BitwiseAnd that
+    // follows also produces a pointer but once again isn't marked as such
+    // (because there is currently no way in Turboshaft to mark a WordBinop as
+    // producing a Tagged result). Either of those operation getting GVNed could
+    // lead to stale pointers, depending on GC timings.
+    // TODO(dmercadier,mliedtke): this DisableValueNumbering is actually a bit
+    // brittle, because if we ever do the lowering earlier in the pipeline, or
+    // if we introduce a later phase with a GVN, then the problem will come
+    // back. Cleaner solutions are mentioned in
+    // https://crbug.com/471363817#comment8.
+    DisableValueNumbering disabled_gvn(this);
+    V<Word32> table_index =
+        __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
+    V<Word64> table_offset = __ ChangeUint32ToUint64(
+        __ Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
+    LoadOp::Kind kind = LoadOp::Kind::RawAligned();
+    if (is_immutable) kind = kind.Immutable();
+    V<WordPtr> decoded_ptr =
+        __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
+
+    if (IsFastIndirectPointerTagRange(tag_range)) {
+      uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);
+      decoded_ptr = __ WordPtrBitwiseAnd(decoded_ptr, mask);
+    } else {
+      V<Word32> tag = __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
+          decoded_ptr, kTrustedPointerTableTagShift));
+
+      V<Word32> is_valid;
+      if (tag_range.Size() == 1) {
+        is_valid = __ Word32Equal(tag, tag_range.first);
+      } else {
+        V<Word32> diff = __ Word32Sub(tag, tag_range.first);
+        is_valid =
+            __ Uint32LessThanOrEqual(diff, tag_range.last - tag_range.first);
+      }
+
+      // Return an invalid pointer (nullptr) on tag mismatch.
+      decoded_ptr =
+          __ Select(is_valid, decoded_ptr, __ IntPtrConstant(0),
+                    RegisterRepresentation::WordPtr(), BranchHint::kTrue,
+                    SelectOp::Implementation::kForceCMove);
+
+      decoded_ptr =
+          __ WordPtrBitwiseAnd(decoded_ptr, kTrustedPointerTablePayloadMask);
+    }
+
+    // Bitcast to tagged to this gets scanned by the GC properly.
+    return __ BitcastWordPtrToTagged(decoded_ptr);
+  }
+#endif
+
  private:
   bool CanEncodeOffset(int32_t offset, bool tagged_base) const {
     // If the base is tagged we also need to subtract the kHeapObjectTag
@@ -140,9 +210,8 @@ class LoadStoreSimplificationReducer : public Next,
 
   void SimplifyLoadStore(OpIndex& base, OptionalOpIndex& index,
                          LoadOp::Kind& kind, int32_t& offset,
-                         uint8_t& element_size_log2) {
-    if (!lowering_enabled_) return;
-
+                         uint8_t& element_size_log2,
+                         bool allow_base_index_hoisting) {
     if (element_size_log2 > kMaxElementSizeLog2) {
       DCHECK(index.valid());
       index = __ WordPtrShiftLeft(index.value(), element_size_log2);
@@ -163,6 +232,12 @@ class LoadStoreSimplificationReducer : public Next,
     if (!CanEncodeOffset(offset, kind.tagged_base) ||
         (kind.is_atomic &&
          !CanEncodeAtomic(index, element_size_log2, offset))) {
+      if (kind.tagged_base) {
+        kind.tagged_base = false;
+        DCHECK_LE(std::numeric_limits<int32_t>::min() + kHeapObjectTag, offset);
+        offset -= kHeapObjectTag;
+        base = __ BitcastHeapObjectToWordPtr(base);
+      }
       // If an index is present, the element_size_log2 is changed to zero.
       // So any load follows the form *(base + offset). To simplify
       // instruction selection, both static and dynamic offsets are stored in
@@ -178,7 +253,21 @@ class LoadStoreSimplificationReducer : public Next,
         element_size_log2 = 0;
       }
       if (offset != 0) {
+#if V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
+        if (allow_base_index_hoisting) {
+          // Hoist the *(base + index) out to a new base if possible to reduce
+          // number of add ops from one per memory access to one per block of
+          // memory accesses. Common subexpression elimination will get rid of
+          // the redundant adds.
+          DCHECK(!kind.tagged_base);
+          base = __ WordPtrAdd(base, index.value());
+          index = __ IntPtrConstant(offset);
+        } else {
+          index = __ WordPtrAdd(index.value(), offset);
+        }
+#else
         index = __ WordPtrAdd(index.value(), offset);
+#endif
         offset = 0;
       }
       DCHECK_EQ(offset, 0);
@@ -186,25 +275,10 @@ class LoadStoreSimplificationReducer : public Next,
     }
   }
 
-  bool is_wasm_ = __ data() -> is_wasm();
-  // TODO(12783): Remove this flag once the Turbofan instruction selection has
-  // been replaced.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||      \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||       \
-    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) ||    \
-    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64) || \
-    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
-  bool lowering_enabled_ =
-      (is_wasm_ && v8_flags.turboshaft_wasm_instruction_selection_staged) ||
-      (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
-#else
-  bool lowering_enabled_ =
-      (is_wasm_ &&
-       v8_flags.turboshaft_wasm_instruction_selection_experimental) ||
-      (!is_wasm_ && v8_flags.turboshaft_instruction_selection);
-#endif
   OperationMatcher matcher_{__ output_graph()};
 };
+
+#undef V8_TARGET_ARCH_RESTRICTIVE_LOAD_STORE
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

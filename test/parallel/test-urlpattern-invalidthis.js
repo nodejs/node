@@ -3,7 +3,7 @@
 require('../common');
 
 const { URLPattern } = require('url');
-const { throws } = require('assert');
+const assert = require('assert');
 
 const pattern = new URLPattern();
 const proto = Object.getPrototypeOf(pattern);
@@ -22,7 +22,7 @@ const proto = Object.getPrototypeOf(pattern);
   'hasRegExpGroups',
 ].forEach((i) => {
   const prop = Object.getOwnPropertyDescriptor(proto, i).get;
-  throws(() => prop({}), {
+  assert.throws(() => prop({}), {
     message: 'Illegal invocation',
   }, i);
 });
@@ -32,9 +32,9 @@ const proto = Object.getPrototypeOf(pattern);
 
 const { test, exec } = pattern;
 
-throws(() => test({}), {
+assert.throws(() => test({}), {
   message: 'Illegal invocation',
 });
-throws(() => exec({}), {
+assert.throws(() => exec({}), {
   message: 'Illegal invocation',
 });

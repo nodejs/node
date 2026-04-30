@@ -13,6 +13,7 @@ namespace string {
 extern macro StringBuiltinsAssembler::HasUnpairedSurrogate(String):
     bool labels Indirect;
 
+@incrementUseCounter('v8::Isolate::kStringWellFormed')
 transitioning javascript builtin StringPrototypeIsWellFormed(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Boolean {

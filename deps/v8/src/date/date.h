@@ -36,9 +36,6 @@ class V8_EXPORT_PRIVATE DateCache {
 
   // Sentinel that denotes an invalid local offset.
   static const int kInvalidLocalOffsetInMs = kMaxInt;
-  // Sentinel that denotes an invalid cache stamp.
-  // It is an invariant of DateCache that cache stamp is non-negative.
-  static const int kInvalidStamp = -1;
 
   DateCache();
 
@@ -89,9 +86,7 @@ class V8_EXPORT_PRIVATE DateCache {
   }
 
   // ECMA 262 - ES#sec-local-time-zone-adjustment
-  int LocalOffsetInMs(int64_t time, bool is_utc) {
-    return GetLocalOffsetFromOS(time, is_utc);
-  }
+  int LocalOffsetInMs(int64_t time, bool is_utc);
 
   const char* LocalTimezone(int64_t time_ms) {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
@@ -165,13 +160,6 @@ class V8_EXPORT_PRIVATE DateCache {
   void BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
                      int* weekday, int* hour, int* min, int* sec, int* ms);
 
-  // Cache stamp is used for invalidating caches in JSDate.
-  // We increment the stamp each time when the timezone information changes.
-  // JSDate objects perform stamp check and invalidate their caches if
-  // their saved stamp is not equal to the current stamp.
-  Tagged<Smi> stamp() { return stamp_; }
-  void* stamp_address() { return &stamp_; }
-
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
@@ -181,58 +169,57 @@ class V8_EXPORT_PRIVATE DateCache {
   virtual int GetLocalOffsetFromOS(int64_t time_ms, bool is_utc);
 
  private:
-  // The implementation relies on the fact that no time zones have
-  // more than one daylight savings offset change per 19 days.
-  // In Egypt in 2010 they decided to suspend DST during Ramadan. This
-  // led to a short interval where DST is in effect from September 10 to
-  // September 30.
-  static const int kDefaultDSTDeltaInSec = 19 * kSecPerDay;
+  // The implementation relies on the fact that no time zones have more than one
+  // time zone offset change (including DST offset changes) per 19 days. In
+  // Egypt in 2010 they decided to suspend DST during Ramadan. This led to a
+  // short interval where DST is in effect from September 10 to September 30.
+  static const int kDefaultTimeZoneOffsetDeltaInMs = 19 * kSecPerDay * 1000;
 
-  // Size of the Daylight Savings Time cache.
-  static const int kDSTSize = 32;
+  static const int kCacheSize = 32;
 
-  // Daylight Savings Time segment stores a segment of time where
-  // daylight savings offset does not change.
-  struct DST {
-    int start_sec;
-    int end_sec;
+  // Stores a segment of time where time zone offset does not change.
+  struct CacheItem {
+    int64_t start_ms;
+    int64_t end_ms;
     int offset_ms;
     int last_used;
   };
 
   // Computes the daylight savings offset for the given time.
   // ECMA 262 - 15.9.1.8
-  int DaylightSavingsOffsetInMs(int64_t time_ms);
-
-  // Sets the before_ and the after_ segments from the DST cache such that
-  // the before_ segment starts earlier than the given time and
-  // the after_ segment start later than the given time.
-  // Both segments might be invalid.
-  // The last_used counters of the before_ and after_ are updated.
-  void ProbeDST(int time_sec);
-
-  // Finds the least recently used segment from the DST cache that is not
-  // equal to the given 'skip' segment.
-  DST* LeastRecentlyUsedDST(DST* skip);
-
-  // Extends the after_ segment with the given point or resets it
-  // if it starts later than the given time + kDefaultDSTDeltaInSec.
-  inline void ExtendTheAfterSegment(int time_sec, int offset_ms);
-
-  // Makes the given segment invalid.
-  inline void ClearSegment(DST* segment);
-
-  bool InvalidSegment(DST* segment) {
-    return segment->start_sec > segment->end_sec;
+  int DaylightSavingsOffsetInMs(int64_t time_ms) {
+    int time_sec = (time_ms >= 0 && time_ms <= kMaxEpochTimeInMs)
+                       ? static_cast<int>(time_ms / 1000)
+                       : static_cast<int>(EquivalentTime(time_ms) / 1000);
+    return GetDaylightSavingsOffsetFromOS(time_sec);
   }
 
-  Tagged<Smi> stamp_;
+  // Sets the before_ and the after_ segments from the timezone offset cache
+  // such that the before_ segment starts earlier than the given time and the
+  // after_ segment start later than the given time. Both segments might be
+  // invalid. The last_used counters of the before_ and after_ are updated.
+  void ProbeCache(int64_t time_ms);
+
+  // Finds the least recently used segment from the timezone offset cache that
+  // is not equal to the given 'skip' segment.
+  CacheItem* LeastRecentlyUsedCacheItem(CacheItem* skip);
+
+  // Extends the after_ segment with the given point or resets it
+  // if it starts later than the given time + kDefaultDSTDeltaInMs.
+  inline void ExtendTheAfterSegment(int64_t time_sec, int offset_ms);
+
+  // Makes the given segment invalid.
+  inline void ClearSegment(CacheItem* segment);
+
+  bool InvalidSegment(CacheItem* segment) {
+    return segment->start_ms > segment->end_ms;
+  }
 
   // Daylight Saving Time cache.
-  DST dst_[kDSTSize];
-  int dst_usage_counter_;
-  DST* before_;
-  DST* after_;
+  CacheItem cache_[kCacheSize];
+  int cache_usage_counter_;
+  CacheItem* before_;
+  CacheItem* after_;
 
   int local_offset_ms_;
 
@@ -275,7 +262,7 @@ enum class ToDateStringMode {
 DateBuffer ToDateString(double time_val, DateCache* date_cache,
                         ToDateStringMode mode);
 
-double ParseDateTimeString(Isolate* isolate, Handle<String> str);
+double ParseDateTimeString(Isolate* isolate, DirectHandle<String> str);
 
 }  // namespace internal
 }  // namespace v8

@@ -47,7 +47,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
 
   // Initialize the fields.
   static void Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
-                         const char* to_string, Handle<Number> to_number,
+                         const char* to_string, DirectHandle<Number> to_number,
                          const char* type_of, uint8_t kind);
 
   static constexpr uint8_t kFalse = 0;
@@ -65,6 +65,10 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
   friend class maglev::MaglevAssembler;
   friend class compiler::AccessBuilder;
   friend class TorqueGeneratedOddballAsserts;
+  template <typename>
+  friend class StringBuiltinsReducer;
+  template <typename>
+  friend class TorqueGeneratedStringBuiltinsReducer;
 
   UnalignedDoubleMember to_number_raw_;
   TaggedMember<String> to_string_;
@@ -76,7 +80,7 @@ V8_OBJECT class Oddball : public PrimitiveHeapObject {
 template <>
 struct ObjectTraits<Oddball> {
   using BodyDescriptor =
-      FixedBodyDescriptor<offsetof(Oddball, to_number_raw_),
+      FixedBodyDescriptor<offsetof(Oddball, to_string_),
                           offsetof(Oddball, kind_), sizeof(Oddball)>;
 
   static_assert(offsetof(Oddball, kind_) == Internals::kOddballKindOffset);
@@ -85,30 +89,20 @@ struct ObjectTraits<Oddball> {
 };
 
 V8_OBJECT class Null : public Oddball {
- public:
-  inline Null();
 } V8_OBJECT_END;
 
 V8_OBJECT class Undefined : public Oddball {
- public:
-  inline Undefined();
 } V8_OBJECT_END;
 
 V8_OBJECT class Boolean : public Oddball {
  public:
-  inline Boolean();
-
   V8_INLINE bool ToBool(Isolate* isolate) const;
 } V8_OBJECT_END;
 
 V8_OBJECT class True : public Boolean {
- public:
-  inline True();
 } V8_OBJECT_END;
 
 V8_OBJECT class False : public Boolean {
- public:
-  inline False();
 } V8_OBJECT_END;
 
 }  // namespace internal

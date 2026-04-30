@@ -5,7 +5,9 @@
 #include "src/objects/bytecode-array.h"
 
 #include <iomanip>
+#include <sstream>
 
+#include "src/base/string-format.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
@@ -45,7 +47,6 @@ int BytecodeArray::SourceStatementPosition(int offset) const {
 void BytecodeArray::PrintJson(std::ostream& os) {
   DisallowGarbageCollection no_gc;
 
-  Address base_address = GetFirstBytecodeAddress();
   BytecodeArray handle_storage = *this;
   Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
   interpreter::BytecodeArrayIterator iterator(handle);
@@ -55,30 +56,28 @@ void BytecodeArray::PrintJson(std::ostream& os) {
 
   while (!iterator.done()) {
     if (!first_data) os << ", ";
-    Address current_address = base_address + iterator.current_offset();
     first_data = false;
 
     os << "{\"offset\":" << iterator.current_offset() << ", \"disassembly\":\"";
-    interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<uint8_t*>(current_address), false);
+    std::stringstream disassembly_stream;
+    iterator.PrintCurrentBytecodeTo(disassembly_stream);
 
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
-      os << " (" << iterator.GetJumpTargetOffset() << ")";
+      disassembly_stream << " (" << iterator.GetJumpTargetOffset() << ")";
     }
 
     if (interpreter::Bytecodes::IsSwitch(iterator.current_bytecode())) {
-      os << " {";
+      disassembly_stream << " {";
       bool first_entry = true;
       for (interpreter::JumpTableTargetOffset entry :
            iterator.GetJumpTableTargetOffsets()) {
-        if (!first_entry) os << ", ";
+        if (!first_entry) disassembly_stream << ", ";
         first_entry = false;
-        os << entry.target_offset;
+        disassembly_stream << entry.target_offset;
       }
-      os << "}";
+      disassembly_stream << "}";
     }
-
-    os << "\"}";
+    os << base::JSONEscaped(disassembly_stream.str()) << "\"}";
     iterator.Advance();
   }
 
@@ -90,7 +89,7 @@ void BytecodeArray::PrintJson(std::ostream& os) {
     for (int i = 0; i < constant_pool_length; i++) {
       Tagged<Object> object = constant_pool()->get(i);
       if (i > 0) os << ", ";
-      os << "\"" << object << "\"";
+      os << "\"" << base::JSONEscaped(object) << "\"";
     }
     os << "]";
   }
@@ -124,16 +123,19 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {
       os << std::setw(5) << source_positions.source_position().ScriptOffset();
-      os << (source_positions.is_statement() ? " S> " : " E> ");
+      if (source_positions.is_breakable()) {
+        os << (source_positions.is_statement() ? " S> " : " E> ");
+      } else {
+        os << (source_positions.is_statement() ? " s> " : " e> ");
+      }
       source_positions.Advance();
     } else {
       os << "         ";
     }
-    Address current_address = base_address + iterator.current_offset();
-    os << reinterpret_cast<const void*>(current_address) << " @ "
-       << std::setw(4) << iterator.current_offset() << " : ";
-    interpreter::BytecodeDecoder::Decode(
-        os, reinterpret_cast<uint8_t*>(current_address));
+    os << reinterpret_cast<const void*>(base_address +
+                                        iterator.current_offset())
+       << " @ " << std::setw(4) << iterator.current_offset() << " : ";
+    iterator.PrintCurrentBytecodeTo(os);
     if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
       Address jump_target = base_address + iterator.GetJumpTargetOffset();
       os << " (" << reinterpret_cast<void*>(jump_target) << " @ "

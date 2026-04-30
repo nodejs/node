@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,11 @@ int SSL_use_RSAPrivateKey(SSL *ssl, RSA *rsa)
         return 0;
     }
 
-    RSA_up_ref(rsa);
+    if (!RSA_up_ref(rsa)) {
+        EVP_PKEY_free(pkey);
+        return 0;
+    }
+
     if (EVP_PKEY_assign_RSA(pkey, rsa) <= 0) {
         RSA_free(rsa);
         EVP_PKEY_free(pkey);
@@ -43,8 +47,13 @@ int SSL_use_RSAPrivateKey(SSL *ssl, RSA *rsa)
 int SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type)
 {
     int j, ret = 0;
-    BIO *in;
+    BIO *in = NULL;
     RSA *rsa = NULL;
+
+    if (file == NULL) {
+        ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_NULL_PARAMETER);
+        goto end;
+    }
 
     in = BIO_new(BIO_s_file());
     if (in == NULL) {
@@ -62,8 +71,8 @@ int SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type)
     } else if (type == SSL_FILETYPE_PEM) {
         j = ERR_R_PEM_LIB;
         rsa = PEM_read_bio_RSAPrivateKey(in, NULL,
-                                         SSL_get_default_passwd_cb(ssl),
-                                         SSL_get_default_passwd_cb_userdata(ssl));
+            SSL_get_default_passwd_cb(ssl),
+            SSL_get_default_passwd_cb_userdata(ssl));
     } else {
         ERR_raise(ERR_LIB_SSL, SSL_R_BAD_SSL_FILETYPE);
         goto end;
@@ -74,7 +83,7 @@ int SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type)
     }
     ret = SSL_use_RSAPrivateKey(ssl, rsa);
     RSA_free(rsa);
- end:
+end:
     BIO_free(in);
     return ret;
 }
@@ -110,7 +119,11 @@ int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa)
         return 0;
     }
 
-    RSA_up_ref(rsa);
+    if (!RSA_up_ref(rsa)) {
+        EVP_PKEY_free(pkey);
+        return 0;
+    }
+
     if (EVP_PKEY_assign_RSA(pkey, rsa) <= 0) {
         RSA_free(rsa);
         EVP_PKEY_free(pkey);
@@ -125,8 +138,13 @@ int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa)
 int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type)
 {
     int j, ret = 0;
-    BIO *in;
+    BIO *in = NULL;
     RSA *rsa = NULL;
+
+    if (file == NULL) {
+        ERR_raise(ERR_LIB_SSL, ERR_R_PASSED_NULL_PARAMETER);
+        goto end;
+    }
 
     in = BIO_new(BIO_s_file());
     if (in == NULL) {
@@ -144,8 +162,8 @@ int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type)
     } else if (type == SSL_FILETYPE_PEM) {
         j = ERR_R_PEM_LIB;
         rsa = PEM_read_bio_RSAPrivateKey(in, NULL,
-                                         SSL_CTX_get_default_passwd_cb(ctx),
-                                         SSL_CTX_get_default_passwd_cb_userdata(ctx));
+            SSL_CTX_get_default_passwd_cb(ctx),
+            SSL_CTX_get_default_passwd_cb_userdata(ctx));
     } else {
         ERR_raise(ERR_LIB_SSL, SSL_R_BAD_SSL_FILETYPE);
         goto end;
@@ -156,13 +174,13 @@ int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type)
     }
     ret = SSL_CTX_use_RSAPrivateKey(ctx, rsa);
     RSA_free(rsa);
- end:
+end:
     BIO_free(in);
     return ret;
 }
 
 int SSL_CTX_use_RSAPrivateKey_ASN1(SSL_CTX *ctx, const unsigned char *d,
-                                   long len)
+    long len)
 {
     int ret;
     const unsigned char *p;

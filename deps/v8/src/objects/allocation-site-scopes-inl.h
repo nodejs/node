@@ -6,6 +6,7 @@
 #define V8_OBJECTS_ALLOCATION_SITE_SCOPES_INL_H_
 
 #include "src/objects/allocation-site-scopes.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/allocation-site-inl.h"
 
@@ -32,7 +33,7 @@ Handle<AllocationSite> AllocationSiteUsageContext::EnterNewScope() {
 }
 
 void AllocationSiteUsageContext::ExitScope(
-    DirectHandle<AllocationSite> scope_site, Handle<JSObject> object) {
+    DirectHandle<AllocationSite> scope_site, DirectHandle<JSObject> object) {
   // This assert ensures that we are pointing at the right sub-object in a
   // recursive walk of a nested literal.
   DCHECK(object.is_null() || *object == scope_site->boilerplate());

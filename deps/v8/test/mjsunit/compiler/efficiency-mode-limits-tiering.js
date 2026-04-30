@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --efficiency-mode-disable-turbofan
-// Flags: --efficiency-mode-for-tiering-heuristics
 
 function f(x) {
   var y = 0;

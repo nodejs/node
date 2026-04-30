@@ -8,9 +8,9 @@
 #include <type_traits>
 
 #include "src/heap/ephemeron-remembered-set.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/pretenuring-handler.h"
 
 namespace v8 {
@@ -64,20 +64,17 @@ class YoungGenerationMarkingVisitor final
     VisitPointersImpl(host, p, p + 1);
   }
 
-  // Visitation specializations used for unified heap young gen marking.
-  V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
-                                   Tagged<JSArrayBuffer> object);
   // Visitation specializations used for collecting pretenuring feedback.
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE int VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
+  V8_INLINE size_t VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object,
+                                         MaybeObjectSize);
 
-  V8_INLINE int VisitEphemeronHashTable(Tagged<Map> map,
-                                        Tagged<EphemeronHashTable> table);
+  V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
+                                           Tagged<EphemeronHashTable> table,
+                                           MaybeObjectSize);
 
-#ifdef V8_COMPRESS_POINTERS
   V8_INLINE void VisitExternalPointer(Tagged<HeapObject> host,
                                       ExternalPointerSlot slot) final;
-#endif  // V8_COMPRESS_POINTERS
   V8_INLINE void VisitCppHeapPointer(Tagged<HeapObject> host,
                                      CppHeapPointerSlot slot) override;
 
@@ -92,8 +89,7 @@ class YoungGenerationMarkingVisitor final
     return marking_worklists_local_;
   }
 
-  V8_INLINE void IncrementLiveBytesCached(MutablePageMetadata* chunk,
-                                          intptr_t by);
+  V8_INLINE void IncrementLiveBytesCached(MutablePage* chunk, intptr_t by);
 
   void PublishWorklists() {
     marking_worklists_local_.Publish();
@@ -106,7 +102,7 @@ class YoungGenerationMarkingVisitor final
 
  private:
   bool TryMark(Tagged<HeapObject> obj) {
-    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
+    return MarkBit::From(isolate_, obj).template Set<AccessMode::ATOMIC>();
   }
 
   template <typename TSlot>
@@ -122,8 +118,7 @@ class YoungGenerationMarkingVisitor final
   static constexpr size_t kEntriesMask = kNumEntries - 1;
   // Fixed-size hashmap that caches live bytes. Hashmap entries are evicted to
   // the global counters on collision.
-  std::array<std::pair<MutablePageMetadata*, size_t>, kNumEntries>
-      live_bytes_data_;
+  std::array<std::pair<MutablePage*, size_t>, kNumEntries> live_bytes_data_;
 
   Isolate* const isolate_;
   MarkingWorklists::Local marking_worklists_local_;

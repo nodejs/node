@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
@@ -39,8 +40,8 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     TNode<Context> context) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> map =
-      CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
+  TNode<Map> map = CAST(LoadContextElementNoCell(
+      native_context, Context::ARRAY_BUFFER_MAP_INDEX));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
 
   TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
@@ -67,8 +68,8 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
                                  Int32Constant(bitfield_value));
 
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kDetachKeyOffset,
-                                 UndefinedConstant());
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kViewsOrDetachKeyOffset,
+                                 SmiConstant(JSArrayBuffer::kNoView.value()));
   StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawByteLengthOffset,
                            UintPtrConstant(0));
   StoreBoundedSizeToObject(buffer, JSArrayBuffer::kRawMaxByteLengthOffset,
@@ -117,8 +118,9 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   Label throwtypeerror(this, Label::kDeferred);
   GotoIf(IsUndefined(new_target), &throwtypeerror);
 
-  TNode<Object> result = CallBuiltin(Builtin::kCreateTypedArray, context,
-                                     target, new_target, arg1, arg2, arg3);
+  TNode<JSAny> result =
+      CallBuiltin<JSAny>(Builtin::kCreateTypedArray, context, target,
+                         new_target, arg1, arg2, arg3);
   args.PopAndReturn(result);
 
   BIND(&throwtypeerror);
@@ -135,14 +137,15 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
 
+  Label variable_length(this), normal(this), zero(this);
+
   // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+  ThrowIfNotJSTypedArray(context, receiver, &zero, kMethodName);
 
   TNode<JSTypedArray> receiver_array = CAST(receiver);
   TNode<JSArrayBuffer> receiver_buffer =
       LoadJSArrayBufferViewBuffer(receiver_array);
 
-  Label variable_length(this), normal(this);
   Branch(IsVariableLengthJSArrayBufferView(receiver_array), &variable_length,
          &normal);
   BIND(&variable_length);
@@ -153,13 +156,13 @@ TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
 
   BIND(&normal);
   {
-    // Default to zero if the {receiver}s buffer was detached.
-    TNode<UintPtrT> byte_length = Select<UintPtrT>(
-        IsDetachedBuffer(receiver_buffer),
-        [=, this] { return UintPtrConstant(0); },
-        [=, this] { return LoadJSArrayBufferViewByteLength(receiver_array); });
-    Return(ChangeUintPtrToTagged(byte_length));
+    GotoIf(IsDetachedBuffer(receiver_buffer), &zero);
+    Return(
+        ChangeUintPtrToTagged(LoadJSArrayBufferViewByteLength(receiver_array)));
   }
+
+  BIND(&zero);
+  Return(SmiConstant(0));
 }
 
 // ES6 #sec-get-%typedarray%.prototype.byteoffset
@@ -168,11 +171,12 @@ TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
 
+  Label detached_or_oob(this), not_detached_nor_oob(this);
+
   // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+  ThrowIfNotJSTypedArray(context, receiver, &detached_or_oob, kMethodName);
 
   // Default to zero if the {receiver}s buffer was detached / out of bounds.
-  Label detached_or_oob(this), not_detached_nor_oob(this);
   IsJSArrayBufferViewDetachedOrOutOfBounds(CAST(receiver), &detached_or_oob,
                                            &not_detached_nor_oob);
   BIND(&detached_or_oob);
@@ -189,13 +193,15 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
 
+  Label detached(this), end(this);
+
   // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+  ThrowIfNotJSTypedArray(context, receiver, &detached, kMethodName);
 
   TNode<JSTypedArray> receiver_array = CAST(receiver);
   TVARIABLE(UintPtrT, length);
-  Label detached(this), end(this);
-  length = LoadJSTypedArrayLengthAndCheckDetached(receiver_array, &detached);
+  length = LoadJSTypedArrayLengthAndValidate(
+      receiver_array, TypedArrayAccessMode::kRead, &detached);
   Return(ChangeUintPtrToTagged(length.value()));
   BIND(&detached);
   Return(ChangeUintPtrToTagged(UintPtrConstant(0)));
@@ -268,36 +274,67 @@ TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
         context_slot = IntPtrConstant(typed_array_function_index);
       });
 
-  return CAST(
-      LoadContextElement(LoadNativeContext(context), context_slot.value()));
+  return CAST(LoadContextElementNoCell(LoadNativeContext(context),
+                                       context_slot.value()));
 }
 
-TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
-    TNode<Context> context, TNode<Object> obj, const char* method_name) {
+TNode<JSTypedArray>
+TypedArrayBuiltinsAssembler::PartiallyValidateTypedArrayMaybeOOB(
+    TNode<Context> context, TNode<Object> obj, const char* method_name,
+    TypedArrayAccessMode access_mode) {
+  Label success(this), fail(this);
+
   // If it is not a typed array, throw
-  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
+  ThrowIfNotJSTypedArray(context, obj, &fail, method_name);
 
-  // If the typed array's buffer is detached, throw
-  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(obj), method_name);
+  // If the typed array's buffer is detached or immutable, throw
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(CAST(obj));
+  GotoIf(IsDetachedBuffer(buffer), &fail);
+  if (access_mode == TypedArrayAccessMode::kWrite) {
+    GotoIf(IsImmutableArrayBuffer(buffer), &fail);
+  }
+  Goto(&success);
 
-  // TODO(v8:11111): Throw if the RAB / GSAB is OOB.
+  BIND(&fail);
+  if (access_mode == TypedArrayAccessMode::kWrite) {
+    ThrowTypeError(context,
+                   MessageTemplate::kTypedArrayValidateWriteErrorOperation,
+                   method_name);
+  } else {
+    ThrowTypeError(context, MessageTemplate::kTypedArrayValidateErrorOperation,
+                   method_name);
+  }
+
+  BIND(&success);
+  // Does not check for OOB since the clients of this function do that already.
+
   return CAST(obj);
 }
 
 TNode<UintPtrT> TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
-    TNode<Context> context, TNode<Object> obj, const char* method_name) {
+    TNode<Context> context, TNode<Object> obj, const char* method_name,
+    TypedArrayAccessMode access_mode) {
+  Label success(this), fail(this);
+
   // If it is not a typed array, throw
-  ThrowIfNotInstanceType(context, obj, JS_TYPED_ARRAY_TYPE, method_name);
+  ThrowIfNotJSTypedArray(context, obj, &fail, method_name);
 
-  Label detached_or_oob(this), not_detached_nor_oob(this);
   TNode<UintPtrT> length =
-      LoadJSTypedArrayLengthAndCheckDetached(CAST(obj), &detached_or_oob);
-  Goto(&not_detached_nor_oob);
+      LoadJSTypedArrayLengthAndValidate(CAST(obj), access_mode, &fail);
 
-  BIND(&detached_or_oob);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+  Goto(&success);
 
-  BIND(&not_detached_nor_oob);
+  BIND(&fail);
+  if (access_mode == TypedArrayAccessMode::kWrite) {
+    ThrowTypeError(context,
+                   MessageTemplate::kTypedArrayValidateWriteErrorOperation,
+                   method_name);
+  } else {
+    ThrowTypeError(context, MessageTemplate::kTypedArrayValidateErrorOperation,
+                   method_name);
+  }
+
+  BIND(&success);
   return length;
 }
 
@@ -449,8 +486,9 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
     TNode<JSTypedArray> holder, TNode<ByteArray> base, TNode<UintPtrT> offset) {
-  offset = UintPtrAdd(UintPtrConstant(ByteArray::kHeaderSize - kHeapObjectTag),
-                      offset);
+  offset = UintPtrAdd(
+      UintPtrConstant(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag),
+      offset);
   if (COMPRESS_POINTERS_BOOL) {
     TNode<IntPtrT> full_base = Signed(BitcastTaggedToWord(base));
     TNode<Int32T> compressed_base = TruncateIntPtrToInt32(full_base);
@@ -481,6 +519,9 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
 void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
     TNode<UintPtrT> index, TNode<Numeric> value, ElementsKind elements_kind) {
+  CSA_DCHECK(this, Word32BinaryNot(IsImmutableArrayBuffer(
+                       LoadJSArrayBufferViewBuffer(typed_array))));
+
   TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
   switch (elements_kind) {
     case UINT8_ELEMENTS:
@@ -521,21 +562,24 @@ template <typename TValue>
 void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
     TNode<UintPtrT> index, TNode<TValue> prepared_value,
-    ElementsKind elements_kind, Label* if_detached_or_out_of_bounds) {
-  static_assert(std::is_same<TValue, Word32T>::value ||
-                    std::is_same<TValue, Float16T>::value ||
-                    std::is_same<TValue, Float32T>::value ||
-                    std::is_same<TValue, Float64T>::value ||
-                    std::is_same<TValue, BigInt>::value,
+    ElementsKind elements_kind,
+    Label* if_detached_or_immutable_or_out_of_bounds) {
+  static_assert(std::is_same_v<TValue, Word32T> ||
+                    std::is_same_v<TValue, Float16RawBitsT> ||
+                    std::is_same_v<TValue, Float32T> ||
+                    std::is_same_v<TValue, Float64T> ||
+                    std::is_same_v<TValue, BigInt>,
                 "Only Word32T, Float16T, Float32T, Float64T or BigInt values "
                 "are allowed");
   // ToNumber/ToBigInt (or other functions called by the upper level) may
   // execute JavaScript code, which could detach the TypedArray's buffer or make
   // the TypedArray out of bounds.
-  TNode<UintPtrT> length = LoadJSTypedArrayLengthAndCheckDetached(
-      typed_array, if_detached_or_out_of_bounds);
+  TNode<UintPtrT> length = LoadJSTypedArrayLengthAndValidate(
+      typed_array, TypedArrayAccessMode::kWrite,
+      if_detached_or_immutable_or_out_of_bounds);
+
   GotoIf(UintPtrGreaterThanOrEqual(index, length),
-         if_detached_or_out_of_bounds);
+         if_detached_or_immutable_or_out_of_bounds);
 
   TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
   StoreElement(data_ptr, elements_kind, index, prepared_value);
@@ -544,7 +588,7 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromPreparedValue(
 void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     TNode<Context> context, TNode<JSTypedArray> typed_array,
     TNode<UintPtrT> index, TNode<Object> value, ElementsKind elements_kind,
-    Label* if_detached_or_out_of_bounds) {
+    Label* if_detached_or_immutable_or_out_of_bounds) {
   switch (elements_kind) {
     case UINT8_ELEMENTS:
     case INT8_ELEMENTS:
@@ -555,42 +599,42 @@ void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromTagged(
     case UINT8_CLAMPED_ELEMENTS: {
       auto prepared_value = PrepareValueForWriteToTypedArray<Word32T>(
           value, elements_kind, context);
-      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                                prepared_value, elements_kind,
-                                                if_detached_or_out_of_bounds);
+      StoreJSTypedArrayElementFromPreparedValue(
+          context, typed_array, index, prepared_value, elements_kind,
+          if_detached_or_immutable_or_out_of_bounds);
       break;
     }
     case FLOAT16_ELEMENTS: {
-      auto prepared_value = PrepareValueForWriteToTypedArray<Float16T>(
+      auto prepared_value = PrepareValueForWriteToTypedArray<Float16RawBitsT>(
           value, elements_kind, context);
-      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                                prepared_value, elements_kind,
-                                                if_detached_or_out_of_bounds);
+      StoreJSTypedArrayElementFromPreparedValue(
+          context, typed_array, index, prepared_value, elements_kind,
+          if_detached_or_immutable_or_out_of_bounds);
       break;
     }
     case FLOAT32_ELEMENTS: {
       auto prepared_value = PrepareValueForWriteToTypedArray<Float32T>(
           value, elements_kind, context);
-      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                                prepared_value, elements_kind,
-                                                if_detached_or_out_of_bounds);
+      StoreJSTypedArrayElementFromPreparedValue(
+          context, typed_array, index, prepared_value, elements_kind,
+          if_detached_or_immutable_or_out_of_bounds);
       break;
     }
     case FLOAT64_ELEMENTS: {
       auto prepared_value = PrepareValueForWriteToTypedArray<Float64T>(
           value, elements_kind, context);
-      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                                prepared_value, elements_kind,
-                                                if_detached_or_out_of_bounds);
+      StoreJSTypedArrayElementFromPreparedValue(
+          context, typed_array, index, prepared_value, elements_kind,
+          if_detached_or_immutable_or_out_of_bounds);
       break;
     }
     case BIGINT64_ELEMENTS:
     case BIGUINT64_ELEMENTS: {
       auto prepared_value = PrepareValueForWriteToTypedArray<BigInt>(
           value, elements_kind, context);
-      StoreJSTypedArrayElementFromPreparedValue(context, typed_array, index,
-                                                prepared_value, elements_kind,
-                                                if_detached_or_out_of_bounds);
+      StoreJSTypedArrayElementFromPreparedValue(
+          context, typed_array, index, prepared_value, elements_kind,
+          if_detached_or_immutable_or_out_of_bounds);
       break;
     }
     default:

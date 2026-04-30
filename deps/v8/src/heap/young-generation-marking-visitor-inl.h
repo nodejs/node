@@ -5,15 +5,18 @@
 #ifndef V8_HEAP_YOUNG_GENERATION_MARKING_VISITOR_INL_H_
 #define V8_HEAP_YOUNG_GENERATION_MARKING_VISITOR_INL_H_
 
+#include "src/heap/young-generation-marking-visitor.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/mutable-page-metadata.h"
-#include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/remembered-set-inl.h"
-#include "src/heap/young-generation-marking-visitor.h"
 
 namespace v8 {
 namespace internal {
@@ -58,31 +61,37 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitCppHeapPointer(
   // The table is not reclaimed in the young generation, so we only need to mark
   // through to the C++ pointer.
 
-  if (auto cpp_heap_pointer = slot.try_load(isolate_, kAnyCppHeapPointer)) {
+#ifdef V8_COMPRESS_POINTERS
+  const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+  if (handle == kNullExternalPointerHandle) {
+    return;
+  }
+  const CppHeapPointerTable& table = isolate_->cpp_heap_pointer_table();
+  Address cpp_heap_pointer = table.Get(handle, kAnyCppHeapPointer);
+#else   // !V8_COMPRESS_POINTERS
+  Address cpp_heap_pointer = slot.load();
+#endif  // !V8_COMPRESS_POINTERS
+  if (cpp_heap_pointer) {
     marking_worklists_local_.cpp_marking_state()->MarkAndPush(
         reinterpret_cast<void*>(cpp_heap_pointer));
   }
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
-int YoungGenerationMarkingVisitor<marking_mode>::VisitJSArrayBuffer(
-    Tagged<Map> map, Tagged<JSArrayBuffer> object) {
-  object->YoungMarkExtension();
-  return Base::VisitJSArrayBuffer(map, object);
-}
-
-template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename T, typename TBodyDescriptor>
-int YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
-    Tagged<Map> map, Tagged<T> object) {
-  pretenuring_handler_->UpdateAllocationSite(map, object,
-                                             local_pretenuring_feedback_);
-  return Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
+size_t YoungGenerationMarkingVisitor<marking_mode>::VisitJSObjectSubclass(
+    Tagged<Map> map, Tagged<T> object, MaybeObjectSize maybe_object_size) {
+  const int object_size =
+      static_cast<int>(Base::template VisitJSObjectSubclass<T, TBodyDescriptor>(
+          map, object, maybe_object_size));
+  PretenuringHandler::UpdateAllocationSite(
+      isolate_->heap(), map, object, object_size, local_pretenuring_feedback_);
+  return object_size;
 }
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
-int YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
-    Tagged<Map> map, Tagged<EphemeronHashTable> table) {
+size_t YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
+    Tagged<Map> map, Tagged<EphemeronHashTable> table, MaybeObjectSize) {
   // Register table with Minor MC, so it can take care of the weak keys later.
   // This allows to only iterate the tables' values, which are treated as strong
   // independently of whether the key is live.
@@ -95,15 +104,16 @@ int YoungGenerationMarkingVisitor<marking_mode>::VisitEphemeronHashTable(
   return EphemeronHashTable::BodyDescriptor::SizeOf(map, table);
 }
 
-#ifdef V8_COMPRESS_POINTERS
 template <YoungGenerationMarkingVisitationMode marking_mode>
 void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
   // With sticky mark-bits the host object was already marked (old).
-  DCHECK_IMPLIES(!v8_flags.sticky_mark_bits, Heap::InYoungGeneration(host));
-  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
-  DCHECK(!IsSharedExternalPointerType(slot.tag()));
-
+  DCHECK_IMPLIES(!v8_flags.sticky_mark_bits,
+                 HeapLayout::InYoungGeneration(host));
+  DCHECK(!slot.tag_range().IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(slot.tag_range()));
+  Address maybe_extension = kNullAddress;
+#ifdef V8_COMPRESS_POINTERS
   // TODO(chromium:337580006): Remove when pointer compression always uses
   // EPT.
   if (!slot.HasExternalPointerHandle()) return;
@@ -113,17 +123,29 @@ void YoungGenerationMarkingVisitor<marking_mode>::VisitExternalPointer(
     ExternalPointerTable& table = isolate_->external_pointer_table();
     auto* space = isolate_->heap()->young_external_pointer_space();
     table.Mark(space, handle, slot.address());
+    if (slot.tag_range() == kArrayBufferExtensionTag) {
+      maybe_extension = table.Get(handle, kArrayBufferExtensionTag);
+    }
   }
 
   // Add to the remset whether the handle is null or not, as the slot could be
   // set to a non-null value before the marking pause.
   // TODO(342905179): Avoid adding null handle locations to the remset, and
   // instead make external pointer writes invoke a marking barrier.
-  auto slot_chunk = MutablePageMetadata::FromHeapObject(host);
+  auto slot_chunk = MutablePage::FromHeapObject(isolate_, host);
   RememberedSet<SURVIVOR_TO_EXTERNAL_POINTER>::template Insert<
       AccessMode::ATOMIC>(slot_chunk, slot_chunk->Offset(slot.address()));
+#else   // !V8_COMPRESS_POINTERS
+  if (slot.tag_range() == kArrayBufferExtensionTag) {
+    maybe_extension = slot.load(isolate_);
+  }
+#endif  // !V8_COMPRESS_POINTERS
+  if (ArrayBufferExtension* extension =
+          reinterpret_cast<ArrayBufferExtension*>(maybe_extension)) {
+    extension->InitializationBarrier();
+    extension->YoungMark();
+  }
 }
-#endif  // V8_COMPRESS_POINTERS
 
 template <YoungGenerationMarkingVisitationMode marking_mode>
 template <typename TSlot>
@@ -183,7 +205,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   MemoryChunk::FromHeapObject(heap_object)->SynchronizedLoad();
 #endif  // THREAD_SANITIZER
 
-  if (!Heap::InYoungGeneration(heap_object)) {
+  if (!HeapLayout::InYoungGeneration(heap_object)) {
     return false;
   }
 
@@ -200,11 +222,10 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::VisitObjectViaSlot(
   // atomics.
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
     Tagged<Map> map = heap_object->map(isolate_);
-    const int visited_size = Base::Visit(map, heap_object);
+    const size_t visited_size = Base::Visit(map, heap_object);
     if (visited_size) {
       IncrementLiveBytesCached(
-          MutablePageMetadata::cast(
-              MemoryChunkMetadata::FromHeapObject(heap_object)),
+          SbxCast<MutablePage>(BasePage::FromHeapObject(isolate_, heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
     return true;
@@ -265,10 +286,10 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
 template <YoungGenerationMarkingVisitationMode marking_mode>
 V8_INLINE void
 YoungGenerationMarkingVisitor<marking_mode>::IncrementLiveBytesCached(
-    MutablePageMetadata* chunk, intptr_t by) {
+    MutablePage* chunk, intptr_t by) {
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                  IsAligned(by, kObjectAlignment8GbHeap));
-  const size_t hash = base::hash<MutablePageMetadata*>()(chunk) & kEntriesMask;
+  const size_t hash = base::hash<MutablePage*>()(chunk) & kEntriesMask;
   auto& entry = live_bytes_data_[hash];
   if (entry.first && entry.first != chunk) {
     entry.first->IncrementLiveBytesAtomically(entry.second);

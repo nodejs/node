@@ -87,7 +87,7 @@ async function makeRequest(port, id) {
 
   let errored = false;
   req.on('error', () => errored = true);
-  req.on('finish', () => assert.strictEqual(errored, false));
+  req.on('finish', common.mustCallAtLeast(() => assert.strictEqual(errored, false), 0));
 
   const [res] = await events.once(req, 'response');
   res.setEncoding('utf8');

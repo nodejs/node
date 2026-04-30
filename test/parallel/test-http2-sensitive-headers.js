@@ -72,6 +72,16 @@ const { duplexPair } = require('stream');
 
   const req = client.request(rawHeaders);
 
+  assert.deepStrictEqual(req.sentHeaders, {
+    '__proto__': null,
+    ':method': 'GET',
+    ':authority': 'localhost:80',
+    ':scheme': 'http',
+    ':path': '/',
+    'secret': 'secret-value',
+    [http2.sensitiveHeaders]: [ 'secret' ],
+  });
+
   req.on('response', common.mustCall((headers) => {
     assert.strictEqual(headers[':status'], 200);
   }));

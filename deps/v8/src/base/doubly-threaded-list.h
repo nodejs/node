@@ -53,7 +53,6 @@ class DoublyThreadedList {
     }
 
     bool operator==(end_iterator) { return !DTLTraits::non_empty(curr_); }
-    bool operator!=(end_iterator) { return DTLTraits::non_empty(curr_); }
 
    private:
     friend DoublyThreadedList;
@@ -126,6 +125,12 @@ class DoublyThreadedList {
     T next = *DTLTraits::next(curr);
     Remove(curr);
     return iterator{next};
+  }
+
+  bool Contains(T needle) const {
+    const bool in_use = DTLTraits::in_use(needle);
+    DCHECK_EQ(in_use, ContainsSlow(needle));
+    return in_use;
   }
 
   bool ContainsSlow(T needle) const {

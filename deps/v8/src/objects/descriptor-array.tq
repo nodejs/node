@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class EnumCache extends Struct {
   keys: FixedArray;
   indices: FixedArray;
@@ -15,6 +16,13 @@ struct DescriptorEntry {
       NumberDictionary;
 }
 
+type FastIterableState extends uint8
+    constexpr 'DescriptorArray::FastIterableState';
+
+bitfield struct DescriptorArrayFlags extends uint32 {
+  fast_iterable: FastIterableState: 2 bit;
+}
+
 @generateBodyDescriptor
 @generateUniqueMap
 extern class DescriptorArray extends HeapObject {
@@ -23,6 +31,11 @@ extern class DescriptorArray extends HeapObject {
   // Raw GC state that is maintained during marking.
   // See `DescriptorArrayMarkingState`.
   raw_gc_state: uint32;
+  flags: DescriptorArrayFlags;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+
   enum_cache: EnumCache;
   descriptors[number_of_all_descriptors]: DescriptorEntry;
 }

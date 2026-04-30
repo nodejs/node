@@ -282,6 +282,53 @@ const channelsByCollection = diagnostics_channel.tracingChannel({
 });
 ```
 
+#### `diagnostics_channel.boundedChannel(nameOrChannels)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|BoundedChannel} Channel name or
+  object containing all the [BoundedChannel Channels][]
+* Returns: {BoundedChannel} Collection of channels to trace with
+
+Creates a [`BoundedChannel`][] wrapper for the given channels. If a name is
+given, the corresponding channels will be created in the form of
+`tracing:${name}:${eventType}` where `eventType` is `start` or `end`.
+
+A `BoundedChannel` is a simplified version of [`TracingChannel`][] that only
+traces synchronous operations. It only has `start` and `end` events, without
+`asyncStart`, `asyncEnd`, or `error` events, making it suitable for tracing
+operations that don't involve asynchronous continuations or error handling.
+
+```mjs
+import { boundedChannel, channel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+// or...
+
+const wc2 = boundedChannel({
+  start: channel('tracing:my-operation:start'),
+  end: channel('tracing:my-operation:end'),
+});
+```
+
+```cjs
+const { boundedChannel, channel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+// or...
+
+const wc2 = boundedChannel({
+  start: channel('tracing:my-operation:start'),
+  end: channel('tracing:my-operation:end'),
+});
+```
+
 ### Class: `Channel`
 
 <!-- YAML
@@ -373,12 +420,18 @@ channel.publish({
 added:
  - v15.1.0
  - v14.17.0
-deprecated:
- - v18.7.0
- - v16.17.0
+changes:
+  - version:
+    - v24.8.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59758
+    description: Deprecation revoked.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/44943
+    description: Documentation-only deprecation.
 -->
-
-> Stability: 0 - Deprecated: Use [`diagnostics_channel.subscribe(name, onMessage)`][]
 
 * `onMessage` {Function} The handler to receive channel messages
   * `message` {any} The message data
@@ -414,10 +467,17 @@ channel.subscribe((message, name) => {
 added:
  - v15.1.0
  - v14.17.0
-deprecated:
- - v18.7.0
- - v16.17.0
 changes:
+  - version:
+    - v24.8.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59758
+    description: Deprecation revoked.
+  - version:
+    - v18.7.0
+    - v16.17.0
+    pr-url: https://github.com/nodejs/node/pull/44943
+    description: Documentation-only deprecation.
   - version:
     - v17.1.0
     - v16.14.0
@@ -425,8 +485,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/40433
     description: Added return value. Added to channels without subscribers.
 -->
-
-> Stability: 0 - Deprecated: Use [`diagnostics_channel.unsubscribe(name, onMessage)`][]
 
 * `onMessage` {Function} The previous subscribed handler to remove
 * Returns: {boolean} `true` if the handler was found, `false` otherwise.
@@ -608,6 +666,77 @@ channel.runStores({ some: 'message' }, () => {
   store.getStore(); // Span({ some: 'message' })
 });
 ```
+
+#### `channel.withStoreScope(data)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `data` {any} Message to bind to stores
+* Returns: {RunStoresScope} Disposable scope object
+
+Creates a disposable scope that binds the given data to any AsyncLocalStorage
+instances bound to the channel and publishes it to subscribers. The scope
+automatically restores the previous storage contexts when disposed.
+
+This method enables the use of JavaScript's explicit resource management
+(`using` syntax with `Symbol.dispose`) to manage store contexts without
+closure wrapping.
+
+```mjs
+import { channel } from 'node:diagnostics_channel';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+const store = new AsyncLocalStorage();
+const ch = channel('my-channel');
+
+ch.bindStore(store, (message) => {
+  return { ...message, timestamp: Date.now() };
+});
+
+{
+  using scope = ch.withStoreScope({ request: 'data' });
+  // Store is entered, data is published
+  console.log(store.getStore()); // { request: 'data', timestamp: ... }
+}
+// Store is automatically restored on scope exit
+```
+
+```cjs
+const { channel } = require('node:diagnostics_channel');
+const { AsyncLocalStorage } = require('node:async_hooks');
+
+const store = new AsyncLocalStorage();
+const ch = channel('my-channel');
+
+ch.bindStore(store, (message) => {
+  return { ...message, timestamp: Date.now() };
+});
+
+{
+  using scope = ch.withStoreScope({ request: 'data' });
+  // Store is entered, data is published
+  console.log(store.getStore()); // { request: 'data', timestamp: ... }
+}
+// Store is automatically restored on scope exit
+```
+
+### Class: `RunStoresScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `RunStoresScope` represents a disposable scope created by
+[`channel.withStoreScope(data)`][]. It manages the lifecycle of store
+contexts and ensures they are properly restored when the scope exits.
+
+The scope must be used with the `using` syntax to ensure proper disposal.
 
 ### Class: `TracingChannel`
 
@@ -818,22 +947,35 @@ channels.traceSync(() => {
 added:
  - v19.9.0
  - v18.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61766
+    description: Custom thenables will no longer be wrapped in native Promises.
+                 Non-thenables will be returned with a warning.
 -->
 
-* `fn` {Function} Promise-returning function to wrap a trace around
+* `fn` {Function} Function to wrap a trace around
 * `context` {Object} Shared object to correlate trace events through
 * `thisArg` {any} The receiver to be used for the function call
 * `...args` {any} Optional arguments to pass to the function
-* Returns: {Promise} Chained from promise returned by the given function
+* Returns: {any} The return value of the given function, or the result of
+  calling `.then(...)` on the return value if the tracing channel has active
+  subscribers. If the return value is not a Promise or thenable, then
+  it is returned as-is and a warning is emitted.
 
-Trace a promise-returning function call. This will always produce a
-[`start` event][] and [`end` event][] around the synchronous portion of the
-function execution, and will produce an [`asyncStart` event][] and
-[`asyncEnd` event][] when a promise continuation is reached. It may also
-produce an [`error` event][] if the given function throws an error or the
-returned promise rejects. This will run the given function using
+Trace an asynchronous function call which returns a {Promise} or
+[thenable object][]. This will always produce a [`start` event][] and
+[`end` event][] around the synchronous portion of the function execution, and
+will produce an [`asyncStart` event][] and [`asyncEnd` event][] when the
+returned promise is resolved or rejected. It may also produce an
+[`error` event][] if the given function throws an error or the returned promise
+is rejected. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+If the value returned by `fn` is not a Promise or thenable, then it will be
+returned with a warning, and no `asyncStart` or `asyncEnd` events will be
+produced.
 
 To ensure only correct trace graphs are formed, events will only be published
 if subscribers are present prior to starting the trace. Subscriptions which are
@@ -1002,6 +1144,281 @@ if (channels.hasSubscribers) {
 }
 ```
 
+### Class: `BoundedChannel`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `BoundedChannel` is a simplified version of [`TracingChannel`][] that
+only traces synchronous operations. It consists of two channels (`start` and
+`end`) instead of five, omitting the `asyncStart`, `asyncEnd`, and `error`
+events. This makes it suitable for tracing operations that don't involve
+asynchronous continuations or error handling.
+
+Like `TracingChannel`, it is recommended to create and reuse a single
+`BoundedChannel` at the top-level of the file rather than creating them
+dynamically.
+
+#### `boundedChannel.hasSubscribers`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} `true` if any of the individual channels has a subscriber,
+  `false` if not.
+
+Check if any of the `start` or `end` channels have subscribers.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+if (wc.hasSubscribers) {
+  // There are subscribers, perform traced operation
+}
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+if (wc.hasSubscribers) {
+  // There are subscribers, perform traced operation
+}
+```
+
+#### `boundedChannel.subscribe(handlers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handlers` {Object} Set of channel subscribers
+  * `start` {Function} The start event subscriber
+  * `end` {Function} The end event subscriber
+
+Subscribe to the bounded channel events. This is equivalent to calling
+[`channel.subscribe(onMessage)`][] on each channel individually.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+wc.subscribe({
+  start(message) {
+    // Handle start
+  },
+  end(message) {
+    // Handle end
+  },
+});
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+wc.subscribe({
+  start(message) {
+    // Handle start
+  },
+  end(message) {
+    // Handle end
+  },
+});
+```
+
+#### `boundedChannel.unsubscribe(handlers)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handlers` {Object} Set of channel subscribers
+  * `start` {Function} The start event subscriber
+  * `end` {Function} The end event subscriber
+* Returns: {boolean} `true` if all handlers were successfully unsubscribed,
+  `false` otherwise.
+
+Unsubscribe from the bounded channel events. This is equivalent to calling
+[`channel.unsubscribe(onMessage)`][] on each channel individually.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const handlers = {
+  start(message) {},
+  end(message) {},
+};
+
+wc.subscribe(handlers);
+wc.unsubscribe(handlers);
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const handlers = {
+  start(message) {},
+  end(message) {},
+};
+
+wc.subscribe(handlers);
+wc.unsubscribe(handlers);
+```
+
+#### `boundedChannel.run(context, fn[, thisArg[, ...args]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object} Shared object to correlate events through
+* `fn` {Function} Function to wrap a trace around
+* `thisArg` {any} The receiver to be used for the function call
+* `...args` {any} Optional arguments to pass to the function
+* Returns: {any} The return value of the given function
+
+Trace a synchronous function call. This will produce a `start` event and `end`
+event around the execution. This runs the given function using
+[`channel.runStores(context, ...)`][] on the `start` channel which ensures all
+events have any bound stores set to match this trace context.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const result = wc.run({ operationId: '123' }, () => {
+  // Perform operation
+  return 42;
+});
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const result = wc.run({ operationId: '123' }, () => {
+  // Perform operation
+  return 42;
+});
+```
+
+#### `boundedChannel.withScope([context])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `context` {Object} Shared object to correlate events through
+* Returns: {BoundedChannelScope} Disposable scope object
+
+Create a disposable scope for tracing a synchronous operation using JavaScript's
+explicit resource management (`using` syntax). The scope automatically publishes
+`start` and `end` events, enters bound stores, and handles cleanup when disposed.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const context = { operationId: '123' };
+{
+  using scope = wc.withScope(context);
+  // Stores are entered, start event is published
+
+  // Perform work and set result on context
+  context.result = 42;
+}
+// End event is published, stores are restored automatically
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const context = { operationId: '123' };
+{
+  using scope = wc.withScope(context);
+  // Stores are entered, start event is published
+
+  // Perform work and set result on context
+  context.result = 42;
+}
+// End event is published, stores are restored automatically
+```
+
+### Class: `BoundedChannelScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The class `BoundedChannelScope` represents a disposable scope created by
+[`boundedChannel.withScope(context)`][]. It manages the lifecycle of a traced
+operation, automatically publishing events and managing store contexts.
+
+The scope must be used with the `using` syntax to ensure proper disposal.
+
+```mjs
+import { boundedChannel } from 'node:diagnostics_channel';
+
+const wc = boundedChannel('my-operation');
+
+const context = {};
+{
+  using scope = wc.withScope(context);
+  // Start event is published, stores are entered
+  context.result = performOperation();
+  // End event is automatically published at end of block
+}
+```
+
+```cjs
+const { boundedChannel } = require('node:diagnostics_channel');
+
+const wc = boundedChannel('my-operation');
+
+const context = {};
+{
+  using scope = wc.withScope(context);
+  // Start event is published, stores are entered
+  context.result = performOperation();
+  // End event is automatically published at end of block
+}
+```
+
+### BoundedChannel Channels
+
+A `BoundedChannel` consists of two diagnostics channels representing the
+lifecycle of a scope created with the `using` syntax:
+
+* `tracing:${name}:start` - Published when the `using` statement executes (scope creation)
+* `tracing:${name}:end` - Published when exiting the block (scope disposal)
+
+When using the `using` syntax with \[`boundedChannel.withScope([context])`]\[], the `start`
+event is published immediately when the statement executes, and the `end` event
+is automatically published when disposal occurs at the end of the block. All
+events share the same context object, which can be extended with additional
+properties like `result` during scope execution.
+
 ### TracingChannel Channels
 
 A TracingChannel is a collection of several diagnostics\_channels representing
@@ -1103,43 +1520,39 @@ for the sync error and one for the async error.
 
 ### Built-in Channels
 
-> Stability: 1 - Experimental
-
-While the diagnostics\_channel API is now considered stable, the built-in
-channels currently available are not. Each channel must be declared stable
-independently.
-
 #### Console
 
-`console.log`
+> Stability: 1 - Experimental
+
+##### Event: `'console.log'`
 
 * `args` {any\[]}
 
 Emitted when `console.log()` is called. Receives and array of the arguments
 passed to `console.log()`.
 
-`console.info`
+##### Event: `'console.info'`
 
 * `args` {any\[]}
 
 Emitted when `console.info()` is called. Receives and array of the arguments
 passed to `console.info()`.
 
-`console.debug`
+##### Event: `'console.debug'`
 
 * `args` {any\[]}
 
 Emitted when `console.debug()` is called. Receives and array of the arguments
 passed to `console.debug()`.
 
-`console.warn`
+##### Event: `'console.warn'`
 
 * `args` {any\[]}
 
 Emitted when `console.warn()` is called. Receives and array of the arguments
 passed to `console.warn()`.
 
-`console.error`
+##### Event: `'console.error'`
 
 * `args` {any\[]}
 
@@ -1148,34 +1561,36 @@ passed to `console.error()`.
 
 #### HTTP
 
-`http.client.request.created`
+> Stability: 1 - Experimental
+
+##### Event: `'http.client.request.created'`
 
 * `request` {http.ClientRequest}
 
 Emitted when client creates a request object.
 Unlike `http.client.request.start`, this event is emitted before the request has been sent.
 
-`http.client.request.start`
+##### Event: `'http.client.request.start'`
 
 * `request` {http.ClientRequest}
 
 Emitted when client starts a request.
 
-`http.client.request.error`
+##### Event: `'http.client.request.error'`
 
 * `request` {http.ClientRequest}
 * `error` {Error}
 
 Emitted when an error occurs during a client request.
 
-`http.client.response.finish`
+##### Event: `'http.client.response.finish'`
 
 * `request` {http.ClientRequest}
 * `response` {http.IncomingMessage}
 
 Emitted when client receives a response.
 
-`http.server.request.start`
+##### Event: `'http.server.request.start'`
 
 * `request` {http.IncomingMessage}
 * `response` {http.ServerResponse}
@@ -1184,7 +1599,7 @@ Emitted when client receives a response.
 
 Emitted when server receives a request.
 
-`http.server.response.created`
+##### Event: `'http.server.response.created'`
 
 * `request` {http.IncomingMessage}
 * `response` {http.ServerResponse}
@@ -1192,7 +1607,7 @@ Emitted when server receives a request.
 Emitted when server creates a response.
 The event is emitted before the response is sent.
 
-`http.server.response.finish`
+##### Event: `'http.server.response.finish'`
 
 * `request` {http.IncomingMessage}
 * `response` {http.ServerResponse}
@@ -1201,86 +1616,183 @@ The event is emitted before the response is sent.
 
 Emitted when server sends a response.
 
+#### HTTP/2
+
+> Stability: 1 - Experimental
+
+##### Event: `'http2.client.stream.created'`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is created on the client.
+
+##### Event: `'http2.client.stream.start'`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is started on the client.
+
+##### Event: `'http2.client.stream.error'`
+
+* `stream` {ClientHttp2Stream}
+* `error` {Error}
+
+Emitted when an error occurs during the processing of a stream on the client.
+
+##### Event: `'http2.client.stream.finish'`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
+Emitted when a stream is received on the client.
+
+##### Event: `'http2.client.stream.bodyChunkSent'`
+
+* `stream` {ClientHttp2Stream}
+* `writev` {boolean}
+* `data` {Buffer | string | Buffer\[] | Object\[]}
+  * `chunk` {Buffer|string}
+  * `encoding` {string}
+* `encoding` {string}
+
+Emitted when a chunk of the client stream body is being sent.
+
+##### Event: `'http2.client.stream.bodySent'`
+
+* `stream` {ClientHttp2Stream}
+
+Emitted after the client stream body has been fully sent.
+
+##### Event: `'http2.client.stream.close'`
+
+* `stream` {ClientHttp2Stream}
+
+Emitted when a stream is closed on the client. The HTTP/2 error code used when
+closing the stream can be retrieved using the `stream.rstCode` property.
+
+##### Event: `'http2.server.stream.created'`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is created on the server.
+
+##### Event: `'http2.server.stream.start'`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is started on the server.
+
+##### Event: `'http2.server.stream.error'`
+
+* `stream` {ServerHttp2Stream}
+* `error` {Error}
+
+Emitted when an error occurs during the processing of a stream on the server.
+
+##### Event: `'http2.server.stream.finish'`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
+Emitted when a stream is sent on the server.
+
+##### Event: `'http2.server.stream.close'`
+
+* `stream` {ServerHttp2Stream}
+
+Emitted when a stream is closed on the server. The HTTP/2 error code used when
+closing the stream can be retrieved using the `stream.rstCode` property.
+
 #### Modules
 
-`module.require.start`
+> Stability: 1 - Experimental
+
+##### Event: `'tracing:module.require:start'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `require()`. Module name.
-  * `parentFilename` - Name of the module that attempted to require(id).
+  * `id` Argument passed to `require()`. Module name.
+  * `parentFilename` Name of the module that attempted to require(id).
 
 Emitted when `require()` is executed. See [`start` event][].
 
-`module.require.end`
+##### Event: `'tracing:module.require:end'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `require()`. Module name.
-  * `parentFilename` - Name of the module that attempted to require(id).
+  * `id` Argument passed to `require()`. Module name.
+  * `parentFilename` Name of the module that attempted to require(id).
 
 Emitted when a `require()` call returns. See [`end` event][].
 
-`module.require.error`
+##### Event: `'tracing:module.require:error'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `require()`. Module name.
-  * `parentFilename` - Name of the module that attempted to require(id).
+  * `id` Argument passed to `require()`. Module name.
+  * `parentFilename` Name of the module that attempted to require(id).
 * `error` {Error}
 
 Emitted when a `require()` throws an error. See [`error` event][].
 
-`module.import.asyncStart`
+##### Event: `'tracing:module.import:asyncStart'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `import()`. Module name.
-  * `parentURL` - URL object of the module that attempted to import(id).
+  * `id` Argument passed to `import()`. Module name.
+  * `parentURL` URL object of the module that attempted to import(id).
 
 Emitted when `import()` is invoked. See [`asyncStart` event][].
 
-`module.import.asyncEnd`
+##### Event: `'tracing:module.import:asyncEnd'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `import()`. Module name.
-  * `parentURL` - URL object of the module that attempted to import(id).
+  * `id` Argument passed to `import()`. Module name.
+  * `parentURL` URL object of the module that attempted to import(id).
 
 Emitted when `import()` has completed. See [`asyncEnd` event][].
 
-`module.import.error`
+##### Event: `'tracing:module.import:error'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `import()`. Module name.
-  * `parentURL` - URL object of the module that attempted to import(id).
+  * `id` Argument passed to `import()`. Module name.
+  * `parentURL` URL object of the module that attempted to import(id).
 * `error` {Error}
 
 Emitted when a `import()` throws an error. See [`error` event][].
 
 #### NET
 
-`net.client.socket`
+> Stability: 1 - Experimental
 
-* `socket` {net.Socket}
+##### Event: `'net.client.socket'`
 
-Emitted when a new TCP or pipe client socket is created.
+* `socket` {net.Socket|tls.TLSSocket}
 
-`net.server.socket`
+Emitted when a new TCP or pipe client socket connection is created.
+
+##### Event: `'net.server.socket'`
 
 * `socket` {net.Socket}
 
 Emitted when a new TCP or pipe connection is received.
 
-`tracing:net.server.listen:asyncStart`
+##### Event: `'tracing:net.server.listen:asyncStart'`
 
 * `server` {net.Server}
 * `options` {Object}
 
 Emitted when [`net.Server.listen()`][] is invoked, before the port or pipe is actually setup.
 
-`tracing:net.server.listen:asyncEnd`
+##### Event: `'tracing:net.server.listen:asyncEnd'`
 
 * `server` {net.Server}
 
 Emitted when [`net.Server.listen()`][] has completed and thus the server is ready to accept connection.
 
-`tracing:net.server.listen:error`
+##### Event: `'tracing:net.server.listen:error'`
 
 * `server` {net.Server}
 * `error` {Error}
@@ -1289,7 +1801,9 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 
 #### UDP
 
-`udp.socket`
+> Stability: 1 - Experimental
+
+##### Event: `'udp.socket'`
 
 * `socket` {dgram.Socket}
 
@@ -1297,17 +1811,41 @@ Emitted when a new UDP socket is created.
 
 #### Process
 
+> Stability: 1 - Experimental
+
 <!-- YAML
 added: v16.18.0
 -->
 
-`child_process`
+##### Event: `'child_process'`
 
 * `process` {ChildProcess}
 
 Emitted when a new process is created.
 
-`execve`
+`tracing:child_process.spawn:start`
+
+* `process` {ChildProcess}
+* `options` {Object}
+
+Emitted when [`child_process.spawn()`][] is invoked, before the process is
+actually spawned.
+
+`tracing:child_process.spawn:end`
+
+* `process` {ChildProcess}
+
+Emitted when [`child_process.spawn()`][] has completed successfully and the
+process has been created.
+
+`tracing:child_process.spawn:error`
+
+* `process` {ChildProcess}
+* `error` {Error}
+
+Emitted when [`child_process.spawn()`][] encounters an error.
+
+##### Event: `'process.execve'`
 
 * `execPath` {string}
 * `args` {string\[]}
@@ -1315,35 +1853,89 @@ Emitted when a new process is created.
 
 Emitted when [`process.execve()`][] is invoked.
 
+#### Web Locks
+
+> Stability: 1 - Experimental
+
+<!-- YAML
+added:
+ - v25.9.0
+ - v24.15.0
+-->
+
+These channels are emitted for each [`locks.request()`][] call. See
+[`worker_threads.locks`][] for details on Web Locks.
+
+##### Event: `'locks.request.start'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when a lock request is initiated, before the lock is granted.
+
+##### Event: `'locks.request.grant'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when a lock is successfully granted and the callback is about to run.
+
+##### Event: `'locks.request.miss'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+
+Emitted when `ifAvailable` is `true` and the lock is not immediately available,
+and the request callback is invoked with `null` instead of a `Lock` object.
+
+##### Event: `'locks.request.end'`
+
+* `name` {string} The name of the requested lock resource.
+* `mode` {string} The lock mode: `'exclusive'` or `'shared'`.
+* `steal` {boolean} Whether the request uses steal semantics.
+* `ifAvailable` {boolean} Whether the request uses ifAvailable semantics.
+* `error` {Error|undefined} The error thrown by the callback, if any.
+
+Emitted when a lock request has finished, whether the callback succeeded,
+threw an error, or the lock was stolen.
+
 #### Worker Thread
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0
 -->
 
-`worker_threads`
+##### Event: `'worker_threads'`
 
-* `worker` [`Worker`][]
+* `worker` {Worker}
 
 Emitted when a new thread is created.
 
+[BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`BoundedChannel`]: #class-boundedchannel
 [`TracingChannel`]: #class-tracingchannel
-[`Worker`]: worker_threads.md#class-worker
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
+[`boundedChannel.withScope(context)`]: #boundedchannelwithscopecontext
 [`channel.bindStore(store)`]: #channelbindstorestore-transform
 [`channel.runStores(context, ...)`]: #channelrunstorescontext-fn-thisarg-args
 [`channel.subscribe(onMessage)`]: #channelsubscribeonmessage
 [`channel.unsubscribe(onMessage)`]: #channelunsubscribeonmessage
+[`channel.withStoreScope(data)`]: #channelwithstorescopedata
+[`child_process.spawn()`]: child_process.md#child_processspawncommand-args-options
 [`diagnostics_channel.channel(name)`]: #diagnostics_channelchannelname
 [`diagnostics_channel.subscribe(name, onMessage)`]: #diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
-[`diagnostics_channel.unsubscribe(name, onMessage)`]: #diagnostics_channelunsubscribename-onmessage
 [`end` event]: #endevent
 [`error` event]: #errorevent
+[`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
+[`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
+[thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables

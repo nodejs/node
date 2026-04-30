@@ -238,7 +238,16 @@ const opts = { prefix, context };
 
 // KeyFormat
 {
-  for (const good of ['jwk', 'spki', 'pkcs8', 'raw']) {
+  for (const good of [
+    'jwk',
+    'spki',
+    'pkcs8',
+    'raw',
+    'raw-public',
+    'raw-seed',
+    'raw-secret',
+    'raw-private',
+  ]) {
     assert.strictEqual(converters.KeyFormat(good), good);
   }
 
@@ -262,6 +271,10 @@ const opts = { prefix, context };
     'deriveBits',
     'wrapKey',
     'unwrapKey',
+    'encapsulateBits',
+    'decapsulateBits',
+    'encapsulateKey',
+    'decapsulateKey',
   ]) {
     assert.strictEqual(converters.KeyUsage(good), good);
   }
@@ -462,19 +475,19 @@ const opts = { prefix, context };
   });
 }
 
-// AesGcmParams
+// AeadParams
 {
   for (const good of [
     { name: 'AES-GCM', iv: Buffer.alloc(0) },
     { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64 },
     { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64, additionalData: Buffer.alloc(0) },
   ]) {
-    assert.deepStrictEqual(converters.AesGcmParams({ ...good, filtered: 'out' }, opts), good);
+    assert.deepStrictEqual(converters.AeadParams({ ...good, filtered: 'out' }, opts), good);
 
-    assert.throws(() => converters.AesGcmParams({ ...good, iv: undefined }, opts), {
+    assert.throws(() => converters.AeadParams({ ...good, iv: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'AesGcmParams' because 'iv' is required in 'AesGcmParams'.`,
+      message: `${prefix}: ${context} can not be converted to 'AeadParams' because 'iv' is required in 'AeadParams'.`,
     });
   }
 }
@@ -507,12 +520,12 @@ const opts = { prefix, context };
   }).then(common.mustCall());
 }
 
-// Ed448Params
+// ContextParams
 {
   for (const good of [
     { name: 'Ed448', context: new Uint8Array() },
     { name: 'Ed448' },
   ]) {
-    assert.deepStrictEqual(converters.Ed448Params({ ...good, filtered: 'out' }, opts), good);
+    assert.deepStrictEqual(converters.ContextParams({ ...good, filtered: 'out' }, opts), good);
   }
 }

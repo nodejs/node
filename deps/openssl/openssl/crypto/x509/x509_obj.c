@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@
  * anything encountered in practice.
  */
 
-#define NAME_ONELINE_MAX    (1024 * 1024)
+#define NAME_ONELINE_MAX (1024 * 1024)
 
 char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
 {
@@ -32,7 +32,6 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
     char *p;
     unsigned char *q;
     BUF_MEM *b = NULL;
-    static const char hex[17] = "0123456789ABCDEF";
     int gs_doit[4];
     char tmp_buf[80];
 #ifdef CHARSET_EBCDIC
@@ -41,9 +40,9 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
 
     if (buf == NULL) {
         if ((b = BUF_MEM_new()) == NULL)
-            goto err;
+            goto buferr;
         if (!BUF_MEM_grow(b, 200))
-            goto err;
+            goto buferr;
         b->data[0] = '\0';
         len = 200;
     } else if (len == 0) {
@@ -59,7 +58,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         return buf;
     }
 
-    len--;                      /* space for '\0' */
+    len--; /* space for '\0' */
     l = 0;
     for (i = 0; i < sk_X509_NAME_ENTRY_num(a->entries); i++) {
         ne = sk_X509_NAME_ENTRY_value(a->entries, i);
@@ -78,11 +77,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         }
         q = ne->value->data;
 #ifdef CHARSET_EBCDIC
-        if (type == V_ASN1_GENERALSTRING ||
-            type == V_ASN1_VISIBLESTRING ||
-            type == V_ASN1_PRINTABLESTRING ||
-            type == V_ASN1_TELETEXSTRING ||
-            type == V_ASN1_IA5STRING) {
+        if (type == V_ASN1_GENERALSTRING || type == V_ASN1_VISIBLESTRING || type == V_ASN1_PRINTABLESTRING || type == V_ASN1_TELETEXSTRING || type == V_ASN1_IA5STRING) {
             if (num > (int)sizeof(ebcdic_buf))
                 num = sizeof(ebcdic_buf);
             ascii2ebcdic(ebcdic_buf, q, num);
@@ -111,8 +106,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
             l2++;
             if (q[j] == '/' || q[j] == '+')
                 l2++; /* char needs to be escaped */
-            else if ((ossl_toascii(q[j]) < ossl_toascii(' ')) ||
-                     (ossl_toascii(q[j]) > ossl_toascii('~')))
+            else if ((ossl_toascii(q[j]) < ossl_toascii(' ')) || (ossl_toascii(q[j]) > ossl_toascii('~')))
                 l2 += 3;
         }
 
@@ -124,7 +118,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         }
         if (b != NULL) {
             if (!BUF_MEM_grow(b, l + 1))
-                goto err;
+                goto buferr;
             p = &(b->data[lold]);
         } else if (l > len) {
             break;
@@ -135,7 +129,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         p += l1;
         *(p++) = '=';
 
-#ifndef CHARSET_EBCDIC          /* q was assigned above already. */
+#ifndef CHARSET_EBCDIC /* q was assigned above already. */
         q = ne->value->data;
 #endif
 
@@ -147,8 +141,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
             if ((n < ' ') || (n > '~')) {
                 *(p++) = '\\';
                 *(p++) = 'x';
-                *(p++) = hex[(n >> 4) & 0x0f];
-                *(p++) = hex[n & 0x0f];
+                p += ossl_to_hex(p, n);
             } else {
                 if (n == '/' || n == '+')
                     *(p++) = '\\';
@@ -159,8 +152,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
             if ((n < os_toascii[' ']) || (n > os_toascii['~'])) {
                 *(p++) = '\\';
                 *(p++) = 'x';
-                *(p++) = hex[(n >> 4) & 0x0f];
-                *(p++) = hex[n & 0x0f];
+                p += ossl_to_hex(p, n);
             } else {
                 if (n == os_toascii['/'] || n == os_toascii['+'])
                     *(p++) = '\\';
@@ -179,9 +171,9 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
     if (i == 0)
         *p = '\0';
     return p;
- err:
-    ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
- end:
+buferr:
+    ERR_raise(ERR_LIB_X509, ERR_R_BUF_LIB);
+end:
     BUF_MEM_free(b);
     return NULL;
 }

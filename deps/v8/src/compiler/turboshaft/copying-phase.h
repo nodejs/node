@@ -17,6 +17,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -78,16 +79,14 @@ class OutputGraphAssembler : public Base {
 
  private:
   Derived* derived_this() { return static_cast<Derived*>(this); }
-  Assembler<typename Base::ReducerList>* assembler() {
-    return &derived_this()->Asm();
-  }
+  typename Base::assembler_t* assembler() { return &derived_this()->Asm(); }
 };
 
 template <class AfterNext>
 class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
                                                  VariableReducer<AfterNext>> {
   template <typename N>
-  friend class ReducerBaseForwarder;
+  friend class GraphEmitter;
   template <typename N>
   friend class WasmRevecReducer;
 
@@ -262,7 +261,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
   template <bool can_be_invalid = false, typename T>
   V<T> MapToNewGraph(V<T> old_index, int predecessor_index = -1) {
-    return V<T>::Cast(MapToNewGraph(static_cast<OpIndex>(old_index), -1));
+    return V<T>::Cast(MapToNewGraph<can_be_invalid>(
+        static_cast<OpIndex>(old_index), predecessor_index));
   }
 
   Block* MapToNewGraph(const Block* block) const {
@@ -283,9 +283,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
     OpIndex ig_index = Asm().input_graph().Index(op);
     if (Asm().current_block()->IsLoop()) {
-      DCHECK_EQ(op.input_count, 2);
-      OpIndex og_index = map(op.input(0), -1);
-      if (ig_index == op.input(PhiOp::kLoopPhiBackEdgeIndex)) {
+      DCHECK_EQ(op.input_count, PhiOp::kLoopPhiInputCount);
+      OpIndex og_index = map(op.forward_edge(), -1);
+      if (ig_index == op.back_edge()) {
         // Avoid emitting a Loop Phi which points to itself, instead
         // emit it's 0'th input.
         return og_index;
@@ -307,17 +307,19 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     // loop, and we'll instead fall back to the slower code below to compute the
     // inputs of the Phi.
     int predecessor_index = predecessor_count - 1;
+    int old_index = static_cast<int>(old_inputs.size()) - 1;
     for (OpIndex input : base::Reversed(old_inputs)) {
       if (new_pred && new_pred->OriginForBlockEnd() == old_pred) {
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable
         // merged in the current block.
-        new_inputs.push_back(map(input, predecessor_index));
+        new_inputs.push_back(map(input, predecessor_index, old_index));
         new_pred = new_pred->NeighboringPredecessor();
         predecessor_index--;
       }
       old_pred = old_pred->NeighboringPredecessor();
+      old_index--;
     }
     DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
 
@@ -358,18 +360,19 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       // predecessor, we check the index of the input corresponding to the old
       // predecessor, and we put it next in {new_inputs}.
       new_inputs.clear();
-      int predecessor_index = predecessor_count - 1;
+      predecessor_index = predecessor_count - 1;
       for (new_pred = Asm().current_block()->LastPredecessor();
            new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
         const Block* origin = new_pred->OriginForBlockEnd();
         DCHECK_NOT_NULL(origin);
-        OpIndex input = old_inputs[origin->get_custom_data(
-            Block::CustomDataKind::kPhiInputIndex)];
+        old_index =
+            origin->get_custom_data(Block::CustomDataKind::kPhiInputIndex);
+        OpIndex input = old_inputs[old_index];
         // Phis inputs have to come from predecessors. We thus have to
         // MapToNewGraph with {predecessor_index} so that we get an OpIndex that
         // is from a predecessor rather than one that comes from a Variable
         // merged in the current block.
-        new_inputs.push_back(map(input, predecessor_index));
+        new_inputs.push_back(map(input, predecessor_index, old_index));
         predecessor_index--;
       }
     }
@@ -495,6 +498,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 
   template <bool trace_reduction>
   void VisitBlock(const Block* input_block) {
+    if (tick_counter_) tick_counter_->TickAndMaybeEnterSafepoint();
     Asm().SetCurrentOrigin(OpIndex::Invalid());
     current_block_needs_variables_ =
         blocks_needing_variables_.Contains(input_block->index().id());
@@ -682,18 +686,21 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     DCHECK_IMPLIES(new_index.valid(),
                    Asm().output_graph().BelongsToThisGraph(new_index));
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
+      // Checking that the new operation produces the same number of outputs as
+      // the old one.
       if (new_index.valid()) {
         const Operation& new_op = Asm().output_graph().Get(new_index);
-        if (!new_op.Is<TupleOp>()) {
-          // Checking that the outputs_rep of the new operation are the same as
-          // the old operation. (except for tuples, since they don't have
-          // outputs_rep)
+        if (!new_op.Is<MakeTupleOp>()) {
+          // If this DCHECK fails, then either:
+          //   - the new operation produces more outputs than the old one, which
+          //     is probably a sign that we're computing things that we don't
+          //     need to.
+          //   - or the new operation produces fewer inputs than the old one,
+          //     which means that users might not be able to find the inputs
+          //     they want. Note that this should be caught by other DCHECKs
+          //     later down the line, so if this DCHECK fails and you think that
+          //     it shouldn't, feel free to replace it by a DCHECK_LE.
           DCHECK_EQ(new_op.outputs_rep().size(), op.outputs_rep().size());
-          for (size_t i = 0; i < new_op.outputs_rep().size(); ++i) {
-            DCHECK(new_op.outputs_rep()[i].AllowImplicitRepresentationChangeTo(
-                op.outputs_rep()[i],
-                Asm().output_graph().IsCreatedFromTurbofan()));
-          }
         }
         Asm().Verify(index, new_index);
       }
@@ -708,9 +715,23 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     if (Asm().CanAutoInlineBlocksWithSinglePredecessor() &&
         terminator.Is<GotoOp>()) {
       Block* destination = terminator.Cast<GotoOp>().destination;
-      if (destination->PredecessorCount() == 1) {
-        block_to_inline_now_ = destination;
-        return;
+      // Inlining the destination will require setting it in needs_variables_
+      // mode; we thus check that we can actually create enough variables to do
+      // this.
+      // TODO(dmercadier): in practice, the only reason we need variables for
+      // the destination is because we could be currently in a phase that cloned
+      // the current block, which could lead to {destination} being cloned as
+      // well. No all phases can do this, so we could check that we're not in
+      // such a phase, and if so, not use variables for the destination. One way
+      // to do this would be to have a DisallowCloningReducer which would
+      // static_assert that LoopUnrolling/LoopPeeling/BranchElimination aren't
+      // on the stack and would also prevent using CloneSubGraph,
+      // CloneAndInlineBlock and CloneBlockAndGoto.
+      if (Asm().CanCreateNVariables(destination->OpCountUpperBound())) {
+        if (destination->PredecessorCount() == 1) {
+          block_to_inline_now_ = destination;
+          return;
+        }
       }
     }
     // Just going through the regular VisitOp function.
@@ -735,6 +756,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     while (block_to_inline_now_) {
       Block* input_block = block_to_inline_now_;
       block_to_inline_now_ = nullptr;
+      // We need to set {current_block_needs_variables_} to true, because even
+      // though we're cloning a block that has a single predecessor (and thus
+      // that shouldn't be emitted multiple times, and thus shouldn't need
+      // Variables), we could be unrolling a loop, in which case this block will
+      // be cloned in the same fashion multiple times and will indeed require
+      // Variables.
       ScopedModification<bool> set_true(&current_block_needs_variables_, true);
       if constexpr (trace_reduction) {
         std::cout << "Inlining " << PrintAsBlockHeader{*input_block} << "\n";
@@ -825,6 +852,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
+    // Did you forget to Bind/BIND a Block/Label that you are branching to?
+    DCHECK(op.if_true->index().valid());
+    DCHECK(op.if_false->index().valid());
     Block* if_true = MapToNewGraph(op.if_true);
     Block* if_false = MapToNewGraph(op.if_false);
     return Asm().ReduceBranch(MapToNewGraph(op.condition()), if_true, if_false,
@@ -843,7 +873,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   OpIndex AssembleOutputGraphPhi(const PhiOp& op) {
     return ResolvePhi(
         op,
-        [this](OpIndex ind, int predecessor_index) {
+        [this](OpIndex ind, int predecessor_index, int old_index = 0) {
           return MapToNewGraph(ind, predecessor_index);
         },
         op.rep);
@@ -856,8 +886,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return Asm().ReduceFrameState(base::VectorOf(inputs), op.inlined, op.data);
   }
   OpIndex AssembleOutputGraphCall(const CallOp& op) {
-    OpIndex callee = MapToNewGraph(op.callee());
-    OptionalOpIndex frame_state = MapToNewGraph(op.frame_state());
+    V<CallTarget> callee = MapToNewGraph(op.callee());
+    OptionalV<FrameState> frame_state = MapToNewGraph(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return Asm().ReduceCall(callee, frame_state, base::VectorOf(arguments),
                             op.descriptor, op.Effects());
@@ -893,11 +923,33 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     // bind a block that represents non-throwing control flow of the original
     // operation, so we can inline the rest of the `didnt_throw` block.
     {
-      CatchScope scope(Asm(), MapToNewGraph(op.catch_block));
+      std::optional<CatchScope> catch_scope;
+      if (op.catch_block != nullptr) {
+        // CheckExceptionOp represents either an exception handler, an effect
+        // handler or both, so the catch block may be empty.
+        catch_scope.emplace(Asm(), MapToNewGraph(op.catch_block));
+      }
+      if (!op.effect_handlers.empty()) {
+        // Similar logic as the catch scope, but effect handlers cannot be
+        // nested, so just set it and clear it after the reduction.
+        base::Vector<EffectHandler> output_handlers =
+            Asm()
+                .output_graph()
+                .graph_zone()
+                ->template AllocateVector<EffectHandler>(
+                    op.effect_handlers.size());
+        for (int i = 0; i < op.effect_handlers.length(); ++i) {
+          output_handlers[i].tag_index = op.effect_handlers[i].tag_index;
+          output_handlers[i].block = MapToNewGraph(op.effect_handlers[i].block);
+        }
+        Asm().set_effect_handlers_for_next_call(output_handlers);
+      }
       DCHECK(Asm().input_graph().Get(*it).template Is<DidntThrowOp>());
       if (!Asm().InlineOp(*it, op.didnt_throw_block)) {
+        Asm().clear_effect_handlers();
         return V<None>::Invalid();
       }
+      Asm().clear_effect_handlers();
       ++it;
     }
     for (; it != end; ++it) {
@@ -909,6 +961,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       }
     }
     return V<None>::Invalid();
+  }
+
+  OpIndex AssembleOutputGraphParameter(const ParameterOp& param) {
+    // Calling the AssemblerOpInterface rather than the first Reduce method
+    // in order to make use of the Parameter cache.
+    return Asm().Parameter(param.parameter_index, param.rep, param.debug_name);
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
@@ -967,6 +1025,8 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   }
 
   Graph& input_graph_;
+  OptimizedCompilationInfo* info_ = Asm().data()->info();
+  TickCounter* const tick_counter_ = info_ ? &info_->tick_counter() : nullptr;
 
   const Block* current_input_block_;
 
@@ -1027,14 +1087,11 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
 };
 
 template <template <class> class... Reducers>
-class TSAssembler;
-
-template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
   static void Run(PipelineData* data, Graph& input_graph, Zone* phase_zone,
                   bool trace_reductions = false) {
-    TSAssembler<GraphVisitor, Reducers...> phase(
+    Assembler<GraphVisitor, Reducers...> phase(
         data, input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
     if (trace_reductions) {

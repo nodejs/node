@@ -113,10 +113,11 @@ Maybe<void> ScryptTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool ScryptTraits::DeriveBits(
-    Environment* env,
-    const ScryptConfig& params,
-    ByteSource* out) {
+bool ScryptTraits::DeriveBits(Environment* env,
+                              const ScryptConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   // If the params.length is zero-length, just return an empty buffer.
   // It's useless, yes, but allowed via the API.
   if (params.length == 0) {
@@ -139,7 +140,10 @@ bool ScryptTraits::DeriveBits(
       params.maxmem,
       params.length);
 
-  if (!dp) return false;
+  if (!dp) {
+    errors->Insert(NodeCryptoError::SCRYPT_FAILED);
+    return false;
+  }
   DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;

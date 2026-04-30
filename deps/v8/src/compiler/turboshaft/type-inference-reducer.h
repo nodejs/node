@@ -237,11 +237,9 @@ class TypeInferenceReducer
 
   void RefineTypesAfterBranch(const BranchOp* branch, Block* new_block,
                               bool then_branch) {
-    const std::string branch_str = branch->ToString().substr(0, 40);
-    USE(branch_str);
     TURBOSHAFT_TRACE_TYPING_OK("Br   %3d:%-40s\n",
                                Asm().output_graph().Index(*branch).id(),
-                               branch_str.c_str());
+                               branch->ToString().substr(0, 40).c_str());
 
     Typer::BranchRefinements refinements(
         [this](OpIndex index) { return GetType(index); },
@@ -445,7 +443,7 @@ class TypeInferenceReducer
     return Type::Invalid();
   }
 
-  Type GetTupleType(const TupleOp& tuple) {
+  Type GetTupleType(const MakeTupleOp& tuple) {
     base::SmallVector<Type, 4> tuple_types;
     for (OpIndex input : tuple.inputs()) {
       tuple_types.push_back(GetType(input));
@@ -457,8 +455,8 @@ class TypeInferenceReducer
     Type type = GetTypeOrInvalid(index);
     if (type.IsInvalid()) {
       const Operation& op = Asm().output_graph().Get(index);
-      if (op.Is<TupleOp>()) {
-        return GetTupleType(op.Cast<TupleOp>());
+      if (op.Is<MakeTupleOp>()) {
+        return GetTupleType(op.Cast<MakeTupleOp>());
       } else {
         return Typer::TypeForRepresentation(op.outputs_rep(),
                                             Asm().graph_zone());

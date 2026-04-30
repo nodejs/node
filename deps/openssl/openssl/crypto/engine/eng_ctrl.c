@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,7 +62,7 @@ static int int_ctrl_cmd_by_num(const ENGINE_CMD_DEFN *defn, unsigned int num)
 }
 
 static int int_ctrl_helper(ENGINE *e, int cmd, long i, void *p,
-                           void (*f) (void))
+    void (*f)(void))
 {
     int idx;
     char *s = (char *)p;
@@ -75,9 +75,7 @@ static int int_ctrl_helper(ENGINE *e, int cmd, long i, void *p,
         return e->cmd_defns->cmd_num;
     }
     /* One or two commands require that "p" be a valid string buffer */
-    if ((cmd == ENGINE_CTRL_GET_CMD_FROM_NAME) ||
-        (cmd == ENGINE_CTRL_GET_NAME_FROM_CMD) ||
-        (cmd == ENGINE_CTRL_GET_DESC_FROM_CMD)) {
+    if ((cmd == ENGINE_CTRL_GET_CMD_FROM_NAME) || (cmd == ENGINE_CTRL_GET_NAME_FROM_CMD) || (cmd == ENGINE_CTRL_GET_DESC_FROM_CMD)) {
         if (s == NULL) {
             ERR_raise(ERR_LIB_ENGINE, ERR_R_PASSED_NULL_PARAMETER);
             return -1;
@@ -115,8 +113,7 @@ static int int_ctrl_helper(ENGINE *e, int cmd, long i, void *p,
         return strlen(cdp->cmd_desc == NULL ? int_no_description
                                             : cdp->cmd_desc);
     case ENGINE_CTRL_GET_DESC_FROM_CMD:
-        return strlen(strcpy(s, cdp->cmd_desc == NULL ? int_no_description
-                                                      : cdp->cmd_desc));
+        return strlen(strcpy(s, cdp->cmd_desc == NULL ? int_no_description : cdp->cmd_desc));
     case ENGINE_CTRL_GET_CMD_FLAGS:
         return cdp->cmd_flags;
     }
@@ -125,22 +122,17 @@ static int int_ctrl_helper(ENGINE *e, int cmd, long i, void *p,
     return -1;
 }
 
-int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
+int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)(void))
 {
-    int ctrl_exists, ref_exists;
+    int ctrl_exists;
+
     if (e == NULL) {
         ERR_raise(ERR_LIB_ENGINE, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
-    if (!CRYPTO_THREAD_write_lock(global_engine_lock))
-        return 0;
-    ref_exists = ((e->struct_ref > 0) ? 1 : 0);
-    CRYPTO_THREAD_unlock(global_engine_lock);
+
     ctrl_exists = ((e->ctrl == NULL) ? 0 : 1);
-    if (!ref_exists) {
-        ERR_raise(ERR_LIB_ENGINE, ENGINE_R_NO_REFERENCE);
-        return 0;
-    }
+
     /*
      * Intercept any "root-level" commands before trying to hand them on to
      * ctrl() handlers.
@@ -181,20 +173,17 @@ int ENGINE_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f) (void))
 int ENGINE_cmd_is_executable(ENGINE *e, int cmd)
 {
     int flags;
-    if ((flags =
-         ENGINE_ctrl(e, ENGINE_CTRL_GET_CMD_FLAGS, cmd, NULL, NULL)) < 0) {
+    if ((flags = ENGINE_ctrl(e, ENGINE_CTRL_GET_CMD_FLAGS, cmd, NULL, NULL)) < 0) {
         ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INVALID_CMD_NUMBER);
         return 0;
     }
-    if (!(flags & ENGINE_CMD_FLAG_NO_INPUT) &&
-        !(flags & ENGINE_CMD_FLAG_NUMERIC) &&
-        !(flags & ENGINE_CMD_FLAG_STRING))
+    if (!(flags & ENGINE_CMD_FLAG_NO_INPUT) && !(flags & ENGINE_CMD_FLAG_NUMERIC) && !(flags & ENGINE_CMD_FLAG_STRING))
         return 0;
     return 1;
 }
 
 int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
-                    long i, void *p, void (*f) (void), int cmd_optional)
+    long i, void *p, void (*f)(void), int cmd_optional)
 {
     int num;
 
@@ -204,7 +193,8 @@ int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
     }
     if (e->ctrl == NULL
         || (num = ENGINE_ctrl(e, ENGINE_CTRL_GET_CMD_FROM_NAME,
-                              0, (void *)cmd_name, NULL)) <= 0) {
+                0, (void *)cmd_name, NULL))
+            <= 0) {
         /*
          * If the command didn't *have* to be supported, we fake success.
          * This allows certain settings to be specified for multiple ENGINEs
@@ -230,7 +220,7 @@ int ENGINE_ctrl_cmd(ENGINE *e, const char *cmd_name,
 }
 
 int ENGINE_ctrl_cmd_string(ENGINE *e, const char *cmd_name, const char *arg,
-                           int cmd_optional)
+    int cmd_optional)
 {
     int num, flags;
     long l;
@@ -242,7 +232,8 @@ int ENGINE_ctrl_cmd_string(ENGINE *e, const char *cmd_name, const char *arg,
     }
     if (e->ctrl == NULL
         || (num = ENGINE_ctrl(e, ENGINE_CTRL_GET_CMD_FROM_NAME,
-                              0, (void *)cmd_name, NULL)) <= 0) {
+                0, (void *)cmd_name, NULL))
+            <= 0) {
         /*
          * If the command didn't *have* to be supported, we fake success.
          * This allows certain settings to be specified for multiple ENGINEs

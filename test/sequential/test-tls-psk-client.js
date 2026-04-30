@@ -36,12 +36,12 @@ let serverOut = '';
 server.stderr.on('data', (data) => serverErr += data);
 server.stdout.on('data', (data) => serverOut += data);
 server.on('error', common.mustNotCall());
-server.on('exit', (code, signal) => {
+server.on('exit', common.mustCall((code, signal) => {
   // Server is expected to be terminated by cleanUp().
   assert.strictEqual(code, null,
                      `'${server.spawnfile} ${server.spawnargs.join(' ')}' unexpected exited with output:\n${serverOut}\n${serverErr}`);
   assert.strictEqual(signal, 'SIGTERM');
-});
+}));
 
 const cleanUp = (err) => {
   clearTimeout(timeout);
@@ -94,10 +94,10 @@ function runClient(message, cb) {
       if (hint === null || hint === IDENTITY) {
         return {
           identity: IDENTITY,
-          psk: Buffer.from(KEY, 'hex')
+          psk: Buffer.from(KEY, 'hex'),
         };
       }
-    }
+    },
   });
   s.on('secureConnect', common.mustCall(() => {
     let data = '';

@@ -13,18 +13,18 @@ const server = h2.createServer();
 // Do not mustCall the server side callbacks, they may or may not be called
 // depending on the OS. The determination is based largely on operating
 // system specific timings
-server.on('stream', (stream) => {
+server.on('stream', common.mustCallAtLeast((stream) => {
   // Do not wrap in a must call or use common.expectsError (which now uses
   // must call). The error may or may not be reported depending on operating
   // system specific timings.
-  stream.on('error', (err) => {
+  stream.on('error', common.mustCallAtLeast((err) => {
     assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
     assert.strictEqual(err.message,
                        'Stream closed with error code NGHTTP2_INTERNAL_ERROR');
-  });
+  }, 0));
   stream.respond();
   stream.end();
-});
+}, 0));
 
 server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);

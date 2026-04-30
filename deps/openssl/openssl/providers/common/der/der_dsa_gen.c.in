@@ -18,8 +18,10 @@
 #include "prov/der_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 {-
     $OUT = oids_to_c::process_leaves('providers/common/der/DSA.asn1',
                                      { dir => $config{sourcedir},
                                        filter => \&oids_to_c::filter_to_C });
 -}
+/* clang-format on */

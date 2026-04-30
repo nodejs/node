@@ -436,6 +436,7 @@ $L$SEH_begin_SHA3_squeeze:
 	mov	rsi,rdx
 	mov	rdx,r8
 	mov	rcx,r9
+	mov	r8,QWORD[40+rsp]
 
 
 
@@ -447,10 +448,12 @@ $L$SEH_begin_SHA3_squeeze:
 
 
 	shr	rcx,3
-	mov	r8,rdi
+	mov	r9,rdi
 	mov	r12,rsi
 	mov	r13,rdx
 	mov	r14,rcx
+	bt	r8d,0
+	jc	NEAR $L$next_block
 	jmp	NEAR $L$oop_squeeze
 
 ALIGN	32
@@ -458,8 +461,8 @@ $L$oop_squeeze:
 	cmp	r13,8
 	jb	NEAR $L$tail_squeeze
 
-	mov	rax,QWORD[r8]
-	lea	r8,[8+r8]
+	mov	rax,QWORD[r9]
+	lea	r9,[8+r9]
 	mov	QWORD[r12],rax
 	lea	r12,[8+r12]
 	sub	r13,8
@@ -467,14 +470,14 @@ $L$oop_squeeze:
 
 	sub	rcx,1
 	jnz	NEAR $L$oop_squeeze
-
+$L$next_block:
 	call	KeccakF1600
-	mov	r8,rdi
+	mov	r9,rdi
 	mov	rcx,r14
 	jmp	NEAR $L$oop_squeeze
 
 $L$tail_squeeze:
-	mov	rsi,r8
+	mov	rsi,r9
 	mov	rdi,r12
 	mov	rcx,r13
 DB	0xf3,0xa4
@@ -491,6 +494,7 @@ $L$done_squeeze:
 	DB	0F3h,0C3h		;repret
 
 $L$SEH_end_SHA3_squeeze:
+section	.rdata rdata align=256
 ALIGN	256
 	DQ	0,0,0,0,0,0,0,0
 

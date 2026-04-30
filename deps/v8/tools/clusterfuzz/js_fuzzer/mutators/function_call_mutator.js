@@ -15,6 +15,8 @@ const common = require('./common.js');
 const random = require('../random.js');
 const mutator = require('./mutator.js');
 
+const REPLACE_CROSS_ASYNC_PROB = 0.2;
+
 function _liftExpressionsToStatements(path, nodes) {
   // If the node we're replacing is an expression in an expression statement,
   // lift the replacement nodes into statements too.
@@ -25,12 +27,40 @@ function _liftExpressionsToStatements(path, nodes) {
   return nodes.map(n => babelTypes.expressionStatement(n));
 }
 
-class FunctionCallMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
+/**
+ * All functions in the path's scope that keep the same async property.
+ * A different property (e.g. sync to async) is used only with a small
+ * probability. Additionally this doesn't include the current function.
+ */
+function availableReplacementFunctionNames(path, context) {
+  const available = common.availableFunctionNames(path);
+  const oldFunc = path.node.callee.name;
+
+  // The available set is a fresh set which we can mutate here.
+  available.delete(oldFunc);
+
+  // Disregard infinitely running functions.
+  for (const name of context.infiniteFunctions.values()) {
+    available.delete(name);
   }
 
+  // If we don't care to maintain the async property, just use all functions.
+  if (random.choose(module.exports.REPLACE_CROSS_ASYNC_PROB)) {
+    return Array.from(available.values());
+  }
+
+  // Return an array with functions of the same async property as the current.
+  const oldIsAsync = context.asyncFunctions.has(oldFunc);
+  let result = new Array();
+  for (const name of available.values()) {
+    if (oldIsAsync == context.asyncFunctions.has(name)) {
+      result.push(name);
+    }
+  }
+  return result;
+}
+
+class FunctionCallMutator extends mutator.Mutator {
   get visitor() {
     const thisMutator = this;
 
@@ -50,15 +80,16 @@ class FunctionCallMutator extends mutator.Mutator {
 
         const probability = random.random();
         if (probability < 0.3) {
-          const randFunc = common.randomFunction(path);
-          if (randFunc) {
+          const replacement = random.single(availableReplacementFunctionNames(
+              path, thisMutator.context));
+          if (replacement) {
             thisMutator.annotate(
                 path.node,
-                `Replaced ${path.node.callee.name} with ${randFunc.name}`);
+                `Replaced ${path.node.callee.name} with ${replacement}`);
 
-            path.node.callee = randFunc;
+            path.node.callee = babelTypes.identifier(replacement);
           }
-        } else if (probability < 0.7 && thisMutator.settings.engine == 'V8') {
+        } else if (probability < 0.7 && thisMutator.settings.engine == 'v8') {
           const prepareTemplate = babelTemplate(
               '__V8BuiltinPrepareFunctionForOptimization(ID)');
           const optimizationMode = random.choose(0.7) ? 'Function' : 'Maglev';
@@ -87,7 +118,7 @@ class FunctionCallMutator extends mutator.Mutator {
             thisMutator.insertBeforeSkip(
                 path, _liftExpressionsToStatements(path, nodes));
           }
-        } else if (probability < 0.8 && thisMutator.settings.engine == 'V8') {
+        } else if (probability < 0.8 && thisMutator.settings.engine == 'v8') {
           const template = babelTemplate(
               '__V8BuiltinCompileBaseline(ID)');
 
@@ -110,7 +141,7 @@ class FunctionCallMutator extends mutator.Mutator {
                 path, _liftExpressionsToStatements(path, nodes));
           }
         } else if (probability < 0.9 &&
-                   thisMutator.settings.engine == 'V8') {
+                   thisMutator.settings.engine == 'v8') {
           const template = babelTemplate(
               '__V8BuiltinDeoptimizeFunction(ID)');
           const insert = _liftExpressionsToStatements(path, [
@@ -145,5 +176,6 @@ class FunctionCallMutator extends mutator.Mutator {
 }
 
 module.exports = {
+  REPLACE_CROSS_ASYNC_PROB: REPLACE_CROSS_ASYNC_PROB,
   FunctionCallMutator: FunctionCallMutator,
 };

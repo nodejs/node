@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2013-2024 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2012, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -69,13 +69,15 @@ open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
 *STDOUT=*OUT;
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$addx = ($1>=2.23);
+		=~ /GNU assembler version ([0-9]+)\.([0-9]+)/) {
+	my $ver = $1 + $2/100.0;	# 3.1->3.01, 3.10->3.10
+	$addx = ($ver >= 2.23);
 }
 
 if (!$addx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-	    `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/) {
-	$addx = ($1>=2.10);
+	    `nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)/) {
+	my $ver = $1 + $2/100.0;	# 3.1->3.01, 3.10->3.10
+	$addx = ($ver >= 2.10);
 }
 
 if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
@@ -2248,10 +2250,12 @@ $code.=<<___;
 .cfi_endproc
 .size	rsaz_512_gather4,.-rsaz_512_gather4
 
+.section .rodata align=64
 .align	64
 .Linc:
 	.long	0,0, 1,1
 	.long	2,2, 2,2
+.previous
 ___
 }
 

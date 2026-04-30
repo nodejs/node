@@ -13,27 +13,27 @@ const key = fixtures.readKey('agent2-key.pem');
 const cert = fixtures.readKey('agent2-cert.pem');
 
 let serverTlsSocket;
-const tlsServer = tls.createServer({ cert, key }, (socket) => {
+const tlsServer = tls.createServer({ cert, key }, common.mustCall((socket) => {
   serverTlsSocket = socket;
-  socket.on('data', (chunk) => {
+  socket.on('data', common.mustCall((chunk) => {
     assert.strictEqual(chunk[0], 46);
     socket.write('.');
-  });
+  }));
   socket.on('close', dec);
-});
+}));
 
 // A plain net server, that manually passes connections to the TLS
 // server to be upgraded.
 let netSocket;
 let netSocketCloseEmitted = false;
-const netServer = net.createServer((socket) => {
+const netServer = net.createServer(common.mustCall((socket) => {
   netSocket = socket;
   tlsServer.emit('connection', socket);
   socket.on('close', common.mustCall(() => {
     netSocketCloseEmitted = true;
     assert.strictEqual(serverTlsSocket.destroyed, true);
   }));
-}).listen(0, common.mustCall(() => {
+})).listen(0, common.mustCall(() => {
   connectClient(netServer);
 }));
 
@@ -51,18 +51,18 @@ function connectClient(server) {
 
   clientTlsSocket.write('.');
 
-  clientTlsSocket.on('data', (chunk) => {
+  clientTlsSocket.on('data', common.mustCall((chunk) => {
     assert.strictEqual(chunk[0], 46);
 
     netSocket.destroy();
     assert.strictEqual(netSocket.destroyed, true);
 
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       // Close callbacks are executed after `setImmediate()` callbacks.
       assert.strictEqual(netSocketCloseEmitted, false);
       assert.strictEqual(serverTlsSocket.destroyed, false);
-    });
-  });
+    }));
+  }));
 
   clientTlsSocket.on('close', dec);
 }

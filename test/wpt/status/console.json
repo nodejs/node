@@ -1,7 +1,7 @@
 {
   "idlharness.any.js": {
     "note": "https://github.com/nodejs/node/issues/44185",
-    "requires": ["crypto", "small-icu"]
+    "requires": ["crypto", "inspector", "small-icu"]
   },
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"

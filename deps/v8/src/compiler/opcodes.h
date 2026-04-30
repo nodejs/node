@@ -85,25 +85,28 @@
   V(EnterMachineGraph)      \
   V(ExitMachineGraph)
 
-#define COMMON_OP_LIST(V) \
-  CONSTANT_OP_LIST(V)     \
-  INNER_OP_LIST(V)        \
-  V(Unreachable)          \
-  V(DeadValue)            \
-  V(Dead)                 \
-  V(Plug)                 \
-  V(SLVerifierHint)       \
+#define COMMON_OP_LIST(V)      \
+  CONSTANT_OP_LIST(V)          \
+  INNER_OP_LIST(V)             \
+  V(Unreachable)               \
+  V(DeadValue)                 \
+  V(Dead)                      \
+  V(Plug)                      \
+  V(SLVerifierHint)            \
+  V(MajorGCForCompilerTesting) \
   V(StaticAssert)
 
 // Opcodes for JavaScript operators.
 // Arguments are JSName (the name with a 'JS' prefix), and Name.
-#define JS_COMPARE_BINOP_LIST(V)        \
+#define JS_COMPARE_BINOP_COMMON_LIST(V) \
   V(JSEqual, Equal)                     \
   V(JSStrictEqual, StrictEqual)         \
   V(JSLessThan, LessThan)               \
   V(JSGreaterThan, GreaterThan)         \
   V(JSLessThanOrEqual, LessThanOrEqual) \
   V(JSGreaterThanOrEqual, GreaterThanOrEqual)
+
+#define JS_COMPARE_BINOP_LIST(V) JS_COMPARE_BINOP_COMMON_LIST(V)
 
 #define JS_BITWISE_BINOP_LIST(V) \
   V(JSBitwiseOr, BitwiseOr)      \
@@ -189,6 +192,7 @@
   V(JSSetKeyedProperty)                \
   V(JSDefineKeyedOwnProperty)          \
   V(JSSetNamedProperty)                \
+  V(JSSetPrototypeProperties)          \
   V(JSDefineNamedOwnProperty)          \
   V(JSStoreGlobal)                     \
   V(JSDefineKeyedOwnPropertyInLiteral) \
@@ -200,9 +204,10 @@
 
 #define JS_CONTEXT_OP_LIST(V) \
   V(JSHasContextExtension)    \
+  V(JSLoadContextNoCell)      \
   V(JSLoadContext)            \
+  V(JSStoreContextNoCell)     \
   V(JSStoreContext)           \
-  V(JSStoreScriptContext)     \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \
@@ -229,10 +234,12 @@
   V(JSAsyncFunctionReject)             \
   V(JSAsyncFunctionResolve)            \
   V(JSCallRuntime)                     \
+  V(JSDetachContextCell)               \
   V(JSForInEnumerate)                  \
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
   V(JSGetIterator)                     \
+  V(JSForOfNext)                       \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
@@ -240,7 +247,7 @@
   V(JSGetImportMeta)                   \
   V(JSGeneratorStore)                  \
   V(JSGeneratorRestoreContinuation)    \
-  V(JSGeneratorRestoreContext)         \
+  V(JSGeneratorRestoreContextNoCell)   \
   V(JSGeneratorRestoreRegister)        \
   V(JSGeneratorRestoreInputOrDebugPos) \
   V(JSFulfillPromise)                  \
@@ -261,63 +268,72 @@
   JS_OTHER_OP_LIST(V)
 
 // Opcodes for VirtuaMachine-level operators.
-#define SIMPLIFIED_CHANGE_OP_LIST(V) \
-  V(ChangeTaggedSignedToInt32)       \
-  V(ChangeTaggedSignedToInt64)       \
-  V(ChangeTaggedToInt32)             \
-  V(ChangeTaggedToInt64)             \
-  V(ChangeTaggedToUint32)            \
-  V(ChangeTaggedToFloat64)           \
-  V(ChangeTaggedToTaggedSigned)      \
-  V(ChangeInt31ToTaggedSigned)       \
-  V(ChangeInt32ToTagged)             \
-  V(ChangeInt64ToTagged)             \
-  V(ChangeUint32ToTagged)            \
-  V(ChangeUint64ToTagged)            \
-  V(ChangeFloat64ToTagged)           \
-  V(ChangeFloat64ToTaggedPointer)    \
-  V(ChangeTaggedToBit)               \
-  V(ChangeBitToTagged)               \
-  V(ChangeInt64ToBigInt)             \
-  V(ChangeUint64ToBigInt)            \
-  V(TruncateBigIntToWord64)          \
-  V(TruncateTaggedToWord32)          \
-  V(TruncateTaggedToFloat64)         \
-  V(TruncateTaggedToBit)             \
+#define SIMPLIFIED_CHANGE_OP_LIST(V)          \
+  V(ChangeTaggedSignedToInt32)                \
+  V(ChangeTaggedSignedToInt64)                \
+  V(ChangeTaggedToInt32)                      \
+  V(ChangeTaggedToInt64)                      \
+  V(ChangeTaggedToUint32)                     \
+  V(ChangeTaggedToFloat64)                    \
+  V(ChangeTaggedToTaggedSigned)               \
+  V(ChangeNumberOrHoleToFloat64)              \
+  V(ChangeInt31ToTaggedSigned)                \
+  V(ChangeInt32ToTagged)                      \
+  V(ChangeInt64ToTagged)                      \
+  V(ChangeUint32ToTagged)                     \
+  V(ChangeUint64ToTagged)                     \
+  V(ChangeFloat64ToTagged)                    \
+  V(ChangeFloat64ToTaggedPointer)             \
+  V(ChangeFloat64OrUndefinedToTagged)         \
+  V(ChangeTaggedToBit)                        \
+  V(ChangeBitToTagged)                        \
+  V(ChangeInt64ToBigInt)                      \
+  V(ChangeUint64ToBigInt)                     \
+  V(TruncateBigIntToWord64)                   \
+  V(TruncateNumberOrOddballToWord32)          \
+  V(TruncateNumberOrOddballOrHoleToWord32)    \
+  V(TruncateTaggedToFloat64)                  \
+  V(TruncateTaggedToFloat64PreserveUndefined) \
+  V(TruncateTaggedToBit)                      \
   V(TruncateTaggedPointerToBit)
 
-#define SIMPLIFIED_CHECKED_OP_LIST(V) \
-  V(CheckedInt32Add)                  \
-  V(CheckedInt32Sub)                  \
-  V(CheckedInt32Div)                  \
-  V(CheckedInt32Mod)                  \
-  V(CheckedUint32Div)                 \
-  V(CheckedUint32Mod)                 \
-  V(CheckedInt32Mul)                  \
-  V(CheckedInt64Add)                  \
-  V(CheckedInt64Sub)                  \
-  V(CheckedInt64Mul)                  \
-  V(CheckedInt64Div)                  \
-  V(CheckedInt64Mod)                  \
-  V(CheckedInt32ToTaggedSigned)       \
-  V(CheckedInt64ToInt32)              \
-  V(CheckedInt64ToTaggedSigned)       \
-  V(CheckedUint32Bounds)              \
-  V(CheckedUint32ToInt32)             \
-  V(CheckedUint32ToTaggedSigned)      \
-  V(CheckedUint64Bounds)              \
-  V(CheckedUint64ToInt32)             \
-  V(CheckedUint64ToInt64)             \
-  V(CheckedUint64ToTaggedSigned)      \
-  V(CheckedFloat64ToInt32)            \
-  V(CheckedFloat64ToInt64)            \
-  V(CheckedTaggedSignedToInt32)       \
-  V(CheckedTaggedToInt32)             \
-  V(CheckedTaggedToArrayIndex)        \
-  V(CheckedTruncateTaggedToWord32)    \
-  V(CheckedTaggedToFloat64)           \
-  V(CheckedTaggedToInt64)             \
-  V(CheckedTaggedToTaggedSigned)      \
+#define SIMPLIFIED_CHECKED_OP_LIST(V)    \
+  V(CheckedInt32Add)                     \
+  V(CheckedInt32Sub)                     \
+  V(CheckedInt32Div)                     \
+  V(CheckedInt32Mod)                     \
+  V(CheckedUint32Div)                    \
+  V(CheckedUint32Mod)                    \
+  V(CheckedInt32Mul)                     \
+  V(CheckedInt64Add)                     \
+  V(CheckedAdditiveSafeIntegerAdd)       \
+  V(CheckedAdditiveSafeIntegerSub)       \
+  V(CheckedInt64Sub)                     \
+  V(CheckedInt64Mul)                     \
+  V(CheckedInt64Div)                     \
+  V(CheckedInt64Mod)                     \
+  V(CheckedInt32ToTaggedSigned)          \
+  V(CheckedInt64ToInt32)                 \
+  V(CheckedInt64ToAdditiveSafeInteger)   \
+  V(CheckedInt64ToTaggedSigned)          \
+  V(CheckedUint32Bounds)                 \
+  V(CheckedUint32ToInt32)                \
+  V(CheckedUint32ToTaggedSigned)         \
+  V(CheckedUint64Bounds)                 \
+  V(CheckedUint64ToInt32)                \
+  V(CheckedUint64ToInt64)                \
+  V(CheckedUint64ToTaggedSigned)         \
+  V(CheckedFloat64ToInt32)               \
+  V(CheckedFloat64ToInt64)               \
+  V(CheckedFloat64ToAdditiveSafeInteger) \
+  V(CheckedTaggedSignedToInt32)          \
+  V(CheckedTaggedToInt32)                \
+  V(CheckedTaggedToArrayIndex)           \
+  V(CheckedTruncateTaggedToWord32)       \
+  V(CheckedTaggedToFloat64)              \
+  V(CheckedTaggedToAdditiveSafeInteger)  \
+  V(CheckedTaggedToInt64)                \
+  V(CheckedTaggedToTaggedSigned)         \
   V(CheckedTaggedToTaggedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
@@ -334,6 +350,7 @@
   V(StringEqual)                         \
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)               \
+  V(StringOrOddballStrictEqual)          \
   V(BigIntEqual)                         \
   V(BigIntLessThan)                      \
   V(BigIntLessThanOrEqual)               \
@@ -384,8 +401,10 @@
   V(SpeculativeNumberShiftLeft)                     \
   V(SpeculativeNumberShiftRight)                    \
   V(SpeculativeNumberShiftRightLogical)             \
-  V(SpeculativeSafeIntegerAdd)                      \
-  V(SpeculativeSafeIntegerSubtract)
+  V(SpeculativeAdditiveSafeIntegerAdd)              \
+  V(SpeculativeAdditiveSafeIntegerSubtract)         \
+  V(SpeculativeSmallIntegerAdd)                     \
+  V(SpeculativeSmallIntegerSubtract)
 
 #define SIMPLIFIED_NUMBER_UNOP_LIST(V) \
   V(NumberAbs)                         \
@@ -439,112 +458,119 @@
 #define SIMPLIFIED_CPED_OP_LIST(V)
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-#define SIMPLIFIED_OTHER_OP_LIST(V)     \
-  V(Allocate)                           \
-  V(AllocateRaw)                        \
-  V(ArgumentsLength)                    \
-  V(AssertType)                         \
-  V(BooleanNot)                         \
-  V(ChangeFloat64HoleToTagged)          \
-  V(CheckBounds)                        \
-  V(CheckClosure)                       \
-  V(CheckEqualsInternalizedString)      \
-  V(CheckEqualsSymbol)                  \
-  V(CheckFloat64Hole)                   \
-  V(CheckHeapObject)                    \
-  V(CheckIf)                            \
-  V(CheckInternalizedString)            \
-  V(CheckMaps)                          \
-  V(CheckNotTaggedHole)                 \
-  V(CheckNumber)                        \
-  V(CheckReceiver)                      \
-  V(CheckReceiverOrNullOrUndefined)     \
-  V(CheckSmi)                           \
-  V(CheckString)                        \
-  V(CheckStringOrStringWrapper)         \
-  V(CheckSymbol)                        \
-  V(CheckTurboshaftTypeOf)              \
-  V(CompareMaps)                        \
-  V(ConvertReceiver)                    \
-  V(ConvertTaggedHoleToUndefined)       \
-  V(DateNow)                            \
-  V(DoubleArrayMax)                     \
-  V(DoubleArrayMin)                     \
-  V(EnsureWritableFastElements)         \
-  V(FastApiCall)                        \
-  V(FindOrderedHashMapEntry)            \
-  V(FindOrderedHashMapEntryForInt32Key) \
-  V(FindOrderedHashSetEntry)            \
-  V(InitializeImmutableInObject)        \
-  V(LoadDataViewElement)                \
-  V(LoadElement)                        \
-  V(LoadField)                          \
-  V(LoadFieldByIndex)                   \
-  V(LoadFromObject)                     \
-  V(LoadImmutableFromObject)            \
-  V(LoadMessage)                        \
-  V(LoadStackArgument)                  \
-  V(LoadTypedElement)                   \
-  V(MaybeGrowFastElements)              \
-  V(NewArgumentsElements)               \
-  V(NewConsString)                      \
-  V(NewDoubleElements)                  \
-  V(NewSmiOrObjectElements)             \
-  V(NumberIsFinite)                     \
-  V(NumberIsFloat64Hole)                \
-  V(NumberIsInteger)                    \
-  V(NumberIsMinusZero)                  \
-  V(NumberIsNaN)                        \
-  V(NumberIsSafeInteger)                \
-  V(ObjectIsArrayBufferView)            \
-  V(ObjectIsBigInt)                     \
-  V(ObjectIsCallable)                   \
-  V(ObjectIsConstructor)                \
-  V(ObjectIsDetectableCallable)         \
-  V(ObjectIsFiniteNumber)               \
-  V(ObjectIsInteger)                    \
-  V(ObjectIsMinusZero)                  \
-  V(ObjectIsNaN)                        \
-  V(ObjectIsNonCallable)                \
-  V(ObjectIsNumber)                     \
-  V(ObjectIsReceiver)                   \
-  V(ObjectIsSafeInteger)                \
-  V(ObjectIsSmi)                        \
-  V(ObjectIsString)                     \
-  V(ObjectIsSymbol)                     \
-  V(ObjectIsUndetectable)               \
-  V(PlainPrimitiveToFloat64)            \
-  V(PlainPrimitiveToNumber)             \
-  V(PlainPrimitiveToWord32)             \
-  V(RestLength)                         \
-  V(RuntimeAbort)                       \
-  V(StoreDataViewElement)               \
-  V(StoreElement)                       \
-  V(StoreField)                         \
-  V(StoreMessage)                       \
-  V(StoreSignedSmallElement)            \
-  V(StoreToObject)                      \
-  V(StoreTypedElement)                  \
-  V(StringCharCodeAt)                   \
-  V(StringCodePointAt)                  \
-  V(StringConcat)                       \
-  V(StringFromCodePointAt)              \
-  V(StringFromSingleCharCode)           \
-  V(StringFromSingleCodePoint)          \
-  V(StringIndexOf)                      \
-  V(StringLength)                       \
-  V(StringSubstring)                    \
-  V(StringToLowerCaseIntl)              \
-  V(StringToNumber)                     \
-  V(StringToUpperCaseIntl)              \
-  V(ToBoolean)                          \
-  V(TransitionAndStoreElement)          \
-  V(TransitionAndStoreNonNumberElement) \
-  V(TransitionAndStoreNumberElement)    \
-  V(TransitionElementsKind)             \
-  V(TypeOf)                             \
-  V(Unsigned32Divide)                   \
-  V(VerifyType)                         \
+#define SIMPLIFIED_OTHER_OP_LIST(V)         \
+  V(Allocate)                               \
+  V(AllocateRaw)                            \
+  V(ArgumentsLength)                        \
+  V(AssertType)                             \
+  V(BooleanNot)                             \
+  V(ChangeFloat64HoleToTagged)              \
+  V(ChangeFloat64OrUndefinedOrHoleToTagged) \
+  V(CheckBounds)                            \
+  V(CheckClosure)                           \
+  V(CheckEqualsInternalizedString)          \
+  V(CheckEqualsSymbol)                      \
+  V(CheckFloat64Hole)                       \
+  V(CheckHeapObject)                        \
+  V(CheckIf)                                \
+  V(CheckInternalizedString)                \
+  V(CheckMaps)                              \
+  V(CheckNotTaggedHole)                     \
+  V(CheckNumber)                            \
+  V(CheckNumberOrUndefined)                 \
+  V(CheckNumberFitsInt32)                   \
+  V(CheckReceiver)                          \
+  V(CheckReceiverOrNullOrUndefined)         \
+  V(CheckSmi)                               \
+  V(CheckString)                            \
+  V(CheckStringOrStringWrapper)             \
+  V(CheckStringOrOddball)                   \
+  V(CheckSymbol)                            \
+  V(CheckTurboshaftTypeOf)                  \
+  V(CompareMaps)                            \
+  V(ConvertReceiver)                        \
+  V(ConvertTaggedHoleToUndefined)           \
+  V(DateNow)                                \
+  V(DoubleArrayMax)                         \
+  V(DoubleArrayMin)                         \
+  V(EnsureWritableFastElements)             \
+  V(FastApiCall)                            \
+  V(FindOrderedHashMapEntry)                \
+  V(FindOrderedHashMapEntryForInt32Key)     \
+  V(FindOrderedHashSetEntry)                \
+  V(InitializeImmutableInObject)            \
+  V(LoadDataViewElement)                    \
+  V(LoadElement)                            \
+  V(LoadField)                              \
+  V(LoadFieldByIndex)                       \
+  V(LoadFromObject)                         \
+  V(LoadImmutableFromObject)                \
+  V(LoadMessage)                            \
+  V(LoadStackArgument)                      \
+  V(LoadTypedElement)                       \
+  V(MaybeGrowFastElements)                  \
+  V(NewArgumentsElements)                   \
+  V(NewConsString)                          \
+  V(NewDoubleElements)                      \
+  V(NewSmiOrObjectElements)                 \
+  V(NumberIsFinite)                         \
+  V(NumberIsFloat64Hole)                    \
+  V(NumberIsInteger)                        \
+  V(NumberIsMinusZero)                      \
+  V(NumberIsNaN)                            \
+  V(NumberIsSafeInteger)                    \
+  V(ObjectIsArrayBufferView)                \
+  V(ObjectIsBigInt)                         \
+  V(ObjectIsCallable)                       \
+  V(ObjectIsConstructor)                    \
+  V(ObjectIsDetectableCallable)             \
+  V(ObjectIsFiniteNumber)                   \
+  V(ObjectIsInteger)                        \
+  V(ObjectIsMinusZero)                      \
+  V(ObjectIsNaN)                            \
+  V(ObjectIsNonCallable)                    \
+  V(ObjectIsNumber)                         \
+  V(ObjectIsReceiver)                       \
+  V(ObjectIsSafeInteger)                    \
+  V(ObjectIsSmi)                            \
+  V(ObjectIsString)                         \
+  V(ObjectIsSymbol)                         \
+  V(ObjectIsUndetectable)                   \
+  V(PlainPrimitiveToFloat64)                \
+  V(PlainPrimitiveToNumber)                 \
+  V(PlainPrimitiveToWord32)                 \
+  V(RestLength)                             \
+  V(RuntimeAbort)                           \
+  V(StoreDataViewElement)                   \
+  V(StoreElement)                           \
+  V(StoreField)                             \
+  V(StoreMessage)                           \
+  V(StoreSignedSmallElement)                \
+  V(StoreToObject)                          \
+  V(StoreTypedElement)                      \
+  V(StringCharCodeAt)                       \
+  V(StringCodePointAt)                      \
+  V(StringConcat)                           \
+  V(StringFromCodePointAt)                  \
+  V(StringFromSingleCharCode)               \
+  V(StringFromSingleCodePoint)              \
+  V(StringIndexOf)                          \
+  V(StringLength)                           \
+  V(StringWrapperLength)                    \
+  V(StringSubstring)                        \
+  V(StringToLowerCaseIntl)                  \
+  V(StringToNumber)                         \
+  V(StringToUpperCaseIntl)                  \
+  V(ToBoolean)                              \
+  V(TransitionAndStoreElement)              \
+  V(TransitionAndStoreNonNumberElement)     \
+  V(TransitionAndStoreNumberElement)        \
+  V(TransitionElementsKind)                 \
+  V(TransitionElementsKindOrCheckMap)       \
+  V(TypedArrayLength)                       \
+  V(TypeOf)                                 \
+  V(Unsigned32Divide)                       \
+  V(VerifyType)                             \
   SIMPLIFIED_CPED_OP_LIST(V)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
@@ -815,7 +841,9 @@
   V(ChangeInt64ToFloat64)                \
   V(ChangeUint32ToFloat64)               \
   V(ChangeUint32ToUint64)                \
+  V(ChangeFloat16RawBitsToFloat64)       \
   V(TruncateFloat64ToFloat32)            \
+  V(TruncateFloat64ToFloat16RawBits)     \
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \
   V(RoundInt32ToFloat32)                 \
@@ -861,12 +889,14 @@
   V(SignExtendWord16ToInt64)             \
   V(SignExtendWord32ToInt64)             \
   V(StackPointerGreaterThan)             \
-  V(TraceInstruction)
+  V(TraceInstruction)                    \
+  IF_HARDWARE_SANDBOX(V, SwitchSandboxMode)
 
 #define MACHINE_SIMD128_OP_LIST(V)        \
   IF_WASM(V, F64x2Splat)                  \
   IF_WASM(V, F64x2ExtractLane)            \
   IF_WASM(V, F64x2ReplaceLane)            \
+  IF_WASM(V, F64x2MoveLane)               \
   IF_WASM(V, F64x2Abs)                    \
   IF_WASM(V, F64x2Neg)                    \
   IF_WASM(V, F64x2Sqrt)                   \
@@ -894,6 +924,7 @@
   IF_WASM(V, F32x4Splat)                  \
   IF_WASM(V, F32x4ExtractLane)            \
   IF_WASM(V, F32x4ReplaceLane)            \
+  IF_WASM(V, F32x4MoveLane)               \
   IF_WASM(V, F32x4SConvertI32x4)          \
   IF_WASM(V, F32x4UConvertI32x4)          \
   IF_WASM(V, F32x4Abs)                    \
@@ -923,6 +954,7 @@
   IF_WASM(V, F16x8Splat)                  \
   IF_WASM(V, F16x8ExtractLane)            \
   IF_WASM(V, F16x8ReplaceLane)            \
+  IF_WASM(V, F16x8MoveLane)               \
   IF_WASM(V, F16x8Abs)                    \
   IF_WASM(V, F16x8Neg)                    \
   IF_WASM(V, F16x8Sqrt)                   \
@@ -957,6 +989,7 @@
   IF_WASM(V, I64x2SplatI32Pair)           \
   IF_WASM(V, I64x2ExtractLane)            \
   IF_WASM(V, I64x2ReplaceLane)            \
+  IF_WASM(V, I64x2MoveLane)               \
   IF_WASM(V, I64x2ReplaceLaneI32Pair)     \
   IF_WASM(V, I64x2Abs)                    \
   IF_WASM(V, I64x2Neg)                    \
@@ -982,6 +1015,7 @@
   IF_WASM(V, I32x4Splat)                  \
   IF_WASM(V, I32x4ExtractLane)            \
   IF_WASM(V, I32x4ReplaceLane)            \
+  IF_WASM(V, I32x4MoveLane)               \
   IF_WASM(V, I32x4SConvertF32x4)          \
   IF_WASM(V, I32x4SConvertI16x8Low)       \
   IF_WASM(V, I32x4SConvertI16x8High)      \
@@ -1012,6 +1046,7 @@
   IF_WASM(V, I32x4Abs)                    \
   IF_WASM(V, I32x4BitMask)                \
   IF_WASM(V, I32x4DotI16x8S)              \
+  IF_WASM(V, I32x4AddPairwise)            \
   IF_WASM(V, I32x4ExtMulLowI16x8S)        \
   IF_WASM(V, I32x4ExtMulHighI16x8S)       \
   IF_WASM(V, I32x4ExtMulLowI16x8U)        \
@@ -1024,6 +1059,7 @@
   IF_WASM(V, I16x8ExtractLaneU)           \
   IF_WASM(V, I16x8ExtractLaneS)           \
   IF_WASM(V, I16x8ReplaceLane)            \
+  IF_WASM(V, I16x8MoveLane)               \
   IF_WASM(V, I16x8SConvertI8x16Low)       \
   IF_WASM(V, I16x8SConvertI8x16High)      \
   IF_WASM(V, I16x8Neg)                    \
@@ -1069,6 +1105,7 @@
   IF_WASM(V, I8x16ExtractLaneU)           \
   IF_WASM(V, I8x16ExtractLaneS)           \
   IF_WASM(V, I8x16ReplaceLane)            \
+  IF_WASM(V, I8x16MoveLane)               \
   IF_WASM(V, I8x16SConvertI16x8)          \
   IF_WASM(V, I8x16Neg)                    \
   IF_WASM(V, I8x16Shl)                    \
@@ -1130,6 +1167,10 @@
   IF_WASM(V, F32x4AddReduce)              \
   IF_WASM(V, F64x2AddReduce)              \
   IF_WASM(V, I8x16Shuffle)                \
+  IF_WASM(V, I8x8Shuffle)                 \
+  IF_WASM(V, I8x4Shuffle)                 \
+  IF_WASM(V, I8x2Shuffle)                 \
+  IF_WASM(V, I8x1Shuffle)                 \
   IF_WASM(V, V128AnyTrue)                 \
   IF_WASM(V, I64x2AllTrue)                \
   IF_WASM(V, I32x4AllTrue)                \
@@ -1144,6 +1185,8 @@
   V(F64x4Min)                      \
   V(F64x4Max)                      \
   V(F64x4Add)                      \
+  V(F64x4Abs)                      \
+  V(F64x4Neg)                      \
   V(F64x4Sqrt)                     \
   V(F32x8Add)                      \
   V(I64x4Add)                      \
@@ -1294,7 +1337,13 @@
   V(F32x8RelaxedMin)               \
   V(F32x8RelaxedMax)               \
   V(F64x4RelaxedMin)               \
-  V(F64x4RelaxedMax)
+  V(F64x4RelaxedMax)               \
+  V(I32x8RelaxedTruncF32x8S)       \
+  V(I32x8RelaxedTruncF32x8U)       \
+  V(F32x8Ceil)                     \
+  V(F32x8Floor)                    \
+  V(F32x8Trunc)                    \
+  V(F32x8NearestInt)
 
 #define VALUE_OP_LIST(V)              \
   COMMON_OP_LIST(V)                   \
@@ -1444,6 +1493,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSCreateEmptyLiteralArray:
       case kJSCreateLiteralArray:
       case kJSCreateLiteralObject:
+      case kJSSetPrototypeProperties:
       case kJSCreateLiteralRegExp:
       case kJSDefineKeyedOwnProperty:
       case kJSForInNext:
@@ -1477,13 +1527,13 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   static bool isAtomicOpOpcode(Value value) {
     switch (value) {
-    #define CASE(Name, ...) \
-      case k##Name:         \
-        return true;
+#define CASE(Name, ...) \
+  case k##Name:         \
+    return true;
       MACHINE_ATOMIC_OP_LIST(CASE)
       default:
         return false;
-    #undef CASE
+#undef CASE
     }
     UNREACHABLE();
   }

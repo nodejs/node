@@ -2,13 +2,13 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { readSync } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 const net = require('net');
 const http2 = require('http2');
 const { once } = require('events');
 
 async function main() {
-  const blobWithEmptyFrame = readSync('emptyframe.http2');
+  const blobWithEmptyFrame = fixtures.readSync('emptyframe.http2');
   const server = net.createServer((socket) => {
     socket.once('data', () => {
       socket.end(blobWithEmptyFrame);

@@ -83,6 +83,16 @@ const getMockNpm = async (t, { mocks, init, load, npm: npmOpts }) => {
       await Promise.all(this.unrefPromises)
       return res
     }
+
+    async exec (cmd, args = this.argv) {
+      // In tests, when exec is called with args, update config.argv to include them
+      // This mimics production where config.argv contains the full command line
+      if (args && args !== this.argv) {
+        // Build full argv: ['node', 'npm', cmd, ...args]
+        this.config.argv = [process.argv[0], process.argv[1], cmd, ...args]
+      }
+      return super.exec(cmd, args)
+    }
   }
 
   const npm = init ? new MockNpm() : null
@@ -107,6 +117,7 @@ const setupMockNpm = async (t, {
   exec = null, // optionally exec the command before returning
   // test dirs
   prefixDir = {},
+  prefixOverride = null, // sets global and local prefix to this, the same as the `--prefix` flag
   homeDir = {},
   cacheDir = {},
   globalPrefixDir = { node_modules: {} },
@@ -170,9 +181,9 @@ const setupMockNpm = async (t, {
 
   const dirs = {
     testdir: dir,
-    prefix: path.join(dir, 'prefix'),
+    prefix: prefixOverride ?? path.join(dir, 'prefix'),
     cache: path.join(dir, 'cache'),
-    globalPrefix: path.join(dir, 'global'),
+    globalPrefix: prefixOverride ?? path.join(dir, 'global'),
     home: path.join(dir, 'home'),
     other: path.join(dir, 'other'),
   }

@@ -92,9 +92,8 @@ TypedObject GetTypedObjectForString(uintptr_t address, i::InstanceType type,
     }
   };
 
-  return i::StringShape(type)
-      .DispatchToSpecificTypeWithoutCast<StringGetDispatcher, TypedObject>(
-          address, type_source);
+  return String::DispatchToSpecificTypeWithoutCast<StringGetDispatcher>(
+      type, address, type_source);
 }
 
 TypedObject GetTypedObjectByInstanceType(uintptr_t address,
@@ -372,12 +371,27 @@ class ReadStringVisitor : public TqObjectVisitor {
       Address memory_chunk =
           MemoryChunk::FromAddress(object->GetMapAddress())->address();
       uint32_t metadata_index = GetOrFinish(ReadValue<uint32_t>(
-          memory_chunk + MemoryChunkLayout::kMetadataIndexOffset));
-      Address metadata_address = GetOrFinish(ReadValue<Address>(
-          heap_addresses_.metadata_pointer_table, metadata_index));
+          memory_chunk + MemoryChunk::MetadataIndexOffset()));
+      auto metadata_entry =
+          GetOrFinish(ReadValue<IsolateGroup::BasePageTableEntry>(
+              heap_addresses_.metadata_pointer_table, metadata_index));
       Address heap = GetOrFinish(ReadValue<Address>(
-          metadata_address + MemoryChunkLayout::kHeapOffset));
-      Isolate* isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
+          reinterpret_cast<uintptr_t>(metadata_entry.metadata()) +
+          BasePage::HeapOffset()));
+      // Get the Isolate pointer from the Heap object. The Heap class has a
+      // field "Isolate* isolate_" that points to the owning Isolate. The offset
+      // of this field is provided by the debugger (from PDB symbols). If the
+      // offset is not available (zero), fall back to using Isolate::FromHeap()
+      // which may fail if the offset differs between builds.
+      Isolate* isolate;
+      if (heap_addresses_.isolate_heap_member_offset != 0) {
+        // Read the Isolate* pointer from Heap::isolate_ field.
+        Address isolate_address = GetOrFinish(ReadValue<Address>(
+            heap + heap_addresses_.isolate_heap_member_offset));
+        isolate = reinterpret_cast<Isolate*>(isolate_address);
+      } else {
+        isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
+      }
       Address external_pointer_table_address_address =
           isolate->shared_external_pointer_table_address_address();
       Address external_pointer_table_address = GetOrFinish(
@@ -388,7 +402,8 @@ class ReadStringVisitor : public TqObjectVisitor {
           static_cast<int32_t>(resource_data >> kExternalPointerIndexShift);
       Address tagged_data =
           GetOrFinish(ReadValue<Address>(external_pointer_table, index));
-      Address data_address = tagged_data & ~kExternalStringResourceDataTag;
+      // We don't really need to perform the type check here.
+      Address data_address = tagged_data & kExternalPointerPayloadMask;
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_ENABLE_SANDBOX

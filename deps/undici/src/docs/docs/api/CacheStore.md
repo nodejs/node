@@ -13,8 +13,28 @@ The `MemoryCacheStore` stores the responses in-memory.
 
 **Options**
 
-- `maxCount` - The maximum amount of responses to store. Default `Infinity`.
-- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached.
+- `maxSize` - The maximum total size in bytes of all stored responses. Default `104857600` (100MB).
+- `maxCount` - The maximum amount of responses to store. Default `1024`.
+- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `5242880` (5MB).
+
+### Getters
+
+#### `MemoryCacheStore.size`
+
+Returns the current total size in bytes of all stored responses.
+
+### Methods
+
+#### `MemoryCacheStore.isFull()`
+
+Returns a boolean indicating whether the cache has reached its maximum size or count.
+
+### Events
+
+#### `'maxSizeExceeded'`
+
+Emitted when the cache exceeds its maximum size or count limits. The event payload contains `size`, `maxSize`, `count`, and `maxCount` properties.
+
 
 ### `SqliteCacheStore`
 
@@ -26,7 +46,7 @@ The `SqliteCacheStore` is only exposed if the `node:sqlite` api is present.
 
 - `location` - The location of the SQLite database to use. Default `:memory:`.
 - `maxCount` - The maximum number of entries to store in the database. Default `Infinity`.
-- `maxEntrySize` - The maximum size in bytes that a resposne's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `Infinity`.
+- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `Infinity`.
 
 ## Defining a Custom Cache Store
 
@@ -46,10 +66,12 @@ Parameters:
 Returns: `GetResult | Promise<GetResult | undefined> | undefined` - If the request is cached, the cached response is returned. If the request's method is anything other than HEAD, the response is also returned.
 If the request isn't cached, `undefined` is returned.
 
+The `get` method may return a `Promise` for async cache stores (e.g. Redis-backed or remote stores). The cache interceptor handles both synchronous and asynchronous return values, including in revalidation paths (304 Not Modified handling and stale-while-revalidate background revalidation).
+
 Response properties:
 
 * **response** `CacheValue` - The cached response data.
-* **body** `Readable | undefined` - The response's body.
+* **body** `Readable | Iterable<Buffer> | undefined` - The response's body. This can be an array of `Buffer` chunks (with a `.values()` method) or a `Readable` stream. Both formats are supported in all code paths, including 304 revalidation.
 
 ### Function: `createWriteStream`
 
@@ -78,8 +100,11 @@ This is an interface containing the majority of a response's data (minus the bod
 
 ### Property `vary`
 
-`Record<string, string | string[]> | undefined` - The headers defined by the response's `Vary` header
-and their respective values for later comparison
+`Record<string, string | string[] | null> | undefined` - The headers defined by the response's `Vary` header
+and their respective values for later comparison. Values are `null` when the
+header specified in `Vary` was not present in the original request. These `null`
+values are automatically filtered out during revalidation so they are not sent
+as request headers.
 
 For example, for a response like
 ```
@@ -93,6 +118,14 @@ This would be
 {
   'content-encoding': 'utf8',
   accepts: 'application/json'
+}
+```
+
+If the original request did not include the `accepts` header:
+```js
+{
+  'content-encoding': 'utf8',
+  accepts: null
 }
 ```
 

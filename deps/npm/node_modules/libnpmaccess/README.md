@@ -64,8 +64,8 @@ Sets access level for package described by `spec`.
 
 The npm registry accepts the following `access` levels:
 
-`public`: package is public
-`private`: package is private
+- `public`: package is public
+- `private`: package is private
 
 The npm registry also only allows scoped packages to have their access
 level set.
@@ -73,15 +73,15 @@ level set.
 #### access.setMfa(spec, level, opts) -> Promise<Boolean>`
 
 Sets the publishing mfa requirements for a given package.  Level must be one of the
-following
+following:
 
-`none`: mfa is not required to publish this package.
-`publish`: mfa is required to publish this package, automation tokens
+- `none`: mfa is not required to publish this package.
+- `publish`: mfa is required to publish this package, automation tokens
 cannot be used to publish.
-`automation`: mfa is required to publish this package, automation tokens
+- `automation`: mfa is required to publish this package, automation tokens
 may also be used for publishing from continuous integration workflows.
 
-#### access.setPermissions(team, spec, permssions, opts) -> Promise<Boolean>`
+#### access.setPermissions(team, spec, permissions, opts) -> Promise<Boolean>`
 
 Sets permissions levels for a given team to a package.
 
@@ -89,5 +89,5 @@ Teams should be in the format `scope:team` or `@scope:team`
 
 The npm registry accepts the following `permissions`:
 
-`read-only`: Read only permissions
-`read-write`: Read and write (aka publish) permissions
+- `read-only`: Read only permissions
+- `read-write`: Read and write (aka publish) permissions

@@ -1,0 +1,75 @@
+// @generated
+/// Implement `DataProvider<CalendarJapaneseExtendedV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 5238B[^1] for the singleton data struct
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_calendar_japanese_extended_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.82"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.82"]
+        impl $provider {
+            #[doc(hidden)]
+            pub const SINGLETON_CALENDAR_JAPANESE_EXTENDED_V1: &'static <icu::calendar::provider::CalendarJapaneseExtendedV1 as icu_provider::DynamicDataMarker>::DataStruct = &icu::calendar::provider::JapaneseEras { dates_to_eras: unsafe { zerovec::ZeroVec::from_bytes_unchecked(b"\x85\x02\0\0\x06\x13taika-645\0\0\0\0\0\0\0\x8A\x02\0\0\x02\x0Fhakuchi-650\0\0\0\0\0\xA0\x02\0\0\x01\x01hakuho-672\0\0\0\0\0\0\xAE\x02\0\0\x07\x14shucho-686\0\0\0\0\0\0\xBD\x02\0\0\x03\x15taiho-701\0\0\0\0\0\0\0\xC0\x02\0\0\x05\nkeiun-704\0\0\0\0\0\0\0\xC4\x02\0\0\x01\x0Bwado-708\0\0\0\0\0\0\0\0\xCB\x02\0\0\t\x02reiki-715\0\0\0\0\0\0\0\xCD\x02\0\0\x0B\x11yoro-717\0\0\0\0\0\0\0\0\xD4\x02\0\0\x02\x04jinki-724\0\0\0\0\0\0\0\xD9\x02\0\0\x08\x05tenpyo-729\0\0\0\0\0\0\xED\x02\0\0\x04\x0Etenpyokampo-749\0\xED\x02\0\0\x07\x02tenpyoshoho-749\0\xF5\x02\0\0\x08\x12tenpyohoji-757\0\0\xFD\x02\0\0\x01\x07tenpyojingo-765\0\xFF\x02\0\0\x08\x10jingokeiun-767\0\0\x02\x03\0\0\n\x01hoki-770\0\0\0\0\0\0\0\0\r\x03\0\0\x01\x01teno-781\0\0\0\0\0\0\0\0\x0E\x03\0\0\x08\x13enryaku-782\0\0\0\0\0&\x03\0\0\x05\x12daido-806\0\0\0\0\0\0\0*\x03\0\0\t\x13konin-810\0\0\0\0\0\0\08\x03\0\0\x01\x05tencho-824\0\0\0\0\0\0B\x03\0\0\x01\x03jowa-834\0\0\0\0\0\0\0\0P\x03\0\0\x06\rkajo-848\0\0\0\0\0\0\0\0S\x03\0\0\x04\x1Cninju-851\0\0\0\0\0\0\0V\x03\0\0\x0B\x1Esaiko-854\0\0\0\0\0\0\0Y\x03\0\0\x02\x15tenan-857\0\0\0\0\0\0\0[\x03\0\0\x04\x0Fjogan-859\0\0\0\0\0\0\0m\x03\0\0\x04\x10gangyo-877\0\0\0\0\0\0u\x03\0\0\x02\x15ninna-885\0\0\0\0\0\0\0y\x03\0\0\x04\x1Bkanpyo-889\0\0\0\0\0\0\x82\x03\0\0\x04\x1Ashotai-898\0\0\0\0\0\0\x85\x03\0\0\x07\x0Fengi-901\0\0\0\0\0\0\0\0\x9B\x03\0\0\x04\x0Bencho-923\0\0\0\0\0\0\0\xA3\x03\0\0\x04\x1Ajohei-931\0\0\0\0\0\0\0\xAA\x03\0\0\x05\x16tengyo-938\0\0\0\0\0\0\xB3\x03\0\0\x04\x16tenryaku-947\0\0\0\0\xBD\x03\0\0\n\x1Btentoku-957\0\0\0\0\0\xC1\x03\0\0\x02\x10owa-961\0\0\0\0\0\0\0\0\0\xC4\x03\0\0\x07\nkoho-964\0\0\0\0\0\0\0\0\xC8\x03\0\0\x08\ranna-968\0\0\0\0\0\0\0\0\xCA\x03\0\0\x03\x19tenroku-970\0\0\0\0\0\xCD\x03\0\0\x0C\x14tenen-973\0\0\0\0\0\0\0\xD0\x03\0\0\x07\rjogen-976\0\0\0\0\0\0\0\xD2\x03\0\0\x0B\x1Dtengen-978\0\0\0\0\0\0\xD7\x03\0\0\x04\x0Feikan-983\0\0\0\0\0\0\0\xD9\x03\0\0\x04\x1Bkanna-985\0\0\0\0\0\0\0\xDB\x03\0\0\x04\x05eien-987\0\0\0\0\0\0\0\0\xDD\x03\0\0\x08\x08eiso-989\0\0\0\0\0\0\0\0\xDE\x03\0\0\x0B\x07shoryaku-990\0\0\0\0\xE3\x03\0\0\x02\x16chotoku-995\0\0\0\0\0\xE7\x03\0\0\x01\rchoho-999\0\0\0\0\0\0\0\xEC\x03\0\0\x07\x14kanko-1004\0\0\0\0\0\0\xF4\x03\0\0\x0C\x19chowa-1012\0\0\0\0\0\0\xF9\x03\0\0\x04\x17kannin-1017\0\0\0\0\0\xFD\x03\0\0\x02\x02jian-1021\0\0\0\0\0\0\0\0\x04\0\0\x07\rmanju-1024\0\0\0\0\0\0\x04\x04\0\0\x07\x19chogen-1028\0\0\0\0\0\r\x04\0\0\x04\x15choryaku-1037\0\0\0\x10\x04\0\0\x0B\nchokyu-1040\0\0\0\0\0\x14\x04\0\0\x0B\x18kantoku-1044\0\0\0\0\x16\x04\0\0\x04\x0Eeisho-1046\0\0\0\0\0\0\x1D\x04\0\0\x01\x0Btengi-1053\0\0\0\0\0\0\"\x04\0\0\x08\x1Dkohei-1058\0\0\0\0\0\0)\x04\0\0\x08\x02jiryaku-1065\0\0\0\0-\x04\0\0\x04\renkyu-1069\0\0\0\0\0\x002\x04\0\0\x08\x17shoho-1074\0\0\0\0\0\x005\x04\0\0\x0B\x11shoryaku-1077\0\0\09\x04\0\0\x02\neiho-1081\0\0\0\0\0\0\0<\x04\0\0\x02\x07otoku-1084\0\0\0\0\0\0?\x04\0\0\x04\x07kanji-1087\0\0\0\0\0\0F\x04\0\0\x0C\x0Fkaho-1094\0\0\0\0\0\0\0H\x04\0\0\x0C\x11eicho-1096\0\0\0\0\0\0I\x04\0\0\x0B\x15jotoku-1097\0\0\0\0\0K\x04\0\0\x08\x1Ckowa-1099\0\0\0\0\0\0\0P\x04\0\0\x02\nchoji-1104\0\0\0\0\0\0R\x04\0\0\x04\tkasho-1106\0\0\0\0\0\0T\x04\0\0\x08\x03tennin-1108\0\0\0\0\0V\x04\0\0\x07\rtenei-1110\0\0\0\0\0\0Y\x04\0\0\x07\reikyu-1113\0\0\0\0\0\0^\x04\0\0\x04\x03genei-1118\0\0\0\0\0\0`\x04\0\0\x04\nhoan-1120\0\0\0\0\0\0\0d\x04\0\0\x04\x03tenji-1124\0\0\0\0\0\0f\x04\0\0\x01\x16daiji-1126\0\0\0\0\0\0k\x04\0\0\x01\x1Dtensho-1131\0\0\0\0\0l\x04\0\0\x08\x0Bchosho-1132\0\0\0\0\0o\x04\0\0\x04\x1Bhoen-1135\0\0\0\0\0\0\0u\x04\0\0\x07\neiji-1141\0\0\0\0\0\0\0v\x04\0\0\x04\x1Ckoji-1142\0\0\0\0\0\0\0x\x04\0\0\x02\x17tenyo-1144\0\0\0\0\0\0y\x04\0\0\x07\x16kyuan-1145\0\0\0\0\0\0\x7F\x04\0\0\x01\x1Aninpei-1151\0\0\0\0\0\x82\x04\0\0\n\x1Ckyuju-1154\0\0\0\0\0\0\x84\x04\0\0\x04\x1Bhogen-1156\0\0\0\0\0\0\x87\x04\0\0\x04\x14heiji-1159\0\0\0\0\0\0\x88\x04\0\0\x01\neiryaku-1160\0\0\0\0\x89\x04\0\0\t\x04oho-1161\0\0\0\0\0\0\0\0\x8B\x04\0\0\x03\x1Dchokan-1163\0\0\0\0\0\x8D\x04\0\0\x06\x05eiman-1165\0\0\0\0\0\0\x8E\x04\0\0\x08\x1Bninan-1166\0\0\0\0\0\0\x91\x04\0\0\x04\x08kao-1169\0\0\0\0\0\0\0\0\x93\x04\0\0\x04\x15shoan-1171\0\0\0\0\0\0\x97\x04\0\0\x07\x1Cangen-1175\0\0\0\0\0\0\x99\x04\0\0\x08\x04jisho-1177\0\0\0\0\0\0\x9D\x04\0\0\x07\x0Eyowa-1181\0\0\0\0\0\0\0\x9E\x04\0\0\x05\x1Bjuei-1182\0\0\0\0\0\0\0\xA0\x04\0\0\x04\x10genryaku-1184\0\0\0\xA1\x04\0\0\x08\x0Ebunji-1185\0\0\0\0\0\0\xA6\x04\0\0\x04\x0Bkenkyu-1190\0\0\0\0\0\xAF\x04\0\0\x04\x1Bshoji-1199\0\0\0\0\0\0\xB1\x04\0\0\x02\rkennin-1201\0\0\0\0\0\xB4\x04\0\0\x02\x14genkyu-1204\0\0\0\0\0\xB6\x04\0\0\x04\x1Bkenei-1206\0\0\0\0\0\0\xB7\x04\0\0\n\x19jogen-1207\0\0\0\0\0\0\xBB\x04\0\0\x03\tkenryaku-1211\0\0\0\xBD\x04\0\0\x0C\x06kenpo-1213\0\0\0\0\0\0\xC3\x04\0\0\x04\x0Cjokyu-1219\0\0\0\0\0\0\xC6\x04\0\0\x04\rjoo-1222\0\0\0\0\0\0\0\0\xC8\x04\0\0\x0B\x14gennin-1224\0\0\0\0\0\xC9\x04\0\0\x04\x14karoku-1225\0\0\0\0\0\xCB\x04\0\0\x0C\nantei-1227\0\0\0\0\0\0\xCD\x04\0\0\x03\x05kanki-1229\0\0\0\0\0\0\xD0\x04\0\0\x04\x02joei-1232\0\0\0\0\0\0\0\xD1\x04\0\0\x04\x0Ftenpuku-1233\0\0\0\0\xD2\x04\0\0\x0B\x05bunryaku-1234\0\0\0\xD3\x04\0\0\t\x13katei-1235\0\0\0\0\0\0\xD6\x04\0\0\x0B\x17ryakunin-1238\0\0\0\xD7\x04\0\0\x02\x07eno-1239\0\0\0\0\0\0\0\0\xD8\x04\0\0\x07\x10ninji-1240\0\0\0\0\0\0\xDB\x04\0\0\x02\x1Akangen-1243\0\0\0\0\0\xDF\x04\0\0\x02\x1Choji-1247\0\0\0\0\0\0\0\xE1\x04\0\0\x03\x12kencho-1249\0\0\0\0\0\xE8\x04\0\0\n\x05kogen-1256\0\0\0\0\0\0\xE9\x04\0\0\x03\x0Eshoka-1257\0\0\0\0\0\0\xEB\x04\0\0\x03\x1Ashogen-1259\0\0\0\0\0\xEC\x04\0\0\x04\rbuno-1260\0\0\0\0\0\0\0\xED\x04\0\0\x02\x14kocho-1261\0\0\0\0\0\0\xF0\x04\0\0\x02\x1Cbunei-1264\0\0\0\0\0\0\xFB\x04\0\0\x04\x19kenji-1275\0\0\0\0\0\0\xFE\x04\0\0\x02\x1Ckoan-1278\0\0\0\0\0\0\0\x08\x05\0\0\x04\x1Cshoo-1288\0\0\0\0\0\0\0\r\x05\0\0\x08\x05einin-1293\0\0\0\0\0\0\x13\x05\0\0\x04\x19shoan-1299\0\0\0\0\0\0\x16\x05\0\0\x0B\x15kengen-1302\0\0\0\0\0\x17\x05\0\0\x08\x05kagen-1303\0\0\0\0\0\0\x1A\x05\0\0\x0C\x0Etokuji-1306\0\0\0\0\0\x1C\x05\0\0\n\tenkyo-1308\0\0\0\0\0\0\x1F\x05\0\0\x04\x1Cocho-1311\0\0\0\0\0\0\0 \x05\0\0\x03\x14showa-1312\0\0\0\0\0\0%\x05\0\0\x02\x03bunpo-1317\0\0\0\0\0\0'\x05\0\0\x04\x1Cgeno-1319\0\0\0\0\0\0\0)\x05\0\0\x02\x17genko-1321\0\0\0\0\0\0,\x05\0\0\x0C\tshochu-1324\0\0\0\0\0.\x05\0\0\x04\x1Akaryaku-1326\0\0\0\x001\x05\0\0\x08\x1Dgentoku-1329\0\0\0\x003\x05\0\0\x08\tgenko-1331\0\0\0\0\0\x006\x05\0\0\x01\x1Dkenmu-1334\0\0\0\0\0\08\x05\0\0\x02\x1Dengen-1336\0\0\0\0\0\0<\x05\0\0\x04\x1Ckokoku-1340\0\0\0\0\0B\x05\0\0\x0C\x08shohei-1346\0\0\0\0\0Z\x05\0\0\x07\x18kentoku-1370\0\0\0\0\\\x05\0\0\x04\x01bunchu-1372\0\0\0\0\0_\x05\0\0\x05\x1Btenju-1375\0\0\0\0\0\0c\x05\0\0\x03\x16koryaku-1379\0\0\0\0e\x05\0\0\x02\nkowa-1381\0\0\0\0\0\0\0h\x05\0\0\x04\x1Cgenchu-1384\0\0\0\0\0k\x05\0\0\x08\x16meitoku-1387\0\0\0\0k\x05\0\0\x08\x17kakei-1387\0\0\0\0\0\0m\x05\0\0\x02\tkoo-1389\0\0\0\0\0\0\0\0n\x05\0\0\x03\x1Ameitoku-1390\0\0\0\0r\x05\0\0\x07\x05oei-1394\0\0\0\0\0\0\0\0\x94\x05\0\0\x04\x1Bshocho-1428\0\0\0\0\0\x95\x05\0\0\t\x05eikyo-1429\0\0\0\0\0\0\xA1\x05\0\0\x02\x11kakitsu-1441\0\0\0\0\xA4\x05\0\0\x02\x05bunan-1444\0\0\0\0\0\0\xA9\x05\0\0\x07\x1Chotoku-1449\0\0\0\0\0\xAC\x05\0\0\x07\x19kyotoku-1452\0\0\0\0\xAF\x05\0\0\x07\x19kosho-1455\0\0\0\0\0\0\xB1\x05\0\0\t\x1Cchoroku-1457\0\0\0\0\xB4\x05\0\0\x0C\x15kansho-1460\0\0\0\0\0\xBA\x05\0\0\x02\x1Cbunsho-1466\0\0\0\0\0\xBB\x05\0\0\x03\x03onin-1467\0\0\0\0\0\0\0\xBD\x05\0\0\x04\x1Cbunmei-1469\0\0\0\0\0\xCF\x05\0\0\x07\x1Dchokyo-1487\0\0\0\0\0\xD1\x05\0\0\x08\x15entoku-1489\0\0\0\0\0\xD4\x05\0\0\x07\x13meio-1492\0\0\0\0\0\0\0\xDD\x05\0\0\x02\x1Cbunki-1501\0\0\0\0\0\0\xE0\x05\0\0\x02\x1Deisho-1504\0\0\0\0\0\0\xF1\x05\0\0\x08\x17taiei-1521\0\0\0\0\0\0\xF8\x05\0\0\x08\x14kyoroku-1528\0\0\0\0\xFC\x05\0\0\x07\x1Dtenbun-1532\0\0\0\0\0\x13\x06\0\0\n\x17koji-1555\0\0\0\0\0\0\0\x16\x06\0\0\x02\x1Ceiroku-1558\0\0\0\0\0\"\x06\0\0\x04\x17genki-1570\0\0\0\0\0\0%\x06\0\0\x07\x1Ctensho-1573\0\0\0\0\08\x06\0\0\x0C\x08bunroku-1592\0\0\0\0<\x06\0\0\n\x1Bkeicho-1596\0\0\0\0\0O\x06\0\0\x07\rgenna-1615\0\0\0\0\0\0X\x06\0\0\x02\x1Dkanei-1624\0\0\0\0\0\0l\x06\0\0\x0C\x10shoho-1644\0\0\0\0\0\0p\x06\0\0\x02\x0Fkeian-1648\0\0\0\0\0\0t\x06\0\0\t\x12joo-1652\0\0\0\0\0\0\0\0w\x06\0\0\x04\rmeireki-1655\0\0\0\0z\x06\0\0\x07\x17manji-1658\0\0\0\0\0\0}\x06\0\0\x04\x19kanbun-1661\0\0\0\0\0\x89\x06\0\0\t\x15enpo-1673\0\0\0\0\0\0\0\x91\x06\0\0\t\x1Dtenna-1681\0\0\0\0\0\0\x94\x06\0\0\x02\x15jokyo-1684\0\0\0\0\0\0\x98\x06\0\0\t\x1Egenroku-1688\0\0\0\0\xA8\x06\0\0\x03\rhoei-1704\0\0\0\0\0\0\0\xAF\x06\0\0\x04\x19shotoku-1711\0\0\0\0\xB4\x06\0\0\x06\x16kyoho-1716\0\0\0\0\0\0\xC8\x06\0\0\x04\x1Cgenbun-1736\0\0\0\0\0\xCD\x06\0\0\x02\x1Bkanpo-1741\0\0\0\0\0\0\xD0\x06\0\0\x02\x15enkyo-1744\0\0\0\0\0\0\xD4\x06\0\0\x07\x0Ckanen-1748\0\0\0\0\0\0\xD7\x06\0\0\n\x1Bhoreki-1751\0\0\0\0\0\xE4\x06\0\0\x06\x02meiwa-1764\0\0\0\0\0\0\xEC\x06\0\0\x0B\x10anei-1772\0\0\0\0\0\0\0\xF5\x06\0\0\x04\x02tenmei-1781\0\0\0\0\0\xFD\x06\0\0\x01\x19kansei-1789\0\0\0\0\0\t\x07\0\0\x02\x05kyowa-1801\0\0\0\0\0\0\x0C\x07\0\0\x02\x0Bbunka-1804\0\0\0\0\0\0\x1A\x07\0\0\x04\x16bunsei-1818\0\0\0\0\0&\x07\0\0\x0C\ntenpo-1830\0\0\0\0\0\x004\x07\0\0\x0C\x02koka-1844\0\0\0\0\0\0\08\x07\0\0\x02\x1Ckaei-1848\0\0\0\0\0\0\0>\x07\0\0\x0B\x1Bansei-1854\0\0\0\0\0\0D\x07\0\0\x03\x12manen-1860\0\0\0\0\0\0E\x07\0\0\x02\x13bunkyu-1861\0\0\0\0\0H\x07\0\0\x02\x14genji-1864\0\0\0\0\0\0I\x07\0\0\x04\x07keio-1865\0\0\0\0\0\0\0L\x07\0\0\n\x17meiji\0\0\0\0\0\0\0\0\0\0\0x\x07\0\0\x07\x1Etaisho\0\0\0\0\0\0\0\0\0\0\x86\x07\0\0\x0C\x19showa\0\0\0\0\0\0\0\0\0\0\0\xC5\x07\0\0\x01\x08heisei\0\0\0\0\0\0\0\0\0\0\xE3\x07\0\0\x05\x01reiwa\0\0\0\0\0\0\0\0\0\0\0") } };
+        }
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::DataProvider<icu::calendar::provider::CalendarJapaneseExtendedV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::calendar::provider::CalendarJapaneseExtendedV1>, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponse { payload: icu_provider::DataPayload::from_static_ref(Self::SINGLETON_CALENDAR_JAPANESE_EXTENDED_V1), metadata: icu_provider::DataResponseMetadata::default() })
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::calendar::provider::CalendarJapaneseExtendedV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_calendar_japanese_extended_v1!($provider);
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::IterableDataProvider<icu::calendar::provider::CalendarJapaneseExtendedV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_calendar_japanese_extended_v1!($provider);
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::DryDataProvider<icu::calendar::provider::CalendarJapaneseExtendedV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::calendar::provider::CalendarJapaneseExtendedV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_calendar_japanese_extended_v1!($provider);
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::DryDataProvider<icu::calendar::provider::CalendarJapaneseExtendedV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::calendar::provider::CalendarJapaneseExtendedV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::IterableDataProvider<icu::calendar::provider::CalendarJapaneseExtendedV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_calendar_japanese_extended_v1 as impl_calendar_japanese_extended_v1;

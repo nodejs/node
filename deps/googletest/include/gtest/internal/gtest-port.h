@@ -198,21 +198,8 @@
 //                                        suppressed (constant conditional).
 //   GTEST_INTENTIONAL_CONST_COND_POP_  - finish code section where MSVC C4127
 //                                        is suppressed.
-//   GTEST_INTERNAL_HAS_ANY - for enabling UniversalPrinter<std::any> or
-//                            UniversalPrinter<absl::any> specializations.
-//                            Always defined to 0 or 1.
-//   GTEST_INTERNAL_HAS_OPTIONAL - for enabling UniversalPrinter<std::optional>
-//   or
-//                                 UniversalPrinter<absl::optional>
-//                                 specializations. Always defined to 0 or 1.
 //   GTEST_INTERNAL_HAS_STD_SPAN - for enabling UniversalPrinter<std::span>
 //                                 specializations. Always defined to 0 or 1
-//   GTEST_INTERNAL_HAS_STRING_VIEW - for enabling Matcher<std::string_view> or
-//                                    Matcher<absl::string_view>
-//                                    specializations. Always defined to 0 or 1.
-//   GTEST_INTERNAL_HAS_VARIANT - for enabling UniversalPrinter<std::variant> or
-//                                UniversalPrinter<absl::variant>
-//                                specializations. Always defined to 0 or 1.
 //   GTEST_USE_OWN_FLAGFILE_FLAG_ - Always defined to 0 or 1.
 //   GTEST_HAS_CXXABI_H_ - Always defined to 0 or 1.
 //   GTEST_CAN_STREAM_RESULTS_ - Always defined to 0 or 1.
@@ -282,10 +269,14 @@
 
 // Detect C++ feature test macros as gracefully as possible.
 // MSVC >= 19.15, Clang >= 3.4.1, and GCC >= 4.1.2 support feature test macros.
-#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L && \
-    (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<version>))
-#include <version>  // C++20 and later
-#elif (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<ciso646>))
+//
+// GCC15 warns that <ciso646> is deprecated in C++17 and suggests using
+// <version> instead, even though <version> is not available in C++17 mode prior
+// to GCC9.
+#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L || \
+    GTEST_INTERNAL_HAS_INCLUDE(<version>)
+#include <version>  // C++20 or <version> support.
+#else
 #include <ciso646>  // Pre-C++20
 #endif
 
@@ -673,10 +664,20 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
      defined(GTEST_OS_NETBSD) || defined(GTEST_OS_FUCHSIA) ||         \
      defined(GTEST_OS_DRAGONFLY) || defined(GTEST_OS_GNU_KFREEBSD) || \
      defined(GTEST_OS_HAIKU) || defined(GTEST_OS_GNU_HURD))
+
 // Death tests require a file system to work properly.
 #if GTEST_HAS_FILE_SYSTEM
 #define GTEST_HAS_DEATH_TEST 1
 #endif  // GTEST_HAS_FILE_SYSTEM
+#endif
+
+// Determines whether the Premature Exit file can be created.
+// Created by default when Death tests are supported, but other platforms can
+// use the Premature exit file without Death test support (e.g. for detecting
+// crashes).
+#if GTEST_HAS_DEATH_TEST || \
+    (defined(GTEST_OS_EMSCRIPTEN) && GTEST_HAS_FILE_SYSTEM)
+#define GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE 1
 #endif
 
 // Determines whether to support type-driven tests.
@@ -831,11 +832,13 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #ifndef GTEST_API_
 
 #ifdef _MSC_VER
-#if defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
-#define GTEST_API_ __declspec(dllimport)
-#elif defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
+#if defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
 #define GTEST_API_ __declspec(dllexport)
+#elif defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
+#define GTEST_API_ __declspec(dllimport)
 #endif
+#elif GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(gnu::visibility)
+#define GTEST_API_ [[gnu::visibility("default")]]
 #elif GTEST_HAVE_ATTRIBUTE_(visibility)
 #define GTEST_API_ __attribute__((visibility("default")))
 #endif  // _MSC_VER
@@ -926,7 +929,7 @@ namespace internal {
 // A secret type that Google Test users don't know about.  It has no
 // accessible constructors on purpose.  Therefore it's impossible to create a
 // Secret object, which is what we want.
-class Secret {
+class [[nodiscard]] Secret {
   Secret(const Secret&) = delete;
 };
 
@@ -941,7 +944,7 @@ GTEST_API_ bool IsTrue(bool condition);
 // This is almost `using RE = ::RE2`, except it is copy-constructible, and it
 // needs to disambiguate the `std::string`, `absl::string_view`, and `const
 // char*` constructors.
-class GTEST_API_ RE {
+class GTEST_API_ [[nodiscard]] RE {
  public:
   RE(absl::string_view regex) : regex_(regex) {}                  // NOLINT
   RE(const char* regex) : RE(absl::string_view(regex)) {}         // NOLINT
@@ -967,7 +970,7 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 
 // A simple C++ wrapper for <regex.h>.  It uses the POSIX Extended
 // Regular Expression syntax.
-class GTEST_API_ RE {
+class GTEST_API_ [[nodiscard]] RE {
  public:
   // A copy constructor is required by the Standard to initialize object
   // references from r-values.
@@ -1036,7 +1039,7 @@ enum GTestLogSeverity { GTEST_INFO, GTEST_WARNING, GTEST_ERROR, GTEST_FATAL };
 // Formats log entry severity, provides a stream object for streaming the
 // log message, and terminates the message with a newline when going out of
 // scope.
-class GTEST_API_ GTestLog {
+class GTEST_API_ [[nodiscard]] GTestLog {
  public:
   GTestLog(GTestLogSeverity severity, const char* file, int line);
 
@@ -1199,7 +1202,7 @@ void ClearInjectableArgvs();
 #ifdef GTEST_OS_WINDOWS
 // Provides leak-safe Windows kernel handle ownership.
 // Used in death tests and in threading support.
-class GTEST_API_ AutoHandle {
+class GTEST_API_ [[nodiscard]] AutoHandle {
  public:
   // Assume that Win32 HANDLE type is equivalent to void*. Doing so allows us to
   // avoid including <windows.h> in this header file. Including <windows.h> is
@@ -1233,9 +1236,6 @@ class GTEST_API_ AutoHandle {
 // Nothing to do here.
 
 #else
-GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
-/* class A needs to have dll-interface to be used by clients of class B */)
-
 // Allows a controller thread to pause execution of newly created
 // threads until notified.  Instances of this class must be created
 // and destroyed in the controller thread.
@@ -1243,7 +1243,40 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 // This class is only for testing Google Test's own constructs. Do not
 // use it in user tests, either directly or indirectly.
 // TODO(b/203539622): Replace unconditionally with absl::Notification.
-class GTEST_API_ Notification {
+#ifdef GTEST_OS_WINDOWS_MINGW
+// GCC version < 13 with the win32 thread model does not provide std::mutex and
+// std::condition_variable in the <mutex> and <condition_variable> headers. So
+// we implement the Notification class using a Windows manual-reset event. See
+// https://gcc.gnu.org/gcc-13/changes.html#windows.
+class GTEST_API_ [[nodiscard]] Notification {
+ public:
+  Notification();
+  Notification(const Notification&) = delete;
+  Notification& operator=(const Notification&) = delete;
+  ~Notification();
+
+  // Notifies all threads created with this notification to start. Must
+  // be called from the controller thread.
+  void Notify();
+
+  // Blocks until the controller thread notifies. Must be called from a test
+  // thread.
+  void WaitForNotification();
+
+ private:
+  // Assume that Win32 HANDLE type is equivalent to void*. Doing so allows us to
+  // avoid including <windows.h> in this header file. Including <windows.h> is
+  // undesirable because it defines a lot of symbols and macros that tend to
+  // conflict with client code. This assumption is verified by
+  // WindowsTypesTest.HANDLEIsVoidStar.
+  typedef void* Handle;
+  Handle event_;
+};
+#else
+GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
+/* class A needs to have dll-interface to be used by clients of class B */)
+
+class GTEST_API_ [[nodiscard]] Notification {
  public:
   Notification() : notified_(false) {}
   Notification(const Notification&) = delete;
@@ -1270,6 +1303,7 @@ class GTEST_API_ Notification {
   bool notified_;
 };
 GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4251
+#endif  // GTEST_OS_WINDOWS_MINGW
 #endif  // GTEST_HAS_NOTIFICATION_
 
 // On MinGW, we can have both GTEST_OS_WINDOWS and GTEST_HAS_PTHREAD
@@ -1282,7 +1316,7 @@ GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4251
 // in order to call its Run(). Introducing ThreadWithParamBase as a
 // non-templated base class for ThreadWithParam allows us to bypass this
 // problem.
-class ThreadWithParamBase {
+class [[nodiscard]] ThreadWithParamBase {
  public:
   virtual ~ThreadWithParamBase() = default;
   virtual void Run() = 0;
@@ -1312,7 +1346,7 @@ extern "C" inline void* ThreadFuncWithCLinkage(void* thread) {
 // These classes are only for testing Google Test's own constructs. Do
 // not use them in user tests, either directly or indirectly.
 template <typename T>
-class ThreadWithParam : public ThreadWithParamBase {
+class [[nodiscard]] ThreadWithParam : public ThreadWithParamBase {
  public:
   typedef void UserThreadFunc(T);
 
@@ -1378,7 +1412,7 @@ class ThreadWithParam : public ThreadWithParamBase {
 //   GTEST_DECLARE_STATIC_MUTEX_(g_some_mutex);
 //
 // (A non-static Mutex is defined/declared in the usual way).
-class GTEST_API_ Mutex {
+class GTEST_API_ [[nodiscard]] Mutex {
  public:
   enum MutexType { kStatic = 0, kDynamic = 1 };
   // We rely on kStaticMutex being 0 as it is to what the linker initializes
@@ -1394,9 +1428,9 @@ class GTEST_API_ Mutex {
   Mutex();
   ~Mutex();
 
-  void Lock();
+  void lock();
 
-  void Unlock();
+  void unlock();
 
   // Does nothing if the current thread holds the mutex. Otherwise, crashes
   // with high probability.
@@ -1431,14 +1465,13 @@ class GTEST_API_ Mutex {
 // platforms. That macro is used as a defensive measure to prevent against
 // inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
 // "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
+class [[nodiscard]] GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->Lock(); }
-
-  ~GTestMutexLock() { mutex_->Unlock(); }
+  explicit GTestMutexLock(Mutex& mutex) : mutex_(mutex) { mutex_.lock(); }
+  ~GTestMutexLock() { mutex_.unlock(); }
 
  private:
-  Mutex* const mutex_;
+  Mutex& mutex_;
 
   GTestMutexLock(const GTestMutexLock&) = delete;
   GTestMutexLock& operator=(const GTestMutexLock&) = delete;
@@ -1448,14 +1481,14 @@ typedef GTestMutexLock MutexLock;
 
 // Base class for ValueHolder<T>.  Allows a caller to hold and delete a value
 // without knowing its type.
-class ThreadLocalValueHolderBase {
+class [[nodiscard]] ThreadLocalValueHolderBase {
  public:
-  virtual ~ThreadLocalValueHolderBase() {}
+  virtual ~ThreadLocalValueHolderBase() = default;
 };
 
 // Provides a way for a thread to send notifications to a ThreadLocal
 // regardless of its parameter type.
-class ThreadLocalBase {
+class [[nodiscard]] ThreadLocalBase {
  public:
   // Creates a new ValueHolder<T> object holding a default value passed to
   // this ThreadLocal<T>'s constructor and returns it.  It is the caller's
@@ -1464,8 +1497,8 @@ class ThreadLocalBase {
   virtual ThreadLocalValueHolderBase* NewValueForCurrentThread() const = 0;
 
  protected:
-  ThreadLocalBase() {}
-  virtual ~ThreadLocalBase() {}
+  ThreadLocalBase() = default;
+  virtual ~ThreadLocalBase() = default;
 
  private:
   ThreadLocalBase(const ThreadLocalBase&) = delete;
@@ -1475,7 +1508,7 @@ class ThreadLocalBase {
 // Maps a thread to a set of ThreadLocals that have values instantiated on that
 // thread and notifies them when the thread exits.  A ThreadLocal instance is
 // expected to persist until all threads it has values on have terminated.
-class GTEST_API_ ThreadLocalRegistry {
+class GTEST_API_ [[nodiscard]] ThreadLocalRegistry {
  public:
   // Registers thread_local_instance as having value on the current thread.
   // Returns a value that can be used to identify the thread from other threads.
@@ -1487,14 +1520,14 @@ class GTEST_API_ ThreadLocalRegistry {
       const ThreadLocalBase* thread_local_instance);
 };
 
-class GTEST_API_ ThreadWithParamBase {
+class GTEST_API_ [[nodiscard]] ThreadWithParamBase {
  public:
   void Join();
 
  protected:
   class Runnable {
    public:
-    virtual ~Runnable() {}
+    virtual ~Runnable() = default;
     virtual void Run() = 0;
   };
 
@@ -1507,20 +1540,20 @@ class GTEST_API_ ThreadWithParamBase {
 
 // Helper class for testing Google Test's multi-threading constructs.
 template <typename T>
-class ThreadWithParam : public ThreadWithParamBase {
+class [[nodiscard]] ThreadWithParam : public ThreadWithParamBase {
  public:
   typedef void UserThreadFunc(T);
 
   ThreadWithParam(UserThreadFunc* func, T param, Notification* thread_can_start)
       : ThreadWithParamBase(new RunnableImpl(func, param), thread_can_start) {}
-  virtual ~ThreadWithParam() {}
+  ~ThreadWithParam() override = default;
 
  private:
   class RunnableImpl : public Runnable {
    public:
     RunnableImpl(UserThreadFunc* func, T param) : func_(func), param_(param) {}
-    virtual ~RunnableImpl() {}
-    virtual void Run() { func_(param_); }
+    ~RunnableImpl() override = default;
+    void Run() override { func_(param_); }
 
    private:
     UserThreadFunc* const func_;
@@ -1562,7 +1595,7 @@ class ThreadWithParam : public ThreadWithParamBase {
 // object managed by Google Test will be leaked as long as all threads
 // using Google Test have exited when main() returns.
 template <typename T>
-class ThreadLocal : public ThreadLocalBase {
+class [[nodiscard]] ThreadLocal : public ThreadLocalBase {
  public:
   ThreadLocal() : default_factory_(new DefaultValueHolderFactory()) {}
   explicit ThreadLocal(const T& value)
@@ -1603,8 +1636,8 @@ class ThreadLocal : public ThreadLocalBase {
 
   class ValueHolderFactory {
    public:
-    ValueHolderFactory() {}
-    virtual ~ValueHolderFactory() {}
+    ValueHolderFactory() = default;
+    virtual ~ValueHolderFactory() = default;
     virtual ValueHolder* MakeNewHolder() const = 0;
 
    private:
@@ -1614,7 +1647,7 @@ class ThreadLocal : public ThreadLocalBase {
 
   class DefaultValueHolderFactory : public ValueHolderFactory {
    public:
-    DefaultValueHolderFactory() {}
+    DefaultValueHolderFactory() = default;
     ValueHolder* MakeNewHolder() const override { return new ValueHolder(); }
 
    private:
@@ -1647,17 +1680,17 @@ class ThreadLocal : public ThreadLocalBase {
 #elif GTEST_HAS_PTHREAD
 
 // MutexBase and Mutex implement mutex on pthreads-based platforms.
-class MutexBase {
+class [[nodiscard]] MutexBase {
  public:
   // Acquires this mutex.
-  void Lock() {
+  void lock() {
     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_lock(&mutex_));
     owner_ = pthread_self();
     has_owner_ = true;
   }
 
   // Releases this mutex.
-  void Unlock() {
+  void unlock() {
     // Since the lock is being released the owner_ field should no longer be
     // considered valid. We don't protect writing to has_owner_ here, as it's
     // the caller's responsibility to ensure that the current thread holds the
@@ -1705,7 +1738,7 @@ class MutexBase {
 
 // The Mutex class can only be used for mutexes created at runtime. It
 // shares its API with MutexBase otherwise.
-class Mutex : public MutexBase {
+class [[nodiscard]] Mutex : public MutexBase {
  public:
   Mutex() {
     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_init(&mutex_, nullptr));
@@ -1723,14 +1756,13 @@ class Mutex : public MutexBase {
 // platforms. That macro is used as a defensive measure to prevent against
 // inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
 // "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
+class [[nodiscard]] GTestMutexLock {
  public:
-  explicit GTestMutexLock(MutexBase* mutex) : mutex_(mutex) { mutex_->Lock(); }
-
-  ~GTestMutexLock() { mutex_->Unlock(); }
+  explicit GTestMutexLock(MutexBase& mutex) : mutex_(mutex) { mutex_.lock(); }
+  ~GTestMutexLock() { mutex_.unlock(); }
 
  private:
-  MutexBase* const mutex_;
+  MutexBase& mutex_;
 
   GTestMutexLock(const GTestMutexLock&) = delete;
   GTestMutexLock& operator=(const GTestMutexLock&) = delete;
@@ -1744,7 +1776,7 @@ typedef GTestMutexLock MutexLock;
 // C-linkage.  Therefore it cannot be templatized to access
 // ThreadLocal<T>.  Hence the need for class
 // ThreadLocalValueHolderBase.
-class GTEST_API_ ThreadLocalValueHolderBase {
+class GTEST_API_ [[nodiscard]] ThreadLocalValueHolderBase {
  public:
   virtual ~ThreadLocalValueHolderBase() = default;
 };
@@ -1757,7 +1789,7 @@ extern "C" inline void DeleteThreadLocalValue(void* value_holder) {
 
 // Implements thread-local storage on pthreads-based systems.
 template <typename T>
-class GTEST_API_ ThreadLocal {
+class GTEST_API_ [[nodiscard]] ThreadLocal {
  public:
   ThreadLocal()
       : key_(CreateKey()), default_factory_(new DefaultValueHolderFactory()) {}
@@ -1870,11 +1902,11 @@ class GTEST_API_ ThreadLocal {
 // mutex is not supported - using Google Test in multiple threads is not
 // supported on such platforms.
 
-class Mutex {
+class [[nodiscard]] Mutex {
  public:
   Mutex() {}
-  void Lock() {}
-  void Unlock() {}
+  void lock() {}
+  void unlock() {}
   void AssertHeld() const {}
 };
 
@@ -1888,15 +1920,15 @@ class Mutex {
 // platforms. That macro is used as a defensive measure to prevent against
 // inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
 // "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
+class [[nodiscard]] GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex*) {}  // NOLINT
+  explicit GTestMutexLock(Mutex&) {}  // NOLINT
 };
 
 typedef GTestMutexLock MutexLock;
 
 template <typename T>
-class GTEST_API_ ThreadLocal {
+class GTEST_API_ [[nodiscard]] ThreadLocal {
  public:
   ThreadLocal() : value_() {}
   explicit ThreadLocal(const T& value) : value_(value) {}
@@ -2204,7 +2236,7 @@ constexpr BiggestInt kMaxBiggestInt = (std::numeric_limits<BiggestInt>::max)();
 // needs.  Other types can be easily added in the future if need
 // arises.
 template <size_t size>
-class TypeWithSize {
+class [[nodiscard]] TypeWithSize {
  public:
   // This prevents the user from using TypeWithSize<N> with incorrect
   // values of N.
@@ -2213,7 +2245,7 @@ class TypeWithSize {
 
 // The specialization for size 4.
 template <>
-class TypeWithSize<4> {
+class [[nodiscard]] TypeWithSize<4> {
  public:
   using Int = std::int32_t;
   using UInt = std::uint32_t;
@@ -2221,7 +2253,7 @@ class TypeWithSize<4> {
 
 // The specialization for size 8.
 template <>
-class TypeWithSize<8> {
+class [[nodiscard]] TypeWithSize<8> {
  public:
   using Int = std::int64_t;
   using UInt = std::uint64_t;
@@ -2251,11 +2283,11 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 
 // Macros for declaring flags.
 #define GTEST_DECLARE_bool_(name) \
-  ABSL_DECLARE_FLAG(bool, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(bool, GTEST_FLAG_NAME_(name))
 #define GTEST_DECLARE_int32_(name) \
-  ABSL_DECLARE_FLAG(int32_t, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(int32_t, GTEST_FLAG_NAME_(name))
 #define GTEST_DECLARE_string_(name) \
-  ABSL_DECLARE_FLAG(std::string, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(std::string, GTEST_FLAG_NAME_(name))
 
 #define GTEST_FLAG_SAVER_ ::absl::FlagSaver
 
@@ -2331,71 +2363,11 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 }  // namespace internal
 }  // namespace testing
 
-#ifdef GTEST_HAS_ABSL
-// Always use absl::any for UniversalPrinter<> specializations if googletest
-// is built with absl support.
-#define GTEST_INTERNAL_HAS_ANY 1
-#include "absl/types/any.h"
-namespace testing {
-namespace internal {
-using Any = ::absl::any;
-}  // namespace internal
-}  // namespace testing
+#if GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(clang::annotate)
+#define GTEST_INTERNAL_DEPRECATE_AND_INLINE(msg) \
+  [[deprecated(msg), clang::annotate("inline-me")]]
 #else
-#if defined(__cpp_lib_any) || (GTEST_INTERNAL_HAS_INCLUDE(<any>) &&        \
-                               GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-                               (!defined(_MSC_VER) || GTEST_HAS_RTTI))
-// Otherwise for C++17 and higher use std::any for UniversalPrinter<>
-// specializations.
-#define GTEST_INTERNAL_HAS_ANY 1
-#include <any>
-namespace testing {
-namespace internal {
-using Any = ::std::any;
-}  // namespace internal
-}  // namespace testing
-// The case where absl is configured NOT to alias std::any is not
-// supported.
-#endif  // __cpp_lib_any
-#endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_ANY
-#define GTEST_INTERNAL_HAS_ANY 0
-#endif
-
-#ifdef GTEST_HAS_ABSL
-// Always use absl::optional for UniversalPrinter<> specializations if
-// googletest is built with absl support.
-#define GTEST_INTERNAL_HAS_OPTIONAL 1
-#include "absl/types/optional.h"
-namespace testing {
-namespace internal {
-template <typename T>
-using Optional = ::absl::optional<T>;
-inline ::absl::nullopt_t Nullopt() { return ::absl::nullopt; }
-}  // namespace internal
-}  // namespace testing
-#else
-#if defined(__cpp_lib_optional) || (GTEST_INTERNAL_HAS_INCLUDE(<optional>) && \
-                                    GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
-// Otherwise for C++17 and higher use std::optional for UniversalPrinter<>
-// specializations.
-#define GTEST_INTERNAL_HAS_OPTIONAL 1
-#include <optional>
-namespace testing {
-namespace internal {
-template <typename T>
-using Optional = ::std::optional<T>;
-inline ::std::nullopt_t Nullopt() { return ::std::nullopt; }
-}  // namespace internal
-}  // namespace testing
-// The case where absl is configured NOT to alias std::optional is not
-// supported.
-#endif  // __cpp_lib_optional
-#endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_OPTIONAL
-#define GTEST_INTERNAL_HAS_OPTIONAL 0
+#define GTEST_INTERNAL_DEPRECATE_AND_INLINE(msg) [[deprecated(msg)]]
 #endif
 
 #if defined(__cpp_lib_span) || (GTEST_INTERNAL_HAS_INCLUDE(<span>) && \
@@ -2437,38 +2409,6 @@ using StringView = ::std::string_view;
 
 #ifndef GTEST_INTERNAL_HAS_STRING_VIEW
 #define GTEST_INTERNAL_HAS_STRING_VIEW 0
-#endif
-
-#ifdef GTEST_HAS_ABSL
-// Always use absl::variant for UniversalPrinter<> specializations if googletest
-// is built with absl support.
-#define GTEST_INTERNAL_HAS_VARIANT 1
-#include "absl/types/variant.h"
-namespace testing {
-namespace internal {
-template <typename... T>
-using Variant = ::absl::variant<T...>;
-}  // namespace internal
-}  // namespace testing
-#else
-#if defined(__cpp_lib_variant) || (GTEST_INTERNAL_HAS_INCLUDE(<variant>) && \
-                                   GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
-// Otherwise for C++17 and higher use std::variant for UniversalPrinter<>
-// specializations.
-#define GTEST_INTERNAL_HAS_VARIANT 1
-#include <variant>
-namespace testing {
-namespace internal {
-template <typename... T>
-using Variant = ::std::variant<T...>;
-}  // namespace internal
-}  // namespace testing
-// The case where absl is configured NOT to alias std::variant is not supported.
-#endif  // __cpp_lib_variant
-#endif  // GTEST_HAS_ABSL
-
-#ifndef GTEST_INTERNAL_HAS_VARIANT
-#define GTEST_INTERNAL_HAS_VARIANT 0
 #endif
 
 #if (defined(__cpp_lib_three_way_comparison) || \

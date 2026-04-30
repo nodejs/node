@@ -15,6 +15,7 @@
 #include "internal/property.h"
 #include "internal/core.h"
 #include "property_local.h"
+#include "crypto/context.h"
 
 /*
  * Implement a property definition cache.
@@ -28,7 +29,7 @@ typedef struct {
     char body[1];
 } PROPERTY_DEFN_ELEM;
 
-DEFINE_LHASH_OF(PROPERTY_DEFN_ELEM);
+DEFINE_LHASH_OF_EX(PROPERTY_DEFN_ELEM);
 
 static unsigned long property_defn_hash(const PROPERTY_DEFN_ELEM *a)
 {
@@ -36,7 +37,7 @@ static unsigned long property_defn_hash(const PROPERTY_DEFN_ELEM *a)
 }
 
 static int property_defn_cmp(const PROPERTY_DEFN_ELEM *a,
-                             const PROPERTY_DEFN_ELEM *b)
+    const PROPERTY_DEFN_ELEM *b)
 {
     return strcmp(a->prop, b->prop);
 }
@@ -47,26 +48,21 @@ static void property_defn_free(PROPERTY_DEFN_ELEM *elem)
     OPENSSL_free(elem);
 }
 
-static void property_defns_free(void *vproperty_defns)
+void ossl_property_defns_free(void *vproperty_defns)
 {
     LHASH_OF(PROPERTY_DEFN_ELEM) *property_defns = vproperty_defns;
 
     if (property_defns != NULL) {
         lh_PROPERTY_DEFN_ELEM_doall(property_defns,
-                                    &property_defn_free);
+            &property_defn_free);
         lh_PROPERTY_DEFN_ELEM_free(property_defns);
     }
 }
 
-static void *property_defns_new(OSSL_LIB_CTX *ctx) {
+void *ossl_property_defns_new(OSSL_LIB_CTX *ctx)
+{
     return lh_PROPERTY_DEFN_ELEM_new(&property_defn_hash, &property_defn_cmp);
 }
-
-static const OSSL_LIB_CTX_METHOD property_defns_method = {
-    OSSL_LIB_CTX_METHOD_DEFAULT_PRIORITY,
-    property_defns_new,
-    property_defns_free,
-};
 
 OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop)
 {
@@ -74,9 +70,8 @@ OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop)
     LHASH_OF(PROPERTY_DEFN_ELEM) *property_defns;
 
     property_defns = ossl_lib_ctx_get_data(ctx,
-                                           OSSL_LIB_CTX_PROPERTY_DEFN_INDEX,
-                                           &property_defns_method);
-    if (property_defns == NULL || !ossl_lib_ctx_read_lock(ctx))
+        OSSL_LIB_CTX_PROPERTY_DEFN_INDEX);
+    if (!ossl_assert(property_defns != NULL) || !ossl_lib_ctx_read_lock(ctx))
         return NULL;
 
     elem.prop = prop;
@@ -93,7 +88,7 @@ OSSL_PROPERTY_LIST *ossl_prop_defn_get(OSSL_LIB_CTX *ctx, const char *prop)
  * overwritten with the existing entry from the cache.
  */
 int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
-                       OSSL_PROPERTY_LIST **pl)
+    OSSL_PROPERTY_LIST **pl)
 {
     PROPERTY_DEFN_ELEM elem, *old, *p = NULL;
     size_t len;
@@ -101,8 +96,7 @@ int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
     int res = 1;
 
     property_defns = ossl_lib_ctx_get_data(ctx,
-                                           OSSL_LIB_CTX_PROPERTY_DEFN_INDEX,
-                                           &property_defns_method);
+        OSSL_LIB_CTX_PROPERTY_DEFN_INDEX);
     if (property_defns == NULL)
         return 0;
 
@@ -137,7 +131,7 @@ int ossl_prop_defn_set(OSSL_LIB_CTX *ctx, const char *prop,
     }
     OPENSSL_free(p);
     res = 0;
- end:
+end:
     ossl_lib_ctx_unlock(ctx);
     return res;
 }

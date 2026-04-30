@@ -53,7 +53,7 @@ bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(20),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(0),
+  /*   45 E> */ B(ThrowReferenceErrorIfHole), U8(0:"x"),
                 B(Mov), R(1), R(0),
                 B(LdaUndefined),
   /*   52 S> */ B(Return),

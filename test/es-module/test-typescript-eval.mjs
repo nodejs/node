@@ -1,5 +1,5 @@
 import { skip, spawnPromisified } from '../common/index.mjs';
-import { doesNotMatch, match, strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { test } from 'node:test';
 
 if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
@@ -11,9 +11,9 @@ test('eval TypeScript ESM syntax', async () => {
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('eval TypeScript ESM syntax with input-type module', async () => {
@@ -24,9 +24,9 @@ test('eval TypeScript ESM syntax with input-type module', async () => {
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('eval TypeScript CommonJS syntax', async () => {
@@ -35,9 +35,9 @@ test('eval TypeScript CommonJS syntax', async () => {
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
-  match(result.stdout, /Hello, TypeScript!/);
-  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
-  strictEqual(result.code, 0);
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.code, 0);
 });
 
 test('eval TypeScript CommonJS syntax with input-type commonjs-typescript', async () => {
@@ -48,9 +48,9 @@ test('eval TypeScript CommonJS syntax with input-type commonjs-typescript', asyn
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`,
     '--no-warnings']);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.stderr, '');
-  strictEqual(result.code, 0);
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.stderr, '');
+  assert.strictEqual(result.code, 0);
 });
 
 test('eval TypeScript CommonJS syntax by default', async () => {
@@ -61,9 +61,9 @@ test('eval TypeScript CommonJS syntax by default', async () => {
     console.log(util.styleText('red', text));`,
     '--no-warnings']);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('TypeScript ESM syntax not specified', async () => {
@@ -72,9 +72,9 @@ test('TypeScript ESM syntax not specified', async () => {
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
     console.log(text);`]);
-  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('expect fail eval TypeScript CommonJS syntax with input-type module-typescript', async () => {
@@ -85,9 +85,9 @@ test('expect fail eval TypeScript CommonJS syntax with input-type module-typescr
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript', async () => {
@@ -97,19 +97,19 @@ test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /Cannot use import statement outside a module/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /Cannot use import statement outside a module/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('check syntax error is thrown when passing unsupported syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--eval',
     'enum Foo { A, B, C }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /SyntaxError/);
-  doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /SyntaxError/);
+  assert.doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('check syntax error is thrown when passing unsupported syntax with --input-type=module-typescript', async () => {
@@ -117,9 +117,9 @@ test('check syntax error is thrown when passing unsupported syntax with --input-
     '--input-type=module-typescript',
     '--eval',
     'enum Foo { A, B, C }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('check syntax error is thrown when passing unsupported syntax with --input-type=commonjs-typescript', async () => {
@@ -127,9 +127,9 @@ test('check syntax error is thrown when passing unsupported syntax with --input-
     '--input-type=commonjs-typescript',
     '--eval',
     'enum Foo { A, B, C }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('should not parse TypeScript with --type-module=commonjs', async () => {
@@ -138,10 +138,10 @@ test('should not parse TypeScript with --type-module=commonjs', async () => {
     '--eval',
     `enum Foo {}`]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /SyntaxError/);
-  doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /SyntaxError/);
+  assert.doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('should not parse TypeScript with --type-module=module', async () => {
@@ -150,10 +150,10 @@ test('should not parse TypeScript with --type-module=module', async () => {
     '--eval',
     `enum Foo {}`]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /SyntaxError/);
-  doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /SyntaxError/);
+  assert.doesNotMatch(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('check warning is emitted when eval TypeScript CommonJS syntax', async () => {
@@ -162,18 +162,18 @@ test('check warning is emitted when eval TypeScript CommonJS syntax', async () =
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
     console.log(util.styleText('red', text));`]);
-  match(result.stderr, /ExperimentalWarning: Type Stripping is an experimental/);
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('code is throwing a non Error is rethrown', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--eval',
     `throw null;`]);
-  doesNotMatch(result.stderr, /node:internal\/process\/execution/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.doesNotMatch(result.stderr, /node:internal\/process\/execution/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('code is throwing an error with customized accessors', async () => {
@@ -181,10 +181,10 @@ test('code is throwing an error with customized accessors', async () => {
     '--eval',
     `throw Object.defineProperty(new Error, "stack", { set() {throw this} });`]);
 
-  match(result.stderr, /Error/);
-  match(result.stderr, /at \[eval\]:1:29/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /Error/);
+  assert.match(result.stderr, /at \[eval\]:1:29/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('typescript code is throwing an error', async () => {
@@ -192,9 +192,9 @@ test('typescript code is throwing an error', async () => {
     '--eval',
     `const foo: string =  'Hello, TypeScript!'; throw new Error(foo);`]);
 
-  match(result.stderr, /Hello, TypeScript!/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /Hello, TypeScript!/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('typescript ESM code is throwing a syntax error at runtime', async () => {
@@ -205,9 +205,9 @@ test('typescript ESM code is throwing a syntax error at runtime', async () => {
   // If evaluated in JavaScript `foo<Number>(1)` is evaluated as `foo < Number > (1)`
   // result in false
   // If evaluated in TypeScript `foo<Number>(1)` is evaluated as `foo(1)`
-  match(result.stderr, /SyntaxError: false/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /SyntaxError: false/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('typescript CJS code is throwing a syntax error at runtime', async () => {
@@ -218,9 +218,9 @@ test('typescript CJS code is throwing a syntax error at runtime', async () => {
   // If evaluated in JavaScript `foo<Number>(1)` is evaluated as `foo < Number > (1)`
   // result in false
   // If evaluated in TypeScript `foo<Number>(1)` is evaluated as `foo(1)`
-  match(result.stderr, /SyntaxError: false/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /SyntaxError: false/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('check syntax error is thrown when passing invalid syntax with --input-type=commonjs-typescript', async () => {
@@ -228,9 +228,9 @@ test('check syntax error is thrown when passing invalid syntax with --input-type
     '--input-type=commonjs-typescript',
     '--eval',
     'function foo(){ await Promise.resolve(1); }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('check syntax error is thrown when passing invalid syntax with --input-type=module-typescript', async () => {
@@ -238,9 +238,9 @@ test('check syntax error is thrown when passing invalid syntax with --input-type
     '--input-type=module-typescript',
     '--eval',
     'function foo(){ await Promise.resolve(1); }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('should not allow module keyword', async () => {
@@ -248,9 +248,9 @@ test('should not allow module keyword', async () => {
     '--input-type=module-typescript',
     '--eval',
     'module F { export type x = number }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('should not allow declare module keyword', async () => {
@@ -258,9 +258,9 @@ test('should not allow declare module keyword', async () => {
     '--input-type=module-typescript',
     '--eval',
     'declare module F { export type x = number }']);
-  strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.strictEqual(result.code, 1);
 });
 
 // TODO (marco-ippolito) Remove the extra padding from the error message
@@ -270,13 +270,13 @@ test('the error message should not contain extra padding', async () => {
     '--input-type=module-typescript',
     '--eval',
     'declare module F { export type x = number }']);
-  strictEqual(result.stdout, '');
+  assert.strictEqual(result.stdout, '');
   // Windows uses \r\n as line endings
   const lines = result.stderr.replace(/\r\n/g, '\n').split('\n');
-  strictEqual(lines[0], '[eval]:1');
-  strictEqual(lines[1], 'declare module F { export type x = number }');
-  strictEqual(lines[2], '        ^^^^^^^^');
-  strictEqual(lines[4], 'SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]:' +
+  assert.strictEqual(lines[0], '[eval]:1');
+  assert.strictEqual(lines[1], 'declare module F { export type x = number }');
+  assert.strictEqual(lines[2], '        ^^^^^^^^');
+  assert.strictEqual(lines[4], 'SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]:' +
     ' `module` keyword is not supported. Use `namespace` instead.');
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.code, 1);
 });

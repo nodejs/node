@@ -39,10 +39,10 @@
         Object.defineProperty(storage, key, { "value": "test", "configurable": false });
         assert_equals(storage[key], "test");
         var desc = Object.getOwnPropertyDescriptor(storage, key);
-        assert_true(desc.configurable, "configurable");
+        assert_false(desc.configurable, "configurable");
 
-        assert_true(delete storage[key]);
-        assert_equals(storage[key], undefined);
+        assert_false(delete storage[key]);
+        assert_equals(storage[key], "test");
     }, name + ": defineProperty not configurable");
 
     test(function() {

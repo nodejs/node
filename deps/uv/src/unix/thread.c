@@ -214,7 +214,7 @@ int uv_thread_setaffinity(uv_thread_t* tid,
     if (cpumask[i])
       CPU_SET(i, &cpuset);
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__OHOS__)
   if (sched_setaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
     r = errno;
   else
@@ -242,7 +242,7 @@ int uv_thread_getaffinity(uv_thread_t* tid,
     return UV_EINVAL;
 
   CPU_ZERO(&cpuset);
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__OHOS__)
   if (sched_getaffinity(pthread_gettid_np(*tid), sizeof(cpuset), &cpuset))
     r = errno;
   else
@@ -870,9 +870,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
     return UV_ETIMEDOUT;
 
   abort();
-#ifndef __SUNPRO_C
   return UV_EINVAL;  /* Satisfy the compiler. */
-#endif
 }
 
 

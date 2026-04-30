@@ -5,6 +5,25 @@
 import("//build/config/sanitizers/sanitizers.gni")
 import("//third_party/abseil-cpp/absl.gni")
 
+absl_source_set("borrowed_fixup_buffer") {
+  sources = [ "internal/borrowed_fixup_buffer.cc" ]
+  public = [ "internal/borrowed_fixup_buffer.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:malloc_internal",
+    "//third_party/abseil-cpp/absl/hash",
+  ]
+}
+
+absl_test("borrowed_fixup_buffer_test") {
+  sources = [ "internal/borrowed_fixup_buffer_test.cc" ]
+  deps = [
+    ":borrowed_fixup_buffer",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}
+
 absl_source_set("stacktrace") {
   sources = [
     "internal/stacktrace_aarch64-inl.inc",
@@ -21,10 +40,12 @@ absl_source_set("stacktrace") {
   ]
   public = [ "stacktrace.h" ]
   deps = [
+    ":borrowed_fixup_buffer",
     ":debugging_internal",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:dynamic_annotations",
+    "//third_party/abseil-cpp/absl/base:malloc_internal",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
   ]
 }
@@ -32,8 +53,12 @@ absl_source_set("stacktrace") {
 absl_test("stacktrace_test") {
   sources = [ "stacktrace_test.cc" ]
   deps = [
+    ":borrowed_fixup_buffer",
     ":stacktrace",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:errno_saver",
+    "//third_party/abseil-cpp/absl/types:span",
   ]
 }
 
@@ -105,6 +130,7 @@ absl_source_set("debugging_internal") {
   ]
   public = [
     "internal/address_is_readable.h",
+    "internal/addresses.h",
     "internal/elf_mem_image.h",
     "internal/vdso_support.h",
   ]
@@ -217,13 +243,8 @@ absl_test("utf8_for_code_point_test") {
 }
 
 absl_source_set("leak_check") {
-  if (is_ios || is_win) {
-    sources = []
-    public = []
-  } else {
-    sources = [ "leak_check.cc" ]
-    public = [ "leak_check.h" ]
-  }
+  sources = [ "leak_check.cc" ]
+  public = [ "leak_check.h" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",

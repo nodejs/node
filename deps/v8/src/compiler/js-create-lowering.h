@@ -9,6 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -30,6 +31,7 @@ class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 class SlackTrackingPrediction;
+struct FeedbackSource;
 
 // Lowers JSCreate-level operators to fast (inline) allocations.
 class V8_EXPORT_PRIVATE JSCreateLowering final
@@ -73,15 +75,18 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceNewArray(
       Node* node, Node* length, MapRef initial_map, ElementsKind elements_kind,
       AllocationType allocation,
-      const SlackTrackingPrediction& slack_tracking_prediction);
+      const SlackTrackingPrediction& slack_tracking_prediction,
+      const FeedbackSource& feedback);
   Reduction ReduceNewArray(
       Node* node, Node* length, int capacity, MapRef initial_map,
       ElementsKind elements_kind, AllocationType allocation,
-      const SlackTrackingPrediction& slack_tracking_prediction);
+      const SlackTrackingPrediction& slack_tracking_prediction,
+      const FeedbackSource& feedback);
   Reduction ReduceNewArray(
       Node* node, std::vector<Node*> values, MapRef initial_map,
       ElementsKind elements_kind, AllocationType allocation,
-      const SlackTrackingPrediction& slack_tracking_prediction);
+      const SlackTrackingPrediction& slack_tracking_prediction,
+      const FeedbackSource& feedback);
   Reduction ReduceJSCreateObject(Node* node);
   Reduction ReduceJSCreateStringWrapper(Node* node);
 
@@ -92,11 +97,13 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Node* TryAllocateRestArguments(Node* effect, Node* control,
                                  FrameState frame_state, int start_index);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control,
-                                    FrameState frame_state, Node* context,
-                                    SharedFunctionInfoRef shared,
+                                    FrameState frame_state,
+                                    int parameter_count_without_receiver,
+                                    Node* context, SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   Node* TryAllocateAliasedArguments(Node* effect, Node* control, Node* context,
                                     Node* arguments_length,
+                                    int parameter_count_without_receiver,
                                     SharedFunctionInfoRef shared,
                                     bool* has_aliased_arguments);
   std::optional<Node*> TryAllocateFastLiteral(Node* effect, Node* control,
@@ -121,7 +128,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                               RegExpBoilerplateDescriptionRef boilerplate);
 
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   NativeContextRef native_context() const;
   CommonOperatorBuilder* common() const;

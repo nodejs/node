@@ -5,9 +5,12 @@
 #include "third_party/zlib/google/zip_writer.h"
 
 #include <algorithm>
+#include <tuple>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/logging.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "third_party/zlib/google/redact.h"
@@ -33,27 +36,29 @@ bool ZipWriter::ShouldContinue() {
 }
 
 bool ZipWriter::AddFileContent(const base::FilePath& path, base::File file) {
-  char buf[zip::internal::kZipBufSize];
+  uint8_t buf[zip::internal::kZipBufSize];
 
   while (ShouldContinue()) {
-    const int num_bytes =
-        file.ReadAtCurrentPos(buf, zip::internal::kZipBufSize);
+    const std::optional<size_t> num_bytes = file.ReadAtCurrentPos(buf);
 
-    if (num_bytes < 0) {
+    if (!num_bytes) {
       PLOG(ERROR) << "Cannot read file " << Redact(path);
       return false;
     }
 
-    if (num_bytes == 0)
+    if (*num_bytes == 0) {
       return true;
+    }
 
-    if (zipWriteInFileInZip(zip_file_, buf, num_bytes) != ZIP_OK) {
+    if (zipWriteInFileInZip(zip_file_, buf,
+                            base::checked_cast<unsigned int>(*num_bytes)) !=
+        ZIP_OK) {
       PLOG(ERROR) << "Cannot write data from file " << Redact(path)
                   << " to ZIP";
       return false;
     }
 
-    progress_.bytes += num_bytes;
+    progress_.bytes += *num_bytes;
   }
 
   return false;
@@ -193,8 +198,8 @@ bool ZipWriter::AddMixedEntries(Paths paths) {
   while (!paths.empty()) {
     // Work with chunks of 50 paths at most.
     const size_t n = std::min<size_t>(paths.size(), 50);
-    const Paths relative_paths = paths.subspan(0, n);
-    paths = paths.subspan(n, paths.size() - n);
+    Paths relative_paths;
+    std::tie(relative_paths, paths) = paths.split_at(n);
 
     files.clear();
     if (!file_accessor_->Open(relative_paths, &files) || files.size() != n)
@@ -233,8 +238,8 @@ bool ZipWriter::AddFileEntries(Paths paths) {
   while (!paths.empty()) {
     // Work with chunks of 50 paths at most.
     const size_t n = std::min<size_t>(paths.size(), 50);
-    const Paths relative_paths = paths.subspan(0, n);
-    paths = paths.subspan(n, paths.size() - n);
+    Paths relative_paths;
+    std::tie(relative_paths, paths) = paths.split_at(n);
 
     DCHECK_EQ(relative_paths.size(), n);
 

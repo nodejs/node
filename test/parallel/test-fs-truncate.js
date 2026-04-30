@@ -68,6 +68,7 @@ testTruncate(common.mustSucceed(() => {
   testFtruncate(common.mustSucceed());
 }));
 
+/* eslint-disable node-core/must-call-assert */
 function testTruncate(cb) {
   fs.writeFile(filename, data, function(er) {
     if (er) return cb(er);
@@ -124,6 +125,7 @@ function testFtruncate(cb) {
     });
   });
 }
+/* eslint-enable node-core/must-call-assert */
 
 // Make sure if the size of the file is smaller than the length then it is
 // filled with zeroes.
@@ -236,7 +238,7 @@ function testFtruncate(cb) {
 
 {
   const file8 = path.resolve(tmp, 'non-existent-truncate-file.txt');
-  const validateError = (err) => {
+  fs.truncate(file8, 0, common.mustCall((err) => {
     assert.strictEqual(file8, err.path);
     assert.strictEqual(
       err.message,
@@ -244,8 +246,7 @@ function testFtruncate(cb) {
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.syscall, 'open');
     return true;
-  };
-  fs.truncate(file8, 0, common.mustCall(validateError));
+  }));
 }
 
 ['', false, null, {}, []].forEach((input) => {

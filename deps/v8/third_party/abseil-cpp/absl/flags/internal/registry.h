@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "absl/base/config.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"
@@ -73,7 +74,7 @@ void FinalizeRegistry();
 //
 
 // Retire flag with name "name" and type indicated by ops.
-void Retire(const char* name, FlagFastTypeId type_id, char* buf);
+void Retire(const char* name, FlagFastTypeId type_id, unsigned char* buf);
 
 constexpr size_t kRetiredFlagObjSize = 3 * sizeof(void*);
 constexpr size_t kRetiredFlagObjAlignment = alignof(void*);
@@ -83,11 +84,11 @@ template <typename T>
 class RetiredFlag {
  public:
   void Retire(const char* flag_name) {
-    flags_internal::Retire(flag_name, base_internal::FastTypeId<T>(), buf_);
+    flags_internal::Retire(flag_name, absl::FastTypeId<T>(), buf_);
   }
 
  private:
-  alignas(kRetiredFlagObjAlignment) char buf_[kRetiredFlagObjSize];
+  alignas(kRetiredFlagObjAlignment) unsigned char buf_[kRetiredFlagObjSize];
 };
 
 }  // namespace flags_internal

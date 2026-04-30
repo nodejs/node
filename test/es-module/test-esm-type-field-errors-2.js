@@ -11,7 +11,7 @@ const { describe, it } = require('node:test');
 describe('Errors related to ESM type field', () => {
   it('Should throw an error when loading CJS from a `type: "module"` package.', () => {
     assert.throws(() => require('../fixtures/es-modules/package-type-module/index.js'), {
-      code: 'ERR_REQUIRE_ESM'
+      code: 'ERR_REQUIRE_ESM',
     });
   });
 });

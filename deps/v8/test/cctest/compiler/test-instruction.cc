@@ -5,13 +5,13 @@
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -26,14 +26,13 @@ using TestInstrSeq = v8::internal::compiler::InstructionSequence;
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
   InstructionTester()
-      : HandleAndZoneScope(kCompressGraphZone),
-        graph(zone()),
+      : graph(zone()),
         schedule(zone()),
         common(zone()),
         machine(zone()),
         code(nullptr) {}
 
-  Graph graph;
+  TFGraph graph;
   Schedule schedule;
   CommonOperatorBuilder common;
   MachineOperatorBuilder machine;

@@ -7,9 +7,14 @@ const assert = require('assert');
 const warnFlags = [
   '--allow-addons',
   '--allow-child-process',
+  '--allow-inspector',
   '--allow-wasi',
   '--allow-worker',
 ];
+
+if (process.config.variables.node_use_ffi) {
+  warnFlags.push('--allow-ffi');
+}
 
 for (const flag of warnFlags) {
   const { status, stderr } = spawnSync(
@@ -20,6 +25,6 @@ for (const flag of warnFlags) {
     ]
   );
 
-  assert.match(stderr.toString(), new RegExp(`SecurityWarning: The flag ${flag} must be used with extreme caution`));
+  assert.match(stderr.toString(), new RegExp(`SecurityWarning: The flag ${RegExp.escape(flag)} must be used with extreme caution`));
   assert.strictEqual(status, 0);
 }

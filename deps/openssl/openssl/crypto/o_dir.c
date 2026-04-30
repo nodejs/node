@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include <errno.h>
 
 /*
@@ -22,6 +22,7 @@
 
 #include "internal/o_dir.h"
 
+/* clang-format off */
 #define LPDIR_H
 #if defined OPENSSL_SYS_UNIX || defined DJGPP \
     || (defined __VMS_VER && __VMS_VER >= 70000000)
@@ -35,3 +36,4 @@
 #else
 # include "LPdir_nyi.c"
 #endif
+/* clang-format on */

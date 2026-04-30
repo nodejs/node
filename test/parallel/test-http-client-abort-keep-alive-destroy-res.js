@@ -24,7 +24,7 @@ server.listen(0, common.mustCall(() => {
 
   const req = http.get({ agent, port }, common.mustCall((res) => {
     res.resume();
-    res.on('end', () => {
+    res.on('end', common.mustCall(() => {
       res.destroy();
 
       http.get({ agent, port }, common.mustCall((res) => {
@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(() => {
         agent.destroy();
         server.close();
       }));
-    });
+    }));
   }));
   req.end();
 }));

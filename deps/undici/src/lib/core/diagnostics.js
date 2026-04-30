@@ -16,6 +16,8 @@ const channels = {
   // Request
   create: diagnosticsChannel.channel('undici:request:create'),
   bodySent: diagnosticsChannel.channel('undici:request:bodySent'),
+  bodyChunkSent: diagnosticsChannel.channel('undici:request:bodyChunkSent'),
+  bodyChunkReceived: diagnosticsChannel.channel('undici:request:bodyChunkReceived'),
   headers: diagnosticsChannel.channel('undici:request:headers'),
   trailers: diagnosticsChannel.channel('undici:request:trailers'),
   error: diagnosticsChannel.channel('undici:request:error'),
@@ -24,13 +26,23 @@ const channels = {
   close: diagnosticsChannel.channel('undici:websocket:close'),
   socketError: diagnosticsChannel.channel('undici:websocket:socket_error'),
   ping: diagnosticsChannel.channel('undici:websocket:ping'),
-  pong: diagnosticsChannel.channel('undici:websocket:pong')
+  pong: diagnosticsChannel.channel('undici:websocket:pong'),
+  // ProxyAgent
+  proxyConnected: diagnosticsChannel.channel('undici:proxy:connected')
 }
 
 let isTrackingClientEvents = false
 
 function trackClientEvents (debugLog = undiciDebugLog) {
   if (isTrackingClientEvents) {
+    return
+  }
+
+  // Check if any of the channels already have subscribers to prevent duplicate subscriptions
+  // This can happen when both Node.js built-in undici and undici as a dependency are present
+  if (channels.beforeConnect.hasSubscribers || channels.connected.hasSubscribers ||
+      channels.connectError.hasSubscribers || channels.sendHeaders.hasSubscribers) {
+    isTrackingClientEvents = true
     return
   }
 
@@ -85,7 +97,7 @@ function trackClientEvents (debugLog = undiciDebugLog) {
       const {
         request: { method, path, origin }
       } = evt
-      debugLog('sending request to %s %s/%s', method, origin, path)
+      debugLog('sending request to %s %s%s', method, origin, path)
     })
 }
 
@@ -93,6 +105,14 @@ let isTrackingRequestEvents = false
 
 function trackRequestEvents (debugLog = undiciDebugLog) {
   if (isTrackingRequestEvents) {
+    return
+  }
+
+  // Check if any of the channels already have subscribers to prevent duplicate subscriptions
+  // This can happen when both Node.js built-in undici and undici as a dependency are present
+  if (channels.headers.hasSubscribers || channels.trailers.hasSubscribers ||
+      channels.error.hasSubscribers) {
+    isTrackingRequestEvents = true
     return
   }
 
@@ -105,7 +125,7 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
         response: { statusCode }
       } = evt
       debugLog(
-        'received response to %s %s/%s - HTTP %d',
+        'received response to %s %s%s - HTTP %d',
         method,
         origin,
         path,
@@ -118,7 +138,7 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
       const {
         request: { method, path, origin }
       } = evt
-      debugLog('trailers received from %s %s/%s', method, origin, path)
+      debugLog('trailers received from %s %s%s', method, origin, path)
     })
 
   diagnosticsChannel.subscribe('undici:request:error',
@@ -128,7 +148,7 @@ function trackRequestEvents (debugLog = undiciDebugLog) {
         error
       } = evt
       debugLog(
-        'request to %s %s/%s errored - %s',
+        'request to %s %s%s errored - %s',
         method,
         origin,
         path,
@@ -144,14 +164,25 @@ function trackWebSocketEvents (debugLog = websocketDebuglog) {
     return
   }
 
+  // Check if any of the channels already have subscribers to prevent duplicate subscriptions
+  // This can happen when both Node.js built-in undici and undici as a dependency are present
+  if (channels.open.hasSubscribers || channels.close.hasSubscribers ||
+      channels.socketError.hasSubscribers || channels.ping.hasSubscribers ||
+      channels.pong.hasSubscribers) {
+    isTrackingWebSocketEvents = true
+    return
+  }
+
   isTrackingWebSocketEvents = true
 
   diagnosticsChannel.subscribe('undici:websocket:open',
     evt => {
-      const {
-        address: { address, port }
-      } = evt
-      debugLog('connection opened %s%s', address, port ? `:${port}` : '')
+      if (evt.address != null) {
+        const { address, port } = evt.address
+        debugLog('connection opened %s%s', address, port ? `:${port}` : '')
+      } else {
+        debugLog('connection opened')
+      }
     })
 
   diagnosticsChannel.subscribe('undici:websocket:close',

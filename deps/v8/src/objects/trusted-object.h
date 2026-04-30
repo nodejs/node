@@ -42,9 +42,10 @@ class TrustedObject : public HeapObject {
   // outside of the sandbox, where they are protected from an attacker. As
   // such, the slot accessors for these slots only exist on TrustedObjects but
   // not on other HeapObjects.
-  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset) const;
-  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset,
-                                                         AcquireLoadTag) const;
+  template <typename T = TrustedObject>
+  inline Tagged<T> ReadProtectedPointerField(int offset) const;
+  template <typename T = TrustedObject>
+  inline Tagged<T> ReadProtectedPointerField(int offset, AcquireLoadTag) const;
   inline void WriteProtectedPointerField(int offset,
                                          Tagged<TrustedObject> value);
   inline void WriteProtectedPointerField(int offset,
@@ -56,6 +57,8 @@ class TrustedObject : public HeapObject {
   inline void ClearProtectedPointerField(int offset, ReleaseStoreTag);
 
   inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
+  inline ProtectedMaybeObjectSlot RawProtectedMaybeObjectField(
+      int byte_offset) const;
 
 #ifdef VERIFY_HEAP
   inline void VerifyProtectedPointerField(Isolate* isolate, int offset);
@@ -65,6 +68,11 @@ class TrustedObject : public HeapObject {
 
   OBJECT_CONSTRUCTORS(TrustedObject, HeapObject);
 };
+
+V8_OBJECT class TrustedObjectLayout : public HeapObjectLayout {
+ public:
+  DECL_VERIFIER(TrustedObject)
+} V8_OBJECT_END;
 
 // A trusted object that can safely be referenced from untrusted objects.
 //
@@ -100,8 +108,33 @@ class TrustedObject : public HeapObject {
 // document the potential pitfalls when doing so.
 class ExposedTrustedObject : public TrustedObject {
  public:
-  // Initializes this object by creating its pointer table entry.
-  inline void init_self_indirect_pointer(IsolateForSandbox isolate);
+  // Initializes this object by allocating its pointer table entry. This
+  // initializer function immediately makes the trusted object accessible from
+  // within the sandbox ("publishes" it). If that is undesirable (e.g. because
+  // the object may be in an inconsistent state or require addition
+  // validation), use the InitDontPublish variant instead.
+  inline void InitAndPublish(Isolate* isolate);
+  inline void InitAndPublish(LocalIsolate* isolate);
+
+  // Initializes this object by allocating its pointer table entry, but doesn't
+  // yet make the object accessible from within the sandbox. This is achieved
+  // by using a special "unpublished" tag for the table entry, which causes any
+  // access to the object via the table (so from within the sandbox) to fail
+  // the type check. The object will need to be published manually before it
+  // can be used by calling the Publish method.
+  inline void InitDontPublish(Isolate* isolate);
+  inline void InitDontPublish(LocalIsolate* isolate);
+
+  // Publishes this object so it becomes accessible from within the sandbox.
+  //
+  // This is only needed if the object was initialized without publishing it,
+  // in which case its pointer table entry will not be usable (as it uses an
+  // invalid type tag) until this method is called.
+  inline void Publish(IsolateForSandbox isolate);
+
+  // Returns true if this trusted object is "published", i.e. accessible from
+  // within the sandbox via the trusted pointer table.
+  inline bool IsPublished(IsolateForSandbox isolate) const;
 
   // Returns the 'self' indirect pointer of this object.
   // This indirect pointer references a pointer table entry (either in the
@@ -128,6 +161,28 @@ class ExposedTrustedObject : public TrustedObject {
 
   OBJECT_CONSTRUCTORS(ExposedTrustedObject, TrustedObject);
 };
+
+V8_OBJECT class ExposedTrustedObjectLayout : public TrustedObjectLayout {
+ public:
+  // Initializes this object by allocating its pointer table entry.
+  // This initializer function immediately makes the trusted object accessible
+  // from within the sandbox. If that is undesirable (e.g. because the object
+  // may be in an inconsistent state or require addition validation), use the
+  // InitDontPublish variant instead.
+  inline void InitAndPublish(Isolate* isolate);
+  inline void InitAndPublish(LocalIsolate* isolate);
+
+  inline IndirectPointerHandle self_indirect_pointer_handle() const;
+
+  DECL_VERIFIER(ExposedTrustedObject)
+
+ private:
+#ifdef V8_ENABLE_SANDBOX
+  // The 'self' indirect pointer is only available when the sandbox is enabled.
+  // Otherwise, these objects are referenced through direct pointers.
+  std::atomic<IndirectPointerHandle> self_indirect_pointer_;
+#endif  // V8_ENABLE_SANDBOX
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

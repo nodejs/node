@@ -35,18 +35,18 @@ extern macro CodeStubAssembler::CloneFixedArray(
     FixedArrayBase, constexpr ExtractFixedArrayFlag): FixedArrayBase;
 
 extern macro CollectionsBuiltinsAssembler::AddToSetTable(
-    implicit context: Context)(OrderedHashSet, Object, String): OrderedHashSet;
+    implicit context: Context)(OrderedHashSet, JSAny, String): OrderedHashSet;
 
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
-    implicit context: Context)(OrderedHashSet, Object): bool;
+    implicit context: Context)(OrderedHashSet, JSAny): bool;
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
-    implicit context: Context)(OrderedHashMap, Object): bool;
+    implicit context: Context)(OrderedHashMap, JSAny): bool;
 
 extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
-    implicit context: Context)(OrderedHashSet, Object): Smi labels NotFound;
+    implicit context: Context)(OrderedHashSet, JSAny): Smi labels NotFound;
 
-extern runtime OrderedHashSetShrink(implicit context: Context)(OrderedHashSet):
-    OrderedHashSet;
+extern runtime OrderedHashSetShrink(implicit context: Context)(
+                                    OrderedHashSet): OrderedHashSet;
 
 // Direct iteration helpers.
 @export
@@ -126,8 +126,7 @@ macro NewUnmodifiedOrderedHashSetIterator(table: OrderedHashSet):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyIndexPair {
-      key:
-        Undefined, index: 0
+      key: Undefined, index: 0
     }
   };
 }
@@ -137,8 +136,7 @@ macro NewOrderedHashSetIterator(table: OrderedHashSet):
   return OrderedHashSetIterator{
     table: table,
     current: KeyIndexPair {
-      key:
-        Undefined, index: 0
+      key: Undefined, index: 0
     }
   };
 }
@@ -211,8 +209,7 @@ macro NewUnmodifiedOrderedHashMapIterator(table: OrderedHashMap):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyValueIndexTuple {
-      key:
-        Undefined, value: Undefined, index: 0
+      key: Undefined, value: Undefined, index: 0
     }
   };
 }
@@ -252,8 +249,8 @@ macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
 }
 
 @export
-transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
-    KeyValuePair {
+transitioning macro LoadKeyValuePair(implicit context: Context)(
+                                     o: JSAny): KeyValuePair {
   try {
     return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
   } label Generic {
@@ -396,7 +393,7 @@ struct StableJSSetBackingTableWitness {
         this.unstable, kOrderedHashSetNumberOfElementsIndex);
   }
 
-  macro HasKey(implicit context: Context)(key: Object): bool {
+  macro HasKey(implicit context: Context)(key: JSAny): bool {
     return TableHasKey(this.unstable, key);
   }
 
@@ -414,7 +411,7 @@ struct StableJSMapBackingTableWitness {
         this.unstable, kOrderedHashMapNumberOfElementsIndex);
   }
 
-  macro HasKey(implicit context: Context)(key: Object): bool {
+  macro HasKey(implicit context: Context)(key: JSAny): bool {
     return TableHasKey(this.unstable, key);
   }
 

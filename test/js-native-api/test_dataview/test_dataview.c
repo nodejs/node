@@ -20,9 +20,18 @@ static napi_value CreateDataView(napi_env env, napi_callback_info info) {
 
   bool is_arraybuffer;
   NODE_API_CALL(env, napi_is_arraybuffer(env, arraybuffer, &is_arraybuffer));
-  NODE_API_ASSERT(env, is_arraybuffer,
-              "Wrong type of arguments. Expects a ArrayBuffer as the first "
-              "argument.");
+
+  if (!is_arraybuffer) {
+    bool is_sharedarraybuffer;
+    NODE_API_CALL(
+        env,
+        node_api_is_sharedarraybuffer(env, arraybuffer, &is_sharedarraybuffer));
+    NODE_API_ASSERT(env,
+                    is_sharedarraybuffer,
+                    "Wrong type of arguments. Expects a SharedArrayBuffer or "
+                    "ArrayBuffer as the first "
+                    "argument.");
+  }
 
   napi_valuetype valuetype1;
   NODE_API_CALL(env, napi_typeof(env, args[1], &valuetype1));

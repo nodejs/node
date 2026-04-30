@@ -9,14 +9,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "perfetto/protozero/scattered_heap_buffer.h"
-#include "perfetto/tracing/data_source.h"
-#include "protos/perfetto/config/chrome/v8_config.gen.h"
-#include "protos/perfetto/trace/interned_data/interned_data.pbzero.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/handles/handles.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/tagged.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/tracing/perfetto-utils.h"
 
 namespace v8 {
@@ -26,6 +23,12 @@ class CodeDataSourceIncrementalState;
 class Isolate;
 class Script;
 class SharedFunctionInfo;
+
+#if V8_ENABLE_WEBASSEMBLY
+namespace wasm {
+class NativeModule;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct CodeDataSourceTraits : public perfetto::DefaultDataSourceTraits {
   using IncrementalStateType = CodeDataSourceIncrementalState;
@@ -46,7 +49,6 @@ class CodeDataSource
  private:
   using Base = DataSource<CodeDataSource, CodeDataSourceTraits>;
 
-  int num_active_instances = 0;
   perfetto::protos::gen::V8Config config_;
 };
 
@@ -64,11 +66,16 @@ class CodeDataSourceIncrementalState {
 
   uint64_t InternIsolate(Isolate& isolate);
   uint64_t InternJsScript(Isolate& isolate, Tagged<Script> script);
-  uint64_t InternJsFunction(Isolate& isolate, Handle<SharedFunctionInfo> info,
+  uint64_t InternJsFunction(Isolate& isolate,
+                            DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num);
+#if V8_ENABLE_WEBASSEMBLY
   uint64_t InternWasmScript(Isolate& isolate, int script_id,
-                            const std::string& url);
+                            std::string_view url,
+                            wasm::NativeModule* native_module);
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_initialized() const { return initialized_; }
   bool log_script_sources() const { return log_script_sources_; }

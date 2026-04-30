@@ -22,17 +22,25 @@ namespace detail {
 // SlotType will be HeapObjectSlot, which is defined in "globals.h" as an
 // incomplete type. Its definition depends on whether pointer compression
 // is used. It needs to be defined before this type is used.
-template <typename SlotType>
+template <typename TSlotType>
 struct HeapObjectAndSlotPOD {
+  using SlotType = TSlotType;
   Tagged<HeapObject> heap_object;
   SlotType slot;
 };
 }  // namespace detail
 
 using HeapObjectAndSlot = detail::HeapObjectAndSlotPOD<HeapObjectSlot>;
+using TrustedObjectAndSlot =
+    detail::HeapObjectAndSlotPOD<ProtectedMaybeObjectSlot>;
 
 struct HeapObjectAndCode {
   Tagged<HeapObject> heap_object;
+  Tagged<Code> code;
+};
+
+struct DispatchHandleAndCode {
+  JSDispatchHandle dispatch_handle;
   Tagged<Code> code;
 };
 
@@ -47,9 +55,6 @@ class TransitionArray;
 // 1) Type of the worklist entry.
 // 2) Lower-case name of the worklsit.
 // 3) Capitalized name of the worklist.
-//
-// If you add a new entry, then you also need to implement the corresponding
-// Update*() function in the cc file for updating pointers after Scavenge.
 #define WEAK_OBJECT_WORKLISTS(F)                                              \
   F(Tagged<TransitionArray>, transition_arrays, TransitionArrays)             \
   /* Keep track of all EphemeronHashTables in the heap to process             \
@@ -64,22 +69,20 @@ class TransitionArray;
   F(Ephemeron, current_ephemerons, CurrentEphemerons)                         \
   /* Stores ephemerons to visit in the next fixpoint iteration. */            \
   F(Ephemeron, next_ephemerons, NextEphemerons)                               \
-  /* When draining the marking worklist new discovered ephemerons are pushed  \
-      into this worklist. */                                                  \
-  F(Ephemeron, discovered_ephemerons, DiscoveredEphemerons)                   \
   /* TODO(marja): For old space, we only need the slot, not the host object.  \
      Optimize this by adding a different storage for old space. */            \
   F(HeapObjectAndSlot, weak_references_trivial, WeakReferencesTrivial)        \
   F(HeapObjectAndSlot, weak_references_non_trivial, WeakReferencesNonTrivial) \
   F(HeapObjectAndSlot, weak_references_non_trivial_unmarked,                  \
     WeakReferencesNonTrivialUnmarked)                                         \
+  F(TrustedObjectAndSlot, weak_references_trusted, WeakReferencesTrusted)     \
   F(HeapObjectAndCode, weak_objects_in_code, WeakObjectsInCode)               \
+  F(DispatchHandleAndCode, weak_dispatch_handles_in_code,                     \
+    WeakDispatchHandlesInCode)                                                \
   F(Tagged<JSWeakRef>, js_weak_refs, JSWeakRefs)                              \
   F(Tagged<WeakCell>, weak_cells, WeakCells)                                  \
   F(Tagged<SharedFunctionInfo>, code_flushing_candidates,                     \
     CodeFlushingCandidates)                                                   \
-  F(Tagged<JSFunction>, baseline_flushing_candidates,                         \
-    BaselineFlushingCandidates)                                               \
   F(Tagged<JSFunction>, flushed_js_functions, FlushedJSFunctions)
 
 class WeakObjects final {
@@ -106,19 +109,7 @@ class WeakObjects final {
   WEAK_OBJECT_WORKLISTS(DECLARE_WORKLIST)
 #undef DECLARE_WORKLIST
 
-  void UpdateAfterScavenge();
   void Clear();
-
- private:
-#define DECLARE_UPDATE_METHODS(Type, _, Name) \
-  static void Update##Name(WeakObjectWorklist<Type>&);
-  WEAK_OBJECT_WORKLISTS(DECLARE_UPDATE_METHODS)
-#undef DECLARE_UPDATE_METHODS
-
-#ifdef DEBUG
-  template <typename Type>
-  static bool ContainsYoungObjects(WeakObjectWorklist<Tagged<Type>>& worklist);
-#endif
 };
 
 }  // namespace internal

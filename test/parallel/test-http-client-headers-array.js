@@ -1,18 +1,17 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 const http = require('http');
 
 function execute(options) {
-  http.createServer(function(req, res) {
-    const expectHeaders = {
-      'x-foo': 'boom',
-      'cookie': 'a=1; b=2; c=3',
-      'connection': 'keep-alive',
-      'host': 'example.com',
-    };
+  http.createServer(common.mustCall(function(req, res) {
+    const expectHeaders = { '__proto__': null,
+                            'x-foo': 'boom',
+                            'cookie': 'a=1; b=2; c=3',
+                            'connection': 'keep-alive',
+                            'host': 'example.com' };
 
     // no Host header when you set headers an array
     if (!Array.isArray(options.headers)) {
@@ -31,7 +30,7 @@ function execute(options) {
 
     res.writeHead(200, { 'Connection': 'close' });
     res.end();
-  }).listen(0, function() {
+  })).listen(0, function() {
     options = Object.assign(options, {
       port: this.address().port,
       path: '/'

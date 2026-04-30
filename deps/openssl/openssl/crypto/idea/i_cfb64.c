@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,8 +24,8 @@
  */
 
 void IDEA_cfb64_encrypt(const unsigned char *in, unsigned char *out,
-                        long length, IDEA_KEY_SCHEDULE *schedule,
-                        unsigned char *ivec, int *num, int encrypt)
+    long length, IDEA_KEY_SCHEDULE *schedule,
+    unsigned char *ivec, int *num, int encrypt)
 {
     register unsigned long v0, v1, t;
     register int n = *num;
@@ -37,6 +37,7 @@ void IDEA_cfb64_encrypt(const unsigned char *in, unsigned char *out,
         *num = -1;
         return;
     }
+    n = n & 0x07;
 
     iv = (unsigned char *)ivec;
     if (encrypt) {

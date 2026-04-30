@@ -16,10 +16,16 @@ if (process.argv[2] === 'child') {
   console.log('parent prof file:', parentProf);
 
   const { Worker } = require('worker_threads');
+  let spinTime = 1500;
+  if (common.isWindows || common.isMacOS || process.arch === 's390x') {
+    // Windows and MacOS tend to be flaky in CI, s390x as well.
+    // Give them more spins.
+    spinTime = 4500;
+  }
   const w = new Worker(`
   const { parentPort, workerData } = require('worker_threads');
 
-  const SPIN_MS = 1000;
+  const SPIN_MS = ${spinTime};
   const start = Date.now();
   parentPort.on('message', (data) => {
     if (Date.now() - start < SPIN_MS) {
@@ -58,7 +64,7 @@ if (process.argv[2] === 'child') {
         assert.match(output, workerProfRegexp);
         assert.match(output, parentProfRegexp);
         return true;
-      }
+      },
     });
   const workerProf = stdout.match(workerProfRegexp)[1];
   const parentProf = stdout.match(parentProfRegexp)[1];
@@ -76,8 +82,8 @@ if (process.argv[2] === 'child') {
   console.log('parent ticks', parentTicks.length);
   // When not tracking Worker threads, only 1 or 2 ticks would
   // have been recorded.
-  // prof_sampling_interval is by default 1 millisecond. A higher NODE_TEST_SPIN_MS
-  // should result in more ticks, while 15 should be safe on most machines.
-  assert(workerTicks.length > 15, `worker ticks <= 15:\n${workerTicks.join('\n')}`);
-  assert(parentTicks.length > 15, `parent ticks <= 15:\n${parentTicks.join('\n')}`);
+  // prof_sampling_interval is by default 1 millisecond. A higher SPIN_MS
+  // should result in more ticks, while 10 should be safe on most machines.
+  assert(workerTicks.length > 10, `worker ticks <= 10:\n${workerTicks.join('\n')}`);
+  assert(parentTicks.length > 10, `parent ticks <= 10:\n${parentTicks.join('\n')}`);
 }

@@ -14,7 +14,7 @@
       'link_settings': {
         'libraries': ['<@(openssl_cli_libraries_win)'],
       },
-    }, 'OS in "linux android"', {
+    }, 'OS in "linux android openharmony"', {
       'link_settings': {
         'libraries': [
           '-ldl',
@@ -24,6 +24,16 @@
     # Avoid excessive LTO
     ['enable_lto=="true"', {
       'ldflags': [ '-fno-lto' ],
+    }],
+    ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'AdditionalOptions': ['-fno-lto'],
+        },
+        'VCLinkerTool': {
+          'AdditionalOptions': ['-fno-lto'],
+        },
+      },
     }],
   ],
 }

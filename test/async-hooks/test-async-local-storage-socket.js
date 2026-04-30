@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 // Regression tests for https://github.com/nodejs/node/issues/40693
 
@@ -13,15 +13,15 @@ net
     socket.write('Hello, world!');
     socket.pipe(socket);
   })
-  .listen(0, function() {
+  .listen(0, common.mustCall(function() {
     const asyncLocalStorage = new AsyncLocalStorage();
     const store = { val: 'abcd' };
-    asyncLocalStorage.run(store, () => {
+    asyncLocalStorage.run(store, common.mustCall(() => {
       const client = net.connect({ port: this.address().port });
-      client.on('data', () => {
+      client.on('data', common.mustCall(() => {
         assert.deepStrictEqual(asyncLocalStorage.getStore(), store);
         client.end();
         this.close();
-      });
-    });
-  });
+      }));
+    }));
+  }));

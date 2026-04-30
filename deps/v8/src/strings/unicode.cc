@@ -14,14 +14,55 @@
 #include "src/strings/unicode-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/third_party/utf8-decoder/generalized-utf8-decoder.h"
+#include "third_party/utf8-decoder/generalized-utf8-decoder.h"
 #endif
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
 #endif
 
+#include "hwy/highway.h"
+#include "third_party/simdutf/simdutf.h"
+
 namespace unibrow {
+
+template <>
+size_t Utf8::WriteLeadingAscii<uint8_t>(const uint8_t* src, char* dest,
+                                        size_t length) {
+  namespace hw = hwy::HWY_NAMESPACE;
+  const hw::ScalableTag<int8_t> d;
+  const size_t N = hw::Lanes(d);
+  // Don't bother with simd if the string isn't long enough. We're using 2
+  // registers, so don't enter the loop unless we can iterate 2 times through.
+  if (length < 4 * N) {
+    return 0;
+  }
+  // We're checking ascii by checking the sign bit so make the strings signed.
+  const int8_t* src_s = reinterpret_cast<const int8_t*>(src);
+  int8_t* dst_s = reinterpret_cast<int8_t*>(dest);
+  size_t i = 0;
+  DCHECK_GE(length, 2 * N);
+  for (; i <= length - 2 * N; i += 2 * N) {
+    const auto v0 = hw::LoadU(d, src_s + i);
+    const auto v1 = hw::LoadU(d, src_s + i + N);
+    const auto combined = hw::Or(v0, v1);
+    bool is_ascii = hw::AllTrue(d, hw::Ge(combined, hw::Zero(d)));
+    if (is_ascii) {
+      hw::StoreU(v0, d, dst_s + i);
+      hw::StoreU(v1, d, dst_s + i + N);
+    } else {
+      break;
+    }
+  }
+  return i;
+}
+
+template <>
+size_t Utf8::WriteLeadingAscii<uint16_t>(const uint16_t* src, char* dest,
+                                         size_t size) {
+  // TODO(dcarney): this could be implemented similarly to the one byte variant
+  return 0;
+}
 
 #ifndef V8_INTL_SUPPORT
 static const int kStartBit = (1 << 30);
@@ -232,43 +273,16 @@ uchar Utf8::ValueOfIncrementalFinish(State* state) {
 }
 
 bool Utf8::ValidateEncoding(const uint8_t* bytes, size_t length) {
-  State state = State::kAccept;
-  Utf8IncrementalBuffer throw_away = 0;
-  for (size_t i = 0; i < length && state != State::kReject; i++) {
-    Utf8DfaDecoder::Decode(bytes[i], &state, &throw_away);
-  }
-  return state == State::kAccept;
+  return simdutf::validate_utf8(reinterpret_cast<const char*>(bytes), length);
 }
 
 // static
 void Utf16::ReplaceUnpairedSurrogates(const uint16_t* source_code_units,
                                       uint16_t* dest_code_units,
                                       size_t length) {
-  // U+FFFD (REPLACEMENT CHARACTER)
-  constexpr uint16_t kReplacement = 0xFFFD;
-
-  for (size_t i = 0; i < length; i++) {
-    const uint16_t source_code_unit = source_code_units[i];
-    const size_t copy_index = i;
-    uint16_t dest_code_unit = source_code_unit;
-    if (IsLeadSurrogate(source_code_unit)) {
-      // The current code unit is a leading surrogate. If it's not followed by a
-      // trailing surrogate, replace it with the replacement character.
-      if (i == length - 1 || !IsTrailSurrogate(source_code_units[i + 1])) {
-        dest_code_unit = kReplacement;
-      } else {
-        // Copy the paired trailing surrogate. The paired leading surrogate will
-        // be copied below.
-        ++i;
-        dest_code_units[i] = source_code_units[i];
-      }
-    } else if (IsTrailSurrogate(source_code_unit)) {
-      // All paired trailing surrogates are skipped above, so this branch is
-      // only for those that are unpaired.
-      dest_code_unit = kReplacement;
-    }
-    dest_code_units[copy_index] = dest_code_unit;
-  }
+  simdutf::to_well_formed_utf16(
+      reinterpret_cast<const char16_t*>(source_code_units), length,
+      reinterpret_cast<char16_t*>(dest_code_units));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

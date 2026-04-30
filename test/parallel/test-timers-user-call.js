@@ -25,12 +25,12 @@ const common = require('../common');
 }
 
 {
-  const testInterval = (...args) => {
+  const testInterval = common.mustCall((...args) => {
     const fn = common.mustCall(() => { clearInterval(interval); });
     fn.call = 'not a function';
     fn.apply = 'also not a function';
     const interval = setInterval(fn, 1, ...args);
-  };
+  }, 5);
 
   testInterval();
   testInterval('oneArg');

@@ -9,13 +9,13 @@ const async_hooks = require('async_hooks');
 
 let initialAsyncId;
 const promise = new Promise((resolve) => {
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     initialAsyncId = async_hooks.executionAsyncId();
     async_hooks.createHook({
       after: common.mustCall(2)
     }).enable();
     resolve();
-  }, 0);
+  }), 0);
 });
 
 promise.then(common.mustCall(() => {

@@ -57,8 +57,6 @@ struct NodeWithInLineInputs {};
 template <typename NodePtrT>
 Node* Node::NewImpl(Zone* zone, NodeId id, const Operator* op, int input_count,
                     NodePtrT const* inputs, bool has_extensible_inputs) {
-  // Node uses compressed pointers, so zone must support pointer compression.
-  DCHECK_IMPLIES(kCompressGraphZone, zone->supports_compression());
   DCHECK_GE(input_count, 0);
 
   ZoneNodePtr* input_ptr;
@@ -358,11 +356,11 @@ void PrintNode(const Node* node, std::ostream& os, int depth,
     os << "  ";
   }
   if (node) {
-    os << *node;
+    os << *node << std::endl;
   } else {
-    os << "(NULL)";
+    os << "(NULL)" << std::endl;
+    return;
   }
-  os << std::endl;
   if (depth <= 0) return;
   for (Node* input : node->inputs()) {
     PrintNode(input, os, depth - 1, indentation + 1);
@@ -505,7 +503,6 @@ bool Node::Uses::empty() const { return begin() == end(); }
 }  // namespace internal
 }  // namespace v8
 
-V8_DONT_STRIP_SYMBOL
-V8_EXPORT_PRIVATE extern void _v8_internal_Node_Print(void* object) {
+V8_DEBUGGING_EXPORT extern void _v8_internal_Node_Print(void* object) {
   reinterpret_cast<i::compiler::Node*>(object)->Print();
 }

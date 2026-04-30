@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/script.h"
@@ -56,7 +57,6 @@ class Zone;
   V(private_name_lookup_skips_outer_class, bool, 1, _)          \
   V(requires_instance_members_initializer, bool, 1, _)          \
   V(has_static_private_methods_or_accessors, bool, 1, _)        \
-  V(might_always_turbofan, bool, 1, _)                          \
   V(allow_natives_syntax, bool, 1, _)                           \
   V(allow_lazy_compile, bool, 1, _)                             \
   V(post_parallel_compile_tasks_for_eager_toplevel, bool, 1, _) \
@@ -64,7 +64,8 @@ class Zone;
   V(collect_source_positions, bool, 1, _)                       \
   V(is_repl_mode, bool, 1, _)                                   \
   V(produce_compile_hints, bool, 1, _)                          \
-  V(compile_hints_magic_enabled, bool, 1, _)
+  V(compile_hints_magic_enabled, bool, 1, _)                    \
+  V(compile_hints_per_function_magic_enabled, bool, 1, _)
 
 class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
  public:
@@ -202,7 +203,7 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   AstValueFactory* ast_value_factory() const {
     return ast_value_factory_.get();
   }
-  uint64_t hash_seed() const { return hash_seed_; }
+  HashSeed hash_seed() const { return hash_seed_; }
   AccountingAllocator* allocator() const { return allocator_; }
   const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
@@ -212,7 +213,7 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   LazyCompileDispatcher* dispatcher() const { return dispatcher_; }
 
  private:
-  uint64_t hash_seed_;
+  const HashSeed hash_seed_;
   AccountingAllocator* allocator_;
   V8FileLogger* v8_file_logger_;
   LazyCompileDispatcher* dispatcher_;
@@ -237,17 +238,18 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<Script> CreateScript(IsolateT* isolate, Handle<String> source,
-                              MaybeHandle<FixedArray> maybe_wrapped_arguments,
-                              ScriptOriginOptions origin_options,
-                              NativesFlag natives = NOT_NATIVES_CODE);
+  Handle<Script> CreateScript(
+      IsolateT* isolate, DirectHandle<String> source,
+      MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
+      ScriptOriginOptions origin_options,
+      NativesFlag natives = NOT_NATIVES_CODE);
 
   Zone* zone() const { return reusable_state_->single_parse_zone(); }
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
 
   // Getters for reusable state.
-  uint64_t hash_seed() const { return reusable_state_->hash_seed(); }
+  HashSeed hash_seed() const { return reusable_state_->hash_seed(); }
   AccountingAllocator* allocator() const {
     return reusable_state_->allocator();
   }

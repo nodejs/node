@@ -8,8 +8,8 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins.h"
 #include "src/common/ptr-compr-inl.h"
@@ -7102,17 +7102,17 @@ TEST(RunChangeInt64ToFloat64) {
 
 TEST(RunBitcastInt64ToFloat64) {
   int64_t input = 1;
-  Float64 output;
+  uint64_t output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      output.get_bits_address(), MachineRepresentation::kFloat64,
+      &output, MachineRepresentation::kFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, MachineType::Int64())));
   m.Return(m.Int32Constant(11));
   FOR_INT64_INPUTS(i) {
     input = i;
     CHECK_EQ(11, m.Call());
     Float64 expected = Float64::FromBits(input);
-    CHECK_EQ(expected.get_bits(), output.get_bits());
+    CHECK_EQ(expected.get_bits(), output);
   }
 }
 
@@ -7127,7 +7127,7 @@ TEST(RunBitcastFloat64ToInt64) {
 
 TEST(RunTryTruncateFloat32ToInt64WithoutCheck) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float32());
-  m.Return(m.TryTruncateFloat32ToInt64(m.Parameter(0)));
+  m.Return(m.Projection(0, m.TryTruncateFloat32ToInt64(m.Parameter(0))));
 
   FOR_INT64_INPUTS(i) {
     float input = static_cast<float>(i);
@@ -7163,7 +7163,7 @@ TEST(RunTryTruncateFloat32ToInt64WithCheck) {
 
 TEST(RunTryTruncateFloat64ToInt64WithoutCheck) {
   BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Float64());
-  m.Return(m.TryTruncateFloat64ToInt64(m.Parameter(0)));
+  m.Return(m.Projection(0, m.TryTruncateFloat64ToInt64(m.Parameter(0))));
 
   FOR_FLOAT64_INPUTS(i) {
     if (base::IsValueInRangeForNumericType<int64_t>(i)) {
@@ -7199,7 +7199,7 @@ TEST(RunTryTruncateFloat64ToInt64WithCheck) {
 
 TEST(RunTryTruncateFloat32ToUint64WithoutCheck) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Float32());
-  m.Return(m.TryTruncateFloat32ToUint64(m.Parameter(0)));
+  m.Return(m.Projection(0, m.TryTruncateFloat32ToUint64(m.Parameter(0))));
 
   FOR_UINT64_INPUTS(i) {
     float input = static_cast<float>(i);
@@ -7236,7 +7236,7 @@ TEST(RunTryTruncateFloat32ToUint64WithCheck) {
 
 TEST(RunTryTruncateFloat64ToUint64WithoutCheck) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Float64());
-  m.Return(m.TryTruncateFloat64ToUint64(m.Parameter(0)));
+  m.Return(m.Projection(0, m.TryTruncateFloat64ToUint64(m.Parameter(0))));
 
   FOR_UINT64_INPUTS(j) {
     double input = static_cast<double>(j);
@@ -7503,17 +7503,17 @@ TEST(RunRoundUint32ToFloat32) {
 
 TEST(RunBitcastInt32ToFloat32) {
   int32_t input = 1;
-  Float32 output;
+  uint32_t output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      output.get_bits_address(), MachineRepresentation::kFloat32,
+      &output, MachineRepresentation::kFloat32,
       m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, MachineType::Int32())));
   m.Return(m.Int32Constant(11));
   FOR_INT32_INPUTS(i) {
     input = i;
     CHECK_EQ(11, m.Call());
     Float32 expected = Float32::FromBits(input);
-    CHECK_EQ(expected.get_bits(), output.get_bits());
+    CHECK_EQ(expected.get_bits(), output);
   }
 }
 
@@ -7549,7 +7549,7 @@ TEST(RunComputedCodeObject) {
   Signature<LinkageLocation> loc(1, 0, ret);
   auto call_descriptor = r.zone()->New<CallDescriptor>(  // --
       CallDescriptor::kCallCodeObject,                   // kind
-      kDefaultCodeEntrypointTag,                         // tag
+      kCodeEntrypointTagForTesting,                      // tag
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
       &loc,                                              // location_sig

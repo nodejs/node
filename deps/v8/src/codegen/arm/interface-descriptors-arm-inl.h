@@ -146,9 +146,11 @@ constexpr Register DefineKeyedOwnDescriptor::FlagsRegister() { return r5; }
 constexpr Register StoreTransitionDescriptor::MapRegister() { return r5; }
 
 // static
-constexpr Register ApiGetterDescriptor::HolderRegister() { return r0; }
+constexpr Register CallApiGetterDescriptor::NameRegister() {
+  return kCArgRegs[0];
+}
 // static
-constexpr Register ApiGetterDescriptor::CallbackRegister() { return r3; }
+constexpr Register CallApiGetterDescriptor::CallbackRegister() { return r3; }
 
 // static
 constexpr Register GrowArrayElementsDescriptor::ObjectRegister() { return r0; }
@@ -314,6 +316,14 @@ constexpr auto Compare_BaselineDescriptor::registers() {
 }
 
 // static
+constexpr auto Compare_WithEmbeddedFeedbackOffsetDescriptor::registers() {
+  // r1: left operand
+  // r0: right operand
+  // r2: feedback offset
+  return RegisterArray(r1, r0, r2);
+}
+
+// static
 constexpr auto BinaryOpDescriptor::registers() { return RegisterArray(r1, r0); }
 
 // static
@@ -347,10 +357,6 @@ constexpr Register
 CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return r3;
 }
-// static
-constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
-  return r0;
-}
 
 // static
 constexpr Register
@@ -366,10 +372,6 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return r3;
-}
-// static
-constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
-  return r0;
 }
 
 // static

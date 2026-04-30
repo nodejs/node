@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 
 BUILTIN(Illegal) {
-  UNREACHABLE();
+  // Make it distinguishable from other UNREACHABLE() calls for convenience.
+  FATAL("Called Illegal builtin");
 }
 
 BUILTIN(IllegalInvocationThrower) {
@@ -22,6 +23,11 @@ BUILTIN(IllegalInvocationThrower) {
 }
 
 BUILTIN(EmptyFunction) { return ReadOnlyRoots(isolate).undefined_value(); }
+
+// TODO(366374966): remove this second version of EmptyFunction once the
+// CPP macro becomes the source of truth for the builtin's formal parameter
+// count.
+BUILTIN(EmptyFunction1) { return ReadOnlyRoots(isolate).undefined_value(); }
 
 BUILTIN(UnsupportedThrower) {
   HandleScope scope(isolate);

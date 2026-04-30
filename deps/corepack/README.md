@@ -11,7 +11,7 @@ and pnpm without having to install them**.
 
 ### Default Installs
 
-Corepack is [distributed by default with all recent Node.js versions](https://nodejs.org/api/corepack.html).
+Corepack is distributed with Node.js from version 14.19.0 up to (but not including) 25.0.0.
 Run `corepack enable` to install the required Yarn and pnpm binaries on your path.
 
 ### Manual Installs
@@ -219,12 +219,12 @@ On Windows PowerShell, you can add functions using the `$PROFILE` automatic
 variable:
 
 ```powershell
-echo "function yarn { corepack yarn `$args }" >> $PROFILE
-echo "function yarnpkg { corepack yarnpkg `$args }" >> $PROFILE
-echo "function pnpm { corepack pnpm `$args }" >> $PROFILE
-echo "function pnpx { corepack pnpx `$args }" >> $PROFILE
-echo "function npm { corepack npm `$args }" >> $PROFILE
-echo "function npx { corepack npx `$args }" >> $PROFILE
+echo 'function yarn { corepack yarn @args }'    >> $PROFILE
+echo 'function yarnpkg { corepack yarnpkg @args }' >> $PROFILE
+echo 'function pnpm { corepack pnpm @args }'    >> $PROFILE
+echo 'function pnpx { corepack pnpx @args }'    >> $PROFILE
+echo 'function npm { corepack npm @args }'      >> $PROFILE
+echo 'function npx { corepack npx @args }'      >> $PROFILE
 ```
 
 ### `corepack disable [... name]`
@@ -286,8 +286,8 @@ same major line. Should you need to upgrade to a new major, use an explicit
   package manager, and to not update the Last Known Good version when it
   downloads a new version of the same major line.
 
-- `COREPACK_ENABLE_AUTO_PIN` can be set to `0` to prevent Corepack from
-  updating the `packageManager` field when it detects that the local package
+- `COREPACK_ENABLE_AUTO_PIN` can be set to `1` to instruct Corepack to
+  update the `packageManager` field when it detects that the local package
   doesn't list it. In general we recommend to always list a `packageManager`
   field (which you can easily set through `corepack use [name]@[version]`), as
   it ensures that your project installs are always deterministic.

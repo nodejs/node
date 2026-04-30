@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/graph-visualizer.h"
+#include "src/compiler/turboshaft/graph-visualizer.h"
 
 #include "src/base/small-vector.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/turboshaft/graph-visualizer.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -31,6 +31,8 @@ void JSONTurboshaftGraphWriter::Print() {
 void JSONTurboshaftGraphWriter::PrintNodes() {
   bool first = true;
   for (const Block& block : turboshaft_graph_.blocks()) {
+    // Skip incomplete blocks. This can happen e.g. if a phase bails out early.
+    if (!block.IsComplete()) continue;
     for (const Operation& op : turboshaft_graph_.operations(block)) {
       OpIndex index = turboshaft_graph_.Index(op);
       if (!first) os_ << ",\n";
@@ -57,6 +59,8 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
 void JSONTurboshaftGraphWriter::PrintEdges() {
   bool first = true;
   for (const Block& block : turboshaft_graph_.blocks()) {
+    // Skip incomplete blocks. This can happen e.g. if a phase bails out early.
+    if (!block.IsComplete()) continue;
     for (const Operation& op : turboshaft_graph_.operations(block)) {
       int target_id = turboshaft_graph_.Index(op).id();
       base::SmallVector<OpIndex, 32> inputs{op.inputs()};

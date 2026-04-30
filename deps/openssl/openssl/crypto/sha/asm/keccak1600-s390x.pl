@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -67,6 +67,7 @@ my @rhotates = ([  0,  1, 62, 28, 27 ],
 
 $code.=<<___;
 .text
+.machine	"z10"
 
 .type	__KeccakF1600,\@function
 .align	32
@@ -472,7 +473,7 @@ SHA3_absorb:
 .size	SHA3_absorb,.-SHA3_absorb
 ___
 }
-{ my ($A_flat,$out,$len,$bsz) = map("%r$_",(2..5));
+{ my ($A_flat,$out,$len,$bsz,$next) = map("%r$_",(2..6));
 
 $code.=<<___;
 .globl	SHA3_squeeze
@@ -484,6 +485,7 @@ SHA3_squeeze:
 	lghi	%r14,8
 	st${g}	$bsz,5*$SIZE_T($sp)
 	la	%r1,0($A_flat)
+	cijne	$next,0,.Lnext_block
 
 	j	.Loop_squeeze
 
@@ -501,6 +503,7 @@ SHA3_squeeze:
 
 	brct	$bsz,.Loop_squeeze	# bsz--
 
+.Lnext_block:
 	stm${g}	$out,$len,3*$SIZE_T($sp)
 	bras	%r14,.LKeccakF1600
 	lm${g}	$out,$bsz,3*$SIZE_T($sp)

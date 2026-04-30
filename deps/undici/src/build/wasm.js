@@ -2,7 +2,7 @@
 
 const WASM_BUILDER_CONTAINER = 'ghcr.io/nodejs/wasm-builder@sha256:975f391d907e42a75b8c72eb77c782181e941608687d4d8694c3e9df415a0970' // v0.0.9
 
-const { execSync } = require('node:child_process')
+const { execSync, execFileSync } = require('node:child_process')
 const { writeFileSync, readFileSync } = require('node:fs')
 const { join, resolve } = require('node:path')
 
@@ -15,7 +15,7 @@ const WASM_CC = process.env.WASM_CC || 'clang'
 let WASM_CFLAGS = process.env.WASM_CFLAGS || '--sysroot=/usr/share/wasi-sysroot -target wasm32-unknown-wasi'
 let WASM_LDFLAGS = process.env.WASM_LDFLAGS || ''
 const WASM_LDLIBS = process.env.WASM_LDLIBS || ''
-const WASM_OPT = process.env.WASM_OPT || './wasm-opt'
+const WASM_OPT = process.env.WASM_OPT || 'wasm-opt'
 
 // For compatibility with Node.js' `configure --shared-builtin-undici/undici-path ...`
 const EXTERNAL_PATH = process.env.EXTERNAL_PATH
@@ -65,21 +65,20 @@ if (process.argv[2] === '--docker') {
            -t ${WASM_BUILDER_CONTAINER} node build/wasm.js`
   console.log(`> ${cmd}\n\n`)
   execSync(cmd, { stdio: 'inherit' })
-  process.exit(0)
+  process.exit(0) // eslint-disable-line n/no-process-exit
 }
 
 const hasApk = (function () {
-  try { execSync('command -v apk'); return true } catch (error) { return false }
+  try { execSync('command -v apk'); return true } catch { return false }
 })()
 const hasOptimizer = (function () {
-  try { execSync(`${WASM_OPT} --version`); return true } catch (error) { return false }
+  try { execSync(`${WASM_OPT} --version`); return true } catch { return false }
 })()
 if (hasApk) {
   // Gather information about the tools used for the build
   const buildInfo = execSync('apk info -v').toString()
   if (!buildInfo.includes('wasi-sdk')) {
-    console.log('Failed to generate build environment information')
-    process.exit(-1)
+    throw new Error('Failed to generate build environment information')
   }
   console.log(buildInfo)
 }
@@ -104,7 +103,19 @@ ${join(WASM_SRC, 'src')}/*.c \
 ${WASM_LDLIBS}`, { stdio: 'inherit' })
 
 if (hasOptimizer) {
-  execSync(`${WASM_OPT} ${WASM_OPT_FLAGS} --enable-simd -o ${join(WASM_OUT, 'llhttp_simd.wasm')} ${join(WASM_OUT, 'llhttp_simd.wasm')}`, { stdio: 'inherit' })
+  // Split WASM_OPT_FLAGS into an array, if not empty
+  const wasmOptFlagsArray = WASM_OPT_FLAGS ? WASM_OPT_FLAGS.split(/\s+/).filter(Boolean) : []
+  execFileSync(
+    WASM_OPT,
+    [
+      ...wasmOptFlagsArray,
+      '--enable-simd',
+      '-o',
+      join(WASM_OUT, 'llhttp_simd.wasm'),
+      join(WASM_OUT, 'llhttp_simd.wasm')
+    ],
+    { stdio: 'inherit' }
+  )
 }
 writeWasmChunk('llhttp_simd.wasm', 'llhttp_simd-wasm.js')
 

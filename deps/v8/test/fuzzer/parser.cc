@@ -58,6 +58,11 @@ bool IsValidInput(const uint8_t* data, size_t size) {
   return parentheses.empty();
 }
 
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (!IsValidInput(data, size)) {
     return 0;
@@ -76,9 +81,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::Factory* factory = i_isolate->factory();
 
   if (size > INT_MAX) return 0;
-  v8::internal::MaybeHandle<v8::internal::String> source =
-      factory->NewStringFromOneByte(
-          v8::base::Vector<const uint8_t>(data, static_cast<int>(size)));
+  v8::internal::MaybeDirectHandle<v8::internal::String> source =
+      factory->NewStringFromOneByte(v8::base::VectorOf(data, size));
   if (source.is_null()) return 0;
 
   v8::internal::Handle<v8::internal::Script> script =

@@ -57,16 +57,16 @@ class Query extends BaseCommand {
   }
 
   async exec (args) {
-    const packageLock = this.npm.config.get('package-lock-only')
+    const packageLockOnly = this.npm.config.get('package-lock-only')
     const Arborist = require('@npmcli/arborist')
     const arb = new Arborist({
       ...this.npm.flatOptions,
       // one dir up from wherever node_modules lives
       path: resolve(this.npm.dir, '..'),
-      forceActual: !packageLock,
+      forceActual: !packageLockOnly,
     })
     let tree
-    if (packageLock) {
+    if (packageLockOnly) {
       try {
         tree = await arb.loadVirtual()
       } catch (err) {
@@ -84,20 +84,33 @@ class Query extends BaseCommand {
 
   async execWorkspaces (args) {
     await this.setWorkspaces()
+    const packageLockOnly = this.npm.config.get('package-lock-only')
     const Arborist = require('@npmcli/arborist')
     const arb = new Arborist({
       ...this.npm.flatOptions,
       path: this.npm.prefix,
+      forceActual: !packageLockOnly,
     })
-    // FIXME: Workspace support in query does not work as expected so this does not
-    // do the same package-lock-only check as this.exec().
-    // https://github.com/npm/cli/pull/6732#issuecomment-1708804921
-    const tree = await arb.loadActual()
+    let tree
+    if (packageLockOnly) {
+      try {
+        tree = await arb.loadVirtual()
+      } catch (err) {
+        log.verbose('loadVirtual', err.stack)
+        throw this.usageError(
+          'A package lock or shrinkwrap file is required in package-lock-only mode'
+        )
+      }
+    } else {
+      tree = await arb.loadActual()
+    }
     for (const path of this.workspacePaths) {
       const wsTree = path === tree.root.path
         ? tree // --includes-workspace-root
-        : await tree.querySelectorAll(`.workspace:path(${path})`).then(r => r[0].target)
-      await this.#queryTree(wsTree, args[0])
+        : await tree.querySelectorAll(`.workspace:path(${path})`).then(r => r[0]?.target)
+      if (wsTree) {
+        await this.#queryTree(wsTree, args[0])
+      }
     }
     this.#output()
   }

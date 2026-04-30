@@ -162,16 +162,75 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   DirectHandle<JSFunction> function = RunJS<JSFunction>("(function(){})");
 
   DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
-                                     function->GetIsolate());
+                                     i_isolate());
   DirectHandle<ScopeInfo> empty_function_scope_info(
-      isolate()->empty_function()->shared()->scope_info(),
-      function->GetIsolate());
+      isolate()->empty_function()->shared()->scope_info(), i_isolate());
 
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
   EXPECT_EQ(scope_info->ContextLocalCount(),
             empty_function_scope_info->ContextLocalCount());
+}
+
+TEST_F(TestWithNativeContext, CanOnlyAccessFixedFormalParameters) {
+  auto run = [this](const char* f, bool allocates, bool only_fixed) {
+    DirectHandle<JSFunction> function = RunJS<JSFunction>(f);
+    DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
+                                       i_isolate());
+    auto flags = scope_info->Flags();
+    EXPECT_EQ(allocates, ScopeInfo::AllocatesArgumentsBit::decode(flags));
+    EXPECT_EQ(only_fixed, scope_info->CanOnlyAccessFixedFormalParameters());
+  };
+  run("(function(){})", false, false);
+  run("(() => {})", false, true);
+  run("((...a) => {})", false, false);
+  run("'use strict'; (function(){})", false, true);
+  run("'use strict'; (function(...a) {})", false, false);
+  run("'use strict'; (function() { return arguments; })", true, false);
+  run("'use strict'; (function() { return eval(''); })", true, false);
+  run("'use strict'; (function() { () => { return arguments; }})", true, false);
+  run("'use strict'; (function() { () => { return eval(''); }})", true, false);
+}
+
+TEST_F(TestWithNativeContext, UnusedParameters) {
+  auto run = [this](const char* f, std::initializer_list<bool> used_bits) {
+    DirectHandle<JSFunction> function = RunJS<JSFunction>(f);
+    DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
+                                       i_isolate());
+    CHECK_EQ(scope_info->ParameterCount(), used_bits.size());
+    uint32_t bits = scope_info->unused_parameter_bits();
+    for (uint32_t i = 0; i < 32; i++) {
+      bool unused = (bits >> i) & 0x1;
+      if (i < used_bits.size()) {
+        CHECK_EQ(used_bits.begin()[i], !unused);
+      } else {
+        CHECK(!unused);
+      }
+    }
+  };
+  run("'use strict'; (function(){})", {});
+  run("'use strict'; (function(a) { a })", {true});
+  run("'use strict'; (function(a) { })", {false});
+  run("'use strict'; (function(a, b){})", {false, false});
+  run("'use strict'; (function(a, b){ a })", {true, false});
+  run("'use strict'; (function(a, b){ b })", {false, true});
+  run("'use strict'; (function(a, b){ a; b })", {true, true});
+  // initializers are non-simple
+  run("'use strict'; (function(a, b = a) {})", {true, true});
+  run("'use strict'; (function(a = b, b) {})", {true, true});
+  run("(() => {})", {});
+  run("((a) => { a })", {true});
+  run("((a) => { })", {false});
+  run("((a, b) => {})", {false, false});
+  run("((a, b) => { a })", {true, false});
+  run("((a, b) => { b })", {false, true});
+  run("((a, b) => { a; b })", {true, true});
+  // initializers, rest params are non-simple
+  run("((a, b = a) => {})", {true, true});
+  run("((a = b, b) => {})", {true, true});
+  run("((...a) => { })", {});
+  run("((...a) => { a })", {});
 }
 
 using ObjectTest = TestWithContext;
@@ -217,7 +276,7 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
   CheckBoolean(i_isolate(), true, "true");
   CheckBoolean(i_isolate(), false, "false");
   CheckBoolean(i_isolate(), false, "false");
-  Handle<Object> smi_42 = handle(Smi::FromInt(42), i_isolate());
+  DirectHandle<Object> smi_42(Smi::FromInt(42), i_isolate());
   CheckObject(i_isolate(),
               BigInt::FromNumber(i_isolate(), smi_42).ToHandleChecked(), "42");
   CheckObject(i_isolate(), factory->undefined_value(), "undefined");
@@ -237,11 +296,11 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
       "Error: fisk hest");
   CheckObject(i_isolate(), factory->NewJSObject(i_isolate()->object_function()),
               "#<Object>");
-  CheckObject(
-      i_isolate(),
-      factory->NewJSProxy(factory->NewJSObject(i_isolate()->object_function()),
-                          factory->NewJSObject(i_isolate()->object_function())),
-      "#<Object>");
+  CheckObject(i_isolate(),
+              factory->NewJSProxy(
+                  factory->NewJSObject(i_isolate()->object_function()),
+                  factory->NewJSObject(i_isolate()->object_function()), false),
+              "#<Object>");
 }
 
 TEST_F(ObjectTest, EnumCache) {
@@ -350,11 +409,11 @@ TEST_F(ObjectTest, EnumCache) {
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
   DirectHandle<EnumCache> previous_enum_cache(
-      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
+      a->map()->instance_descriptors()->enum_cache(), i_isolate());
   DirectHandle<FixedArray> previous_keys(previous_enum_cache->keys(),
-                                         a->GetIsolate());
+                                         i_isolate());
   DirectHandle<FixedArray> previous_indices(previous_enum_cache->indices(),
-                                            a->GetIsolate());
+                                            i_isolate());
   RunJS("var s = 0; for (let key in c) { s += c[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);
@@ -388,10 +447,10 @@ TEST_F(ObjectTest, EnumCache) {
 
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
-  previous_enum_cache =
-      handle(a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
-  previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
-  previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
+  previous_enum_cache = direct_handle(
+      a->map()->instance_descriptors()->enum_cache(), i_isolate());
+  previous_keys = direct_handle(previous_enum_cache->keys(), i_isolate());
+  previous_indices = direct_handle(previous_enum_cache->indices(), i_isolate());
   RunJS("var s = 0; for (let key in b) { s += b[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);
@@ -516,6 +575,9 @@ bool FunctionKindIsConciseMethod(FunctionKind kind) {
     case FunctionKind::kAsyncConciseGeneratorMethod:
     case FunctionKind::kStaticAsyncConciseGeneratorMethod:
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+    case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return true;
     default:
       return false;
@@ -602,6 +664,9 @@ bool FunctionKindIsConstructable(FunctionKind kind) {
     case FunctionKind::kConciseMethod:
     case FunctionKind::kStaticConciseMethod:
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+    case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return false;
     default:
       return true;
@@ -626,7 +691,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
 
   DisallowGarbageCollection no_gc;
   for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
-    Tagged<Object> value = context->get(i);
+    Tagged<Object> value = context->GetNoCell(i);
     if (!IsJSFunction(value)) continue;
     InstanceType instance_type =
         Cast<JSFunction>(value)->map()->instance_type();
@@ -662,10 +727,10 @@ TEST_F(ObjectTest, AddDataPropertyNameCollision) {
   v8::HandleScope scope(isolate());
   Factory* factory = i_isolate()->factory();
 
-  Handle<JSObject> object =
+  DirectHandle<JSObject> object =
       factory->NewJSObject(i_isolate()->object_function());
 
-  Handle<String> key = factory->NewStringFromStaticChars("key_string");
+  DirectHandle<String> key = factory->NewStringFromStaticChars("key_string");
   DirectHandle<Object> value1(Smi::FromInt(0), i_isolate());
   DirectHandle<Object> value2 = factory->NewStringFromAsciiChecked("corrupt");
 
@@ -697,14 +762,15 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
       "a = {'regular_prop':5};"
       "b = {'regular_prop':5};");
 
-  Handle<JSObject> a = Cast<JSObject>(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> a = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("a")).ToLocalChecked()));
   DirectHandle<JSObject> b = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("b")).ToLocalChecked()));
 
   CHECK(a->map() == b->map());
 
-  Handle<String> key = factory->NewStringFromStaticChars("corrupted_prop");
+  DirectHandle<String> key =
+      factory->NewStringFromStaticChars("corrupted_prop");
   DirectHandle<Object> value = factory->NewStringFromAsciiChecked("corrupt");
   LookupIterator it(i_isolate(), a, key, a,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -722,6 +788,105 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
                               StoreOrigin::kNamed)
           .IsJust(),
       "");
+}
+
+namespace {
+
+i::DirectHandle<i::String> v8_str(i::Isolate* isolate, const char* str) {
+  return isolate->factory()->NewStringFromAsciiChecked(str);
+}
+
+}  // namespace
+
+TEST_F(ObjectTest, LookupIteratorWithStringLookupStartObject) {
+  v8::HandleScope scope(isolate());
+  // Factory* factory = i_isolate()->factory();
+  i::Isolate* ii = i_isolate();
+
+  i::DirectHandle<String> str = v8_str(ii, "some boom");
+  i::DirectHandle<String> length_str = v8_str(ii, "length");
+
+  // Various "abc".blah like lookups.
+  CHECK(!LookupIterator(ii, str, v8_str(ii, "abc")).IsFound());
+  CHECK(!LookupIterator(ii, str, v8_str(ii, "-10")).IsFound());
+
+  {
+    // Various operations with "abc".length.
+    LookupIterator it(ii, str, length_str);
+    CHECK(it.IsFound());
+
+    CHECK_EQ(9, Smi::ToInt(*Object::GetProperty(&it).ToHandleChecked()));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
+
+  {
+    // Various operations with other named properties.
+    LookupIterator it(ii, str, v8_str(ii, "blah"));
+    CHECK(!it.IsFound());
+
+    CHECK(IsUndefined(*Object::GetProperty(&it).ToHandleChecked()));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
+
+  {
+    // Various operations with indexed properties.
+    LookupIterator it(ii, str, 1);
+    CHECK(it.IsFound());
+
+    CHECK(v8_str(ii, "o")->Equals(
+        Cast<String>(*Object::GetProperty(&it).ToHandleChecked())));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
+
+  const int non_existent_indices[] = {153, String::kMaxLength + 1};
+  for (size_t i = 0; i < arraysize(non_existent_indices); i++) {
+    // Various operations with indexed properties.
+    LookupIterator it(ii, str, non_existent_indices[i]);
+    CHECK(!it.IsFound());
+
+    CHECK(IsUndefined(*Object::GetProperty(&it).ToHandleChecked()));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
 }
 
 }  // namespace internal

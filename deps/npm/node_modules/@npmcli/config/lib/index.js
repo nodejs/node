@@ -59,6 +59,7 @@ class Config {
   #flatten
   // populated the first time we flatten the object
   #flatOptions = null
+  #warnings = []
 
   static get typeDefs () {
     return typeDefs
@@ -78,20 +79,13 @@ class Config {
     execPath = process.execPath,
     cwd = process.cwd(),
     excludeNpmCwd = false,
+    warn = true,
   }) {
     this.nerfDarts = nerfDarts
     this.definitions = definitions
     // turn the definitions into nopt's weirdo syntax
-    const types = {}
-    const defaults = {}
-    this.deprecated = {}
-    for (const [key, def] of Object.entries(definitions)) {
-      defaults[key] = def.default
-      types[key] = def.type
-      if (def.deprecated) {
-        this.deprecated[key] = def.deprecated.trim().replace(/\n +/, '\n')
-      }
-    }
+    const { types, defaults, deprecated } = getTypesFromDefinitions(definitions)
+    this.deprecated = deprecated
 
     this.#flatten = flatten
     this.types = types
@@ -132,13 +126,20 @@ class Config {
 
     this.sources = new Map([])
 
-    this.list = []
     for (const { data } of this.data.values()) {
       this.list.unshift(data)
     }
-    Object.freeze(this.list)
 
     this.#loaded = false
+    this.warn = warn
+  }
+
+  get list () {
+    const list = []
+    for (const { data } of this.data.values()) {
+      list.unshift(data)
+    }
+    return list
   }
 
   get loaded () {
@@ -281,7 +282,7 @@ class Config {
     }
 
     try {
-      // This does not have an actual definition because this is not user defineable
+      // This does not have an actual definition because this is not user definable
       defaultsObject['npm-version'] = require(join(this.npmPath, 'package.json')).version
     } catch {
       // in some weird state where the passed in npmPath does not have a package.json
@@ -363,7 +364,7 @@ class Config {
     }
     nopt.invalidHandler = (k, val, type) =>
       this.invalidHandler(k, val, type, 'command line options', 'cli')
-    nopt.unknownHandler = this.unknownHandler
+    nopt.unknownHandler = (k, next) => this.unknownHandler(k, next)
     nopt.abbrevHandler = this.abbrevHandler
     const conf = nopt(this.types, this.shorthands, this.argv)
     nopt.invalidHandler = null
@@ -539,7 +540,7 @@ class Config {
 
   unknownHandler (key, next) {
     if (next) {
-      log.warn(`"${next}" is being parsed as a normal command line argument.`)
+      this.queueWarning(`unknown:${next}`, `"${next}" is being parsed as a normal command line argument.`)
     }
   }
 
@@ -581,7 +582,7 @@ class Config {
       }
     } else {
       conf.raw = obj
-      for (const [key, value] of Object.entries(obj)) {
+      outer: for (const [key, value] of Object.entries(obj)) {
         const k = envReplace(key, this.env)
         const v = this.parseField(value, k)
         if (where !== 'default') {
@@ -589,7 +590,14 @@ class Config {
           if (this.definitions[key]?.exclusive) {
             for (const exclusive of this.definitions[key].exclusive) {
               if (!this.isDefault(exclusive)) {
-                throw new TypeError(`--${key} can not be provided when using --${exclusive}`)
+                // when loading from env, skip only if sibling was explicitly set via CLI
+                if (where === 'env') {
+                  const cliData = this.data.get('cli').data
+                  if (Object.hasOwn(cliData, exclusive)) {
+                    continue outer
+                  }
+                }
+                throw new TypeError(`--${key} cannot be provided when using --${exclusive}`)
               }
             }
           }
@@ -607,13 +615,16 @@ class Config {
       if (internalEnv.includes(key)) {
         return
       }
+      const hint = where !== 'cli'
+        ? ' See `npm help npmrc` for supported config options.'
+        : ''
       if (!key.includes(':')) {
-        log.warn(`Unknown ${where} config "${where === 'cli' ? '--' : ''}${key}". This will stop working in the next major version of npm.`)
+        this.queueWarning(key, `Unknown ${where} config "${where === 'cli' ? '--' : ''}${key}". This will stop working in the next major version of npm.${hint}`)
         return
       }
       const baseKey = key.split(':').pop()
       if (!this.definitions[baseKey] && !this.nerfDarts.includes(baseKey)) {
-        log.warn(`Unknown ${where} config "${baseKey}" (${key}). This will stop working in the next major version of npm.`)
+        this.queueWarning(baseKey, `Unknown ${where} config "${baseKey}" (${key}). This will stop working in the next major version of npm.${hint}`)
       }
     }
   }
@@ -672,7 +683,7 @@ class Config {
     // if we're in the ~ directory, and there happens to be a node_modules
     // folder (which is not TOO uncommon, it turns out), then we can end
     // up loading the "project" config where the "userconfig" will be,
-    // which causes some calamaties.  So, we only load project config if
+    // which causes some calamities.  So, we only load project config if
     // it doesn't match what the userconfig will be.
     if (projectFile !== this.#get('userconfig')) {
       return this.#loadFile(projectFile, 'project')
@@ -917,6 +928,35 @@ class Config {
   setEnvs () {
     setEnvs(this)
   }
+
+  removeWarning (key) {
+    this.#warnings = this.#warnings.filter(w => w.type !== key)
+  }
+
+  getUnknownPositionals () {
+    return this.#warnings
+      .filter(w => w.type.startsWith('unknown:'))
+      .map(w => w.type.slice('unknown:'.length))
+  }
+
+  removeUnknownPositional (value) {
+    this.removeWarning(`unknown:${value}`)
+  }
+
+  queueWarning (type, ...args) {
+    if (!this.warn) {
+      this.#warnings.push({ type, args })
+    } else {
+      log.warn(...args)
+    }
+  }
+
+  logWarnings () {
+    for (const warning of this.#warnings) {
+      log.warn(...warning.args)
+    }
+    this.#warnings = []
+  }
 }
 
 const _loadError = Symbol('loadError')
@@ -974,4 +1014,21 @@ class ConfigData {
   }
 }
 
+const getTypesFromDefinitions = (definitions) => {
+  const types = {}
+  const defaults = {}
+  const deprecated = {}
+
+  for (const [key, def] of Object.entries(definitions)) {
+    defaults[key] = def.default
+    types[key] = def.type
+    if (def.deprecated) {
+      deprecated[key] = def.deprecated.trim().replace(/\n +/, '\n')
+    }
+  }
+
+  return { types, defaults, deprecated }
+}
+
 module.exports = Config
+module.exports.getTypesFromDefinitions = getTypesFromDefinitions

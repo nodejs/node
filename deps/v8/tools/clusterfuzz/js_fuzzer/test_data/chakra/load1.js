@@ -6,3 +6,5 @@
 WScript.LoadScriptFile("DIR\\LoAd3.js");
 
 console.log('load1.js');
+
+function script() {}

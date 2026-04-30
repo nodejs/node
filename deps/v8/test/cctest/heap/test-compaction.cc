@@ -7,7 +7,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -20,20 +20,20 @@ namespace heap {
 
 namespace {
 
-void CheckInvariantsOfAbortedPage(PageMetadata* page) {
+void CheckInvariantsOfAbortedPage(NormalPage* page) {
   // Check invariants:
   // 1) Markbits are cleared
   // 2) The page is not marked as evacuation candidate anymore
   // 3) The page is not marked as aborted compaction anymore.
   CHECK(page->marking_bitmap()->IsClean());
-  CHECK(!page->Chunk()->IsEvacuationCandidate());
-  CHECK(!page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+  CHECK(!page->is_evacuation_candidate());
+  CHECK(!page->evacuation_was_aborted());
 }
 
-void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
-                           PageMetadata* page) {
+void CheckAllObjectsOnPage(const DirectHandleVector<FixedArray>& handles,
+                           NormalPage* page) {
   for (DirectHandle<FixedArray> fixed_array : handles) {
-    CHECK(PageMetadata::FromHeapObject(*fixed_array) == page);
+    CHECK(NormalPage::FromHeapObject(*fixed_array) == page);
   }
 }
 
@@ -66,25 +66,26 @@ HEAP_TEST(CompactionFullAbortedPage) {
       HandleScope scope2(isolate);
       CHECK(heap->old_space()->TryExpand(heap->main_thread_local_heap(),
                                          AllocationOrigin::kRuntime));
-      auto compaction_page_handles = heap::CreatePadding(
+      DirectHandleVector<FixedArray> compaction_page_handles(isolate);
+      heap::CreatePadding(
           heap,
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
-          AllocationType::kOld);
-      PageMetadata* to_be_aborted_page =
-          PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+          AllocationType::kOld, &compaction_page_handles);
+      NormalPage* to_be_aborted_page =
+          NormalPage::FromHeapObject(*compaction_page_handles.front());
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       heap->set_force_oom(true);
       heap::InvokeMajorGC(heap);
       heap->EnsureSweepingCompleted(
-          Heap::SweepingForcedFinalizationMode::kV8Only);
+          Heap::SweepingForcedFinalizationMode::kV8Only,
+          CompleteSweepingReason::kTesting);
 
       // Check that all handles still point to the same page, i.e., compaction
       // has been aborted on the page.
       for (DirectHandle<FixedArray> object : compaction_page_handles) {
-        CHECK_EQ(to_be_aborted_page, PageMetadata::FromHeapObject(*object));
+        CHECK_EQ(to_be_aborted_page, NormalPage::FromHeapObject(*object));
       }
       CheckInvariantsOfAbortedPage(to_be_aborted_page);
     }
@@ -138,14 +139,14 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
       // properly adjusted).
       CHECK(heap->old_space()->TryExpand(heap->main_thread_local_heap(),
                                          AllocationOrigin::kRuntime));
-      auto compaction_page_handles = heap::CreatePadding(
+      DirectHandleVector<FixedArray> compaction_page_handles(isolate);
+      heap::CreatePadding(
           heap,
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
-          AllocationType::kOld, object_size);
-      PageMetadata* to_be_aborted_page =
-          PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+          AllocationType::kOld, &compaction_page_handles, object_size);
+      NormalPage* to_be_aborted_page =
+          NormalPage::FromHeapObject(*compaction_page_handles.front());
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       {
@@ -155,28 +156,30 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
         CHECK(heap->old_space()->TryExpand(heap->main_thread_local_heap(),
                                            AllocationOrigin::kRuntime));
         const int num_objects = 3;
-        std::vector<Handle<FixedArray>> page_to_fill_handles =
-            heap::CreatePadding(heap, object_size * num_objects,
-                                AllocationType::kOld, object_size);
-        PageMetadata* page_to_fill =
-            PageMetadata::FromAddress(page_to_fill_handles.front()->address());
+        DirectHandleVector<FixedArray> page_to_fill_handles(isolate);
+        heap::CreatePadding(heap, object_size * num_objects,
+                            AllocationType::kOld, &page_to_fill_handles,
+                            object_size);
+        NormalPage* page_to_fill =
+            NormalPage::FromAddress(page_to_fill_handles.front()->address());
 
         heap->set_force_oom(true);
         heap::InvokeMajorGC(heap);
         heap->EnsureSweepingCompleted(
-            Heap::SweepingForcedFinalizationMode::kV8Only);
+            Heap::SweepingForcedFinalizationMode::kV8Only,
+            CompleteSweepingReason::kTesting);
 
         bool migration_aborted = false;
         for (DirectHandle<FixedArray> object : compaction_page_handles) {
           // Once compaction has been aborted, all following objects still have
           // to be on the initial page.
           CHECK(!migration_aborted ||
-                (PageMetadata::FromHeapObject(*object) == to_be_aborted_page));
-          if (PageMetadata::FromHeapObject(*object) == to_be_aborted_page) {
+                (NormalPage::FromHeapObject(*object) == to_be_aborted_page));
+          if (NormalPage::FromHeapObject(*object) == to_be_aborted_page) {
             // This object has not been migrated.
             migration_aborted = true;
           } else {
-            CHECK_EQ(PageMetadata::FromHeapObject(*object), page_to_fill);
+            CHECK_EQ(NormalPage::FromHeapObject(*object), page_to_fill);
           }
         }
         // Check that we actually created a scenario with a partially aborted
@@ -220,23 +223,21 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
     heap::SealCurrentObjects(heap);
 
-    PageMetadata* to_be_aborted_page = nullptr;
+    NormalPage* to_be_aborted_page = nullptr;
     {
       HandleScope temporary_scope(isolate);
       // Fill a fresh page with objects of size {object_size} (last one is
       // properly adjusted).
       CHECK(heap->old_space()->TryExpand(heap->main_thread_local_heap(),
                                          AllocationOrigin::kRuntime));
-      std::vector<Handle<FixedArray>> compaction_page_handles =
-          heap::CreatePadding(
-              heap,
-              static_cast<int>(
-                  MemoryChunkLayout::AllocatableMemoryInDataPage()),
-              AllocationType::kOld, object_size);
+      DirectHandleVector<FixedArray> compaction_page_handles(isolate);
+      heap::CreatePadding(
+          heap,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
+          AllocationType::kOld, &compaction_page_handles, object_size);
       to_be_aborted_page =
-          PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+          NormalPage::FromHeapObject(*compaction_page_handles.front());
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);
       }
@@ -251,11 +252,11 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
                                          AllocationOrigin::kRuntime));
       const int num_objects = 2;
       int used_memory = object_size * num_objects;
-      std::vector<Handle<FixedArray>> page_to_fill_handles =
-          heap::CreatePadding(heap, used_memory, AllocationType::kOld,
-                              object_size);
-      PageMetadata* page_to_fill =
-          PageMetadata::FromHeapObject(*page_to_fill_handles.front());
+      DirectHandleVector<FixedArray> page_to_fill_handles(isolate);
+      heap::CreatePadding(heap, used_memory, AllocationType::kOld,
+                          &page_to_fill_handles, object_size);
+      NormalPage* page_to_fill =
+          NormalPage::FromHeapObject(*page_to_fill_handles.front());
 
       // We need to invoke GC without stack, otherwise no compaction is
       // performed.
@@ -264,7 +265,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
       heap->set_force_oom(true);
       heap::InvokeMajorGC(heap);
       heap->EnsureSweepingCompleted(
-          Heap::SweepingForcedFinalizationMode::kV8Only);
+          Heap::SweepingForcedFinalizationMode::kV8Only,
+          CompleteSweepingReason::kTesting);
 
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.
@@ -274,13 +276,13 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
         current = IndirectHandle<FixedArray>(Cast<FixedArray>(current->get(0)),
                                              isolate);
         CHECK(IsFixedArray(*current));
-        if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {
+        if (NormalPage::FromHeapObject(*current) != to_be_aborted_page) {
           in_place = false;
         }
         bool on_aborted_page =
-            PageMetadata::FromHeapObject(*current) == to_be_aborted_page;
+            NormalPage::FromHeapObject(*current) == to_be_aborted_page;
         bool on_fill_page =
-            PageMetadata::FromHeapObject(*current) == page_to_fill;
+            NormalPage::FromHeapObject(*current) == page_to_fill;
         CHECK((in_place && on_aborted_page) || (!in_place && on_fill_page));
       }
       // Check that we at least migrated one object, as otherwise the test would
@@ -325,23 +327,23 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
         isolate->factory()->NewFixedArray(10, AllocationType::kOld);
     heap::SealCurrentObjects(heap);
 
-    PageMetadata* to_be_aborted_page = nullptr;
+    NormalPage* to_be_aborted_page = nullptr;
     {
       HandleScope temporary_scope(isolate);
       // Fill another page with objects of size {object_size} (last one is
       // properly adjusted).
       CHECK(heap->old_space()->TryExpand(heap->main_thread_local_heap(),
                                          AllocationOrigin::kRuntime));
-      auto compaction_page_handles = heap::CreatePadding(
+      DirectHandleVector<FixedArray> compaction_page_handles(isolate);
+      heap::CreatePadding(
           heap,
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
-          AllocationType::kOld, object_size);
+          AllocationType::kOld, &compaction_page_handles, object_size);
       // Sanity check that we have enough space for linking up arrays.
       CHECK_GE(compaction_page_handles.front()->length(), 2);
       to_be_aborted_page =
-          PageMetadata::FromHeapObject(*compaction_page_handles.front());
-      to_be_aborted_page->Chunk()->SetFlagNonExecutable(
-          MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+          NormalPage::FromHeapObject(*compaction_page_handles.front());
+      to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);
 
       for (size_t i = compaction_page_handles.size() - 1; i > 0; i--) {
         compaction_page_handles[i]->set(0, *compaction_page_handles[i - 1]);
@@ -349,7 +351,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       root_array->set(0, *compaction_page_handles.back());
       DirectHandle<FixedArray> new_space_array =
           isolate->factory()->NewFixedArray(1, AllocationType::kYoung);
-      CHECK(Heap::InYoungGeneration(*new_space_array));
+      CHECK(HeapLayout::InYoungGeneration(*new_space_array));
       compaction_page_handles.front()->set(1, *new_space_array);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
     }
@@ -362,11 +364,11 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
                                          AllocationOrigin::kRuntime));
       const int num_objects = 2;
       int used_memory = object_size * num_objects;
-      std::vector<Handle<FixedArray>> page_to_fill_handles =
-          heap::CreatePadding(heap, used_memory, AllocationType::kOld,
-                              object_size);
-      PageMetadata* page_to_fill =
-          PageMetadata::FromHeapObject(*page_to_fill_handles.front());
+      DirectHandleVector<FixedArray> page_to_fill_handles(isolate);
+      heap::CreatePadding(heap, used_memory, AllocationType::kOld,
+                          &page_to_fill_handles, object_size);
+      NormalPage* page_to_fill =
+          NormalPage::FromHeapObject(*page_to_fill_handles.front());
 
       // We need to invoke GC without stack, otherwise no compaction is
       // performed.
@@ -375,7 +377,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       heap->set_force_oom(true);
       heap::InvokeMajorGC(heap);
       heap->EnsureSweepingCompleted(
-          Heap::SweepingForcedFinalizationMode::kV8Only);
+          Heap::SweepingForcedFinalizationMode::kV8Only,
+          CompleteSweepingReason::kTesting);
 
       // The following check makes sure that we compacted "some" objects, while
       // leaving others in place.
@@ -384,15 +387,15 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
         current = IndirectHandle<FixedArray>(Cast<FixedArray>(current->get(0)),
                                              isolate);
-        CHECK(!Heap::InYoungGeneration(*current));
+        CHECK(!HeapLayout::InYoungGeneration(*current));
         CHECK(IsFixedArray(*current));
-        if (PageMetadata::FromHeapObject(*current) != to_be_aborted_page) {
+        if (NormalPage::FromHeapObject(*current) != to_be_aborted_page) {
           in_place = false;
         }
         bool on_aborted_page =
-            PageMetadata::FromHeapObject(*current) == to_be_aborted_page;
+            NormalPage::FromHeapObject(*current) == to_be_aborted_page;
         bool on_fill_page =
-            PageMetadata::FromHeapObject(*current) == page_to_fill;
+            NormalPage::FromHeapObject(*current) == page_to_fill;
         CHECK((in_place && on_aborted_page) || (!in_place && on_fill_page));
       }
       // Check that we at least migrated one object, as otherwise the test would
@@ -421,7 +424,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
                      ->NewStringFromOneByte(string_to_broken_address,
                                             AllocationType::kOld)
                      .ToHandleChecked();
-      } while (PageMetadata::FromHeapObject(*string) != to_be_aborted_page);
+      } while (NormalPage::FromHeapObject(*string) != to_be_aborted_page);
 
       // If remembered set entries are not properly filtered/reset for aborted
       // pages we have now a broken address at an object slot in old space and

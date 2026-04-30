@@ -27,6 +27,11 @@ extern class AtomRegExpData extends RegExpData {
   const pattern: String;
 }
 
+bitfield struct IrRegExpDataBitField extends uint31 {
+  can_be_zero_length: bool: 1 bit;
+  is_linear_executable: bool: 1 bit;
+}
+
 @cppObjectDefinition
 extern class IrRegExpData extends RegExpData {
   // TODO(pthier): Change code pointers to ProtectedPointer<Code> once builtins
@@ -40,6 +45,7 @@ extern class IrRegExpData extends RegExpData {
   capture_count: Smi;
   ticks_until_tier_up: Smi;
   backtrack_limit: Smi;
+  bit_field: SmiTagged<IrRegExpDataBitField>;
 }
 
 @cppObjectDefinition

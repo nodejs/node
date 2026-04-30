@@ -38,12 +38,7 @@ static void thread_run(void* arg) {
 
   sem = arg;
 
-#ifdef _WIN32
-  /* uv_thread_self isn't defined for the main thread on Windows. */
-  thread = GetCurrentThread();
-#else
   thread = uv_thread_self();
-#endif
 
   r = uv_thread_setname("worker-thread");
   ASSERT_OK(r);
@@ -82,12 +77,7 @@ TEST_IMPL(thread_name) {
   memset(long_thread_name, 'a', sizeof(long_thread_name) - 1);
   long_thread_name[sizeof(long_thread_name) - 1] = '\0';
 
-#ifdef _WIN32
-  /* uv_thread_self isn't defined for the main thread on Windows. */
-  threads[0] = GetCurrentThread();
-#else
   threads[0] = uv_thread_self();
-#endif
 
   r = uv_thread_getname(&threads[0], tn, sizeof(tn));
   ASSERT_OK(r);
@@ -178,6 +168,10 @@ static void after_work_cb(uv_work_t* req, int status) {
 }
 
 TEST_IMPL(thread_name_threadpool) {
+
+#if defined(_AIX) || defined(__PASE__)
+  RETURN_SKIP("API not available on this platform");
+#endif
   uv_work_t req;
   loop = uv_default_loop();
   // Just to make sure all workers will be executed

@@ -5,13 +5,15 @@
 #ifndef V8_HEAP_LOCAL_HEAP_INL_H_
 #define V8_HEAP_LOCAL_HEAP_INL_H_
 
+#include "src/heap/local-heap.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <atomic>
 
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/local-heap.h"
 #include "src/heap/main-allocator-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/zapping.h"
@@ -26,25 +28,29 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
-                                        AllocationAlignment alignment) {
-  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment);
+                                        AllocationAlignment alignment,
+                                        AllocationHint hint) {
+  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment,
+                                     hint);
 }
 
 template <typename HeapAllocator::AllocationRetryMode mode>
 Tagged<HeapObject> LocalHeap::AllocateRawWith(int object_size,
                                               AllocationType type,
                                               AllocationOrigin origin,
-                                              AllocationAlignment alignment) {
+                                              AllocationAlignment alignment,
+                                              AllocationHint hint) {
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   return heap_allocator_.AllocateRawWith<mode>(object_size, type, origin,
-                                               alignment);
+                                               alignment, hint);
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationOrigin origin,
-                                     AllocationAlignment alignment) {
+                                     AllocationAlignment alignment,
+                                     AllocationHint hint) {
   return AllocateRawWith<HeapAllocator::kRetryOrFail>(object_size, type, origin,
-                                                      alignment)
+                                                      alignment, hint)
       .address();
 }
 
@@ -52,11 +58,11 @@ template <typename Callback>
 V8_INLINE void LocalHeap::ParkAndExecuteCallback(Callback callback) {
   // This method is given as a callback to the stack trampoline, when the stack
   // marker has just been set.
-#if defined(V8_ENABLE_DIRECT_HANDLE) && defined(DEBUG)
+#if defined(V8_ENABLE_DIRECT_HANDLE) && defined(ENABLE_SLOW_DCHECKS)
   // Reset the number of direct handles that are below the stack marker.
   // It will be restored before the method returns.
   DirectHandleBase::ResetNumberOfHandlesScope scope;
-#endif  // V8_ENABLE_DIRECT_HANDLE && DEBUG
+#endif  // V8_ENABLE_DIRECT_HANDLE && ENABLE_SLOW_DCHECKS
   ParkedScope parked(this);
   // Provide the parked scope as a witness, if the callback expects it.
   if constexpr (std::is_invocable_v<Callback, const ParkedScope&>) {
@@ -105,6 +111,19 @@ V8_INLINE bool LocalHeap::is_in_trampoline() const {
     return heap_->stack().IsMarkerSetForBackgroundThread(
         ThreadId::Current().ToInteger());
   }
+}
+
+SetCurrentLocalHeapScope::SetCurrentLocalHeapScope(Isolate* isolate)
+    : SetCurrentLocalHeapScope(isolate->main_thread_local_heap()) {}
+
+SetCurrentLocalHeapScope::SetCurrentLocalHeapScope(LocalHeap* local_heap) {
+  saved_local_heap_ = LocalHeap::TryGetCurrent();
+  DCHECK_NOT_NULL(local_heap);
+  LocalHeap::SetCurrent(local_heap);
+}
+
+SetCurrentLocalHeapScope::~SetCurrentLocalHeapScope() {
+  LocalHeap::SetCurrent(saved_local_heap_);
 }
 
 }  // namespace internal

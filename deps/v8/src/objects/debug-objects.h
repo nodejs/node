@@ -29,7 +29,6 @@ class StructBodyDescriptor;
 // debugged.
 class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_DEBUG_INFO_FLAGS()
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
@@ -86,9 +85,9 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
                             int source_position,
                             DirectHandle<BreakPoint> break_point);
   // Get the break point objects for a source position.
-  Handle<Object> GetBreakPoints(Isolate* isolate, int source_position);
+  DirectHandle<Object> GetBreakPoints(Isolate* isolate, int source_position);
   // Find the break point info holding this break point object.
-  static Handle<Object> FindBreakPointInfo(
+  static DirectHandle<Object> FindBreakPointInfo(
       Isolate* isolate, DirectHandle<DebugInfo> debug_info,
       DirectHandle<BreakPoint> break_point);
   // Get the number of break points for this function.
@@ -164,7 +163,7 @@ class BreakPointInfo
   static bool HasBreakPoint(Isolate* isolate, DirectHandle<BreakPointInfo> info,
                             DirectHandle<BreakPoint> break_point);
   // Check if break point info has break point with this id.
-  static MaybeHandle<BreakPoint> GetBreakPointById(
+  static MaybeDirectHandle<BreakPoint> GetBreakPointById(
       Isolate* isolate, DirectHandle<BreakPointInfo> info, int breakpoint_id);
   // Get the number of break points for this code offset.
   int GetBreakPointCount(Isolate* isolate);
@@ -211,8 +210,6 @@ class BreakPoint : public TorqueGeneratedBreakPoint<BreakPoint, Struct> {
 class StackFrameInfo
     : public TorqueGeneratedStackFrameInfo<StackFrameInfo, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
   // The script for the stack frame.
@@ -236,18 +233,29 @@ class StackFrameInfo
   TQ_OBJECT_CONSTRUCTORS(StackFrameInfo)
 };
 
+class StackTraceInfo
+    : public TorqueGeneratedStackTraceInfo<StackTraceInfo, Struct> {
+ public:
+  // Access to the stack frames.
+  int length() const;
+  Tagged<StackFrameInfo> get(int index) const;
+
+  // Dispatched behavior.
+  DECL_VERIFIER(StackTraceInfo)
+
+  using BodyDescriptor = StructBodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(StackTraceInfo)
+};
+
 class ErrorStackData
     : public TorqueGeneratedErrorStackData<ErrorStackData, Struct> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   inline bool HasFormattedStack() const;
   DECL_ACCESSORS(formatted_stack, Tagged<Object>)
   inline bool HasCallSiteInfos() const;
-  DECL_ACCESSORS(call_site_infos, Tagged<FixedArray>)
-
-  static void EnsureStackFrameInfos(Isolate* isolate,
-                                    DirectHandle<ErrorStackData> error_stack);
+  DECL_GETTER(call_site_infos, Tagged<FixedArray>)
 
   DECL_VERIFIER(ErrorStackData)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,11 +7,11 @@
  * https://www.openssl.org/source/license.html
  */
 
-# if defined(__linux) || defined(__sun) || defined(__hpux)
+#if defined(__linux) || defined(__sun) || defined(__hpux)
 /*
  * Following definition aliases fopen to fopen64 on above mentioned
  * platforms. This makes it possible to open and sequentially access files
- * larger than 2GB from 32-bit application. It does not allow to traverse
+ * larger than 2GB from 32-bit application. It does not allow one to traverse
  * them beyond 2GB with fseek/ftell, but on the other hand *no* 32-bit
  * platform permits that, not with fseek/ftell. Not to mention that breaking
  * 2GB limit for seeking would require surgery to *our* API. But sequential
@@ -20,27 +20,33 @@
  * of 32-bit platforms which allow for sequential access of large files
  * without extra "magic" comprise *BSD, Darwin, IRIX...
  */
-#  ifndef _FILE_OFFSET_BITS
-#   define _FILE_OFFSET_BITS 64
-#  endif
-# endif
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+#endif
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 
 #if !defined(OPENSSL_NO_STDIO)
 
-# include <stdio.h>
-# ifdef __DJGPP__
-#  include <unistd.h>
-# endif
+#include <stdio.h>
+#ifdef __DJGPP__
+#include <unistd.h>
+#endif
 
 FILE *openssl_fopen(const char *filename, const char *mode)
 {
     FILE *file = NULL;
-# if defined(_WIN32) && defined(CP_UTF8)
-    int sz, len_0 = (int)strlen(filename) + 1;
+#if defined(_WIN32) && defined(CP_UTF8)
+    int sz, len_0;
     DWORD flags;
+#endif
+
+    if (filename == NULL)
+        return NULL;
+#if defined(_WIN32) && defined(CP_UTF8)
+    len_0 = (int)strlen(filename) + 1;
 
     /*
      * Basically there are three cases to cover: a) filename is
@@ -55,21 +61,17 @@ FILE *openssl_fopen(const char *filename, const char *mode)
      * back to fopen...
      */
     if ((sz = MultiByteToWideChar(CP_UTF8, (flags = MB_ERR_INVALID_CHARS),
-                                  filename, len_0, NULL, 0)) > 0 ||
-        (GetLastError() == ERROR_INVALID_FLAGS &&
-         (sz = MultiByteToWideChar(CP_UTF8, (flags = 0),
-                                   filename, len_0, NULL, 0)) > 0)
-        ) {
+             filename, len_0, NULL, 0))
+            > 0
+        || (GetLastError() == ERROR_INVALID_FLAGS && (sz = MultiByteToWideChar(CP_UTF8, (flags = 0), filename, len_0, NULL, 0)) > 0)) {
         WCHAR wmode[8];
         WCHAR *wfilename = _alloca(sz * sizeof(WCHAR));
 
         if (MultiByteToWideChar(CP_UTF8, flags,
-                                filename, len_0, wfilename, sz) &&
-            MultiByteToWideChar(CP_UTF8, 0, mode, strlen(mode) + 1,
-                                wmode, OSSL_NELEM(wmode)) &&
-            (file = _wfopen(wfilename, wmode)) == NULL &&
-            (errno == ENOENT || errno == EBADF)
-            ) {
+                filename, len_0, wfilename, sz)
+            && MultiByteToWideChar(CP_UTF8, 0, mode, strlen(mode) + 1,
+                wmode, OSSL_NELEM(wmode))
+            && (file = _wfopen(wfilename, wmode)) == NULL && (errno == ENOENT || errno == EBADF)) {
             /*
              * UTF-8 decode succeeded, but no file, filename
              * could still have been locale-ized...
@@ -79,18 +81,16 @@ FILE *openssl_fopen(const char *filename, const char *mode)
     } else if (GetLastError() == ERROR_NO_UNICODE_TRANSLATION) {
         file = fopen(filename, mode);
     }
-# elif defined(__DJGPP__)
+#elif defined(__DJGPP__)
     {
         char *newname = NULL;
 
-        if (pathconf(filename, _PC_NAME_MAX) <= 12) {  /* 8.3 file system? */
+        if (pathconf(filename, _PC_NAME_MAX) <= 12) { /* 8.3 file system? */
             char *iterator;
             char lastchar;
 
-            if ((newname = OPENSSL_malloc(strlen(filename) + 1)) == NULL) {
-                ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+            if ((newname = OPENSSL_malloc(strlen(filename) + 1)) == NULL)
                 return NULL;
-            }
 
             for (iterator = newname, lastchar = '\0';
                 *filename; filename++, iterator++) {
@@ -110,9 +110,9 @@ FILE *openssl_fopen(const char *filename, const char *mode)
 
         OPENSSL_free(newname);
     }
-# else
+#else
     file = fopen(filename, mode);
-# endif
+#endif
     return file;
 }
 

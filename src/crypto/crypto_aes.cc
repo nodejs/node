@@ -61,7 +61,8 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (params.cipher.isGcmMode() && !ctx.setIvLength(params.iv.size())) {
+  if ((params.cipher.isGcmMode() || params.cipher.isOcbMode()) &&
+      !ctx.setIvLength(params.iv.size())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -75,15 +76,28 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   }
 
   size_t tag_len = 0;
+  size_t data_len = in.size();
 
-  if (params.cipher.isGcmMode()) {
+  if (params.cipher.isGcmMode() || params.cipher.isOcbMode()) {
+    tag_len = params.length;
     switch (cipher_mode) {
       case kWebCryptoCipherDecrypt: {
-        // If in decrypt mode, the auth tag must be set in the params.tag.
-        CHECK(params.tag);
+        // In decrypt mode, the auth tag is appended to the end of the
+        // ciphertext. Split it off and set it on the cipher context.
+        if (data_len < tag_len) {
+          return WebCryptoCipherStatus::FAILED;
+        }
+        data_len -= tag_len;
+
+        if (params.cipher.isOcbMode()) {
+          if (!ctx.setAeadTagLength(tag_len)) {
+            return WebCryptoCipherStatus::FAILED;
+          }
+        }
+
         ncrypto::Buffer<const char> buffer = {
-            .data = params.tag.data<char>(),
-            .len = params.tag.size(),
+            .data = in.data<char>() + data_len,
+            .len = tag_len,
         };
         if (!ctx.setAeadTag(buffer)) {
           return WebCryptoCipherStatus::FAILED;
@@ -91,12 +105,11 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
         break;
       }
       case kWebCryptoCipherEncrypt: {
-        // In decrypt mode, we grab the tag length here. We'll use it to
-        // ensure that that allocated buffer has enough room for both the
-        // final block and the auth tag. Unlike our other AES-GCM implementation
-        // in CipherBase, in WebCrypto, the auth tag is concatenated to the end
-        // of the generated ciphertext and returned in the same ArrayBuffer.
-        tag_len = params.length;
+        if (params.cipher.isOcbMode()) {
+          if (!ctx.setAeadTagLength(tag_len)) {
+            return WebCryptoCipherStatus::FAILED;
+          }
+        }
         break;
       }
       default:
@@ -105,15 +118,15 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   }
 
   size_t total = 0;
-  int buf_len = in.size() + ctx.getBlockSize() + tag_len;
+  int buf_len = data_len + ctx.getBlockSize() + (encrypt ? tag_len : 0);
   int out_len;
 
   ncrypto::Buffer<const unsigned char> buffer = {
       .data = params.additional_data.data<unsigned char>(),
       .len = params.additional_data.size(),
   };
-  if (params.cipher.isGcmMode() && params.additional_data.size() &&
-      !ctx.update(buffer, nullptr, &out_len)) {
+  if ((params.cipher.isGcmMode() || params.cipher.isOcbMode()) &&
+      params.additional_data.size() && !ctx.update(buffer, nullptr, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -131,9 +144,9 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   // Refs: https://github.com/nodejs/node/pull/38913#issuecomment-866505244
   buffer = {
       .data = in.data<unsigned char>(),
-      .len = in.size(),
+      .len = data_len,
   };
-  if (in.empty()) {
+  if (data_len == 0) {
     out_len = 0;
   } else if (!ctx.update(buffer, ptr, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
@@ -147,9 +160,9 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   }
   total += out_len;
 
-  // If using AES_GCM, grab the generated auth tag and append
+  // If using AES_GCM or AES_OCB, grab the generated auth tag and append
   // it to the end of the ciphertext.
-  if (encrypt && params.cipher.isGcmMode()) {
+  if (encrypt && (params.cipher.isGcmMode() || params.cipher.isOcbMode())) {
     if (!ctx.getAeadTag(tag_len, ptr + total)) {
       return WebCryptoCipherStatus::FAILED;
     }
@@ -364,42 +377,17 @@ bool ValidateCounter(
   return true;
 }
 
-bool ValidateAuthTag(
-    Environment* env,
-    CryptoJobMode mode,
-    WebCryptoCipherMode cipher_mode,
-    Local<Value> value,
-    AESCipherConfig* params) {
-  switch (cipher_mode) {
-    case kWebCryptoCipherDecrypt: {
-      if (!IsAnyBufferSource(value)) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env);
-        return false;
-      }
-      ArrayBufferOrViewContents<char> tag_contents(value);
-      if (!tag_contents.CheckSizeInt32()) [[unlikely]] {
-        THROW_ERR_OUT_OF_RANGE(env, "tagLength is too big");
-        return false;
-      }
-      params->tag = mode == kCryptoJobAsync
-          ? tag_contents.ToCopy()
-          : tag_contents.ToByteSource();
-      break;
-    }
-    case kWebCryptoCipherEncrypt: {
-      if (!value->IsUint32()) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env);
-        return false;
-      }
-      params->length = value.As<Uint32>()->Value();
-      if (params->length > 128) {
-        THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env);
-        return false;
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
+bool ValidateAuthTag(Environment* env,
+                     Local<Value> value,
+                     AESCipherConfig* params) {
+  if (!value->IsUint32()) {
+    THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env);
+    return false;
+  }
+  params->length = value.As<Uint32>()->Value();
+  if (params->length > 128) {
+    THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env);
+    return false;
   }
   return true;
 }
@@ -434,8 +422,7 @@ AESCipherConfig::AESCipherConfig(AESCipherConfig&& other) noexcept
       cipher(other.cipher),
       length(other.length),
       iv(std::move(other.iv)),
-      additional_data(std::move(other.additional_data)),
-      tag(std::move(other.tag)) {}
+      additional_data(std::move(other.additional_data)) {}
 
 AESCipherConfig& AESCipherConfig::operator=(AESCipherConfig&& other) noexcept {
   if (&other == this) return *this;
@@ -449,7 +436,6 @@ void AESCipherConfig::MemoryInfo(MemoryTracker* tracker) const {
   if (mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("iv", iv.size());
     tracker->TrackFieldWithSize("additional_data", additional_data.size());
-    tracker->TrackFieldWithSize("tag", tag.size());
   }
 }
 
@@ -492,8 +478,8 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
       if (!ValidateCounter(env, args[offset + 2], params)) {
         return Nothing<void>();
       }
-    } else if (params->cipher.isGcmMode()) {
-      if (!ValidateAuthTag(env, mode, cipher_mode, args[offset + 2], params) ||
+    } else if (params->cipher.isGcmMode() || params->cipher.isOcbMode()) {
+      if (!ValidateAuthTag(env, args[offset + 2], params) ||
           !ValidateAdditionalData(env, mode, args[offset + 3], params)) {
         return Nothing<void>();
       }
@@ -502,9 +488,18 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     UseDefaultIV(params);
   }
 
-  if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
-    THROW_ERR_CRYPTO_INVALID_IV(env);
-    return Nothing<void>();
+  // For OCB mode, allow variable IV lengths (1-15 bytes)
+  if (params->cipher.isOcbMode()) {
+    if (params->iv.size() == 0 || params->iv.size() > 15) {
+      THROW_ERR_CRYPTO_INVALID_IV(env);
+      return Nothing<void>();
+    }
+  } else {
+    // For other modes, check against the cipher's expected IV length
+    if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
+      THROW_ERR_CRYPTO_INVALID_IV(env);
+      return Nothing<void>();
+    }
   }
 
   return JustVoid();

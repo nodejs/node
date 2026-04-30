@@ -385,8 +385,10 @@ U_CFUNC U_IMPORT const uint8_t utf8_countTrailBytes[];
         /* each following branch falls through to the next one */ \
         case 3: \
             (c)=((c)<<6)|((s)[(i)++]&0x3f); \
+            U_FALLTHROUGH; \
         case 2: \
             (c)=((c)<<6)|((s)[(i)++]&0x3f); \
+            U_FALLTHROUGH; \
         case 1: \
             (c)=((c)<<6)|((s)[(i)++]&0x3f); \
         /* no other branches to optimize switch() */ \

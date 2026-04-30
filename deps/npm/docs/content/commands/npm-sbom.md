@@ -12,9 +12,8 @@ npm sbom
 
 ### Description
 
-The `npm sbom` command generates a Software Bill of Materials (SBOM) listing the
-dependencies for the current project. SBOMs can be generated in either
-[SPDX](https://spdx.dev/) or [CycloneDX](https://cyclonedx.org/) format.
+The `npm sbom` command generates a Software Bill of Materials (SBOM) listing the dependencies for the current project.
+SBOMs can be generated in either [SPDX](https://spdx.dev/) or [CycloneDX](https://cyclonedx.org/) format.
 
 ### Example CycloneDX SBOM
 
@@ -208,17 +207,16 @@ dependencies for the current project. SBOMs can be generated in either
 
 ### Package lock only mode
 
-If package-lock-only is enabled, only the information in the package
-lock (or shrinkwrap) is loaded.  This means that information from the
-package.json files of your dependencies will not be included in the
-result set (e.g. description, homepage, engines).
+If package-lock-only is enabled, only the information in the package lock (or shrinkwrap) is loaded.
+This means that information from the package.json files of your dependencies will not be included in the result set (e.g.
+description, homepage, engines).
 
 ### Configuration
 
 #### `omit`
 
 * Default: 'dev' if the `NODE_ENV` environment variable is set to
-  'production', otherwise empty.
+  'production'; otherwise, empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.

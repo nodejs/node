@@ -4,33 +4,34 @@ var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 
-// node_modules/balanced-match/index.js
-var require_balanced_match = __commonJS({
-  "node_modules/balanced-match/index.js"(exports2, module2) {
+// node_modules/balanced-match/dist/commonjs/index.js
+var require_commonjs = __commonJS({
+  "node_modules/balanced-match/dist/commonjs/index.js"(exports2) {
     "use strict";
-    module2.exports = balanced;
-    function balanced(a, b, str) {
-      if (a instanceof RegExp) a = maybeMatch(a, str);
-      if (b instanceof RegExp) b = maybeMatch(b, str);
-      var r = range(a, b, str);
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.range = exports2.balanced = void 0;
+    var balanced = (a, b, str) => {
+      const ma = a instanceof RegExp ? maybeMatch(a, str) : a;
+      const mb = b instanceof RegExp ? maybeMatch(b, str) : b;
+      const r = ma !== null && mb != null && (0, exports2.range)(ma, mb, str);
       return r && {
         start: r[0],
         end: r[1],
         pre: str.slice(0, r[0]),
-        body: str.slice(r[0] + a.length, r[1]),
-        post: str.slice(r[1] + b.length)
+        body: str.slice(r[0] + ma.length, r[1]),
+        post: str.slice(r[1] + mb.length)
       };
-    }
-    function maybeMatch(reg, str) {
-      var m = str.match(reg);
+    };
+    exports2.balanced = balanced;
+    var maybeMatch = (reg, str) => {
+      const m = str.match(reg);
       return m ? m[0] : null;
-    }
-    balanced.range = range;
-    function range(a, b, str) {
-      var begs, beg, left, right, result;
-      var ai = str.indexOf(a);
-      var bi = str.indexOf(b, ai + 1);
-      var i = ai;
+    };
+    var range = (a, b, str) => {
+      let begs, beg, left, right = void 0, result;
+      let ai = str.indexOf(a);
+      let bi = str.indexOf(b, ai + 1);
+      let i = ai;
       if (ai >= 0 && bi > 0) {
         if (a === b) {
           return [ai, bi];
@@ -38,14 +39,16 @@ var require_balanced_match = __commonJS({
         begs = [];
         left = str.length;
         while (i >= 0 && !result) {
-          if (i == ai) {
+          if (i === ai) {
             begs.push(i);
             ai = str.indexOf(a, i + 1);
-          } else if (begs.length == 1) {
-            result = [begs.pop(), bi];
+          } else if (begs.length === 1) {
+            const r = begs.pop();
+            if (r !== void 0)
+              result = [r, bi];
           } else {
             beg = begs.pop();
-            if (beg < left) {
+            if (beg !== void 0 && beg < left) {
               left = beg;
               right = bi;
             }
@@ -53,61 +56,79 @@ var require_balanced_match = __commonJS({
           }
           i = ai < bi && ai >= 0 ? ai : bi;
         }
-        if (begs.length) {
+        if (begs.length && right !== void 0) {
           result = [left, right];
         }
       }
       return result;
-    }
+    };
+    exports2.range = range;
   }
 });
 
-// node_modules/brace-expansion/index.js
-var require_brace_expansion = __commonJS({
-  "node_modules/brace-expansion/index.js"(exports2, module2) {
-    var balanced = require_balanced_match();
-    module2.exports = expandTop;
+// node_modules/brace-expansion/dist/commonjs/index.js
+var require_commonjs2 = __commonJS({
+  "node_modules/brace-expansion/dist/commonjs/index.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.EXPANSION_MAX = void 0;
+    exports2.expand = expand;
+    var balanced_match_1 = require_commonjs();
     var escSlash = "\0SLASH" + Math.random() + "\0";
     var escOpen = "\0OPEN" + Math.random() + "\0";
     var escClose = "\0CLOSE" + Math.random() + "\0";
     var escComma = "\0COMMA" + Math.random() + "\0";
     var escPeriod = "\0PERIOD" + Math.random() + "\0";
+    var escSlashPattern = new RegExp(escSlash, "g");
+    var escOpenPattern = new RegExp(escOpen, "g");
+    var escClosePattern = new RegExp(escClose, "g");
+    var escCommaPattern = new RegExp(escComma, "g");
+    var escPeriodPattern = new RegExp(escPeriod, "g");
+    var slashPattern = /\\\\/g;
+    var openPattern = /\\{/g;
+    var closePattern = /\\}/g;
+    var commaPattern = /\\,/g;
+    var periodPattern = /\\\./g;
+    exports2.EXPANSION_MAX = 1e5;
     function numeric(str) {
-      return parseInt(str, 10) == str ? parseInt(str, 10) : str.charCodeAt(0);
+      return !isNaN(str) ? parseInt(str, 10) : str.charCodeAt(0);
     }
     function escapeBraces(str) {
-      return str.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
+      return str.replace(slashPattern, escSlash).replace(openPattern, escOpen).replace(closePattern, escClose).replace(commaPattern, escComma).replace(periodPattern, escPeriod);
     }
     function unescapeBraces(str) {
-      return str.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
+      return str.replace(escSlashPattern, "\\").replace(escOpenPattern, "{").replace(escClosePattern, "}").replace(escCommaPattern, ",").replace(escPeriodPattern, ".");
     }
     function parseCommaParts(str) {
-      if (!str)
+      if (!str) {
         return [""];
-      var parts = [];
-      var m = balanced("{", "}", str);
-      if (!m)
+      }
+      const parts = [];
+      const m = (0, balanced_match_1.balanced)("{", "}", str);
+      if (!m) {
         return str.split(",");
-      var pre = m.pre;
-      var body = m.body;
-      var post = m.post;
-      var p = pre.split(",");
+      }
+      const { pre, body, post } = m;
+      const p = pre.split(",");
       p[p.length - 1] += "{" + body + "}";
-      var postParts = parseCommaParts(post);
+      const postParts = parseCommaParts(post);
       if (post.length) {
+        ;
         p[p.length - 1] += postParts.shift();
         p.push.apply(p, postParts);
       }
       parts.push.apply(parts, p);
       return parts;
     }
-    function expandTop(str) {
-      if (!str)
+    function expand(str, options = {}) {
+      if (!str) {
         return [];
-      if (str.substr(0, 2) === "{}") {
-        str = "\\{\\}" + str.substr(2);
       }
-      return expand(escapeBraces(str), true).map(unescapeBraces);
+      const { max = exports2.EXPANSION_MAX } = options;
+      if (str.slice(0, 2) === "{}") {
+        str = "\\{\\}" + str.slice(2);
+      }
+      return expand_(escapeBraces(str), max, true).map(unescapeBraces);
     }
     function embrace(str) {
       return "{" + str + "}";
@@ -121,73 +142,74 @@ var require_brace_expansion = __commonJS({
     function gte(i, y) {
       return i >= y;
     }
-    function expand(str, isTop) {
-      var expansions = [];
-      var m = balanced("{", "}", str);
-      if (!m) return [str];
-      var pre = m.pre;
-      var post = m.post.length ? expand(m.post, false) : [""];
+    function expand_(str, max, isTop) {
+      const expansions = [];
+      const m = (0, balanced_match_1.balanced)("{", "}", str);
+      if (!m)
+        return [str];
+      const pre = m.pre;
+      const post = m.post.length ? expand_(m.post, max, false) : [""];
       if (/\$$/.test(m.pre)) {
-        for (var k = 0; k < post.length; k++) {
-          var expansion = pre + "{" + m.body + "}" + post[k];
+        for (let k = 0; k < post.length && k < max; k++) {
+          const expansion = pre + "{" + m.body + "}" + post[k];
           expansions.push(expansion);
         }
       } else {
-        var isNumericSequence = /^-?\d+\.\.-?\d+(?:\.\.-?\d+)?$/.test(m.body);
-        var isAlphaSequence = /^[a-zA-Z]\.\.[a-zA-Z](?:\.\.-?\d+)?$/.test(m.body);
-        var isSequence = isNumericSequence || isAlphaSequence;
-        var isOptions = m.body.indexOf(",") >= 0;
+        const isNumericSequence = /^-?\d+\.\.-?\d+(?:\.\.-?\d+)?$/.test(m.body);
+        const isAlphaSequence = /^[a-zA-Z]\.\.[a-zA-Z](?:\.\.-?\d+)?$/.test(m.body);
+        const isSequence = isNumericSequence || isAlphaSequence;
+        const isOptions = m.body.indexOf(",") >= 0;
         if (!isSequence && !isOptions) {
-          if (m.post.match(/,.*\}/)) {
+          if (m.post.match(/,(?!,).*\}/)) {
             str = m.pre + "{" + m.body + escClose + m.post;
-            return expand(str);
+            return expand_(str, max, true);
           }
           return [str];
         }
-        var n;
+        let n;
         if (isSequence) {
           n = m.body.split(/\.\./);
         } else {
           n = parseCommaParts(m.body);
-          if (n.length === 1) {
-            n = expand(n[0], false).map(embrace);
+          if (n.length === 1 && n[0] !== void 0) {
+            n = expand_(n[0], max, false).map(embrace);
             if (n.length === 1) {
-              return post.map(function(p) {
-                return m.pre + n[0] + p;
-              });
+              return post.map((p) => m.pre + n[0] + p);
             }
           }
         }
-        var N;
-        if (isSequence) {
-          var x = numeric(n[0]);
-          var y = numeric(n[1]);
-          var width = Math.max(n[0].length, n[1].length);
-          var incr = n.length == 3 ? Math.abs(numeric(n[2])) : 1;
-          var test = lte;
-          var reverse = y < x;
+        let N;
+        if (isSequence && n[0] !== void 0 && n[1] !== void 0) {
+          const x = numeric(n[0]);
+          const y = numeric(n[1]);
+          const width = Math.max(n[0].length, n[1].length);
+          let incr = n.length === 3 && n[2] !== void 0 ? Math.max(Math.abs(numeric(n[2])), 1) : 1;
+          let test = lte;
+          const reverse = y < x;
           if (reverse) {
             incr *= -1;
             test = gte;
           }
-          var pad = n.some(isPadded);
+          const pad = n.some(isPadded);
           N = [];
-          for (var i = x; test(i, y); i += incr) {
-            var c;
+          for (let i = x; test(i, y); i += incr) {
+            let c;
             if (isAlphaSequence) {
               c = String.fromCharCode(i);
-              if (c === "\\")
+              if (c === "\\") {
                 c = "";
+              }
             } else {
               c = String(i);
               if (pad) {
-                var need = width - c.length;
+                const need = width - c.length;
                 if (need > 0) {
-                  var z = new Array(need + 1).join("0");
-                  if (i < 0)
+                  const z = new Array(need + 1).join("0");
+                  if (i < 0) {
                     c = "-" + z + c.slice(1);
-                  else
+                  } else {
                     c = z + c;
+                  }
                 }
               }
             }
@@ -195,15 +217,16 @@ var require_brace_expansion = __commonJS({
           }
         } else {
           N = [];
-          for (var j = 0; j < n.length; j++) {
-            N.push.apply(N, expand(n[j], false));
+          for (let j = 0; j < n.length; j++) {
+            N.push.apply(N, expand_(n[j], max, false));
           }
         }
-        for (var j = 0; j < N.length; j++) {
-          for (var k = 0; k < post.length; k++) {
-            var expansion = pre + N[j] + post[k];
-            if (!isTop || isSequence || expansion)
+        for (let j = 0; j < N.length; j++) {
+          for (let k = 0; k < post.length && expansions.length < max; k++) {
+            const expansion = pre + N[j] + post[k];
+            if (!isTop || isSequence || expansion) {
               expansions.push(expansion);
+            }
           }
         }
       }
@@ -354,8 +377,11 @@ var require_unescape = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.unescape = void 0;
-    var unescape = (s, { windowsPathsNoEscape = false } = {}) => {
-      return windowsPathsNoEscape ? s.replace(/\[([^\/\\])\]/g, "$1") : s.replace(/((?!\\).|^)\[([^\/\\])\]/g, "$1$2").replace(/\\([^\/])/g, "$1");
+    var unescape = (s, { windowsPathsNoEscape = false, magicalBraces = true } = {}) => {
+      if (magicalBraces) {
+        return windowsPathsNoEscape ? s.replace(/\[([^/\\])\]/g, "$1") : s.replace(/((?!\\).|^)\[([^/\\])\]/g, "$1$2").replace(/\\([^/])/g, "$1");
+      }
+      return windowsPathsNoEscape ? s.replace(/\[([^/\\{}])\]/g, "$1") : s.replace(/((?!\\).|^)\[([^/\\{}])\]/g, "$1$2").replace(/\\([^/{}])/g, "$1");
     };
     exports2.unescape = unescape;
   }
@@ -365,12 +391,60 @@ var require_unescape = __commonJS({
 var require_ast = __commonJS({
   "dist/commonjs/ast.js"(exports2) {
     "use strict";
+    var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AST = void 0;
     var brace_expressions_js_1 = require_brace_expressions();
     var unescape_js_12 = require_unescape();
     var types = /* @__PURE__ */ new Set(["!", "?", "+", "*", "@"]);
     var isExtglobType = (c) => types.has(c);
+    var isExtglobAST = (c) => isExtglobType(c.type);
+    var adoptionMap = /* @__PURE__ */ new Map([
+      ["!", ["@"]],
+      ["?", ["?", "@"]],
+      ["@", ["@"]],
+      ["*", ["*", "+", "?", "@"]],
+      ["+", ["+", "@"]]
+    ]);
+    var adoptionWithSpaceMap = /* @__PURE__ */ new Map([
+      ["!", ["?"]],
+      ["@", ["?"]],
+      ["+", ["?", "*"]]
+    ]);
+    var adoptionAnyMap = /* @__PURE__ */ new Map([
+      ["!", ["?", "@"]],
+      ["?", ["?", "@"]],
+      ["@", ["?", "@"]],
+      ["*", ["*", "+", "?", "@"]],
+      ["+", ["+", "@", "?", "*"]]
+    ]);
+    var usurpMap = /* @__PURE__ */ new Map([
+      ["!", /* @__PURE__ */ new Map([["!", "@"]])],
+      [
+        "?",
+        /* @__PURE__ */ new Map([
+          ["*", "*"],
+          ["+", "*"]
+        ])
+      ],
+      [
+        "@",
+        /* @__PURE__ */ new Map([
+          ["!", "!"],
+          ["?", "?"],
+          ["@", "@"],
+          ["*", "*"],
+          ["+", "+"]
+        ])
+      ],
+      [
+        "+",
+        /* @__PURE__ */ new Map([
+          ["?", "*"],
+          ["*", "*"]
+        ])
+      ]
+    ]);
     var startNoTraversal = "(?!(?:^|/)\\.\\.?(?:$|/))";
     var startNoDot = "(?!\\.)";
     var addPatternStart = /* @__PURE__ */ new Set(["[", "."]);
@@ -380,7 +454,8 @@ var require_ast = __commonJS({
     var qmark2 = "[^/]";
     var star2 = qmark2 + "*?";
     var starNoEmpty = qmark2 + "+?";
-    var AST = class _AST {
+    var ID = 0;
+    var AST = class {
       type;
       #root;
       #hasMagic;
@@ -395,6 +470,22 @@ var require_ast = __commonJS({
       // set to true if it's an extglob with no children
       // (which really means one child of '')
       #emptyExt = false;
+      id = ++ID;
+      get depth() {
+        return (this.#parent?.depth ?? -1) + 1;
+      }
+      [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+        return {
+          "@@type": "AST",
+          id: this.id,
+          type: this.type,
+          root: this.#root.id,
+          parent: this.#parent?.id,
+          depth: this.depth,
+          partsLength: this.#parts.length,
+          parts: this.#parts
+        };
+      }
       constructor(type, parent, options = {}) {
         this.type = type;
         if (type)
@@ -420,13 +511,7 @@ var require_ast = __commonJS({
       }
       // reconstructs the pattern
       toString() {
-        if (this.#toString !== void 0)
-          return this.#toString;
-        if (!this.type) {
-          return this.#toString = this.#parts.map((p) => String(p)).join("");
-        } else {
-          return this.#toString = this.type + "(" + this.#parts.map((p) => String(p)).join("|") + ")";
-        }
+        return this.#toString !== void 0 ? this.#toString : !this.type ? this.#toString = this.#parts.map((p) => String(p)).join("") : this.#toString = this.type + "(" + this.#parts.map((p) => String(p)).join("|") + ")";
       }
       #fillNegs() {
         if (this !== this.#root)
@@ -460,7 +545,7 @@ var require_ast = __commonJS({
         for (const p of parts) {
           if (p === "")
             continue;
-          if (typeof p !== "string" && !(p instanceof _AST && p.#parent === this)) {
+          if (typeof p !== "string" && !(p instanceof _a && p.#parent === this)) {
             throw new Error("invalid part: " + p);
           }
           this.#parts.push(p);
@@ -485,7 +570,7 @@ var require_ast = __commonJS({
         const p = this.#parent;
         for (let i = 0; i < this.#parentIndex; i++) {
           const pp = p.#parts[i];
-          if (!(pp instanceof _AST && pp.type === "!")) {
+          if (!(pp instanceof _a && pp.type === "!")) {
             return false;
           }
         }
@@ -510,13 +595,14 @@ var require_ast = __commonJS({
           this.push(part.clone(this));
       }
       clone(parent) {
-        const c = new _AST(this.type, parent);
+        const c = new _a(this.type, parent);
         for (const p of this.#parts) {
           c.copyIn(p);
         }
         return c;
       }
-      static #parseAST(str, ast, pos, opt) {
+      static #parseAST(str, ast, pos, opt, extDepth) {
+        const maxDepth = opt.maxExtglobRecursion ?? 2;
         let escaping = false;
         let inBrace = false;
         let braceStart = -1;
@@ -548,11 +634,12 @@ var require_ast = __commonJS({
               acc2 += c;
               continue;
             }
-            if (!opt.noext && isExtglobType(c) && str.charAt(i2) === "(") {
+            const doRecurse = !opt.noext && isExtglobType(c) && str.charAt(i2) === "(" && extDepth <= maxDepth;
+            if (doRecurse) {
               ast.push(acc2);
               acc2 = "";
-              const ext2 = new _AST(c, ast);
-              i2 = _AST.#parseAST(str, ext2, i2, opt);
+              const ext2 = new _a(c, ast);
+              i2 = _a.#parseAST(str, ext2, i2, opt, extDepth + 1);
               ast.push(ext2);
               continue;
             }
@@ -562,7 +649,7 @@ var require_ast = __commonJS({
           return i2;
         }
         let i = pos + 1;
-        let part = new _AST(null, ast);
+        let part = new _a(null, ast);
         const parts = [];
         let acc = "";
         while (i < str.length) {
@@ -589,19 +676,22 @@ var require_ast = __commonJS({
             acc += c;
             continue;
           }
-          if (isExtglobType(c) && str.charAt(i) === "(") {
+          const doRecurse = !opt.noext && isExtglobType(c) && str.charAt(i) === "(" && /* c8 ignore start - the maxDepth is sufficient here */
+          (extDepth <= maxDepth || ast && ast.#canAdoptType(c));
+          if (doRecurse) {
+            const depthAdd = ast && ast.#canAdoptType(c) ? 0 : 1;
             part.push(acc);
             acc = "";
-            const ext2 = new _AST(c, part);
+            const ext2 = new _a(c, part);
             part.push(ext2);
-            i = _AST.#parseAST(str, ext2, i, opt);
+            i = _a.#parseAST(str, ext2, i, opt, extDepth + depthAdd);
             continue;
           }
           if (c === "|") {
             part.push(acc);
             acc = "";
             parts.push(part);
-            part = new _AST(null, ast);
+            part = new _a(null, ast);
             continue;
           }
           if (c === ")") {
@@ -620,9 +710,71 @@ var require_ast = __commonJS({
         ast.#parts = [str.substring(pos - 1)];
         return i;
       }
+      #canAdoptWithSpace(child) {
+        return this.#canAdopt(child, adoptionWithSpaceMap);
+      }
+      #canAdopt(child, map = adoptionMap) {
+        if (!child || typeof child !== "object" || child.type !== null || child.#parts.length !== 1 || this.type === null) {
+          return false;
+        }
+        const gc = child.#parts[0];
+        if (!gc || typeof gc !== "object" || gc.type === null) {
+          return false;
+        }
+        return this.#canAdoptType(gc.type, map);
+      }
+      #canAdoptType(c, map = adoptionAnyMap) {
+        return !!map.get(this.type)?.includes(c);
+      }
+      #adoptWithSpace(child, index) {
+        const gc = child.#parts[0];
+        const blank = new _a(null, gc, this.options);
+        blank.#parts.push("");
+        gc.push(blank);
+        this.#adopt(child, index);
+      }
+      #adopt(child, index) {
+        const gc = child.#parts[0];
+        this.#parts.splice(index, 1, ...gc.#parts);
+        for (const p of gc.#parts) {
+          if (typeof p === "object")
+            p.#parent = this;
+        }
+        this.#toString = void 0;
+      }
+      #canUsurpType(c) {
+        const m = usurpMap.get(this.type);
+        return !!m?.has(c);
+      }
+      #canUsurp(child) {
+        if (!child || typeof child !== "object" || child.type !== null || child.#parts.length !== 1 || this.type === null || this.#parts.length !== 1) {
+          return false;
+        }
+        const gc = child.#parts[0];
+        if (!gc || typeof gc !== "object" || gc.type === null) {
+          return false;
+        }
+        return this.#canUsurpType(gc.type);
+      }
+      #usurp(child) {
+        const m = usurpMap.get(this.type);
+        const gc = child.#parts[0];
+        const nt = m?.get(gc.type);
+        if (!nt)
+          return false;
+        this.#parts = gc.#parts;
+        for (const p of this.#parts) {
+          if (typeof p === "object") {
+            p.#parent = this;
+          }
+        }
+        this.type = nt;
+        this.#toString = void 0;
+        this.#emptyExt = false;
+      }
       static fromGlob(pattern, options = {}) {
-        const ast = new _AST(null, void 0, options);
-        _AST.#parseAST(pattern, ast, 0, options);
+        const ast = new _a(null, void 0, options);
+        _a.#parseAST(pattern, ast, 0, options, 0);
         return ast;
       }
       // returns the regular expression if there's magic, or the unescaped
@@ -716,12 +868,14 @@ var require_ast = __commonJS({
       // or start or whatever) and prepend ^ or / at the Regexp construction.
       toRegExpSource(allowDot) {
         const dot = allowDot ?? !!this.#options.dot;
-        if (this.#root === this)
+        if (this.#root === this) {
+          this.#flatten();
           this.#fillNegs();
-        if (!this.type) {
-          const noEmpty = this.isStart() && this.isEnd();
+        }
+        if (!isExtglobAST(this)) {
+          const noEmpty = this.isStart() && this.isEnd() && !this.#parts.some((s) => typeof s !== "string");
           const src = this.#parts.map((p) => {
-            const [re, _, hasMagic, uflag] = typeof p === "string" ? _AST.#parseGlob(p, this.#hasMagic, noEmpty) : p.toRegExpSource(allowDot);
+            const [re, _, hasMagic, uflag] = typeof p === "string" ? _a.#parseGlob(p, this.#hasMagic, noEmpty) : p.toRegExpSource(allowDot);
             this.#hasMagic = this.#hasMagic || hasMagic;
             this.#uflag = this.#uflag || uflag;
             return re;
@@ -760,9 +914,10 @@ var require_ast = __commonJS({
         let body = this.#partsToRegExp(dot);
         if (this.isStart() && this.isEnd() && !body && this.type !== "!") {
           const s = this.toString();
-          this.#parts = [s];
-          this.type = null;
-          this.#hasMagic = void 0;
+          const me = this;
+          me.#parts = [s];
+          me.type = null;
+          me.#hasMagic = void 0;
           return [s, (0, unescape_js_12.unescape)(this.toString()), false, false];
         }
         let bodyDotAllowed = !repeated || allowDot || dot || !startNoDot ? "" : this.#partsToRegExp(true);
@@ -789,6 +944,38 @@ var require_ast = __commonJS({
           this.#uflag
         ];
       }
+      #flatten() {
+        if (!isExtglobAST(this)) {
+          for (const p of this.#parts) {
+            if (typeof p === "object") {
+              p.#flatten();
+            }
+          }
+        } else {
+          let iterations = 0;
+          let done = false;
+          do {
+            done = true;
+            for (let i = 0; i < this.#parts.length; i++) {
+              const c = this.#parts[i];
+              if (typeof c === "object") {
+                c.#flatten();
+                if (this.#canAdopt(c)) {
+                  done = false;
+                  this.#adopt(c, i);
+                } else if (this.#canAdoptWithSpace(c)) {
+                  done = false;
+                  this.#adoptWithSpace(c, i);
+                } else if (this.#canUsurp(c)) {
+                  done = false;
+                  this.#usurp(c);
+                }
+              }
+            }
+          } while (!done && ++iterations < 10);
+        }
+        this.#toString = void 0;
+      }
       #partsToRegExp(dot) {
         return this.#parts.map((p) => {
           if (typeof p === "string") {
@@ -803,12 +990,23 @@ var require_ast = __commonJS({
         let escaping = false;
         let re = "";
         let uflag = false;
+        let inStar = false;
         for (let i = 0; i < glob.length; i++) {
           const c = glob.charAt(i);
           if (escaping) {
             escaping = false;
             re += (reSpecials.has(c) ? "\\" : "") + c;
             continue;
+          }
+          if (c === "*") {
+            if (inStar)
+              continue;
+            inStar = true;
+            re += noEmpty && /^[*]+$/.test(glob) ? starNoEmpty : star2;
+            hasMagic = true;
+            continue;
+          } else {
+            inStar = false;
           }
           if (c === "\\") {
             if (i === glob.length - 1) {
@@ -828,14 +1026,6 @@ var require_ast = __commonJS({
               continue;
             }
           }
-          if (c === "*") {
-            if (noEmpty && glob === "*")
-              re += starNoEmpty;
-            else
-              re += star2;
-            hasMagic = true;
-            continue;
-          }
           if (c === "?") {
             re += qmark2;
             hasMagic = true;
@@ -847,6 +1037,7 @@ var require_ast = __commonJS({
       }
     };
     exports2.AST = AST;
+    _a = AST;
   }
 });
 
@@ -856,7 +1047,10 @@ var require_escape = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.escape = void 0;
-    var escape = (s, { windowsPathsNoEscape = false } = {}) => {
+    var escape = (s, { windowsPathsNoEscape = false, magicalBraces = false } = {}) => {
+      if (magicalBraces) {
+        return windowsPathsNoEscape ? s.replace(/[?*()[\]{}]/g, "[$&]") : s.replace(/[?*()[\]\\{}]/g, "\\$&");
+      }
       return windowsPathsNoEscape ? s.replace(/[?*()[\]]/g, "[$&]") : s.replace(/[?*()[\]\\]/g, "\\$&");
     };
     exports2.escape = escape;
@@ -864,12 +1058,9 @@ var require_escape = __commonJS({
 });
 
 // dist/commonjs/index.js
-var __importDefault = exports && exports.__importDefault || function(mod) {
-  return mod && mod.__esModule ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.unescape = exports.escape = exports.AST = exports.Minimatch = exports.match = exports.makeRe = exports.braceExpand = exports.defaults = exports.filter = exports.GLOBSTAR = exports.sep = exports.minimatch = void 0;
-var brace_expansion_1 = __importDefault(require_brace_expansion());
+var brace_expansion_1 = require_commonjs2();
 var assert_valid_pattern_js_1 = require_assert_valid_pattern();
 var ast_js_1 = require_ast();
 var escape_js_1 = require_escape();
@@ -882,7 +1073,7 @@ var minimatch = (p, pattern, options = {}) => {
   return new Minimatch(pattern, options).match(p);
 };
 exports.minimatch = minimatch;
-var starDotExtRE = /^\*+([^+@!?\*\[\(]*)$/;
+var starDotExtRE = /^\*+([^+@!?*[(]*)$/;
 var starDotExtTest = (ext2) => (f) => !f.startsWith(".") && f.endsWith(ext2);
 var starDotExtTestDot = (ext2) => (f) => f.endsWith(ext2);
 var starDotExtTestNocase = (ext2) => {
@@ -901,7 +1092,7 @@ var dotStarTest = (f) => f !== "." && f !== ".." && f.startsWith(".");
 var starRE = /^\*+$/;
 var starTest = (f) => f.length !== 0 && !f.startsWith(".");
 var starTestDot = (f) => f.length !== 0 && f !== "." && f !== "..";
-var qmarksRE = /^\?+([^+@!?\*\[\(]*)?$/;
+var qmarksRE = /^\?+([^+@!?*[(]*)?$/;
 var qmarksTestNocase = ([$0, ext2 = ""]) => {
   const noext = qmarksTestNoExt([$0]);
   if (!ext2)
@@ -939,7 +1130,7 @@ var path = {
 };
 exports.sep = defaultPlatform === "win32" ? path.win32.sep : path.posix.sep;
 exports.minimatch.sep = exports.sep;
-exports.GLOBSTAR = Symbol("globstar **");
+exports.GLOBSTAR = /* @__PURE__ */ Symbol("globstar **");
 exports.minimatch.GLOBSTAR = exports.GLOBSTAR;
 var qmark = "[^/]";
 var star = qmark + "*?";
@@ -992,7 +1183,7 @@ var braceExpand = (pattern, options = {}) => {
   if (options.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
     return [pattern];
   }
-  return (0, brace_expansion_1.default)(pattern);
+  return (0, brace_expansion_1.expand)(pattern, { max: options.braceExpandMax });
 };
 exports.braceExpand = braceExpand;
 exports.minimatch.braceExpand = exports.braceExpand;
@@ -1028,15 +1219,18 @@ var Minimatch = class {
   isWindows;
   platform;
   windowsNoMagicRoot;
+  maxGlobstarRecursion;
   regexp;
   constructor(pattern, options = {}) {
     (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
     options = options || {};
     this.options = options;
+    this.maxGlobstarRecursion = options.maxGlobstarRecursion ?? 200;
     this.pattern = pattern;
     this.platform = options.platform || defaultPlatform;
     this.isWindows = this.platform === "win32";
-    this.windowsPathsNoEscape = !!options.windowsPathsNoEscape || options.allowWindowsEscape === false;
+    const awe = "allowWindowsEscape";
+    this.windowsPathsNoEscape = !!options.windowsPathsNoEscape || options[awe] === false;
     if (this.windowsPathsNoEscape) {
       this.pattern = this.pattern.replace(/\\/g, "/");
     }
@@ -1093,7 +1287,10 @@ var Minimatch = class {
         const isUNC = s[0] === "" && s[1] === "" && (s[2] === "?" || !globMagic.test(s[2])) && !globMagic.test(s[3]);
         const isDrive = /^[a-z]:/i.test(s[0]);
         if (isUNC) {
-          return [...s.slice(0, 4), ...s.slice(4).map((ss) => this.parse(ss))];
+          return [
+            ...s.slice(0, 4),
+            ...s.slice(4).map((ss) => this.parse(ss))
+          ];
         } else if (isDrive) {
           return [s[0], ...s.slice(1).map((ss) => this.parse(ss))];
         }
@@ -1119,10 +1316,10 @@ var Minimatch = class {
   // of patterns that we have to process.
   preprocess(globParts) {
     if (this.options.noglobstar) {
-      for (let i = 0; i < globParts.length; i++) {
-        for (let j = 0; j < globParts[i].length; j++) {
-          if (globParts[i][j] === "**") {
-            globParts[i][j] = "*";
+      for (const partset of globParts) {
+        for (let j = 0; j < partset.length; j++) {
+          if (partset[j] === "**") {
+            partset[j] = "*";
           }
         }
       }
@@ -1200,7 +1397,7 @@ var Minimatch = class {
       let dd = 0;
       while (-1 !== (dd = parts.indexOf("..", dd + 1))) {
         const p = parts[dd - 1];
-        if (p && p !== "." && p !== ".." && p !== "**") {
+        if (p && p !== "." && p !== ".." && p !== "**" && !(this.isWindows && /^[a-z]:$/i.test(p))) {
           didSomething = true;
           parts.splice(dd - 1, 2);
           dd -= 2;
@@ -1365,7 +1562,8 @@ var Minimatch = class {
   // out of pattern, then that's fine, as long as all
   // the parts match.
   matchOne(file, pattern, partial = false) {
-    const options = this.options;
+    let fileStartIndex = 0;
+    let patternStartIndex = 0;
     if (this.isWindows) {
       const fileDrive = typeof file[0] === "string" && /^[a-z]:$/i.test(file[0]);
       const fileUNC = !fileDrive && file[0] === "" && file[1] === "" && file[2] === "?" && /^[a-z]:$/i.test(file[3]);
@@ -1374,14 +1572,14 @@ var Minimatch = class {
       const fdi = fileUNC ? 3 : fileDrive ? 0 : void 0;
       const pdi = patternUNC ? 3 : patternDrive ? 0 : void 0;
       if (typeof fdi === "number" && typeof pdi === "number") {
-        const [fd, pd] = [file[fdi], pattern[pdi]];
+        const [fd, pd] = [
+          file[fdi],
+          pattern[pdi]
+        ];
         if (fd.toLowerCase() === pd.toLowerCase()) {
           pattern[pdi] = fd;
-          if (pdi > fdi) {
-            pattern = pattern.slice(pdi);
-          } else if (fdi > pdi) {
-            file = file.slice(fdi);
-          }
+          patternStartIndex = pdi;
+          fileStartIndex = fdi;
         }
       }
     }
@@ -1389,49 +1587,123 @@ var Minimatch = class {
     if (optimizationLevel >= 2) {
       file = this.levelTwoFileOptimize(file);
     }
-    this.debug("matchOne", this, { file, pattern });
-    this.debug("matchOne", file.length, pattern.length);
-    for (var fi = 0, pi = 0, fl = file.length, pl = pattern.length; fi < fl && pi < pl; fi++, pi++) {
-      this.debug("matchOne loop");
-      var p = pattern[pi];
-      var f = file[fi];
-      this.debug(pattern, p, f);
-      if (p === false) {
+    if (pattern.includes(exports.GLOBSTAR)) {
+      return this.#matchGlobstar(file, pattern, partial, fileStartIndex, patternStartIndex);
+    }
+    return this.#matchOne(file, pattern, partial, fileStartIndex, patternStartIndex);
+  }
+  #matchGlobstar(file, pattern, partial, fileIndex, patternIndex) {
+    const firstgs = pattern.indexOf(exports.GLOBSTAR, patternIndex);
+    const lastgs = pattern.lastIndexOf(exports.GLOBSTAR);
+    const [head, body, tail] = partial ? [
+      pattern.slice(patternIndex, firstgs),
+      pattern.slice(firstgs + 1),
+      []
+    ] : [
+      pattern.slice(patternIndex, firstgs),
+      pattern.slice(firstgs + 1, lastgs),
+      pattern.slice(lastgs + 1)
+    ];
+    if (head.length) {
+      const fileHead = file.slice(fileIndex, fileIndex + head.length);
+      if (!this.#matchOne(fileHead, head, partial, 0, 0)) {
         return false;
       }
-      if (p === exports.GLOBSTAR) {
-        this.debug("GLOBSTAR", [pattern, p, f]);
-        var fr = fi;
-        var pr = pi + 1;
-        if (pr === pl) {
-          this.debug("** at the end");
-          for (; fi < fl; fi++) {
-            if (file[fi] === "." || file[fi] === ".." || !options.dot && file[fi].charAt(0) === ".")
-              return false;
-          }
-          return true;
+      fileIndex += head.length;
+      patternIndex += head.length;
+    }
+    let fileTailMatch = 0;
+    if (tail.length) {
+      if (tail.length + fileIndex > file.length)
+        return false;
+      let tailStart = file.length - tail.length;
+      if (this.#matchOne(file, tail, partial, tailStart, 0)) {
+        fileTailMatch = tail.length;
+      } else {
+        if (file[file.length - 1] !== "" || fileIndex + tail.length === file.length) {
+          return false;
         }
-        while (fr < fl) {
-          var swallowee = file[fr];
-          this.debug("\nglobstar while", file, fr, pattern, pr, swallowee);
-          if (this.matchOne(file.slice(fr), pattern.slice(pr), partial)) {
-            this.debug("globstar found match!", fr, fl, swallowee);
-            return true;
-          } else {
-            if (swallowee === "." || swallowee === ".." || !options.dot && swallowee.charAt(0) === ".") {
-              this.debug("dot detected!", file, fr, pattern, pr);
-              break;
-            }
-            this.debug("globstar swallow a segment, and continue");
-            fr++;
-          }
+        tailStart--;
+        if (!this.#matchOne(file, tail, partial, tailStart, 0)) {
+          return false;
         }
-        if (partial) {
-          this.debug("\n>>> no match, partial?", file, fr, pattern, pr);
-          if (fr === fl) {
-            return true;
-          }
+        fileTailMatch = tail.length + 1;
+      }
+    }
+    if (!body.length) {
+      let sawSome = !!fileTailMatch;
+      for (let i2 = fileIndex; i2 < file.length - fileTailMatch; i2++) {
+        const f = String(file[i2]);
+        sawSome = true;
+        if (f === "." || f === ".." || !this.options.dot && f.startsWith(".")) {
+          return false;
         }
+      }
+      return partial || sawSome;
+    }
+    const bodySegments = [[[], 0]];
+    let currentBody = bodySegments[0];
+    let nonGsParts = 0;
+    const nonGsPartsSums = [0];
+    for (const b of body) {
+      if (b === exports.GLOBSTAR) {
+        nonGsPartsSums.push(nonGsParts);
+        currentBody = [[], 0];
+        bodySegments.push(currentBody);
+      } else {
+        currentBody[0].push(b);
+        nonGsParts++;
+      }
+    }
+    let i = bodySegments.length - 1;
+    const fileLength = file.length - fileTailMatch;
+    for (const b of bodySegments) {
+      b[1] = fileLength - (nonGsPartsSums[i--] + b[0].length);
+    }
+    return !!this.#matchGlobStarBodySections(file, bodySegments, fileIndex, 0, partial, 0, !!fileTailMatch);
+  }
+  // return false for "nope, not matching"
+  // return null for "not matching, cannot keep trying"
+  #matchGlobStarBodySections(file, bodySegments, fileIndex, bodyIndex, partial, globStarDepth, sawTail) {
+    const bs = bodySegments[bodyIndex];
+    if (!bs) {
+      for (let i = fileIndex; i < file.length; i++) {
+        sawTail = true;
+        const f = file[i];
+        if (f === "." || f === ".." || !this.options.dot && f.startsWith(".")) {
+          return false;
+        }
+      }
+      return sawTail;
+    }
+    const [body, after] = bs;
+    while (fileIndex <= after) {
+      const m = this.#matchOne(file.slice(0, fileIndex + body.length), body, partial, fileIndex, 0);
+      if (m && globStarDepth < this.maxGlobstarRecursion) {
+        const sub = this.#matchGlobStarBodySections(file, bodySegments, fileIndex + body.length, bodyIndex + 1, partial, globStarDepth + 1, sawTail);
+        if (sub !== false) {
+          return sub;
+        }
+      }
+      const f = file[fileIndex];
+      if (f === "." || f === ".." || !this.options.dot && f.startsWith(".")) {
+        return false;
+      }
+      fileIndex++;
+    }
+    return partial || null;
+  }
+  #matchOne(file, pattern, partial, fileIndex, patternIndex) {
+    let fi;
+    let pi;
+    let pl;
+    let fl;
+    for (fi = fileIndex, pi = patternIndex, fl = file.length, pl = pattern.length; fi < fl && pi < pl; fi++, pi++) {
+      this.debug("matchOne loop");
+      let p = pattern[pi];
+      let f = file[fi];
+      this.debug(pattern, p, f);
+      if (p === false || p === exports.GLOBSTAR) {
         return false;
       }
       let hit;
@@ -1516,21 +1788,32 @@ var Minimatch = class {
             pp[i] = twoStar;
           }
         } else if (next === void 0) {
-          pp[i - 1] = prev + "(?:\\/|" + twoStar + ")?";
+          pp[i - 1] = prev + "(?:\\/|\\/" + twoStar + ")?";
         } else if (next !== exports.GLOBSTAR) {
           pp[i - 1] = prev + "(?:\\/|\\/" + twoStar + "\\/)" + next;
           pp[i + 1] = exports.GLOBSTAR;
         }
       });
-      return pp.filter((p) => p !== exports.GLOBSTAR).join("/");
+      const filtered = pp.filter((p) => p !== exports.GLOBSTAR);
+      if (this.partial && filtered.length >= 1) {
+        const prefixes = [];
+        for (let i = 1; i <= filtered.length; i++) {
+          prefixes.push(filtered.slice(0, i).join("/"));
+        }
+        return "(?:" + prefixes.join("|") + ")";
+      }
+      return filtered.join("/");
     }).join("|");
     const [open, close] = set.length > 1 ? ["(?:", ")"] : ["", ""];
     re = "^" + open + re + close + "$";
+    if (this.partial) {
+      re = "^(?:\\/|" + open + re.slice(1, -1) + close + ")$";
+    }
     if (this.negate)
       re = "^(?!" + re + ").+$";
     try {
       this.regexp = new RegExp(re, [...flags].join(""));
-    } catch (ex) {
+    } catch {
       this.regexp = false;
     }
     return this.regexp;
@@ -1538,7 +1821,7 @@ var Minimatch = class {
   slashSplit(p) {
     if (this.preserveMultipleSlashes) {
       return p.split("/");
-    } else if (this.isWindows && /^\/\/[^\/]+/.test(p)) {
+    } else if (this.isWindows && /^\/\/[^/]+/.test(p)) {
       return ["", ...p.split(/\/+/)];
     } else {
       return p.split(/\/+/);
@@ -1569,8 +1852,7 @@ var Minimatch = class {
         filename = ff[i];
       }
     }
-    for (let i = 0; i < set.length; i++) {
-      const pattern = set[i];
+    for (const pattern of set) {
       let file = ff;
       if (options.matchBase && pattern.length === 1) {
         file = [filename];

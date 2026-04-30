@@ -24,6 +24,7 @@ absl_source_set("status") {
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/base:strerror",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
+    "//third_party/abseil-cpp/absl/debugging:leak_check",
     "//third_party/abseil-cpp/absl/debugging:stacktrace",
     "//third_party/abseil-cpp/absl/debugging:symbolize",
     "//third_party/abseil-cpp/absl/functional:function_ref",
@@ -35,11 +36,6 @@ absl_source_set("status") {
     "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/abseil-cpp/absl/types:span",
   ]
-
-  if (!is_win || is_clang) {
-    # TODO(crbug.com/331100926): Remove once fixed in upstream absl.
-    cflags_cc = [ "-Wno-deprecated-pragma" ]
-  }
 }
 
 absl_test("status_test") {

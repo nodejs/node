@@ -6,11 +6,14 @@
 #define V8_SANDBOX_INDIRECT_POINTER_H_
 
 #include "src/common/globals.h"
+#include "src/objects/objects.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
+
+class TrustedPointerPublishingScope;
 
 // Indirect pointers.
 //
@@ -29,10 +32,10 @@ namespace internal {
 // this will allocate an entry in the trusted pointer table.
 //
 // Only available when the sandbox is enabled.
-V8_INLINE void InitSelfIndirectPointerField(Address field_address,
-                                            IsolateForSandbox isolate,
-                                            Tagged<HeapObject> host,
-                                            IndirectPointerTag tag);
+V8_INLINE void InitSelfIndirectPointerField(
+    Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
+    IndirectPointerTag tag,
+    TrustedPointerPublishingScope* opt_publishing_scope);
 
 // Reads the IndirectPointerHandle from the field and loads the Object
 // referenced by this handle from the appropriate pointer table. The given
@@ -41,7 +44,7 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
 // trusted pointer table for all other trusted objects.
 //
 // Only available when the sandbox is enabled.
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
                                                   IsolateForSandbox isolate,
                                                   AcquireLoadTag);
@@ -51,7 +54,7 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
 // reference to the given object.
 //
 // Only available when the sandbox is enabled.
-template <IndirectPointerTag tag>
+template <IndirectPointerTagRange tag_range>
 V8_INLINE void WriteIndirectPointerField(Address field_address,
                                          Tagged<ExposedTrustedObject> value,
                                          ReleaseStoreTag);

@@ -118,17 +118,21 @@ void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
   void* const requested_allocation_code_address =
       AlignedAddress(isolate->heap()->GetRandomMmapAddr(), alignment);
   const uint32_t allocation_code_size = RoundUp(d.code_size(), alignment);
-  uint8_t* allocated_code_bytes = static_cast<uint8_t*>(AllocatePages(
-      page_allocator, requested_allocation_code_address, allocation_code_size,
-      alignment, PageAllocator::kReadWrite));
+  uint8_t* allocated_code_bytes = static_cast<uint8_t*>(
+      AllocatePages(page_allocator, allocation_code_size, alignment,
+                    PageAllocator::kReadWrite,
+                    v8::PageAllocator::AllocationHint().WithAddress(
+                        requested_allocation_code_address)));
   CHECK_NOT_NULL(allocated_code_bytes);
 
   void* const requested_allocation_data_address =
       AlignedAddress(isolate->heap()->GetRandomMmapAddr(), alignment);
   const uint32_t allocation_data_size = RoundUp(d.data_size(), alignment);
-  uint8_t* allocated_data_bytes = static_cast<uint8_t*>(AllocatePages(
-      page_allocator, requested_allocation_data_address, allocation_data_size,
-      alignment, PageAllocator::kReadWrite));
+  uint8_t* allocated_data_bytes = static_cast<uint8_t*>(
+      AllocatePages(page_allocator, allocation_data_size, alignment,
+                    PageAllocator::kReadWrite,
+                    v8::PageAllocator::AllocationHint().WithAddress(
+                        requested_allocation_data_address)));
   CHECK_NOT_NULL(allocated_data_bytes);
 
   // Copy the embedded blob into the newly allocated backing store. Switch
@@ -182,9 +186,9 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||    \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||     \
-    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_RISCV64) || \
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||     \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) ||      \
+    defined(V8_TARGET_ARCH_S390X) || defined(V8_TARGET_ARCH_RISCV64) || \
     defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV32)
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. This fixes up the

@@ -60,7 +60,7 @@ if (process.argv[2] === 'child') {
   // TODO(@jasnell): The close event is not called consistently
   // across platforms. Need to investigate if it can be made
   // more consistent.
-  const onClose = (msg) => {
+  const onClose = common.mustCallAtLeast((msg) => {
     if (msg.what !== 'close') return;
     process.removeListener('message', onClose);
 
@@ -68,7 +68,7 @@ if (process.argv[2] === 'child') {
       process.send({ what: 'close' });
     }));
     serverScope.close();
-  };
+  });
 
   process.on('message', onClose);
 
@@ -86,13 +86,13 @@ if (process.argv[2] === 'child') {
   function testServer(callback) {
 
     // Destroy server execute callback when done.
-    const countdown = new Countdown(2, () => {
+    const countdown = new Countdown(2, common.mustCall(() => {
       server.on('close', common.mustCall(() => {
         debug('PARENT: server closed');
         child.send({ what: 'close' });
       }));
       server.close();
-    });
+    }));
 
     // We expect 4 connections and close events.
     const connections = new Countdown(4, () => countdown.dec());
@@ -122,7 +122,7 @@ if (process.argv[2] === 'child') {
     // event is emitted appears to be variable across platforms.
     // Need to investigate why and whether it can be made
     // more consistent.
-    const messageHandlers = (msg) => {
+    const messageHandlers = common.mustCallAtLeast((msg) => {
       if (msg.what === 'listening') {
         // Make connections.
         let socket;
@@ -143,7 +143,7 @@ if (process.argv[2] === 'child') {
         child.removeListener('message', messageHandlers);
         callback();
       }
-    };
+    });
 
     child.on('message', messageHandlers);
   }

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// LeakSanitizer support.
-
 #ifndef V8_BASE_SANITIZER_LSAN_H_
 #define V8_BASE_SANITIZER_LSAN_H_
+
+// LeakSanitizer support.
 
 #include <type_traits>
 
@@ -22,8 +22,8 @@
 
 #else  // defined(V8_USE_ADDRESS_SANITIZER) && !defined(V8_OS_WIN)
 
-#define LSAN_IGNORE_OBJECT(ptr)                                         \
-  static_assert(std::is_convertible<decltype(ptr), const void*>::value, \
+#define LSAN_IGNORE_OBJECT(ptr)                                    \
+  static_assert(std::is_convertible_v<decltype(ptr), const void*>, \
                 "LSAN_IGNORE_OBJECT can only be used with pointer types")
 
 #endif  // defined(V8_USE_ADDRESS_SANITIZER) && !defined(V8_OS_WIN)

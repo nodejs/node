@@ -1,22 +1,22 @@
 'use strict'
 
+const assert = require('node:assert')
+
 const { kConstruct } = require('../../core/symbols')
 const { urlEquals, getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../../core/util')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { cloneResponse, fromInnerResponse, getResponseState } = require('../fetch/response')
 const { Request, fromInnerRequest, getRequestState } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
-const { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require('../fetch/util')
-const assert = require('node:assert')
-
+const { urlIsHttpHttpsScheme, readAllBytes } = require('../fetch/util')
 /**
  * @see https://w3c.github.io/ServiceWorker/#dfn-cache-batch-operation
  * @typedef {Object} CacheBatchOperation
  * @property {'delete' | 'put'} type
  * @property {any} request
  * @property {any} response
- * @property {import('../../types/cache').CacheQueryOptions} options
+ * @property {import('../../../types/cache').CacheQueryOptions} options
  */
 
 /**
@@ -46,7 +46,7 @@ class Cache {
     const prefix = 'Cache.match'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     const p = this.#internalMatchAll(request, options, 1)
@@ -62,7 +62,7 @@ class Cache {
     webidl.brandCheck(this, Cache)
 
     const prefix = 'Cache.matchAll'
-    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     return this.#internalMatchAll(request, options)
@@ -74,7 +74,7 @@ class Cache {
     const prefix = 'Cache.add'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
 
     // 1.
     const requests = [request]
@@ -151,7 +151,7 @@ class Cache {
       requestList.push(r)
 
       // 5.6
-      const responsePromise = createDeferredPromise()
+      const responsePromise = Promise.withResolvers()
 
       // 5.7
       fetchControllers.push(fetching({
@@ -229,7 +229,7 @@ class Cache {
     }
 
     // 7.5
-    const cacheJobPromise = createDeferredPromise()
+    const cacheJobPromise = Promise.withResolvers()
 
     // 7.6.1
     let errorData = null
@@ -262,7 +262,7 @@ class Cache {
     const prefix = 'Cache.put'
     webidl.argumentLengthCheck(arguments, 2, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     response = webidl.converters.Response(response, prefix, 'response')
 
     // 1.
@@ -323,7 +323,7 @@ class Cache {
     const clonedResponse = cloneResponse(innerResponse)
 
     // 10.
-    const bodyReadPromise = createDeferredPromise()
+    const bodyReadPromise = Promise.withResolvers()
 
     // 11.
     if (innerResponse.body != null) {
@@ -362,7 +362,7 @@ class Cache {
     }
 
     // 19.1
-    const cacheJobPromise = createDeferredPromise()
+    const cacheJobPromise = Promise.withResolvers()
 
     // 19.2.1
     let errorData = null
@@ -393,7 +393,7 @@ class Cache {
     const prefix = 'Cache.delete'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     /**
@@ -425,7 +425,7 @@ class Cache {
 
     operations.push(operation)
 
-    const cacheJobPromise = createDeferredPromise()
+    const cacheJobPromise = Promise.withResolvers()
 
     let errorData = null
     let requestResponses
@@ -450,7 +450,7 @@ class Cache {
   /**
    * @see https://w3c.github.io/ServiceWorker/#dom-cache-keys
    * @param {any} request
-   * @param {import('../../types/cache').CacheQueryOptions} options
+   * @param {import('../../../types/cache').CacheQueryOptions} options
    * @returns {Promise<readonly Request[]>}
    */
   async keys (request = undefined, options = {}) {
@@ -458,7 +458,7 @@ class Cache {
 
     const prefix = 'Cache.keys'
 
-    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     // 1.
@@ -481,7 +481,7 @@ class Cache {
     }
 
     // 4.
-    const promise = createDeferredPromise()
+    const promise = Promise.withResolvers()
 
     // 5.
     // 5.1
@@ -668,7 +668,7 @@ class Cache {
   /**
    * @see https://w3c.github.io/ServiceWorker/#query-cache
    * @param {any} requestQuery
-   * @param {import('../../types/cache').CacheQueryOptions} options
+   * @param {import('../../../types/cache').CacheQueryOptions} options
    * @param {requestResponseList} targetStorage
    * @returns {requestResponseList}
    */
@@ -693,7 +693,7 @@ class Cache {
    * @param {any} requestQuery
    * @param {any} request
    * @param {any | null} response
-   * @param {import('../../types/cache').CacheQueryOptions | undefined} options
+   * @param {import('../../../types/cache').CacheQueryOptions | undefined} options
    * @returns {boolean}
    */
   #requestMatchesCachedItem (requestQuery, request, response = null, options) {
@@ -792,9 +792,9 @@ class Cache {
     // 5.5.2
     for (const response of responses) {
       // 5.5.2.1
-      const responseObject = fromInnerResponse(response, 'immutable')
+      const responseObject = fromInnerResponse(cloneResponse(response), 'immutable')
 
-      responseList.push(responseObject.clone())
+      responseList.push(responseObject)
 
       if (responseList.length >= maxResponses) {
         break

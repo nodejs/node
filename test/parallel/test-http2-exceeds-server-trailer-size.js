@@ -9,7 +9,7 @@ const { createServer, constants, connect } = require('http2');
 
 const server = createServer();
 
-server.on('stream', (stream, headers) => {
+server.on('stream', common.mustCall((stream, headers) => {
   stream.respond(undefined, { waitForTrailers: true });
 
   stream.on('data', common.mustNotCall());
@@ -30,9 +30,9 @@ server.on('stream', (stream, headers) => {
   stream.on('close', common.mustCall());
 
   stream.end();
-});
+}));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const clientSession = connect(`http://localhost:${server.address().port}`);
 
   clientSession.on('frameError', common.mustNotCall());
@@ -52,4 +52,4 @@ server.listen(0, () => {
   clientStream.on('frameError', common.mustNotCall());
 
   clientStream.end();
-});
+}));

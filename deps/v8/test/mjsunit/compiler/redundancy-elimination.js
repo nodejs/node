@@ -109,7 +109,7 @@
 })();
 
 // Test the RedundancyElimination::ReduceSpeculativeNumberOperation()
-// TurboFan optimization for the case of SpeculativeSafeIntegerAdd.
+// TurboFan optimization for the case of SpeculativeSmallIntegerAdd.
 (function() {
   function foo(a, i) {
     const x = a[i];
@@ -125,7 +125,7 @@
 })();
 
 // Test the RedundancyElimination::ReduceSpeculativeNumberOperation()
-// TurboFan optimization for the case of SpeculativeSafeIntegerSubtract.
+// TurboFan optimization for the case of SpeculativeSmallIntegerSubtract.
 (function() {
   function foo(a, i) {
     const x = a[i];

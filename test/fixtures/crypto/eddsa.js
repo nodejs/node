@@ -1,5 +1,7 @@
 'use strict';
 
+const common = require('../../common');
+
 module.exports = function() {
   const pkcs8 = {
     'Ed25519': Buffer.from(
@@ -26,26 +28,47 @@ module.exports = function() {
     'b219e30a1beea8fe869082d99fc8282f9050d024e59eaf0730ba9db70a', 'hex');
 
   // For verification tests.
+  // eslint-disable @stylistic/js/max-len
   const signatures = {
-    'Ed25519': Buffer.from(
-      '3d90de5e5743dfc28225bfadb341b116cbf8a3f1ceedbf4adc350ef5d3471843a418' +
-      '614dcb6e614862614cf7af1496f9340b3c844ea4dceab1d3d155eb7ecc00', 'hex'),
-    'Ed448': Buffer.from(
-      '76897e8c50ac6b1132735c09c55f506c0149d2677c75664f8bc10b826fbd9df0a03c' +
-      'd986bce8339e64c7d1720ea9361784dc73837765ac2980c0dac0814a8bc187d1c9c9' +
-      '07c5dcc07956f85b70930fe42de764177217cb2d52bab7c1debe0ca89ccecbcd63f7' +
-      '025a2a5a572b9d23b0642f00', 'hex')
+    'Ed25519': {
+      // Ed25519 does not support context
+      '0': Buffer.from('3d90de5e5743dfc28225bfadb341b116cbf8a3f1ceedbf4adc350ef5d3471843a418614dcb6e614862614cf7af1496f9340b3c844ea4dceab1d3d155eb7ecc00', 'hex'),
+    },
+    'Ed448': {
+      '0': Buffer.from('76897e8c50ac6b1132735c09c55f506c0149d2677c75664f8bc10b826fbd9df0a03cd986bce8339e64c7d1720ea9361784dc73837765ac2980c0dac0814a8bc187d1c9c907c5dcc07956f85b70930fe42de764177217cb2d52bab7c1debe0ca89ccecbcd63f7025a2a5a572b9d23b0642f00', 'hex'),
+      '32': Buffer.from('0294186f0305dd3a2d5ac86eeb7e73c05d419e84152c2341ae24e55c3889e878f4acb537f3651a50b0b1c26739721b168499337537c92727003480be61fc23f519ed772ebf2977f6bda5259235ded904959227beaf0adfbd28288358854e9abe089dc8075998993b86280b0bd89bdacc3c00', 'hex'),
+      '255': Buffer.from('6dfef748ab53ca856b3ffd84c62ae167c2737dfe4eae89c6c1edc0adc685b73f8170eacd723ec76fb31318ebe47c908722000129b2e9806e8040a4d4d90ac1d1b539199e33553300dcdf4989e4b77c835b53f4ee0d114845ad97047ad0d112e05304b38f5836bbe024a6f700a368d9910100', 'hex'),
+    }
+  }
+  // eslint-disable @stylistic/js/max-len
+
+
+  const algorithms = ['Ed25519'];
+  const contexts = [new Uint8Array(0), new Uint8Array(32), new Uint8Array(255)];
+
+  if (!process.features.openssl_is_boringssl) {
+    algorithms.push('Ed448')
+  } else {
+    common.printSkipMessage(`Skipping unsupported Ed448 test cases`);
   }
 
-  const algorithms = ['Ed25519', 'Ed448'];
+  const vectors = [];
+  for (const algorithm of algorithms) {
+    for (const context of contexts) {
+      if (algorithm === 'Ed25519' && context.byteLength !== 0) {
+        continue;
+      }
 
-  const vectors = algorithms.map((algorithm) => ({
-    publicKeyBuffer: spki[algorithm],
-    privateKeyBuffer: pkcs8[algorithm],
-    name: algorithm,
-    data,
-    signature: signatures[algorithm],
-  }));
+      vectors.push({
+        publicKeyBuffer: spki[algorithm],
+        privateKeyBuffer: pkcs8[algorithm],
+        name: algorithm,
+        context: algorithm === 'Ed25519' ? undefined : context,
+        data,
+        signature: signatures[algorithm][context.byteLength],
+      })
+    }
+  }
 
   return vectors;
 }

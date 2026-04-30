@@ -4,7 +4,7 @@
 
 # Increase the timeout for these:
 SLOW_ARCHS = [
-    "arm", "arm64", "mips64", "mips64el", "s390", "s390x", "riscv32", "riscv64",
+    "arm", "arm64", "mips64", "mips64el", "s390x", "riscv32", "riscv64",
     "loong64"
 ]
 
@@ -12,9 +12,10 @@ SLOW_ARCHS = [
 SCALE_FACTOR = dict(
     full_debug=4,
     lite_mode=2,
+    memory_corruption_api=1.5,
     tsan=2,
     use_sanitizer=1.5,
-    verify_predictable=4,
+    verify_predictable=8,
 )
 
 INITIALIZATION_ERROR = f"""

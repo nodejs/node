@@ -7,8 +7,8 @@
 #include <map>
 #include <numeric>
 #include <unordered_map>
-#include <unordered_set>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/cppgc/macros.h"
 #include "src/heap/cppgc/compaction-worklists.h"
 #include "src/heap/cppgc/globals.h"
@@ -76,7 +76,7 @@ class MovableReferences final {
 #if DEBUG
   // The following two collections are used to allow refer back from a slot to
   // an already moved object.
-  std::unordered_set<const void*> moved_objects_;
+  absl::flat_hash_set<const void*> moved_objects_;
   std::unordered_map<MovableReference*, MovableReference>
       interior_slot_to_object_;
 #endif  // DEBUG
@@ -208,7 +208,7 @@ void MovableReferences::RelocateInteriorReferences(Address from, Address to,
   while (offset < size) {
     if (!interior_it->second) {
       // Update the interior reference value, so that when the object the slot
-      // is pointing to is moved, it can re-use this value.
+      // is pointing to is moved, it can reuse this value.
       Address reference = to + offset;
       interior_it->second = reference;
 
@@ -287,7 +287,7 @@ class CompactionState final {
     // Return remaining available pages back to the backend.
     for (NormalPage* page : available_pages_) {
       SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
-      NormalPage::Destroy(page, FreeMemoryHandling::kDiscardWherePossible);
+      NormalPage::Destroy(page);
     }
   }
 

@@ -76,7 +76,9 @@ wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
 
-```js
+```mjs
+import util from 'node:util';
+
 function fn() {
   return Promise.reject(null);
 }
@@ -88,6 +90,56 @@ callbackFunction((err, ret) => {
   err && Object.hasOwn(err, 'reason') && err.reason === null;  // true
 });
 ```
+
+```cjs
+const util = require('node:util');
+
+function fn() {
+  return Promise.reject(null);
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  // When the Promise was rejected with `null` it is wrapped with an Error and
+  // the original value is stored in `reason`.
+  err && Object.hasOwn(err, 'reason') && err.reason === null;  // true
+});
+```
+
+## `util.convertProcessSignalToExitCode(signal)`
+
+<!-- YAML
+added:
+ - v25.4.0
+ - v24.14.0
+-->
+
+* `signal` {string} A signal name (e.g. `'SIGTERM'`)
+* Returns: {number} The exit code corresponding to `signal`
+
+The `util.convertProcessSignalToExitCode()` method converts a signal name to its
+corresponding POSIX exit code. Following the POSIX standard, the exit code
+for a process terminated by a signal is calculated as `128 + signal number`.
+
+If `signal` is not a valid signal name, then an error will be thrown. See
+[`signal(7)`][] for a list of valid signals.
+
+```mjs
+import { convertProcessSignalToExitCode } from 'node:util';
+
+console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
+console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
+```
+
+```cjs
+const { convertProcessSignalToExitCode } = require('node:util');
+
+console.log(convertProcessSignalToExitCode('SIGTERM')); // 143 (128 + 15)
+console.log(convertProcessSignalToExitCode('SIGKILL')); // 137 (128 + 9)
+```
+
+This is particularly useful when working with processes to determine
+the exit code based on the signal that terminated the process.
 
 ## `util.debuglog(section[, callback])`
 
@@ -135,14 +187,14 @@ The `section` supports wildcard also:
 
 ```mjs
 import { debuglog } from 'node:util';
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
 ```cjs
 const { debuglog } = require('node:util');
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
@@ -185,7 +237,7 @@ let log = debuglog('internals', (debug) => {
 added: v14.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `util.debuglog().enabled` getter is used to create a test that can be used
 in conditionals based on the existence of the `NODE_DEBUG` environment variable.
@@ -225,11 +277,17 @@ added: v14.9.0
 Alias for `util.debuglog`. Usage allows for readability of that doesn't imply
 logging when only using `util.debuglog().enabled`.
 
-## `util.deprecate(fn, msg[, code])`
+## `util.deprecate(fn, msg[, code[, options]])`
 
 <!-- YAML
 added: v0.8.0
 changes:
+  - version:
+      - v25.2.0
+      - v24.12.0
+    pr-url: https://github.com/nodejs/node/pull/59982
+    description: Add options object with modifyPrototype to conditionally
+                 modify the prototype of the deprecated object.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16393
     description: Deprecation warnings are only emitted once for each code.
@@ -240,6 +298,10 @@ changes:
   invoked.
 * `code` {string} A deprecation code. See the [list of deprecated APIs][] for a
   list of codes.
+* `options` {Object}
+  * `modifyPrototype` {boolean} When false do not change the prototype of object
+    while emitting the deprecation warning.
+    **Default:** `true`.
 * Returns: {Function} The deprecated function wrapped to emit a warning.
 
 The `util.deprecate()` method wraps `fn` (which may be a function or class) in
@@ -340,8 +402,8 @@ added:
 * `expected` {Array|string} The second value to compare
 
 * Returns: {Array} An array of difference entries. Each entry is an array with two elements:
-  * Index 0: {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
-  * Index 1: {string} The value associated with the operation
+  * `0` {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
+  * `1` {string} The value associated with the operation
 
 * Algorithm complexity: O(N\*D), where:
 
@@ -540,7 +602,7 @@ changes:
 
 > Stability: 1.1 - Active development
 
-* `frameCount` {number} Optional number of frames to capture as call site objects.
+* `frameCount` {integer} Optional number of frames to capture as call site objects.
   **Default:** `10`. Allowable range is between 1 and 200.
 * `options` {Object} Optional
   * `sourceMap` {boolean} Reconstruct the original location in the stacktrace from the source-map.
@@ -556,6 +618,9 @@ changes:
 Returns an array of call site objects containing the stack of
 the caller function.
 
+Unlike accessing an `error.stack`, the result returned from this API is not
+interfered with `Error.prepareStackTrace`.
+
 ```mjs
 import { getCallSites } from 'node:util';
 
@@ -568,7 +633,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
@@ -605,7 +670,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
@@ -632,8 +697,7 @@ anotherFunction();
 
 It is possible to reconstruct the original locations by setting the option `sourceMap` to `true`.
 If the source map is not available, the original location will be the same as the current location.
-When the `--enable-source-maps` flag is enabled, for example when using `--experimental-transform-types`,
-`sourceMap` will be true by default.
+When the `--enable-source-maps` flag is enabled,`sourceMap` will be true by default.
 
 ```ts
 import { getCallSites } from 'node:util';
@@ -739,6 +803,18 @@ fs.access('file/that/does/not/exist', (err) => {
 });
 ```
 
+## `util.setTraceSigInt(enable)`
+
+<!-- YAML
+added:
+ - v24.6.0
+ - v22.19.0
+-->
+
+* `enable` {boolean}
+
+Enable or disable printing a stack trace on `SIGINT`. The API is only available on the main thread.
+
 ## `util.inherits(constructor, superConstructor)`
 
 <!-- YAML
@@ -835,6 +911,11 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
+  - version:
+    - v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/59710
+    description: The util.inspect.styles.regexp style is now a method that is
+                 invoked for coloring the stringified regular expression.
   - version:
     - v17.3.0
     - v16.14.0
@@ -973,8 +1054,8 @@ The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
 passed that alter the result.
-`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
-an identifiable tag for an inspected value.
+`util.inspect()` will use the constructor's name and/or `Symbol.toStringTag`
+property to make an identifiable tag for an inspected value.
 
 ```js
 class Foo {
@@ -1285,7 +1366,12 @@ The default styles and associated colors are:
 * `name`: (no styling)
 * `null`: `bold`
 * `number`: `yellow`
-* `regexp`: `red`
+* `regexp`: A method that colors character classes, groups, assertions, and
+  other parts for improved readability. To customize the coloring, change the
+  `colors` property. It is set to
+  `['red', 'green', 'yellow', 'cyan', 'magenta']` by default and may be
+  adjusted as needed. The array is repetitively iterated through depending on
+  the "depth".
 * `special`: `cyan` (e.g., `Proxies`)
 * `string`: `green`
 * `symbol`: `green`
@@ -1297,6 +1383,17 @@ terminals. To verify color support use [`tty.hasColors()`][].
 Predefined control codes are listed below (grouped as "Modifiers", "Foreground
 colors", and "Background colors").
 
+#### Complex custom coloring
+
+It is possible to define a method as style. It receives the stringified value
+of the input. It is invoked in case coloring is active and the type is
+inspected.
+
+Example: `util.inspect.styles.regexp(value)`
+
+* `value` {string} The string representation of the input type.
+* Returns: {string} The adjusted representation of `object`.
+
 #### Modifiers
 
 Modifier support varies throughout different terminals. They will mostly be
@@ -1305,19 +1402,19 @@ ignored, if not supported.
 * `reset` - Resets all (color) modifiers to their defaults
 * **bold** - Make text bold
 * _italic_ - Make text italic
-* <span style="border-bottom: 1px;">underline</span> - Make text underlined
+* <span style="border-bottom: 1px solid;">underline</span> - Make text underlined
 * ~~strikethrough~~ - Puts a horizontal line through the center of the text
   (Alias: `strikeThrough`, `crossedout`, `crossedOut`)
 * `hidden` - Prints the text, but makes it invisible (Alias: conceal)
 * <span style="opacity: 0.5;">dim</span> - Decreased color intensity (Alias:
   `faint`)
-* <span style="border-top: 1px">overlined</span> - Make text overlined
+* <span style="border-top: 1px solid;">overlined</span> - Make text overlined
 * blink - Hides and shows the text in an interval
-* <span style="filter: invert(100%)">inverse</span> - Swap foreground and
+* <span style="filter: invert(100%);">inverse</span> - Swap foreground and
   background colors (Alias: `swapcolors`, `swapColors`)
 * <span style="border-bottom: 1px double;">doubleunderline</span> - Make text
   double underlined (Alias: `doubleUnderline`)
-* <span style="border: 1px">framed</span> - Draw a frame around the text
+* <span style="border: 1px solid;">framed</span> - Draw a frame around the text
 
 #### Foreground colors
 
@@ -1476,7 +1573,7 @@ changes:
     description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom inspect functions.
+* Type: {symbol} that can be used to declare custom inspect functions.
 
 In addition to being accessible through `util.inspect.custom`, this
 symbol is [registered globally][global symbol registry] and can be
@@ -1541,18 +1638,55 @@ inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
-## `util.isDeepStrictEqual(val1, val2)`
+## `util.isDeepStrictEqual(val1, val2[, options])`
 
 <!-- YAML
 added: v9.0.0
+changes:
+  - version: v24.9.0
+    pr-url: https://github.com/nodejs/node/pull/59762
+    description: Added `options` parameter to allow skipping prototype comparison.
 -->
 
 * `val1` {any}
 * `val2` {any}
+* `skipPrototype` {boolean} If `true`, prototype and constructor
+  comparison is skipped during deep strict equality check. **Default:** `false`.
 * Returns: {boolean}
 
 Returns `true` if there is deep strict equality between `val1` and `val2`.
 Otherwise, returns `false`.
+
+By default, deep strict equality includes comparison of object prototypes and
+constructors. When `skipPrototype` is `true`, objects with
+different prototypes or constructors can still be considered equal if their
+enumerable properties are deeply strictly equal.
+
+```js
+const util = require('node:util');
+
+class Foo {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+class Bar {
+  constructor(a) {
+    this.a = a;
+  }
+}
+
+const foo = new Foo(1);
+const bar = new Bar(1);
+
+// Different constructors, same properties
+console.log(util.isDeepStrictEqual(foo, bar));
+// false
+
+console.log(util.isDeepStrictEqual(foo, bar, true));
+// true
+```
 
 See [`assert.deepStrictEqual()`][] for more information about deep strict
 equality.
@@ -1581,7 +1715,7 @@ A MIME string is a structured string containing multiple meaningful
 components. When parsed, a `MIMEType` object is returned containing
 properties for each of these components.
 
-### Constructor: `new MIMEType(input)`
+### `new MIMEType(input)`
 
 * `input` {string} The input MIME to parse
 
@@ -1619,7 +1753,7 @@ console.log(String(myMIME));
 
 ### `mime.type`
 
-* {string}
+* Type: {string}
 
 Gets and sets the type portion of the MIME.
 
@@ -1651,7 +1785,7 @@ console.log(String(myMIME));
 
 ### `mime.subtype`
 
-* {string}
+* Type: {string}
 
 Gets and sets the subtype portion of the MIME.
 
@@ -1683,7 +1817,7 @@ console.log(String(myMIME));
 
 ### `mime.essence`
 
-* {string}
+* Type: {string}
 
 Gets the essence of the MIME. This property is read only.
 Use `mime.type` or `mime.subtype` to alter the MIME.
@@ -1716,7 +1850,7 @@ console.log(String(myMIME));
 
 ### `mime.params`
 
-* {MIMEParams}
+* Type: {MIMEParams}
 
 Gets the [`MIMEParams`][] object representing the
 parameters of the MIME. This property is read-only. See
@@ -1773,7 +1907,7 @@ added:
 The `MIMEParams` API provides read and write access to the parameters of a
 `MIMEType`.
 
-### Constructor: `new MIMEParams()`
+### `new MIMEParams()`
 
 Creates a new `MIMEParams` object by with empty parameters
 
@@ -1884,7 +2018,7 @@ console.log(params.toString());
 
 Returns an iterator over the values of each name-value pair.
 
-### `mimeParams[@@iterator]()`
+### `mimeParams[Symbol.iterator]()`
 
 * Returns: {Iterator}
 
@@ -1955,10 +2089,12 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
-    * `default` {string | boolean | string\[] | boolean\[]} The default value to
-      be used if (and only if) the option does not appear in the arguments to be
-      parsed. It must be of the same type as the `type` property. When `multiple`
-      is `true`, it must be an array.
+    * `default` {string | boolean | string\[] | boolean\[]} The value to assign to
+      the option if it does not appear in the arguments to be parsed. The value
+      must match the type specified by the `type` property. If `multiple` is
+      `true`, it must be an array. No default value is applied when the option
+      does appear in the arguments to be parsed, even if the provided value
+      is falsy.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
@@ -2139,9 +2275,13 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 added:
   - v21.7.0
   - v20.12.0
+changes:
+  - version:
+     - v24.10.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 * `content` {string}
 
@@ -2365,7 +2505,7 @@ changes:
     description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom promisified variants of functions,
+* Type: {symbol} that can be used to declare custom promisified variants of functions,
   see [Custom promisified functions][].
 
 In addition to being accessible through `util.promisify.custom`, this
@@ -2408,6 +2548,14 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61556
+    description: Add support for hexadecimal colors.
+  - version:
+      - v24.2.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58437
+    description: Added the `'none'` format as a non-op format.
   - version:
     - v23.5.0
     - v22.13.0
@@ -2418,19 +2566,20 @@ changes:
     - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
-      such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
+      such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
 * `format` {string | Array} A text format or an Array
-  of text formats defined in `util.inspect.colors`.
-* `text` {string} The text to to be formatted.
+  of text formats defined in `util.inspect.colors`, or a hex color in `#RGB`
+  or `#RRGGBB` form.
+* `text` {string} The text to be formatted.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
   * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.
 
 This function returns a formatted text considering the `format` passed
 for printing in a terminal. It is aware of the terminal's capabilities
-and acts according to the configuration set via `NO_COLORS`,
+and acts according to the configuration set via `NO_COLOR`,
 `NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
 ```mjs
@@ -2481,6 +2630,32 @@ is left to right so the following style might overwrite the previous one.
 console.log(
   util.styleText(['red', 'green'], 'text'), // green
 );
+```
+
+The special format value `none` applies no additional styling to the text.
+
+In addition to predefined color names, `util.styleText()` supports hex color
+strings using ANSI TrueColor (24-bit) escape sequences. Hex colors can be
+specified in either 3-digit (`#RGB`) or 6-digit (`#RRGGBB`) format:
+
+```mjs
+import { styleText } from 'node:util';
+
+// 6-digit hex color
+console.log(styleText('#ff5733', 'Orange text'));
+
+// 3-digit hex color (shorthand)
+console.log(styleText('#f00', 'Red text'));
+```
+
+```cjs
+const { styleText } = require('node:util');
+
+// 6-digit hex color
+console.log(styleText('#ff5733', 'Orange text'));
+
+// 3-digit hex color (shorthand)
+console.log(styleText('#f00', 'Red text'));
 ```
 
 The full list of formats can be found in [modifiers][].
@@ -2605,20 +2780,20 @@ If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
 
 ### `textDecoder.encoding`
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextDecoder` instance.
 
 ### `textDecoder.fatal`
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if decoding errors result in a `TypeError` being
 thrown.
 
 ### `textDecoder.ignoreBOM`
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if the decoding result will include the byte order
 mark.
@@ -2675,7 +2850,7 @@ const { read, written } = encoder.encodeInto(src, dest);
 
 ### `textEncoder.encoding`
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
@@ -2739,7 +2914,9 @@ added:
  - v19.7.0
  - v18.16.0
 changes:
- - version: REPLACEME
+ - version:
+   - v24.0.0
+   - v22.16.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -3113,7 +3290,9 @@ For further information on `napi_create_external`, refer to
 ### `util.types.isFloat16Array(value)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 * `value` {any}
@@ -3319,7 +3498,13 @@ util.types.isModuleNamespaceObject(ns);  // Returns true
 
 <!-- YAML
 added: v10.0.0
+deprecated: v24.2.0
 -->
+
+> Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
+
+**Note:** As of Node.js 24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+If performance is critical, consider benchmarking both in your environment.
 
 * `value` {any}
 * Returns: {boolean}
@@ -3669,6 +3854,12 @@ Node.js modules. The community found and used it anyway.
 It is deprecated and should not be used in new code. JavaScript comes with very
 similar built-in functionality through [`Object.assign()`][].
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-extend-to-object-assign)):
+
+```bash
+npx codemod@latest @nodejs/util-extend-to-object-assign
+```
+
 ### `util.isArray(object)`
 
 <!-- YAML
@@ -3696,6 +3887,12 @@ util.isArray({});
 // Returns: false
 ```
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 [Common System Errors]: errors.md#common-system-errors
 [Custom inspection functions on objects]: #custom-inspection-functions-on-objects
 [Custom promisified functions]: #custom-promisified-functions
@@ -3707,6 +3904,7 @@ util.isArray({});
 [`'warning'`]: process.md#event-warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
+[`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`MIMEparams`]: #class-utilmimeparams
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
@@ -3717,7 +3915,8 @@ util.isArray({});
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
-[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
+[`signal(7)`]: https://man7.org/linux/man-pages/man7/signal.7.html
+[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
 [`util.diff()`]: #utildiffactual-expected
 [`util.format()`]: #utilformatformat-args
@@ -3728,7 +3927,7 @@ util.isArray({});
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
-[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#Parameters
+[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#parameters
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for

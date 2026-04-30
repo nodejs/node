@@ -37,13 +37,12 @@ def preprocess(input):
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*deferred\s*{', r' if /*cAsEdEfF*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*{', r' if /*cA*/ \1 {', input)
 
-  input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
-      r'_GeNeRaTeS00_/*\1@*/', input)
+  input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*', r'_GeNeRaT_/*\1@*/', input)
   input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*', r'_CoNsExP_/*\1@*/', input)
 
   def createFunctionReplacement(m):
     torque_def = m.group(1)
-    torque_def = re.sub('\s+', ' ', torque_def)
+    torque_def = re.sub(r'\s+', ' ', torque_def)
     function_len = len("function")
     function_and_comment_len = len("function /**/")
     if len(torque_def) < function_len:
@@ -90,7 +89,10 @@ def preprocess(input):
 
   # clang-format doesn't like decorators, so change them into line comments.
   input = re.sub(
-      r'^(\s*)@([a-zA-Z]+)\n', r'\1//@\2\n', input, flags=re.MULTILINE)
+      r'^(\s*)@([a-zA-Z]+)(\([^)]*\))?\n',
+      r'\1//@\2\3\n',
+      input,
+      flags=re.MULTILINE)
   input = re.sub(r'^(\s*)@export\b', r'\1//@eXpOrT', input, flags=re.MULTILINE)
 
   # includes are not recognized, change them into comments so that the
@@ -104,7 +106,10 @@ def postprocess(output):
   output = re.sub(
       r'^(\s*)//@eXpOrT\b', r'\1@export', output, flags=re.MULTILINE)
   output = re.sub(
-      r'^(\s*)//@([a-zA-Z]+)\n', r"\1@\2\n", output, flags=re.MULTILINE)
+      r'^(\s*)//@([a-zA-Z]+)(\([^)]*\))?\n',
+      r"\1@\2\3\n",
+      output,
+      flags=re.MULTILINE)
 
   output = re.sub(r'\/\*COxp\*\/', r'constexpr', output)
   output = re.sub(r'(\S+)\s*: type([,>])', r'\1: type\2', output)
@@ -112,14 +117,12 @@ def postprocess(output):
   output = re.sub(r'\bif\s*\/\*tPsW\*\/', r'typeswitch', output)
   output = re.sub(r'\bif\s*\/\*cA\*\/\s*(\([^{]*\))\s*{', r'case \1: {', output)
   output = re.sub(r'\bif\s*\/\*cAsEdEfF\*\/\s*(\([^{]*\))\s*{', r'case \1: deferred {', output)
-  output = re.sub(r'\n_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
-      r"\n    generates '\1'", output)
-  output = re.sub(r'_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
-      r"generates '\1'", output)
+  output = re.sub(r'\n_GeNeRaT_\s*\/\*([^@]+)@\*\/', r"\n    generates '\1'",
+                  output)
+  output = re.sub(r'_GeNeRaT_\s*\/\*([^@]+)@\*\/', r"generates '\1'", output)
   output = re.sub(r'\n_CoNsExP_\s*\/\*([^@]+)@\*\/', r"\n    constexpr '\1'",
                   output)
-  output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/',
-      r"constexpr '\1'", output)
+  output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/', r"constexpr '\1'", output)
   output = re.sub(r'// !!torqueclass (.*)\n\s*class(?:\s*/\*-*\*/)?', r"\1",
                   output)
   output = re.sub(r'// !!torquefunc (.*)\n\s*function(?:\s*/\*-*\*/)?', r"\1",

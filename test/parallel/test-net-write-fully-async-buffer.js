@@ -23,7 +23,7 @@ const server = net.createServer(common.mustCall(function(conn) {
       }
 
       while (conn.write(Buffer.from(data)));
-      globalThis.gc({ type: 'major' });
+      globalThis.gc({ type: 'minor' });
       // The buffer allocated above should still be alive.
     }
 

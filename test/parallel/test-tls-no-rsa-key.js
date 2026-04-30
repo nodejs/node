@@ -44,9 +44,9 @@ const server = tls.createServer(options, function(conn) {
       server.close();
     }));
 
-    c.on('data', function(data) {
+    c.on('data', common.mustCallAtLeast((data) => {
       assert.strictEqual(data.toString(), 'ok');
-    });
+    }));
 
     const cert = c.getPeerCertificate();
     assert.strictEqual(cert.subject.C, 'US');

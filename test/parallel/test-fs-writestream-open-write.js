@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const fs = require('fs');
 
 // Regression test for https://github.com/nodejs/node/issues/51993
@@ -23,6 +23,6 @@ w.on('open', common.mustCall(() => {
 }));
 
 w.on('close', common.mustCall(() => {
-  strictEqual(fs.readFileSync(file, 'utf8'), 'helloworld');
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), 'helloworld');
   fs.unlinkSync(file);
 }));

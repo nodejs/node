@@ -24,7 +24,7 @@ See [directory structure overview][] for outline of existing test and locations.
 
 ## How to write a good test
 
-A good test should be written in a style that is optimial for debugging
+A good test should be written in a style that is optimal for debugging
 when it fails.
 
 In principle, when adding a new test, it should be placed in a new file.
@@ -484,6 +484,11 @@ To generate a test coverage report, see the
 
 Nightly coverage reports for the Node.js `main` branch are available at
 <https://coverage.nodejs.org/>.
+
+## Running tests
+
+See the [Building guide](../../BUILDING.md#running-tests) for details on how to
+run tests.
 
 [ASCII]: https://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest

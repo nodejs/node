@@ -2,7 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const strictEqual = require('assert').strictEqual;
+const assert = require('assert');
 const { internalBinding } = require('internal/test/binding');
 
 // child_process
@@ -10,17 +10,13 @@ const { internalBinding } = require('internal/test/binding');
   const spawn = require('child_process').spawn;
   const cmd = common.isWindows ? 'rundll32' : 'ls';
   const cp = spawn(cmd);
-  strictEqual(cp._handle.hasRef(),
-              true, 'process_wrap: not initially refed');
+  assert.strictEqual(cp._handle.hasRef(), true);
   cp.unref();
-  strictEqual(cp._handle.hasRef(),
-              false, 'process_wrap: unref() ineffective');
+  assert.strictEqual(cp._handle.hasRef(), false);
   cp.ref();
-  strictEqual(cp._handle.hasRef(),
-              true, 'process_wrap: ref() ineffective');
+  assert.strictEqual(cp._handle.hasRef(), true);
   cp._handle.close(common.mustCall(() =>
-    strictEqual(cp._handle.hasRef(),
-                false, 'process_wrap: not unrefed on close')));
+    assert.strictEqual(cp._handle.hasRef(), false)));
 }
 
 
@@ -32,17 +28,13 @@ const { kStateSymbol } = require('internal/dgram');
   const sock4 = dgram.createSocket('udp4');
   const handle = sock4[kStateSymbol].handle;
 
-  strictEqual(handle.hasRef(),
-              true, 'udp_wrap: ipv4: not initially refed');
+  assert.strictEqual(handle.hasRef(), true);
   sock4.unref();
-  strictEqual(handle.hasRef(),
-              false, 'udp_wrap: ipv4: unref() ineffective');
+  assert.strictEqual(handle.hasRef(), false);
   sock4.ref();
-  strictEqual(handle.hasRef(),
-              true, 'udp_wrap: ipv4: ref() ineffective');
+  assert.strictEqual(handle.hasRef(), true);
   handle.close(common.mustCall(() =>
-    strictEqual(handle.hasRef(),
-                false, 'udp_wrap: ipv4: not unrefed on close')));
+    assert.strictEqual(handle.hasRef(), false)));
 }
 
 
@@ -51,17 +43,13 @@ const { kStateSymbol } = require('internal/dgram');
   const sock6 = dgram.createSocket('udp6');
   const handle = sock6[kStateSymbol].handle;
 
-  strictEqual(handle.hasRef(),
-              true, 'udp_wrap: ipv6: not initially refed');
+  assert.strictEqual(handle.hasRef(), true);
   sock6.unref();
-  strictEqual(handle.hasRef(),
-              false, 'udp_wrap: ipv6: unref() ineffective');
+  assert.strictEqual(handle.hasRef(), false);
   sock6.ref();
-  strictEqual(handle.hasRef(),
-              true, 'udp_wrap: ipv6: ref() ineffective');
+  assert.strictEqual(handle.hasRef(), true);
   handle.close(common.mustCall(() =>
-    strictEqual(handle.hasRef(),
-                false, 'udp_wrap: ipv6: not unrefed on close')));
+    assert.strictEqual(handle.hasRef(), false)));
 }
 
 
@@ -69,17 +57,13 @@ const { kStateSymbol } = require('internal/dgram');
 {
   const { Pipe, constants: PipeConstants } = internalBinding('pipe_wrap');
   const handle = new Pipe(PipeConstants.SOCKET);
-  strictEqual(handle.hasRef(),
-              true, 'pipe_wrap: not initially refed');
+  assert.strictEqual(handle.hasRef(), true);
   handle.unref();
-  strictEqual(handle.hasRef(),
-              false, 'pipe_wrap: unref() ineffective');
+  assert.strictEqual(handle.hasRef(), false);
   handle.ref();
-  strictEqual(handle.hasRef(),
-              true, 'pipe_wrap: ref() ineffective');
+  assert.strictEqual(handle.hasRef(), true);
   handle.close(common.mustCall(() =>
-    strictEqual(handle.hasRef(),
-                false, 'pipe_wrap: not unrefed on close')));
+    assert.strictEqual(handle.hasRef(), false)));
 }
 
 
@@ -87,49 +71,42 @@ const { kStateSymbol } = require('internal/dgram');
 {
   const net = require('net');
   const server = net.createServer(() => {}).listen(0);
-  strictEqual(server._handle.hasRef(),
-              true, 'tcp_wrap: not initially refed');
-  strictEqual(server._unref,
-              false, 'tcp_wrap: _unref initially incorrect');
+  assert.strictEqual(server._handle.hasRef(), true);
+  assert.strictEqual(server._unref, false);
   server.unref();
-  strictEqual(server._handle.hasRef(),
-              false, 'tcp_wrap: unref() ineffective');
-  strictEqual(server._unref,
-              true, 'tcp_wrap: _unref not updated on unref()');
+  assert.strictEqual(server._handle.hasRef(), false);
+  assert.strictEqual(server._unref, true);
   server.ref();
-  strictEqual(server._handle.hasRef(),
-              true, 'tcp_wrap: ref() ineffective');
-  strictEqual(server._unref,
-              false, 'tcp_wrap: _unref not updated on ref()');
+  assert.strictEqual(server._handle.hasRef(), true);
+  assert.strictEqual(server._unref, false);
   server._handle.close(common.mustCall(() =>
-    strictEqual(server._handle.hasRef(),
-                false, 'tcp_wrap: not unrefed on close')));
+    assert.strictEqual(server._handle.hasRef(), false)));
 }
 
 // timers
 {
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Timeout').length, 0);
   const timeout = setTimeout(() => {}, 500);
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Timeout').length, 1);
   timeout.unref();
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Timeout').length, 0);
   timeout.ref();
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Timeout').length, 1);
 
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Immediate').length, 0);
   const immediate = setImmediate(() => {});
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Immediate').length, 1);
   immediate.unref();
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Immediate').length, 0);
   immediate.ref();
-  strictEqual(process.getActiveResourcesInfo().filter(
+  assert.strictEqual(process.getActiveResourcesInfo().filter(
     (type) => type === 'Immediate').length, 1);
 }
 

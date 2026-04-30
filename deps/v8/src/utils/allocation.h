@@ -5,6 +5,8 @@
 #ifndef V8_UTILS_ALLOCATION_H_
 #define V8_UTILS_ALLOCATION_H_
 
+#include <new>
+
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
 #include "src/base/bounded-page-allocator.h"
@@ -48,9 +50,10 @@ T* NewArray(size_t size) {
   return result;
 }
 
-template <typename T, typename = typename std::enable_if<
-                          base::is_trivially_copyable<T>::value>::type>
-T* NewArray(size_t size, T default_val) {
+template <typename T>
+T* NewArray(size_t size, T default_val)
+  requires base::is_trivially_copyable<T>::value
+{
   T* result = reinterpret_cast<T*>(NewArray<uint8_t>(sizeof(T) * size));
   for (size_t i = 0; i < size; ++i) result[i] = default_val;
   return result;
@@ -149,10 +152,10 @@ V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 // AllocatePageSize(). Returns the address of the allocated memory, with the
 // specified size and alignment, or nullptr on failure.
 V8_EXPORT_PRIVATE
-V8_WARN_UNUSED_RESULT void* AllocatePages(v8::PageAllocator* page_allocator,
-                                          void* address, size_t size,
-                                          size_t alignment,
-                                          PageAllocator::Permission access);
+V8_WARN_UNUSED_RESULT void* AllocatePages(
+    v8::PageAllocator* page_allocator, size_t size, size_t alignment,
+    PageAllocator::Permission access,
+    v8::PageAllocator::AllocationHint hint = {});
 
 // Frees memory allocated by a call to AllocatePages. |address| and |size| must
 // be multiples of AllocatePageSize().
@@ -200,8 +203,8 @@ class VirtualMemory final {
   // size. The |size| must be aligned with |page_allocator|'s commit page size.
   // This may not be at the position returned by address().
   V8_EXPORT_PRIVATE VirtualMemory(
-      v8::PageAllocator* page_allocator, size_t size, void* hint,
-      size_t alignment = 1,
+      v8::PageAllocator* page_allocator, size_t size,
+      PageAllocator::AllocationHint hint = {}, size_t alignment = 1,
       PageAllocator::Permission permissions = PageAllocator::kNoAccess);
 
   // Construct a virtual memory by assigning it some already mapped address
@@ -271,6 +274,11 @@ class VirtualMemory final {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT bool RecommitPages(
       Address address, size_t size, PageAllocator::Permission access);
 
+  // Resizes the reservation starting at |address| to |new_size| and commits the
+  // additional memory range with the |access| permissions.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT bool Resize(
+      Address address, size_t new_size, PageAllocator::Permission access);
+
   // Frees memory in the given [address, address + size) range. address and size
   // should be operating system page-aligned. The next write to this
   // memory area brings the memory transparently back. This should be treated as
@@ -283,10 +291,6 @@ class VirtualMemory final {
 
   // Frees all memory.
   V8_EXPORT_PRIVATE void Free();
-
-  // As with Free but does not write to the VirtualMemory object itself so it
-  // can be called on a VirtualMemory that is itself not writable.
-  V8_EXPORT_PRIVATE void FreeReadOnly();
 
   bool InVM(Address address, size_t size) const {
     return region_.contains(address, size);

@@ -380,9 +380,11 @@ provided, it is added as a listener for the [`'close'`][] event.
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`socket.close()`][] and returns a promise that fulfills when the
 socket has closed.
@@ -949,7 +951,7 @@ changes:
     port, even if another process has already bound a socket on it. Incoming
     datagrams are distributed to listening sockets. The option is available
     only on some platforms, such as Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+,
-    Solaris 11.4, and AIX 7.2.5+. On unsupported platforms this option raises an
+    Solaris 11.4, and AIX 7.2.5+. On unsupported platforms, this option raises
     an error when the socket is bound.
     **Default:** `false`.
   * `ipv6Only` {boolean} Setting `ipv6Only` to `true` will

@@ -36,6 +36,7 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
 
   void CollectGarbage(GCConfig) final;
   void StartIncrementalGarbageCollection(GCConfig) final;
+  bool RetryAllocate(v8::base::FunctionRef<bool()> allocate) final;
   void FinalizeIncrementalGarbageCollectionIfRunning(GCConfig);
 
   size_t epoch() const final { return epoch_; }

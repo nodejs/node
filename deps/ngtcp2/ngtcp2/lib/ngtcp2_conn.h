@@ -52,6 +52,8 @@
 #include "ngtcp2_rst.h"
 #include "ngtcp2_conn_stat.h"
 #include "ngtcp2_dcidtr.h"
+#include "ngtcp2_pcg.h"
+#include "ngtcp2_ratelim.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -75,10 +77,6 @@ typedef enum {
    unreceived data. */
 #define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
-/* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
-   accept. */
-#define NGTCP2_MAX_RETRIES 3
-
 /* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
    connection ID the local endpoint provides to the remote endpoint.
    The chosen value was described in old draft.  Now a remote endpoint
@@ -96,45 +94,35 @@ typedef enum {
 #define NGTCP2_CCERR_MAX_REASONLEN 1024
 
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_WRITE_PKT_FLAG_NONE 0x00u
+#define NGTCP2_WRITE_PKT_FLAG_NONE 0x00U
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
    than Initial packet should be padded so that UDP datagram payload
    is at least NGTCP2_MAX_UDP_PAYLOAD_SIZE bytes.  Initial packet
    might be padded based on QUIC requirement regardless of this
    flag. */
-#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING 0x01u
+#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING 0x01U
 /* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
    and it should be encoded into the current packet. */
-#define NGTCP2_WRITE_PKT_FLAG_MORE 0x02u
+#define NGTCP2_WRITE_PKT_FLAG_MORE 0x02U
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL is just like
    NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING, but it requests to add
    padding to the full UDP datagram payload size. */
-#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL 0x04u
-
-/*
- * ngtcp2_max_frame is defined so that it covers the largest ACK
- * frame.
- */
-typedef union ngtcp2_max_frame {
-  ngtcp2_frame fr;
-  struct {
-    ngtcp2_ack ack;
-    /* ack includes 1 ngtcp2_ack_range. */
-    ngtcp2_ack_range ranges[NGTCP2_MAX_ACK_RANGES - 1];
-  } ackfr;
-} ngtcp2_max_frame;
+#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL 0x04U
+/* NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY adds padding to the QUIC
+   packet as much as possible if the packet is not empty. */
+#define NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY 0x08U
 
 typedef struct ngtcp2_path_challenge_entry {
   ngtcp2_path_storage ps;
-  uint8_t data[8];
+  ngtcp2_path_challenge_data data;
 } ngtcp2_path_challenge_entry;
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
-                                      const uint8_t *data);
+                                      const ngtcp2_path_challenge_data *data);
 
 /* NGTCP2_CONN_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_CONN_FLAG_NONE 0x00u
+#define NGTCP2_CONN_FLAG_NONE 0x00U
 /* NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED is set when TLS stack
    declares that TLS handshake has completed.  The condition of this
    declaration varies between TLS implementations and this flag does
@@ -142,67 +130,82 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    implementations declare TLS handshake completion as server when
    they write off Server Finished and before deriving application rx
    secret. */
-#define NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED 0x01u
+#define NGTCP2_CONN_FLAG_TLS_HANDSHAKE_COMPLETED 0x01U
 /* NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED is set when the first
    Initial packet has successfully been processed. */
-#define NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED 0x02u
+#define NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED 0x02U
 /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
    parameters are received. */
-#define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04u
+#define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04U
 /* NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED is set when a
    local transport parameters are applied. */
-#define NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED 0x08u
+#define NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED 0x08U
 /* NGTCP2_CONN_FLAG_RECV_RETRY is set when a client receives Retry
    packet. */
-#define NGTCP2_CONN_FLAG_RECV_RETRY 0x10u
+#define NGTCP2_CONN_FLAG_RECV_RETRY 0x10U
 /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
    rejected by a peer. */
-#define NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED 0x20u
+#define NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED 0x20U
 /* NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED is set when the expired
    keep-alive timer has been cancelled. */
-#define NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED 0x40u
+#define NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED 0x40U
 /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
    confirmed completion of handshake. */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80u
+#define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80U
 /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set when the library
    transitions its state to "post handshake". */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x0100u
+#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x0100U
 /* NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT is set when the early
    handshake retransmission has done when server receives overlapping
    Initial crypto data. */
-#define NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT 0x0200u
+#define NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT 0x0200U
 /* NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT indicates that the local endpoint
    sends a QUIC packet without Fixed Bit set if a remote endpoint
    supports Greasing QUIC Bit extension. */
-#define NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT 0x0400u
+#define NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT 0x0400U
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update is
    not confirmed by the local endpoint.  That is, it has not received
    ACK frame which acknowledges packet which is encrypted with new
    key. */
-#define NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED 0x0800u
+#define NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED 0x0800U
 /* NGTCP2_CONN_FLAG_PPE_PENDING is set when
    NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state of
    ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
-#define NGTCP2_CONN_FLAG_PPE_PENDING 0x1000u
+#define NGTCP2_CONN_FLAG_PPE_PENDING 0x1000U
 /* NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE is set when idle timer
    should be restarted on next write. */
-#define NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE 0x2000u
+#define NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE 0x2000U
 /* NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED indicates that server as peer
    verified client address.  This flag is only used by client. */
-#define NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED 0x4000u
+#define NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED 0x4000U
 /* NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED indicates that an early key is
    installed.  conn->early.ckm cannot be used for this purpose because
    it might be discarded when a certain condition is met. */
-#define NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED 0x8000u
+#define NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED 0x8000U
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR is set when the local
    endpoint has initiated key update. */
-#define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000u
+#define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000U
+/* NGTCP2_CONN_FLAG_AGGREGATE_PKTS is set when
+   ngtcp2_conn_writev_stream is called inside the callback invoked by
+   ngtcp2_conn_write_aggregate_pkt. */
+#define NGTCP2_CONN_FLAG_AGGREGATE_PKTS 0x20000U
+/* NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO, if set, crumbles an
+   Initial CRYPTO frame into pieces as a countermeasure against Deep
+   Packet Inspection. */
+#define NGTCP2_CONN_FLAG_CRUMBLE_INITIAL_CRYPTO 0x40000U
 
 typedef struct ngtcp2_pktns {
   struct {
     /* last_pkt_num is the packet number which the local endpoint sent
        last time.*/
     int64_t last_pkt_num;
+    struct {
+      /* next_pkt_num is the next packet number to skip. */
+      int64_t next_pkt_num;
+      /* exponent makes gap of skipping packets spread
+         exponentially. */
+      int64_t exponent;
+    } skip_pkt;
     ngtcp2_frame_chain *frq;
     /* non_ack_pkt_start_ts is the timestamp since the local endpoint
        starts sending continuous non ACK-eliciting packets. */
@@ -308,6 +311,8 @@ typedef struct ngtcp2_early_transport_params {
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry))
 
+ngtcp2_static_ringbuf_def(path_history, 4, sizeof(ngtcp2_path_history_entry))
+
 ngtcp2_objalloc_decl(strm, ngtcp2_strm, oplent)
 
 struct ngtcp2_conn {
@@ -382,14 +387,14 @@ struct ngtcp2_conn {
     ngtcp2_tstamp last_max_data_ts;
 
     struct {
-      /* state is the state of ECN validation */
-      ngtcp2_ecn_state state;
       /* validation_start_ts is the timestamp when ECN validation is
          started.  It is UINT64_MAX if it has not started yet. */
       ngtcp2_tstamp validation_start_ts;
       /* dgram_sent is the number of UDP datagram sent during ECN
          validation period. */
       size_t dgram_sent;
+      /* state is the state of ECN validation */
+      ngtcp2_ecn_state state;
     } ecn;
 
     struct {
@@ -540,13 +545,13 @@ struct ngtcp2_conn {
     /* retry_aead_ctx is AEAD cipher context to verify Retry packet
        integrity.  It is used by client only. */
     ngtcp2_crypto_aead_ctx retry_aead_ctx;
+    /* decryption_failure_count is the number of received packets that
+       fail authentication. */
+    uint64_t decryption_failure_count;
     /* tls_error is TLS related error. */
     int tls_error;
     /* tls_alert is TLS alert generated by the local endpoint. */
     uint8_t tls_alert;
-    /* decryption_failure_count is the number of received packets that
-       fail authentication. */
-    uint64_t decryption_failure_count;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support
@@ -556,13 +561,13 @@ struct ngtcp2_conn {
     ngtcp2_pkt_hd hd;
     ngtcp2_ppe ppe;
     ngtcp2_frame_chain **pfrc;
+    ngtcp2_ssize hs_spktlen;
     int pkt_empty;
     int hd_logged;
+    int require_padding;
     /* flags is bitwise OR of zero or more of
        NGTCP2_RTB_ENTRY_FLAG_*. */
     uint16_t rtb_entry_flags;
-    ngtcp2_ssize hs_spktlen;
-    int require_padding;
   } pkt;
 
   struct {
@@ -618,24 +623,33 @@ struct ngtcp2_conn {
   ngtcp2_log log;
   ngtcp2_qlog qlog;
   ngtcp2_rst rst;
-  ngtcp2_cc_algo cc_algo;
   union {
     ngtcp2_cc cc;
     ngtcp2_cc_reno reno;
     ngtcp2_cc_cubic cubic;
     ngtcp2_cc_bbr bbr;
   };
+  /* path_history remembers the paths that have been validated
+     successfully.  The path is added to this history when a local
+     endpoint migrates to the another path. */
+  ngtcp2_static_ringbuf_path_history path_history;
+  /* glitch_rlim is the rate limit of glitches that can be tolerated.
+     If more than those glitches are detected, a connection is
+     closed. */
+  ngtcp2_ratelim glitch_rlim;
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
   /* handshake_confirmed_ts is the time instant when handshake is
      confirmed.  For server, it is confirmed when completed. */
   ngtcp2_tstamp handshake_confirmed_ts;
+  ngtcp2_pcg32 pcg;
   void *user_data;
   uint32_t client_chosen_version;
   uint32_t negotiated_version;
   /* flags is bitwise OR of zero or more of NGTCP2_CONN_FLAG_*. */
   uint32_t flags;
+  ngtcp2_cc_algo cc_algo;
   int server;
 };
 
@@ -647,9 +661,6 @@ typedef enum ngtcp2_vmsg_type {
 typedef struct ngtcp2_vmsg_stream {
   /* strm is a stream that data is sent to. */
   ngtcp2_strm *strm;
-  /* flags is bitwise OR of zero or more of
-     NGTCP2_WRITE_STREAM_FLAG_*. */
-  uint32_t flags;
   /* data is the pointer to ngtcp2_vec array which contains the stream
      data to send. */
   const ngtcp2_vec *data;
@@ -658,6 +669,9 @@ typedef struct ngtcp2_vmsg_stream {
   /* pdatalen is the pointer to the variable which the number of bytes
      written is assigned to if pdatalen is not NULL. */
   ngtcp2_ssize *pdatalen;
+  /* flags is bitwise OR of zero or more of
+     NGTCP2_WRITE_STREAM_FLAG_*. */
+  uint32_t flags;
 } ngtcp2_vmsg_stream;
 
 typedef struct ngtcp2_vmsg_datagram {
@@ -668,12 +682,12 @@ typedef struct ngtcp2_vmsg_datagram {
   size_t datacnt;
   /* dgram_id is an opaque identifier chosen by an application. */
   uint64_t dgram_id;
-  /* flags is bitwise OR of zero or more of
-     NGTCP2_WRITE_DATAGRAM_FLAG_*. */
-  uint32_t flags;
   /* paccepted is the pointer to the variable which, if it is not
      NULL, is assigned nonzero if data is written to a packet. */
   int *paccepted;
+  /* flags is bitwise OR of zero or more of
+     NGTCP2_WRITE_DATAGRAM_FLAG_*. */
+  uint32_t flags;
 } ngtcp2_vmsg_datagram;
 
 typedef struct ngtcp2_vmsg {
@@ -741,15 +755,9 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm);
  * ack_delay included in ACK frame.  |ack_delay| is actually tainted
  * (sent by peer), so don't assume that |ack_delay| is always smaller
  * than, or equals to |rtt|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     RTT sample is ignored.
  */
-int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
-                           ngtcp2_duration ack_delay, ngtcp2_tstamp ts);
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
+                            ngtcp2_duration ack_delay, ngtcp2_tstamp ts);
 
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
@@ -801,7 +809,8 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                                     int pkt_info_version, ngtcp2_pkt_info *pi,
                                     uint8_t *dest, size_t destlen,
-                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
+                                    uint8_t wflags, ngtcp2_vmsg *vmsg,
+                                    ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains
@@ -934,7 +943,7 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_write_connection_close_pkt` writes a packet which
- * contains a CONNECTION_CLOSE frame (type 0x1c) in the buffer pointed
+ * contains a CONNECTION_CLOSE frame (type 0x1C) in the buffer pointed
  * by |dest| whose capacity is |datalen|.
  *
  * If |path| is not ``NULL``, this function stores the network path
@@ -976,7 +985,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
  * @function
  *
  * `ngtcp2_conn_write_application_close_pkt` writes a packet which
- * contains a CONNECTION_CLOSE frame (type 0x1d) in the buffer pointed
+ * contains a CONNECTION_CLOSE frame (type 0x1D) in the buffer pointed
  * by |dest| whose capacity is |datalen|.
  *
  * If |path| is not ``NULL``, this function stores the network path
@@ -989,7 +998,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
  * if it succeeds.  The metadata includes ECN markings.
  *
  * If handshake has not been confirmed yet, CONNECTION_CLOSE (type
- * 0x1c) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
+ * 0x1C) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
  * instead.
  *
  * This function must not be called from inside the callback
@@ -1093,5 +1102,12 @@ void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  * packet number space.
  */
 void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
+void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
+                                  ngtcp2_tstamp ts);
+
+const ngtcp2_path_history_entry *
+ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+                              ngtcp2_tstamp ts);
 
 #endif /* !defined(NGTCP2_CONN_H) */

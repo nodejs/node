@@ -75,12 +75,12 @@ if (process.env.TERM === 'dumb') {
       rli.on('line', common.mustNotCall());
       for (const character of `${char}\t\t`) {
         fi.emit('data', character);
-        queueMicrotask(() => {
+        queueMicrotask(common.mustCall(() => {
           assert.strictEqual(output, expectations.shift());
           output = '';
-        });
+        }));
       }
-      rli.close();
+      fi.end();
     });
   });
 });
@@ -110,9 +110,9 @@ if (process.env.TERM === 'dumb') {
 
   rli.on('line', common.mustNotCall());
   fi.emit('data', '\t');
-  queueMicrotask(() => {
+  queueMicrotask(common.mustCall(() => {
     assert.match(output, /^Tab completion error: Error: message/);
     output = '';
-  });
-  rli.close();
+  }));
+  fi.end();
 }

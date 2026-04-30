@@ -22,12 +22,12 @@ const noChange = 'test';
     util.styleText(invalidOption, 'test');
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
-  });
+  }, invalidOption);
   assert.throws(() => {
     util.styleText('red', invalidOption);
   }, {
     code: 'ERR_INVALID_ARG_TYPE'
-  });
+  }, invalidOption);
 });
 
 assert.throws(() => {
@@ -42,8 +42,95 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  util.styleText('gray', 'test', { validateStream: false }),
+  '\u001b[90mtest\u001b[39m',
+);
+
+assert.strictEqual(
+  util.styleText('grey', 'test', { validateStream: false }),
+  '\u001b[90mtest\u001b[39m',
+);
+
+assert.strictEqual(
   util.styleText(['bold', 'red'], 'test', { validateStream: false }),
   '\u001b[1m\u001b[31mtest\u001b[39m\u001b[22m',
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'A' + util.styleText('blue', 'B', { validateStream: false }) + 'C',
+                 { validateStream: false }),
+  '\u001b[31mA\u001b[34mB\u001b[31mC\u001b[39m'
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'red' +
+    util.styleText('blue', 'blue', { validateStream: false }) +
+    'red' +
+    util.styleText('blue', 'blue', { validateStream: false }) +
+    'red',
+                 { validateStream: false }
+  ),
+  '\x1B[31mred\x1B[34mblue\x1B[31mred\x1B[34mblue\x1B[31mred\x1B[39m'
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'red' +
+    util.styleText('blue', 'blue', { validateStream: false }) +
+    'red' +
+    util.styleText('red', 'red', { validateStream: false }) +
+    'red' +
+    util.styleText('blue', 'blue', { validateStream: false }),
+                 { validateStream: false }
+  ),
+  '\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[31mred\x1b[31mred\x1b[34mblue\x1b[39m\x1b[39m'
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'A' + util.styleText(['bgRed', 'blue'], 'B', { validateStream: false }) +
+    'C', { validateStream: false }),
+  '\x1B[31mA\x1B[41m\x1B[34mB\x1B[31m\x1B[49mC\x1B[39m'
+);
+
+assert.strictEqual(
+  util.styleText('dim',
+                 'dim' +
+    util.styleText('bold', 'bold', { validateStream: false }) +
+  'dim', { validateStream: false }),
+  '\x1B[2mdim\x1B[1mbold\x1B[22m\x1B[2mdim\x1B[22m'
+);
+
+assert.strictEqual(
+  util.styleText('blue',
+                 'blue' +
+    util.styleText('red',
+                   'red' +
+      util.styleText('green', 'green', { validateStream: false }) +
+      'red', { validateStream: false }) +
+    'blue', { validateStream: false }),
+  '\x1B[34mblue\x1B[31mred\x1B[32mgreen\x1B[31mred\x1B[34mblue\x1B[39m'
+);
+
+assert.strictEqual(
+  util.styleText(
+    'red',
+    'red' +
+    util.styleText(
+      'blue',
+      'blue' + util.styleText('red', 'red', {
+        validateStream: false,
+      }) + 'blue',
+      {
+        validateStream: false,
+      }
+    ) + 'red', {
+      validateStream: false,
+    }
+  ),
+  '\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[39m'
 );
 
 assert.strictEqual(
@@ -67,6 +154,29 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
+// Color aliases should be accepted (e.g. 'grey' is an alias for 'gray')
+// See https://github.com/nodejs/node/issues/62177
+assert.strictEqual(
+  util.styleText('grey', 'test', { validateStream: false }),
+  util.styleText('gray', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText('bgGrey', 'test', { validateStream: false }),
+  util.styleText('bgGray', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText('blackBright', 'test', { validateStream: false }),
+  util.styleText('gray', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText('faint', 'test', { validateStream: false }),
+  util.styleText('dim', 'test', { validateStream: false }),
+);
+assert.strictEqual(
+  util.styleText(['grey', 'bold'], 'test', { validateStream: false }),
+  util.styleText(['gray', 'bold'], 'test', { validateStream: false }),
+);
+
 // does not throw
 util.styleText('red', 'text', { stream: {}, validateStream: false });
 
@@ -74,6 +184,8 @@ assert.strictEqual(
   util.styleText('red', 'test', { validateStream: false }),
   styled,
 );
+
+assert.strictEqual(util.styleText('none', 'test'), 'test');
 
 const fd = common.getTTYfd();
 if (fd !== -1) {

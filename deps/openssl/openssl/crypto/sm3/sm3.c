@@ -46,9 +46,9 @@ void ossl_sm3_block_data_order(SM3_CTX *ctx, const void *p, size_t num)
         H = ctx->H;
 
         /*
-        * We have to load all message bytes immediately since SM3 reads
-        * them slightly out of order.
-        */
+         * We have to load all message bytes immediately since SM3 reads
+         * them slightly out of order.
+         */
         (void)HOST_c2l(data, W00);
         (void)HOST_c2l(data, W01);
         (void)HOST_c2l(data, W02);

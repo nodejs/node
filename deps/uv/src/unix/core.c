@@ -275,7 +275,7 @@ void uv__make_close_pending(uv_handle_t* handle) {
 int uv__getiovmax(void) {
 #if defined(IOV_MAX)
   return IOV_MAX;
-#elif defined(_SC_IOV_MAX)
+#elif defined(_SC_IOV_MAX) && !defined(__QNX__)
   static _Atomic int iovmax_cached = -1;
   int iovmax;
 
@@ -851,7 +851,7 @@ static void uv__run_pending(uv_loop_t* loop) {
     uv__queue_remove(q);
     uv__queue_init(q);
     w = uv__queue_data(q, uv__io_t, pending_queue);
-    w->cb(loop, w, POLLOUT);
+    uv__io_cb(loop, w, POLLOUT);
   }
 }
 
@@ -867,7 +867,7 @@ static unsigned int next_power_of_two(unsigned int val) {
   return val;
 }
 
-static void maybe_resize(uv_loop_t* loop, unsigned int len) {
+static int maybe_resize(uv_loop_t* loop, unsigned int len) {
   uv__io_t** watchers;
   void* fake_watcher_list;
   void* fake_watcher_count;
@@ -875,7 +875,7 @@ static void maybe_resize(uv_loop_t* loop, unsigned int len) {
   unsigned int i;
 
   if (len <= loop->nwatchers)
-    return;
+    return 0;
 
   /* Preserve fake watcher list and count at the end of the watchers */
   if (loop->watchers != NULL) {
@@ -891,7 +891,7 @@ static void maybe_resize(uv_loop_t* loop, unsigned int len) {
                           (nwatchers + 2) * sizeof(loop->watchers[0]));
 
   if (watchers == NULL)
-    abort();
+    return UV_ENOMEM;
   for (i = loop->nwatchers; i < nwatchers; i++)
     watchers[i] = NULL;
   watchers[nwatchers] = fake_watcher_list;
@@ -899,29 +899,71 @@ static void maybe_resize(uv_loop_t* loop, unsigned int len) {
 
   loop->watchers = watchers;
   loop->nwatchers = nwatchers;
+  return 0;
 }
 
 
-void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
-  assert(cb != NULL);
+void uv__io_cb(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+  switch (uv__io_cb_get(w)) {
+  case UV__AHAFS_EVENT:
+    uv__ahafs_event(loop, w, events);
+    break;
+  case UV__ASYNC_IO:
+    uv__async_io(loop, w, events);
+    break;
+  case UV__FS_EVENT:
+    uv__fs_event(loop, w, events);
+    break;
+  case UV__FS_EVENT_READ:
+    uv__fs_event_read(loop, w, events);
+    break;
+  case UV__INOTIFY_READ:
+    uv__inotify_read(loop, w, events);
+    break;
+  case UV__POLL_IO:
+    uv__poll_io(loop, w, events);
+    break;
+  case UV__SERVER_IO:
+    uv__server_io(loop, w, events);
+    break;
+  case UV__STREAM_IO:
+    uv__stream_io(loop, w, events);
+    break;
+  case UV__UDP_IO:
+    uv__udp_io(loop, w, events);
+    break;
+  default:
+    UNREACHABLE();
+  }
+}
+
+
+void uv__io_init(uv__io_t* w, uv__io_cb_t cb, int fd) {
   assert(fd >= -1);
   uv__queue_init(&w->pending_queue);
   uv__queue_init(&w->watcher_queue);
-  w->cb = cb;
   w->fd = fd;
+  w->bits = 0;
   w->events = 0;
   w->pevents = 0;
+  uv__io_cb_set(w, cb);
 }
 
 
-void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+int uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
+  int err;
+
+  assert(uv__io_cb_get(w) >= UV__AHAFS_EVENT);
+  assert(uv__io_cb_get(w) <= UV__UDP_IO);
   assert(0 == (events & ~(POLLIN | POLLOUT | UV__POLLRDHUP | UV__POLLPRI)));
   assert(0 != events);
   assert(w->fd >= 0);
   assert(w->fd < INT_MAX);
 
   w->pevents |= events;
-  maybe_resize(loop, w->fd + 1);
+  err = maybe_resize(loop, w->fd + 1);
+  if (err)
+    return err;
 
 #if !defined(__sun)
   /* The event ports backend needs to rearm all file descriptors on each and
@@ -929,7 +971,7 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
    * short-circuit here if the event mask is unchanged.
    */
   if (w->events == w->pevents)
-    return;
+    return 0;
 #endif
 
   if (uv__queue_empty(&w->watcher_queue))
@@ -939,6 +981,24 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
     loop->watchers[w->fd] = w;
     loop->nfds++;
   }
+
+  return 0;
+}
+
+
+int uv__io_init_start(uv_loop_t* loop,
+                      uv__io_t* w,
+                      uv__io_cb_t cb,
+                      int fd,
+                      unsigned int events) {
+  int err;
+
+  assert(fd > -1);
+  uv__io_init(w, cb, fd);
+  err = uv__io_start(loop, w, events);
+  if (err)
+    uv__io_init(w, UV__NO_IO_CB, -1);
+  return err;
 }
 
 
@@ -995,6 +1055,39 @@ int uv__io_active(const uv__io_t* w, unsigned int events) {
   return 0 != (w->pevents & events);
 }
 
+
+void uv__io_poll_prepare(uv_loop_t* loop, sigset_t* pset, int timeout) {
+  uv__loop_internal_fields_t* lfields;
+
+  /* Only need to set the provider_entry_time if timeout != 0. The function
+   * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
+   */
+  if (timeout != 0)
+    uv__metrics_set_provider_entry_time(loop);
+
+  /* Store the current timeout in a location that's globally accessible so
+   * other locations like uv__work_done() can determine whether the queue
+   * of events in the callback were waiting when poll was called.
+   */
+  lfields = uv__get_internal_fields(loop);
+  lfields->current_timeout = timeout;
+
+  if (pset != NULL)
+    if (pthread_sigmask(SIG_BLOCK, pset, NULL))
+      abort();
+}
+
+void uv__io_poll_check(uv_loop_t* loop, sigset_t* pset) {
+  if (pset != NULL)
+    if (pthread_sigmask(SIG_UNBLOCK, pset, NULL))
+      abort();
+
+  /* Update loop->time unconditionally. It's tempting to skip the update when
+   * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
+   * operating system didn't reschedule our process while in the syscall.
+   */
+  SAVE_ERRNO(uv__update_time(loop));
+}
 
 int uv__fd_exists(uv_loop_t* loop, int fd) {
   return (unsigned) fd < loop->nwatchers && loop->watchers[fd] != NULL;
@@ -1078,6 +1171,8 @@ int uv_getrusage_thread(uv_rusage_t* rusage) {
 
   return 0;
 
+#elif defined(RUSAGE_LWP)
+  return uv__getrusage(RUSAGE_LWP, rusage);
 #elif defined(RUSAGE_THREAD)
   return uv__getrusage(RUSAGE_THREAD, rusage);
 #endif  /* defined(__APPLE__) */
@@ -1471,7 +1566,7 @@ int uv_os_environ(uv_env_item_t** envitems, int* count) {
 
 fail:
   for (i = 0; i < cnt; i++) {
-    envitem = &(*envitems)[cnt];
+    envitem = &(*envitems)[i];
     uv__free(envitem->name);
   }
   uv__free(*envitems);
@@ -1586,6 +1681,10 @@ int uv_cpumask_size(void) {
 }
 
 int uv_os_getpriority(uv_pid_t pid, int* priority) {
+#if defined(__QNX__)
+  /* QNX priority is not process-based */
+  return UV_ENOSYS;
+#else
   int r;
 
   if (priority == NULL)
@@ -1599,10 +1698,15 @@ int uv_os_getpriority(uv_pid_t pid, int* priority) {
 
   *priority = r;
   return 0;
+#endif
 }
 
 
 int uv_os_setpriority(uv_pid_t pid, int priority) {
+#if defined(__QNX__)
+  /* QNX priority is not process-based */
+  return UV_ENOSYS;
+#else
   if (priority < UV_PRIORITY_HIGHEST || priority > UV_PRIORITY_LOW)
     return UV_EINVAL;
 
@@ -1610,6 +1714,7 @@ int uv_os_setpriority(uv_pid_t pid, int priority) {
     return UV__ERR(errno);
 
   return 0;
+#endif
 }
 
 /**
@@ -1631,7 +1736,7 @@ int uv_thread_getpriority(uv_thread_t tid, int* priority) {
 
   r = pthread_getschedparam(tid, &policy, &param);
   if (r != 0)
-    return UV__ERR(errno);
+    return UV__ERR(r);
 
 #ifdef __linux__
   if (SCHED_OTHER == policy && pthread_equal(tid, pthread_self())) {
@@ -1684,7 +1789,7 @@ int uv_thread_setpriority(uv_thread_t tid, int priority) {
 
   r = pthread_getschedparam(tid, &policy, &param);
   if (r != 0)
-    return UV__ERR(errno);
+    return UV__ERR(r);
 
 #ifdef __linux__
 /**
@@ -1732,7 +1837,7 @@ int uv_thread_setpriority(uv_thread_t tid, int priority) {
     param.sched_priority = prio;
     r = pthread_setschedparam(tid, policy, &param);
     if (r != 0)
-      return UV__ERR(errno);
+      return UV__ERR(r);
   }
 
   return 0;
@@ -1973,8 +2078,8 @@ unsigned int uv_available_parallelism(void) {
 #elif defined(__NetBSD__)
   cpuset_t* set = cpuset_create();
   if (set != NULL) {
-    if (0 == sched_getaffinity_np(getpid(), sizeof(set), &set))
-      rc = uv__cpu_count(&set);
+    if (0 == sched_getaffinity_np(getpid(), cpuset_size(set), set))
+      rc = uv__cpu_count(set);
     cpuset_destroy(set);
   }
 #elif defined(__APPLE__)
@@ -2021,14 +2126,11 @@ unsigned int uv_available_parallelism(void) {
 
 #ifdef __linux__
   {
-    double rc_with_cgroup;
-    uv__cpu_constraint c = {0, 0, 0.0};
+    long long quota = 0;
 
-    if (uv__get_constrained_cpu(&c) == 0 && c.period_length > 0) {
-      rc_with_cgroup = (double)c.quota_per_period / c.period_length * c.proportions;
-      if (rc_with_cgroup < rc)
-        rc = (long)rc_with_cgroup; /* Casting is safe since rc_with_cgroup < rc < LONG_MAX */
-    }
+    if (uv__get_constrained_cpu(&quota) == 0)
+      if (quota > 0 && quota < rc)
+        rc = quota;
   }
 #endif  /* __linux__ */
 
@@ -2079,4 +2181,28 @@ int uv__sock_reuseport(int fd) {
 #endif
 
   return 0;
+}
+
+/* Check if rlimit has any expressed restrictions on usable memory. */
+uint64_t uv__get_rlimit_max_memory(void) {
+  struct rlimit rl;
+  uint64_t result = 0;
+  uint64_t rlimit_value;
+
+#if defined(RLIMIT_AS)
+  if (getrlimit(RLIMIT_AS, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY) {
+    rlimit_value = rl.rlim_cur;
+    result = rlimit_value;
+  }
+#endif
+
+#if defined(RLIMIT_DATA)
+  if (getrlimit(RLIMIT_DATA, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY) {
+    rlimit_value = rl.rlim_cur;
+    if (result == 0 || rlimit_value < result)
+      result = rlimit_value;
+  }
+#endif
+
+  return result;
 }

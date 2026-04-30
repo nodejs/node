@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL && HAVE_QUIC
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 
 #include <base_object-inl.h>
 #include <env-inl.h>
@@ -10,6 +12,8 @@
 #include "endpoint.h"
 #include "node_external_reference.h"
 
+#include <ngtcp2/ngtcp2_crypto_ossl.h>
+#include <mutex>
 namespace node {
 
 using v8::Context;
@@ -20,7 +24,9 @@ using v8::Value;
 
 namespace quic {
 
-int DebugIndentScope::indent_ = 0;
+namespace {
+std::once_flag crypto_init_flag;
+}  // namespace
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
@@ -34,6 +40,7 @@ void CreatePerContextProperties(Local<Object> target,
                                 Local<Context> context,
                                 void* priv) {
   Realm* realm = Realm::GetCurrent(context);
+  std::call_once(crypto_init_flag, ngtcp2_crypto_ossl_init);
   BindingData::InitPerContext(realm, target);
   Endpoint::InitPerContext(realm, target);
   Session::InitPerContext(realm, target);
@@ -55,4 +62,5 @@ NODE_BINDING_CONTEXT_AWARE_INTERNAL(quic,
 NODE_BINDING_PER_ISOLATE_INIT(quic, node::quic::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(quic, node::quic::RegisterExternalReferences)
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL && HAVE_QUIC

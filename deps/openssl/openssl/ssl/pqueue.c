@@ -19,10 +19,8 @@ pitem *pitem_new(unsigned char *prio64be, void *data)
 {
     pitem *item = OPENSSL_malloc(sizeof(*item));
 
-    if (item == NULL) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
+    if (item == NULL)
         return NULL;
-    }
 
     memcpy(item->priority, prio64be, sizeof(item->priority));
     item->data = data;
@@ -38,9 +36,6 @@ void pitem_free(pitem *item)
 pqueue *pqueue_new(void)
 {
     pqueue *pq = OPENSSL_zalloc(sizeof(*pq));
-
-    if (pq == NULL)
-        ERR_raise(ERR_LIB_SSL, ERR_R_MALLOC_FAILURE);
 
     return pq;
 }
@@ -60,12 +55,12 @@ pitem *pqueue_insert(pqueue *pq, pitem *item)
     }
 
     for (curr = NULL, next = pq->items;
-         next != NULL; curr = next, next = next->next) {
+        next != NULL; curr = next, next = next->next) {
         /*
          * we can compare 64-bit value in big-endian encoding with memcmp:-)
          */
         int cmp = memcmp(next->priority, item->priority, 8);
-        if (cmp > 0) {          /* next > item */
+        if (cmp > 0) { /* next > item */
             item->next = next;
 
             if (curr == NULL)
@@ -76,7 +71,7 @@ pitem *pqueue_insert(pqueue *pq, pitem *item)
             return item;
         }
 
-        else if (cmp == 0)      /* duplicates not allowed */
+        else if (cmp == 0) /* duplicates not allowed */
             return NULL;
     }
 

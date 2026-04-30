@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 function foo(a, i) {
   a[i] = 1;
@@ -23,11 +23,10 @@ assertOptimized(foo);
 
 // Change prototype
 o.__proto__.__proto__ = new Int32Array(3);
-
+assertUnoptimized(foo);
 
 // Check it still works
 assertEquals(undefined, foo(o, 3));
-assertUnoptimized(foo);
 %PrepareFunctionForOptimization(foo);
 assertEquals(undefined, foo(o, 3));
 %OptimizeFunctionOnNextCall(foo);

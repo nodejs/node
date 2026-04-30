@@ -45,17 +45,17 @@ function testCompileStreaming(makeResponsePromise, checkResult) {
 }
 
 function testCompileStreamingSuccess(makeResponsePromise) {
-  return testCompileStreaming(makeResponsePromise, async (modPromise) => {
+  return testCompileStreaming(makeResponsePromise, common.mustCall(async (modPromise) => {
     const mod = await modPromise;
     assert.strictEqual(mod.constructor, WebAssembly.Module);
-  });
+  }, 2));
 }
 
 function testCompileStreamingRejection(makeResponsePromise, rejection) {
-  return testCompileStreaming(makeResponsePromise, (modPromise) => {
+  return testCompileStreaming(makeResponsePromise, common.mustCall((modPromise) => {
     assert.strictEqual(modPromise.constructor, Promise);
     return assert.rejects(modPromise, rejection);
-  });
+  }, 2));
 }
 
 function testCompileStreamingSuccessUsingFetch(responseCallback) {
@@ -70,13 +70,13 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
 (async () => {
   // A non-Response should cause a TypeError.
   for (const invalid of [undefined, null, 0, true, 'foo', {}, [], Symbol()]) {
-    await withPromiseAndResolved(() => Promise.resolve(invalid), (arg) => {
+    await withPromiseAndResolved(() => Promise.resolve(invalid), common.mustCall((arg) => {
       return assert.rejects(() => WebAssembly.compileStreaming(arg), {
         name: 'TypeError',
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /^The "source" argument .*$/
+        message: /^The "source" argument .*$/,
       });
-    });
+    }, 2));
   }
 
   // When given a Promise, any rejection should be propagated as-is.
@@ -98,7 +98,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   await testCompileStreamingSuccess(() => {
     return Promise.resolve(new Response(simpleWasmBytes, {
       status: 200,
-      headers: { 'Content-Type': 'application/wasm' }
+      headers: { 'Content-Type': 'application/wasm' },
     }));
   });
 
@@ -106,10 +106,12 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   // Response whose body is a ReadableStream instead of calling fetch().
   await testCompileStreamingSuccess(async () => {
     const handle = await fs.open(fixtures.path('simple.wasm'));
-    const stream = handle.readableWebStream();
+    // We set the autoClose option to true so that the file handle is closed
+    // automatically when the stream is completed or canceled.
+    const stream = handle.readableWebStream({ autoClose: true });
     return Promise.resolve(new Response(stream, {
       status: 200,
-      headers: { 'Content-Type': 'application/wasm' }
+      headers: { 'Content-Type': 'application/wasm' },
     }));
   });
 
@@ -118,7 +120,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   // the same WebAssembly file as in the previous test but insert useless custom
   // sections into the WebAssembly module to increase the file size without
   // changing the relevant contents.
-  await testCompileStreamingSuccessUsingFetch((res) => {
+  await testCompileStreamingSuccessUsingFetch(common.mustCall((res) => {
     res.setHeader('Content-Type', 'application/wasm');
 
     // Send the WebAssembly magic and version first.
@@ -148,7 +150,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
         res.end(simpleWasmBytes.slice(8));
       }
     })(0);
-  });
+  }, 2));
 
   // A valid WebAssembly file with an empty parameter in the (otherwise valid)
   // MIME type.
@@ -159,7 +161,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     name: 'TypeError',
     code: 'ERR_WEBASSEMBLY_RESPONSE',
     message: 'WebAssembly response has unsupported MIME type ' +
-             "'application/wasm;'"
+             "'application/wasm;'",
   });
 
   // A valid WebAssembly file with an invalid MIME type.
@@ -170,7 +172,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     name: 'TypeError',
     code: 'ERR_WEBASSEMBLY_RESPONSE',
     message: 'WebAssembly response has unsupported MIME type ' +
-             "'application/octet-stream'"
+             "'application/octet-stream'",
   });
 
   // HTTP status code indicating an error.
@@ -181,7 +183,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   }, {
     name: 'TypeError',
     code: 'ERR_WEBASSEMBLY_RESPONSE',
-    message: /^WebAssembly response has status code 418$/
+    message: /^WebAssembly response has status code 418$/,
   });
 
   // HTTP status code indicating an error, but using a Response whose body is
@@ -189,7 +191,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
   await testCompileStreamingSuccess(() => {
     return Promise.resolve(new Response(simpleWasmBytes, {
       status: 200,
-      headers: { 'Content-Type': 'application/wasm' }
+      headers: { 'Content-Type': 'application/wasm' },
     }));
   });
 
@@ -199,7 +201,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     res.end(Buffer.concat([simpleWasmBytes, Buffer.from('foo')]));
   }, {
     name: 'CompileError',
-    message: /^WebAssembly\.compileStreaming\(\): .*$/
+    message: /^WebAssembly\.compileStreaming\(\): .*$/,
   });
 
   // Missing bytes at the end of the WebAssembly file.
@@ -208,7 +210,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     res.end(simpleWasmBytes.subarray(0, simpleWasmBytes.length - 3));
   }, {
     name: 'CompileError',
-    message: /^WebAssembly\.compileStreaming\(\): .*$/
+    message: /^WebAssembly\.compileStreaming\(\): .*$/,
   });
 
   // Incomplete HTTP response body. The TypeError might come as a surprise, but
@@ -221,7 +223,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     }));
   }, {
     name: 'TypeError',
-    message: /terminated/
+    message: /terminated/,
   });
 
   // Test "Developer-Facing Display Conventions" described in the WebAssembly
@@ -231,7 +233,7 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
     // which only contains an 'unreachable' instruction.
     res.setHeader('Content-Type', 'application/wasm');
     res.end(fixtures.readSync('crash.wasm'));
-  }), async (modPromise) => {
+  }), common.mustCall(async (modPromise) => {
     // Call the WebAssembly function and check that the error stack contains the
     // correct "WebAssembly location" as per the specification.
     const mod = await modPromise;
@@ -243,5 +245,5 @@ function testCompileStreamingRejectionUsingFetch(responseCallback, rejection) {
                    /^\s*at http:\/\/127\.0\.0\.1:\d+\/foo\.wasm:wasm-function\[0\]:0x22$/);
       return true;
     });
-  });
+  }, 2));
 })().then(common.mustCall());

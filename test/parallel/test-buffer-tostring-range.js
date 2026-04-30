@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const rangeBuffer = Buffer.from('abc');
@@ -78,6 +78,46 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1.99'), '');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, 1.99), 'a');
 assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
 
+// Test hex/base64/base64url partial range encoding (exercises V8 builtin path)
+{
+  const buf = Buffer.from([0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe]);
+  assert.strictEqual(buf.toString('hex'), 'deadbeefcafe');
+  assert.strictEqual(buf.toString('hex', 0, 3), 'deadbe');
+  assert.strictEqual(buf.toString('hex', 2, 5), 'beefca');
+  assert.strictEqual(buf.toString('hex', 4), 'cafe');
+  assert.strictEqual(buf.toString('hex', 6), '');
+  assert.strictEqual(buf.toString('hex', 0, 0), '');
+}
+
+{
+  const buf = Buffer.from('Hello, World!');
+  assert.strictEqual(buf.toString('base64'), 'SGVsbG8sIFdvcmxkIQ==');
+  assert.strictEqual(buf.toString('base64', 0, 5), 'SGVsbG8=');
+  assert.strictEqual(buf.toString('base64', 7), 'V29ybGQh');
+  assert.strictEqual(buf.toString('base64', 0, 0), '');
+}
+
+{
+  const buf = Buffer.from('Hello, World!');
+  assert.strictEqual(buf.toString('base64url'), 'SGVsbG8sIFdvcmxkIQ');
+  assert.strictEqual(buf.toString('base64url', 0, 5), 'SGVsbG8');
+  assert.strictEqual(buf.toString('base64url', 7), 'V29ybGQh');
+  assert.strictEqual(buf.toString('base64url', 0, 0), '');
+}
+
+// Test with pool-allocated buffer (has non-zero byteOffset)
+{
+  const poolBuf = Buffer.from('test data for hex encoding');
+  assert.strictEqual(
+    poolBuf.toString('hex'),
+    Buffer.from('test data for hex encoding').toString('hex')
+  );
+  assert.strictEqual(
+    poolBuf.toString('hex', 5, 9),
+    Buffer.from('data').toString('hex')
+  );
+}
+
 // Try toString() with an object as an encoding
 assert.strictEqual(rangeBuffer.toString({ toString: function() {
   return 'ascii';
@@ -98,11 +138,3 @@ assert.throws(() => {
   name: 'TypeError',
   message: 'Unknown encoding: null'
 });
-
-// Must not throw when start and end are within kMaxLength
-// Cannot test on 32bit machine as we are testing the case
-// when start and end are above the threshold
-common.skipIf32Bits();
-const threshold = 0xFFFFFFFF;
-const largeBuffer = Buffer.alloc(threshold + 20);
-largeBuffer.toString('utf8', threshold, threshold + 20);

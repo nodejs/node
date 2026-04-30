@@ -246,15 +246,12 @@ GTEST_API_ std::string WideStringToUtf8(const wchar_t* str, int num_chars);
 // be created, prints an error and exits.
 void WriteToShardStatusFileIfNeeded();
 
-// Checks whether sharding is enabled by examining the relevant
-// environment variable values. If the variables are present,
-// but inconsistent (e.g., shard_index >= total_shards), prints
-// an error and exits. If in_subprocess_for_death_test, sharding is
+// Checks whether sharding is enabled by examining the relevant flag values.
+// If the flags are set, but inconsistent (e.g., shard_index >= total_shards),
+// prints an error and exits. If in_subprocess_for_death_test, sharding is
 // disabled because it must only be applied to the original test
 // process. Otherwise, we could filter out death tests we intended to execute.
-GTEST_API_ bool ShouldShard(const char* total_shards_str,
-                            const char* shard_index_str,
-                            bool in_subprocess_for_death_test);
+GTEST_API_ bool ShouldShard(bool in_subprocess_for_death_test);
 
 // Parses the environment variable var as a 32-bit integer. If it is unset,
 // returns default_val. If it is not a 32-bit integer, prints an error and

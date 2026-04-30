@@ -8,7 +8,6 @@
 #include "include/v8config.h"
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/sandbox/code-entrypoint-tag.h"
 #include "src/sandbox/external-entity-table.h"
@@ -64,7 +63,7 @@ struct CodePointerTableEntry {
   // called even when the entry is not a freelist entry. However, the result
   // is only valid if this is a freelist entry. This behaviour is required
   // for efficient entry allocation, see TryAllocateEntryFromFreelist.
-  inline uint32_t GetNextFreelistEntryIndex() const;
+  inline std::optional<uint32_t> GetNextFreelistEntryIndex() const;
 
   // Mark this entry as alive during garbage collection.
   inline void Mark();
@@ -123,9 +122,6 @@ class V8_EXPORT_PRIVATE CodePointerTable
                                    kCodePointerTableReservationSize>;
 
  public:
-  // Size of a CodePointerTable, for layout computation in IsolateData.
-  static constexpr int kSize = 2 * kSystemPointerSize;
-
   static_assert(kMaxCodePointers == kMaxCapacity);
   static_assert(!kSupportsCompaction);
 
@@ -134,7 +130,7 @@ class V8_EXPORT_PRIVATE CodePointerTable
   CodePointerTable& operator=(const CodePointerTable&) = delete;
 
   // The Spaces used by a CodePointerTable.
-  using Space = Base::SpaceWithBlackAllocationSupport;
+  using Space = Base::Space;
 
   // Retrieves the entrypoint of the entry referenced by the given handle.
   //
@@ -194,10 +190,6 @@ class V8_EXPORT_PRIVATE CodePointerTable
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;
   inline CodePointerHandle IndexToHandle(uint32_t index) const;
 };
-
-static_assert(sizeof(CodePointerTable) == CodePointerTable::kSize);
-
-V8_EXPORT_PRIVATE CodePointerTable* GetProcessWideCodePointerTable();
 
 }  // namespace internal
 }  // namespace v8

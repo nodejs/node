@@ -7,7 +7,6 @@
 // These tests do not work well if this script is run more than once; after a
 // few runs the whole function is immediately compiled and assertions would
 // fail. We prevent re-runs.
-// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.

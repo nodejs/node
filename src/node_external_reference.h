@@ -5,95 +5,11 @@
 
 #include <cinttypes>
 #include <vector>
+#include "quic/guard.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
 namespace node {
-
-using CFunctionCallbackWithalueAndOptions = bool (*)(
-    v8::Local<v8::Value>, v8::Local<v8::Value>, v8::FastApiCallbackOptions&);
-using CFunctionCallbackWithMultipleValueAndOptions =
-    bool (*)(v8::Local<v8::Value>,
-             v8::Local<v8::Value>,
-             v8::Local<v8::Value>,
-             v8::FastApiCallbackOptions&);
-using CFunctionA =
-    uint32_t (*)(v8::Local<v8::Value> receiver,
-                 v8::Local<v8::Value> sourceValue,
-                 // NOLINTNEXTLINE(runtime/references) This is V8 api.
-                 v8::FastApiCallbackOptions& options);
-using CFunctionCallbackWithOneByteString =
-    uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
-
-using CFunctionCallbackReturnBool = bool (*)(v8::Local<v8::Value> unused,
-                                             v8::Local<v8::Value> receiver);
-using CFunctionCallback = void (*)(v8::Local<v8::Value> unused,
-                                   v8::Local<v8::Value> receiver);
-using CFunctionCallbackReturnDouble =
-    double (*)(v8::Local<v8::Object> unused, v8::Local<v8::Object> receiver);
-using CFunctionCallbackReturnInt32 =
-    int32_t (*)(v8::Local<v8::Value> receiver,
-                v8::Local<v8::Value> input,
-                // NOLINTNEXTLINE(runtime/references) This is V8 api.
-                v8::FastApiCallbackOptions& options);
-using CFunctionCallbackValueReturnDouble =
-    double (*)(v8::Local<v8::Value> receiver);
-using CFunctionCallbackValueReturnDoubleUnusedReceiver =
-    double (*)(v8::Local<v8::Value> unused, v8::Local<v8::Value> receiver);
-using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> unused,
-                                            v8::Local<v8::Object> receiver,
-                                            int64_t);
-using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> unused,
-                                           v8::Local<v8::Object> receiver,
-                                           bool);
-using CFunctionCallbackWithString =
-    bool (*)(v8::Local<v8::Value>, const v8::FastOneByteString& input);
-using CFunctionCallbackWithStrings =
-    bool (*)(v8::Local<v8::Value>,
-             const v8::FastOneByteString& input,
-             const v8::FastOneByteString& base);
-using CFunctionCallbackWithTwoUint8Arrays =
-    int32_t (*)(v8::Local<v8::Value>,
-                const v8::FastApiTypedArray<uint8_t>&,
-                const v8::FastApiTypedArray<uint8_t>&);
-using CFunctionCallbackWithTwoUint8ArraysFallback =
-    bool (*)(v8::Local<v8::Value>,
-             const v8::FastApiTypedArray<uint8_t>&,
-             const v8::FastApiTypedArray<uint8_t>&,
-             v8::FastApiCallbackOptions&);
-using CFunctionCallbackWithUint8ArrayUint32Int64Bool =
-    int32_t (*)(v8::Local<v8::Value>,
-                const v8::FastApiTypedArray<uint8_t>&,
-                uint32_t,
-                int64_t,
-                bool);
-using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
-                                         const uint32_t input);
-using CFunctionWithDoubleReturnDouble = double (*)(v8::Local<v8::Value>,
-                                                   v8::Local<v8::Value>,
-                                                   const double);
-using CFunctionWithInt64Fallback = void (*)(v8::Local<v8::Value>,
-                                            v8::Local<v8::Value>,
-                                            const int64_t,
-                                            v8::FastApiCallbackOptions&);
-using CFunctionWithBool = void (*)(v8::Local<v8::Value>,
-                                   v8::Local<v8::Value>,
-                                   bool);
-
-using CFunctionWriteString =
-    uint32_t (*)(v8::Local<v8::Value> receiver,
-                 const v8::FastApiTypedArray<uint8_t>& dst,
-                 const v8::FastOneByteString& src,
-                 uint32_t offset,
-                 uint32_t max_length);
-
-using CFunctionBufferCopy =
-    uint32_t (*)(v8::Local<v8::Value> receiver,
-                 const v8::FastApiTypedArray<uint8_t>& source,
-                 const v8::FastApiTypedArray<uint8_t>& target,
-                 uint32_t target_start,
-                 uint32_t source_start,
-                 uint32_t to_copy);
 
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.
@@ -102,30 +18,6 @@ class ExternalReferenceRegistry {
   ExternalReferenceRegistry();
 
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
-  V(CFunctionA)                                                                \
-  V(CFunctionCallback)                                                         \
-  V(CFunctionCallbackWithalueAndOptions)                                       \
-  V(CFunctionCallbackWithMultipleValueAndOptions)                              \
-  V(CFunctionCallbackWithOneByteString)                                        \
-  V(CFunctionCallbackReturnBool)                                               \
-  V(CFunctionCallbackReturnDouble)                                             \
-  V(CFunctionCallbackReturnInt32)                                              \
-  V(CFunctionCallbackValueReturnDouble)                                        \
-  V(CFunctionCallbackValueReturnDoubleUnusedReceiver)                          \
-  V(CFunctionCallbackWithInt64)                                                \
-  V(CFunctionCallbackWithBool)                                                 \
-  V(CFunctionCallbackWithString)                                               \
-  V(CFunctionCallbackWithStrings)                                              \
-  V(CFunctionCallbackWithTwoUint8Arrays)                                       \
-  V(CFunctionCallbackWithTwoUint8ArraysFallback)                               \
-  V(CFunctionCallbackWithUint8ArrayUint32Int64Bool)                            \
-  V(CFunctionWithUint32)                                                       \
-  V(CFunctionWithDoubleReturnDouble)                                           \
-  V(CFunctionWithInt64Fallback)                                                \
-  V(CFunctionWithBool)                                                         \
-  V(CFunctionBufferCopy)                                                       \
-  V(CFunctionWriteString)                                                      \
-  V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorNameGetterCallback)                                            \
   V(v8::AccessorNameSetterCallback)                                            \
@@ -146,6 +38,13 @@ class ExternalReferenceRegistry {
   void Register(ExternalReferenceType addr) { RegisterT(addr); }
   ALLOWED_EXTERNAL_REFERENCE_TYPES(V)
 #undef V
+
+  // Registers both the underlying function pointer
+  // and the corresponding CFunctionInfo.
+  void Register(const v8::CFunction& c_func) {
+    RegisterT(c_func.GetAddress());
+    RegisterT(c_func.GetTypeInfo());
+  }
 
   // This can be called only once.
   const std::vector<intptr_t>& external_references();
@@ -168,9 +67,11 @@ class ExternalReferenceRegistry {
   V(buffer)                                                                    \
   V(builtins)                                                                  \
   V(cares_wrap)                                                                \
+  V(cjs_lexer)                                                                 \
   V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(diagnostics_channel)                                                       \
   V(encoding_binding)                                                          \
   V(env_var)                                                                   \
   V(errors)                                                                    \
@@ -181,6 +82,7 @@ class ExternalReferenceRegistry {
   V(heap_utils)                                                                \
   V(http_parser)                                                               \
   V(internal_only_v8)                                                          \
+  V(locks)                                                                     \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
   V(module_wrap)                                                               \
@@ -236,7 +138,7 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
 #endif  // HAVE_OPENSSL
 
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL && OPENSSL_NO_QUIC != 1
 #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V) V(quic)
 #else
 #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)

@@ -11,6 +11,9 @@
 
 namespace v8 {
 namespace internal {
+
+class TrustedFixedArray;
+
 namespace interpreter {
 
 class V8_EXPORT_PRIVATE BytecodeDecoder final {
@@ -36,8 +39,14 @@ class V8_EXPORT_PRIVATE BytecodeDecoder final {
                                         OperandType operand_type,
                                         OperandScale operand_scale);
 
+  // Separate function for racy embedded feedback value read, so that we can
+  // explicitly suppress TSAN check. Concurrent compilers promise that
+  // this race is benign (as the worst-case outcome is a deoptimization).
+  static uint32_t RacyDecodeEmbeddedFeedback(Address operand_start);
+
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,
+                              Tagged<TrustedFixedArray> constant_pool,
                               bool with_hex = true);
 };
 

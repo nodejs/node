@@ -582,7 +582,7 @@ t.test('workspaces', async t => {
   await t.test('should display all dependencies', t =>
     mockWorkspaces(t, { all: true }))
 
-  await t.test('should highlight ws in dependend by section', t =>
+  await t.test('should highlight ws in depended by section', t =>
     mockWorkspaces(t, { color: 'always' }))
 
   await t.test('should display results filtered by ws', t =>
@@ -661,4 +661,73 @@ t.test('aliases with version range', async t => {
     'should display aliased outdated dep output with correct wanted values'
   )
   t.equal(process.exitCode, 1)
+})
+
+t.test('dependent location', async t => {
+  const testDir = {
+    'package.json': JSON.stringify({
+      name: 'similar-name',
+      version: '1.0.0',
+      workspaces: ['a', 'nest/a'],
+    }),
+    a: {
+      'package.json': JSON.stringify({
+        name: 'a',
+        version: '1.0.0',
+        dependencies: {
+          dog: '^1.0.0',
+        },
+      }),
+    },
+    nest: {
+      a: {
+        'package.json': JSON.stringify({
+          name: 'nest-a',
+          version: '1.0.0',
+          dependencies: {
+            dog: '^1.0.0',
+          },
+        }),
+      },
+    },
+    node_modules: {
+      dog: {
+        'package.json': JSON.stringify({
+          name: 'dog',
+          version: '1.0.0',
+        }),
+      },
+      a: t.fixture('symlink', '../a'),
+      'nest-a': t.fixture('symlink', '../nest/a'),
+    },
+
+  }
+  t.test(`--long`, async t => {
+    const { outdated, joinedOutput } = await mockNpm(t, {
+      prefixDir: testDir,
+      config: {
+        long: true,
+      },
+    })
+    await outdated.exec([])
+    t.matchSnapshot(
+      joinedOutput(),
+      'should display dependent location when using --long'
+    )
+  })
+
+  t.test('--long --json', async t => {
+    const { outdated, joinedOutput } = await mockNpm(t, {
+      prefixDir: testDir,
+      config: {
+        long: true,
+        json: true,
+      },
+    })
+    await outdated.exec([])
+    t.matchSnapshot(
+      joinedOutput(),
+      'should display dependent location when using --long and --json'
+    )
+  })
 })

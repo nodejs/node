@@ -77,6 +77,7 @@ macro GetDerivedMap(
     const constructor =
         Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
     dcheck(IsConstructor(constructor));
+    if (Is<TheHole>(constructor.prototype_or_initial_map)) goto SlowPath;
     const map =
         Cast<Map>(constructor.prototype_or_initial_map) otherwise SlowPath;
     if (LoadConstructorOrBackPointer(map) != target) {
@@ -116,8 +117,29 @@ macro AllocateFastOrSlowJSObjectFromMap(
 extern class JSGlobalProxy extends JSSpecialObject {}
 
 extern class JSGlobalObject extends JSSpecialObject {
-  // [global proxy]: the global proxy object of the context
+  // [global proxy]: the global proxy object of the current context.
+  // This global proxy preserves identity of the JavaScript's global object
+  // even if the context and global object associated with it is detached.
+  // So, in case of detached context, the
+  //   |context->global_object->global_proxy->global_object|
+  // is not equal to
+  //   |context->global_object|
+  // anymore.
   global_proxy: JSGlobalProxy;
+
+  // [global_proxy_for_api]: the global proxy object that points back to
+  // this global object even if the context is detached.
+  // As long as the context is not detached it's the same as [global_proxy],
+  // however when a context is detached a new JSGlobalProxy is created which
+  // reuses the original JSGlobalProxy's map, but all embedder pointers and
+  // API wrappers are cleared. Api callbacks can still be triggered for
+  // detached global object via contextual accesses and this object is
+  // supposed be passed as the holder to Api callbacks.
+  // Thus, this always holds:
+  //   |context->global_object->global_proxy_for_api->global_object|
+  // is equal to
+  //   |context->global_object|.
+  global_proxy_for_api: JSGlobalProxy;
 }
 
 extern class JSPrimitiveWrapper extends JSCustomElementsObject {
@@ -131,8 +153,8 @@ extern class JSMessageObject extends JSObject {
   argument: Object;
   // [script]: the script from which the error message originated.
   script: Script;
-  // [stack_frames]: an array of stack frames for this error object.
-  stack_frames: Object;
+  // [stack_trace]: a StackTraceInfo for this error object.
+  stack_trace: StackTraceInfo|TheHole;
   shared_info: SharedFunctionInfo|Smi;
 
   // Raw data fields.
@@ -150,17 +172,17 @@ extern class JSDate extends JSObject {
   value: float64;
 
   // Cached values:
-  year: Undefined|Smi|NaN;
-  month: Undefined|Smi|NaN;
-  day: Undefined|Smi|NaN;
-  weekday: Undefined|Smi|NaN;
-  hour: Undefined|Smi|NaN;
-  min: Undefined|Smi|NaN;
-  sec: Undefined|Smi|NaN;
+  year: Smi|NaN;
+  month: Smi|NaN;
+  day: Smi|NaN;
+  weekday: Smi|NaN;
+  hour: Smi|NaN;
+  min: Smi|NaN;
+  sec: Smi|NaN;
 
   // Sample of the date cache stamp at the moment when chached fields were
   // cached.
-  cache_stamp: Undefined|Smi|NaN;
+  cache_stamp: Smi|NaN;
 }
 
 extern class JSAsyncFromSyncIterator extends JSObject {
@@ -178,7 +200,7 @@ extern class JSStringIterator extends JSObject {
 }
 
 // The wrapper returned by Iterator.from().
-// https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
+// https://tc39.es/ecma262/#sec-wrapforvaliditeratorprototype-object
 extern class JSValidIteratorWrapper extends JSObject {
   // The [[Iterated]] slot.
   underlying: iterator::IteratorRecord;

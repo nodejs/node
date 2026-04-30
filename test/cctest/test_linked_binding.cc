@@ -9,7 +9,7 @@ void InitializeBinding(v8::Local<v8::Object> exports,
                        v8::Local<v8::Value> module,
                        v8::Local<v8::Context> context,
                        void* priv) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   exports
       ->Set(context,
             v8::String::NewFromOneByte(isolate,
@@ -51,7 +51,7 @@ void InitializeLocalBinding(v8::Local<v8::Object> exports,
                             v8::Local<v8::Context> context,
                             void* priv) {
   ++*static_cast<int*>(priv);
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   exports
       ->Set(context,
             v8::String::NewFromOneByte(isolate,
@@ -348,7 +348,8 @@ TEST_F(LinkedBindingTest, ManyBindingsTest) {
   AddLinkedBinding(*test_env, "local_linked1", InitializeLocalBinding, &calls);
   AddLinkedBinding(*test_env, "local_linked2", InitializeLocalBinding, &calls);
   AddLinkedBinding(*test_env, "local_linked3", InitializeLocalBinding, &calls);
-  AddLinkedBinding(*test_env, local_linked_napi);  // Add a N-API addon as well.
+  AddLinkedBinding(*test_env,
+                   local_linked_napi);  // Add a Node-API addon as well.
   AddLinkedBinding(*test_env, "local_linked4", InitializeLocalBinding, &calls);
   AddLinkedBinding(*test_env, "local_linked5", InitializeLocalBinding, &calls);
 

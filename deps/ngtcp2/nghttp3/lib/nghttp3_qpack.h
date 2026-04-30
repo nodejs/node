@@ -261,6 +261,9 @@ struct nghttp3_qpack_encoder {
   /* uninterrupted_decoderlen is the number of bytes read from decoder
      stream without encoding a single field section. */
   size_t uninterrupted_decoderlen;
+  /* indexing_strat is the indexing strategy for fields not defined in
+     nghttp3_qpack_token. */
+  nghttp3_qpack_indexing_strat indexing_strat;
   /* flags is bitwise OR of zero or more of
      NGHTTP3_QPACK_ENCODER_FLAG_*. */
   uint8_t flags;
@@ -269,17 +272,12 @@ struct nghttp3_qpack_encoder {
 /*
  * nghttp3_qpack_encoder_init initializes |encoder|.
  * |hard_max_dtable_capacity| is the upper bound of the dynamic table
- * capacity.  |mem| is a memory allocator.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP3_ERR_NOMEM
- *     Out of memory.
+ * capacity.  |seed| is used to initialize nghttp3_map.  |mem| is a
+ * memory allocator.
  */
-int nghttp3_qpack_encoder_init(nghttp3_qpack_encoder *encoder,
-                               size_t hard_max_dtable_capacity,
-                               const nghttp3_mem *mem);
+void nghttp3_qpack_encoder_init(nghttp3_qpack_encoder *encoder,
+                                size_t hard_max_dtable_capacity, uint64_t seed,
+                                const nghttp3_mem *mem);
 
 /*
  * nghttp3_qpack_encoder_free frees memory allocated for |encoder|.
@@ -800,17 +798,11 @@ struct nghttp3_qpack_decoder {
  * |hard_max_dtable_capacity| is the upper bound of the dynamic table
  * capacity.  |max_blocked_streams| is the maximum number of stream
  * which can be blocked.  |mem| is a memory allocator.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP3_ERR_NOMEM
- *     Out of memory.
  */
-int nghttp3_qpack_decoder_init(nghttp3_qpack_decoder *decoder,
-                               size_t hard_max_dtable_capacity,
-                               size_t max_blocked_streams,
-                               const nghttp3_mem *mem);
+void nghttp3_qpack_decoder_init(nghttp3_qpack_decoder *decoder,
+                                size_t hard_max_dtable_capacity,
+                                size_t max_blocked_streams,
+                                const nghttp3_mem *mem);
 
 /*
  * nghttp3_qpack_decoder_free frees memory allocated for |decoder|.

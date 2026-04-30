@@ -24,7 +24,7 @@
 // of the same header as per RFC2616: joining the handful of fields by ', '
 // that support it, and dropping duplicates for other fields.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -69,7 +69,7 @@ const multipleForbidden = [
   // 'Content-Length',
 ];
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast(function(req, res) {
   for (const header of multipleForbidden) {
     assert.strictEqual(req.headers[header.toLowerCase()], 'foo',
                        `header parsed incorrectly: ${header}`);
@@ -84,7 +84,7 @@ const server = http.createServer(function(req, res) {
   res.end('EOF');
 
   server.close();
-});
+}));
 
 function makeHeader(value) {
   return function(header) {

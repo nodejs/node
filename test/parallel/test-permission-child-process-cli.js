@@ -12,7 +12,7 @@ const assert = require('assert');
 const childProcess = require('child_process');
 
 if (process.argv[2] === 'child') {
-  process.exit(0);
+  return;
 }
 
 // Guarantee the initial state
@@ -29,12 +29,14 @@ if (process.argv[2] === 'child') {
     message: 'Access to this API has been restricted. Use --allow-child-process to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
+    resource: process.execPath,
   }));
   assert.throws(() => {
     childProcess.spawnSync(process.execPath, ['--version']);
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
+    resource: process.execPath,
   }));
   assert.throws(() => {
     childProcess.exec(...common.escapePOSIXShell`"${process.execPath}" --version`);
@@ -53,6 +55,7 @@ if (process.argv[2] === 'child') {
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
+    resource: process.execPath,
   }));
   assert.throws(() => {
     childProcess.execFile(...common.escapePOSIXShell`"${process.execPath}" --version`);

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
+#define V8_WASM_FUNCTION_BODY_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
-#define V8_WASM_FUNCTION_BODY_DECODER_H_
 
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
@@ -93,9 +93,6 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
     }
     bool operator==(const iterator_base& that) const {
       return this->ptr_ == that.ptr_;
-    }
-    bool operator!=(const iterator_base& that) const {
-      return this->ptr_ != that.ptr_;
     }
 
    protected:

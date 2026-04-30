@@ -61,9 +61,16 @@ enum RegisterCode {
 class Register : public RegisterBase<Register, kRegAfterLast> {
  public:
   constexpr bool is_byte_register() const { return code() <= 3; }
+#ifdef V8_ENABLE_APX_F
+  // Return the fifth bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX2 prefix byte.
+  constexpr int bit4() const { return (code() >> 4) & 0x1; }
   // Return the high bit of the register code as a 0 or 1.  Used often
   // when constructing the REX prefix byte.
+  constexpr int high_bit() const { return (code() >> 3) & 0x1; }
+#else
   constexpr int high_bit() const { return code() >> 3; }
+#endif
   // Return the 3 low bits of the register code.  Used when encoding registers
   // in modR/M, SIB, and opcode bytes.
   constexpr int low_bits() const { return code() & 0x7; }
@@ -177,6 +184,16 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(ymm14)               \
   V(ymm15)
 
+#ifdef V8_TARGET_OS_WIN
+#define C_CALL_CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS \
+  xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+
+#else  // V8_TARGET_OS_WIN
+#define C_CALL_CALLEE_SAVE_REGISTERS rbx, r12, r13, r14, r15
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS
+#endif  // V8_TARGET_OS_WIN
+
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.
@@ -284,6 +301,7 @@ constexpr Register kJavaScriptCallCodeStartRegister = rcx;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = rdx;
 constexpr Register kJavaScriptCallExtraArg1Register = rbx;
+constexpr Register kJavaScriptCallDispatchHandleRegister = r15;
 
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;

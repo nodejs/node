@@ -1,5 +1,5 @@
 const { open } = require('@npmcli/promise-spawn')
-const { output, input } = require('proc-log')
+const { output, input, META } = require('proc-log')
 const { URL } = require('node:url')
 const readline = require('node:readline/promises')
 const { once } = require('node:events')
@@ -18,7 +18,8 @@ const outputMsg = (json, title, url) => {
   if (json) {
     output.buffer({ title, url })
   } else {
-    output.standard(`${title}:\n${url}`)
+    // These urls are sometimes specifically login urls so we have to turn off redaction to standard output
+    output.standard(`${title}:\n${url}`, { [META]: true, redact: false })
   }
 }
 
@@ -33,8 +34,7 @@ const openUrl = async (npm, url, title, isFile) => {
     return
   }
 
-  // We pass this in as true from the help command so we know we don't have to
-  // check the protocol
+  // We pass this in as true from the help command so we know we don't have to check the protocol
   if (!isFile) {
     assertValidUrl(url)
   }
@@ -86,8 +86,7 @@ const openUrlPrompt = async (npm, url, title, prompt, { signal }) => {
   }
 }
 
-// Rearrange arguments and return a function that takes the two arguments
-// returned from the npm-profile methods that take an opener
+// Rearrange arguments and return a function that takes the two arguments returned from the npm-profile methods that take an opener
 const createOpener = (npm, title, prompt = 'Press ENTER to open in the browser...') =>
   (url, opts) => openUrlPrompt(npm, url, title, prompt, opts)
 

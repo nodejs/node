@@ -82,6 +82,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat32Min:
     case kSSEFloat64Min:
     case kSSEFloat64ToFloat32:
+    case kSSEFloat64ToFloat16RawBits:
+    case kSSEFloat16RawBitsToFloat64:
     case kSSEFloat32ToInt32:
     case kSSEFloat32ToUint32:
     case kSSEFloat64ToInt32:
@@ -134,6 +136,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Cvttpd2dq:
     case kX64I32x4TruncF64x2UZero:
     case kX64I32x4TruncF32x4U:
+    case kX64I32x8TruncF32x8U:
     case kX64FSplat:
     case kX64FExtractLane:
     case kX64FReplaceLane:
@@ -176,6 +179,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Minps:
     case kX64Maxps:
     case kX64F32x4Round:
+    case kX64F32x8Round:
     case kX64F32x4DemoteF64x2Zero:
     case kX64F32x4DemoteF64x4:
     case kX64F16x8Round:
@@ -405,6 +409,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S128Load32x2U:
     case kX64S256Load8x16S:
     case kX64S256Load8x16U:
+    case kX64S256Load8x8U:
     case kX64S256Load16x8S:
     case kX64S256Load16x8U:
     case kX64S256Load32x4S:
@@ -494,6 +499,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kSSEFloat64ToInt64:
     case kSSEFloat32ToUint64:
     case kSSEFloat64ToUint64:
+    case kSSEFloat64ToFloat16RawBits:
+    case kSSEFloat16RawBitsToFloat64:
       return 10;
     case kSSEFloat64Mod:
       return 50;

@@ -8,9 +8,11 @@
 
 #include <utility>
 
+#include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
 #include "src/heap/factory.h"
+#include "src/numbers/hash-seed-inl.h"
 #include "src/objects/field-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
@@ -25,11 +27,11 @@ TEST(TransitionArray_SimpleFieldTransitions) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<String> name1 = factory->InternalizeUtf8String("foo");
-  Handle<String> name2 = factory->InternalizeUtf8String("bar");
+  DirectHandle<String> name1 = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> name2 = factory->InternalizeUtf8String("bar");
   PropertyAttributes attributes = NONE;
 
-  Handle<Map> map0 = Map::Create(isolate, 0);
+  DirectHandle<Map> map0 = Map::Create(isolate, 0);
   DirectHandle<Map> map1 =
       Map::CopyWithField(isolate, map0, name1, FieldType::Any(isolate),
                          attributes, PropertyConstness::kMutable,
@@ -88,11 +90,11 @@ TEST(TransitionArray_FullFieldTransitions) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<String> name1 = factory->InternalizeUtf8String("foo");
-  Handle<String> name2 = factory->InternalizeUtf8String("bar");
+  DirectHandle<String> name1 = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> name2 = factory->InternalizeUtf8String("bar");
   PropertyAttributes attributes = NONE;
 
-  Handle<Map> map0 = Map::Create(isolate, 0);
+  DirectHandle<Map> map0 = Map::Create(isolate, 0);
   DirectHandle<Map> map1 =
       Map::CopyWithField(isolate, map0, name1, FieldType::Any(isolate),
                          attributes, PropertyConstness::kMutable,
@@ -156,7 +158,7 @@ TEST(TransitionArray_DifferentFieldNames) {
   Handle<Map> maps[PROPS_COUNT];
   PropertyAttributes attributes = NONE;
 
-  Handle<Map> map0 = Map::Create(isolate, 0);
+  DirectHandle<Map> map0 = Map::Create(isolate, 0);
   CHECK(IsSmi(map0->raw_transitions()));
 
   for (int i = 0; i < PROPS_COUNT; i++) {
@@ -200,13 +202,13 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<Map> map0 = Map::Create(isolate, 0);
+  DirectHandle<Map> map0 = Map::Create(isolate, 0);
   CHECK(IsSmi(map0->raw_transitions()));
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
   static_assert(ATTRS_COUNT == 8);
   Handle<Map> attr_maps[ATTRS_COUNT];
-  Handle<String> name = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> name = factory->InternalizeUtf8String("foo");
 
   // Add transitions for same field name but different attributes.
   for (int i = 0; i < ATTRS_COUNT; i++) {
@@ -247,7 +249,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   Handle<String> names[PROPS_COUNT];
   Handle<Map> maps[PROPS_COUNT];
 
-  Handle<Map> map0 = Map::Create(isolate, 0);
+  DirectHandle<Map> map0 = Map::Create(isolate, 0);
   CHECK(IsSmi(map0->raw_transitions()));
 
   // Some number of fields.
@@ -269,7 +271,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
   static_assert(ATTRS_COUNT == 8);
   Handle<Map> attr_maps[ATTRS_COUNT];
-  Handle<String> name = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> name = factory->InternalizeUtf8String("foo");
 
   // Add transitions for same field name but different attributes.
   for (int i = 0; i < ATTRS_COUNT; i++) {
@@ -314,6 +316,263 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   }
 
   DCHECK(transitions.IsSortedNoDuplicates());
+}
+
+UNINITIALIZED_TEST(TransitionArray_InsertToBinarySearchSizeAfterRehashing) {
+  v8_flags.rehash_snapshot = true;
+  v8_flags.hash_seed = 42;
+  v8_flags.allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  int initial_size = TransitionArray::kMaxElementsForLinearSearch - 3;
+  int final_size = TransitionArray::kMaxElementsForLinearSearch + 3;
+
+  {
+    v8::Isolate::CreateParams testing_params;
+    testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::SnapshotCreator creator(testing_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      // Get the cached map for empty objects
+      Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+      v8::Local<v8::Object> obj = v8::Object::New(isolate);
+      DirectHandle<Map> first_map =
+          direct_handle(v8::Utils::OpenDirectHandle(*obj)->map(), i_isolate);
+
+      // Ensure that the transition array is empty initially.
+      {
+        TestTransitionsAccessor transitions(i_isolate, first_map);
+        CHECK_EQ(0, transitions.NumberOfTransitions());
+        DCHECK(transitions.transitions()->IsSortedNoDuplicates());
+      }
+
+      // Insert some transitions to grow the transition array, we'll rehash
+      // later using the snapshot which "shuffles" the entries in hash order.
+      v8::Local<v8::Value> null_value = v8::Null(isolate);
+      v8::LocalVector<v8::Value> objects(isolate);
+      for (int i = 0; i < initial_size; i++) {
+        std::string prop_name = "prop_" + std::to_string(i);
+        v8::Local<v8::String> name =
+            v8::String::NewFromUtf8(isolate, prop_name.c_str(),
+                                    v8::NewStringType::kNormal)
+                .ToLocalChecked();
+        v8::Local<v8::Object> new_obj = v8::Object::New(isolate);
+        new_obj->Set(context, name, null_value).Check();
+        objects.push_back(new_obj);
+      }
+      context->Global()
+          ->Set(context, v8_str("objects_for_transitions"),
+                v8::Array::New(isolate, objects.data(), objects.size()))
+          .Check();
+
+      creator.SetDefaultContext(context);
+
+      // Verify that the cached map has initial_size transitions.
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(initial_size, transitions.NumberOfTransitions());
+      DCHECK(transitions.transitions()->IsSortedNoDuplicates());
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    CHECK(blob.CanBeRehashed());
+  }
+
+  // Create a new isolate from the snapshot with rehashing enabled.
+  v8_flags.hash_seed = 1337;
+  v8::Isolate::CreateParams testing_params;
+  testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  testing_params.snapshot_blob = &blob;
+  v8::Isolate* isolate = v8::Isolate::New(testing_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    // Check that rehashing has been performed.
+    CHECK_EQ(static_cast<uint64_t>(1337),
+             HashSeed(reinterpret_cast<Isolate*>(isolate)).seed());
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+
+    // Get the cached map for empty objects.
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+    DirectHandle<Map> first_map =
+        direct_handle(v8::Utils::OpenDirectHandle(*obj)->map(), i_isolate);
+
+    // Verify that the cached map still has initial_size transitions.
+    {
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(initial_size, transitions.NumberOfTransitions());
+      DCHECK(transitions.transitions()->IsSortedNoDuplicates());
+    }
+
+    v8::Local<v8::Value> null_value = v8::Null(isolate);
+    {
+      v8::LocalVector<v8::Value> objects(isolate);
+
+      // Insert some transitions to grow the rehashed transition array beyond
+      // linear search size
+      for (int i = initial_size; i < final_size; i++) {
+        std::string prop_name = "prop_" + std::to_string(i);
+        v8::Local<v8::String> name =
+            v8::String::NewFromUtf8(isolate, prop_name.c_str(),
+                                    v8::NewStringType::kNormal)
+                .ToLocalChecked();
+        v8::Local<v8::Object> new_obj = v8::Object::New(isolate);
+        new_obj->Set(context, name, null_value).Check();
+        objects.push_back(new_obj);
+      }
+      context->Global()
+          ->Set(context, v8_str("objects_for_transitions_2"),
+                v8::Array::New(isolate, objects.data(), objects.size()))
+          .Check();
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(final_size, transitions.NumberOfTransitions());
+      DCHECK(transitions.transitions()->IsSortedNoDuplicates());
+    }
+
+    // Check existing transitions could be found after rehashing.
+    {
+      v8::LocalVector<v8::Value> objects(isolate);
+      for (int i = 0; i < final_size; i++) {
+        std::string prop_name = "prop_" + std::to_string(i);
+        v8::Local<v8::String> name =
+            v8::String::NewFromUtf8(isolate, prop_name.c_str(),
+                                    v8::NewStringType::kNormal)
+                .ToLocalChecked();
+        v8::Local<v8::Object> new_obj = v8::Object::New(isolate);
+        new_obj->Set(context, name, null_value).Check();
+        objects.push_back(new_obj);
+      }
+
+      context->Global()
+          ->Set(context, v8_str("objects_for_transitions_3"),
+                v8::Array::New(isolate, objects.data(), objects.size()))
+          .Check();
+
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(final_size, transitions.NumberOfTransitions());
+      DCHECK(transitions.transitions()->IsSortedNoDuplicates());
+    }
+  }
+
+  isolate->Dispose();
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
+UNINITIALIZED_TEST(TransitionArray_RehashNoDuplicatesWithinLinearSearchSize) {
+  v8_flags.rehash_snapshot = true;
+  v8_flags.hash_seed = 42;
+  v8_flags.allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  // Stay within linear search size.
+  constexpr int initial_size = TransitionArray::kMaxElementsForLinearSearch / 2;
+
+  {
+    v8::Isolate::CreateParams testing_params;
+    testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::SnapshotCreator creator(testing_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+      v8::Local<v8::Object> obj = v8::Object::New(isolate);
+      DirectHandle<Map> first_map =
+          direct_handle(v8::Utils::OpenDirectHandle(*obj)->map(), i_isolate);
+
+      {
+        TestTransitionsAccessor transitions(i_isolate, first_map);
+        CHECK_EQ(0, transitions.NumberOfTransitions());
+      }
+
+      // Insert transitions that will be rehashed on deserialization.
+      v8::Local<v8::Value> null_value = v8::Null(isolate);
+      v8::LocalVector<v8::Value> objects(isolate);
+      for (int i = 0; i < initial_size; i++) {
+        std::string prop_name = "prop_" + std::to_string(i);
+        v8::Local<v8::String> name =
+            v8::String::NewFromUtf8(isolate, prop_name.c_str(),
+                                    v8::NewStringType::kNormal)
+                .ToLocalChecked();
+        v8::Local<v8::Object> new_obj = v8::Object::New(isolate);
+        new_obj->Set(context, name, null_value).Check();
+        objects.push_back(new_obj);
+      }
+      context->Global()
+          ->Set(context, v8_str("objects_for_transitions"),
+                v8::Array::New(isolate, objects.data(), objects.size()))
+          .Check();
+
+      creator.SetDefaultContext(context);
+
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(initial_size, transitions.NumberOfTransitions());
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    CHECK(blob.CanBeRehashed());
+  }
+
+  // Deserialize with a different hash seed to trigger rehashing.
+  v8_flags.hash_seed = 1337;
+  v8::Isolate::CreateParams testing_params;
+  testing_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  testing_params.snapshot_blob = &blob;
+  v8::Isolate* isolate = v8::Isolate::New(testing_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    CHECK_EQ(static_cast<uint64_t>(1337),
+             HashSeed(reinterpret_cast<Isolate*>(isolate)).seed());
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+    DirectHandle<Map> first_map =
+        direct_handle(v8::Utils::OpenDirectHandle(*obj)->map(), i_isolate);
+
+    // Collect existing transition keys from the rehashed array.
+    Handle<String> keys[initial_size];
+    {
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(initial_size, transitions.NumberOfTransitions());
+      for (int i = 0; i < initial_size; i++) {
+        keys[i] = handle(Cast<String>(transitions.GetKey(i)), i_isolate);
+      }
+    }
+
+    // For each existing transition, create a fresh map and re-insert it with
+    // the same field name.
+    for (int i = 0; i < initial_size; i++) {
+      Handle<Map> new_map =
+          Map::CopyWithField(i_isolate, first_map, keys[i],
+                             FieldType::Any(i_isolate), NONE,
+                             PropertyConstness::kMutable,
+                             Representation::Tagged(), OMIT_TRANSITION)
+              .ToHandleChecked();
+      TransitionsAccessor::Insert(i_isolate, first_map, keys[i], new_map,
+                                  PROPERTY_TRANSITION);
+    }
+
+    // Verify no duplicates were created.
+    {
+      TestTransitionsAccessor transitions(i_isolate, first_map);
+      CHECK_EQ(initial_size, transitions.NumberOfTransitions());
+    }
+  }
+
+  isolate->Dispose();
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 }  // namespace internal

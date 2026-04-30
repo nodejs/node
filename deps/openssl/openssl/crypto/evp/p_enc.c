@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,7 +19,7 @@
 #include "crypto/evp.h"
 
 int EVP_PKEY_encrypt_old(unsigned char *ek, const unsigned char *key,
-                         int key_len, EVP_PKEY *pubk)
+    int key_len, EVP_PKEY *pubk)
 {
     int ret = 0;
     RSA *rsa = NULL;
@@ -33,8 +33,7 @@ int EVP_PKEY_encrypt_old(unsigned char *ek, const unsigned char *key,
     if (rsa == NULL)
         goto err;
 
-    ret =
-        RSA_public_encrypt(key_len, key, ek, rsa, RSA_PKCS1_PADDING);
- err:
+    ret = RSA_public_encrypt(key_len, key, ek, rsa, RSA_PKCS1_PADDING);
+err:
     return ret;
 }

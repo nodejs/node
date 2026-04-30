@@ -42,7 +42,7 @@ class ReturnValue {
  public:
   template <class S>
   V8_INLINE ReturnValue(const ReturnValue<S>& that) : value_(that.value_) {
-    static_assert(std::is_base_of<T, S>::value, "type check");
+    static_assert(std::is_base_of_v<T, S>, "type check");
   }
   // Handle-based setters.
   template <typename S>
@@ -57,6 +57,7 @@ class ReturnValue {
   V8_INLINE void Set(const Local<S> handle);
   template <typename S>
   V8_INLINE void SetNonEmpty(const Local<S> handle);
+
   // Fast primitive number setters.
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
@@ -66,12 +67,14 @@ class ReturnValue {
   V8_INLINE void Set(uint16_t i);
   V8_INLINE void Set(uint32_t i);
   V8_INLINE void Set(uint64_t i);
-  // Fast JS primitive setters
+
+  // Fast JS primitive setters.
   V8_INLINE void SetNull();
   V8_INLINE void SetUndefined();
   V8_INLINE void SetFalse();
   V8_INLINE void SetEmptyString();
-  // Convenience getter for Isolate
+
+  // Convenience getter for the Isolate.
   V8_INLINE Isolate* GetIsolate() const;
 
   // Pointer setter: Uncompilable to prevent inadvertent misuse.
@@ -103,7 +106,7 @@ class ReturnValue {
   V8_INLINE explicit ReturnValue(internal::Address* slot);
 
   // See FunctionCallbackInfo.
-  static constexpr int kIsolateValueIndex = -2;
+  static constexpr int kIsolateValueIndex = -1;
 
   internal::Address* value_;
 };
@@ -126,23 +129,6 @@ class FunctionCallbackInfo {
   V8_INLINE Local<Value> operator[](int i) const;
   /** Returns the receiver. This corresponds to the "this" value. */
   V8_INLINE Local<Object> This() const;
-  /**
-   * If the callback was created without a Signature, this is the same
-   * value as This(). If there is a signature, and the signature didn't match
-   * This() but one of its hidden prototypes, this will be the respective
-   * hidden prototype.
-   *
-   * Note that this is not the prototype of This() on which the accessor
-   * referencing this callback was found (which in V8 internally is often
-   * referred to as holder [sic]).
-   */
-  V8_DEPRECATED(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use This() instead. \n"
-      "DO NOT try to workaround this by accessing JSGlobalObject via "
-      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
-      "See http://crbug.com/333672197. ")
-  V8_INLINE Local<Object> Holder() const;
   /** For construct calls, this returns the "new.target" value. */
   V8_INLINE Local<Value> NewTarget() const;
   /** Indicates whether this is a regular call or a construct call. */
@@ -154,48 +140,80 @@ class FunctionCallbackInfo {
   /** The ReturnValue for the call. */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
 
-  // This is a temporary replacement for Holder() added just for the purpose
-  // of testing the deprecated Holder() machinery until it's removed for real.
-  // DO NOT use it.
-  V8_INLINE Local<Object> HolderSoonToBeDeprecated() const;
-
  private:
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
   friend class debug::ConsoleCallArguments;
   friend void internal::PrintFunctionCallbackInfo(void*);
+  using I = internal::Internals;
 
-  static constexpr int kHolderIndex = 0;
-  static constexpr int kIsolateIndex = 1;
-  static constexpr int kContextIndex = 2;
-  static constexpr int kReturnValueIndex = 3;
-  static constexpr int kTargetIndex = 4;
-  static constexpr int kNewTargetIndex = 5;
-  static constexpr int kArgsLength = 6;
+  // Frame block, matches the layout of ApiCallbackExitFrame.
+  // See ApiCallbackExitFrameConstants.
+  enum {
+    //
+    // Optional frame arguments block (exists only for API_CONSTRUCT_EXIT
+    // frame).
 
-  static constexpr int kArgsLengthWithReceiver = kArgsLength + 1;
+    // Frame arguments block.
+    kNewTargetIndex = -1,
 
-  // Codegen constants:
-  static constexpr int kSize = 3 * internal::kApiSystemPointerSize;
-  static constexpr int kImplicitArgsOffset = 0;
-  static constexpr int kValuesOffset =
-      kImplicitArgsOffset + internal::kApiSystemPointerSize;
-  static constexpr int kLengthOffset =
-      kValuesOffset + internal::kApiSystemPointerSize;
+    //
+    // Mandatory part, exists for both API_CALLBACK_EXIT and API_CONSTRUCT_EXIT
+    // frames.
+    //
 
-  static constexpr int kThisValuesIndex = -1;
+    // Frame arguments block.
+    kArgcIndex,
+
+    // Regular ExitFrame structure.
+    kFrameSPIndex,
+    kFrameTypeIndex,
+    kFrameConstantPoolIndex,  // Optional, see I::kFrameCPSlotCount.
+    kFrameFPIndex = kFrameConstantPoolIndex + I::kFrameCPSlotCount,
+    kFramePCIndex,
+
+    // Api arguments block, starts at kFirstArgumentIndex.
+    kFirstApiArgumentIndex,
+    kIsolateIndex = kFirstApiArgumentIndex,
+    kReturnValueIndex,
+    kContextIndex,
+    kTargetIndex,
+
+    // JS args block, starts at kFrameFirstImplicitArgsIndex.
+    kReceiverIndex,
+    kFirstJSArgumentIndex,
+
+    // Mandatory part includes receiver.
+    kArgsLength = kReceiverIndex + 1,
+    // Optional part size (exists only for API_CONSTRUCT_EXIT frame).
+    kOptionalArgsLength = 1,
+
+    // The length of just Api arguments part.
+    kApiArgsLength = kReceiverIndex - kFirstApiArgumentIndex,
+  };
+
+  static_assert(kArgcIndex == 0);
   static_assert(ReturnValue<Value>::kIsolateValueIndex ==
                 kIsolateIndex - kReturnValueIndex);
 
-  V8_INLINE FunctionCallbackInfo(internal::Address* implicit_args,
-                                 internal::Address* values, int length);
+  internal::Address* address_of_first_argument() const {
+    return &values_[kFirstJSArgumentIndex];
+  }
 
-  // TODO(https://crbug.com/326505377): flatten the v8::FunctionCallbackInfo
-  // object to avoid indirect loads through values_ and implicit_args_ and
-  // reduce the number of instructions in the CallApiCallback builtin.
-  internal::Address* implicit_args_;
-  internal::Address* values_;
-  internal::Address length_;
+  V8_INLINE FunctionCallbackInfo() = default;
+
+  // FunctionCallbackInfo object provides a view of the stack area where the
+  // data is stored and thus it's not supposed to be copyable/movable.
+  FunctionCallbackInfo(const FunctionCallbackInfo&) = delete;
+  FunctionCallbackInfo& operator=(const FunctionCallbackInfo&) = delete;
+  FunctionCallbackInfo(FunctionCallbackInfo&&) = delete;
+  FunctionCallbackInfo& operator=(FunctionCallbackInfo&&) = delete;
+
+  // Declare as mutable to let GC modify the contents of the slots even though
+  // it's not possible to change values via this class.
+  // Define the array size as 1 to make it clear that we are going to access
+  // it out-of-bounds from both sides anyway.
+  mutable internal::Address values_[1];
 };
 
 /**
@@ -218,71 +236,12 @@ class PropertyCallbackInfo {
   V8_INLINE Local<Value> Data() const;
 
   /**
-   * \return The receiver. In many cases, this is the object on which the
-   * property access was intercepted. When using
-   * `Reflect.get`, `Function.prototype.call`, or similar functions, it is the
-   * object passed in as receiver or thisArg.
-   *
-   * \code
-   *  void GetterCallback(Local<Name> name,
-   *                      const v8::PropertyCallbackInfo<v8::Value>& info) {
-   *     auto context = info.GetIsolate()->GetCurrentContext();
-   *
-   *     v8::Local<v8::Value> a_this =
-   *         info.This()
-   *             ->GetRealNamedProperty(context, v8_str("a"))
-   *             .ToLocalChecked();
-   *     v8::Local<v8::Value> a_holder =
-   *         info.Holder()
-   *             ->GetRealNamedProperty(context, v8_str("a"))
-   *             .ToLocalChecked();
-   *
-   *    CHECK(v8_str("r")->Equals(context, a_this).FromJust());
-   *    CHECK(v8_str("obj")->Equals(context, a_holder).FromJust());
-   *
-   *    info.GetReturnValue().Set(name);
-   *  }
-   *
-   *  v8::Local<v8::FunctionTemplate> templ =
-   *  v8::FunctionTemplate::New(isolate);
-   *  templ->InstanceTemplate()->SetHandler(
-   *      v8::NamedPropertyHandlerConfiguration(GetterCallback));
-   *  LocalContext env;
-   *  env->Global()
-   *      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
-   *                                           .ToLocalChecked()
-   *                                           ->NewInstance(env.local())
-   *                                           .ToLocalChecked())
-   *      .FromJust();
-   *
-   *  CompileRun("obj.a = 'obj'; var r = {a: 'r'}; Reflect.get(obj, 'x', r)");
-   * \endcode
-   */
-  V8_INLINE Local<Object> This() const;
-
-  /**
-   * \return The object in the prototype chain of the receiver that has the
-   * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
-   * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
-   * The Holder() could be a hidden object (the global object, rather
-   * than the global proxy).
-   *
-   * \note For security reasons, do not pass the object back into the runtime.
-   */
-  V8_DEPRECATE_SOON(
-      "V8 will stop providing access to hidden prototype (i.e. "
-      "JSGlobalObject). Use HolderV2() instead. \n"
-      "DO NOT try to workaround this by accessing JSGlobalObject via "
-      "v8::Object::GetPrototype() - it'll be deprecated soon too. \n"
-      "See http://crbug.com/333672197. ")
-  V8_INLINE Local<Object> Holder() const;
-
-  /**
    * \return The object in the prototype chain of the receiver that has the
    * interceptor. Suppose you have `x` and its prototype is `y`, and `y`
    * has an interceptor. Then `info.This()` is `x` and `info.Holder()` is `y`.
    * In case the property is installed on the global object the Holder()
    * would return the global proxy.
+   * TODO(http://crbug.com/333672197): rename back to Holder().
    */
   V8_INLINE Local<Object> HolderV2() const;
 
@@ -297,11 +256,18 @@ class PropertyCallbackInfo {
   V8_INLINE ReturnValue<T> GetReturnValue() const;
 
   /**
-   * \return True if the intercepted function should throw if an error occurs.
-   * Usually, `true` corresponds to `'use strict'`.
+   * For [[Set]], [[DefineOwnProperty]] and [[Delete]] operations (i.e.
+   * for setter/definer/deleter callbacks) indicates whether TypeError
+   * should be thrown upon operation failure. The callback should throw
+   * TypeError only if it's necessary to provide more details than a default
+   * error thrown by V8 contains in this case.
    *
-   * \note Always `false` when intercepting `Reflect.set()`
-   * independent of the language mode.
+   * \return True if the intercepted function should throw if an error occurs.
+   * Usually, `true` corresponds to `'use strict'` execution mode.
+   *
+   * \note Always `false` when the operation was initiated by respecive
+   * `Reflect` call (i.e. `Reflect.set()`, `Reflect.defineProperty()` and
+   * `Reflect.deleteProperty()`).
    */
   V8_INLINE bool ShouldThrowOnError() const;
 
@@ -312,22 +278,75 @@ class PropertyCallbackInfo {
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
   friend void internal::PrintPropertyCallbackInfo(void*);
+  using I = internal::Internals;
 
-  static constexpr int kPropertyKeyIndex = 0;
-  static constexpr int kShouldThrowOnErrorIndex = 1;
-  static constexpr int kHolderIndex = 2;
-  static constexpr int kIsolateIndex = 3;
-  static constexpr int kHolderV2Index = 4;
-  static constexpr int kReturnValueIndex = 5;
-  static constexpr int kDataIndex = 6;
-  static constexpr int kThisIndex = 7;
-  static constexpr int kArgsLength = 8;
+  // ShouldThrowOnError() can return true only for setter/definer/deleter
+  // callbacks which match [[Set]]/[[DefineOwnProperty]]/[[Delete]]
+  // operations. We detect these operations by return value type - they
+  // all return boolean value, even though setter/deleter callbacks are
+  // still using v8::PropertyCallbackInfo<void>.
+  // TODO(https://crbug.com/348660658): cleanup this, once the callbacks are
+  // migrated to a new return type.
+  static constexpr bool HasShouldThrowOnError() {
+    return std::is_same_v<T, v8::Boolean> || std::is_same_v<T, void>;
+  }
 
-  static constexpr int kSize = kArgsLength * internal::kApiSystemPointerSize;
+  // Indicates whether this is a named accessor/interceptor callback call
+  // or an indexed one.
+  V8_INLINE bool IsNamed() const;
+
+  // Frame block, matches the layout of ApiAccessorExitFrame.
+  // See ApiAccessorExitFrameConstants.
+  enum {
+    // Frame arguments block.
+    kPropertyKeyIndex,
+
+    // Regular ExitFrame structure.
+    kFrameSPIndex,
+    kFrameTypeIndex,
+    kFrameConstantPoolIndex,  // Optional, see I::kFrameCPSlotCount.
+    kFrameFPIndex = kFrameConstantPoolIndex + I::kFrameCPSlotCount,
+    kFramePCIndex,
+
+    // Other arguments block, starts at kFirstArgumentIndex.
+    kFirstApiArgumentIndex,
+    kIsolateIndex = kFirstApiArgumentIndex,
+    kReturnValueIndex,
+    kCallbackInfoIndex,
+    kHolderIndex,
+
+    //
+    // Optional part, used only by setter/definer/deleter callbacks.
+    //
+    kFirstOptionalArgument,
+    kShouldThrowOnErrorIndex = kFirstOptionalArgument,
+
+    // Used as value handle storage when called via CallApiSetter builtin.
+    kValueIndex,
+
+    kFullArgsLength,
+    kMandatoryArgsLength = kFirstOptionalArgument,
+    kOptionalArgsLength = kFullArgsLength - kFirstOptionalArgument,
+
+    // Various lengths of just Api arguments part.
+    kMandatoryApiArgsLength = kMandatoryArgsLength - kFirstApiArgumentIndex,
+    kFullApiArgsLength = kFullArgsLength - kFirstApiArgumentIndex,
+  };
+
+  // PropertyCallbackInfo object provides a view of the stack area where the
+  // data is stored and thus it's not supposed to be copyable/movable.
+  PropertyCallbackInfo(const PropertyCallbackInfo&) = delete;
+  PropertyCallbackInfo& operator=(const PropertyCallbackInfo&) = delete;
+  PropertyCallbackInfo(PropertyCallbackInfo&&) = delete;
+  PropertyCallbackInfo& operator=(PropertyCallbackInfo&&) = delete;
 
   PropertyCallbackInfo() = default;
 
-  mutable internal::Address args_[kArgsLength];
+  // Declare as mutable to let GC modify the contents of the slots even though
+  // it's not possible to change values via this class.
+  // Define the array size as 1 to make it clear that we are going to access
+  // it out-of-bounds anyway.
+  mutable internal::Address args_[1];
 };
 
 using FunctionCallback = void (*)(const FunctionCallbackInfo<Value>& info);
@@ -354,7 +373,7 @@ void ReturnValue<T>::SetInternal(internal::Address value) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Global<S>& handle) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetDefaultValue();
   } else {
@@ -365,7 +384,7 @@ void ReturnValue<T>::Set(const Global<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const Global<S>& handle) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
@@ -375,7 +394,7 @@ void ReturnValue<T>::SetNonEmpty(const Global<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetDefaultValue();
   } else {
@@ -386,7 +405,7 @@ void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
@@ -396,25 +415,9 @@ void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Local<S> handle) {
-  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
-#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
-  static constexpr bool is_allowed_void = false;
-  static_assert(!std::is_void<T>::value,
-                "ReturnValue<void>::Set(const Local<S>) is deprecated. "
-                "Do nothing to indicate that the operation succeeded or use "
-                "SetFalse() to indicate that the operation failed (don't "
-                "forget to handle info.ShouldThrowOnError()). "
-                "See http://crbug.com/348660658 for details.");
-#else
-  static constexpr bool is_allowed_void = std::is_void<T>::value;
-#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
-  static_assert(is_allowed_void || std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
     SetDefaultValue();
-  } else if constexpr (is_allowed_void) {
-    // Simulate old behaviour for "v8::AccessorSetterCallback" for which
-    // it was possible to set the return value even for ReturnValue<void>.
-    Set(handle->BooleanValue(GetIsolate()));
   } else {
     SetInternal(handle.ptr());
   }
@@ -423,40 +426,22 @@ void ReturnValue<T>::Set(const Local<S> handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
-  // "V8_DEPRECATE_SOON" this method if |T| is |void|.
-#ifdef V8_IMMINENT_DEPRECATION_WARNINGS
-  static constexpr bool is_allowed_void = false;
-  static_assert(!std::is_void<T>::value,
-                "ReturnValue<void>::SetNonEmpty(const Local<S>) is deprecated. "
-                "Do nothing to indicate that the operation succeeded or use "
-                "SetFalse() to indicate that the operation failed (don't "
-                "forget to handle info.ShouldThrowOnError()). "
-                "See http://crbug.com/348660658 for details.");
-#else
-  static constexpr bool is_allowed_void = std::is_void<T>::value;
-#endif  // V8_IMMINENT_DEPRECATION_WARNINGS
-  static_assert(is_allowed_void || std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
 #ifdef V8_ENABLE_CHECKS
   internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
 #endif  // V8_ENABLE_CHECKS
-  if constexpr (is_allowed_void) {
-    // Simulate old behaviour for "v8::AccessorSetterCallback" for which
-    // it was possible to set the return value even for ReturnValue<void>.
-    Set(handle->BooleanValue(GetIsolate()));
-  } else {
-    SetInternal(handle.ptr());
-  }
+  SetInternal(handle.ptr());
 }
 
 template <typename T>
 void ReturnValue<T>::Set(double i) {
-  static_assert(std::is_base_of<T, Number>::value, "type check");
+  static_assert(std::is_base_of_v<T, Number>, "type check");
   SetNonEmpty(Number::New(GetIsolate(), i));
 }
 
 template <typename T>
 void ReturnValue<T>::Set(int16_t i) {
-  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(std::is_base_of_v<T, Integer>, "type check");
   using I = internal::Internals;
   static_assert(I::IsValidSmi(std::numeric_limits<int16_t>::min()));
   static_assert(I::IsValidSmi(std::numeric_limits<int16_t>::max()));
@@ -465,7 +450,7 @@ void ReturnValue<T>::Set(int16_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(int32_t i) {
-  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(std::is_base_of_v<T, Integer>, "type check");
   if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
     SetInternal(*result);
     return;
@@ -475,7 +460,7 @@ void ReturnValue<T>::Set(int32_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(int64_t i) {
-  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(std::is_base_of_v<T, Integer>, "type check");
   if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
     SetInternal(*result);
     return;
@@ -485,7 +470,7 @@ void ReturnValue<T>::Set(int64_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(uint16_t i) {
-  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(std::is_base_of_v<T, Integer>, "type check");
   using I = internal::Internals;
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::min()));
   static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::max()));
@@ -494,7 +479,7 @@ void ReturnValue<T>::Set(uint16_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(uint32_t i) {
-  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(std::is_base_of_v<T, Integer>, "type check");
   if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
     SetInternal(*result);
     return;
@@ -504,7 +489,7 @@ void ReturnValue<T>::Set(uint32_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(uint64_t i) {
-  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  static_assert(std::is_base_of_v<T, Integer>, "type check");
   if (const auto result = internal::Internals::TryIntegralToSmi(i)) {
     SetInternal(*result);
     return;
@@ -514,7 +499,7 @@ void ReturnValue<T>::Set(uint64_t i) {
 
 template <typename T>
 void ReturnValue<T>::Set(bool value) {
-  static_assert(std::is_void<T>::value || std::is_base_of<T, Boolean>::value,
+  static_assert(std::is_void_v<T> || std::is_base_of_v<T, Boolean>,
                 "type check");
   using I = internal::Internals;
 #if V8_STATIC_ROOTS_BOOL
@@ -554,7 +539,7 @@ void ReturnValue<T>::SetDefaultValue() {
 
 template <typename T>
 void ReturnValue<T>::SetNull() {
-  static_assert(std::is_base_of<T, Primitive>::value, "type check");
+  static_assert(std::is_base_of_v<T, Primitive>, "type check");
   using I = internal::Internals;
 #if V8_STATIC_ROOTS_BOOL
 #ifdef V8_ENABLE_CHECKS
@@ -569,7 +554,7 @@ void ReturnValue<T>::SetNull() {
 
 template <typename T>
 void ReturnValue<T>::SetUndefined() {
-  static_assert(std::is_base_of<T, Primitive>::value, "type check");
+  static_assert(std::is_base_of_v<T, Primitive>, "type check");
   using I = internal::Internals;
 #if V8_STATIC_ROOTS_BOOL
 #ifdef V8_ENABLE_CHECKS
@@ -584,7 +569,7 @@ void ReturnValue<T>::SetUndefined() {
 
 template <typename T>
 void ReturnValue<T>::SetFalse() {
-  static_assert(std::is_void<T>::value || std::is_base_of<T, Boolean>::value,
+  static_assert(std::is_void_v<T> || std::is_base_of_v<T, Boolean>,
                 "type check");
   using I = internal::Internals;
 #if V8_STATIC_ROOTS_BOOL
@@ -600,7 +585,7 @@ void ReturnValue<T>::SetFalse() {
 
 template <typename T>
 void ReturnValue<T>::SetEmptyString() {
-  static_assert(std::is_base_of<T, String>::value, "type check");
+  static_assert(std::is_base_of_v<T, String>, "type check");
   using I = internal::Internals;
 #if V8_STATIC_ROOTS_BOOL
 #ifdef V8_ENABLE_CHECKS
@@ -631,63 +616,57 @@ void ReturnValue<T>::Set(S* whatever) {
 }
 
 template <typename T>
-FunctionCallbackInfo<T>::FunctionCallbackInfo(internal::Address* implicit_args,
-                                              internal::Address* values,
-                                              int length)
-    : implicit_args_(implicit_args), values_(values), length_(length) {}
-
-template <typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
-  // values_ points to the first argument (not the receiver).
   if (i < 0 || Length() <= i) return Undefined(GetIsolate());
-  return Local<Value>::FromSlot(values_ + i);
+  return Local<Value>::FromSlot(&values_[kFirstJSArgumentIndex + i]);
 }
 
 template <typename T>
 Local<Object> FunctionCallbackInfo<T>::This() const {
-  // values_ points to the first argument (not the receiver).
-  return Local<Object>::FromSlot(values_ + kThisValuesIndex);
-}
-
-template <typename T>
-Local<Object> FunctionCallbackInfo<T>::HolderSoonToBeDeprecated() const {
-  return Local<Object>::FromSlot(&implicit_args_[kHolderIndex]);
-}
-
-template <typename T>
-Local<Object> FunctionCallbackInfo<T>::Holder() const {
-  return HolderSoonToBeDeprecated();
+  return Local<Object>::FromSlot(&values_[kReceiverIndex]);
 }
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
-  return Local<Value>::FromSlot(&implicit_args_[kNewTargetIndex]);
+  if (IsConstructCall()) {
+    // Can't use &values_[kNewTargetIndex] because of "array index -1 is
+    // before the beginning of the array" error.
+    internal::Address* values = &values_[0];
+    return Local<Value>::FromSlot(values + kNewTargetIndex);
+  }
+  return Undefined(GetIsolate());
 }
 
 template <typename T>
 Local<Value> FunctionCallbackInfo<T>::Data() const {
-  auto target = Local<v8::Data>::FromSlot(&implicit_args_[kTargetIndex]);
+  auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
   return api_internal::GetFunctionTemplateData(GetIsolate(), target);
 }
 
 template <typename T>
 Isolate* FunctionCallbackInfo<T>::GetIsolate() const {
-  return *reinterpret_cast<Isolate**>(&implicit_args_[kIsolateIndex]);
+  return reinterpret_cast<Isolate*>(values_[kIsolateIndex]);
 }
 
 template <typename T>
 ReturnValue<T> FunctionCallbackInfo<T>::GetReturnValue() const {
-  return ReturnValue<T>(&implicit_args_[kReturnValueIndex]);
+  return ReturnValue<T>(&values_[kReturnValueIndex]);
 }
 
 template <typename T>
 bool FunctionCallbackInfo<T>::IsConstructCall() const {
-  return !NewTarget()->IsUndefined();
+  return I::SmiValue(values_[kFrameTypeIndex]) == I::kFrameTypeApiConstructExit;
 }
 
 template <typename T>
 int FunctionCallbackInfo<T>::Length() const {
-  return static_cast<int>(length_);
+  return static_cast<int>(values_[kArgcIndex]);
+}
+
+template <typename T>
+bool PropertyCallbackInfo<T>::IsNamed() const {
+  return I::SmiValue(args_[kFrameTypeIndex]) ==
+         I::kFrameTypeApiNamedAccessorExit;
 }
 
 template <typename T>
@@ -697,34 +676,15 @@ Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
 
 template <typename T>
 Local<Value> PropertyCallbackInfo<T>::Data() const {
-  return Local<Value>::FromSlot(&args_[kDataIndex]);
+  internal::Address callback_info = args_[kCallbackInfoIndex];
+  internal::Address data =
+      I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
+  return Local<Value>::New(GetIsolate(), data);
 }
-
-template <typename T>
-Local<Object> PropertyCallbackInfo<T>::This() const {
-  return Local<Object>::FromSlot(&args_[kThisIndex]);
-}
-
-template <typename T>
-Local<Object> PropertyCallbackInfo<T>::Holder() const {
-  return Local<Object>::FromSlot(&args_[kHolderIndex]);
-}
-
-namespace api_internal {
-// Returns JSGlobalProxy if holder is JSGlobalObject or unmodified holder
-// otherwise.
-V8_EXPORT internal::Address ConvertToJSGlobalProxyIfNecessary(
-    internal::Address holder);
-}  // namespace api_internal
 
 template <typename T>
 Local<Object> PropertyCallbackInfo<T>::HolderV2() const {
-  using I = internal::Internals;
-  if (!I::HasHeapObjectTag(args_[kHolderV2Index])) {
-    args_[kHolderV2Index] =
-        api_internal::ConvertToJSGlobalProxyIfNecessary(args_[kHolderIndex]);
-  }
-  return Local<Object>::FromSlot(&args_[kHolderV2Index]);
+  return Local<Object>::FromSlot(&args_[kHolderIndex]);
 }
 
 template <typename T>
@@ -734,7 +694,7 @@ ReturnValue<T> PropertyCallbackInfo<T>::GetReturnValue() const {
 
 template <typename T>
 bool PropertyCallbackInfo<T>::ShouldThrowOnError() const {
-  using I = internal::Internals;
+  if constexpr (!HasShouldThrowOnError()) return false;
   if (args_[kShouldThrowOnErrorIndex] !=
       I::IntegralToSmi(I::kInferShouldThrowMode)) {
     return args_[kShouldThrowOnErrorIndex] != I::IntegralToSmi(I::kDontThrow);

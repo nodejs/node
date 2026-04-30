@@ -18,7 +18,6 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -29,13 +28,12 @@ const debug = require('util').debuglog('test');
 
 const n = fork(fixtures.path('child-process-spawn-node.js'), args);
 
-assert.strictEqual(n.channel, n._channel);
 assert.deepStrictEqual(args, ['foo', 'bar']);
 
-n.on('message', (m) => {
+n.on('message', common.mustCall((m) => {
   debug('PARENT got message:', m);
   assert.ok(m.foo);
-});
+}));
 
 // https://github.com/joyent/node/issues/2355 - JSON.stringify(undefined)
 // returns "undefined" but JSON.parse() cannot parse that...

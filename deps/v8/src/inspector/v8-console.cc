@@ -9,8 +9,10 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
+#include "include/v8-profiler.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+#include "src/base/platform/time.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -24,6 +26,7 @@
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
 #include "src/tracing/trace-event.h"
+#include "src/tracing/trace-id.h"
 
 namespace v8_inspector {
 
@@ -107,12 +110,6 @@ class ConsoleHelper {
     // the stack trace, or no stack trace at all.
     std::unique_ptr<V8StackTraceImpl> stackTrace;
     switch (type) {
-      case ConsoleAPIType::kClear:
-        // The `console.clear()` API doesn't leave a trace in the DevTools'
-        // front-end and therefore doesn't need to have a stack trace attached
-        // to it.
-        break;
-
       case ConsoleAPIType::kTrace:
         // The purpose of `console.trace()` is to output a stack trace to the
         // developer tools console, therefore we should always strive to
@@ -208,7 +205,7 @@ void createBoundFunctionProperty(
     v8::Local<v8::Value> data, const char* name, v8::FunctionCallback callback,
     v8::SideEffectType side_effect_type = v8::SideEffectType::kHasSideEffect) {
   v8::Local<v8::String> funcName =
-      toV8StringInternalized(context->GetIsolate(), name);
+      toV8StringInternalized(v8::Isolate::GetCurrent(), name);
   v8::Local<v8::Function> func;
   if (!v8::Function::New(context, callback, data, 0,
                          v8::ConstructorBehavior::kThrow, side_effect_type)
@@ -465,7 +462,15 @@ void V8Console::TimeStamp(const v8::debug::ConsoleCallArguments& info,
                "V8Console::TimeStamp");
   ConsoleHelper helper(info, consoleContext, m_inspector);
   v8::Local<v8::String> label = helper.firstArgToString();
-  m_inspector->client()->consoleTimeStamp(m_inspector->isolate(), label);
+
+  v8::Isolate* isolate = m_inspector->isolate();
+  v8::LocalVector<v8::Value> args(isolate);
+  args.reserve(info.Length());
+  for (int i = 0; i < info.Length(); i++) {
+    args.push_back(info[i]);
+  }
+
+  m_inspector->client()->consoleTimeStampWithArgs(isolate, label, args);
 }
 
 void V8Console::memoryGetterCallback(
@@ -514,6 +519,12 @@ void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(task);
 }
 
+namespace {
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTaskInfoTag = 9;
+}  // namespace
+
 void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   if (info.Length() < 1 || !info[0]->IsFunction()) {
@@ -536,14 +547,28 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
-  TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
+  TaskInfo* taskInfo =
+      reinterpret_cast<TaskInfo*>(taskExternal->Value(kTaskInfoTag));
 
   m_inspector->asyncTaskStarted(taskInfo->Id());
-  v8::Local<v8::Value> result;
-  if (function
-          ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
-          .ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
+  {
+#ifdef V8_USE_PERFETTO
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"), "V8Console::runTask",
+                "data", ([&](perfetto::TracedValue context) {
+                  uint64_t trace_id = v8::tracing::TraceId();
+                  auto dict = std::move(context).WriteDictionary();
+                  v8::CpuProfiler::CpuProfiler::CollectSample(isolate,
+                                                              trace_id);
+                  dict.Add("sampleTraceId", trace_id);
+                }));
+#endif  // V8_USE_PERFETTO
+
+    v8::Local<v8::Value> result;
+    if (function
+            ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
+            .ToLocal(&result)) {
+      info.GetReturnValue().Set(result);
+    }
   }
   m_inspector->asyncTaskFinished(taskInfo->Id());
 }
@@ -562,7 +587,8 @@ v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
     return m_taskTemplate.Get(isolate);
   }
 
-  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, this, kV8ConsoleTag);
   v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
   v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
       isolate, &V8Console::call<&V8Console::runTask>, data);
@@ -591,7 +617,7 @@ TaskInfo::TaskInfo(v8::Isolate* isolate, V8Console* console,
                    v8::Local<v8::Object> task)
     : m_task(isolate, task), m_console(console) {
   task->SetPrivate(isolate->GetCurrentContext(), console->taskInfoKey(),
-                   v8::External::New(isolate, this))
+                   v8::External::New(isolate, this, kTaskInfoTag))
       .Check();
   m_task.SetWeak(this, cleanupTaskInfo, v8::WeakCallbackType::kParameter);
 }
@@ -801,8 +827,9 @@ void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
 
 void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> console) {
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, this, kV8ConsoleTag);
   console->SetAccessorProperty(
       toV8StringInternalized(isolate, "memory"),
       v8::Function::New(
@@ -818,8 +845,9 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
 
 void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
                                             v8::Local<v8::Object> console) {
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, this, kV8ConsoleTag);
 
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
@@ -830,7 +858,7 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
     v8::Local<v8::Context> context, int sessionId) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
@@ -984,7 +1012,7 @@ bool IsUnsafeCommandLineAPIFn(v8::Local<v8::Value> name, v8::Isolate* isolate) {
 V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Context> context, v8::Local<v8::Object> commandLineAPI,
     v8::Local<v8::Object> global)
-    : m_isolate(context->GetIsolate()),
+    : m_isolate(v8::Isolate::GetCurrent()),
       m_context(m_isolate, context),
       m_commandLineAPI(m_isolate, commandLineAPI),
       m_global(m_isolate, global) {
@@ -996,7 +1024,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
                            v8::PrimitiveArray::New(m_isolate, names->Length()));
 
   m_thisReference = v8::Global<v8::ArrayBuffer>(
-      m_isolate, v8::ArrayBuffer::New(context->GetIsolate(),
+      m_isolate, v8::ArrayBuffer::New(v8::Isolate::GetCurrent(),
                                       sizeof(CommandLineAPIScope*)));
   *static_cast<CommandLineAPIScope**>(
       thisReference()->GetBackingStore()->Data()) = this;
@@ -1007,7 +1035,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (global->Has(context, name).FromMaybe(true)) continue;
 
     const v8::SideEffectType get_accessor_side_effect_type =
-        IsUnsafeCommandLineAPIFn(name, context->GetIsolate())
+        IsUnsafeCommandLineAPIFn(name, v8::Isolate::GetCurrent())
             ? v8::SideEffectType::kHasSideEffect
             : v8::SideEffectType::kHasNoSideEffect;
     if (!global

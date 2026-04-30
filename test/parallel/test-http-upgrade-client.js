@@ -85,7 +85,8 @@ server.listen(0, common.mustCall(function() {
       const expectedHeaders = {
         hello: 'world',
         connection: 'upgrade',
-        upgrade: 'websocket'
+        upgrade: 'websocket',
+        __proto__: null
       };
       assert.deepStrictEqual(res.headers, expectedHeaders);
       socket.end();

@@ -7,12 +7,12 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef  OPENSSL_CONFTYPES_H
-# define OPENSSL_CONFTYPES_H
-# pragma once
+#ifndef OPENSSL_CONFTYPES_H
+#define OPENSSL_CONFTYPES_H
+#pragma once
 
-#ifndef  OPENSSL_CONF_H
-# include <openssl/conf.h>
+#ifndef OPENSSL_CONF_H
+#include <openssl/conf.h>
 #endif
 
 /*
@@ -20,15 +20,15 @@
  */
 struct conf_method_st {
     const char *name;
-    CONF *(*create) (CONF_METHOD *meth);
-    int (*init) (CONF *conf);
-    int (*destroy) (CONF *conf);
-    int (*destroy_data) (CONF *conf);
-    int (*load_bio) (CONF *conf, BIO *bp, long *eline);
-    int (*dump) (const CONF *conf, BIO *bp);
-    int (*is_number) (const CONF *conf, char c);
-    int (*to_int) (const CONF *conf, char c);
-    int (*load) (CONF *conf, const char *name, long *eline);
+    CONF *(*create)(CONF_METHOD *meth);
+    int (*init)(CONF *conf);
+    int (*destroy)(CONF *conf);
+    int (*destroy_data)(CONF *conf);
+    int (*load_bio)(CONF *conf, BIO *bp, long *eline);
+    int (*dump)(const CONF *conf, BIO *bp);
+    int (*is_number)(const CONF *conf, char c);
+    int (*to_int)(const CONF *conf, char c);
+    int (*load)(CONF *conf, const char *name, long *eline);
 };
 
 struct conf_st {

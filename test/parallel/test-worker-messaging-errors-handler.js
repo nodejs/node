@@ -7,12 +7,12 @@ const {
   Worker,
   workerData,
 } = require('node:worker_threads');
-const { rejects } = require('node:assert');
+const assert = require('node:assert');
 
 async function test() {
   const worker = new Worker(__filename, { workerData: { children: true } });
 
-  await rejects(common.mustCall(function() {
+  await assert.rejects(common.mustCall(function() {
     return postMessageToThread(worker.threadId);
   }), {
     name: 'Error',

@@ -352,7 +352,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   __ Sd(value, FieldMemOperand(target, offset));
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ RecordWriteField(target, offset, value, scratch, kRAHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, scratch, kRAHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,
@@ -425,8 +425,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     __ Branch(skip_interrupt_label, ge, interrupt_budget, Operand(zero_reg));
 }
 
-void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
-                                       uint32_t depth) {
+void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
+                                             uint32_t depth,
+                                             CompressionMode compression_mode) {
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
   }
@@ -434,8 +435,8 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                   Context::OffsetOfElementAt(index));
 }
 
-void BaselineAssembler::StaContextSlot(Register context, Register value,
-                                       uint32_t index, uint32_t depth) {
+void BaselineAssembler::StaContextSlotNoCell(Register context, Register value,
+                                             uint32_t index, uint32_t depth) {
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
   }

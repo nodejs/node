@@ -3,19 +3,25 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #ifdef DEBUG
-#include <string_view>
+#include "util.h"
 #endif  // DEBUG
 
 namespace node {
 namespace debug {
 
 #ifdef DEBUG
-void TrackV8FastApiCall(std::string_view key);
-int GetV8FastApiCallCount(std::string_view key);
+void TrackV8FastApiCall(FastStringKey key);
+int GetV8FastApiCallCount(FastStringKey key);
 
-#define TRACK_V8_FAST_API_CALL(key) node::debug::TrackV8FastApiCall(key)
+void CountGenericUsage(FastStringKey counter_name);
+#define COUNT_GENERIC_USAGE(name)                                              \
+  node::debug::CountGenericUsage(FastStringKey(name))
+
+#define TRACK_V8_FAST_API_CALL(key)                                            \
+  node::debug::TrackV8FastApiCall(FastStringKey(key))
 #else  // !DEBUG
 #define TRACK_V8_FAST_API_CALL(key)
+#define COUNT_GENERIC_USAGE(name)
 #endif  // DEBUG
 
 }  // namespace debug

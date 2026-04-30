@@ -94,7 +94,7 @@ int main() {
 	if (err == HPE_OK) {
 		fprintf(stdout, "Successfully parsed!\n");
 	} else {
-		fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err), parser.reason);
+		fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err), llhttp_get_error_reason(&parser));
 	}
 }
 ```
@@ -112,6 +112,7 @@ The following callbacks can return `0` (proceed normally), `-1` (error) or `HPE_
 * `on_message_complete`: Invoked when a request/response has been completedly parsed.
 * `on_url_complete`: Invoked after the URL has been parsed.
 * `on_method_complete`: Invoked after the HTTP method has been parsed.
+* `on_protocol_complete`: Invoked after the HTTP version has been parsed.
 * `on_version_complete`: Invoked after the HTTP version has been parsed.
 * `on_status_complete`: Invoked after the status code has been parsed.
 * `on_header_field_complete`: Invoked after a header name has been parsed.
@@ -130,6 +131,7 @@ The following callbacks can return `0` (proceed normally), `-1` (error) or `HPE_
 * `on_method`: Invoked when another character of the method is received. 
    When parser is created with `HTTP_BOTH` and the input is a response, this also invoked for the sequence `HTTP/`
    of the first message.
+* `on_protocol`: Invoked when another character of the protocol is received.
 * `on_version`: Invoked when another character of the version is received.
 * `on_header_field`: Invoked when another character of a header name is received.
 * `on_header_value`: Invoked when another character of a header value is received.
@@ -187,7 +189,8 @@ Parse full or partial request/response, invoking user callbacks along the way.
 
 If any of `llhttp_data_cb` returns errno not equal to `HPE_OK` - the parsing interrupts, 
 and such errno is returned from `llhttp_execute()`. If `HPE_PAUSED` was used as a errno, 
-the execution can be resumed with `llhttp_resume()` call.
+the execution can be resumed with `llhttp_resume()` call. In that case the input should be advanced 
+to the last processed byte from the parser, which can be obtained via `llhttp_get_error_pos()`.
 
 In a special case of CONNECT/Upgrade request/response `HPE_PAUSED_UPGRADE` is returned 
 after fully parsing the request/response. If the user wishes to continue parsing, 
@@ -195,6 +198,8 @@ they need to invoke `llhttp_resume_after_upgrade()`.
 
 **if this function ever returns a non-pause type error, it will continue to return 
 the same error upon each successive call up until `llhttp_init()` is called.**
+
+If this function returns `HPE_OK`, it means all the input has been consumed and parsed.
 
 ### `llhttp_errno_t llhttp_finish(llhttp_t* parser)`
 
@@ -430,13 +435,15 @@ If you want to use this library in a CMake project as a static library, you can 
 FetchContent_Declare(llhttp
   URL "https://github.com/nodejs/llhttp/archive/refs/tags/release/v8.1.0.tar.gz")
 
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
+set(LLHTTP_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+set(LLHTTP_BUILD_STATIC_LIBS ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(llhttp)
 
 # Link with the llhttp_static target
 target_link_libraries(${EXAMPLE_PROJECT_NAME} ${PROJECT_LIBRARIES} llhttp_static ${PROJECT_NAME})
 ```
+
+If using a version prior to 9.3.0, the `LLHTTP_BUILD_SHARED_LIBS` and `LLHTTP_BUILD_STATIC_LIBS` options are known as `BUILD_SHARED_LIBS` and `BUILD_STATIC_LIBS` and should be used instead.
 
 _Note that using the git repo directly (e.g., via a git repo url and tag) will not work with FetchContent_Declare because [CMakeLists.txt](./CMakeLists.txt) requires string replacements (e.g., `_RELEASE_`) before it will build._
 

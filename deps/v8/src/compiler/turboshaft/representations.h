@@ -8,7 +8,7 @@
 #include <cstdint>
 
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/utils.h"
@@ -306,6 +306,7 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
         // indirection, we have a Tagged pointer.
         return WordPtr();
       case MachineRepresentation::kNone:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }
@@ -314,8 +315,28 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
     return FromMachineRepresentation(type.representation());
   }
 
+  static constexpr RegisterRepresentation FromCTypeInfo(
+      CTypeInfo t, CFunctionInfo::Int64Representation int64_repr) {
+    if (t.GetType() == CTypeInfo::Type::kVoid ||
+        t.GetType() == CTypeInfo::Type::kPointer) {
+      return RegisterRepresentation::Tagged();
+    } else if (t.GetType() == CTypeInfo::Type::kInt64 ||
+               t.GetType() == CTypeInfo::Type::kUint64) {
+      if (int64_repr == CFunctionInfo::Int64Representation::kBigInt) {
+        return RegisterRepresentation::Word64();
+      } else {
+        DCHECK_EQ(int64_repr, CFunctionInfo::Int64Representation::kNumber);
+        return RegisterRepresentation::Float64();
+      }
+    } else {
+      return RegisterRepresentation::FromMachineType(
+          MachineType::TypeForCType(t));
+    }
+  }
+
   constexpr bool AllowImplicitRepresentationChangeTo(
-      RegisterRepresentation dst_rep, bool graph_created_from_turbofan) const;
+      RegisterRepresentation dst_rep, bool graph_created_from_turbofan,
+      bool is_turbolev) const;
 
   constexpr RegisterRepresentation MapTaggedToWord() const {
     if (this->value() == RegisterRepresentation::Tagged()) {
@@ -340,7 +361,9 @@ V8_INLINE size_t hash_value(MaybeRegisterRepresentation rep) {
 }
 
 constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
-    RegisterRepresentation dst_rep, bool graph_created_from_turbofan) const {
+    RegisterRepresentation dst_rep, bool graph_created_from_turbofan,
+    bool is_turbolev) const {
+  DCHECK(!(graph_created_from_turbofan && is_turbolev));
   if (*this == dst_rep) {
     return true;
   }
@@ -372,7 +395,9 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
     case RegisterRepresentation::Tagged():
       // We allow implicit untagged -> tagged conversions. This is only safe for
       // Smi values.
-      if (*this == RegisterRepresentation::WordPtr()) {
+      // TODO(dmercadier): consider disabling this for Turbolev and making
+      // conversions always explicit.
+      if (!is_turbolev && *this == RegisterRepresentation::WordPtr()) {
         return true;
       }
       break;
@@ -824,6 +849,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kBit:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }
@@ -864,6 +890,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kCompressed:
       case MachineRepresentation::kProtectedPointer:
       case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }

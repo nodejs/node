@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --noalways-turbofan --no-stress-flush-code
+// Flags: --allow-natives-syntax --turbofan --no-stress-flush-code
 
 // Invalidate the detaching protector.
-%ArrayBufferDetach(new ArrayBuffer(1));
+(function() {
+  const ab = new ArrayBuffer(1);
+  const dv1 = new DataView(ab);
+  const dv2 = new DataView(ab);
+  %ArrayBufferDetach(ab);
+  assertThrows(() => dv1.byteLength, TypeError);
+})();
 
 // Check DataView.prototype.getInt8() optimization.
 (function() {

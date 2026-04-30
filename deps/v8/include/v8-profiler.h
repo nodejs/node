@@ -48,6 +48,21 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptFrame>;
 
 namespace v8 {
 
+/**
+ * Identifies which component initiated CPU profiling for proper attribution.
+ */
+enum class CpuProfileSource : uint8_t {
+  /** Default value when no explicit source is specified. */
+  kUnspecified = 0,
+  /** Profiling initiated via the DevTools Inspector protocol. */
+  kInspector = 1,
+  /** Profiling initiated by the embedder (e.g., Blink) via self-profiling API.
+   */
+  kSelfProfiling = 2,
+  /** Profiling initiated internally by V8 (e.g., tracing CPU profiler). */
+  kInternal = 3,
+};
+
 struct V8_EXPORT CpuProfileDeoptInfo {
   /** A pointer to a static string owned by v8. */
   const char* deopt_reason;
@@ -70,6 +85,10 @@ class V8_EXPORT CpuProfileNode {
   struct LineTick {
     /** The 1-based number of the source line where the function originates. */
     int line;
+
+    /** The 1-based number of the source column where the function originates.
+     */
+    int column;
 
     /** The count of samples associated with the source line. */
     unsigned int hit_count;
@@ -374,11 +393,13 @@ class V8_EXPORT CpuProfilingOptions {
    *                             the profiler's sampling interval.
    * \param filter_context If specified, profiles will only contain frames
    *                       using this context. Other frames will be elided.
+   * \param profile_source Identifies the source of this CPU profile.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
-      MaybeLocal<Context> filter_context = MaybeLocal<Context>());
+      MaybeLocal<Context> filter_context = MaybeLocal<Context>(),
+      CpuProfileSource profile_source = CpuProfileSource::kUnspecified);
 
   CpuProfilingOptions(CpuProfilingOptions&&) = default;
   CpuProfilingOptions& operator=(CpuProfilingOptions&&) = default;
@@ -386,6 +407,7 @@ class V8_EXPORT CpuProfilingOptions {
   CpuProfilingMode mode() const { return mode_; }
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
+  CpuProfileSource profile_source() const { return profile_source_; }
 
  private:
   friend class internal::CpuProfile;
@@ -397,6 +419,7 @@ class V8_EXPORT CpuProfilingOptions {
   unsigned max_samples_;
   int sampling_interval_us_;
   Global<Context> filter_context_;
+  CpuProfileSource profile_source_;
 };
 
 /**
@@ -418,8 +441,11 @@ class V8_EXPORT CpuProfiler {
    * Synchronously collect current stack sample in all profilers attached to
    * the |isolate|. The call does not affect number of ticks recorded for
    * the current top node.
+   * |trace_id| is an optional identifier set to the collected sample.
+   * this is useful to associate the sample with a trace event.
    */
-  static void CollectSample(Isolate* isolate);
+  static void CollectSample(
+      Isolate* isolate, const std::optional<uint64_t> trace_id = std::nullopt);
 
   /**
    * Disposes the CPU profiler object.
@@ -804,6 +830,12 @@ class V8_EXPORT AllocationProfile {
      * what samples were added or removed between two snapshots.
      */
     uint64_t sample_id;
+
+    /**
+     * Indicates whether the sampled allocation is still live or has already
+     * been collected by GC.
+     */
+    bool is_live;
   };
 
   /**
@@ -937,6 +969,15 @@ class V8_EXPORT EmbedderGraph {
    */
   virtual void AddEdge(Node* from, Node* to, const char* name = nullptr) = 0;
 
+  /**
+   * Adds a count of bytes that are not associated with any particular Node.
+   * An embedder may use this to represent the size of nodes which were omitted
+   * from this EmbedderGraph despite being retained by the graph, or other
+   * overhead costs. This number will contribute to the total size in a heap
+   * snapshot, without being represented in the object graph.
+   */
+  virtual void AddNativeSize(size_t size) {}
+
   virtual ~EmbedderGraph() = default;
 };
 
@@ -1025,6 +1066,8 @@ class V8_EXPORT HeapProfiler {
 
   /**
    * Callback interface for retrieving user friendly names of global objects.
+   *
+   * This interface will soon be deprecated in favour of ContextNameResolver.
    */
   class ObjectNameResolver {
    public:
@@ -1036,6 +1079,23 @@ class V8_EXPORT HeapProfiler {
 
    protected:
     virtual ~ObjectNameResolver() = default;
+  };
+
+  /**
+   * Callback interface for retrieving user friendly names of a V8::Context
+   * objects.
+   */
+  class ContextNameResolver {
+   public:
+    /**
+     * Returns name to be used in the heap snapshot for given node. Returned
+     * string must stay alive until snapshot collection is completed.
+     * If no user friendly name is available return nullptr.
+     */
+    virtual const char* GetName(Local<Context> context) = 0;
+
+   protected:
+    virtual ~ContextNameResolver() = default;
   };
 
   enum class HeapSnapshotMode {
@@ -1067,6 +1127,10 @@ class V8_EXPORT HeapProfiler {
     // NOLINTNEXTLINE
     HeapSnapshotOptions() {}
 
+    // TODO(https://crbug.com/333672197): remove once ObjectNameResolver is
+    // removed.
+    ALLOW_COPY_AND_MOVE_WITH_DEPRECATED_FIELDS(HeapSnapshotOptions)
+
     /**
      * The control used to report intermediate progress to.
      */
@@ -1074,7 +1138,15 @@ class V8_EXPORT HeapProfiler {
     /**
      * The resolver used by the snapshot generator to get names for V8 objects.
      */
+    V8_DEPRECATED("Use context_name_resolver callback instead.")
     ObjectNameResolver* global_object_name_resolver = nullptr;
+    /**
+     * The resolver used by the snapshot generator to get names for v8::Context
+     * objects.
+     * In case both this and |global_object_name_resolver| callbacks are
+     * provided, this one will be used.
+     */
+    ContextNameResolver* context_name_resolver = nullptr;
     /**
      * Mode for taking the snapshot, see `HeapSnapshotMode`.
      */
@@ -1104,10 +1176,20 @@ class V8_EXPORT HeapProfiler {
    *
    * \returns the snapshot.
    */
+  V8_DEPRECATED("Use overload with ContextNameResolver* resolver instead.")
   const HeapSnapshot* TakeHeapSnapshot(
-      ActivityControl* control,
-      ObjectNameResolver* global_object_name_resolver = nullptr,
+      ActivityControl* control, ObjectNameResolver* global_object_name_resolver,
       bool hide_internals = true, bool capture_numeric_value = false);
+  const HeapSnapshot* TakeHeapSnapshot(ActivityControl* control,
+                                       ContextNameResolver* resolver,
+                                       bool hide_internals = true,
+                                       bool capture_numeric_value = false);
+  // TODO(333672197): remove this version once ObjectNameResolver* overload
+  // is removed.
+  const HeapSnapshot* TakeHeapSnapshot(ActivityControl* control,
+                                       std::nullptr_t resolver = nullptr,
+                                       bool hide_internals = true,
+                                       bool capture_numeric_value = false);
 
   /**
    * Obtains list of Detached JS Wrapper Objects. This functon calls garbage

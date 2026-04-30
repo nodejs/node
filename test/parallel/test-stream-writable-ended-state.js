@@ -7,12 +7,12 @@ const stream = require('stream');
 
 const writable = new stream.Writable();
 
-writable._write = (chunk, encoding, cb) => {
+writable._write = common.mustCall((chunk, encoding, cb) => {
   assert.strictEqual(writable._writableState.ended, false);
   assert.strictEqual(writable._writableState.writable, undefined);
   assert.strictEqual(writable.writableEnded, false);
   cb();
-};
+});
 
 assert.strictEqual(writable._writableState.ended, false);
 assert.strictEqual(writable._writableState.writable, undefined);

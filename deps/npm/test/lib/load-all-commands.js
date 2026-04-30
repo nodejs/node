@@ -1,4 +1,4 @@
-// Our coverage mapping means that stuff like this doen't count for coverage.
+// Our coverage mapping means that stuff like this doesn't count for coverage.
 // It does ensure that every command has a usage that renders, contains its
 // name, a description, and if it has completion it is a function.  That it
 // renders also ensures that any params we've defined in our commands work.
@@ -37,7 +37,7 @@ t.test('load each command', async t => {
       t.ok(impl.exec.length <= 1, 'exec fn has 0 or 1 args')
 
       // workspaces
-      t.type(ctor.ignoreImplicitWorkspace, 'boolean', 'ctor has ignoreImplictWorkspace boolean')
+      t.type(ctor.ignoreImplicitWorkspace, 'boolean', 'ctor has ignoreImplicitWorkspace boolean')
       if (ctor.ignoreImplicitWorkspace !== BaseCommand.ignoreImplicitWorkspace) {
         counts.ignoreImplicitWorkspace++
       }
@@ -78,7 +78,7 @@ t.test('load each command', async t => {
     })
   }
 
-  // make sure refactors dont move or rename these static properties since
+  // make sure refactors don't move or rename these static properties since
   // we guard against the tests for them above
   t.ok(counts.completion > 0, 'has some completion functions')
   t.ok(counts.ignoreImplicitWorkspace > 0, 'has some commands that change ignoreImplicitWorkspace')

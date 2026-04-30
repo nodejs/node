@@ -9,35 +9,34 @@
  */
 
 #ifndef OSSL_INTERNAL_PROPERTYERR_H
-# define OSSL_INTERNAL_PROPERTYERR_H
-# pragma once
+#define OSSL_INTERNAL_PROPERTYERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
 int ossl_err_load_PROP_strings(void);
 
 /*
  * PROP reason codes.
  */
-# define PROP_R_NAME_TOO_LONG                             100
-# define PROP_R_NOT_AN_ASCII_CHARACTER                    101
-# define PROP_R_NOT_AN_HEXADECIMAL_DIGIT                  102
-# define PROP_R_NOT_AN_IDENTIFIER                         103
-# define PROP_R_NOT_AN_OCTAL_DIGIT                        104
-# define PROP_R_NOT_A_DECIMAL_DIGIT                       105
-# define PROP_R_NO_MATCHING_STRING_DELIMITER              106
-# define PROP_R_NO_VALUE                                  107
-# define PROP_R_PARSE_FAILED                              108
-# define PROP_R_STRING_TOO_LONG                           109
-# define PROP_R_TRAILING_CHARACTERS                       110
+#define PROP_R_NAME_TOO_LONG 100
+#define PROP_R_NOT_AN_ASCII_CHARACTER 101
+#define PROP_R_NOT_AN_HEXADECIMAL_DIGIT 102
+#define PROP_R_NOT_AN_IDENTIFIER 103
+#define PROP_R_NOT_AN_OCTAL_DIGIT 104
+#define PROP_R_NOT_A_DECIMAL_DIGIT 105
+#define PROP_R_NO_MATCHING_STRING_DELIMITER 106
+#define PROP_R_NO_VALUE 107
+#define PROP_R_PARSE_FAILED 108
+#define PROP_R_STRING_TOO_LONG 109
+#define PROP_R_TRAILING_CHARACTERS 110
 
-
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

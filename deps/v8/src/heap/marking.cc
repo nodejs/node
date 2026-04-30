@@ -140,12 +140,13 @@ bool MarkingBitmap::IsClean() const {
 
 // static
 MarkBit MarkBit::FromForTesting(Address address) {
-  return MarkingBitmap::MarkBitFromAddress(address);
+  return MarkingBitmap::MarkBitFromAddress(Isolate::Current(), address);
 }
 
 // static
 MarkBit MarkBit::FromForTesting(Tagged<HeapObject> heap_object) {
-  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
+  return MarkingBitmap::MarkBitFromAddress(Isolate::Current(),
+                                           heap_object.ptr());
 }
 
 }  // namespace internal

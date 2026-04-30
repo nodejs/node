@@ -6,13 +6,12 @@
 # To land a PR with this tool:
 # 1. Run `git node land <pr-id-or-url> --fixupAll`
 # 2. Copy the hash of the commit at the top of the PR branch.
-# 3. Run `tools/actions/merge.sh <pr-id-or-url> <commit-hash>`.
+# 3. Run `tools/actions/merge.sh <pr-id-or-url> <commit-hash>` or `tools/actions/merge.sh <url-to-PR-commit>`.
 
 set -xe
 
 pr=$1
 commit_head=$2
-shift 2 || { echo "Expected two arguments"; exit 1; }
 
 OWNER=nodejs
 REPOSITORY=node
@@ -20,10 +19,32 @@ REPOSITORY=node
 if expr "X$pr" : 'Xhttps://github.com/[^/]\{1,\}/[^/]\{1,\}/pull/[0-9]\{1,\}' >/dev/null; then
   OWNER="$(echo "$pr" | awk 'BEGIN { FS = "/" } ; { print $4 }')"
   REPOSITORY="$(echo "$pr" | awk 'BEGIN { FS = "/" } ; { print $5 }')"
+  [ -n "$commit_head" ] || commit_head="$(echo "$pr" | awk 'BEGIN { FS = "/" } ; { print $9 }')"
   pr="$(echo "$pr" | awk 'BEGIN { FS = "/" } ; { print $7 }')"
-elif ! expr "X$pr" : 'X[0-9]\{1,\}' >/dev/null; then
-  echo "The first argument should be the PR ID or URL"
 fi
+
+validation_error=
+if ! expr "X${pr}X" : 'X[0-9]\{1,\}X' >/dev/null; then
+  set +x
+  echo "Invalid PR ID: $pr"
+  validation_error=1
+fi
+if ! expr "X${commit_head}X" : 'X[a-f0-9]\{40\}X' >/dev/null; then
+  set +x
+  echo "Invalid PR head: $commit_head"
+  validation_error=1
+fi
+[ -z "$validation_error" ] || {
+  echo 'Usage:'
+  printf '\t%s <pr-id-or-url> <commit-hash>\n' "$0"
+  echo 'or:'
+  printf '\t%s <url-to-PR-commit>\n' "$0"
+  echo 'Examples:'
+  printf '\t%s 12345 aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0"
+  printf '\t%s https://github.com/%s/pull/12345 aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
+  printf '\t%s https://github.com/%s/pull/12345/commits/aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
+  exit 1
+}
 
 git log -1 HEAD  --pretty='format:%B' | git interpret-trailers --parse --no-divider | \
   grep -q -x "^PR-URL: https://github.com/$OWNER/$REPOSITORY/pull/$pr$" || {

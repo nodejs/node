@@ -31,6 +31,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Tagged<Map> map) {
     case kWeakRef:
       return raw_transitions_.GetHeapObjectAssumeWeak() == map;
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
     case kFullTransitionArray:
@@ -153,8 +154,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
                             &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
-      base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-          isolate->full_transition_array_access());
+      base::MutexGuard mutex_guard(isolate->full_transition_array_access());
       array->SetRawTarget(index, MakeWeak(*target));
       return;
     }
@@ -166,8 +166,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
 
     // If there is enough capacity, insert new entry into the existing array.
     if (new_nof <= array->Capacity()) {
-      base::SharedMutexGuard<base::kExclusive> shared_mutex_guard(
-          isolate->full_transition_array_access());
+      base::MutexGuard mutex_guard(isolate->full_transition_array_access());
       array->SetNumberOfTransitions(new_nof);
       for (int i = number_of_transitions; i > insertion_index; --i) {
         array->SetKey(i, array->GetKey(i - 1));
@@ -175,6 +174,11 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
       }
       array->SetKey(insertion_index, *name);
       array->SetRawTarget(insertion_index, MakeWeak(*target));
+      // The new size exceeds the threshold for linear search, sort the array
+      // for binary search later.
+      if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
+        array->Sort();
+      }
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -211,6 +215,9 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
   if (array->HasPrototypeTransitions()) {
     result->SetPrototypeTransitions(array->GetPrototypeTransitions());
   }
+  if (array->HasSideStepTransitions()) {
+    result->SetSideStepTransitions(array->GetSideStepTransitions());
+  }
 
   DCHECK_NE(kNotFound, insertion_index);
   for (int i = 0; i < insertion_index; ++i) {
@@ -221,6 +228,11 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
 
+  // The new size exceeds the threshold for linear search, sort the array
+  // for binary search later.
+  if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
+    result->Sort();
+  }
   SLOW_DCHECK(result->IsSortedNoDuplicates());
   ReplaceTransitions(isolate, map, result);
 }
@@ -230,6 +242,7 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
   DCHECK(IsUniqueName(name));
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return Tagged<Map>();
@@ -239,8 +252,8 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
       return map;
     }
     case kFullTransitionArray: {
-      base::SharedMutexGuardIf<base::kShared> scope(
-          isolate_->full_transition_array_access(), concurrent_access_);
+      base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                               concurrent_access_);
       return transitions()->SearchAndGetTarget(kind, name, attributes);
     }
   }
@@ -249,8 +262,8 @@ Tagged<Map> TransitionsAccessor::SearchTransition(
 
 Tagged<Map> TransitionsAccessor::SearchSpecial(Tagged<Symbol> name) {
   if (encoding() != kFullTransitionArray) return {};
-  base::SharedMutexGuardIf<base::kShared> scope(
-      isolate_->full_transition_array_access(), concurrent_access_);
+  base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                           concurrent_access_);
   int transition = transitions()->SearchSpecial(name, concurrent_access_);
   if (transition == kNotFound) return {};
   return transitions()->GetTarget(transition);
@@ -263,7 +276,8 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
-         name == roots.strict_function_transition_symbol();
+         name == roots.strict_function_transition_symbol() ||
+         name == roots.detached_symbol();
 }
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(
@@ -287,6 +301,7 @@ void TransitionsAccessor::ForEachTransitionTo(
   DCHECK(IsUniqueName(name));
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return;
@@ -295,7 +310,7 @@ void TransitionsAccessor::ForEachTransitionTo(
           Cast<Map>(raw_transitions_.GetHeapObjectAssumeWeak());
       InternalIndex descriptor = target->LastAdded();
       Tagged<DescriptorArray> descriptors =
-          target->instance_descriptors(kRelaxedLoad);
+          target->instance_descriptors(kAcquireLoad);
       Tagged<Name> key = descriptors->GetKey(descriptor);
       if (key == name) {
         callback(target);
@@ -303,8 +318,8 @@ void TransitionsAccessor::ForEachTransitionTo(
       return;
     }
     case kFullTransitionArray: {
-      base::SharedMutexGuardIf<base::kShared> scope(
-          isolate_->full_transition_array_access(), concurrent_access_);
+      base::MutexGuardIf guard(isolate_->full_transition_array_access(),
+                               concurrent_access_);
       return transitions()->ForEachTransitionTo(name, callback);
     }
   }
@@ -330,7 +345,7 @@ bool TransitionsAccessor::IsMatchingMap(Tagged<Map> target, Tagged<Name> name,
                                         PropertyAttributes attributes) {
   InternalIndex descriptor = target->LastAdded();
   Tagged<DescriptorArray> descriptors =
-      target->instance_descriptors(kRelaxedLoad);
+      target->instance_descriptors(kAcquireLoad);
   Tagged<Name> key = descriptors->GetKey(descriptor);
   if (key != name) return false;
   return descriptors->GetDetails(descriptor)
@@ -370,14 +385,14 @@ bool TransitionArray::CompactPrototypeTransitionArray(
 }
 
 // static
-Handle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
+DirectHandle<WeakFixedArray> TransitionArray::GrowPrototypeTransitionArray(
     DirectHandle<WeakFixedArray> array, int new_capacity, Isolate* isolate) {
   // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
   int capacity = array->length() - kProtoTransitionHeaderSize;
   new_capacity = std::min({kMaxCachedPrototypeTransitions, new_capacity});
   DCHECK_GT(new_capacity, capacity);
   int grow_by = new_capacity - capacity;
-  Handle<WeakFixedArray> new_array =
+  DirectHandle<WeakFixedArray> new_array =
       isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
   if (capacity < 0) {
     // There was no prototype transitions array before, so the size
@@ -392,9 +407,18 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  DirectHandle<Map> map,
                                                  DirectHandle<Object> prototype,
                                                  DirectHandle<Map> target_map) {
-  DCHECK_IMPLIES(v8_flags.move_prototype_transitions_first,
-                 IsUndefined(map->GetBackPointer()));
+  DCHECK(IsUndefined(map->GetBackPointer()));
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));
+
+  // Only the main thread should write to transition arrays.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+
+  // It's OK to read the transition array without holding the
+  // full_transition_array_access lock in read mode, since this is only called
+  // in the main thread, and the main thread is the only writer. In addition, we
+  // shouldn't GC while holding the lock, because it will cause a deadlock if a
+  // background thread is waiting for the shared mutex outside of a safepoint.
+
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return false;
@@ -408,50 +432,37 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   int capacity = cache->length() - header;
   int transitions = TransitionArray::NumberOfPrototypeTransitions(*cache) + 1;
 
-  // We're not using a MutexGuard for {full_transition_array_access}, because
-  // we'll need to release it before growing the transition array (if needed),
-  // in order to avoid deadlock if a background thread is waiting for the shared
-  // mutex outside of a safepoint. And after growing the array, we'll need to
-  // re-lock it.
-  base::SharedMutex* transition_array_mutex =
-      isolate->full_transition_array_access();
-
-  transition_array_mutex->LockExclusive();
   if (transitions > capacity) {
     // Grow the array if compacting it doesn't free space.
-    if (!TransitionArray::CompactPrototypeTransitionArray(isolate, *cache)) {
-      transition_array_mutex->UnlockExclusive();
+    bool compacted;
+    {
+      base::MutexGuard guard(isolate->full_transition_array_access());
+      DisallowGarbageCollection no_gc;
+      compacted =
+          TransitionArray::CompactPrototypeTransitionArray(isolate, *cache);
+    }
+    if (!compacted) {
       if (capacity == TransitionArray::kMaxCachedPrototypeTransitions)
         return false;
 
-      // GrowPrototypeTransitionArray can allocate, so it shouldn't hold the
-      // exclusive lock on {full_transition_array_access} mutex, since
-      // background threads could be waiting for the shared lock (outside of a
-      // safe point). This is not an issue, because GrowPrototypeTransitionArray
-      // doesn't actually modify in place the array, but instead return a new
-      // array.
-      transition_array_mutex->LockShared();
       cache = TransitionArray::GrowPrototypeTransitionArray(
           cache, 2 * transitions, isolate);
-      transition_array_mutex->UnlockShared();
-
-      transition_array_mutex->LockExclusive();
       SetPrototypeTransitions(isolate, map, cache);
     }
   }
 
-  if (v8_flags.move_prototype_transitions_first) {
-    target_map->SetBackPointer(*map);
-  }
+  target_map->SetBackPointer(*map);
 
   // Reload number of transitions as they might have been compacted.
   int last = TransitionArray::NumberOfPrototypeTransitions(*cache);
   int entry = header + last;
 
-  cache->set(entry, MakeWeak(*target_map));
-  TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
-
-  transition_array_mutex->UnlockExclusive();
+  {
+    base::MutexGuard guard(isolate->full_transition_array_access());
+    DisallowGarbageCollection no_gc;
+    cache->set(entry, MakeWeak(*target_map));
+    TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
+  }
   return true;
 }
 
@@ -503,6 +514,7 @@ void TransitionArray::SetNumberOfPrototypeTransitions(
 int TransitionsAccessor::NumberOfTransitions() {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return 0;
@@ -517,6 +529,7 @@ int TransitionsAccessor::NumberOfTransitions() {
 bool TransitionsAccessor::HasPrototypeTransitions() {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
     case kWeakRef:
@@ -548,7 +561,7 @@ Tagged<Map> TransitionsAccessor::GetMigrationTarget() {
 // static
 void TransitionsAccessor::ReplaceTransitions(
     Isolate* isolate, DirectHandle<Map> map,
-    Tagged<MaybeObject> new_transitions) {
+    Tagged<UnionOf<TransitionArray, MaybeWeak<Map>>> new_transitions) {
 #if DEBUG
   if (GetEncoding(isolate, map) == kFullTransitionArray) {
     CheckNewTransitionsAreConsistent(
@@ -624,6 +637,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
 
     switch (encoding) {
       case kPrototypeInfo:
+      case kPrototypeSharedClosureInfo:
       case kUninitialized:
       case kMigrationTarget:
         break;
@@ -775,10 +789,16 @@ void TransitionArray::ForEachTransitionTo(
   }
 }
 
-void TransitionArray::Sort() {
+void TransitionArray::Sort(bool force) {
   DisallowGarbageCollection no_gc;
   // In-place insertion sort.
   int length = number_of_transitions();
+  // After rehashing, the arrays are no longer in hash-sorted order.
+  // In this case, we need to force a re-sort even for small arrays,
+  // so that subsequent linear searches can find the correct transition
+  // and avoid inserting duplicates.
+  if (!force && length <= kMaxElementsForLinearSearch) return;
+
   ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = 1; i < length; i++) {
     Tagged<Name> key = GetKey(i);
@@ -848,8 +868,8 @@ void TransitionsAccessor::EnsureHasSideStepTransitions(Isolate* isolate,
   Tagged<TransitionArray> transitions =
       GetTransitionArray(isolate, map->raw_transitions());
   if (transitions->HasSideStepTransitions()) return;
-  TransitionArray::CreateSideStepTransitions(isolate,
-                                             handle(transitions, isolate));
+  TransitionArray::CreateSideStepTransitions(
+      isolate, direct_handle(transitions, isolate));
 }
 
 // static
@@ -858,8 +878,8 @@ void TransitionArray::CreateSideStepTransitions(
   DCHECK(!transitions->HasSideStepTransitions());  // Callers must check first.
   DirectHandle<WeakFixedArray> result = WeakFixedArray::New(
       isolate, SideStepTransition::kSize, AllocationType::kYoung,
-      handle(SideStepTransition::Empty, isolate));
-  transitions->set(kSideStepTransitionsIndex, *result);
+      direct_handle(SideStepTransition::Empty, isolate));
+  transitions->SetSideStepTransitions(*result);
 }
 
 std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep) {

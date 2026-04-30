@@ -45,7 +45,8 @@ BaseObject::~BaseObject() {
 
   {
     HandleScope handle_scope(realm()->isolate());
-    object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+    object()->SetAlignedPointerInInternalField(
+        BaseObject::kSlot, nullptr, EmbedderDataTag::kDefault);
   }
 }
 
@@ -81,15 +82,16 @@ void BaseObject::LazilyInitializedJSTemplateConstructor(
 }
 
 Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
-    Environment* env) {
-  return MakeLazilyInitializedJSTemplate(env->isolate_data());
+    Environment* env, int internal_field_count) {
+  return MakeLazilyInitializedJSTemplate(env->isolate_data(),
+                                         internal_field_count);
 }
 
 Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
-    IsolateData* isolate_data) {
+    IsolateData* isolate_data, int internal_field_count) {
   Local<FunctionTemplate> t = NewFunctionTemplate(
       isolate_data->isolate(), LazilyInitializedJSTemplateConstructor);
-  t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(internal_field_count);
   return t;
 }
 

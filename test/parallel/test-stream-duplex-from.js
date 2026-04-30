@@ -136,13 +136,13 @@ const { Blob } = require('buffer');
       }
       yield rest;
     }),
-    async function * (source) { // eslint-disable-line require-yield
+    common.mustCall(async function * (source) { // eslint-disable-line require-yield
       let ret = '';
       for await (const x of source) {
         ret += x;
       }
       assert.strictEqual(ret, 'abcdefghi');
-    },
+    }),
     common.mustSucceed(),
   );
 }
@@ -400,4 +400,21 @@ function makeATestWritableStream(writeFunc) {
     assert.strictEqual(ret, 'bar');
     assert.strictEqual(d.writable, false);
   }));
+}
+
+// When the readable side errors, the error must propagate to the writable side.
+{
+  const expectedErr = new Error('readable error');
+  const r = new Readable({ read() {} });
+  const w = new Writable({
+    write(chunk, encoding, callback) { callback(); },
+  });
+  const d = Duplex.from({ readable: r, writable: w });
+  d.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expectedErr);
+  }));
+  w.on('error', common.mustCall((err) => {
+    assert.strictEqual(err, expectedErr);
+  }));
+  r.destroy(expectedErr);
 }

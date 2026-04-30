@@ -12,68 +12,38 @@ let tls // include tls conditionally since it is not always available
 // resolve the same servername multiple times even when
 // re-use is enabled.
 
-let SessionCache
-// FIXME: remove workaround when the Node bug is fixed
-// https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
-if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
-  SessionCache = class WeakSessionCache {
-    constructor (maxCachedSessions) {
-      this._maxCachedSessions = maxCachedSessions
-      this._sessionCache = new Map()
-      this._sessionRegistry = new global.FinalizationRegistry((key) => {
-        if (this._sessionCache.size < this._maxCachedSessions) {
-          return
-        }
-
-        const ref = this._sessionCache.get(key)
-        if (ref !== undefined && ref.deref() === undefined) {
-          this._sessionCache.delete(key)
-        }
-      })
-    }
-
-    get (sessionKey) {
-      const ref = this._sessionCache.get(sessionKey)
-      return ref ? ref.deref() : null
-    }
-
-    set (sessionKey, session) {
-      if (this._maxCachedSessions === 0) {
+const SessionCache = class WeakSessionCache {
+  constructor (maxCachedSessions) {
+    this._maxCachedSessions = maxCachedSessions
+    this._sessionCache = new Map()
+    this._sessionRegistry = new FinalizationRegistry((key) => {
+      if (this._sessionCache.size < this._maxCachedSessions) {
         return
       }
 
-      this._sessionCache.set(sessionKey, new WeakRef(session))
-      this._sessionRegistry.register(session, sessionKey)
-    }
+      const ref = this._sessionCache.get(key)
+      if (ref !== undefined && ref.deref() === undefined) {
+        this._sessionCache.delete(key)
+      }
+    })
   }
-} else {
-  SessionCache = class SimpleSessionCache {
-    constructor (maxCachedSessions) {
-      this._maxCachedSessions = maxCachedSessions
-      this._sessionCache = new Map()
+
+  get (sessionKey) {
+    const ref = this._sessionCache.get(sessionKey)
+    return ref ? ref.deref() : null
+  }
+
+  set (sessionKey, session) {
+    if (this._maxCachedSessions === 0) {
+      return
     }
 
-    get (sessionKey) {
-      return this._sessionCache.get(sessionKey)
-    }
-
-    set (sessionKey, session) {
-      if (this._maxCachedSessions === 0) {
-        return
-      }
-
-      if (this._sessionCache.size >= this._maxCachedSessions) {
-        // remove the oldest session
-        const { value: oldestKey } = this._sessionCache.keys().next()
-        this._sessionCache.delete(oldestKey)
-      }
-
-      this._sessionCache.set(sessionKey, session)
-    }
+    this._sessionCache.set(sessionKey, new WeakRef(session))
+    this._sessionRegistry.register(session, sessionKey)
   }
 }
 
-function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
+function buildConnector ({ allowH2, useH2c, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
   if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
     throw new InvalidArgumentError('maxCachedSessions must be a positive integer or zero')
   }
@@ -81,7 +51,7 @@ function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, sess
   const options = { path: socketPath, ...opts }
   const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions)
   timeout = timeout == null ? 10e3 : timeout
-  allowH2 = allowH2 != null ? allowH2 : false
+  allowH2 = allowH2 != null ? allowH2 : true
   return function connect ({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
     let socket
     if (protocol === 'https:') {
@@ -126,6 +96,9 @@ function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, sess
         port,
         host: hostname
       })
+      if (useH2c === true) {
+        socket.alpnProtocol = 'h2'
+      }
     }
 
     // Set TCP keep alive options on the socket here instead of in connect() for the case of assigning the socket

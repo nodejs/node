@@ -17,9 +17,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/intrusive-set.h"
 #include "src/base/small-map.h"
 #include "src/base/small-vector.h"
@@ -68,7 +69,7 @@ class ZoneVector {
   ZoneVector(size_t size, Zone* zone) : zone_(zone) {
     data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
     end_ = capacity_ = data_ + size;
-    for (T* p = data_; p < end_; p++) emplace(p);
+    for (T* p = data_; p < end_; p++) emplace_at(p);
   }
 
   // Constructs a new vector and fills it with {size} elements, each
@@ -76,7 +77,7 @@ class ZoneVector {
   ZoneVector(size_t size, T def, Zone* zone) : zone_(zone) {
     data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
     end_ = capacity_ = data_ + size;
-    for (T* p = data_; p < end_; p++) emplace(p, def);
+    for (T* p = data_; p < end_; p++) emplace_at(p, def);
   }
 
   // Constructs a new vector and fills it with the contents of the given
@@ -103,7 +104,7 @@ class ZoneVector {
       size_t size = last - first;
       data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
       end_ = capacity_ = data_ + size;
-      for (T* p = data_; p < end_; p++) emplace(p, *first++);
+      for (T* p = data_; p < end_; p++) emplace_at(p, *first++);
     } else {
       while (first != last) push_back(*first++);
     }
@@ -131,17 +132,17 @@ class ZoneVector {
       T* dst = data_;
       if constexpr (std::is_trivially_copyable_v<T>) {
         size_t size = other.size();
-        if (size) memcpy(dst, src, size * sizeof(T));
+        if (size) base::MemCopy(dst, src, size * sizeof(T));
         end_ = dst + size;
       } else if constexpr (std::is_copy_assignable_v<T>) {
         while (dst < end_ && src < other.end_) *dst++ = *src++;
-        while (src < other.end_) emplace(dst++, *src++);
+        while (src < other.end_) emplace_at(dst++, *src++);
         T* old_end = end_;
         end_ = dst;
         for (T* p = end_; p < old_end; p++) p->~T();
       } else {
         for (T* p = data_; p < end_; p++) p->~T();
-        while (src < other.end_) emplace(dst++, *src++);
+        while (src < other.end_) emplace_at(dst++, *src++);
         end_ = dst;
       }
     } else {
@@ -189,6 +190,12 @@ class ZoneVector {
     return *this;
   }
 
+  base::Vector<T> Release() && {
+    base::Vector<T> ret = base::VectorOf(*this);
+    data_ = end_ = capacity_ = nullptr;
+    return ret;
+  }
+
   void swap(ZoneVector<T>& other) noexcept {
     DCHECK_EQ(zone_, other.zone_);
     std::swap(data_, other.data_);
@@ -199,7 +206,7 @@ class ZoneVector {
   void resize(size_t new_size) {
     EnsureCapacity(new_size);
     T* new_end = data_ + new_size;
-    for (T* p = end_; p < new_end; p++) emplace(p);
+    for (T* p = end_; p < new_end; p++) emplace_at(p);
     for (T* p = new_end; p < end_; p++) p->~T();
     end_ = new_end;
   }
@@ -207,7 +214,7 @@ class ZoneVector {
   void resize(size_t new_size, const T& value) {
     EnsureCapacity(new_size);
     T* new_end = data_ + new_size;
-    for (T* p = end_; p < new_end; p++) emplace(p, value);
+    for (T* p = end_; p < new_end; p++) emplace_at(p, value);
     for (T* p = new_end; p < end_; p++) p->~T();
     end_ = new_end;
   }
@@ -224,7 +231,7 @@ class ZoneVector {
       clear();
       EnsureCapacity(new_size);
       T* new_end = data_ + new_size;
-      for (T* p = data_; p < new_end; p++) emplace(p, value);
+      for (T* p = data_; p < new_end; p++) emplace_at(p, value);
       end_ = new_end;
     }
   }
@@ -301,7 +308,7 @@ class ZoneVector {
 
   void push_back(const T& value) {
     EnsureOneMoreCapacity();
-    emplace(end_++, value);
+    emplace_at(end_++, value);
   }
   void push_back(T&& value) { emplace_back(std::move(value)); }
 
@@ -329,9 +336,7 @@ class ZoneVector {
       size_t count = last - first;
       size_t assignable;
       position = PrepareForInsertion(pos, count, &assignable);
-      if constexpr (std::is_trivially_copyable_v<T>) {
-        if (count > 0) memcpy(position, first, count * sizeof(T));
-      } else {
+      if (!base::TryTrivialCopy(first, first + count, position)) {
         CopyingOverwrite(position, first, first + assignable);
         CopyToNewStorage(position + assignable, first + assignable, last);
       }
@@ -339,7 +344,7 @@ class ZoneVector {
       position = end_;
       while (first != last) {
         EnsureOneMoreCapacity();
-        emplace(end_++, *first++);
+        emplace_at(end_++, *first++);
       }
     } else {
       UNIMPLEMENTED();
@@ -362,8 +367,19 @@ class ZoneVector {
       CopyingOverwrite(dst++, &value);
     }
     stop = position + count;
-    while (dst < stop) emplace(dst++, value);
+    while (dst < stop) emplace_at(dst++, value);
     return position;
+  }
+
+  template <typename... Args>
+  T* emplace(const T* pos, Args&&... args) {
+    size_t assignable;
+    T* dst = PrepareForInsertion(pos, 1, &assignable);
+    if (assignable == 1) {
+      dst->~T();
+    }
+    emplace_at(dst, args...);
+    return dst;
   }
 
   T* erase(const T* pos) {
@@ -399,11 +415,13 @@ class ZoneVector {
     Grow(minimum);
   }
 
-  V8_INLINE void CopyToNewStorage(T* dst, const T* src) { emplace(dst, *src); }
+  V8_INLINE void CopyToNewStorage(T* dst, const T* src) {
+    emplace_at(dst, *src);
+  }
 
   V8_INLINE void MoveToNewStorage(T* dst, T* src) {
     if constexpr (std::is_move_constructible_v<T>) {
-      emplace(dst, std::move(*src));
+      emplace_at(dst, std::move(*src));
     } else {
       CopyToNewStorage(dst, src);
     }
@@ -426,25 +444,19 @@ class ZoneVector {
     }
   }
 
-#define EMIT_TRIVIAL_CASE(memcpy_function)                 \
-  DCHECK_LE(src, src_end);                                 \
-  if constexpr (std::is_trivially_copyable_v<T>) {         \
-    size_t count = src_end - src;                          \
-    /* Add V8_ASSUME to silence gcc null check warning. */ \
-    V8_ASSUME(src != nullptr);                             \
-    memcpy_function(dst, src, count * sizeof(T));          \
-    return;                                                \
-  }
-
   V8_INLINE void CopyToNewStorage(T* dst, const T* src, const T* src_end) {
-    EMIT_TRIVIAL_CASE(memcpy)
+    if (base::TryTrivialCopy(src, src_end, dst)) {
+      return;
+    }
     for (; src < src_end; dst++, src++) {
       CopyToNewStorage(dst, src);
     }
   }
 
   V8_INLINE void MoveToNewStorage(T* dst, T* src, const T* src_end) {
-    EMIT_TRIVIAL_CASE(memcpy)
+    if (base::TryTrivialCopy(src, src_end, dst)) {
+      return;
+    }
     for (; src < src_end; dst++, src++) {
       MoveToNewStorage(dst, src);
       src->~T();
@@ -452,20 +464,22 @@ class ZoneVector {
   }
 
   V8_INLINE void CopyingOverwrite(T* dst, const T* src, const T* src_end) {
-    EMIT_TRIVIAL_CASE(memmove)
+    if (base::TryTrivialMove(src, src_end, dst)) {
+      return;
+    }
     for (; src < src_end; dst++, src++) {
       CopyingOverwrite(dst, src);
     }
   }
 
   V8_INLINE void MovingOverwrite(T* dst, T* src, const T* src_end) {
-    EMIT_TRIVIAL_CASE(memmove)
+    if (base::TryTrivialMove(src, src_end, dst)) {
+      return;
+    }
     for (; src < src_end; dst++, src++) {
       MovingOverwrite(dst, src);
     }
   }
-
-#undef EMIT_TRIVIAL_CASE
 
   V8_NOINLINE V8_PRESERVE_MOST void Grow(size_t minimum) {
     T* old_data = data_;
@@ -567,7 +581,7 @@ class ZoneVector {
   }
 
   template <typename... Args>
-  void emplace(T* target, Args&&... args) {
+  void emplace_at(T* target, Args&&... args) {
     new (target) T(std::forward<Args>(args)...);
   }
 
@@ -818,6 +832,21 @@ class ZoneAbslFlatHashSet
   explicit ZoneAbslFlatHashSet(Zone* zone, size_t bucket_count = 0)
       : absl::flat_hash_set<K, Hash, KeyEqual, ZoneAllocator<K>>(
             bucket_count, Hash(), KeyEqual(), ZoneAllocator<K>(zone)) {}
+};
+
+// A wrapper subclass for absl::btree_map to make it easy to construct one
+// that uses a zone allocator. If you want to use a user-defined type as key
+// (K), you'll need to define a AbslHashValue function for it (see
+// https://abseil.io/docs/cpp/guides/hash).
+template <typename K, typename V, typename Compare = std::less<K>>
+class ZoneAbslBTreeMap
+    : public absl::btree_map<K, V, Compare,
+                             ZoneAllocator<std::pair<const K, V>>> {
+ public:
+  // Constructs an empty map.
+  explicit ZoneAbslBTreeMap(Zone* zone)
+      : absl::btree_map<K, V, Compare, ZoneAllocator<std::pair<const K, V>>>(
+            ZoneAllocator<std::pair<const K, V>>(zone)) {}
 };
 
 // Typedefs to shorten commonly used vectors.

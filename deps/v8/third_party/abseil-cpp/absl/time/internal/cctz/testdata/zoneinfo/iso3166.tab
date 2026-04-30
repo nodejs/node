@@ -3,22 +3,22 @@
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 #
-# From Paul Eggert (2023-09-06):
+# From Paul Eggert (2025-07-01):
 # This file contains a table of two-letter country codes.  Columns are
-# separated by a single tab.  Lines beginning with '#' are comments.
+# separated by a single tab.  Lines beginning with ‘#’ are comments.
 # All text uses UTF-8 encoding.  The columns of the table are as follows:
 #
 # 1.  ISO 3166-1 alpha-2 country code, current as of
-#     ISO/TC 46 N1108 (2023-04-05).  See: ISO/TC 46 Documents
+#     ISO/TC 46 N1127 (2024-02-29).  See: ISO/TC 46 Documents
 #     https://www.iso.org/committee/48750.html?view=documents
 # 2.  The usual English name for the coded region.  This sometimes
 #     departs from ISO-listed names, sometimes so that sorted subsets
-#     of names are useful (e.g., "Samoa (American)" and "Samoa
-#     (western)" rather than "American Samoa" and "Samoa"),
+#     of names are useful (e.g., “Samoa (American)” and “Samoa
+#     (western)” rather than “American Samoa” and “Samoa”),
 #     sometimes to avoid confusion among non-experts (e.g.,
-#     "Czech Republic" and "Turkey" rather than "Czechia" and "Türkiye"),
-#     and sometimes to omit needless detail or churn (e.g., "Netherlands"
-#     rather than "Netherlands (the)" or "Netherlands (Kingdom of the)").
+#     “Czech Republic” and “Turkey” rather than “Czechia” and “Türkiye”),
+#     and sometimes to omit needless detail or churn (e.g., “Netherlands”
+#     rather than “Netherlands (the)” or “Netherlands (Kingdom of the)”).
 #
 # The table is sorted by country code.
 #
@@ -71,7 +71,7 @@ CD	Congo (Dem. Rep.)
 CF	Central African Rep.
 CG	Congo (Rep.)
 CH	Switzerland
-CI	Côte d'Ivoire
+CI	Côte d’Ivoire
 CK	Cook Islands
 CL	Chile
 CM	Cameroon

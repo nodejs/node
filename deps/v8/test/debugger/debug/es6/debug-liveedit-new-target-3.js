@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Test that live-editing a frame above one that uses new.target succeeds.
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --inspector-live-edit
 
 Debug = debug.Debug;
 var wrapper_calls = 0;

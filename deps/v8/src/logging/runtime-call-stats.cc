@@ -138,10 +138,10 @@ RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
 #define CALL_RUNTIME_COUNTER(name) #name,
       FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) #name,
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize, ...) #name,
       FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) #name,
+#define CALL_BUILTIN_COUNTER(name, Argc) #name,
       BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) "API_" #name,
@@ -169,7 +169,7 @@ constexpr RuntimeCallCounterId FirstCounter(RuntimeCallCounterId first, ...) {
   return first;
 }
 
-#define THREAD_SPECIFIC_COUNTER(name) k##name,
+#define THREAD_SPECIFIC_COUNTER(name) RuntimeCallCounterId::k##name,
 constexpr RuntimeCallCounterId kFirstThreadVariantCounter =
     FirstCounter(FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER) 0);
 #undef THREAD_SPECIFIC_COUNTER
@@ -180,7 +180,8 @@ constexpr int kThreadVariantCounterCount =
 #undef THREAD_SPECIFIC_COUNTER
 
 constexpr auto kLastThreadVariantCounter = static_cast<RuntimeCallCounterId>(
-    kFirstThreadVariantCounter + kThreadVariantCounterCount - 1);
+    static_cast<int>(kFirstThreadVariantCounter) + kThreadVariantCounterCount -
+    1);
 }  // namespace
 
 bool RuntimeCallStats::HasThreadSpecificCounterVariants(
@@ -193,7 +194,9 @@ bool RuntimeCallStats::HasThreadSpecificCounterVariants(
 bool RuntimeCallStats::IsBackgroundThreadSpecificVariant(
     RuntimeCallCounterId id) {
   return HasThreadSpecificCounterVariants(id) &&
-         (id - kFirstThreadVariantCounter) % 2 == 1;
+         (static_cast<int>(id) - static_cast<int>(kFirstThreadVariantCounter)) %
+                 2 ==
+             1;
 }
 
 void RuntimeCallStats::Enter(RuntimeCallTimer* timer,
@@ -299,8 +302,6 @@ base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
 }
 
 RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
-  // Never create a new worker table on the isolate's main thread.
-  DCHECK_NE(ThreadId::Current(), isolate_thread_id_);
   std::unique_ptr<RuntimeCallStats> new_table =
       std::make_unique<RuntimeCallStats>(RuntimeCallStats::kWorkerThread);
   RuntimeCallStats* result = new_table.get();

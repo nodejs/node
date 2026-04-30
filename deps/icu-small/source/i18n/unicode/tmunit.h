@@ -124,7 +124,6 @@ private:
 
     /**
      * Constructor
-     * @internal (private)
      */
     TimeUnit(UTimeUnitFields timeUnitField);
 

@@ -301,7 +301,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     endif()
 
     if(ABSL_PROPAGATE_CXX_STD)
-      # Abseil libraries require C++14 as the current minimum standard. When
+      # Abseil libraries require C++17 as the current minimum standard. When
       # compiled with a higher standard (either because it is the compiler's
       # default or explicitly requested), then Abseil requires that standard.
       target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
@@ -326,7 +326,12 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
       )
 
     if (_build_type STREQUAL "dll")
-        set(ABSL_CC_LIB_DEPS abseil_dll)
+         if(${_in_dll})
+           set(ABSL_CC_LIB_DEPS abseil_dll)
+         endif()
+         if(${_in_test_dll})
+           set(ABSL_CC_LIB_DEPS abseil_test_dll)
+         endif()
     endif()
 
     target_link_libraries(${_NAME}
@@ -338,7 +343,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
     target_compile_definitions(${_NAME} INTERFACE ${ABSL_CC_LIB_DEFINES})
 
     if(ABSL_PROPAGATE_CXX_STD)
-      # Abseil libraries require C++14 as the current minimum standard.
+      # Abseil libraries require C++17 as the current minimum standard.
       # Top-level application CMake projects should ensure a consistent C++
       # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
       target_compile_features(${_NAME} INTERFACE ${ABSL_INTERNAL_CXX_STD_FEATURE})
@@ -450,7 +455,7 @@ function(absl_cc_test)
   set_property(TARGET ${_NAME} PROPERTY FOLDER ${ABSL_IDE_FOLDER}/test)
 
   if(ABSL_PROPAGATE_CXX_STD)
-    # Abseil libraries require C++14 as the current minimum standard.
+    # Abseil libraries require C++17 as the current minimum standard.
     # Top-level application CMake projects should ensure a consistent C++
     # standard for all compiled sources by setting CMAKE_CXX_STANDARD.
     target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})

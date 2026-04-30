@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -13,7 +13,7 @@
 #include <openssl/x509.h>
 
 int X509_STORE_set_default_paths_ex(X509_STORE *ctx, OSSL_LIB_CTX *libctx,
-                                    const char *propq)
+    const char *propq)
 {
     X509_LOOKUP *lookup;
 
@@ -30,6 +30,11 @@ int X509_STORE_set_default_paths_ex(X509_STORE *ctx, OSSL_LIB_CTX *libctx,
     lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_store());
     if (lookup == NULL)
         return 0;
+    /*
+     * The NULL URI argument will activate any default URIs (presently none),
+     * DO NOT pass the default CApath or CAfile, they're already handled above,
+     * likely much more efficiently.
+     */
     X509_LOOKUP_add_store_ex(lookup, NULL, libctx, propq);
 
     /* clear any errors */
@@ -43,14 +48,15 @@ int X509_STORE_set_default_paths(X509_STORE *ctx)
 }
 
 int X509_STORE_load_file_ex(X509_STORE *ctx, const char *file,
-                            OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     X509_LOOKUP *lookup;
 
     if (file == NULL
         || (lookup = X509_STORE_add_lookup(ctx, X509_LOOKUP_file())) == NULL
         || X509_LOOKUP_load_file_ex(lookup, file, X509_FILETYPE_PEM, libctx,
-                                    propq) <= 0)
+               propq)
+            <= 0)
         return 0;
 
     return 1;
@@ -74,7 +80,7 @@ int X509_STORE_load_path(X509_STORE *ctx, const char *path)
 }
 
 int X509_STORE_load_store_ex(X509_STORE *ctx, const char *uri,
-                             OSSL_LIB_CTX *libctx, const char *propq)
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     X509_LOOKUP *lookup;
 
@@ -92,8 +98,8 @@ int X509_STORE_load_store(X509_STORE *ctx, const char *uri)
 }
 
 int X509_STORE_load_locations_ex(X509_STORE *ctx, const char *file,
-                                 const char *path, OSSL_LIB_CTX *libctx,
-                                 const char *propq)
+    const char *path, OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     if (file == NULL && path == NULL)
         return 0;
@@ -105,7 +111,7 @@ int X509_STORE_load_locations_ex(X509_STORE *ctx, const char *file,
 }
 
 int X509_STORE_load_locations(X509_STORE *ctx, const char *file,
-                              const char *path)
+    const char *path)
 {
     return X509_STORE_load_locations_ex(ctx, file, path, NULL, NULL);
 }

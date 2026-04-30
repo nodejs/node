@@ -1,6 +1,6 @@
 # undici
 
-[![Node CI](https://github.com/nodejs/undici/actions/workflows/nodejs.yml/badge.svg)](https://github.com/nodejs/undici/actions/workflows/nodejs.yml) [![neostandard javascript style](https://img.shields.io/badge/neo-standard-7fffff?style=flat\&labelColor=ff80ff)](https://github.com/neostandard/neostandard) [![npm version](https://badge.fury.io/js/undici.svg)](https://badge.fury.io/js/undici) [![codecov](https://codecov.io/gh/nodejs/undici/branch/main/graph/badge.svg?token=yZL6LtXkOA)](https://codecov.io/gh/nodejs/undici)
+[![Node CI](https://github.com/nodejs/undici/actions/workflows/ci.yml/badge.svg)](https://github.com/nodejs/undici/actions/workflows/nodejs.yml) [![neostandard javascript style](https://img.shields.io/badge/neo-standard-7fffff?style=flat\&labelColor=ff80ff)](https://github.com/neostandard/neostandard) [![npm version](https://badge.fury.io/js/undici.svg)](https://badge.fury.io/js/undici) [![codecov](https://codecov.io/gh/nodejs/undici/branch/main/graph/badge.svg?token=yZL6LtXkOA)](https://codecov.io/gh/nodejs/undici)
 
 An HTTP/1.1 client, written from scratch for Node.js.
 
@@ -43,7 +43,181 @@ The benchmark is a simple getting data [example](https://github.com/nodejs/undic
 └────────────────────────┴─────────┴────────────────────┴────────────┴─────────────────────────┘
 ```
 
+## Undici vs. Fetch
+
+### Overview
+
+Node.js includes a built-in `fetch()` implementation powered by undici starting from Node.js v18. However, there are important differences between using the built-in fetch and installing undici as a separate module.
+
+### Built-in Fetch (Node.js v18+)
+
+Node.js's built-in fetch is powered by a bundled version of undici:
+
+```js
+// Available globally in Node.js v18+
+const response = await fetch('https://api.example.com/data');
+const data = await response.json();
+
+// Check the bundled undici version
+console.log(process.versions.undici); // e.g., "5.28.4"
+```
+
+**Pros:**
+- No additional dependencies required
+- Works across different JavaScript runtimes
+- Automatic compression handling (gzip, deflate, br)
+- Built-in caching support (in development)
+
+**Cons:**
+- Limited to the undici version bundled with your Node.js version
+- Less control over connection pooling and advanced features
+- Error handling follows Web API standards (errors wrapped in `TypeError`)
+- Performance overhead due to Web Streams implementation
+
+### Undici Module
+
+Installing undici as a separate module gives you access to the latest features and APIs:
+
+```bash
+npm install undici
+```
+
+```js
+import { request, fetch, Agent, setGlobalDispatcher } from 'undici';
+
+// Use undici.request for maximum performance
+const { statusCode, headers, body } = await request('https://api.example.com/data');
+const data = await body.json();
+
+// Or use undici.fetch with custom configuration
+const agent = new Agent({ keepAliveTimeout: 10000 });
+setGlobalDispatcher(agent);
+const response = await fetch('https://api.example.com/data');
+```
+
+**Pros:**
+- Latest undici features and bug fixes
+- Access to advanced APIs (`request`, `stream`, `pipeline`)
+- Fine-grained control over connection pooling
+- Better error handling with clearer error messages
+- Superior performance, especially with `undici.request`
+- HTTP/1.1 pipelining support
+- Custom interceptors and middleware
+- Advanced features like `ProxyAgent`, `Socks5Agent`, `MockAgent`
+
+**Cons:**
+- Additional dependency to manage
+- Larger bundle size
+
+### When to Use Each
+
+#### Use Built-in Fetch When:
+- You want zero dependencies
+- Building isomorphic code that runs in browsers and Node.js
+- Publishing to npm and want to maximize compatibility with JS runtimes
+- Simple HTTP requests without advanced configuration
+- You're publishing to npm and you want to maximize compatiblity
+- You don't depend on features from a specific version of undici
+
+#### Use Undici Module When:
+- You need the latest undici features and performance improvements
+- You require advanced connection pooling configuration
+- You need APIs not available in the built-in fetch (`ProxyAgent`, `Socks5Agent`, `MockAgent`, etc.)
+- Performance is critical (use `undici.request` for maximum speed)
+- You want better error handling and debugging capabilities
+- You need HTTP/1.1 pipelining or advanced interceptors
+- You prefer decoupled protocol and API interfaces
+
+### Performance Comparison
+
+Based on benchmarks, here's the typical performance hierarchy:
+
+1. **`undici.request()`** - Fastest, most efficient
+2. **`undici.fetch()`** - Good performance, standard compliance
+3. **Node.js `http`/`https`** - Baseline performance
+
+### Migration Guide
+
+If you're currently using built-in fetch and want to migrate to undici:
+
+```js
+// Before: Built-in fetch
+const response = await fetch('https://api.example.com/data');
+
+// After: Undici fetch (drop-in replacement)
+import { fetch } from 'undici';
+const response = await fetch('https://api.example.com/data');
+
+// Or: Undici request (better performance)
+import { request } from 'undici';
+const { statusCode, body } = await request('https://api.example.com/data');
+const data = await body.json();
+```
+
+### Keep `fetch` and `FormData` together
+
+When you send a `FormData` body, keep `fetch` and `FormData` from the same
+implementation.
+
+Use one of these patterns:
+
+```js
+// Built-in globals
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+```js
+// undici module imports
+import { fetch, FormData } from 'undici'
+
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+If you want the installed `undici` package to provide the globals, call
+`install()` first:
+
+```js
+import { install } from 'undici'
+
+install()
+
+const body = new FormData()
+body.set('name', 'some')
+await fetch('https://example.com', {
+  method: 'POST',
+  body
+})
+```
+
+`install()` replaces the global `fetch`, `Headers`, `Response`, `Request`, and
+`FormData` implementations with undici's versions, so they all match.
+
+Avoid mixing a global `FormData` with `undici.fetch()`, or `undici.FormData`
+with the built-in global `fetch()`.
+
+### Version Compatibility
+
+You can check which version of undici is bundled with your Node.js version:
+
+```js
+console.log(process.versions.undici);
+```
+
+Installing undici as a module allows you to use a newer version than what's bundled with Node.js, giving you access to the latest features and performance improvements.
+
 ## Quick Start
+
+### Basic Request
 
 ```js
 import { request } from 'undici'
@@ -62,6 +236,93 @@ for await (const data of body) { console.log('data', data) }
 
 console.log('trailers', trailers)
 ```
+
+### Using Cache Interceptor
+
+Undici provides a powerful HTTP caching interceptor that follows HTTP caching best practices. Here's how to use it:
+
+```js
+import { fetch, Agent, interceptors, cacheStores } from 'undici';
+
+// Create a client with cache interceptor
+const client = new Agent().compose(interceptors.cache({
+  // Optional: Configure cache store (defaults to MemoryCacheStore)
+  store: new cacheStores.MemoryCacheStore({
+    maxSize: 100 * 1024 * 1024, // 100MB
+    maxCount: 1000,
+    maxEntrySize: 5 * 1024 * 1024 // 5MB
+  }),
+  
+  // Optional: Specify which HTTP methods to cache (default: ['GET', 'HEAD'])
+  methods: ['GET', 'HEAD']
+}));
+
+// Set the global dispatcher to use our caching client
+setGlobalDispatcher(client);
+
+// Now all fetch requests will use the cache
+async function getData() {
+  const response = await fetch('https://api.example.com/data');
+  // The server should set appropriate Cache-Control headers in the response
+  // which the cache will respect based on the cache policy
+  return response.json();
+}
+
+// First request - fetches from origin
+const data1 = await getData();
+
+// Second request - served from cache if within max-age
+const data2 = await getData();
+```
+
+#### Key Features:
+- **Automatic Caching**: Respects `Cache-Control` and `Expires` headers
+- **Validation**: Supports `ETag` and `Last-Modified` validation
+- **Storage Options**: In-memory or persistent SQLite storage
+- **Flexible**: Configure cache size, TTL, and more
+
+## Global Installation
+
+Undici provides an `install()` function to add all WHATWG fetch classes to `globalThis`, making them available globally:
+
+```js
+import { install } from 'undici'
+
+// Install all WHATWG fetch classes globally
+install()
+
+// Now you can use fetch classes globally without importing
+const response = await fetch('https://api.example.com/data')
+const data = await response.json()
+
+// All classes are available globally:
+const headers = new Headers([['content-type', 'application/json']])
+const request = new Request('https://example.com')
+const formData = new FormData()
+const ws = new WebSocket('wss://example.com')
+const eventSource = new EventSource('https://example.com/events')
+```
+
+The `install()` function adds the following classes to `globalThis`:
+
+- `fetch` - The fetch function
+- `Headers` - HTTP headers management
+- `Response` - HTTP response representation
+- `Request` - HTTP request representation
+- `FormData` - Form data handling
+- `WebSocket` - WebSocket client
+- `CloseEvent`, `ErrorEvent`, `MessageEvent` - WebSocket events
+- `EventSource` - Server-sent events client
+
+When you call `install()`, these globals come from the same undici
+implementation. For example, global `fetch` and global `FormData` will both be
+undici's versions, which is the recommended setup if you want to use undici
+through globals.
+
+This is useful for:
+- Polyfilling environments that don't have fetch
+- Ensuring consistent fetch behavior across different Node.js versions
+- Making undici's implementations available globally for libraries that expect them
 
 ## Body Mixins
 
@@ -261,23 +522,34 @@ const readableWebStream = response.body
 const readableNodeStream = Readable.fromWeb(readableWebStream)
 ```
 
-#### Specification Compliance
+## Specification Compliance
 
-This section documents parts of the [Fetch Standard](https://fetch.spec.whatwg.org) that Undici does
+This section documents parts of the [HTTP/1.1](https://www.rfc-editor.org/rfc/rfc9110.html) and [Fetch Standard](https://fetch.spec.whatwg.org) that Undici does
 not support or does not fully implement.
 
-##### Garbage Collection
+#### CORS
+
+Unlike browsers, Undici does not implement CORS (Cross-Origin Resource Sharing) checks by default. This means:
+
+- No preflight requests are automatically sent for cross-origin requests
+- No validation of `Access-Control-Allow-Origin` headers is performed
+- Requests to any origin are allowed regardless of the source
+
+This behavior is intentional for server-side environments where CORS restrictions are typically unnecessary. If your application requires CORS-like protections, you will need to implement these checks manually.
+
+#### Garbage Collection
 
 * https://fetch.spec.whatwg.org/#garbage-collection
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) allows users to skip consuming the response body by relying on
-[garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources. Undici does not do the same. Therefore, it is important to always either consume or cancel the response body.
+[garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources.
 
 Garbage collection in Node is less aggressive and deterministic
 (due to the lack of clear idle periods that browsers have through the rendering refresh rate)
 which means that leaving the release of connection resources to the garbage collector can lead
 to excessive connection usage, reduced performance (due to less connection re-use), and even
 stalls or deadlocks when running out of connections.
+Therefore, __it is important to always either consume or cancel the response body anyway__.
 
 ```js
 // Do
@@ -290,16 +562,6 @@ for await (const chunk of body) {
 const { headers } = await fetch(url);
 ```
 
-The same applies for `request` too:
-```js
-// Do
-const { body, headers } = await request(url);
-await res.body.dump(); // force consumption of body
-
-// Do not
-const { headers } = await request(url);
-```
-
 However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
 
 ```js
@@ -307,7 +569,18 @@ const headers = await fetch(url, { method: 'HEAD' })
   .then(res => res.headers)
 ```
 
-##### Forbidden and Safelisted Header Names
+Note that consuming the response body is _mandatory_ for `request`:
+
+```js
+// Do
+const { body, headers } = await request(url);
+await body.dump(); // force consumption of body
+
+// Do not
+const { headers } = await request(url);
+```
+
+#### Forbidden and Safelisted Header Names
 
 * https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
 * https://fetch.spec.whatwg.org/#forbidden-header-name
@@ -316,7 +589,13 @@ const headers = await fetch(url, { method: 'HEAD' })
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
 
-### `undici.upgrade([url, options]): Promise`
+#### Content-Encoding
+
+* https://www.rfc-editor.org/rfc/rfc9110#field.content-encoding
+
+Undici limits the number of `Content-Encoding` layers in a response to **5** to prevent resource exhaustion attacks. If a server responds with more than 5 content-encodings (e.g., `Content-Encoding: gzip, gzip, gzip, gzip, gzip, gzip`), the fetch will be rejected with an error. This limit matches the approach taken by [curl](https://curl.se/docs/CVE-2022-32206.html) and [urllib3](https://github.com/advisories/GHSA-gm62-xv2j-4rw9).
+
+#### `undici.upgrade([url, options]): Promise`
 
 Upgrade to a different protocol. See [MDN - HTTP - Protocol upgrade mechanism](https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism) for more details.
 
@@ -339,6 +618,12 @@ See [Dispatcher.upgrade](./docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-
 
 Sets the global dispatcher used by Common API Methods. Global dispatcher is shared among compatible undici modules,
 including undici that is bundled internally with node.js.
+
+Undici stores this dispatcher under `Symbol.for('undici.globalDispatcher.2')`.
+
+`setGlobalDispatcher()` also mirrors the configured dispatcher to
+`Symbol.for('undici.globalDispatcher.1')` using `Dispatcher1Wrapper`, so Node.js built-in `fetch`
+can keep using the legacy handler contract while Undici uses the new handler API.
 
 ### `undici.getGlobalDispatcher()`
 
@@ -378,12 +663,7 @@ Returns: `URL`
 * **protocol** `string` (optional)
 * **search** `string` (optional)
 
-## Specification Compliance
-
-This section documents parts of the HTTP/1.1 specification that Undici does
-not support or does not fully implement.
-
-### Expect
+#### Expect
 
 Undici does not support the `Expect` request header field. The request
 body is  always immediately sent and the `100 Continue` response will be
@@ -391,7 +671,7 @@ ignored.
 
 Refs: https://tools.ietf.org/html/rfc7231#section-5.1.1
 
-### Pipelining
+#### Pipelining
 
 Undici will only use pipelining if configured with a `pipelining` factor
 greater than `1`. Also it is important to pass `blocking: false` to the
@@ -412,7 +692,7 @@ aborted.
 * Refs: https://tools.ietf.org/html/rfc2616#section-8.1.2.2
 * Refs: https://tools.ietf.org/html/rfc7230#section-6.3.2
 
-### Manual Redirect
+#### Manual Redirect
 
 Since it is not possible to manually follow an HTTP redirect on the server-side,
 Undici returns the actual response instead of an `opaqueredirect` filtered one
@@ -421,9 +701,9 @@ implementations in Deno and Cloudflare Workers.
 
 Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 
-## Workarounds
+### Workarounds
 
-### Network address family autoselection.
+#### Network address family autoselection.
 
 If you experience problem when connecting to a remote server that is resolved by your DNS servers to a IPv6 (AAAA record)
 first, there are chances that your local router or ISP might have problem connecting to IPv6 networks. In that case
@@ -456,11 +736,11 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 
 Undici aligns with the Node.js LTS schedule. The following table shows the supported versions:
 
-| Version | Node.js     | End of Life |
-|---------|-------------|-------------|
-| 5.x     | v18.x       | 2024-04-30  |
-| 6.x     | v20.x v22.x | 2026-04-30  |
-| 7.x     | v24.x       | 2027-04-30  |
+| Undici Version | Bundled in Node.js | Node.js Versions Supported | End of Life |
+|----------------|-------------------|----------------------------|-------------|
+| 5.x           | 18.x              | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
+| 6.x           | 20.x, 22.x       | ≥18.17 (tested: 18, 20, 21, 22) | 2026-04-30  |
+| 7.x           | 24.x              | ≥20.18.1 (tested: 20, 22, 24) | 2027-04-30  |
 
 ## License
 

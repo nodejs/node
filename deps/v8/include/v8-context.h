@@ -255,9 +255,6 @@ class V8_EXPORT Context : public Data {
    */
   Maybe<void> DeepFreeze(DeepFreezeDelegate* delegate = nullptr);
 
-  /** Returns the isolate associated with a current context. */
-  Isolate* GetIsolate();
-
   /** Returns the microtask queue associated with a current context. */
   MicrotaskQueue* GetMicrotaskQueue();
 
@@ -279,6 +276,20 @@ class V8_EXPORT Context : public Data {
    * Gets the embedder data with the given index, which must have been set by a
    * previous call to SetEmbedderData with the same index.
    */
+  V8_INLINE Local<Data> GetEmbedderDataV2(int index);
+
+  /**
+   * Sets the embedder data with the given index, growing the data as
+   * needed. Note that index 0 currently has a special meaning for Chrome's
+   * debugger.
+   */
+  void SetEmbedderDataV2(int index, Local<Data> value);
+
+  /**
+   * Gets the embedder data with the given index, which must have been set by a
+   * previous call to SetEmbedderData with the same index.
+   */
+  V8_DEPRECATE_SOON("Use GetEmbedderDataV2 instead")
   V8_INLINE Local<Value> GetEmbedderData(int index);
 
   /**
@@ -294,6 +305,7 @@ class V8_EXPORT Context : public Data {
    * needed. Note that index 0 currently has a special meaning for Chrome's
    * debugger.
    */
+  V8_DEPRECATE_SOON("Use SetEmbedderDataV2 instead")
   void SetEmbedderData(int index, Local<Value> value);
 
   /**
@@ -302,16 +314,42 @@ class V8_EXPORT Context : public Data {
    * SetAlignedPointerInEmbedderData with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
    */
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                    EmbedderDataTypeTag tag);
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index,
+                                                    EmbedderDataTypeTag tag);
+
+  V8_DEPRECATED(
+      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
+      "parameter instead.")
   V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate,
-                                                    int index);
-  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index);
+                                                    int index) {
+    return GetAlignedPointerFromEmbedderData(isolate, index,
+                                             kEmbedderDataTypeTagDefault);
+  }
+
+  V8_DEPRECATED(
+      "Use GetAlignedPointerFromEmbedderData with EmbedderDataTypeTag "
+      "parameter instead.")
+  V8_INLINE void* GetAlignedPointerFromEmbedderData(int index) {
+    return GetAlignedPointerFromEmbedderData(index,
+                                             kEmbedderDataTypeTagDefault);
+  }
+
+  void SetAlignedPointerInEmbedderData(int index, void* value,
+                                       EmbedderDataTypeTag tag);
 
   /**
    * Sets a 2-byte-aligned native pointer in the embedder data with the given
    * index, growing the data as needed. Note that index 0 currently has a
    * special meaning for Chrome's debugger.
    */
-  void SetAlignedPointerInEmbedderData(int index, void* value);
+  V8_DEPRECATED(
+      "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
+      "instead.")
+  void SetAlignedPointerInEmbedderData(int index, void* value) {
+    SetAlignedPointerInEmbedderData(index, value, kEmbedderDataTypeTagDefault);
+  }
 
   /**
    * Control whether code generation from strings is allowed. Calling
@@ -427,9 +465,12 @@ class V8_EXPORT Context : public Data {
 
   static void CheckCast(Data* obj);
 
-  internal::Address* GetDataFromSnapshotOnce(size_t index);
+  internal::ValueHelper::InternalRepresentationType GetDataFromSnapshotOnce(
+      size_t index);
   Local<Value> SlowGetEmbedderData(int index);
-  void* SlowGetAlignedPointerFromEmbedderData(int index);
+  Local<Data> SlowGetEmbedderDataV2(int index);
+  void* SlowGetAlignedPointerFromEmbedderData(int index,
+                                              EmbedderDataTypeTag tag);
 };
 
 // --- Implementation ---
@@ -446,37 +487,42 @@ Local<Value> Context::GetEmbedderData(int index) {
   A value = I::ReadRawField<A>(embedder_data, value_offset);
 #ifdef V8_COMPRESS_POINTERS
   // We read the full pointer value and then decompress it in order to avoid
-  // dealing with potential endiannes issues.
+  // dealing with potential endianness issues.
   value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
 
-  auto isolate = reinterpret_cast<v8::Isolate*>(
-      internal::IsolateFromNeverReadOnlySpaceObject(ctx));
+  auto* isolate = I::GetCurrentIsolate();
   return Local<Value>::New(isolate, value);
 #else
   return SlowGetEmbedderData(index);
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index) {
-#if !defined(V8_ENABLE_CHECKS)
+V8_INLINE Local<Data> Context::GetEmbedderDataV2(int index) {
+#ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
   A embedder_data =
       I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset = I::kEmbedderDataArrayHeaderSize +
-                     (I::kEmbedderDataSlotSize * index) +
-                     I::kEmbedderDataSlotExternalPointerOffset;
-  return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
-          isolate, embedder_data, value_offset));
+  int value_offset =
+      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+  A value = I::ReadRawField<A>(embedder_data, value_offset);
+#ifdef V8_COMPRESS_POINTERS
+  // We read the full pointer value and then decompress it in order to avoid
+  // dealing with potential endianness issues.
+  value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
+#endif
+
+  auto* isolate = I::GetCurrentIsolate();
+  return Local<Data>::New(isolate, value);
 #else
-  return SlowGetAlignedPointerFromEmbedderData(index);
+  return SlowGetEmbedderDataV2(index);
 #endif
 }
 
-void* Context::GetAlignedPointerFromEmbedderData(int index) {
+void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
+                                                 EmbedderDataTypeTag tag) {
 #if !defined(V8_ENABLE_CHECKS)
   using A = internal::Address;
   using I = internal::Internals;
@@ -486,21 +532,38 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
   int value_offset = I::kEmbedderDataArrayHeaderSize +
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotExternalPointerOffset;
-  Isolate* isolate = I::GetIsolateForSandbox(ctx);
-  return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
-          isolate, embedder_data, value_offset));
+  return reinterpret_cast<void*>(I::ReadExternalPointerField(
+      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
 #else
-  return SlowGetAlignedPointerFromEmbedderData(index);
+  return SlowGetAlignedPointerFromEmbedderData(index, tag);
+#endif
+}
+
+void* Context::GetAlignedPointerFromEmbedderData(int index,
+                                                 EmbedderDataTypeTag tag) {
+#if !defined(V8_ENABLE_CHECKS)
+  using A = internal::Address;
+  using I = internal::Internals;
+  A ctx = internal::ValueHelper::ValueAsAddress(this);
+  A embedder_data =
+      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
+  int value_offset = I::kEmbedderDataArrayHeaderSize +
+                     (I::kEmbedderDataSlotSize * index) +
+                     I::kEmbedderDataSlotExternalPointerOffset;
+  Isolate* isolate = I::GetCurrentIsolateForSandbox();
+  return reinterpret_cast<void*>(I::ReadExternalPointerField(
+      isolate, embedder_data, value_offset, ToExternalPointerTag(tag)));
+#else
+  return SlowGetAlignedPointerFromEmbedderData(index, tag);
 #endif
 }
 
 template <class T>
 MaybeLocal<T> Context::GetDataFromSnapshotOnce(size_t index) {
-  if (auto slot = GetDataFromSnapshotOnce(index); slot) {
-    internal::PerformCastCheck(
-        internal::ValueHelper::SlotAsValue<T, false>(slot));
-    return Local<T>::FromSlot(slot);
+  if (auto repr = GetDataFromSnapshotOnce(index);
+      repr != internal::ValueHelper::kEmpty) {
+    internal::PerformCastCheck(internal::ValueHelper::ReprAsValue<T>(repr));
+    return Local<T>::FromRepr(repr);
   }
   return {};
 }

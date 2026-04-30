@@ -37,9 +37,6 @@ class Flags final {
   constexpr bool operator==(flag_type flag) const {
     return mask_ == static_cast<mask_type>(flag);
   }
-  constexpr bool operator!=(flag_type flag) const {
-    return mask_ != static_cast<mask_type>(flag);
-  }
 
   Flags& operator&=(const Flags& flags) {
     mask_ &= flags.mask_;
@@ -88,6 +85,10 @@ class Flags final {
 
   constexpr operator mask_type() const { return mask_; }
   constexpr bool operator!() const { return !mask_; }
+
+  constexpr bool contains(const Flags& flags) const {
+    return (mask_ & flags.mask_) == flags.mask_;
+  }
 
   Flags without(flag_type flag) const { return *this & (~Flags(flag)); }
 

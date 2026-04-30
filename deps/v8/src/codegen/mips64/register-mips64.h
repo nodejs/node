@@ -46,6 +46,11 @@ namespace internal {
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
   V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS s0, s1, s2, s3, s4, s5, s6, s7, fp
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS f20, f22, f24, f26, f28, f30
+
 // clang-format on
 
 // Note that the bit values must match those used in actual instruction
@@ -219,6 +224,7 @@ constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
 constexpr DoubleRegister kScratchDoubleReg = f30;
+constexpr DoubleRegister kScratchDoubleReg2 = f31;
 // FPU zero reg is often used to hold 0.0, but it's not hardwired to 0.0.
 constexpr DoubleRegister kDoubleRegZero = f28;
 // Used on mips64r6 for compare operations.
@@ -298,12 +304,12 @@ constexpr Register kInterpreterAccumulatorRegister = v0;
 constexpr Register kInterpreterBytecodeOffsetRegister = t0;
 constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
-
 constexpr Register kJavaScriptCallArgCountRegister = a0;
 constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kJavaScriptCallExtraArg1Register = a2;
+constexpr Register kJavaScriptCallDispatchHandleRegister = a4;
 
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;

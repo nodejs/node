@@ -6,6 +6,8 @@
 #define V8_BUILTINS_BUILTINS_INL_H_
 
 #include "src/builtins/builtins.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 
 namespace v8 {
@@ -42,6 +44,27 @@ constexpr Builtin Builtins::EphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
 }
 
 // static
+constexpr Builtin Builtins::AdaptorWithBuiltinExitFrame(
+    int formal_parameter_count) {
+  switch (formal_parameter_count) {
+    case kDontAdaptArgumentsSentinel:
+    case JSParameterCount(0):
+      return Builtin::kAdaptorWithBuiltinExitFrame0;
+    case JSParameterCount(1):
+      return Builtin::kAdaptorWithBuiltinExitFrame1;
+    case JSParameterCount(2):
+      return Builtin::kAdaptorWithBuiltinExitFrame2;
+    case JSParameterCount(3):
+      return Builtin::kAdaptorWithBuiltinExitFrame3;
+    case JSParameterCount(4):
+      return Builtin::kAdaptorWithBuiltinExitFrame4;
+    case JSParameterCount(5):
+      return Builtin::kAdaptorWithBuiltinExitFrame5;
+  }
+  UNREACHABLE();
+}
+
+// static
 constexpr Builtin Builtins::CallFunction(ConvertReceiverMode mode) {
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined:
@@ -65,6 +88,21 @@ constexpr Builtin Builtins::Call(ConvertReceiverMode mode) {
       return Builtin::kCall_ReceiverIsAny;
   }
   UNREACHABLE();
+}
+
+// static
+constexpr bool Builtins::IsAnyCall(Builtin builtin) {
+  switch (builtin) {
+    case Builtin::kCallFunction_ReceiverIsNullOrUndefined:
+    case Builtin::kCallFunction_ReceiverIsNotNullOrUndefined:
+    case Builtin::kCallFunction_ReceiverIsAny:
+    case Builtin::kCall_ReceiverIsNullOrUndefined:
+    case Builtin::kCall_ReceiverIsNotNullOrUndefined:
+    case Builtin::kCall_ReceiverIsAny:
+      return true;
+    default:
+      return false;
+  }
 }
 
 // static
@@ -143,8 +181,6 @@ constexpr Builtin Builtins::CEntry(int result_size, ArgvMode argv_mode,
     return Builtin::kCEntry_Return1_ArgvInRegister_NoBuiltinExit;
   } else if (rs == 2 && am == ArgvMode::kStack && !be) {
     return Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit;
-  } else if (rs == 2 && am == ArgvMode::kStack && be) {
-    return Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit;
   } else if (rs == 2 && am == ArgvMode::kRegister && !be) {
     return Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit;
   }
@@ -201,6 +237,13 @@ constexpr Builtin Builtins::InterpreterPushArgsThenConstruct(
 
 // static
 Address Builtins::EntryOf(Builtin builtin, Isolate* isolate) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  // We don't use the isolate-specific copy of the WasmToJS wrapper; use
+  // EmbeddedEntryOf() instead to get the isolate-independent copy.
+  DCHECK(builtin != Builtin::kWasmToJsWrapperCSA &&
+         builtin != Builtin::kWasmToJsWrapperAsm &&
+         builtin != Builtin::kWasmToJsWrapperInvalidSig);
+#endif
   return isolate->builtin_entry_table()[Builtins::ToInt(builtin)];
 }
 
@@ -217,28 +260,105 @@ constexpr bool Builtins::IsJSEntryVariant(Builtin builtin) {
   UNREACHABLE();
 }
 
+// static
+int Builtins::GetFormalParameterCount(Builtin builtin) {
+  CHECK(HasJSLinkage(builtin));
+
+  // TODO(saelo): consider merging GetFormalParameterCount and
+  // GetStackParameterCount into a single function.
+  Builtins::Kind kind = KindOf(builtin);
+  if (kind == TFJ_TSA || kind == TFJ) {
+    return Builtins::GetStackParameterCount(builtin);
+
+  } else if (kind == ASM || kind == TFC) {
+    // At the moment, all ASM builtins are varargs builtins. This is verified
+    // in CheckFormalParameterCount.
+    return kDontAdaptArgumentsSentinel;
+
+  } else if (kind == CPP) {
+#define CPP_BUILTIN(Name, Argc) \
+  case Builtin::k##Name:        \
+    return Argc;
+
+    switch (builtin) {
+      BUILTIN_LIST_C(CPP_BUILTIN)
+      default:
+        UNREACHABLE();
+    }
+#undef CPP_BUILTIN
+  } else {
+    UNREACHABLE();
+  }
+}
+
+// static
+bool Builtins::IsDisabled(Builtin builtin) {
+  auto flags = GetJSBuiltinState(builtin);
+  DCHECK_EQ(HasJSLinkage(builtin),
+            !(flags & JSBuiltinStateFlag::kNonJSLinkage));
+  if (!(flags & JSBuiltinStateFlag::kNonJSLinkage) &&
+      !(flags & JSBuiltinStateFlag::kEnabled)) {
+    return true;
+  }
+  return false;
+}
+
+// static
+bool Builtins::IsJSTrampoline(Builtin builtin) {
+  bool is_js_trampoline = false;
+  // This allow list is the same as "GetJSBuiltinState() & kCoreV8JSTrampoline"
+  // but we keep it here in explicit form in order to make it easier to
+  // reason about.
+  switch (builtin) {
+    case Builtin::kIllegal:
+    case Builtin::kCompileLazy:
+    case Builtin::kInterpreterEntryTrampoline:
+    case Builtin::kInstantiateAsmJs:
+    case Builtin::kDebugBreakTrampoline:
 #ifdef V8_ENABLE_WEBASSEMBLY
-
-// static
-template <Builtin builtin>
-constexpr size_t Builtins::WasmBuiltinHandleArrayIndex() {
-  constexpr size_t index =
-      std::find(std::begin(Builtins::kWasmIndirectlyCallableBuiltins),
-                std::end(Builtins::kWasmIndirectlyCallableBuiltins), builtin) -
-      std::begin(Builtins::kWasmIndirectlyCallableBuiltins);
-  static_assert(Builtins::kWasmIndirectlyCallableBuiltins[index] == builtin);
-  return index;
+    case Builtin::kJSToWasmWrapper:
+    case Builtin::kJSToJSWrapper:
+    case Builtin::kJSToJSWrapperInvalidSig:
+    case Builtin::kWasmPromising:
+#if V8_ENABLE_DRUMBRAKE
+    case Builtin::kGenericJSToWasmInterpreterWrapper:
+#endif
+    case Builtin::kWasmStressSwitch:
+#endif
+      is_js_trampoline = true;
+      break;
+    default:
+      break;
+  }
+  if (DEBUG_BOOL) {
+    // Check that the above list matches JSBuiltinState(..) flags.
+    auto flags = GetJSBuiltinState(builtin);
+    CHECK_EQ(is_js_trampoline,
+             (flags & JSBuiltinStateFlag::kCoreV8JSTrampoline) != 0);
+  }
+  return is_js_trampoline;
 }
 
 // static
-template <Builtin builtin>
-wasm::WasmCodePointerTable::Handle Builtins::WasmBuiltinHandleOf(
-    Isolate* isolate) {
-  return isolate
-      ->wasm_builtin_code_handles()[WasmBuiltinHandleArrayIndex<builtin>()];
+bool Builtins::IsEnabledAndNotJSTrampoline(Builtin builtin) {
+  auto flags = GetJSBuiltinState(builtin);
+  DCHECK_EQ(HasJSLinkage(builtin),
+            !(flags & JSBuiltinStateFlag::kNonJSLinkage));
+  if ((flags & JSBuiltinStateFlag::kEnabled) &&
+      !(flags & JSBuiltinStateFlag::kCoreV8JSTrampoline)) {
+    return true;
+  }
+  return false;
 }
 
-#endif  // V8_ENABLE_WEBASSEMBLY
+// LINT.IfChange(IsCompatibleJSBuiltin)
+// static
+bool Builtins::IsCompatibleJSBuiltin(Builtin builtin,
+                                     uint16_t parameter_count) {
+  return parameter_count == GetFormalParameterCount(builtin) &&
+         IsEnabledAndNotJSTrampoline(builtin);
+}
+// LINT.ThenChange(/src/sandbox/js-dispatch-table-inl.h:IsCompatibleCode)
 
 }  // namespace internal
 }  // namespace v8

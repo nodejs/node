@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan --js-float16array
+// Flags: --allow-natives-syntax --js-staging --maglev
 
 "use strict";
 
@@ -237,7 +237,6 @@ for (let shared of [false, true]) {
           %ArrayBufferDetach(ab);
           assertEquals(0, ByteLength(ta));
           assertEquals(0, Length(ta));
-          assertOptimized(Length);
         }
       }
     }

@@ -70,12 +70,12 @@ const t = new stream.Transform({
     state++;
     // finalCallback part 1
     assert.strictEqual(state, 10);
-    setTimeout(function() {
+    setTimeout(common.mustCall(() => {
       state++;
       // finalCallback part 2
       assert.strictEqual(state, 11);
       done();
-    }, 100);
+    }), 100);
   }, 1),
   flush: common.mustCall(function(done) {
     state++;

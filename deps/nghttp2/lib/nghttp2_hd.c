@@ -35,9 +35,10 @@
 /* Make scalar initialization form of nghttp2_hd_entry */
 #define MAKE_STATIC_ENT(N, V, T, H)                                            \
   {                                                                            \
-    {NULL, NULL, (uint8_t *)(N), sizeof((N)) - 1, -1},                         \
-    {NULL, NULL, (uint8_t *)(V), sizeof((V)) - 1, -1},                         \
-    {(uint8_t *)(N), (uint8_t *)(V), sizeof((N)) - 1, sizeof((V)) - 1, 0},     \
+    {NULL, NULL, (uint8_t *)(N), nghttp2_strlen_lit((N)), -1},                 \
+    {NULL, NULL, (uint8_t *)(V), nghttp2_strlen_lit((V)), -1},                 \
+    {(uint8_t *)(N), (uint8_t *)(V), nghttp2_strlen_lit((N)),                  \
+     nghttp2_strlen_lit((V)), 0},                                              \
     T,                                                                         \
     H,                                                                         \
   }
@@ -594,8 +595,19 @@ static void hd_map_remove(nghttp2_hd_map *map, nghttp2_hd_entry *ent) {
 static int hd_ringbuf_init(nghttp2_hd_ringbuf *ringbuf, size_t bufsize,
                            nghttp2_mem *mem) {
   size_t size;
+  const size_t max_size = SIZE_MAX / sizeof(nghttp2_hd_entry *);
+
+  if (bufsize > max_size) {
+    return NGHTTP2_ERR_NOMEM;
+  }
+
   for (size = 1; size < bufsize; size <<= 1)
     ;
+
+  if (size > max_size) {
+    return NGHTTP2_ERR_NOMEM;
+  }
+
   ringbuf->buffer = nghttp2_mem_malloc(mem, sizeof(nghttp2_hd_entry *) * size);
   if (ringbuf->buffer == NULL) {
     return NGHTTP2_ERR_NOMEM;
@@ -2047,8 +2059,9 @@ nghttp2_ssize nghttp2_hd_inflate_hd_nv(nghttp2_hd_inflater *inflater,
 
         inflater->state = NGHTTP2_HD_STATE_NEWNAME_READ_NAMEHUFF;
 
-        rv =
-          nghttp2_rcbuf_new(&inflater->namercbuf, inflater->left * 2 + 1, mem);
+        rv = nghttp2_rcbuf_new(
+          &inflater->namercbuf,
+          nghttp2_huff_estimate_decode_length(inflater->left) + 1, mem);
       } else {
         inflater->state = NGHTTP2_HD_STATE_NEWNAME_READ_NAME;
         rv = nghttp2_rcbuf_new(&inflater->namercbuf, inflater->left + 1, mem);
@@ -2132,8 +2145,9 @@ nghttp2_ssize nghttp2_hd_inflate_hd_nv(nghttp2_hd_inflater *inflater,
 
         inflater->state = NGHTTP2_HD_STATE_READ_VALUEHUFF;
 
-        rv =
-          nghttp2_rcbuf_new(&inflater->valuercbuf, inflater->left * 2 + 1, mem);
+        rv = nghttp2_rcbuf_new(
+          &inflater->valuercbuf,
+          nghttp2_huff_estimate_decode_length(inflater->left) + 1, mem);
       } else {
         inflater->state = NGHTTP2_HD_STATE_READ_VALUE;
 

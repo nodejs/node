@@ -1,6 +1,7 @@
-import '../common/index.mjs';
-import { DatabaseSync } from 'node:sqlite';
+import { skipIfSQLiteMissing } from '../common/index.mjs';
 import { describe, test } from 'node:test';
+skipIfSQLiteMissing();
+const { DatabaseSync } = await import('node:sqlite');
 
 describe('DatabaseSync.prototype.aggregate()', () => {
   describe('input validation', () => {
@@ -65,6 +66,19 @@ describe('DatabaseSync.prototype.aggregate()', () => {
       }, {
         code: 'ERR_INVALID_ARG_TYPE',
         message: /The "options\.directOnly" argument must be a boolean/,
+      });
+    });
+
+    test('throws if options.inverse is not a function', (t) => {
+      t.assert.throws(() => {
+        db.aggregate('sum', {
+          start: 0,
+          step: (acc, value) => acc + value,
+          inverse: 10
+        });
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: /The "options\.inverse" argument must be a function/,
       });
     });
   });
@@ -308,6 +322,27 @@ describe('step', () => {
 });
 
 describe('result', () => {
+  test('throws if result throws an error', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.exec('CREATE TABLE data (value INTEGER)');
+    db.exec('INSERT INTO data VALUES (1), (2), (3)');
+    db.aggregate('sum_int', {
+      start: 0,
+      step: (acc, value) => {
+        return acc + value;
+      },
+      result: () => {
+        throw new Error('result error');
+      },
+    });
+    t.assert.throws(() => {
+      db.prepare('SELECT sum_int(value) as result FROM data').get();
+    }, {
+      message: 'result error'
+    });
+  });
+
   test('executes once when options.inverse is not present', (t) => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());

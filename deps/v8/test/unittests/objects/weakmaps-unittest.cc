@@ -31,6 +31,7 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects-inl.h"
@@ -78,7 +79,7 @@ TEST_F(WeakMapsTest, Weakness) {
     HandleScope inner_scope(isolate);
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+    DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
     DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
     JSWeakCollection::Set(weakmap, key, object, hash);
@@ -88,7 +89,7 @@ TEST_F(WeakMapsTest, Weakness) {
   // Put a symbol key into weak map.
   {
     HandleScope inner_scope(isolate);
-    Handle<Symbol> symbol = factory->NewSymbol();
+    DirectHandle<Symbol> symbol = factory->NewSymbol();
     DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
     JSWeakCollection::Set(weakmap, symbol, smi, symbol->hash());
   }
@@ -145,7 +146,7 @@ TEST_F(WeakMapsTest, Shrinking) {
     DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
     for (int i = 0; i < 32; i++) {
-      Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+      DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
       DirectHandle<Smi> smi(Smi::FromInt(i), isolate);
       int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
       JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -188,11 +189,11 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
 
   InvokeMajorGC();
 
-  CHECK(!ObjectInYoungGeneration(weakmap->table()));
+  CHECK(!HeapLayout::InYoungGeneration(weakmap->table()));
 
   DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+  DirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
   DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -201,14 +202,14 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
       Cast<EphemeronHashTable>(weakmap->table()), *object));
   InvokeMajorGC();
 
-  CHECK(!ObjectInYoungGeneration(*object));
-  CHECK(!ObjectInYoungGeneration(weakmap->table()));
+  CHECK(!HeapLayout::InYoungGeneration(*object));
+  CHECK(!HeapLayout::InYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       Cast<EphemeronHashTable>(weakmap->table()), *object));
 
   InvokeMajorGC();
-  CHECK(!ObjectInYoungGeneration(*object));
-  CHECK(!ObjectInYoungGeneration(weakmap->table()));
+  CHECK(!HeapLayout::InYoungGeneration(*object));
+  CHECK(!HeapLayout::InYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       Cast<EphemeronHashTable>(weakmap->table()), *object));
 }
@@ -216,18 +217,20 @@ TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
 TEST_F(WeakMapsTest, WeakMapScavenge) {
   if (i::v8_flags.single_generation) return;
   if (i::v8_flags.stress_incremental_marking) return;
+  if (i::v8_flags.scavenger_chaos_mode) return;
+  v8_flags.scavenger_precise_object_pinning = false;
   Isolate* isolate = i_isolate();
   ManualGCScope manual_gc_scope(isolate);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
+  IndirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   InvokeAtomicMinorGC();
-  CHECK(ObjectInYoungGeneration(weakmap->table()));
+  CHECK(HeapLayout::InYoungGeneration(weakmap->table()));
 
   DirectHandle<Map> map = factory->NewContextfulMapForCurrentContext(
       JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  Handle<JSObject> object = factory->NewJSObjectFromMap(map);
+  IndirectHandle<JSObject> object = factory->NewJSObjectFromMap(map);
   DirectHandle<Smi> smi(Smi::FromInt(1), isolate);
   int32_t object_hash = Object::GetOrCreateHash(*object, isolate).value();
   JSWeakCollection::Set(weakmap, object, smi, object_hash);
@@ -236,16 +239,19 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
       Cast<EphemeronHashTable>(weakmap->table()), *object));
 
   if (!v8_flags.minor_ms) {
+    // CSS prevents promoting objects to the old generation.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate->heap());
     InvokeAtomicMinorGC();
-    CHECK(ObjectInYoungGeneration(*object));
-    CHECK(!ObjectInYoungGeneration(weakmap->table()));
+    CHECK(HeapLayout::InYoungGeneration(*object));
+    CHECK(!HeapLayout::InYoungGeneration(weakmap->table()));
     CHECK(EphemeronHashTableContainsKey(
         Cast<EphemeronHashTable>(weakmap->table()), *object));
   }
 
   InvokeAtomicMajorGC();
-  CHECK(!ObjectInYoungGeneration(*object));
-  CHECK(!ObjectInYoungGeneration(weakmap->table()));
+  CHECK(!HeapLayout::InYoungGeneration(*object));
+  CHECK(!HeapLayout::InYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       Cast<EphemeronHashTable>(weakmap->table()), *object));
 }
@@ -261,13 +267,13 @@ TEST_F(WeakMapsTest, Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->function_string());
-  Handle<JSObject> key = factory->NewJSObject(function);
+  DirectHandle<JSObject> key = factory->NewJSObject(function);
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
-  PageMetadata* first_page = heap->old_space()->first_page();
+  NormalPage* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
@@ -276,7 +282,7 @@ TEST_F(WeakMapsTest, Regress2060a) {
     for (int i = 0; i < 32; i++) {
       DirectHandle<JSObject> object =
           factory->NewJSObject(function, AllocationType::kOld);
-      CHECK(!Heap::InYoungGeneration(*object));
+      CHECK(!HeapLayout::InYoungGeneration(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
       JSWeakCollection::Set(weakmap, key, object, hash);
@@ -303,18 +309,18 @@ TEST_F(WeakMapsTest, Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  PageMetadata* first_page = heap->old_space()->first_page();
+  NormalPage* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, AllocationType::kOld);
-    CHECK(!Heap::InYoungGeneration(*keys[i]));
+    CHECK(!HeapLayout::InYoungGeneration(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
@@ -355,7 +361,7 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
       i_isolate()->heap());
   v8::HandleScope scope(isolate);
 
-  const int initial_gc_count = i_isolate()->heap()->gc_count();
+  const GCEpoch initial_gc_count = i_isolate()->heap()->gc_count();
   DirectHandle<JSWeakMap> weakmap1 = i_isolate()->factory()->NewJSWeakMap();
   DirectHandle<JSWeakMap> weakmap2 = i_isolate()->factory()->NewJSWeakMap();
   v8::Global<v8::Object> g1;
@@ -368,8 +374,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
     v8::Local<v8::Object> o2 = v8::Object::New(isolate);
     g2.Reset(isolate, o2);
     g2.SetWeak();
-    Handle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
-    Handle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
+    DirectHandle<Object> i_o1 = v8::Utils::OpenDirectHandle(*o1);
+    DirectHandle<Object> i_o2 = v8::Utils::OpenDirectHandle(*o2);
     int32_t hash1 = Object::GetOrCreateHash(*i_o1, i_isolate()).value();
     int32_t hash2 = Object::GetOrCreateHash(*i_o2, i_isolate()).value();
     JSWeakCollection::Set(weakmap1, i_o1, i_o2, hash1);
@@ -378,7 +384,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
   InvokeMajorGC();
   CHECK(g1.IsEmpty());
   CHECK(g2.IsEmpty());
-  CHECK_EQ(1, i_isolate()->heap()->gc_count() - initial_gc_count);
+  CHECK_EQ(1,
+           i_isolate()->heap()->gc_count().value() - initial_gc_count.value());
 }
 
 }  // namespace test_weakmaps

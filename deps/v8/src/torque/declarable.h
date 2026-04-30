@@ -8,9 +8,10 @@
 #include <cassert>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/types.h"
@@ -35,7 +36,7 @@ struct QualifiedName {
   explicit QualifiedName(std::string name)
       : QualifiedName({}, std::move(name)) {}
 
-  static QualifiedName Parse(std::string qualified_name);
+  static QualifiedName Parse(std::string_view qualified_name);
 
   bool HasNamespaceQualification() const {
     return !namespace_qualification.empty();
@@ -387,6 +388,10 @@ class Macro : public Callable {
 
   void SetUsed() { used_ = true; }
   bool IsUsed() const { return used_; }
+  void SetSupportsTSA(bool supports_tsa = true) {
+    supports_tsa_ = supports_tsa;
+  }
+  bool SupportsTSA() const { return supports_tsa_; }
 
  protected:
   Macro(Declarable::Kind kind, std::string external_name,
@@ -402,6 +407,7 @@ class Macro : public Callable {
 
  private:
   bool used_;
+  bool supports_tsa_ = false;
 };
 
 class ExternMacro : public Macro {
@@ -497,30 +503,44 @@ class Method : public TorqueMacro {
 class Builtin : public Callable {
  public:
   enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
-  enum class Flag { kNone = 0, kCustomInterfaceDescriptor = 1 << 0 };
+  enum class Flag {
+    kNone = 0,
+    kCustomInterfaceDescriptor = 1 << 0,
+    kSupportsTSA = 1 << 1
+  };
   using Flags = base::Flags<Flag>;
   DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin)
   Kind kind() const { return kind_; }
   Flags flags() const { return flags_; }
+  std::optional<std::string> use_counter_name() const {
+    return use_counter_name_;
+  }
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
   bool IsFixedArgsJavaScript() const { return kind_ == kFixedArgsJavaScript; }
+  bool IsJavaScript() const {
+    return IsVarArgsJavaScript() || IsFixedArgsJavaScript();
+  }
   bool HasCustomInterfaceDescriptor() const {
     return flags_ & Flag::kCustomInterfaceDescriptor;
   }
+  bool SupportsTSA() const { return flags_ & Flag::kSupportsTSA; }
 
  private:
   friend class Declarations;
   Builtin(std::string external_name, std::string readable_name,
           Builtin::Kind kind, Flags flags, const Signature& signature,
+          std::optional<std::string> use_counter_name,
           std::optional<Statement*> body)
       : Callable(Declarable::kBuiltin, std::move(external_name),
                  std::move(readable_name), signature, body),
         kind_(kind),
-        flags_(flags) {}
+        flags_(flags),
+        use_counter_name_(use_counter_name) {}
 
   Kind kind_;
   Flags flags_;
+  std::optional<std::string> use_counter_name_;
 };
 
 class RuntimeFunction : public Callable {

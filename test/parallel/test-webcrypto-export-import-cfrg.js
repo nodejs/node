@@ -88,21 +88,28 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'Ed448',
-    privateUsages: ['sign'],
-    publicUsages: ['verify']
-  },
-  {
     name: 'X25519',
     privateUsages: ['deriveKey', 'deriveBits'],
     publicUsages: []
   },
-  {
-    name: 'X448',
-    privateUsages: ['deriveKey', 'deriveBits'],
-    publicUsages: []
-  },
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  testVectors.push(
+    {
+      name: 'Ed448',
+      privateUsages: ['sign'],
+      publicUsages: ['verify']
+    },
+    {
+      name: 'X448',
+      privateUsages: ['deriveKey', 'deriveBits'],
+      publicUsages: []
+    },
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported Curve448 test cases');
+}
 
 async function testImportSpki({ name, publicUsages }, extractable) {
   const key = await subtle.importKey(
@@ -127,7 +134,8 @@ async function testImportSpki({ name, publicUsages }, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -165,7 +173,8 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -296,11 +305,13 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
     await assert.rejects(
       subtle.exportKey('jwk', privateKey), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -378,9 +389,10 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
 async function testImportRaw({ name, publicUsages }) {
   const jwk = keyData[name].jwk;
 
+  const rawKeyData = Buffer.from(jwk.x, 'base64url');
   const publicKey = await subtle.importKey(
     'raw',
-    Buffer.from(jwk.x, 'base64url'),
+    rawKeyData,
     { name },
     true, publicUsages);
 
@@ -389,6 +401,10 @@ async function testImportRaw({ name, publicUsages }) {
   assert.strictEqual(publicKey.algorithm.name, name);
   assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
   assert.strictEqual(publicKey.usages, publicKey.usages);
+
+  // Test raw export round-trip
+  const exported = await subtle.exportKey('raw', publicKey);
+  assert.deepStrictEqual(Buffer.from(exported), rawKeyData);
 }
 
 (async function() {

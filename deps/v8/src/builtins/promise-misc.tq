@@ -269,8 +269,8 @@ transitioning macro RunAnyPromiseHookInit(
 // This uses the given parent as the parent promise for the promise
 // init hook.
 @export
-transitioning macro NewJSPromise(implicit context: Context)(parent: Object):
-    JSPromise {
+transitioning macro NewJSPromise(implicit context: Context)(
+                                 parent: Object): JSPromise {
   const instance = InnerNewJSPromise();
   PromiseInit(instance);
   RunAnyPromiseHookInit(instance, parent);
@@ -462,13 +462,43 @@ transitioning macro BranchIfAccessCheckFailed(
 @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
 transitioning javascript builtin GetContinuationPreservedEmbedderData(
     js-implicit context: Context, receiver: JSAny)(): JSAny {
-  return UnsafeCast<JSAny>(macros::GetContinuationPreservedEmbedderData());
+  // The embbeder API allows storing arbitrary Data, which might not be
+  // something that can be exposed to script.
+  const data = macros::GetContinuationPreservedEmbedderData();
+  if (!Is<JSAny>(data)) {
+    return Undefined;
+  }
+  return UnsafeCast<JSAny>(data);
 }
 
 @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
 transitioning javascript builtin SetContinuationPreservedEmbedderData(
     js-implicit context: Context, receiver: JSAny)(data: Object): Undefined {
   macros::SetContinuationPreservedEmbedderData(data);
+  return Undefined;
+}
+
+// Fast path for await on non-thenable values. Instead of creating a wrapper
+// promise and scheduling PerformPromiseThen, directly enqueue a microtask
+// that will call the resolve handler with the non-thenable value.
+//
+// Per ECMA-262, non-Object values (primitives) are never checked for a "then"
+// property, making them guaranteed non-thenables. This could potentially be
+// extended to handle non-primitive non-thenables as well in the future.
+transitioning builtin AsyncAwaitNonThenableFastPath(
+    implicit context: Context)(value: JSAny, onResolve: JSFunction,
+    throwaway: JSPromise|Undefined): Undefined {
+  // Extract the handler context from the resolve closure.
+  const handlerContext: Context = onResolve.context;
+
+  // Create a PromiseFulfillReactionJobTask directly with the non-thenable
+  // value as the argument. The handler will be called with this value when
+  // the microtask runs.
+  const task = NewPromiseFulfillReactionJobTask(
+      handlerContext, value, onResolve, throwaway);
+
+  // Enqueue the microtask.
+  EnqueueMicrotask(handlerContext, task);
   return Undefined;
 }
 

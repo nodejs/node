@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-private-fields --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 let {session, contextGroup, Protocol} = InspectorTest.start('Checks Runtime.getProperties method');
 
@@ -118,7 +118,19 @@ InspectorTest.runAsyncTestSuite([
 
   function testWeakRef() {
     return logExpressionProperties('new WeakRef(globalThis)');
-  }
+  },
+
+  function testArrayBufferDetached() {
+    return logExpressionProperties(
+        '(() => { const buffer = new ArrayBuffer(16); %ArrayBufferDetach(buffer); return buffer; })()',
+        {accessorPropertiesOnly: true, ownProperties: false});
+  },
+
+  function testArrayBufferAttached() {
+    return logExpressionProperties(
+        'new ArrayBuffer(16)',
+        {accessorPropertiesOnly: true, ownProperties: false});
+  },
 ]);
 
 async function logExpressionProperties(expression, flags) {

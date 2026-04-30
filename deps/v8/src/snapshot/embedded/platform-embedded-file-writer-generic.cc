@@ -61,31 +61,37 @@ void PlatformEmbeddedFileWriterGeneric::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
-#if (V8_OS_ANDROID || V8_OS_LINUX) && \
-    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_OS_LINUX && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64)
   // On these architectures and platforms, we remap the builtins, so need these
   // to be aligned on a page boundary.
-  fprintf(fp_, ".balign 4096\n");
-#elif V8_TARGET_ARCH_X64
-  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  static_assert(64 >= kCodeAlignment);
-  fprintf(fp_, ".balign 64\n");
-#elif V8_TARGET_ARCH_PPC64
-  // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
-  // don't cross 64-byte boundaries.
-  static_assert(64 >= kCodeAlignment);
-  fprintf(fp_, ".balign 64\n");
+#if V8_TARGET_ARCH_ARM64
+  // 4KB, 16KB and 64KB page sizes are supported. We need to pick the largest
+  // size for compatibility, except on Android where up to 16KB is supported.
+  if (target_os_ == EmbeddedTargetOs::kAndroid) {
+    fprintf(fp_, ".balign 16384\n");
+  } else {
+    fprintf(fp_, ".balign 65536\n");
+  }
 #else
-  static_assert(32 >= kCodeAlignment);
-  fprintf(fp_, ".balign 32\n");
+  fprintf(fp_, ".balign 4096\n");
+#endif
+#else
+  fprintf(fp_, ".balign %d\n", static_cast<int>(kCodeAlignment));
 #endif
 }
 
 void PlatformEmbeddedFileWriterGeneric::AlignToPageSizeIfNeeded() {
-#if (V8_OS_ANDROID || V8_OS_LINUX) && \
-    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_OS_LINUX && (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64)
   // Since the builtins are remapped, need to pad until the next page boundary.
+#if V8_TARGET_ARCH_ARM64
+  if (target_os_ == EmbeddedTargetOs::kAndroid) {
+    fprintf(fp_, ".balign 16384\n");
+  } else {
+    fprintf(fp_, ".balign 65536\n");
+  }
+#else
   fprintf(fp_, ".balign 4096\n");
+#endif
 #endif
 }
 
@@ -114,13 +120,11 @@ void PlatformEmbeddedFileWriterGeneric::SourceInfo(int fileid,
 
 void PlatformEmbeddedFileWriterGeneric::DeclareFunctionBegin(const char* name,
                                                              uint32_t size) {
-  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
 #if V8_ENABLE_DRUMBRAKE
-      || IsDrumBrakeInstructionHandler(name)
-#endif  // V8_ENABLE_DRUMBRAKE
-  ) {
+  if (IsDrumBrakeInstructionHandler(name)) {
     DeclareSymbolGlobal(name);
   }
+#endif  // V8_ENABLE_DRUMBRAKE
 
   DeclareLabel(name);
 

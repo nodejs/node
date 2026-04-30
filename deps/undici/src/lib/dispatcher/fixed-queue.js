@@ -59,35 +59,21 @@ const kMask = kSize - 1
  * @template T
  */
 class FixedCircularBuffer {
-  constructor () {
-    /**
-     * @type {number}
-     */
-    this.bottom = 0
-    /**
-     * @type {number}
-     */
-    this.top = 0
-    /**
-     * @type {Array<T|undefined>}
-     */
-    this.list = new Array(kSize).fill(undefined)
-    /**
-     * @type {T|null}
-     */
-    this.next = null
-  }
+  /** @type {number} */
+  bottom = 0
+  /** @type {number} */
+  top = 0
+  /** @type {Array<T|undefined>} */
+  list = new Array(kSize).fill(undefined)
+  /** @type {T|null} */
+  next = null
 
-  /**
-   * @returns {boolean}
-   */
+  /** @returns {boolean} */
   isEmpty () {
     return this.top === this.bottom
   }
 
-  /**
-   * @returns {boolean}
-   */
+  /** @returns {boolean} */
   isFull () {
     return ((this.top + 1) & kMask) === this.bottom
   }
@@ -101,9 +87,7 @@ class FixedCircularBuffer {
     this.top = (this.top + 1) & kMask
   }
 
-  /**
-   * @returns {T|null}
-   */
+  /** @returns {T|null} */
   shift () {
     const nextItem = this.list[this.bottom]
     if (nextItem === undefined) { return null }
@@ -118,22 +102,16 @@ class FixedCircularBuffer {
  */
 module.exports = class FixedQueue {
   constructor () {
-    /**
-     * @type {FixedCircularBuffer<T>}
-     */
+    /** @type {FixedCircularBuffer<T>} */
     this.head = this.tail = new FixedCircularBuffer()
   }
 
-  /**
-   * @returns {boolean}
-   */
+  /** @returns {boolean} */
   isEmpty () {
     return this.head.isEmpty()
   }
 
-  /**
-   * @param {T} data
-   */
+  /** @param {T} data */
   push (data) {
     if (this.head.isFull()) {
       // Head is full: Creates a new queue, sets the old queue's `.next` to it,
@@ -143,9 +121,7 @@ module.exports = class FixedQueue {
     this.head.push(data)
   }
 
-  /**
-   * @returns {T|null}
-   */
+  /** @returns {T|null} */
   shift () {
     const tail = this.tail
     const next = tail.shift()

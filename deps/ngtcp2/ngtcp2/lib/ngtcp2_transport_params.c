@@ -150,8 +150,8 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
 
   if (params->stateless_reset_token_present) {
     len += ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
-           ngtcp2_put_uvarintlen(NGTCP2_STATELESS_RESET_TOKENLEN) +
-           NGTCP2_STATELESS_RESET_TOKENLEN;
+           ngtcp2_put_uvarintlen(sizeof(params->stateless_reset_token)) +
+           sizeof(params->stateless_reset_token);
   }
 
   if (params->preferred_addr_present) {
@@ -160,7 +160,7 @@ ngtcp2_ssize ngtcp2_transport_params_encode_versioned(
     preferred_addrlen = 4 /* ipv4Address */ + 2 /* ipv4Port */ +
                         16 /* ipv6Address */ + 2 /* ipv6Port */
                         + 1 + params->preferred_addr.cid.datalen /* CID */ +
-                        NGTCP2_STATELESS_RESET_TOKENLEN;
+                        sizeof(params->preferred_addr.stateless_reset_token);
     len += ngtcp2_put_uvarintlen(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
            ngtcp2_put_uvarintlen(preferred_addrlen) + preferred_addrlen;
   }
@@ -523,12 +523,12 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
   }
 
   /* Set default values */
-  memset(params, 0, sizeof(*params));
-  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
-  params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  params->active_connection_id_limit =
-    NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  *params = (ngtcp2_transport_params){
+    .max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE,
+    .ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT,
+    .max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY,
+    .active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
+  };
 
   p = end = data;
 
@@ -626,7 +626,8 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
       }
       len = 4 /* ipv4Address */ + 2 /* ipv4Port */ + 16 /* ipv6Address */ +
             2 /* ipv6Port */
-            + 1 /* cid length */ + NGTCP2_STATELESS_RESET_TOKENLEN;
+            + 1 /* cid length */ +
+            sizeof(params->preferred_addr.stateless_reset_token);
       if (valuelen < len) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }

@@ -34,6 +34,9 @@ from io import open
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
+ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
+NODE_TEST_PATTERN = re.compile(r"('|`|\")node:test\1")
+RLIMIT_AS_PATTERN = re.compile(r"//\s+RLIMIT_AS:\s*(\d+)")
 
 class SimpleTestCase(test.TestCase):
 
@@ -48,6 +51,14 @@ class SimpleTestCase(test.TestCase):
     else:
       self.additional_flags = []
 
+  def _parse_source_env(self, source):
+    env_match = ENV_PATTERN.search(source)
+    env = {}
+    if env_match:
+      for env_pair in env_match.group(1).strip().split():
+        var, value = env_pair.split('=')
+        env[var] = value
+    return env
 
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
@@ -55,10 +66,11 @@ class SimpleTestCase(test.TestCase):
   def GetName(self):
     return self.path[-1]
 
-  def GetCommand(self):
+  def GetRunConfiguration(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
     source = open(self.file, encoding='utf8').read()
     flags_match = FLAGS_PATTERN.search(source)
+    envs = self._parse_source_env(source)
     if flags_match:
       flags = flags_match.group(1).strip().split()
       # The following block reads config.gypi to extract the v8_enable_inspector
@@ -85,15 +97,31 @@ class SimpleTestCase(test.TestCase):
         # TODO(joyeecheung): add this to the status file variables so that we can
         # list the crypto dependency in the status files explicitly instead.
         print(': Skipping as node was compiled without crypto support')
+      elif (('--experimental-ffi' in flags or
+          '--no-experimental-ffi' in flags or
+          '--allow-ffi' in flags) and
+          not self.context.node_has_ffi):
+        print(': Skipping as node was compiled without FFI support')
       else:
         result += flags
+
+    rlimit_as_match = RLIMIT_AS_PATTERN.search(source)
+    if rlimit_as_match:
+      self.max_virtual_memory = int(rlimit_as_match.group(1))
+
+    if self.context.use_error_reporter and NODE_TEST_PATTERN.search(source):
+      result += ['--test-reporter=./test/common/test-error-reporter.js',
+                 '--test-reporter-destination=stdout']
 
     if self.additional_flags:
       result += self.additional_flags
 
     result += [self.file]
 
-    return result
+    return {
+        'command': result,
+        'envs': envs
+    }
 
   def GetSource(self):
     return open(self.file).read()
@@ -147,9 +175,7 @@ class AddonTestConfiguration(SimpleTestConfiguration):
     result = []
     for subpath in os.listdir(path):
       if os.path.isdir(os.path.join(path, subpath)):
-        for f in os.listdir(os.path.join(path, subpath)):
-          if SelectTest(f):
-            result.append([subpath, f[:-3]])
+        result.extend([subpath, f[:-3]] for f in os.listdir(os.path.join(path, subpath)) if SelectTest(f))
     return result
 
   def ListTests(self, current_path, path, arch, mode):
@@ -172,16 +198,4 @@ class AbortTestConfiguration(SimpleTestConfiguration):
          current_path, path, arch, mode)
     for tst in result:
       tst.disable_core_files = True
-    return result
-
-class WasmAllocationTestConfiguration(SimpleTestConfiguration):
-  def __init__(self, context, root, section, additional=None):
-    super(WasmAllocationTestConfiguration, self).__init__(context, root, section,
-                                                          additional)
-
-  def ListTests(self, current_path, path, arch, mode):
-    result = super(WasmAllocationTestConfiguration, self).ListTests(
-         current_path, path, arch, mode)
-    for tst in result:
-      tst.max_virtual_memory = 5 * 1024 * 1024 * 1024 # 5GB
     return result

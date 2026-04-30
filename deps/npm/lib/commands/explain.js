@@ -17,8 +17,6 @@ class Explain extends ArboristWorkspaceCmd {
 
   static ignoreImplicitWorkspace = false
 
-  // TODO
-  /* istanbul ignore next */
   static async completion (opts, npm) {
     const completion = require('../utils/installed-deep.js')
     return completion(npm, opts)
@@ -92,7 +90,7 @@ class Explain extends ArboristWorkspaceCmd {
     }
 
     // if it's a location, get that node
-    const maybeLoc = arg.replace(/\\/g, '/').replace(/\/+$/, '')
+    const maybeLoc = arg.replace(/\\/g, '/').replace(/(?<!\/)\/+$/, '')
     const nodeByLoc = tree.inventory.get(maybeLoc)
     if (nodeByLoc) {
       return [nodeByLoc]
@@ -100,7 +98,7 @@ class Explain extends ArboristWorkspaceCmd {
 
     // maybe a path to a node_modules folder
     const maybePath = relative(this.npm.prefix, resolve(maybeLoc))
-      .replace(/\\/g, '/').replace(/\/+$/, '')
+      .replace(/\\/g, '/').replace(/(?<!\/)\/+$/, '')
     const nodeByPath = tree.inventory.get(maybePath)
     if (nodeByPath) {
       return [nodeByPath]

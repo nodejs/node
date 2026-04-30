@@ -38,9 +38,11 @@ ABSL_NAMESPACE_BEGIN
 // TODO(b/176172494): ABSL_MUST_USE_RESULT should expand to the more strict
 // [[nodiscard]]. For now, just use [[nodiscard]] directly when it is available.
 #if ABSL_HAVE_CPP_ATTRIBUTE(nodiscard)
-class [[nodiscard]] ABSL_ATTRIBUTE_TRIVIAL_ABI Status;
+class [[nodiscard]] ABSL_ATTRIBUTE_TRIVIAL_ABI
+    Status;
 #else
-class ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_TRIVIAL_ABI Status;
+class ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_TRIVIAL_ABI
+    Status;
 #endif
 ABSL_NAMESPACE_END
 }  // namespace absl
@@ -100,7 +102,7 @@ class StatusRep {
   // Returns an equivalent heap allocated StatusRep with refcount 1.
   //
   // `this` is not safe to be used after calling as it may have been deleted.
-  absl::Nonnull<StatusRep*> CloneAndUnref() const;
+  StatusRep* absl_nonnull CloneAndUnref() const;
 
  private:
   mutable std::atomic<int32_t> ref_;
@@ -120,9 +122,8 @@ absl::StatusCode MapToLocalCode(int value);
 //
 // This is an internal implementation detail for Abseil logging.
 ABSL_ATTRIBUTE_PURE_FUNCTION
-absl::Nonnull<std::string*> MakeCheckFailString(
-    absl::Nonnull<const absl::Status*> status,
-    absl::Nonnull<const char*> prefix);
+const char* absl_nonnull MakeCheckFailString(
+    const absl::Status* absl_nonnull status, const char* absl_nonnull prefix);
 
 }  // namespace status_internal
 

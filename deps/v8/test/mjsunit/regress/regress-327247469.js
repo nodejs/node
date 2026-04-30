@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
-// Flags: --const-tracking-let --no-lazy-feedback-allocation
+// Flags: --allow-natives-syntax --turbofan
+// Flags: --script-context-cells --no-lazy-feedback-allocation
 
 let v15 = 0;
 const v22 = [];

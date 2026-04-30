@@ -397,6 +397,8 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
   getArgsDispatch() {
     let dispatch = {
       __proto__:null,
+      '-ni': ['negativeStateFilter', TickProcessor.VmStates.IDLE,
+              'Ignore ticks from the IDLE VM state'],
       '-j': ['stateFilter', TickProcessor.VmStates.JS,
         'Show only ticks from JS VM state'],
       '-g': ['stateFilter', TickProcessor.VmStates.GC,
@@ -477,6 +479,7 @@ export class ArgumentsProcessor extends BaseArgumentsProcessor {
       logFileName: 'v8.log',
       platform: 'linux',
       stateFilter: null,
+      negativeStateFilter: null,
       callGraphSize: 5,
       ignoreUnknown: false,
       separateIc: true,
@@ -526,6 +529,7 @@ export class TickProcessor extends LogReader {
       params.callGraphSize,
       params.ignoreUnknown,
       params.stateFilter,
+      params.negativeStateFilter,
       params.distortion,
       params.range,
       params.sourceMap,
@@ -547,6 +551,7 @@ export class TickProcessor extends LogReader {
     callGraphSize,
     ignoreUnknown,
     stateFilter,
+    negativeStateFilter,
     distortion,
     range,
     sourceMap,
@@ -636,6 +641,7 @@ export class TickProcessor extends LogReader {
     this.callGraphSize_ = callGraphSize;
     this.ignoreUnknown_ = ignoreUnknown;
     this.stateFilter_ = stateFilter;
+    this.negativeStateFilter_ = negativeStateFilter;
     this.runtimeTimerFilter_ = runtimeTimerFilter;
     this.sourceMap = this.loadSourceMap(sourceMap);
     const ticks = this.ticks_ =
@@ -710,7 +716,10 @@ export class TickProcessor extends LogReader {
     COMPILER: 4,
     OTHER: 5,
     EXTERNAL: 6,
-    IDLE: 7,
+    ATOMICS_WAIT: 7,
+    IDLE: 8,
+    LOGGING: 9,
+    IDLE_EXTERNAL: 10,
   };
 
   static CodeTypes = {
@@ -812,7 +821,9 @@ export class TickProcessor extends LogReader {
   }
 
   includeTick(vmState) {
-    if (this.stateFilter_ !== null) {
+    if (this.negativeStateFilter_ != null) {
+      return this.negativeStateFilter_ != vmState;
+    } else if (this.stateFilter_ !== null) {
       return this.stateFilter_ == vmState;
     } else if (this.runtimeTimerFilter_ !== null) {
       return this.currentRuntimeTimer == this.runtimeTimerFilter_;

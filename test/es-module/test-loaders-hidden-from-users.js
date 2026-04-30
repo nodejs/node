@@ -10,7 +10,7 @@ assert.throws(
     require('internal/bootstrap/realm');
   }, {
     code: 'MODULE_NOT_FOUND',
-    message: /Cannot find module 'internal\/bootstrap\/realm'/
+    message: /Cannot find module 'internal\/bootstrap\/realm'/,
   }
 );
 
@@ -23,6 +23,6 @@ assert.throws(
     require('owo');
   }, {
     code: 'MODULE_NOT_FOUND',
-    message: /Cannot find module 'owo'/
+    message: /Cannot find module 'owo'/,
   }
 );

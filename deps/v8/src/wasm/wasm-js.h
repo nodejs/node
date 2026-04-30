@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_JS_H_
+#define V8_WASM_WASM_JS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_WASM_JS_H_
-#define V8_WASM_WASM_JS_H_
-
 #include <memory>
 
 #include "src/common/globals.h"
+#include "src/wasm/wasm-features.h"
 
 namespace v8 {
 class Value;
@@ -42,8 +43,13 @@ V8_EXPORT_PRIVATE std::unique_ptr<WasmStreaming> StartStreamingForTesting(
   V(WebAssemblyInstanceGetExports)         \
   V(WebAssemblyInstantiate)                \
   V(WebAssemblyMemory)                     \
+  V(WebAssemblyMemoryMapDescriptor)        \
   V(WebAssemblyMemoryGetBuffer)            \
   V(WebAssemblyMemoryGrow)                 \
+  V(WebAssemblyMemoryMapDescriptorMap)     \
+  V(WebAssemblyMemoryMapDescriptorUnmap)   \
+  V(WebAssemblyMemoryToFixedLengthBuffer)  \
+  V(WebAssemblyMemoryToResizableBuffer)    \
   V(WebAssemblyModule)                     \
   V(WebAssemblyModuleCustomSections)       \
   V(WebAssemblyModuleExports)              \
@@ -70,23 +76,39 @@ class WasmJs {
   V8_EXPORT_PRIVATE static void PrepareForSnapshot(Isolate* isolate);
 
   // Finalizes API object setup:
-  // - installs the WebAssembly object on the global object, if requested; and
+  // - installs the WebAssembly object on the global object (depending on
+  //   flags), and
   // - creates API objects and properties that depend on runtime-enabled flags.
-  V8_EXPORT_PRIVATE static void Install(Isolate* isolate,
-                                        bool exposed_on_global_object);
-  V8_EXPORT_PRIVATE static void InstallModule(Isolate* isolate,
-                                              Handle<JSObject> webassembly);
+  V8_EXPORT_PRIVATE static void Install(Isolate* isolate);
 
+  // Extend the API based on late-enabled features, mostly from origin trial.
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
-      Isolate* isolate, Handle<NativeContext> context);
+      Isolate* isolate, DirectHandle<NativeContext> context);
+
+  // Parse compile time imports from a given argument.
+  V8_EXPORT_PRIVATE static wasm::CompileTimeImports
+  CompileTimeImportsFromArgument(DirectHandle<Object> arg, Isolate*,
+                                 wasm::WasmEnabledFeatures);
+
+ private:
+  V8_EXPORT_PRIVATE static void InstallModule(
+      Isolate* isolate, DirectHandle<JSObject> webassembly);
+
+  V8_EXPORT_PRIVATE static void InstallMemoryControl(
+      Isolate* isolate, DirectHandle<NativeContext> context,
+      DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallTypeReflection(
       Isolate* isolate, DirectHandle<NativeContext> context,
-      Handle<JSObject> webassembly);
+      DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
       Isolate* isolate, DirectHandle<NativeContext> context,
-      Handle<JSObject> webassembly);
+      DirectHandle<JSObject> webassembly);
+
+  V8_EXPORT_PRIVATE static void InstallResizableBufferIntegration(
+      Isolate* isolate, DirectHandle<NativeContext> context,
+      DirectHandle<JSObject> webassembly);
 };
 
 }  // namespace v8::internal

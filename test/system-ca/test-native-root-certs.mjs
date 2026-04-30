@@ -3,7 +3,7 @@
 import * as common from '../common/index.mjs';
 import assert from 'node:assert/strict';
 import https from 'node:https';
-import fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 import { it, beforeEach, afterEach, describe } from 'node:test';
 import { once } from 'events';
 
@@ -22,7 +22,7 @@ const handleRequest = (req, res) => {
       res.end('hello world\n');
       break;
     default:
-      assert(false, `Unexpected path: ${path}`);
+      assert.fail(`Unexpected path: ${path}`);
   }
 };
 

@@ -7,8 +7,8 @@ function __f_4() {
 }
 
 arr = [];
-arr.length = 65535;
+arr.length = 65526;
 
 assertThrows(() => __f_4.bind(null,...arr),
              RangeError,
-             "Too many arguments in function call (only 65535 allowed)");
+             "Too many arguments in function call (only 65525 allowed)");

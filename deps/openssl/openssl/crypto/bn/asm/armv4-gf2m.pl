@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -37,7 +37,7 @@
 # Câmara, D.; Gouvêa, C. P. L.; López, J. & Dahab, R.: Fast Software
 # Polynomial Multiplication on ARM Processors using the NEON Engine.
 #
-# http://conradoplg.cryptoland.net/files/2010/12/mocrysen13.pdf
+# https://conradoplg.modp.net/files/2010/12/mocrysen13.pdf
 
 # $output is the last argument if it looks like a file (it has an extension)
 # $flavour is the first argument if it doesn't look like a file
@@ -325,7 +325,8 @@ $code.=<<___;
 .align	5
 
 #if __ARM_MAX_ARCH__>=7
-.comm	OPENSSL_armcap_P,4,4
+.extern	OPENSSL_armcap_P
+.hidden	OPENSSL_armcap_P
 #endif
 ___
 

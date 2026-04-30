@@ -12,22 +12,28 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/heap/factory.h"
+#include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/lookup-inl.h"
+#include "src/objects/object-list-macros.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-compiler.h"
-#include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-export-wrapper-cache.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
@@ -49,7 +55,7 @@ class RuntimeArgumentsWithoutHandles : public RuntimeArguments {
  private:
   // Disallowing the superclass method.
   template <class S = Object>
-  V8_INLINE Handle<S> at(int index) const;
+  V8_INLINE DirectHandle<S> at(int index) const;
 };
 
 #define RuntimeArguments RuntimeArgumentsWithoutHandles
@@ -64,7 +70,8 @@ class FrameFinder {
   explicit FrameFinder(Isolate* isolate,
                        std::initializer_list<StackFrame::Type>
                            skipped_frame_types = {StackFrame::EXIT})
-      : frame_iterator_(isolate, isolate->thread_local_top()) {
+      : frame_iterator_(isolate, isolate->thread_local_top(),
+                        StackFrameIterator::FirstStackOnly{}) {
     // We skip at least one frame.
     DCHECK_LT(0, skipped_frame_types.size());
 
@@ -83,63 +90,6 @@ class FrameFinder {
   StackFrameIterator frame_iterator_;
 };
 
-Tagged<WasmTrustedInstanceData> GetWasmInstanceDataOnStackTop(
-    Isolate* isolate) {
-  Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
-  fp = Memory<Address>(fp + ExitFrameConstants::kCallerFPOffset);
-#ifdef DEBUG
-  intptr_t marker =
-      Memory<intptr_t>(fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-  DCHECK(StackFrame::MarkerToType(marker) == StackFrame::WASM);
-#endif
-  Tagged<Object> trusted_instance_data(
-      Memory<Address>(fp + WasmFrameConstants::kWasmInstanceDataOffset));
-  return Cast<WasmTrustedInstanceData>(trusted_instance_data);
-}
-
-Tagged<Context> GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceDataOnStackTop(isolate)->native_context();
-}
-
-class V8_NODISCARD ClearThreadInWasmScope {
- public:
-  explicit ClearThreadInWasmScope(Isolate* isolate)
-      : isolate_(isolate), is_thread_in_wasm_(trap_handler::IsThreadInWasm()) {
-    // In some cases we call this from Wasm code inlined into JavaScript
-    // so the flag might not be set.
-    if (is_thread_in_wasm_) {
-      trap_handler::ClearThreadInWasm();
-    }
-
-#if V8_ENABLE_DRUMBRAKE
-    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
-        !v8_flags.wasm_jitless) {
-      isolate->wasm_execution_timer()->Stop();
-    }
-#endif  // V8_ENABLE_DRUMBRAKE
-  }
-  ~ClearThreadInWasmScope() {
-    DCHECK_IMPLIES(trap_handler::IsTrapHandlerEnabled(),
-                   !trap_handler::IsThreadInWasm());
-    if (!isolate_->has_exception() && is_thread_in_wasm_) {
-      trap_handler::SetThreadInWasm();
-
-#if V8_ENABLE_DRUMBRAKE
-      if (v8_flags.wasm_enable_exec_time_histograms &&
-          v8_flags.slow_histograms && !v8_flags.wasm_jitless) {
-        isolate_->wasm_execution_timer()->Start();
-      }
-#endif  // V8_ENABLE_DRUMBRAKE
-    }
-    // Otherwise we only want to set the flag if the exception is caught in
-    // wasm. This is handled by the unwinder.
-  }
-
- private:
-  Isolate* isolate_;
-  const bool is_thread_in_wasm_;
-};
-
 Tagged<Object> ThrowWasmError(
     Isolate* isolate, MessageTemplate message,
     std::initializer_list<DirectHandle<Object>> args = {}) {
@@ -151,7 +101,7 @@ Tagged<Object> ThrowWasmError(
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  Handle<JSObject> error_obj =
+  DirectHandle<JSObject> error_obj =
       isolate->factory()->NewWasmRuntimeError(message, base::VectorOf(args));
   JSObject::AddProperty(isolate, error_obj,
                         isolate->factory()->wasm_uncatchable_symbol(),
@@ -161,7 +111,7 @@ Tagged<Object> ThrowWasmError(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
-  SealHandleScope scope(isolate);
+  SealHandleScope seal_handle_scope(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> value = args[0];
   if (IsWasmFuncRef(value)) {
@@ -170,9 +120,9 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
     Tagged<JSFunction> external;
     if (internal->try_get_external(&external)) return external;
     // Slow path:
-    HandleScope scope(isolate);
+    HandleScope handle_scope(isolate);
     return *WasmInternalFunction::GetOrCreateExternal(
-        handle(internal, isolate));
+        direct_handle(internal, isolate));
   }
   if (IsWasmNull(value)) return ReadOnlyRoots(isolate).null_value();
   return value;
@@ -183,25 +133,17 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
 // otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> value(args[1], isolate);
-  // Make sure ValueType fits properly in a Smi.
-  static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(2);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> value(args[0], isolate);
+  // Make sure CanonicalValueType fits properly in a Smi.
+  static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
+  int raw_type = args.smi_value_at(1);
 
-  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
-  uint32_t canonical_index = wasm::kInvalidCanonicalIndex;
-  if (type.has_index()) {
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-        Cast<WasmTrustedInstanceData>(args[0]), isolate);
-    const wasm::WasmModule* module = trusted_instance_data->module();
-    DCHECK_NOT_NULL(module);
-    canonical_index = module->isorecursive_canonical_type_ids[type.ref_index()];
-  }
+  wasm::CanonicalValueType type =
+      wasm::CanonicalValueType::FromRawBitField(raw_type);
   const char* error_message;
-  Handle<Object> result;
-  if (!JSToWasmObject(isolate, value, type, canonical_index, &error_message)
-           .ToHandle(&result)) {
+  DirectHandle<Object> result;
+  if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
     return isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
   }
@@ -210,71 +152,61 @@ RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
 
 // Parameters:
 // args[0]: the object, any JS value.
-// args[1]: the expected ValueType, Smi-tagged.
-// args[2]: the expected canonical type index, Smi-tagged, if the type is
-//          an indexed reftype.
+// args[1]: the expected canonicalized ValueType, Smi-tagged.
 // Type checks the object against the type; if the check succeeds, returns the
 // object in its wasm representation; otherwise throws a type error.
 RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
-  // TODO(manoskouk): Use {SaveAndClearThreadInWasmFlag} in runtime-utils.cc.
-  bool thread_in_wasm = trap_handler::IsThreadInWasm();
-  if (thread_in_wasm) trap_handler::ClearThreadInWasm();
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> value(args[0], isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> value(args[0], isolate);
   // Make sure ValueType fits properly in a Smi.
-  static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+  static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
   int raw_type = args.smi_value_at(1);
-  int canonical_index = args.smi_value_at(2);
 
-  wasm::ValueType expected = wasm::ValueType::FromRawBitField(raw_type);
+  wasm::CanonicalValueType expected =
+      wasm::CanonicalValueType::FromRawBitField(raw_type);
   const char* error_message;
-  Handle<Object> result;
-  bool success =
-      JSToWasmObject(isolate, value, expected, canonical_index, &error_message)
-          .ToHandle(&result);
+  DirectHandle<Object> result;
+  bool success = JSToWasmObject(isolate, value, expected, &error_message)
+                     .ToHandle(&result);
   Tagged<Object> ret = success
                            ? *result
                            : isolate->Throw(*isolate->factory()->NewTypeError(
                                  MessageTemplate::kWasmTrapJSTypeError));
-  if (thread_in_wasm && !isolate->has_exception()) {
-    trap_handler::SetThreadInWasm();
-  }
   return ret;
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   // {memory_index} and {delta_pages} are checked to be positive Smis in the
   // WasmMemoryGrow builtin which calls this runtime function.
   uint32_t memory_index = args.positive_smi_value_at(1);
   uint32_t delta_pages = args.positive_smi_value_at(2);
 
-  Handle<WasmMemoryObject> memory_object{
+  DirectHandle<WasmMemoryObject> memory_object{
       trusted_instance_data->memory_object(memory_index), isolate};
   int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
-  DCHECK(!isolate->has_exception());
+  DCHECK(!isolate->has_exception() ||
+         IsTerminationException(isolate->exception()));
   return Smi::FromInt(ret);
 }
 
 RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
-  ClearThreadInWasmScope flag_scope(isolate);
+  CHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
-  std::vector<FrameSummary> summary;
   FrameFinder<WasmFrame> frame_finder(isolate, {StackFrame::EXIT});
   WasmFrame* frame = frame_finder.frame();
   // TODO(ahaas): We cannot use frame->position() here because for inlined
   // function it does not return the correct source position. We should remove
   // frame->position() to avoid problems in the future.
-  frame->Summarize(&summary);
-  DCHECK(summary.back().IsWasm());
-  int pos = summary.back().AsWasm().SourcePosition();
+  FrameSummaries summaries = frame->Summarize();
+  DCHECK(summaries.frames.back().IsWasm());
+  int pos = summaries.frames.back().AsWasm().SourcePosition();
 
   wasm::WasmCodeRefScope code_ref_scope;
   auto wire_bytes = frame->wasm_code()->native_module()->wire_bytes();
@@ -285,21 +217,24 @@ RUNTIME_FUNCTION(Runtime_TrapHandlerThrowWasmError) {
       // Calling imported string function with null can trigger a signal.
       op == wasm::kExprCallFunction || op == wasm::kExprReturnCall) {
     message = MessageTemplate::kWasmTrapNullDereference;
-#if DEBUG
-  } else {
-    if (wasm::WasmOpcodes::IsPrefixOpcode(op)) {
-      op = wasm::Decoder{wire_bytes}
-               .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
-                   &wire_bytes.begin()[pos])
-               .first;
+  } else if (op == wasm::kAtomicPrefix) {
+    op = wasm::Decoder{wire_bytes}
+             .read_prefixed_opcode<wasm::Decoder::NoValidationTag>(
+                 &wire_bytes.begin()[pos])
+             .first;
+    // shared-everything atomic instructions.
+    if (op >= 0xFE4F) {
+      message = MessageTemplate::kWasmTrapNullDereference;
     }
-#endif  // DEBUG
+#define CASE(name, ...) || op == wasm::kExpr##name
+    DCHECK_EQ(op >= 0xFE4F, false FOREACH_ATOMIC_GC_OPCODE(CASE));
+#undef CASE
   }
   return ThrowWasmError(isolate, message);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
-  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   int message_id = args.smi_value_at(0);
@@ -307,44 +242,46 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
   return isolate->StackOverflow();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
-  // The caller may be wasm or JS. Only clear the thread_in_wasm flag if the
-  // caller is wasm, and let the unwinder set it back depending on the handler.
-  if (trap_handler::IsTrapHandlerEnabled() && trap_handler::IsThreadInWasm()) {
-#if V8_ENABLE_DRUMBRAKE
-    // Transitioning from Wasm To JS.
-    if (v8_flags.wasm_enable_exec_time_histograms && v8_flags.slow_histograms &&
-        !v8_flags.wasm_jitless) {
-      // Stop measuring the time spent running jitted Wasm.
-      isolate->wasm_execution_timer()->Stop();
-    }
-#endif  // V8_ENABLE_DRUMBRAKE
-
-    trap_handler::ClearThreadInWasm();
-  }
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
-// This error is thrown from a wasm-to-JS wrapper, so unlike
-// Runtime_ThrowWasmError, this function does not check or unset the
-// thread-in-wasm flag.
-RUNTIME_FUNCTION(Runtime_ThrowBadSuspenderError) {
+RUNTIME_FUNCTION(Runtime_ThrowWasmJSPISuspendError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  return ThrowWasmError(isolate, MessageTemplate::kWasmTrapBadSuspender);
+  MessageTemplate message = MessageTemplate::kWasmSuspendJSFrames;
+  Tagged<WasmSuspenderObject> suspender =
+      isolate->isolate_data()->active_suspender();
+  if (IsUndefined(suspender->resume())) {
+    // We are not within a valid "WebAssembly.promising" scope. This is either a
+    // suspender created for a non-promising export call under the stress mode,
+    // or the sentinel suspender representing the initial stack.
+    // Throw with a more precise error message.
+    message = MessageTemplate::kWasmSuspendError;
+  }
+  DirectHandle<JSObject> error_obj =
+      isolate->factory()->NewWasmSuspendError(message);
+  return isolate->Throw(*error_obj);
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowWasmFXSuspendError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  MessageTemplate message = MessageTemplate::kWasmFXSuspendError;
+  DirectHandle<JSObject> error_obj =
+      isolate->factory()->NewWasmSuspendError(message);
+  return isolate->Throw(*error_obj);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
@@ -352,37 +289,34 @@ RUNTIME_FUNCTION(Runtime_WasmThrowRangeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowDataViewTypeError) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-  Handle<String> op_name =
+  DirectHandle<String> op_name =
       isolate->factory()->NewStringFromAsciiChecked(ToString(op));
-  Handle<Object> value(args[1], isolate);
+  DirectHandle<Object> value(args[1], isolate);
 
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                  NewTypeError(message_id, op_name, value));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowDataViewDetachedError) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
   DataViewOp op = static_cast<DataViewOp>(isolate->error_message_param());
-  Handle<String> op_name =
+  DirectHandle<String> op_name =
       isolate->factory()->NewStringFromAsciiChecked(ToString(op));
 
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id, op_name));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   MessageTemplate message_id = MessageTemplateFromInt(args.smi_value_at(0));
-  Handle<Object> arg(args[1], isolate);
+  DirectHandle<Object> arg(args[1], isolate);
   if (IsSmi(*arg)) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message_id));
   } else {
@@ -391,10 +325,11 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Tagged<Context> context = GetNativeContextFromWasmInstanceOnStackTop(isolate);
+  DCHECK_EQ(3, args.length());
+  Tagged<WasmTrustedInstanceData> trusted_instance_data =
+      TrustedCast<WasmTrustedInstanceData>(args[2]);
+  Tagged<Context> context = trusted_instance_data->native_context();
   isolate->set_context(context);
   DirectHandle<WasmExceptionTag> tag(Cast<WasmExceptionTag>(args[0]), isolate);
   DirectHandle<FixedArray> values(Cast<FixedArray>(args[1]), isolate);
@@ -409,16 +344,15 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmReThrow) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
-  ClearThreadInWasmScope wasm_flag(isolate);
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
 
   uint32_t gap = args.positive_smi_value_at(0);
 
@@ -430,31 +364,48 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
       StackGuard::InterruptLevel::kAnyEffect);
 }
 
+// For loop back edges in optimized code. Avoids triggering side effects that
+// could get in the way of optimizations, and doesn't need to check for real
+// stack overflows because loops don't change the stack height.
+// Note: API interrupts for debugging purposes can execute arbitrary JS,
+// and we don't guard against that here. So for very particular (and presumably
+// very unlikely) circumstances, debugging sessions can cause crashes.
+// To properly fix that, we should implement lazy-deopt support for Wasm.
+RUNTIME_FUNCTION(Runtime_WasmStackGuardLoop) {
+  DCHECK_EQ(0, args.length());
+  SealHandleScope shs(isolate);
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kNoHeapWrites);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
-  ClearThreadInWasmScope wasm_flag(isolate);
   DCHECK_EQ(2, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   int func_index = args.smi_value_at(1);
 
   TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
   DisallowHeapAllocation no_gc;
   SealHandleScope scope(isolate);
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
 
   DCHECK(isolate->context().is_null());
+  DCHECK(trusted_instance_data->has_native_context());
   isolate->set_context(trusted_instance_data->native_context());
-  bool success = wasm::CompileLazy(isolate, trusted_instance_data, func_index);
+  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  native_module->counter_updates()->Publish(isolate);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
-    wasm::ThrowLazyCompilationError(
-        isolate, trusted_instance_data->native_module(), func_index);
+    wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
 
   return Smi::FromInt(
-      wasm::JumpTableOffset(trusted_instance_data->module(), func_index));
+      wasm::JumpTableOffset(native_module->module(), func_index));
 }
 
 namespace {
@@ -480,17 +431,16 @@ Tagged<FixedArray> AllocateFeedbackVector(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
-  ClearThreadInWasmScope wasm_flag(isolate);
+  DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
+  DCHECK(v8_flags.wasm_inlining);
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   int declared_func_index = args.smi_value_at(1);
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
   wasm::NativeModule* native_module = trusted_instance_data->native_module();
-  DCHECK(native_module->enabled_features().has_inlining() ||
-         native_module->module()->is_wasm_gc);
   // We have to save the native_module on the stack, in case the allocation
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
   *native_module_stack_slot = native_module;
@@ -499,36 +449,48 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
-  ClearThreadInWasmScope wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   // Destroy the Deoptimizer object stored on the isolate.
   size_t deopt_frame_count = Deoptimizer::DeleteForWasm(isolate);
   size_t i = 0;
 
-  // For each liftoff frame, check if the feedback vector is already present.
-  // If it is not, allocate a new feedback vector for it.
+  // For each liftoff frame, replace the smi in the feedback vector slot holding
+  // the declared function index with the actual feedback vector from the
+  // WasmTrustedInstanceData. If it doesn't exist yet, it needs to be allocated
+  // (which is also the reason why this wasn't done by the deoptimizer already.)
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     if (frame->is_wasm() && WasmFrame::cast(frame)->wasm_code()->is_liftoff()) {
       Address vector_address =
           frame->fp() - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
-      Tagged<Object> vector_or_smi(Memory<intptr_t>(vector_address));
-      if (vector_or_smi.IsSmi()) {
-        int declared_func_index = Cast<Smi>(vector_or_smi).value();
-        Tagged<Object> vector =
-            trusted_instance_data->feedback_vectors()->get(declared_func_index);
-        // The vector can already exist if the same function appears multiple
-        // times in the deopted frames (i.e. it was inlined recursively).
-        if (vector == Smi::zero()) {
-          vector = AllocateFeedbackVector(isolate, trusted_instance_data,
-                                          declared_func_index);
+      Tagged<Object> feedback_slot_value(Memory<intptr_t>(vector_address));
+      CHECK(feedback_slot_value.IsSmi());
+      int declared_func_index = Cast<Smi>(feedback_slot_value).value();
+      Tagged<Object> vector =
+          trusted_instance_data->feedback_vectors()->get(declared_func_index);
+      // If the vector doesn't exist, allocate a new feedback vector. This
+      // happens if the corresponding function wasn't executed in Liftoff yet
+      // for this particular module instantiation.
+      if (vector == Smi::zero()) {
+        if (v8_flags.trace_deopt_verbose) {
+          wasm::WasmCodeRefScope code_ref_scope;
+          const wasm::WasmCode* code =
+              trusted_instance_data->native_module()->GetCode(
+                  declared_func_index);
+          PrintF(
+              "Wasm deoptimization: allocating feedback vector for function %s "
+              "[%d]\n",
+              code ? code->DebugName().c_str() : "<no code object>",
+              declared_func_index);
         }
-        memcpy(reinterpret_cast<void*>(vector_address), &vector,
-               sizeof(intptr_t));
+        vector = AllocateFeedbackVector(isolate, trusted_instance_data,
+                                        declared_func_index);
       }
+      memcpy(reinterpret_cast<void*>(vector_address), &vector,
+             sizeof(intptr_t));
       if (++i == deopt_frame_count) {
         break;  // All deopt frames have been visited.
       }
@@ -540,7 +502,8 @@ RUNTIME_FUNCTION(Runtime_WasmLiftoffDeoptFinish) {
 namespace {
 void ReplaceJSToWasmWrapper(
     Isolate* isolate, Tagged<WasmTrustedInstanceData> trusted_instance_data,
-    int function_index, Tagged<Code> wrapper_code) {
+    int function_index, Tagged<Code> wrapper_code,
+    bool receiver_is_first_param) {
   Tagged<WasmFuncRef> func_ref;
   // Always expect a func_ref. If this fails, we are maybe compiling a wrapper
   // for the start function. This function is only called once, so this should
@@ -548,11 +511,16 @@ void ReplaceJSToWasmWrapper(
   CHECK(trusted_instance_data->try_get_func_ref(function_index, &func_ref));
   Tagged<JSFunction> external_function;
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
-  if (external_function->shared()->HasWasmJSFunctionData()) return;
-  CHECK(external_function->shared()->HasWasmExportedFunctionData());
-  external_function->UpdateCode(wrapper_code);
+  if (external_function->shared()->HasWasmJSFunctionData(isolate)) return;
+  CHECK(external_function->shared()->HasWasmExportedFunctionData(isolate));
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
+  if ((function_data->receiver_is_first_param() != 0) !=
+      receiver_is_first_param) {
+    // Different "receiver is first parameter" settings, do nothing.
+    return;
+  }
+  external_function->UpdateCode(isolate, wrapper_code);
   function_data->set_wrapper_code(wrapper_code);
 }
 }  // namespace
@@ -562,40 +530,39 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
 
   // Avoid allocating a HandleScope and handles on the fast path.
   Tagged<WasmExportedFunctionData> function_data =
-      Cast<WasmExportedFunctionData>(args[0]);
+      SbxCast<WasmExportedFunctionData>(args[0]);
   Tagged<WasmTrustedInstanceData> trusted_data = function_data->instance_data();
 
   const wasm::WasmModule* module = trusted_data->module();
   const int function_index = function_data->function_index();
+  bool receiver_is_first_param = function_data->receiver_is_first_param() != 0;
   const wasm::WasmFunction& function = module->functions[function_index];
-  const uint32_t canonical_sig_index =
+  const wasm::CanonicalTypeIndex sig_id =
       module->canonical_sig_id(function.sig_index);
+  const wasm::CanonicalSig* sig =
+      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
 
-  Tagged<MaybeObject> maybe_cached_wrapper =
-      isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_index);
+  Tagged<CodeWrapper> maybe_cached_wrapper = wasm::WasmExportWrapperCache::Get(
+      isolate, sig_id, receiver_is_first_param);
   Tagged<Code> wrapper_code;
-  Tagged<CodeWrapper> wrapper_code_wrapper;
-  if (maybe_cached_wrapper.GetHeapObjectIfWeak(&wrapper_code_wrapper)) {
-    wrapper_code = wrapper_code_wrapper->code(isolate);
+  if (!maybe_cached_wrapper.is_null()) {
+    wrapper_code = maybe_cached_wrapper->code(isolate);
   } else {
-    // The wrapper code is cleared or undefined (meaning was never set).
-    DCHECK(maybe_cached_wrapper.IsCleared() ||
-           (maybe_cached_wrapper.IsStrong() &&
-            IsUndefined(maybe_cached_wrapper.GetHeapObjectAssumeStrong())));
-
     // Set the context on the isolate and open a handle scope for allocation of
     // new objects. Wrap {trusted_data} in a handle so it survives GCs.
     DCHECK(isolate->context().is_null());
     isolate->set_context(trusted_data->native_context());
     HandleScope scope(isolate);
-    Handle<WasmTrustedInstanceData> trusted_data_handle{trusted_data, isolate};
+    DirectHandle<WasmTrustedInstanceData> trusted_data_handle{trusted_data,
+                                                              isolate};
     DirectHandle<Code> new_wrapper_code =
         wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, function.sig, canonical_sig_index, module);
+            isolate, sig, receiver_is_first_param);
 
     // Compilation must have installed the wrapper into the cache.
-    DCHECK_EQ(MakeWeak(new_wrapper_code->wrapper()),
-              isolate->heap()->js_to_wasm_wrappers()->get(canonical_sig_index));
+    DCHECK_EQ(new_wrapper_code->wrapper(),
+              wasm::WasmExportWrapperCache::Get(isolate, sig_id,
+                                                receiver_is_first_param));
 
     // Reset raw pointers still needed outside the slow path.
     wrapper_code = *new_wrapper_code;
@@ -606,17 +573,21 @@ RUNTIME_FUNCTION(Runtime_TierUpJSToWasmWrapper) {
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to ensure that the wrapper is replaced, even if the function
   // is implicitly exported and is not part of the export_table.
-  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code);
+  ReplaceJSToWasmWrapper(isolate, trusted_data, function_index, wrapper_code,
+                         receiver_is_first_param);
 
   // Iterate over all exports to replace eagerly the wrapper for all functions
   // that share the signature of the function that tiered up.
   for (wasm::WasmExport exp : module->export_table) {
     if (exp.kind != wasm::kExternalFunction) continue;
     int index = static_cast<int>(exp.index);
-    const wasm::WasmFunction& exp_function = module->functions[index];
     if (index == function_index) continue;  // Already replaced.
-    if (exp_function.sig != function.sig) continue;  // Different signature.
-    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code);
+    const wasm::WasmFunction& exp_function = module->functions[index];
+    if (module->canonical_sig_id(exp_function.sig_index) != sig_id) {
+      continue;  // Different signature.
+    }
+    ReplaceJSToWasmWrapper(isolate, trusted_data, index, wrapper_code,
+                           receiver_is_first_param);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -631,195 +602,105 @@ RUNTIME_FUNCTION(Runtime_IsWasmExternalFunction) {
 RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<WasmImportData> import_data(Cast<WasmImportData>(args[0]),
+  DirectHandle<WasmImportData> import_data(SbxCast<WasmImportData>(args[0]),
                                            isolate);
 
   DCHECK(isolate->context().is_null());
   isolate->set_context(import_data->native_context());
 
-  std::unique_ptr<wasm::ValueType[]> reps;
-  wasm::FunctionSig sig = wasm::SerializedSignatureHelper::DeserializeSignature(
-      import_data->sig(), &reps);
+  const wasm::CanonicalSig* sig = import_data->sig();
   DirectHandle<Object> origin(import_data->call_origin(), isolate);
+  wasm::WasmCodeRefScope code_ref_scope;
 
-  if (IsWasmFuncRef(*origin)) {
-    // The tierup for `WasmInternalFunction is special, as there may not be an
+  if (IsWasmInternalFunction(*origin)) {
+    // The tierup for `WasmInternalFunction` is special, as there may not be an
     // instance.
-    // TODO(jkummerow): Use the WasmImportWrapperCache here.
-    size_t expected_arity = sig.parameter_count();
-    wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
+    int expected_arity = static_cast<int>(sig->parameter_count());
+    wasm::ImportCallKind kind;
     if (IsJSFunction(import_data->callable())) {
       Tagged<SharedFunctionInfo> shared =
           Cast<JSFunction>(import_data->callable())->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity != sig.parameter_count()) {
-        kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
-      }
+      kind = wasm::ImportCallKind::kJSFunction;
+    } else {
+      kind = wasm::ImportCallKind::kUseCallBuiltin;
     }
-    const wasm::WasmModule* module =
-        import_data->has_instance_data()
-            ? import_data->instance_data()->module()
-            : nullptr;
-
-    DirectHandle<Code> wasm_to_js_wrapper_code =
-        compiler::CompileWasmToJSWrapper(
-            isolate, module, &sig, kind, static_cast<int>(expected_arity),
-            static_cast<wasm::Suspend>(import_data->suspend()))
-            .ToHandleChecked();
-
-    // We have to install the optimized wrapper as `code`, as the generated
-    // code may move. `call_target` would become stale then.
-    DirectHandle<WasmInternalFunction> internal_function{
-        Cast<WasmFuncRef>(*origin)->internal(isolate), isolate};
-    import_data->set_code(*wasm_to_js_wrapper_code);
-    internal_function->set_call_target(
-        Builtins::EntryOf(Builtin::kWasmToOnHeapWasmToJsTrampoline, isolate));
+    wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
+    wasm::Suspend suspend = import_data->suspend();
+    std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
+        cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
+    DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
+              wrapper_handle->code_pointer());
+    cache->PublishCounterUpdates(isolate);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<WasmTrustedInstanceData> trusted_data(import_data->instance_data(),
-                                               isolate);
-  if (IsTuple2(*origin)) {
-    auto tuple = Cast<Tuple2>(origin);
-    Handle<WasmTrustedInstanceData> call_origin_trusted_data(
-        Cast<WasmInstanceObject>(tuple->value1())->trusted_data(isolate),
-        isolate);
-    // TODO(371565065): We do not tier up the wrapper if the JS function wasn't
-    // imported in the current instance but the signature is specific to the
-    // importing instance. Remove this bailout again.
-    if (trusted_data->module() != call_origin_trusted_data->module()) {
-      for (wasm::ValueType type : sig.all()) {
-        if (type.has_index()) {
-          // Reset the tiering budget, so that we don't have to deal with the
-          // underflow.
-          import_data->set_wrapper_budget(Smi::kMaxValue);
-          return ReadOnlyRoots(isolate).undefined_value();
-        }
-      }
-    }
-    trusted_data = call_origin_trusted_data;
-    origin = direct_handle(tuple->value2(), isolate);
-  }
-  const wasm::WasmModule* module = trusted_data->module();
-
-  // Get the function's canonical signature index.
-  uint32_t canonical_sig_index = std::numeric_limits<uint32_t>::max();
-  if (WasmImportData::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmImportData::CallOriginAsIndex(origin);
-    canonical_sig_index =
-        module->canonical_sig_id(module->functions[func_index].sig_index);
+#ifdef DEBUG
+  int table_slot = import_data->table_slot();
+  DirectHandle<WasmDispatchTable> dispatch_table;
+  DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports;
+  if (IsWasmDispatchTable(*origin)) {
+    dispatch_table = TrustedCast<WasmDispatchTable>(origin);
+    DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
   } else {
-    // Indirect function table index.
-    int entry_index = WasmImportData::CallOriginAsIndex(origin);
-    int table_count = trusted_data->dispatch_tables()->length();
-    // We have to find the table which contains the correct entry.
-    for (int table_index = 0; table_index < table_count; ++table_index) {
-      bool table_is_shared = module->tables[table_index].shared;
-      DirectHandle<WasmTrustedInstanceData> maybe_shared_data =
-          table_is_shared ? direct_handle(trusted_data->shared_part(), isolate)
-                          : trusted_data;
-      if (!maybe_shared_data->has_dispatch_table(table_index)) continue;
-      Tagged<WasmDispatchTable> table =
-          maybe_shared_data->dispatch_table(table_index);
-      if (entry_index < table->length() &&
-          table->implicit_arg(entry_index) == *import_data) {
-        canonical_sig_index = table->sig(entry_index);
-        break;
-      }
-    }
+    dispatch_table_for_imports =
+        CheckedCast<WasmDispatchTableForImports>(origin);
   }
-  DCHECK_NE(canonical_sig_index, std::numeric_limits<uint32_t>::max());
+#endif  // DEBUG
 
   // Compile a wrapper for the target callable.
-  Handle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
-                              isolate);
-  wasm::Suspend suspend = static_cast<wasm::Suspend>(import_data->suspend());
-  wasm::WasmCodeRefScope code_ref_scope;
+  DirectHandle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
+                                    isolate);
+  wasm::Suspend suspend = import_data->suspend();
 
-  wasm::NativeModule* native_module = trusted_data->native_module();
-
-  wasm::ResolvedWasmImport resolved({}, -1, callable, &sig, canonical_sig_index,
+  // We don't need to care about exactness of the import here, because that
+  // has already been validated (hence no kLinkError can happen here).
+  wasm::CanonicalValueType expected_type = wasm::CanonicalValueType::Ref(
+      sig->index(), wasm::kNotShared, wasm::RefTypeKind::kFunction);
+  wasm::ResolvedWasmImport resolved({}, -1, callable, expected_type, sig,
                                     wasm::WellKnownImport::kUninstantiated);
   wasm::ImportCallKind kind = resolved.kind();
   callable = resolved.callable();  // Update to ultimate target.
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
-  int expected_arity = static_cast<int>(sig.parameter_count());
-  if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
+  int expected_arity = static_cast<int>(sig->parameter_count());
+  if (kind == wasm::ImportCallKind ::kJSFunction) {
     expected_arity = Cast<JSFunction>(callable)
                          ->shared()
                          ->internal_formal_parameter_count_without_receiver();
   }
 
+  // Lookup or compile a wrapper.
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
-  wasm::WasmCode* wasm_code =
-      cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
-  if (!wasm_code) {
-    wasm::CompilationEnv env = wasm::CompilationEnv::ForModule(native_module);
-    wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, &sig, false, expected_arity, suspend);
-    {
-      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                                 expected_arity, suspend);
-      wasm_code = cache_scope.AddWrapper(
-          key, std::move(result), wasm::WasmCode::Kind::kWasmToJsWrapper);
-    }
-    // To avoid lock order inversion, code printing must happen after the
-    // end of the {cache_scope}.
-    wasm_code->MaybePrint();
-    isolate->counters()->wasm_generated_code_size()->Increment(
-        wasm_code->instructions().length());
-    isolate->counters()->wasm_reloc_size()->Increment(
-        wasm_code->reloc_info().length());
-    if (V8_UNLIKELY(native_module->log_code())) {
-      wasm::GetWasmEngine()->LogWrapperCode(base::VectorOf(&wasm_code, 1));
-      // Log the code immediately in the current isolate.
-      wasm::GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
-    }
-  }
-  // Note: we don't need to decrement any refcounts here, because tier-up
-  // doesn't overwrite an existing compiled wrapper, and the generic wrapper
-  // isn't refcounted.
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
+      cache->GetCompiled(isolate, {kind, sig, expected_arity, suspend});
 
-  if (WasmImportData::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmImportData::CallOriginAsIndex(origin);
-    ImportedFunctionEntry entry(trusted_data, func_index);
-    entry.set_target(wasm_code->instruction_start(), wasm_code,
-                     IsAWrapper::kYes);
+#ifdef DEBUG
+  // Check consistency of the dispatch table's target code pointer. The code
+  // pointer is owned by the import wrapper cache and was updated when compiling
+  // the wrapper.
+  if (!dispatch_table.is_null()) {
+    DCHECK_EQ(dispatch_table->target(table_slot),
+              wrapper_handle->code_pointer());
   } else {
-    // Indirect function table index.
-    int entry_index = WasmImportData::CallOriginAsIndex(origin);
-    int table_count = trusted_data->dispatch_tables()->length();
-    // We have to find the table which contains the correct entry.
-    for (int table_index = 0; table_index < table_count; ++table_index) {
-      if (!trusted_data->has_dispatch_table(table_index)) continue;
-      Tagged<WasmDispatchTable> table =
-          trusted_data->dispatch_table(table_index);
-      if (entry_index < table->length() &&
-          table->implicit_arg(entry_index) == *import_data) {
-        table->offheap_data()->Add(wasm_code->instruction_start(), wasm_code,
-                                   IsAWrapper::kYes);
-        table->SetTarget(entry_index, wasm_code->instruction_start());
-        // {ref} is used in at most one table.
-        break;
-      }
-    }
+    DCHECK_EQ(dispatch_table_for_imports->target(table_slot),
+              wrapper_handle->code_pointer());
   }
+#endif  // DEBUG
+
+  cache->PublishCounterUpdates(isolate);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   SealHandleScope shs(isolate);
 
   {
     DisallowGarbageCollection no_gc;
     DCHECK_EQ(1, args.length());
     Tagged<WasmTrustedInstanceData> trusted_data =
-        Cast<WasmTrustedInstanceData>(args[0]);
+        TrustedCast<WasmTrustedInstanceData>(args[0]);
 
     FrameFinder<WasmFrame> frame_finder(isolate);
     int func_index = frame_finder.frame()->function_index();
@@ -830,6 +711,19 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
               func_index, wasm::ExecutionTier::kTurbofan)) {
         wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
       }
+      // We call this function when the tiering budget runs out, so reset that
+      // budget to appropriately delay the next call.
+      int array_index =
+          wasm::declared_function_index(trusted_data->module(), func_index);
+      trusted_data->tiering_budget_array()[array_index].store(
+          v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
+    } else if (v8_flags.wasm_generate_compilation_hints ||
+               v8_flags.trace_wasm_generate_compilation_hints) {
+      // In this case, we do not tierup functions. However we have to remember
+      // that we marked them for tierup.
+      base::MutexGuard marked_for_tierup_mutex_guard(
+          &trusted_data->module()->marked_for_tierup_mutex);
+      trusted_data->module()->marked_for_tierup.emplace(func_index);
       // We call this function when the tiering budget runs out, so reset that
       // budget to appropriately delay the next call.
       int array_index =
@@ -853,65 +747,61 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     // Note: This might trigger a GC, which invalidates the {args} object (see
     // https://crbug.com/v8/13036#2).
     Tagged<Object> result = isolate->stack_guard()->HandleInterrupts();
-    if (IsException(result)) return result;
+    if (IsExceptionHole(result)) return result;
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   int memory_index = args.smi_value_at(1);
   double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   int32_t expected_value = NumberToInt32(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Handle<JSArrayBuffer> array_buffer{
-      trusted_instance_data->memory_object(memory_index)->array_buffer(),
-      isolate};
+  std::shared_ptr<BackingStore> backing_store =
+      trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->byte_length());
+  DCHECK_LT(offset, backing_store->byte_length());
 
   // Trap if memory is not shared, or wait is not allowed on the isolate
-  if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
+  if (!backing_store->is_shared() || !isolate->allow_atomics_wait()) {
     return ThrowWasmError(
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
         {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
   }
-  return FutexEmulation::WaitWasm32(isolate, array_buffer, offset,
+  return FutexEmulation::WaitWasm32(isolate, backing_store.get(), offset,
                                     expected_value, timeout_ns->AsInt64());
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
-  ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   int memory_index = args.smi_value_at(1);
   double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   Tagged<BigInt> expected_value = Cast<BigInt>(args[3]);
   Tagged<BigInt> timeout_ns = Cast<BigInt>(args[4]);
 
-  Handle<JSArrayBuffer> array_buffer{
-      trusted_instance_data->memory_object(memory_index)->array_buffer(),
-      isolate};
+  std::shared_ptr<BackingStore> backing_store =
+      trusted_instance_data->memory_object(memory_index)->backing_store();
   // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->byte_length());
+  DCHECK_LT(offset, backing_store->byte_length());
 
-  // Trap if memory is not shared, or if wait is not allowed on the isolate
-  if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
+  // Trap if memory is not shared, or wait is not allowed on the isolate
+  if (!backing_store->is_shared() || !isolate->allow_atomics_wait()) {
     return ThrowWasmError(
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
         {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
   }
-  return FutexEmulation::WaitWasm64(isolate, array_buffer, offset,
+  return FutexEmulation::WaitWasm64(isolate, backing_store.get(), offset,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
 }
@@ -930,11 +820,10 @@ Tagged<Object> ThrowTableOutOfBounds(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t function_index = args.positive_smi_value_at(1);
 
   return *WasmTrustedInstanceData::GetOrCreateFuncRef(
@@ -942,36 +831,27 @@ RUNTIME_FUNCTION(Runtime_WasmRefFunc) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmInternalFunctionCreateExternal) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   // TODO(14564): Pass WasmFuncRef here instead of WasmInternalFunction.
   DirectHandle<WasmInternalFunction> internal(
-      Cast<WasmInternalFunction>(args[0]), isolate);
+      TrustedCast<WasmInternalFunction>(args[0]), isolate);
   return *WasmInternalFunction::GetOrCreateExternal(internal);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
   DCHECK_LT(table_index, trusted_instance_data->tables()->length());
-  auto table = handle(
+  auto table = direct_handle(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(
-      !table->has_trusted_data()
-          ? table->type() == wasm::kWasmFuncRef
-          : (IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                         table->trusted_data(isolate)->module()) ||
-             IsSubtypeOf(table->type(),
-                         wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
-                         table->trusted_data(isolate)->module())));
+  DCHECK(table->unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction);
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -981,27 +861,19 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
   DirectHandle<Object> element(args[3], isolate);
   DCHECK_LT(table_index, trusted_instance_data->tables()->length());
-  auto table = handle(
+  auto table = direct_handle(
       Cast<WasmTableObject>(trusted_instance_data->tables()->get(table_index)),
       isolate);
   // We only use the runtime call for lazily initialized function references.
-  DCHECK(
-      !table->has_trusted_data()
-          ? table->type() == wasm::kWasmFuncRef
-          : (IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                         table->trusted_data(isolate)->module()) ||
-             IsSubtypeOf(table->type(),
-                         wasm::ValueType::RefNull(wasm::HeapType::kFuncShared),
-                         table->trusted_data(isolate)->module())));
+  DCHECK(table->unsafe_type().ref_type_kind() == wasm::RefTypeKind::kFunction);
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -1011,11 +883,10 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
-  Handle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t elem_segment_index = args.positive_smi_value_at(2);
   static_assert(
@@ -1039,11 +910,10 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t table_dst_index = args.positive_smi_value_at(1);
   uint32_t table_src_index = args.positive_smi_value_at(2);
   static_assert(
@@ -1063,12 +933,11 @@ RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK(isolate->IsOnCentralStack());
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t table_index = args.positive_smi_value_at(1);
   DirectHandle<Object> value(args[2], isolate);
   uint32_t delta = args.positive_smi_value_at(3);
@@ -1082,11 +951,10 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTableFill) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t start = args.positive_smi_value_at(2);
   DirectHandle<Object> value(args[3], isolate);
@@ -1132,7 +1000,7 @@ bool ExecuteWasmDebugBreaks(
   DCHECK_EQ(script->break_on_entry(),
             !!trusted_instance_data->break_on_entry());
   if (script->break_on_entry()) {
-    MaybeHandle<FixedArray> maybe_on_entry_breakpoints =
+    MaybeDirectHandle<FixedArray> maybe_on_entry_breakpoints =
         WasmScript::CheckBreakPoints(isolate, script,
                                      WasmScript::kOnEntryBreakpointPosition,
                                      frame->id());
@@ -1163,7 +1031,7 @@ bool ExecuteWasmDebugBreaks(
   }
 
   // Check whether we hit a breakpoint.
-  Handle<FixedArray> breakpoints;
+  DirectHandle<FixedArray> breakpoints;
   if (WasmScript::CheckBreakPoints(isolate, script, frame->position(),
                                    frame->id())
           .ToHandle(&breakpoints)) {
@@ -1182,7 +1050,6 @@ bool ExecuteWasmDebugBreaks(
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   FrameFinder<WasmFrame> frame_finder(
@@ -1209,7 +1076,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
         isolate->stack_guard()->HandleInterrupts();
     // Interrupt handling can create an exception, including the
     // termination exception.
-    if (IsException(interrupt_object, isolate)) return interrupt_object;
+    if (IsExceptionHole(interrupt_object, isolate)) return interrupt_object;
     DCHECK(IsUndefined(interrupt_object, isolate));
   }
 
@@ -1220,7 +1087,6 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 // TODO(manoskouk): Unify part of this with the implementation in
 // wasm-extern-refs.cc
 RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(5, args.length());
@@ -1234,8 +1100,9 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
       dst_array.ptr() == src_array.ptr() &&
       (dst_index < src_index ? dst_index + length > src_index
                              : src_index + length > dst_index);
-  wasm::ValueType element_type = src_array->type()->element_type();
-  if (element_type.is_reference()) {
+  wasm::CanonicalValueType element_type =
+      src_array->map()->wasm_type_info()->element_type();
+  if (element_type.is_ref()) {
     ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
     ObjectSlot src_slot = src_array->ElementSlot(src_index);
     if (overlapping_ranges) {
@@ -1258,43 +1125,55 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<WasmTrustedInstanceData> trusted_data{
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate};
+  DirectHandle<Map> map{Cast<Map>(args[1]), isolate};
+  wasm::ModuleTypeIndex type_index{args.positive_smi_value_at(2)};
+  DirectHandle<Object> first_field{args[3], isolate};
+  return *WasmStruct::AllocateDescriptorUninitialized(
+      isolate, trusted_data, type_index, map, first_field);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
-  Handle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t segment_index = args.positive_smi_value_at(1);
   uint32_t offset = args.positive_smi_value_at(2);
   uint32_t length = args.positive_smi_value_at(3);
   DirectHandle<Map> rtt(Cast<Map>(args[4]), isolate);
 
-  wasm::ArrayType* type =
-      reinterpret_cast<wasm::ArrayType*>(rtt->wasm_type_info()->native_type());
+  wasm::CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
 
-  uint32_t element_size = type->element_type().value_kind_size();
+  uint32_t element_size = element_type.value_kind_size();
   // This check also implies no overflow.
   if (length > static_cast<uint32_t>(WasmArray::MaxLength(element_size))) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
   }
 
-  if (type->element_type().is_numeric()) {
+  if (element_type.is_numeric()) {
     // No chance of overflow due to the check above.
     uint32_t length_in_bytes = length * element_size;
 
-    if (!base::IsInBounds<uint32_t>(
-            offset, length_in_bytes,
-            trusted_instance_data->data_segment_sizes()->get(segment_index))) {
+    wasm::WireBytesRef segment_source =
+        trusted_instance_data->data_segments()->get(segment_index);
+    if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
+                                    segment_source.length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    Address source =
-        trusted_instance_data->data_segment_starts()->get(segment_index) +
-        offset;
-    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
+    base::Vector<const uint8_t> source =
+        trusted_instance_data->native_module()->wire_bytes() +
+        segment_source.offset() + offset;
+    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt,
+                                                       element_type, source);
   } else {
-    Handle<Object> elem_segment_raw = handle(
+    DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
         &trusted_instance_data->module()->elem_segments[segment_index];
@@ -1308,11 +1187,14 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
       return ThrowWasmError(
           isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
     }
-    // TODO(14616): Pass the correct instance data.
+    DirectHandle<WasmTrustedInstanceData> shared_instance =
+        trusted_instance_data->has_shared_part()
+            ? handle(trusted_instance_data->shared_part(), isolate)
+            : trusted_instance_data;
     DirectHandle<Object> result =
         isolate->factory()->NewWasmArrayFromElementSegment(
-            trusted_instance_data, trusted_instance_data, segment_index, offset,
-            length, rtt);
+            trusted_instance_data, shared_instance, segment_index, offset,
+            length, rtt, element_type);
     if (IsSmi(*result)) {
       return ThrowWasmError(
           isolate, static_cast<MessageTemplate>(Cast<Smi>(*result).value()));
@@ -1323,23 +1205,20 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
-  Handle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t segment_index = args.positive_smi_value_at(1);
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
   uint32_t array_index = args.positive_smi_value_at(3);
   uint32_t segment_offset = args.positive_smi_value_at(4);
   uint32_t length = args.positive_smi_value_at(5);
 
-  wasm::ArrayType* type = reinterpret_cast<wasm::ArrayType*>(
-      array->map()->wasm_type_info()->native_type());
+  wasm::CanonicalValueType element_type =
+      array->map()->wasm_type_info()->element_type();
 
-  uint32_t element_size = type->element_type().value_kind_size();
-
-  if (type->element_type().is_numeric()) {
+  if (element_type.is_numeric()) {
     if (!base::IsInBounds<uint32_t>(array_index, length, array->length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapArrayOutOfBounds);
@@ -1347,30 +1226,30 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 
     // No chance of overflow, due to the check above and the limit in array
     // length.
-    uint32_t length_in_bytes = length * element_size;
+    uint32_t length_in_bytes = length * element_type.value_kind_size();
 
-    if (!base::IsInBounds<uint32_t>(
-            segment_offset, length_in_bytes,
-            trusted_instance_data->data_segment_sizes()->get(segment_index))) {
+    wasm::WireBytesRef segment_source =
+        trusted_instance_data->data_segments()->get(segment_index);
+    if (!base::IsInBounds<uint32_t>(segment_offset, length_in_bytes,
+                                    segment_source.length())) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    Address source =
-        trusted_instance_data->data_segment_starts()->get(segment_index) +
-        segment_offset;
-    Address dest = array->ElementAddress(array_index);
+    base::Vector<const uint8_t> wire_bytes =
+        trusted_instance_data->native_module()->wire_bytes();
+    const uint8_t* source =
+        wire_bytes.begin() + segment_source.offset() + segment_offset;
+    void* dest = reinterpret_cast<void*>(array->ElementAddress(array_index));
 #if V8_TARGET_BIG_ENDIAN
-    MemCopyAndSwitchEndianness(reinterpret_cast<void*>(dest),
-                               reinterpret_cast<void*>(source), length,
-                               element_size);
+    MemCopyAndSwitchEndianness(dest, source, length,
+                               element_type.value_kind_size());
 #else
-    MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
-            length_in_bytes);
+    MemCopy(dest, source, length_in_bytes);
 #endif
     return *isolate->factory()->undefined_value();
   } else {
-    Handle<Object> elem_segment_raw = handle(
+    DirectHandle<Object> elem_segment_raw(
         trusted_instance_data->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
         &trusted_instance_data->module()->elem_segments[segment_index];
@@ -1391,17 +1270,17 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 
     // If the element segment has not been initialized yet, lazily initialize it
     // now.
-    AccountingAllocator allocator;
-    Zone zone(&allocator, ZONE_NAME);
-    // TODO(14616): Fix the instance data.
-    std::optional<MessageTemplate> opt_error =
-        wasm::InitializeElementSegment(&zone, isolate, trusted_instance_data,
-                                       trusted_instance_data, segment_index);
+    DirectHandle<WasmTrustedInstanceData> shared_instance =
+        trusted_instance_data->has_shared_part()
+            ? handle(trusted_instance_data->shared_part(), isolate)
+            : trusted_instance_data;
+    std::optional<MessageTemplate> opt_error = wasm::InitializeElementSegment(
+        isolate, trusted_instance_data, shared_instance, segment_index);
     if (opt_error.has_value()) {
       return ThrowWasmError(isolate, opt_error.value());
     }
 
-    auto elements = handle(
+    auto elements = direct_handle(
         Cast<FixedArray>(
             trusted_instance_data->element_segments()->get(segment_index)),
         isolate);
@@ -1419,50 +1298,840 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
 RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   HandleScope scope(isolate);
   DirectHandle<WasmSuspenderObject> suspender =
-      isolate->factory()->NewWasmSuspenderObject();
+      isolate->factory()->NewWasmSuspenderObjectInitialized();
 
-  // Update the continuation state.
-  auto parent = handle(Cast<WasmContinuationObject>(
-                           isolate->root(RootIndex::kActiveContinuation)),
-                       isolate);
+  // Update the stack state.
   std::unique_ptr<wasm::StackMemory> target_stack =
       isolate->stack_pool().GetOrAllocate();
-  DirectHandle<WasmContinuationObject> target = WasmContinuationObject::New(
-      isolate, target_stack.get(), wasm::JumpBuffer::Inactive, parent);
+  target_stack->jmpbuf()->parent = nullptr;
+  target_stack->jmpbuf()->stack_limit = target_stack->jslimit();
+  target_stack->jmpbuf()->sp = target_stack->base();
+  target_stack->jmpbuf()->fp = kNullAddress;
+  target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  target_stack->jmpbuf()->is_on_central_stack = false;
+
+  // Update the suspender state.
+  suspender->set_parent(isolate->isolate_data()->active_suspender());
+  suspender->set_stack(isolate, target_stack.get());
+  // The active stack is updated in {Isolate::SwitchStacks}.
+  isolate->isolate_data()->set_active_suspender(*suspender);
+
   target_stack->set_index(isolate->wasm_stacks().size());
   isolate->wasm_stacks().emplace_back(std::move(target_stack));
   for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
     SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
   }
-  isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
-
-  // Update the suspender state.
-  FullObjectSlot active_suspender_slot =
-      isolate->roots_table().slot(RootIndex::kActiveSuspender);
-  suspender->set_parent(
-      Cast<UnionOf<Undefined, WasmSuspenderObject>>(*active_suspender_slot));
-  suspender->set_state(WasmSuspenderObject::kActive);
-  suspender->set_continuation(*target);
-  active_suspender_slot.store(*suspender);
 
   // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
-  wasm::JumpBuffer* jmpbuf = reinterpret_cast<wasm::JumpBuffer*>(
-      parent->ReadExternalPointerField<kWasmContinuationJmpbufTag>(
-          WasmContinuationObject::kJmpbufOffset, isolate));
-  DCHECK_EQ(jmpbuf->state, wasm::JumpBuffer::Active);
-  jmpbuf->state = wasm::JumpBuffer::Inactive;
   return *suspender;
+}
+
+// Helper function needed for the stress stack switching mode.
+// This is a runtime function to avoid writing trusted space memory from
+// generated code.
+RUNTIME_FUNCTION(Runtime_ClearWasmSuspenderResumeField) {
+  // Should only be used in stress stack switching mode.
+  CHECK(v8_flags.stress_wasm_stack_switching);
+
+  DCHECK_EQ(1, args.length());
+  Tagged<WasmSuspenderObject> suspender =
+      TrustedCast<WasmSuspenderObject>(args[0]);
+  suspender->set_resume(ReadOnlyRoots(isolate).undefined_value());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+namespace {
+
+class PrototypesSetup : public wasm::Decoder {
+ public:
+  struct Method {
+    enum Kind : uint8_t { kMethod = 0, kGetter = 1, kSetter = 2 };
+
+    Kind kind;
+    bool is_static;
+    base::Vector<const uint8_t> name;
+  };
+
+  PrototypesSetup(Isolate* isolate, base::Vector<const uint8_t> data)
+      : Decoder(data), isolate_(isolate) {
+    // kLength == 0 may look weird, but it's what you'd get for
+    // function wrapper(...args) { return wasm_func(this, ...args); }.
+    static constexpr int kLength = 0;
+    method_wrapper_ = isolate_->factory()->NewSharedFunctionInfoForBuiltin(
+        {}, Builtin::kWasmMethodWrapper, kLength, kDontAdapt);
+    method_wrapper_->set_native(true);
+    method_wrapper_->set_language_mode(LanguageMode::kStrict);
+  }
+
+  MaybeDirectHandle<String> ReadUtf8String(base::Vector<const uint8_t> bytes) {
+    DirectHandle<String> result;
+    if (!isolate()
+             ->factory()
+             ->NewStringFromUtf8(bytes, unibrow::Utf8Variant::kUtf8)
+             .ToHandle(&result)) {
+      DCHECK(isolate()->has_exception());
+      return {};
+    }
+    return isolate()->factory()->InternalizeString(result);
+  }
+
+  Tagged<Object> SetupPrototypes(DirectHandle<Object> constructors) {
+    uint32_t num_prototypes = consume_u32v("number of prototypes");
+    FOR_WITH_HANDLE_SCOPE(isolate(), uint32_t proto_index = 0, proto_index,
+                          proto_index < num_prototypes && ok(), proto_index++) {
+      // We have to support {null} prototypes until we try to do something
+      // with them. To avoid needing casts all over the following code, we
+      // handle that edge case separately: {prototype.is_null()} (i.e. empty
+      // handle) usually means "error", *unless* {prototype_is_null = true},
+      // in which case it means "prototype is {null}".
+      bool prototype_is_null = false;
+      DirectHandle<JSReceiver> prototype;
+      if (!NextPrototype(&prototype_is_null).To(&prototype) &&
+          !prototype_is_null) {
+        DCHECK(isolate()->has_exception());
+        return ReadOnlyRoots(isolate()).exception();
+      }
+
+      bool fast_path = CheckFastPathEligibility(prototype);
+
+      uint32_t has_constructor = consume_u32v("constructor");
+      if (!ok()) break;
+
+      if (has_constructor == 1) {
+        if (V8_UNLIKELY(prototype_is_null)) {
+          isolate()->Throw(*isolate()->factory()->NewTypeError(
+              MessageTemplate::kNonObjectPropertyStoreWithProperty,
+              isolate()->factory()->null_value(),
+              isolate()->factory()->constructor_string()));
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        DirectHandle<WasmExportedFunction> constructor;
+        if (!NextFunction().To(&constructor)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        uint32_t name_length = consume_u32v("constructor name length");
+        if (!ok()) break;
+        const uint8_t* name_start = pc();
+        consume_bytes(name_length);
+        if (!ok()) break;
+        DirectHandle<JSFunction> wrapped_constructor = InstallConstructor(
+            prototype, constructor, {name_start, name_length}, constructors);
+        if (wrapped_constructor.is_null()) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        uint32_t num_statics = consume_u32v("number of statics");
+        if (!ok()) break;
+        if (num_statics != 0) {
+          ToDictionaryMode(wrapped_constructor, num_statics);
+          for (uint32_t i = 0; i < num_statics; i++) {
+            Method method = NextMethod(true);
+            if (!ok()) break;
+            DirectHandle<WasmExportedFunction> function;
+            if (!NextFunction().To(&function) ||
+                !InstallMethod(wrapped_constructor, method, function)) {
+              DCHECK(isolate()->has_exception());
+              return ReadOnlyRoots(isolate()).exception();
+            }
+          }
+          if (!ok()) break;
+        }
+      } else if (has_constructor > 1) {
+        // Contrary to other uses of the Decoder, the built-in offset reporting
+        // is not usable here, so we have to hand-roll it.
+        errorf(0u, "invalid constructor count %d at data+%u", has_constructor,
+               pc_offset() - 1);
+        break;
+      }
+
+      uint32_t num_methods = consume_u32v("number of methods");
+      if (!ok()) break;
+      DirectHandle<NameDictionary> dictionary;
+      if (!prototype_is_null) {
+        if (IsJSObject(*prototype)) {
+          DirectHandle<JSObject> proto = Cast<JSObject>(prototype);
+          ToDictionaryMode(proto, num_methods);
+          if (fast_path) {
+            dictionary = handle(proto->property_dictionary(), isolate_);
+          }
+        }
+      } else if (num_methods > 0) {
+        DCHECK(prototype_is_null);
+        isolate()->Throw(*isolate()->factory()->NewTypeError(
+            MessageTemplate::kNonObjectPropertyStoreWithProperty,
+            isolate()->factory()->null_value(),
+            isolate()->factory()->constructor_string()));
+        return ReadOnlyRoots(isolate()).exception();
+      }
+      base::Vector<const uint8_t> last_name;
+      DirectHandle<JSFunction> getter;
+      DirectHandle<JSFunction> setter;
+      for (uint32_t i = 0; i < num_methods; i++) {
+        Method method = NextMethod(false);
+        if (!ok()) break;
+        DirectHandle<JSFunction> function;
+        if (!NextFunction().To(&function)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+
+        // Wrap the function to pass the JS receiver as first Wasm param.
+        DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
+            isolate_->native_context(), wasm::kMethodWrapperContextLength);
+        context->SetNoCell(wasm::kMethodWrapperContextSlot, *function);
+        function =
+            Factory::JSFunctionBuilder{isolate_, method_wrapper(), context}
+                .set_map(
+                    isolate_->strict_function_with_readonly_prototype_map())
+                .Build();
+        // For nicer stack traces, we could call
+        //   JSFunction::SetName(..., function, name, ...);
+        // here, but that would have a performance cost, so for now we choose
+        // to hide the wrappers on stack traces instead.
+        // Note to our future selves: if we wanted names, the most performant
+        // way would likely be to add a pre-created
+        //   strict_function_with_NAME_AND_readonly_prototype_map
+        // and use that for these wrappers, to avoid needing individual SFIs
+        // for storing their names.
+
+        if (fast_path) {
+          bool bailout = MayBeArrayIndex(method.name);
+          // If we have pending accessors, and we're moving on to something
+          // else, install them now.
+          if ((!getter.is_null() || !setter.is_null()) &&
+              (method.name != last_name || method.kind == Method::kMethod ||
+               bailout)) {
+            if (!FastPath_AddAccessorProperty(prototype, dictionary, last_name,
+                                              getter, setter)
+                     .ToHandle(&dictionary)) {
+              DCHECK(isolate()->has_exception());
+              return ReadOnlyRoots(isolate()).exception();
+            }
+            getter = {};
+            setter = {};
+          }
+          if (bailout) {
+            fast_path = false;
+            prototype->SetProperties(*dictionary);
+            if (!InstallMethod(prototype, method, function)) {
+              DCHECK(isolate()->has_exception());
+              return ReadOnlyRoots(isolate()).exception();
+            }
+            continue;
+          }
+          if (method.kind == Method::kMethod) {
+            if (!FastPath_AddDataProperty(prototype, dictionary, method.name,
+                                          function)
+                     .ToHandle(&dictionary)) {
+              DCHECK(isolate()->has_exception());
+              return ReadOnlyRoots(isolate()).exception();
+            }
+          } else if (method.kind == Method::kGetter) {
+            getter = function;
+            last_name = method.name;
+          } else if (method.kind == Method::kSetter) {
+            setter = function;
+            last_name = method.name;
+          }
+        } else {
+          if (!InstallMethod(prototype, method, function)) {
+            DCHECK(isolate()->has_exception());
+            return ReadOnlyRoots(isolate()).exception();
+          }
+        }
+      }
+      // If we used the fast path, then the extended property dictionary
+      // hasn't been installed yet, and we may still have pending accessors.
+      if (fast_path) {
+        if (!getter.is_null() || !setter.is_null()) {
+          if (!FastPath_AddAccessorProperty(prototype, dictionary, last_name,
+                                            getter, setter)
+                   .ToHandle(&dictionary)) {
+            DCHECK(isolate()->has_exception());
+            return ReadOnlyRoots(isolate()).exception();
+          }
+        }
+        prototype->SetProperties(*dictionary);
+      }
+
+      if (!ok()) break;
+
+      uint32_t parent_idx_offset = pc_offset();
+      int32_t parent_idx = consume_i32v("parentidx");
+      if (!ok()) break;
+      if (parent_idx >= 0 && static_cast<uint32_t>(parent_idx) < proto_index) {
+        if (prototype_is_null) {
+          isolate()->Throw(*isolate()->factory()->NewTypeError(
+              MessageTemplate::kCalledOnNullOrUndefined,
+              isolate()->factory()->NewStringFromAsciiChecked(
+                  "Object.setPrototypeOf")));
+          return ReadOnlyRoots(isolate()).exception();
+        }
+        DirectHandle<Object> parent =
+            PrototypeByIndex(static_cast<uint32_t>(parent_idx));
+        if (!JSReceiver::SetPrototype(isolate(), prototype, parent, true,
+                                      ShouldThrow::kThrowOnError)
+                 .FromMaybe(false)) {
+          DCHECK(isolate()->has_exception());
+          return ReadOnlyRoots(isolate()).exception();
+        }
+      } else if (parent_idx == -1) {
+        // No parent requested.
+      } else {
+        errorf(0u, "invalid parentidx %d at data+%u", parent_idx,
+               parent_idx_offset);
+        break;
+      }
+    }
+    if (HasMoreFunctions()) error("unconsumed functions");
+    if (HasMorePrototypes()) error("unconsumed prototypes");
+    if (more()) error("unconsumed data");
+    if (!ok()) {
+      DirectHandle<String> message =
+          isolate()
+              ->factory()
+              ->NewStringFromUtf8(base::VectorOf(error().message()))
+              .ToHandleChecked();
+      DirectHandle<JSObject> error = isolate()->factory()->NewError(
+          isolate()->wasm_runtime_error_function(), message);
+      return isolate()->Throw(*error);
+    }
+
+    return ReadOnlyRoots(isolate()).undefined_value();
+  }
+
+  Method NextMethod(bool is_static) {
+    uint8_t kind = consume_u8("kind");
+    if (kind > 2) {
+      errorf(0u, "invalid method kind %u at data+%u", kind, pc_offset() - 1);
+      return {};
+    }
+    uint32_t name_length = consume_u32v("name length");
+    if (!ok()) return {};
+    const uint8_t* name_start = pc();
+    consume_bytes(name_length);
+    if (!ok()) return {};
+    return {.kind = static_cast<Method::Kind>(kind),
+            .is_static = is_static,
+            .name = {name_start, name_length}};
+  }
+
+  MaybeDirectHandle<WasmExportedFunction> NextFunction() {
+    DirectHandle<Object> maybe_func = NextFunctionInternal();
+    if (maybe_func.is_null()) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
+      return {};
+    }
+    // TODO(jkummerow): Can we tighten the spec to require non-nullable arrays?
+    if (!IsWasmFuncRef(*maybe_func)) {
+      DCHECK(IsWasmNull(*maybe_func));
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapNullFunc);
+      return {};
+    }
+    DirectHandle<WasmFuncRef> funcref = Cast<WasmFuncRef>(maybe_func);
+    DirectHandle<WasmInternalFunction> internal_function(
+        funcref->internal(isolate_), isolate_);
+    return Cast<WasmExportedFunction>(
+        WasmInternalFunction::GetOrCreateExternal(internal_function));
+  }
+
+  MaybeDirectHandle<JSReceiver> NextPrototype(bool* value_was_null) {
+    DirectHandle<Object> maybe_proto = NextPrototypeInternal();
+    if (maybe_proto.is_null()) {
+      ThrowWasmError(isolate_, MessageTemplate::kWasmTrapArrayOutOfBounds);
+      return {};
+    }
+    if (IsHeapObject(*maybe_proto)) {
+      DirectHandle<HeapObject> heap_proto = Cast<HeapObject>(maybe_proto);
+      if (HeapLayout::InWritableSharedSpace(*heap_proto)) {
+        DCHECK(v8_flags.harmony_struct);
+        // Shared JS structs are not supported as prototypes, and probably
+        // never will be: we cannot change their maps to add new properties,
+        // and we cannot add pointers to non-shared methods to them.
+        ThrowWasmError(isolate_, MessageTemplate::kWasmTrapIllegalCast);
+        return {};
+      }
+      if (IsJSObject(*heap_proto)) {
+        DirectHandle<JSObject> proto = Cast<JSObject>(heap_proto);
+        if (!proto->map()->is_prototype_map()) {
+          // Important for correctness: switch to a non-shared map.
+          // Important for performance: switch to dictionary mode.
+          JSObject::OptimizeAsPrototype(proto);
+        } else {
+          // Prepare the fast path by invalidating any ICs that might already
+          // rely on this prototype.
+          JSObject::InvalidatePrototypeChains(proto->map());
+        }
+        return proto;
+      }
+      if (IsJSReceiver(*heap_proto)) {
+        return Cast<JSReceiver>(heap_proto);
+      }
+      if (IsNull(*heap_proto)) {
+        *value_was_null = true;
+        return {};
+      }
+    }
+    isolate_->Throw(*isolate_->factory()->NewTypeError(
+        MessageTemplate::kProtoObjectOrNull, maybe_proto));
+    return {};
+  }
+
+  // Adding multiple properties is more efficient when the prototype
+  // object is in dictionary mode. ICs will transition it back to
+  // "fast" (but slow to modify) properties.
+  void ToDictionaryMode(DirectHandle<JSObject> object, int num_properties) {
+    if (!object->HasFastProperties()) return;
+    if (IsJSGlobalProxy(*object)) return;
+    JSObject::NormalizeProperties(isolate_, Cast<JSObject>(object),
+                                  KEEP_INOBJECT_PROPERTIES, num_properties,
+                                  "Wasm prototype setup");
+  }
+
+  bool InstallMethod(DirectHandle<JSReceiver> receiver, Method method,
+                     DirectHandle<JSFunction> function) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(method.name).To(&name)) return false;
+    PropertyDescriptor prop;
+    prop.set_enumerable(false);
+    prop.set_configurable(true);
+    if (method.kind == Method::kMethod) {
+      prop.set_writable(true);
+      prop.set_value(function);
+    } else if (method.kind == Method::kGetter) {
+      prop.set_get(function);
+    } else if (method.kind == Method::kSetter) {
+      prop.set_set(function);
+    } else {
+      UNREACHABLE();  // Ruled out by validation.
+    }
+    return JSReceiver::DefineOwnProperty(isolate_, receiver, name, &prop,
+                                         Just(ShouldThrow::kThrowOnError))
+        .FromMaybe(false);
+  }
+
+  // Returns the wrapped constructor on success.
+  DirectHandle<JSFunction> InstallConstructor(
+      DirectHandle<JSReceiver> prototype,
+      DirectHandle<WasmExportedFunction> wasm_function,
+      base::Vector<const uint8_t> name_vec,
+      DirectHandle<Object> all_constructors) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(name_vec).To(&name)) return {};
+    if (!IsJSReceiver(*all_constructors)) {
+      isolate_->Throw(*isolate_->factory()->NewTypeError(
+          MessageTemplate::kNonObjectPropertyStoreWithProperty,
+          all_constructors, name));
+      return {};
+    }
+    DirectHandle<Context> context = isolate_->factory()->NewBuiltinContext(
+        isolate_->native_context(), wasm::kConstructorFunctionContextLength);
+    context->SetNoCell(wasm::kConstructorFunctionContextSlot, *wasm_function);
+    Builtin code = Builtin::kWasmConstructorWrapper;
+    int length = wasm_function->length();
+    DirectHandle<SharedFunctionInfo> sfi =
+        isolate_->factory()->NewSharedFunctionInfoForBuiltin(name, code, length,
+                                                             kDontAdapt);
+    sfi->set_native(true);
+    sfi->set_language_mode(LanguageMode::kStrict);
+    DirectHandle<JSFunction> constructor =
+        Factory::JSFunctionBuilder{isolate_, sfi, context}
+            .set_map(isolate_->strict_function_with_readonly_prototype_map())
+            .Build();
+    constructor->set_prototype_or_initial_map(*prototype, kReleaseStore);
+    prototype->map()->SetConstructor(*constructor);
+
+    PropertyDescriptor constructor_prop;
+    constructor_prop.set_enumerable(false);
+    constructor_prop.set_configurable(true);
+    constructor_prop.set_writable(true);
+    constructor_prop.set_value(constructor);
+    if (!JSReceiver::DefineOwnProperty(
+             isolate_, prototype, isolate_->factory()->constructor_string(),
+             &constructor_prop, Just(ShouldThrow::kThrowOnError))
+             .FromMaybe(false)) {
+      return {};
+    }
+
+    PropertyDescriptor prop;
+    prop.set_enumerable(true);
+    prop.set_configurable(true);
+    prop.set_writable(true);
+    prop.set_value(constructor);
+    if (!JSReceiver::DefineOwnProperty(isolate_,
+                                       Cast<JSReceiver>(all_constructors), name,
+                                       &prop, Just(ShouldThrow::kThrowOnError))
+             .FromMaybe(false)) {
+      return {};
+    }
+    return constructor;
+  }
+
+  // Fast path, skipping the LookupIterator.
+  bool CheckFastPathEligibility(DirectHandle<JSReceiver> prototype) {
+    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+      // Support for swiss name dictionaries isn't implemented here yet.
+      UNIMPLEMENTED();
+    }
+    if (prototype.is_null()) return false;
+    Tagged<Map> map = prototype->map();
+    if (map->instance_type() != JS_OBJECT_TYPE) return false;
+    if (!map->is_extensible()) return false;
+    // JS_OBJECT_TYPE implies no access checks or interceptors.
+    DCHECK(!map->is_access_check_needed());
+    DCHECK(!map->has_indexed_interceptor());
+    DCHECK(!map->has_named_interceptor());
+    DCHECK(!IsJSGlobalObject(*prototype));
+    if (map->is_dictionary_map()) {
+      if (Cast<JSObject>(prototype)
+              ->property_dictionary()
+              ->NumberOfElements() != 0) {
+        return false;
+      }
+    } else {
+      if (map->NumberOfOwnDescriptors() != 0) return false;
+    }
+    return true;
+  }
+
+  bool MayBeArrayIndex(base::Vector<const uint8_t> name) {
+    // The fast path can't handle elements (i.e. names that are string
+    // representations of array indices). To save time, we approximate
+    // detection of such names by only looking at the first character.
+    if (name.size() == 0) return false;
+    char first = name.at(0);
+    return first >= '0' && first <= '9';
+  }
+
+  // This is not fully generic: it doesn't need to handle overwriting arbitrary
+  // properties, only those that the same fast path put there before.
+  MaybeDirectHandle<NameDictionary> FastPath_AddDataProperty(
+      DirectHandle<JSReceiver> receiver,
+      DirectHandle<NameDictionary> property_dictionary,
+      base::Vector<const uint8_t> name_vec, DirectHandle<Object> value) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(name_vec).To(&name)) return {};
+    PropertyDetails details(PropertyKind::kData, DONT_ENUM,
+                            PropertyCellType::kConstant);
+    InternalIndex entry = property_dictionary->FindEntry(isolate_, name);
+    if (entry.is_found()) [[unlikely]] {
+      // This isn't expected to happen in practice, so from a performance
+      // perspective it'd be fine to just bail out of the fast path; but the
+      // code ends up being simpler if we just handle this and carry on.
+      PropertyDetails old_details = property_dictionary->DetailsAt(entry);
+      details = details.set_index(old_details.dictionary_index());
+      details = details.set_cell_type(PropertyCellType::kMutable);
+      property_dictionary->DetailsAtPut(entry, details);
+      property_dictionary->ValueAtPut(entry, *value);
+      return property_dictionary;
+    }
+    DCHECK(entry.is_not_found());
+    if (!NameDictionary::Add(isolate_, property_dictionary, name, value,
+                             details)
+             .ToHandle(&property_dictionary)) {
+      return {};
+    }
+    LookupIterator::UpdateProtector(isolate_, receiver, name, value);
+    if (name->IsInteresting(isolate_)) {
+      property_dictionary->set_may_have_interesting_properties(true);
+    }
+    return property_dictionary;
+  }
+
+  // This is not fully generic: it doesn't need to handle overwriting arbitrary
+  // properties, only those that the same fast path put there before.
+  MaybeDirectHandle<NameDictionary> FastPath_AddAccessorProperty(
+      DirectHandle<JSReceiver> receiver,
+      DirectHandle<NameDictionary> property_dictionary,
+      base::Vector<const uint8_t> name_vec, DirectHandle<JSFunction> getter,
+      DirectHandle<JSFunction> setter) {
+    DirectHandle<String> name;
+    if (!ReadUtf8String(name_vec).To(&name)) return {};
+    PropertyDetails details(PropertyKind::kAccessor, DONT_ENUM,
+                            PropertyCellType::kMutable);
+    DirectHandle<AccessorPair> pair = isolate_->factory()->NewAccessorPair();
+    if (!getter.is_null()) pair->set_getter(*getter);
+    if (!setter.is_null()) pair->set_setter(*setter);
+    InternalIndex entry = property_dictionary->FindEntry(isolate_, name);
+    if (entry.is_found()) [[unlikely]] {
+      // This isn't expected to happen in practice, so from a performance
+      // perspective it'd be fine to just bail out of the fast path; but the
+      // code ends up being simpler if we just handle this and carry on.
+      PropertyDetails old_details = property_dictionary->DetailsAt(entry);
+      details = details.set_index(old_details.dictionary_index());
+      // When setting only one accessor, keep the other if it's already present.
+      if (getter.is_null() || setter.is_null()) {
+        Tagged<Object> old_value = property_dictionary->ValueAt(entry);
+        if (IsAccessorPair(old_value)) {
+          Tagged<AccessorPair> old_pair = Cast<AccessorPair>(old_value);
+          if (getter.is_null() && !IsNull(old_pair->getter())) {
+            pair->set_getter(old_pair->getter());
+          }
+          if (setter.is_null() && !IsNull(old_pair->setter())) {
+            pair->set_setter(old_pair->setter());
+          }
+        }
+      }
+      property_dictionary->DetailsAtPut(entry, details);
+      property_dictionary->ValueAtPut(entry, *pair);
+      return property_dictionary;
+    }
+    DCHECK(entry.is_not_found());
+    if (!NameDictionary::Add(isolate_, property_dictionary, name, pair, details)
+             .ToHandle(&property_dictionary)) {
+      return {};
+    }
+    LookupIterator::UpdateProtector(isolate_, receiver, name, pair);
+    if (name->IsInteresting(isolate_)) {
+      property_dictionary->set_may_have_interesting_properties(true);
+    }
+    return property_dictionary;
+  }
+
+ protected:
+  Isolate* isolate() { return isolate_; }
+  virtual DirectHandle<Object> NextFunctionInternal() = 0;
+  virtual bool HasMoreFunctions() = 0;
+  virtual DirectHandle<Object> NextPrototypeInternal() = 0;
+  virtual bool HasMorePrototypes() = 0;
+  virtual DirectHandle<Object> PrototypeByIndex(uint32_t index) = 0;
+  DirectHandle<SharedFunctionInfo> method_wrapper() { return method_wrapper_; }
+
+ private:
+  Isolate* isolate_;
+  DirectHandle<SharedFunctionInfo> method_wrapper_;
+};
+
+class PrototypesSetup_Arrays : public PrototypesSetup {
+ public:
+  PrototypesSetup_Arrays(Isolate* isolate, base::Vector<const uint8_t> data,
+                         DirectHandle<WasmArray> prototypes,
+                         DirectHandle<WasmArray> functions)
+      : PrototypesSetup(isolate, data),
+        prototypes_(prototypes),
+        functions_(functions) {}
+
+ protected:
+  DirectHandle<Object> NextFunctionInternal() override {
+    if (function_index_ >= functions_->length()) return {};
+    return WasmArray::GetElement(isolate(), functions_, function_index_++);
+  }
+
+  bool HasMoreFunctions() override {
+    return function_index_ < functions_->length();
+  }
+
+  DirectHandle<Object> NextPrototypeInternal() override {
+    if (prototype_index_ >= prototypes_->length()) return {};
+    return WasmArray::GetElement(isolate(), prototypes_, prototype_index_++);
+  }
+
+  bool HasMorePrototypes() override {
+    return prototype_index_ < prototypes_->length();
+  }
+
+  DirectHandle<Object> PrototypeByIndex(uint32_t index) override {
+    DCHECK_LT(index, prototypes_->length());
+    return WasmArray::GetElement(isolate(), prototypes_, index);
+  }
+
+ private:
+  DirectHandle<WasmArray> prototypes_;
+  DirectHandle<WasmArray> functions_;
+  uint32_t prototype_index_{0};
+  uint32_t function_index_{0};
+};
+
+class PrototypesSetup_Sections : public PrototypesSetup {
+ public:
+  PrototypesSetup_Sections(Isolate* isolate, base::Vector<const uint8_t> data,
+                           DirectHandle<FixedArray> prototypes,
+                           uint32_t prototypes_start_index,
+                           uint32_t prototypes_length,
+                           DirectHandle<FixedArray> functions,
+                           uint32_t functions_start_index,
+                           uint32_t functions_length)
+      : PrototypesSetup(isolate, data),
+        prototypes_(prototypes),
+        functions_(functions),
+        prototype_start_index_(prototypes_start_index),
+        prototype_index_(prototypes_start_index),
+        prototypes_end_(prototypes_start_index + prototypes_length),
+        function_index_(functions_start_index),
+        functions_end_(functions_start_index + functions_length) {}
+
+ protected:
+  DirectHandle<Object> NextFunctionInternal() override {
+    if (function_index_ >= functions_end_) return {};
+    return direct_handle(functions_->get(function_index_++), isolate());
+  }
+
+  bool HasMoreFunctions() override { return function_index_ < functions_end_; }
+
+  DirectHandle<Object> NextPrototypeInternal() override {
+    if (prototype_index_ >= prototypes_end_) return {};
+    return direct_handle(prototypes_->get(prototype_index_++), isolate());
+  }
+
+  bool HasMorePrototypes() override {
+    return prototype_index_ < prototypes_end_;
+  }
+
+  DirectHandle<Object> PrototypeByIndex(uint32_t index) override {
+    index += prototype_start_index_;
+    DCHECK_LT(index, prototypes_end_);
+    return direct_handle(prototypes_->get(index), isolate());
+  }
+
+ private:
+  DirectHandle<FixedArray> prototypes_;
+  DirectHandle<FixedArray> functions_;
+  uint32_t prototype_start_index_;
+  uint32_t prototype_index_;
+  uint32_t prototypes_end_;
+  uint32_t function_index_;
+  uint32_t functions_end_;
+};
+
+MaybeDirectHandle<FixedArray> GetElementSegment(
+    Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance,
+    uint32_t segment_index) {
+  Tagged<Object> segment_raw = instance->element_segments()->get(segment_index);
+  if (IsFixedArray(segment_raw)) {
+    return {Cast<FixedArray>(segment_raw), isolate};
+  }
+
+  DirectHandle<WasmTrustedInstanceData> shared_instance =
+      instance->has_shared_part() ? handle(instance->shared_part(), isolate)
+                                  : instance;
+  std::optional<MessageTemplate> opt_error =
+      wasm::InitializeElementSegment(isolate, instance, shared_instance,
+                                     segment_index, wasm::kPrecreateExternal);
+  if (opt_error.has_value()) {
+    ThrowWasmError(isolate, opt_error.value());
+    return {};
+  }
+  return {Cast<FixedArray>(instance->element_segments()->get(segment_index)),
+          isolate};
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypes) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+
+  MessageTemplate illegal_cast = MessageTemplate::kWasmTrapIllegalCast;
+  if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
+  if (!IsWasmArray(args[1])) return ThrowWasmError(isolate, illegal_cast);
+  if (!IsWasmArray(args[2])) return ThrowWasmError(isolate, illegal_cast);
+  DirectHandle<WasmArray> prototypes(Cast<WasmArray>(args[0]), isolate);
+  DirectHandle<WasmArray> functions(Cast<WasmArray>(args[1]), isolate);
+  DirectHandle<WasmArray> data(Cast<WasmArray>(args[2]), isolate);
+  DirectHandle<Object> constructors(args[3], isolate);
+  {
+    Tagged<Object> expected_prototypes_map =
+        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
+            wasm::TypeCanonicalizer::kPredefinedArrayExternRefIndex.index));
+    Tagged<Object> expected_functions_map =
+        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
+            wasm::TypeCanonicalizer::kPredefinedArrayFuncRefIndex.index));
+    Tagged<Object> expected_data_map =
+        MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(
+            wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index));
+    if (prototypes->map() != expected_prototypes_map ||
+        functions->map() != expected_functions_map ||
+        data->map() != expected_data_map) {
+      return ThrowWasmError(isolate, illegal_cast);
+    }
+  }
+
+  // Arrays on the heap can move on GC, so we create an immovable copy of
+  // the data we'll need to decode.
+  uint32_t length = data->length();
+  base::OwnedVector<uint8_t> immovable_data;
+  if (length) {
+    immovable_data = base::OwnedCopyOf(
+        reinterpret_cast<const uint8_t*>(data->ElementAddress(0)), length);
+  }
+
+  PrototypesSetup_Arrays decoder(isolate, immovable_data.as_vector(),
+                                 prototypes, functions);
+  return decoder.SetupPrototypes(constructors);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmConfigureAllPrototypesOpt) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  uint32_t* stack_buffer = reinterpret_cast<uint32_t*>(args[0].ptr());
+  DirectHandle<Object> constructors(args[1], isolate);
+  DirectHandle<WasmTrustedInstanceData> instance(
+      TrustedCast<WasmTrustedInstanceData>(args[2]), isolate);
+
+  uint32_t prototypes_start = stack_buffer[0];
+  uint32_t prototypes_length = stack_buffer[1];
+  uint32_t prototypes_segment_index = stack_buffer[2];
+  uint32_t functions_start = stack_buffer[3];
+  uint32_t functions_length = stack_buffer[4];
+  uint32_t functions_segment_index = stack_buffer[5];
+  uint32_t data_start = stack_buffer[6];
+  uint32_t data_length = stack_buffer[7];
+  uint32_t data_segment_index = stack_buffer[8];
+
+  DirectHandle<FixedArray> prototypes_segment;
+  if (!GetElementSegment(isolate, instance, prototypes_segment_index)
+           .ToHandle(&prototypes_segment)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  if (!base::IsInBounds<size_t>(prototypes_start, prototypes_length,
+                                prototypes_segment->length())) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
+  }
+
+  DirectHandle<FixedArray> functions_segment;
+  if (!GetElementSegment(isolate, instance, functions_segment_index)
+           .ToHandle(&functions_segment)) {
+    DCHECK(isolate->has_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  if (!base::IsInBounds<size_t>(functions_start, functions_length,
+                                functions_segment->length())) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
+  }
+
+  wasm::WireBytesRef segment_source =
+      instance->data_segments()->get(data_segment_index);
+  if (!base::IsInBounds<uint32_t>(data_start, data_length,
+                                  segment_source.length())) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
+  }
+
+  base::Vector<const uint8_t> data =
+      instance->native_module()->wire_bytes().SubVector(
+          segment_source.offset() + data_start,
+          segment_source.offset() + data_start + data_length);
+
+  PrototypesSetup_Sections decoder(
+      isolate, data, prototypes_segment, prototypes_start, prototypes_length,
+      functions_segment, functions_start, functions_length);
+  return decoder.SetupPrototypes(constructors);
 }
 
 #define RETURN_RESULT_OR_TRAP(call)                                            \
   do {                                                                         \
-    Handle<Object> result;                                                     \
+    DirectHandle<Object> result;                                               \
     if (!(call).ToHandle(&result)) {                                           \
       DCHECK(isolate->has_exception());                                        \
       /* Mark any exception as uncatchable by Wasm. */                         \
-      Handle<JSObject> exception(Cast<JSObject>(isolate->exception()),         \
-                                 isolate);                                     \
-      Handle<Name> uncatchable =                                               \
+      DirectHandle<JSObject> exception(Cast<JSObject>(isolate->exception()),   \
+                                       isolate);                               \
+      DirectHandle<Name> uncatchable =                                         \
           isolate->factory()->wasm_uncatchable_symbol();                       \
       LookupIterator it(isolate, exception, uncatchable, LookupIterator::OWN); \
       if (!JSReceiver::HasProperty(&it).FromJust()) {                          \
@@ -1471,14 +2140,14 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
       }                                                                        \
       return ReadOnlyRoots(isolate).exception();                               \
     }                                                                          \
-    DCHECK(!isolate->has_exception());                                         \
+    DCHECK(!isolate->has_exception() ||                                        \
+           IsTerminationException(isolate->exception()));                      \
     return *result;                                                            \
   } while (false)
 
 // "Special" because the type must be in a recgroup of its own.
 // Used by "JS String Builtins".
 RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
-  ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -1491,13 +2160,14 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
   MessageTemplate illegal_cast = MessageTemplate::kWasmTrapIllegalCast;
   if (!IsWasmArray(args[0])) return ThrowWasmError(isolate, illegal_cast);
   Tagged<WasmArray> obj = Cast<WasmArray>(args[0]);
-  Tagged<WasmTypeInfo> wti = obj->map()->wasm_type_info();
-  const wasm::WasmModule* module = wti->trusted_data(isolate)->module();
-  DCHECK(module->has_array(wti->type_index()));
-  uint32_t expected = bits == 8
-                          ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
-                          : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
-  if (module->isorecursive_canonical_type_ids[wti->type_index()] != expected) {
+  wasm::CanonicalTypeIndex expected =
+      bits == 8 ? wasm::TypeCanonicalizer::kPredefinedArrayI8Index
+                : wasm::TypeCanonicalizer::kPredefinedArrayI16Index;
+  Tagged<Object> expected_map =
+      MakeStrong(isolate->heap()->wasm_canonical_rtts()->get(expected.index));
+  // If the expected_map has been cleared or never even created, then there's
+  // no chance of a match anyway.
+  if (obj->map() != expected_map) {
     return ThrowWasmError(isolate, illegal_cast);
   }
   return obj;
@@ -1506,11 +2176,10 @@ RUNTIME_FUNCTION(Runtime_WasmCastToSpecialPrimitiveArray) {
 // Returns the new string if the operation succeeds.  Otherwise throws an
 // exception and returns an empty result.
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
   uint32_t utf8_variant_value = args.positive_smi_value_at(2);
   double offset_double = args.number_value_at(3);
@@ -1529,20 +2198,21 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{
       trusted_instance_data->memory_base(memory) + offset, size};
-  MaybeHandle<v8::internal::String> result_string =
+  MaybeDirectHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    DCHECK(!isolate->has_exception());
-    if (result_string.is_null()) {
+    // If the input was invalid, then the decoder has failed silently, and
+    // the string.new_utf8_try instruction should return null.
+    if (result_string.is_null() && !isolate->has_exception()) {
       return *isolate->factory()->wasm_null();
     }
-    return *result_string.ToHandleChecked();
+    // Fall through in case of a valid result, and in case of a pending
+    // exception because the requested string was too large.
   }
   RETURN_RESULT_OR_TRAP(result_string);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   uint32_t utf8_variant_value = args.positive_smi_value_at(0);
@@ -1554,24 +2224,25 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
-  MaybeHandle<v8::internal::String> result_string =
+  MaybeDirectHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(array, start, end, utf8_variant);
   if (utf8_variant == unibrow::Utf8Variant::kUtf8NoTrap) {
-    DCHECK(!isolate->has_exception());
-    if (result_string.is_null()) {
+    // If the input was invalid, then the decoder has failed silently, and
+    // the string.new_utf8_try instruction should return null.
+    if (result_string.is_null() && !isolate->has_exception()) {
       return *isolate->factory()->wasm_null();
     }
-    return *result_string.ToHandleChecked();
+    // Fall through in case of a valid result, and in case of a pending
+    // exception because the requested string was too large.
   }
   RETURN_RESULT_OR_TRAP(result_string);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
   double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
@@ -1593,7 +2264,6 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmArray> array(Cast<WasmArray>(args[0]), isolate);
@@ -1605,10 +2275,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmSubstring) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
   int start = args.positive_smi_value_at(1);
   int length = args.positive_smi_value_at(2);
 
@@ -1618,11 +2287,10 @@ RUNTIME_FUNCTION(Runtime_WasmSubstring) {
 
 // Returns the new string if the operation succeeds.  Otherwise traps.
 RUNTIME_FUNCTION(Runtime_WasmStringConst) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   static_assert(
       base::IsInRange(wasm::kV8MaxWasmStringLiterals, 0, Smi::kMaxValue));
   uint32_t index = args.positive_smi_value_at(1);
@@ -1642,28 +2310,30 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
-      Cast<WasmTrustedInstanceData>(args[0]), isolate);
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   uint32_t segment_index = args.positive_smi_value_at(1);
   uint32_t offset = args.positive_smi_value_at(2);
   uint32_t length = args.positive_smi_value_at(3);
   unibrow::Utf8Variant variant =
       static_cast<unibrow::Utf8Variant>(args.positive_smi_value_at(4));
 
-  if (!base::IsInBounds<uint32_t>(
-          offset, length,
-          trusted_instance_data->data_segment_sizes()->get(segment_index))) {
+  wasm::WireBytesRef segment_source =
+      trusted_instance_data->data_segments()->get(segment_index);
+  if (!base::IsInBounds<uint32_t>(offset, length, segment_source.length())) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
 
-  Address source =
-      trusted_instance_data->data_segment_starts()->get(segment_index) + offset;
-  MaybeHandle<String> result = isolate->factory()->NewStringFromUtf8(
-      {reinterpret_cast<const uint8_t*>(source), length}, variant);
+  base::Vector<const uint8_t> source =
+      trusted_instance_data->native_module()->wire_bytes().SubVector(
+          segment_source.offset() + offset,
+          segment_source.offset() + offset + length);
+
+  MaybeDirectHandle<String> result =
+      isolate->factory()->NewStringFromUtf8(source, variant);
   if (variant == unibrow::Utf8Variant::kUtf8NoTrap) {
     DCHECK(!isolate->has_exception());
     // Only instructions from the stringref proposal can set variant
@@ -1690,7 +2360,7 @@ int MeasureWtf8(base::Vector<const T> wtf16) {
   }
   return length;
 }
-int MeasureWtf8(Isolate* isolate, Handle<String> string) {
+int MeasureWtf8(Isolate* isolate, DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
   String::FlatContent content = string->GetFlatContent(no_gc);
@@ -1712,7 +2382,6 @@ bool HasUnpairedSurrogate(base::Vector<const uint8_t> wtf16) { return false; }
 bool HasUnpairedSurrogate(base::Vector<const base::uc16> wtf16) {
   return unibrow::Utf16::HasUnpairedSurrogate(wtf16.begin(), wtf16.size());
 }
-// TODO(12868): Consider unifying with api.cc:String::WriteUtf8.
 template <typename T>
 int EncodeWtf8(base::Vector<char> bytes, size_t offset,
                base::Vector<const T> wtf16, unibrow::Utf8Variant variant,
@@ -1742,19 +2411,17 @@ int EncodeWtf8(base::Vector<char> bytes, size_t offset,
       UNREACHABLE();
   }
 
-  char* dst_start = bytes.begin() + offset;
-  char* dst = dst_start;
-  int previous = unibrow::Utf16::kNoPreviousCharacter;
-  for (auto code_unit : wtf16) {
-    dst += unibrow::Utf8::Encode(dst, code_unit, previous, replace_invalid);
-    previous = code_unit;
-  }
-  DCHECK_LE(dst - dst_start, static_cast<ptrdiff_t>(kMaxInt));
-  return static_cast<int>(dst - dst_start);
+  bool write_null = false;
+  unibrow::Utf8::EncodingResult result =
+      unibrow::Utf8::Encode(wtf16, bytes.begin() + offset,
+                            bytes.size() - offset, write_null, replace_invalid);
+  DCHECK_EQ(result.characters_processed, wtf16.size());
+  DCHECK_LE(result.bytes_written, kMaxInt);
+  return static_cast<int>(result.bytes_written);
 }
 template <typename GetWritableBytes>
 Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
-                          Handle<String> string,
+                          DirectHandle<String> string,
                           GetWritableBytes get_writable_bytes, size_t offset,
                           MessageTemplate out_of_bounds_message) {
   string = String::Flatten(isolate, string);
@@ -1780,7 +2447,8 @@ Tagged<Object> EncodeWtf8(Isolate* isolate, unibrow::Utf8Variant variant,
 
 // Used for storing the name of a string-constants imports module off the heap.
 // Defined here to be able to make use of the helper functions above.
-void ToUtf8Lossy(Isolate* isolate, Handle<String> string, std::string& out) {
+void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
+                 std::string& out) {
   int utf8_length = MeasureWtf8(isolate, string);
   DisallowGarbageCollection no_gc;
   out.resize(utf8_length);
@@ -1800,10 +2468,9 @@ void ToUtf8Lossy(Isolate* isolate, Handle<String> string, std::string& out) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
   string = String::Flatten(isolate, string);
   int length;
@@ -1827,24 +2494,22 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
 
   int length = MeasureWtf8(isolate, string);
   return *isolate->factory()->NewNumberFromInt(length);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
   uint32_t utf8_variant_value = args.positive_smi_value_at(2);
-  Handle<String> string(Cast<String>(args[3]), isolate);
+  DirectHandle<String> string(Cast<String>(args[3]), isolate);
   double offset_double = args.number_value_at(4);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
 
@@ -1863,12 +2528,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   uint32_t utf8_variant_value = args.positive_smi_value_at(0);
-  Handle<String> string(Cast<String>(args[1]), isolate);
-  Handle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
+  DirectHandle<String> string(Cast<String>(args[1]), isolate);
+  DirectHandle<WasmArray> array(Cast<WasmArray>(args[2]), isolate);
   uint32_t start = NumberToUint32(args[3]);
 
   DCHECK(utf8_variant_value <=
@@ -1883,20 +2547,20 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
   uint32_t length = MeasureWtf8(isolate, string);
   wasm::WasmValue initial_value(int8_t{0});
   Tagged<WeakFixedArray> rtts = isolate->heap()->wasm_canonical_rtts();
   // This function can only get called from Wasm code, so we can safely assume
   // that the canonical RTT is still around.
   DirectHandle<Map> map(
-      Cast<Map>(rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index)
-                    .GetHeapObject()),
+      Cast<Map>(
+          rtts->get(wasm::TypeCanonicalizer::kPredefinedArrayI8Index.index)
+              .GetHeapObjectAssumeWeak()),
       isolate);
-  Handle<WasmArray> array = isolate->factory()->NewWasmArray(
+  DirectHandle<WasmArray> array = isolate->factory()->NewWasmArray(
       wasm::kWasmI8, length, initial_value, map);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
@@ -1911,11 +2575,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringToUtf8Array) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(6, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t memory = args.positive_smi_value_at(1);
   Tagged<String> string = Cast<String>(args[2]);
   double offset_double = args.number_value_at(3);
@@ -1940,6 +2603,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   uint16_t* dst = reinterpret_cast<uint16_t*>(
       trusted_instance_data->memory_base(memory) + offset);
   String::WriteToFlat(string, dst, start, length);
+
+  return Smi::zero();  // Unused.
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): The host is big-endian but we need to write the string
   // contents as little-endian.
@@ -1949,17 +2614,14 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 #else
 #error Unknown endianness
 #endif
-
-  return Smi::zero();  // Unused.
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  Handle<String> string(Cast<String>(args[0]), isolate);
+  DirectHandle<String> string(Cast<String>(args[0]), isolate);
   int wtf8_length = MeasureWtf8(isolate, string);
-  Handle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
+  DirectHandle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
 
   auto utf8_variant = unibrow::Utf8Variant::kWtf8;
   auto get_writable_bytes =
@@ -1973,11 +2635,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(7, args.length());
   HandleScope scope(isolate);
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
-      Cast<WasmTrustedInstanceData>(args[0]);
+      TrustedCast<WasmTrustedInstanceData>(args[0]);
   uint32_t utf8_variant_value = args.positive_smi_value_at(1);
   DirectHandle<ByteArray> array(Cast<ByteArray>(args[2]), isolate);
   double addr_double = args.number_value_at(3);
@@ -2026,7 +2687,6 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   DirectHandle<ByteArray> array(Cast<ByteArray>(args[0]), isolate);
@@ -2071,7 +2731,6 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEndExecution) {
 #endif  // V8_ENABLE_DRUMBRAKE
 
 RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
 
@@ -2100,11 +2759,89 @@ RUNTIME_FUNCTION(Runtime_WasmStringFromCodePoint) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringHash) {
-  ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
+  SealHandleScope seal_handle_scope(isolate);
   Tagged<String> string(Cast<String>(args[0]));
   uint32_t hash = string->EnsureHash();
   return Smi::FromInt(static_cast<int>(hash));
+}
+
+// For cont.new: this initializes the continuation with a new stack and with the
+// given function reference, such that calling "resume" on it will call the
+// function on the new stack.
+RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data(
+      TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
+  DirectHandle<WasmFuncRef> func_ref =
+      handle(Cast<WasmFuncRef>(args[1]), isolate);
+  std::unique_ptr<wasm::StackMemory> stack =
+      isolate->stack_pool().GetOrAllocate();
+  const wasm::CanonicalSig* sig = func_ref->internal(isolate)->sig();
+  auto [arg_buffer_size, alignment] =
+      GetBufferSizeAndAlignmentFor(sig->parameters());
+#if V8_TARGET_ARCH_ARM64
+  // For stack alignment.
+  alignment = RoundUp(alignment, 2 * kSystemPointerSize);
+#endif
+  stack->jmpbuf()->fp = kNullAddress;
+  stack->jmpbuf()->sp = RoundDown(stack->base() - arg_buffer_size, alignment);
+  Address arg_buffer = stack->jmpbuf()->sp;
+  stack->set_arg_buffer(arg_buffer);
+  stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  stack->jmpbuf()->stack_limit = stack->jslimit();
+  stack->jmpbuf()->is_on_central_stack = false;
+  stack->jmpbuf()->parent = nullptr;
+  stack->set_index(isolate->wasm_stacks().size());
+  // TODO(thibaudm): Store the WasmCodePointer instead.
+  wasm::StackEntryWrapperCacheKey key{sig};
+  std::shared_ptr<wasm::WasmWrapperHandle> wrapper =
+      wasm::GetWasmStackEntryWrapperCache()->GetCompiled(isolate, key);
+  stack->jmpbuf()->pc = wrapper->code()->instruction_start();
+  trusted_instance_data->native_module()->RegisterStackEntryWrapper(
+      std::move(wrapper));
+  stack->set_func_ref(*func_ref);
+  stack->set_param_types(func_ref->internal(isolate)->sig()->parameters());
+  wasm::StackMemory* stack_ptr = stack.get();
+  isolate->wasm_stacks().emplace_back(std::move(stack));
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(stack_ptr);
+  stack_ptr->set_current_continuation(*cont);
+  return *cont;
+}
+
+// For suspend: allocates an uninitialized continuation, to be initialized by
+// the suspend builtin with the current stack and register state.
+RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
+  DCHECK_EQ(0, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(nullptr);
+  return *cont;
+}
+
+// For cont.bind: invalidate the given continuation and create a new one for the
+// same stack.
+RUNTIME_FUNCTION(Runtime_WasmAllocateBoundContinuation) {
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmContinuationObject> old_cont =
+      handle(Cast<WasmContinuationObject>(args[0]), isolate);
+  int num_bound_args = args.smi_value_at(1);
+  wasm::StackMemory* stack = old_cont->stack();
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(stack);
+  stack->set_current_continuation(*cont);
+  stack->bind_arguments(num_bound_args);
+  return *cont;
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
+  DCHECK_EQ(0, args.length());
+  // The "FuzzerSecurityIssueHigh" is needed to label crashes of this as
+  // security issues in ClusterFuzz.
+  FATAL("[FuzzerSecurityIssueHigh] Wasm type assertion violation");
 }
 
 }  // namespace v8::internal

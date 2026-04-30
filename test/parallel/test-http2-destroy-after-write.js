@@ -22,7 +22,7 @@ server.on('session', common.mustCall(function(session) {
   }));
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const stream = client.request({ ':method': 'POST' });
   stream.on('response', common.mustCall(function(headers) {
@@ -34,4 +34,4 @@ server.listen(0, function() {
   }));
   stream.resume();
   stream.end();
-});
+}));

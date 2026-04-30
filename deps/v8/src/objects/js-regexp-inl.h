@@ -6,11 +6,13 @@
 #define V8_OBJECTS_JS_REGEXP_INL_H_
 
 #include "src/objects/js-regexp.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/smi.h"
 #include "src/objects/string.h"
+#include "src/objects/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -90,7 +92,7 @@ int RegExpData::capture_count() const {
       return 0;
     case Type::EXPERIMENTAL:
     case Type::IRREGEXP:
-      return Cast<IrRegExpData>(*this)->capture_count();
+      return TrustedCast<IrRegExpData>(*this)->capture_count();
   }
 }
 
@@ -141,7 +143,8 @@ Tagged<TrustedByteArray> IrRegExpData::bytecode(bool is_one_byte) const {
   return is_one_byte ? latin1_bytecode() : uc16_bytecode();
 }
 ACCESSORS(IrRegExpData, capture_name_map, Tagged<Object>, kCaptureNameMapOffset)
-void IrRegExpData::set_capture_name_map(Handle<FixedArray> capture_name_map) {
+void IrRegExpData::set_capture_name_map(
+    DirectHandle<FixedArray> capture_name_map) {
   if (capture_name_map.is_null()) {
     set_capture_name_map(Smi::zero());
   } else {
@@ -153,6 +156,11 @@ SMI_ACCESSORS(IrRegExpData, max_register_count, kMaxRegisterCountOffset)
 SMI_ACCESSORS(IrRegExpData, capture_count, kCaptureCountOffset)
 SMI_ACCESSORS(IrRegExpData, ticks_until_tier_up, kTicksUntilTierUpOffset)
 SMI_ACCESSORS(IrRegExpData, backtrack_limit, kBacktrackLimitOffset)
+DEF_PRIMITIVE_ACCESSORS(IrRegExpData, bit_field, kBitFieldOffset, uint32_t)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
+                    IrRegExpData::Bits::CanBeZeroLengthBit)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
+                    IrRegExpData::Bits::IsLinearExecutableBit)
 
 }  // namespace internal
 }  // namespace v8

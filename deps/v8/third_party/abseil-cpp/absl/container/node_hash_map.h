@@ -99,31 +99,41 @@ class NodeHashMapPolicy;
 // In most cases `T` needs only to provide the `absl_container_hash`. In this
 // case `std::equal_to<void>` will be used instead of `eq` part.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a node hash map of three strings (that map to strings)
 //   absl::node_hash_map<std::string, std::string> ducks =
 //     {{"a", "huey"}, {"b", "dewey"}, {"c", "louie"}};
 //
-//  // Insert a new element into the node hash map
-//  ducks.insert({"d", "donald"}};
+//   // Insert a new element into the node hash map
+//   ducks.insert({"d", "donald"}};
 //
-//  // Force a rehash of the node hash map
-//  ducks.rehash(0);
+//   // Force a rehash of the node hash map
+//   ducks.rehash(0);
 //
-//  // Find the element with the key "b"
-//  std::string search_key = "b";
-//  auto result = ducks.find(search_key);
-//  if (result != ducks.end()) {
-//    std::cout << "Result: " << result->second << std::endl;
-//  }
-template <class Key, class Value, class Hash = DefaultHashContainerHash<Key>,
-          class Eq = DefaultHashContainerEq<Key>,
-          class Alloc = std::allocator<std::pair<const Key, Value>>>
+//   // Find the element with the key "b"
+//   std::string search_key = "b";
+//   auto result = ducks.find(search_key);
+//   if (result != ducks.end()) {
+//     std::cout << "Result: " << result->second << std::endl;
+//   }
+template <
+    class Key, class Value,
+    class Hash =
+        typename container_internal::NodeHashMapPolicy<Key, Value>::DefaultHash,
+    class Eq =
+        typename container_internal::NodeHashMapPolicy<Key, Value>::DefaultEq,
+    class Alloc = typename container_internal::NodeHashMapPolicy<
+        Key, Value>::DefaultAlloc>
 class ABSL_ATTRIBUTE_OWNER node_hash_map
-    : public absl::container_internal::raw_hash_map<
+    : public absl::container_internal::InstantiateRawHashMap<
           absl::container_internal::NodeHashMapPolicy<Key, Value>, Hash, Eq,
-          Alloc> {
+          Alloc>::type {
   using Base = typename node_hash_map::raw_hash_map;
 
  public:
@@ -148,9 +158,9 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::node_hash_map<int, std::string> map4;
-  //  map4 = map3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::node_hash_map<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //
@@ -236,8 +246,13 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //   Erases the element at `position` of the `node_hash_map`, returning
   //   `void`.
   //
-  //   NOTE: this return behavior is different than that of STL containers in
-  //   general and `std::unordered_map` in particular.
+  //   NOTE: Returning `void` in this case is different than that of STL
+  //   containers in general and `std::unordered_map` in particular (which
+  //   return an iterator to the element following the erased element). If that
+  //   iterator is needed, simply post increment the iterator:
+  //
+  //     map.erase(it++);
+  //
   //
   // iterator erase(const_iterator first, const_iterator last):
   //
@@ -445,7 +460,9 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //
   // Sets the number of slots in the `node_hash_map` to the number needed to
   // accommodate at least `count` total elements without exceeding the current
-  // maximum load factor, and may rehash the container if needed.
+  // maximum load factor, and may rehash the container if needed. After this
+  // returns, it is guaranteed that `count - size()` elements can be inserted
+  // into the `node_hash_map` without another rehash.
   using Base::reserve;
 
   // node_hash_map::at()
@@ -617,6 +634,10 @@ class NodeHashMapPolicy
   using mapped_type = Value;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
 
+  using DefaultHash = DefaultHashContainerHash<Key>;
+  using DefaultEq = DefaultHashContainerEq<Key>;
+  using DefaultAlloc = std::allocator<std::pair<const Key, Value>>;
+
   template <class Allocator, class... Args>
   static value_type* new_element(Allocator* alloc, Args&&... args) {
     using PairAlloc = typename absl::allocator_traits<
@@ -653,10 +674,10 @@ class NodeHashMapPolicy
   static Value& value(value_type* elem) { return elem->second; }
   static const Value& value(const value_type* elem) { return elem->second; }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<Key, Value>::value
-               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key>
+               ? &TypeErasedDerefAndApplyToSlotFn<Hash, Key, kIsDefault>
                : nullptr;
   }
 };

@@ -13,71 +13,57 @@ namespace internal {
 
 namespace {
 
-const int kLiteralEntryLength = 2;
-const int kLiteralInitialLength = 2;
-const int kLiteralContextOffset = 0;
-const int kLiteralLiteralsOffset = 1;
-
-int SearchLiteralsMapEntry(Tagged<CompilationCacheTable> cache,
-                           InternalIndex cache_entry,
-                           Tagged<Context> native_context) {
+Tagged<JSFunction> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
+                                     InternalIndex cache_entry,
+                                     Tagged<Context> native_context) {
   DisallowGarbageCollection no_gc;
   DCHECK(IsNativeContext(native_context));
-  Tagged<Object> obj = cache->EvalFeedbackValueAt(cache_entry);
+  Tagged<UnionOf<TheHole, WeakFixedArray>> obj =
+      cache->EvalJSFunctionsValueAt(cache_entry);
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
-  DCHECK(!IsFixedArray(obj));
+  DCHECK(IsTheHole(obj) || IsWeakFixedArray(obj));
   if (IsWeakFixedArray(obj)) {
     Tagged<WeakFixedArray> literals_map = Cast<WeakFixedArray>(obj);
     int length = literals_map->length();
-    for (int i = 0; i < length; i += kLiteralEntryLength) {
-      DCHECK(literals_map->get(i + kLiteralContextOffset).IsWeakOrCleared());
-      if (literals_map->get(i + kLiteralContextOffset) ==
-          MakeWeak(native_context)) {
-        return i;
+    for (int i = 0; i < length; i++) {
+      DCHECK(literals_map->get(i).IsWeakOrCleared());
+      Tagged<JSFunction> js_function;
+      if (literals_map->get(i).GetHeapObjectIfWeak(&js_function) &&
+          js_function->GetCreationContext().value() == native_context) {
+        return js_function;
       }
     }
   }
-  return -1;
+  return {};
 }
 
-void AddToFeedbackCellsMap(DirectHandle<CompilationCacheTable> cache,
-                           InternalIndex cache_entry,
-                           DirectHandle<Context> native_context,
-                           DirectHandle<FeedbackCell> feedback_cell) {
-  Isolate* isolate = native_context->GetIsolate();
-  DCHECK(IsNativeContext(*native_context));
-  static_assert(kLiteralEntryLength == 2);
-  DirectHandle<WeakFixedArray> new_literals_map;
-  int entry;
+void AddToJSFunctionMap(DirectHandle<CompilationCacheTable> cache,
+                        InternalIndex cache_entry,
+                        DirectHandle<JSFunction> js_function) {
+  Isolate* isolate = Isolate::Current();
+  DirectHandle<WeakFixedArray> new_js_functions;
+  int entry = -1;
 
-  Tagged<Object> obj = cache->EvalFeedbackValueAt(cache_entry);
+  Tagged<Object> obj = cache->EvalJSFunctionsValueAt(cache_entry);
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
-  DCHECK(!IsFixedArray(obj));
-  if (!IsWeakFixedArray(obj) || Cast<WeakFixedArray>(obj)->length() == 0) {
-    new_literals_map = isolate->factory()->NewWeakFixedArray(
-        kLiteralInitialLength, AllocationType::kOld);
+  DCHECK(IsTheHole(obj) || IsWeakFixedArray(obj));
+  if (IsTheHole(obj) || Cast<WeakFixedArray>(obj)->length() == 0) {
+    new_js_functions =
+        isolate->factory()->NewWeakFixedArray(1, AllocationType::kOld);
     entry = 0;
   } else {
-    DirectHandle<WeakFixedArray> old_literals_map(Cast<WeakFixedArray>(obj),
+    DirectHandle<WeakFixedArray> old_js_functions(Cast<WeakFixedArray>(obj),
                                                   isolate);
-    entry = SearchLiteralsMapEntry(*cache, cache_entry, *native_context);
-    if (entry >= 0) {
-      // Just set the code of the entry.
-      old_literals_map->set(entry + kLiteralLiteralsOffset,
-                            MakeWeak(*feedback_cell));
-      return;
-    }
-
     // Can we reuse an entry?
     DCHECK_LT(entry, 0);
-    int length = old_literals_map->length();
-    for (int i = 0; i < length; i += kLiteralEntryLength) {
-      if (old_literals_map->get(i + kLiteralContextOffset).IsCleared()) {
-        new_literals_map = old_literals_map;
+    int length = old_js_functions->length();
+    for (int i = 0; i < length; i++) {
+      if (old_js_functions->get(i).IsCleared()) {
+        new_js_functions = old_js_functions;
         entry = i;
         break;
       }
@@ -85,53 +71,25 @@ void AddToFeedbackCellsMap(DirectHandle<CompilationCacheTable> cache,
 
     if (entry < 0) {
       // Copy old optimized code map and append one new entry.
-      new_literals_map = isolate->factory()->CopyWeakFixedArrayAndGrow(
-          old_literals_map, kLiteralEntryLength);
-      entry = old_literals_map->length();
+      new_js_functions =
+          isolate->factory()->CopyWeakFixedArrayAndGrow(old_js_functions, 1);
+      entry = old_js_functions->length();
     }
   }
 
-  new_literals_map->set(entry + kLiteralContextOffset,
-                        MakeWeak(*native_context));
-  new_literals_map->set(entry + kLiteralLiteralsOffset,
-                        MakeWeak(*feedback_cell));
+  new_js_functions->set(entry, MakeWeak(*js_function));
 
 #ifdef DEBUG
-  for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
-    Tagged<MaybeObject> object =
-        new_literals_map->get(i + kLiteralContextOffset);
-    DCHECK(object.IsCleared() ||
-           IsNativeContext(object.GetHeapObjectAssumeWeak()));
-    object = new_literals_map->get(i + kLiteralLiteralsOffset);
-    DCHECK(object.IsCleared() ||
-           IsFeedbackCell(object.GetHeapObjectAssumeWeak()));
+  for (int i = 0; i < new_js_functions->length(); i++) {
+    Tagged<MaybeObject> object = new_js_functions->get(i);
+    DCHECK_IMPLIES(!object.IsCleared(),
+                   IsJSFunction(object.GetHeapObjectAssumeWeak()));
   }
 #endif
-
-  Tagged<Object> old_literals_map = cache->EvalFeedbackValueAt(cache_entry);
-  if (old_literals_map != *new_literals_map) {
-    cache->SetEvalFeedbackValueAt(cache_entry, *new_literals_map);
+  Tagged<Object> old_js_functions = cache->EvalJSFunctionsValueAt(cache_entry);
+  if (old_js_functions != *new_js_functions) {
+    cache->SetEvalJSFunctionsValueAt(cache_entry, *new_js_functions);
   }
-}
-
-Tagged<FeedbackCell> SearchLiteralsMap(Tagged<CompilationCacheTable> cache,
-                                       InternalIndex cache_entry,
-                                       Tagged<Context> native_context) {
-  Tagged<FeedbackCell> result;
-  int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
-  if (entry >= 0) {
-    Tagged<WeakFixedArray> literals_map =
-        Cast<WeakFixedArray>(cache->EvalFeedbackValueAt(cache_entry));
-    DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
-    Tagged<MaybeObject> object =
-        literals_map->get(entry + kLiteralLiteralsOffset);
-
-    if (!object.IsCleared()) {
-      result = Cast<FeedbackCell>(object.GetHeapObjectAssumeWeak());
-    }
-  }
-  DCHECK(result.is_null() || IsFeedbackCell(result));
-  return result;
 }
 
 // EvalCacheKeys are used as keys in the eval cache.
@@ -147,7 +105,8 @@ class EvalCacheKey : public HashTableKey {
   // * When positive, position is the position in the source where eval is
   //   called. When negative, position is the negation of the position in the
   //   dynamic function's effective source where the ')' ends the parameters.
-  EvalCacheKey(Handle<String> source, Handle<SharedFunctionInfo> shared,
+  EvalCacheKey(DirectHandle<String> source,
+               DirectHandle<SharedFunctionInfo> shared,
                LanguageMode language_mode, int position)
       : HashTableKey(CompilationCacheShape::EvalHash(*source, *shared,
                                                      language_mode, position)),
@@ -158,11 +117,6 @@ class EvalCacheKey : public HashTableKey {
 
   bool IsMatch(Tagged<Object> other) override {
     DisallowGarbageCollection no_gc;
-    if (!IsFixedArray(other)) {
-      DCHECK(IsNumber(other));
-      uint32_t other_hash = static_cast<uint32_t>(Object::NumberValue(other));
-      return Hash() == other_hash;
-    }
     Tagged<FixedArray> other_array = Cast<FixedArray>(other);
     DCHECK(IsSharedFunctionInfo(other_array->get(0)));
     if (*shared_ != other_array->get(0)) return false;
@@ -176,19 +130,19 @@ class EvalCacheKey : public HashTableKey {
     return source->Equals(*source_);
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) {
-    Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
+  DirectHandle<Object> AsHandle(Isolate* isolate) {
+    DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(4);
     array->set(0, *shared_);
     array->set(1, *source_);
     array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
-    array->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
+    array->set_map(isolate, ReadOnlyRoots(isolate).fixed_cow_array_map());
     return array;
   }
 
  private:
-  Handle<String> source_;
-  Handle<SharedFunctionInfo> shared_;
+  DirectHandle<String> source_;
+  DirectHandle<SharedFunctionInfo> shared_;
   LanguageMode language_mode_;
   int position_;
 };
@@ -196,7 +150,8 @@ class EvalCacheKey : public HashTableKey {
 // RegExpKey carries the source and flags of a regular expression as key.
 class RegExpKey : public HashTableKey {
  public:
-  RegExpKey(Isolate* isolate, Handle<String> string, JSRegExp::Flags flags)
+  RegExpKey(Isolate* isolate, DirectHandle<String> string,
+            JSRegExp::Flags flags)
       : HashTableKey(
             CompilationCacheShape::RegExpHash(*string, Smi::FromInt(flags))),
         isolate_(isolate),
@@ -215,7 +170,7 @@ class RegExpKey : public HashTableKey {
   }
 
   Isolate* isolate_;
-  Handle<String> string_;
+  DirectHandle<String> string_;
   JSRegExp::Flags flags_;
 };
 
@@ -231,13 +186,14 @@ class CodeKey : public HashTableKey {
   Handle<SharedFunctionInfo> key_;
 };
 
-Tagged<Smi> ScriptHash(Tagged<String> source, MaybeHandle<Object> maybe_name,
-                       int line_offset, int column_offset,
+Tagged<Smi> ScriptHash(Tagged<String> source,
+                       MaybeDirectHandle<Object> maybe_name, int line_offset,
+                       int column_offset,
                        v8::ScriptOriginOptions origin_options,
                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   size_t hash = base::hash_combine(source->EnsureHash());
-  if (Handle<Object> name;
+  if (DirectHandle<Object> name;
       maybe_name.ToHandle(&name) && IsString(*name, isolate)) {
     hash =
         base::hash_combine(hash, Cast<String>(*name)->EnsureHash(), line_offset,
@@ -249,7 +205,7 @@ Tagged<Smi> ScriptHash(Tagged<String> source, MaybeHandle<Object> maybe_name,
 
 }  // namespace
 
-// We only re-use a cached function for some script source code if the
+// We only reuse a cached function for some script source code if the
 // script originates from the same place. This is to avoid issues
 // when reporting errors, etc.
 bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
@@ -360,7 +316,7 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
       isolate_(isolate) {
   DCHECK(Smi::IsValid(static_cast<int>(Hash())));
 #ifdef DEBUG
-  Handle<FixedArray> wrapped_arguments;
+  DirectHandle<FixedArray> wrapped_arguments;
   if (maybe_wrapped_arguments.ToHandle(&wrapped_arguments)) {
     int length = wrapped_arguments->length();
     for (int i = 0; i < length; i++) {
@@ -394,9 +350,10 @@ bool ScriptCacheKey::IsMatch(Tagged<Object> other) {
   return other_source->Equals(*source_) && MatchesScript(other_script);
 }
 
-Handle<Object> ScriptCacheKey::AsHandle(
+DirectHandle<Object> ScriptCacheKey::AsHandle(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared) {
-  Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(kEnd);
+  DirectHandle<WeakFixedArray> array =
+      isolate->factory()->NewWeakFixedArray(kEnd);
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
   DCHECK(IsScript(shared->script()));
@@ -460,11 +417,12 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 }
 
 InfoCellPair CompilationCacheTable::LookupEval(
-    DirectHandle<CompilationCacheTable> table, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info, DirectHandle<Context> native_context,
-    LanguageMode language_mode, int position) {
+    DirectHandle<CompilationCacheTable> table, DirectHandle<String> src,
+    DirectHandle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context, LanguageMode language_mode,
+    int position) {
   InfoCellPair empty_result;
-  Isolate* isolate = native_context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   src = String::Flatten(isolate, src);
 
   EvalCacheKey key(src, outer_info, language_mode, position);
@@ -476,19 +434,19 @@ InfoCellPair CompilationCacheTable::LookupEval(
   if (!IsSharedFunctionInfo(obj)) return empty_result;
 
   static_assert(CompilationCacheShape::kEntrySize == 3);
-  Tagged<FeedbackCell> feedback_cell =
+  Tagged<JSFunction> js_function =
       SearchLiteralsMap(*table, entry, *native_context);
-  return InfoCellPair(isolate, Cast<SharedFunctionInfo>(obj), feedback_cell);
+  return InfoCellPair(isolate, Cast<SharedFunctionInfo>(obj), js_function);
 }
 
-Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
-                                                   JSRegExp::Flags flags) {
-  Isolate* isolate = GetIsolate();
+DirectHandle<Object> CompilationCacheTable::LookupRegExp(
+    DirectHandle<String> src, JSRegExp::Flags flags) {
+  Isolate* isolate = Isolate::Current();
   DisallowGarbageCollection no_gc;
   RegExpKey key(isolate, src, flags);
   InternalIndex entry = FindEntry(isolate, &key);
   if (entry.is_not_found()) return isolate->factory()->undefined_value();
-  return Handle<Object>(PrimaryValueAt(entry), isolate);
+  return DirectHandle<Object>(PrimaryValueAt(entry), isolate);
 }
 
 Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
@@ -514,7 +472,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
   return EnsureCapacity(isolate, cache);
 }
 
-Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
+DirectHandle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     MaybeHandle<FixedArray> maybe_wrapped_arguments,
     DirectHandle<SharedFunctionInfo> value, Isolate* isolate) {
@@ -546,7 +504,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   // fixing. Consider the following unlikely sequence of events:
   // 1. BackgroundMergeTask::SetUpOnMainThread finds a script S1 in the cache.
   // 2. DevTools is attached and clears the cache.
-  // 3. DevTools is detached; the cache is reenabled.
+  // 3. DevTools is detached; the cache is re-enabled.
   // 4. A new instance of the script, S2, is compiled and placed into the cache.
   // 5. The merge from step 1 finishes on the main thread, still using S1, and
   //    places S1 into the cache, replacing S2.
@@ -558,53 +516,53 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   return cache;
 }
 
-Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
-    Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<SharedFunctionInfo> outer_info,
-    DirectHandle<SharedFunctionInfo> value,
-    DirectHandle<Context> native_context,
-    DirectHandle<FeedbackCell> feedback_cell, int position) {
-  Isolate* isolate = native_context->GetIsolate();
+void CompilationCacheTable::UpdateEval(
+    DirectHandle<CompilationCacheTable> table, DirectHandle<String> src,
+    DirectHandle<SharedFunctionInfo> outer_info,
+    DirectHandle<JSFunction> js_function, LanguageMode language_mode,
+    int position) {
+  Isolate* isolate = Isolate::Current();
   src = String::Flatten(isolate, src);
-  EvalCacheKey key(src, outer_info, value->language_mode(), position);
 
-  // This block handles 'real' insertions, i.e. the initial dummy insert
-  // (below) has already happened earlier.
-  {
-    DirectHandle<Object> k = key.AsHandle(isolate);
-    InternalIndex entry = cache->FindEntry(isolate, &key);
-    if (entry.is_found()) {
-      cache->SetKeyAt(entry, *k);
-      if (cache->PrimaryValueAt(entry) != *value) {
-        cache->SetPrimaryValueAt(entry, *value);
-        // The SFI is changing because the code was aged. Nuke existing feedback
-        // since it can't be reused after this point.
-        cache->SetEvalFeedbackValueAt(entry,
-                                      ReadOnlyRoots(isolate).the_hole_value());
-      }
-      // AddToFeedbackCellsMap may allocate a new sub-array to live in the
-      // entry, but it won't change the cache array. Therefore EntryToIndex
-      // and entry remains correct.
-      AddToFeedbackCellsMap(cache, entry, native_context, feedback_cell);
-      // Add hash again even on cache hit to avoid unnecessary cache delay in
-      // case of hash collisions.
-    }
-  }
+  EvalCacheKey key(src, outer_info, language_mode, position);
+  InternalIndex entry = table->FindEntry(isolate, &key);
+  if (entry.is_not_found()) return;
+
+  if (!IsFixedArray(table->KeyAt(entry))) return;
+  Tagged<Object> obj = table->PrimaryValueAt(entry);
+  if (!IsSharedFunctionInfo(obj)) return;
+  AddToJSFunctionMap(table, entry, js_function);
+}
+
+DirectHandle<CompilationCacheTable> CompilationCacheTable::PutEval(
+    DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
+    DirectHandle<SharedFunctionInfo> outer_info,
+    DirectHandle<JSFunction> js_function, int position) {
+  Isolate* isolate = Isolate::Current();
+  src = String::Flatten(isolate, src);
+  EvalCacheKey key(src, outer_info, js_function->shared()->language_mode(),
+                   position);
 
   // Create a dummy entry to mark that this key has already been inserted once.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());
-  DirectHandle<Object> k =
-      isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
+  DirectHandle<Object> k = key.AsHandle(isolate);
   cache->SetKeyAt(entry, *k);
-  cache->SetPrimaryValueAt(entry, Smi::FromInt(kHashGenerations));
+  cache->SetPrimaryValueAt(entry, js_function->shared());
+  cache->SetEvalJSFunctionsValueAt(entry,
+                                   ReadOnlyRoots(isolate).the_hole_value());
+  // AddToFeedbackCellsMap may allocate a new sub-array to live in the
+  // entry, but it won't change the cache array. Therefore EntryToIndex
+  // and entry remains correct.
+  AddToJSFunctionMap(cache, entry, js_function);
   cache->ElementAdded();
   return cache;
 }
 
-Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
-    Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
-    JSRegExp::Flags flags, DirectHandle<RegExpData> value) {
+DirectHandle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
+    Isolate* isolate, DirectHandle<CompilationCacheTable> cache,
+    DirectHandle<String> src, JSRegExp::Flags flags,
+    DirectHandle<RegExpData> value) {
   RegExpKey key(isolate, src, flags);
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());

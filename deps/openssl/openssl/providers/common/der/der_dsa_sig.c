@@ -17,14 +17,14 @@
 #include "internal/packet.h"
 #include "prov/der_dsa.h"
 
-#define MD_CASE(name)                                                   \
-    case NID_##name:                                                    \
-        precompiled = ossl_der_oid_id_dsa_with_##name;                  \
-        precompiled_sz = sizeof(ossl_der_oid_id_dsa_with_##name);       \
+#define MD_CASE(name)                                             \
+    case NID_##name:                                              \
+        precompiled = ossl_der_oid_id_dsa_with_##name;            \
+        precompiled_sz = sizeof(ossl_der_oid_id_dsa_with_##name); \
         break;
 
 int ossl_DER_w_algorithmIdentifier_DSA_with_MD(WPACKET *pkt, int tag,
-                                               DSA *dsa, int mdnid)
+    DSA *dsa, int mdnid)
 {
     const unsigned char *precompiled = NULL;
     size_t precompiled_sz = 0;

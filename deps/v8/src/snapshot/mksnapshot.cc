@@ -10,10 +10,12 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
+#include "src/base/logging.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
+#include "src/builtins/builtins-effects-analyzer.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
@@ -307,6 +309,15 @@ int main(int argc, char** argv) {
                                         i::v8_flags.static_roots_src);
         }
 #endif
+
+        if (i::v8_flags.builtins_effects_src) {
+          DCHECK_NOT_NULL(i_isolate->builtins_effects_analyzer());
+          i_isolate->builtins_effects_analyzer()->Write(
+              i::v8_flags.builtins_effects_src);
+        }
+        if (i_isolate->builtins_effects_analyzer() != nullptr) {
+          i_isolate->builtins_effects_analyzer()->TearDown(i_isolate);
+        }
       }
       isolate->Dispose();
     }

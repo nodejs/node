@@ -16,6 +16,7 @@
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms680578(v=vs.85).aspx
 
 #include <windows.h>
+#include <winternl.h>
 
 // MSVC header dbghelp.h has a warning for an ignored typedef.
 #pragma warning(push)
@@ -45,13 +46,29 @@ void InitializeSymbolizer(const char*) {
   // symbols be loaded. This is the fastest, most efficient way to use
   // the symbol handler.
   SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
-  if (!SymInitialize(process, nullptr, true)) {
-    // GetLastError() returns a Win32 DWORD, but we assign to
-    // unsigned long long to simplify the ABSL_RAW_LOG case below.  The uniform
-    // initialization guarantees this is not a narrowing conversion.
-    const unsigned long long error{GetLastError()};  // NOLINT(runtime/int)
-    ABSL_RAW_LOG(FATAL, "SymInitialize() failed: %llu", error);
+  DWORD syminitialize_error;
+  constexpr int kSymInitializeRetries = 5;
+  for (int i = 0; i < kSymInitializeRetries; ++i) {
+    if (SymInitialize(process, nullptr, true)) {
+      return;
+    }
+
+    // SymInitialize can fail sometimes with a STATUS_INFO_LENGTH_MISMATCH
+    // NTSTATUS (0xC0000004), which can happen when a module load occurs during
+    // the SymInitialize call. In this case, we should try calling SymInitialize
+    // again.
+    constexpr DWORD kStatusInfoLengthMismatch = DWORD{0xC0000004};
+    syminitialize_error = GetLastError();
+    if (syminitialize_error != kStatusInfoLengthMismatch) {
+      break;
+    }
   }
+
+  // GetLastError() returns a Win32 DWORD, but we assign to
+  // unsigned long long to simplify the ABSL_RAW_LOG case below.  The uniform
+  // initialization guarantees this is not a narrowing conversion.
+  const unsigned long long error{syminitialize_error};
+  ABSL_RAW_LOG(FATAL, "SymInitialize() failed: %llu", error);
 }
 
 bool Symbolize(const void* pc, char* out, int out_size) {

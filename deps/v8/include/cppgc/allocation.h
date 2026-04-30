@@ -44,25 +44,23 @@ class AllocationHandle;
 
 namespace internal {
 
-// Similar to C++17 std::align_val_t;
-enum class AlignVal : size_t {};
+using AlignVal = std::align_val_t;
 
 class MakeGarbageCollectedTraitInternal {
  protected:
   static inline void MarkObjectAsFullyConstructed(const void* payload) {
     // See api_constants for an explanation of the constants.
-    std::atomic<uint16_t>* atomic_mutable_bitfield =
-        reinterpret_cast<std::atomic<uint16_t>*>(
-            const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(
-                reinterpret_cast<const uint8_t*>(payload) -
-                api_constants::kFullyConstructedBitFieldOffsetFromPayload)));
+    std::atomic_ref<uint16_t> atomic_mutable_bitfield(
+        *const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(
+            reinterpret_cast<const uint8_t*>(payload) -
+            api_constants::kFullyConstructedBitFieldOffsetFromPayload)));
     // It's safe to split use load+store here (instead of a read-modify-write
     // operation), since it's guaranteed that this 16-bit bitfield is only
     // modified by a single thread. This is cheaper in terms of code bloat (on
     // ARM) and performance.
-    uint16_t value = atomic_mutable_bitfield->load(std::memory_order_relaxed);
+    uint16_t value = atomic_mutable_bitfield.load(std::memory_order_relaxed);
     value |= api_constants::kFullyConstructedBitMask;
-    atomic_mutable_bitfield->store(value, std::memory_order_release);
+    atomic_mutable_bitfield.store(value, std::memory_order_release);
   }
 
   // Dispatch based on compile-time information.
@@ -72,7 +70,7 @@ class MakeGarbageCollectedTraitInternal {
   template <typename GCInfoType, typename CustomSpace, size_t alignment>
   struct AllocationDispatcher final {
     static void* Invoke(AllocationHandle& handle, size_t size) {
-      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+      static_assert(std::is_base_of_v<CustomSpaceBase, CustomSpace>,
                     "Custom space must inherit from CustomSpaceBase.");
       static_assert(
           !CustomSpace::kSupportsCompaction,
@@ -112,7 +110,7 @@ class MakeGarbageCollectedTraitInternal {
                               api_constants::kDefaultAlignment>
       final {
     static void* Invoke(AllocationHandle& handle, size_t size) {
-      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+      static_assert(std::is_base_of_v<CustomSpaceBase, CustomSpace>,
                     "Custom space must inherit from CustomSpaceBase.");
       return MakeGarbageCollectedTraitInternal::Allocate(
           handle, size, internal::GCInfoTrait<GCInfoType>::Index(),
@@ -165,7 +163,7 @@ class MakeGarbageCollectedTraitBase
    */
   V8_INLINE static void* Allocate(AllocationHandle& handle, size_t size) {
     static_assert(
-        std::is_base_of<typename T::ParentMostGarbageCollectedType, T>::value,
+        std::is_base_of_v<typename T::ParentMostGarbageCollectedType, T>,
         "U of GarbageCollected<U> must be a base of T. Check "
         "GarbageCollected<T> base class inheritance.");
     static constexpr size_t kWantedAlignment =

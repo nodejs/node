@@ -197,7 +197,7 @@ Maybe<void> HmacTraits::AdditionalConfig(
   Utf8Value digest(env->isolate(), args[offset + 1]);
   params->digest = Digest::FromName(*digest);
   if (!params->digest) [[unlikely]] {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", digest);
     return Nothing<void>();
   }
 
@@ -228,10 +228,11 @@ Maybe<void> HmacTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HmacTraits::DeriveBits(
-    Environment* env,
-    const HmacConfig& params,
-    ByteSource* out) {
+bool HmacTraits::DeriveBits(Environment* env,
+                            const HmacConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode,
+                            CryptoErrorStore* errors) {
   auto ctx = HMACCtxPointer::New();
 
   ncrypto::Buffer<const void> key_buf{
@@ -270,7 +271,8 @@ MaybeLocal<Value> HmacTraits::EncodeOutput(Environment* env,
       return Boolean::New(
           env->isolate(),
           out->size() > 0 && out->size() == params.signature.size() &&
-              memcmp(out->data(), params.signature.data(), out->size()) == 0);
+              CRYPTO_memcmp(
+                  out->data(), params.signature.data(), out->size()) == 0);
   }
   UNREACHABLE();
 }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// This file is for Abseil internal use only.
+// See //absl/numeric/bits.h for supported functions related to endian-ness.
 
 #ifndef ABSL_BASE_INTERNAL_ENDIAN_H_
 #define ABSL_BASE_INTERNAL_ENDIAN_H_
@@ -28,44 +30,38 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-inline uint64_t gbswap_64(uint64_t host_int) {
+constexpr uint64_t gbswap_64(uint64_t x) {
 #if ABSL_HAVE_BUILTIN(__builtin_bswap64) || defined(__GNUC__)
-  return __builtin_bswap64(host_int);
-#elif defined(_MSC_VER)
-  return _byteswap_uint64(host_int);
+  return __builtin_bswap64(x);
 #else
-  return (((host_int & uint64_t{0xFF}) << 56) |
-          ((host_int & uint64_t{0xFF00}) << 40) |
-          ((host_int & uint64_t{0xFF0000}) << 24) |
-          ((host_int & uint64_t{0xFF000000}) << 8) |
-          ((host_int & uint64_t{0xFF00000000}) >> 8) |
-          ((host_int & uint64_t{0xFF0000000000}) >> 24) |
-          ((host_int & uint64_t{0xFF000000000000}) >> 40) |
-          ((host_int & uint64_t{0xFF00000000000000}) >> 56));
+  return (((x & uint64_t{0xFF}) << 56) |
+          ((x & uint64_t{0xFF00}) << 40) |
+          ((x & uint64_t{0xFF0000}) << 24) |
+          ((x & uint64_t{0xFF000000}) << 8) |
+          ((x & uint64_t{0xFF00000000}) >> 8) |
+          ((x & uint64_t{0xFF0000000000}) >> 24) |
+          ((x & uint64_t{0xFF000000000000}) >> 40) |
+          ((x & uint64_t{0xFF00000000000000}) >> 56));
 #endif
 }
 
-inline uint32_t gbswap_32(uint32_t host_int) {
+constexpr uint32_t gbswap_32(uint32_t x) {
 #if ABSL_HAVE_BUILTIN(__builtin_bswap32) || defined(__GNUC__)
-  return __builtin_bswap32(host_int);
-#elif defined(_MSC_VER)
-  return _byteswap_ulong(host_int);
+  return __builtin_bswap32(x);
 #else
-  return (((host_int & uint32_t{0xFF}) << 24) |
-          ((host_int & uint32_t{0xFF00}) << 8) |
-          ((host_int & uint32_t{0xFF0000}) >> 8) |
-          ((host_int & uint32_t{0xFF000000}) >> 24));
+  return (((x & uint32_t{0xFF}) << 24) |
+          ((x & uint32_t{0xFF00}) << 8) |
+          ((x & uint32_t{0xFF0000}) >> 8) |
+          ((x & uint32_t{0xFF000000}) >> 24));
 #endif
 }
 
-inline uint16_t gbswap_16(uint16_t host_int) {
+constexpr uint16_t gbswap_16(uint16_t x) {
 #if ABSL_HAVE_BUILTIN(__builtin_bswap16) || defined(__GNUC__)
-  return __builtin_bswap16(host_int);
-#elif defined(_MSC_VER)
-  return _byteswap_ushort(host_int);
+  return __builtin_bswap16(x);
 #else
-  return (((host_int & uint16_t{0xFF}) << 8) |
-          ((host_int & uint16_t{0xFF00}) >> 8));
+  return (((x & uint16_t{0xFF}) << 8) |
+          ((x & uint16_t{0xFF00}) >> 8));
 #endif
 }
 
@@ -161,27 +157,27 @@ inline int64_t ToHost(int64_t x) {
 }
 
 // Functions to do unaligned loads and stores in little-endian order.
-inline uint16_t Load16(absl::Nonnull<const void *> p) {
+inline uint16_t Load16(const void* absl_nonnull p) {
   return ToHost16(ABSL_INTERNAL_UNALIGNED_LOAD16(p));
 }
 
-inline void Store16(absl::Nonnull<void *> p, uint16_t v) {
+inline void Store16(void* absl_nonnull p, uint16_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE16(p, FromHost16(v));
 }
 
-inline uint32_t Load32(absl::Nonnull<const void *> p) {
+inline uint32_t Load32(const void* absl_nonnull p) {
   return ToHost32(ABSL_INTERNAL_UNALIGNED_LOAD32(p));
 }
 
-inline void Store32(absl::Nonnull<void *> p, uint32_t v) {
+inline void Store32(void* absl_nonnull p, uint32_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE32(p, FromHost32(v));
 }
 
-inline uint64_t Load64(absl::Nonnull<const void *> p) {
+inline uint64_t Load64(const void* absl_nonnull p) {
   return ToHost64(ABSL_INTERNAL_UNALIGNED_LOAD64(p));
 }
 
-inline void Store64(absl::Nonnull<void *> p, uint64_t v) {
+inline void Store64(void* absl_nonnull p, uint64_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE64(p, FromHost64(v));
 }
 
@@ -251,27 +247,27 @@ inline int64_t ToHost(int64_t x) {
 }
 
 // Functions to do unaligned loads and stores in big-endian order.
-inline uint16_t Load16(absl::Nonnull<const void *> p) {
+inline uint16_t Load16(const void* absl_nonnull p) {
   return ToHost16(ABSL_INTERNAL_UNALIGNED_LOAD16(p));
 }
 
-inline void Store16(absl::Nonnull<void *> p, uint16_t v) {
+inline void Store16(void* absl_nonnull p, uint16_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE16(p, FromHost16(v));
 }
 
-inline uint32_t Load32(absl::Nonnull<const void *> p) {
+inline uint32_t Load32(const void* absl_nonnull p) {
   return ToHost32(ABSL_INTERNAL_UNALIGNED_LOAD32(p));
 }
 
-inline void Store32(absl::Nonnull<void *>p, uint32_t v) {
+inline void Store32(void* absl_nonnull p, uint32_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE32(p, FromHost32(v));
 }
 
-inline uint64_t Load64(absl::Nonnull<const void *> p) {
+inline uint64_t Load64(const void* absl_nonnull p) {
   return ToHost64(ABSL_INTERNAL_UNALIGNED_LOAD64(p));
 }
 
-inline void Store64(absl::Nonnull<void *> p, uint64_t v) {
+inline void Store64(void* absl_nonnull p, uint64_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE64(p, FromHost64(v));
 }
 

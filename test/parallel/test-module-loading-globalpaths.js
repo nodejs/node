@@ -32,12 +32,12 @@ if (process.argv[2] === 'child') {
   fs.copyFileSync(process.execPath, testExecPath, COPYFILE_FICLONE);
   fs.chmodSync(testExecPath, mode);
 
-  const runTest = (expectedString, env) => {
+  const runTest = common.mustCallAtLeast((expectedString, env) => {
     const child = child_process.execFileSync(testExecPath,
                                              [ __filename, 'child' ],
                                              { encoding: 'utf8', env: env });
     assert.strictEqual(child.trim(), expectedString);
-  };
+  });
 
   const testFixturesDir = fixtures.path(path.basename(__filename, '.js'));
 
@@ -54,7 +54,7 @@ if (process.argv[2] === 'child') {
       child_process.execFileSync(testExecPath, [ __filename, 'child' ],
                                  { encoding: 'utf8', env: env });
     },
-    new RegExp(`Cannot find module '${pkgName}'`));
+    new RegExp(`Cannot find module '${RegExp.escape(pkgName)}'`));
 
   // Test module in $HOME/.node_modules.
   const modHomeDir = path.join(testFixturesDir, 'home-pkg-in-node_modules');

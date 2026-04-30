@@ -1,4 +1,3 @@
-adamk@chromium.org
 cbruni@chromium.org
 leszeks@chromium.org
 mlippautz@chromium.org
@@ -13,6 +12,8 @@ per-file v8-debug.h=file:../src/debug/OWNERS
 per-file js_protocol.pdl=file:../src/inspector/OWNERS
 per-file v8-inspector*=file:../src/inspector/OWNERS
 per-file v8-inspector*=file:../src/inspector/OWNERS
+
+per-file v8-profiler.h=file:../src/profiler/OWNERS
 
 # Needed by the auto_tag builder
 per-file v8-version.h=v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com

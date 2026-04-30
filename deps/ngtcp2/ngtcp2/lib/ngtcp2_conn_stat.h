@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pktns_id.h"
+
 /**
  * @struct
  *
@@ -116,18 +118,55 @@ typedef struct ngtcp2_conn_stat {
    */
   uint64_t delivery_rate_sec;
   /**
-   * :member:`pacing_interval` is the inverse of pacing rate, which is
-   * the current packet sending rate computed by a congestion
+   * :member:`pacing_interval_m` is the inverse of pacing rate, which
+   * is the current packet sending rate computed by a congestion
    * controller.  0 if a congestion controller does not set pacing
    * interval.  Even if this value is set to 0, the library paces
-   * packets.
+   * packets.  The unit of this value is 1/1024 of nanoseconds.
    */
-  ngtcp2_duration pacing_interval;
+  uint64_t pacing_interval_m;
   /**
    * :member:`send_quantum` is the maximum size of a data aggregate
    * scheduled and transmitted together.
    */
   size_t send_quantum;
+  /*
+   * pkt_sent is the number of QUIC packets sent.
+   */
+  uint64_t pkt_sent;
+  /*
+   * bytes_sent is the number of bytes (the sum of QUIC packet length)
+   * sent.
+   */
+  uint64_t bytes_sent;
+  /*
+   * pkt_recv is the number of QUIC packets received, excluding
+   * discarded ones.
+   */
+  uint64_t pkt_recv;
+  /*
+   * bytes_recv is the number of bytes (the sum of QUIC packet length)
+   * received, excluding discarded ones.
+   */
+  uint64_t bytes_recv;
+  /*
+   * pkt_lost is the number of QUIC packets that are considered lost,
+   * excluding PMTUD packets.
+   */
+  uint64_t pkt_lost;
+  /*
+   * bytes_lost is the number of bytes (the sum of QUIC packet length)
+   * lost, excluding PMTUD packets.
+   */
+  uint64_t bytes_lost;
+  /*
+   * ping_recv is the number of PING frames received.
+   */
+  uint64_t ping_recv;
+  /*
+   * pkt_discarded is the number of QUIC packets discarded.
+   */
+  uint64_t pkt_discarded;
 } ngtcp2_conn_stat;
 
 #endif /* !defined(NGTCP2_CONN_STAT_H) */

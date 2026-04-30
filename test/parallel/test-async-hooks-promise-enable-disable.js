@@ -31,14 +31,14 @@ const hook = async_hooks.createHook({
 
 new Promise(common.mustCall((res) => {
   res(42);
-})).then(common.mustCall((val) => {
+})).then((val) => {
   hook.enable().enable();
   const p = new Promise((res) => res(val));
   hook.disable();
   return p;
-})).then(common.mustCall((val2) => {
+}).then((val2) => {
   hook.enable();
   const p = new Promise((res) => res(val2));
   hook.disable();
   return p;
-})).catch((er) => p_er = er);
+}).catch((er) => p_er = er).then(common.mustCall());

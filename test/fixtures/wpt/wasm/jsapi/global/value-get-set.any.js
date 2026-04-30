@@ -1,4 +1,4 @@
-// META: global=window,dedicatedworker,jsshell
+// META: global=window,dedicatedworker,jsshell,shadowrealm
 
 test(() => {
   const thisValues = [
@@ -131,7 +131,14 @@ test(() => {
   const setter = desc.set;
   assert_equals(typeof setter, "function");
 
-  assert_throws_js(TypeError, () => setter.call(global));
+  assert_equals(global.value, 0);
+
+  assert_equals(setter.call(global, undefined), undefined);
+  assert_equals(global.value, 0);
+
+  // Should behave as if 'undefined' was passed as the argument.
+  assert_equals(setter.call(global), undefined);
+  assert_equals(global.value, 0);
 }, "Calling setter without argument");
 
 test(() => {

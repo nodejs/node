@@ -1,5 +1,4 @@
-// Flags: --experimental-vm-modules --expose-internals --allow-natives-syntax --js-float16array
-// TODO(LiviaMedeiros): once `Float16Array` is unflagged in v8, remove `--js-float16array` above
+// Flags: --experimental-vm-modules --expose-internals --allow-natives-syntax
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -9,9 +8,6 @@ const { internalBinding } = require('internal/test/binding');
 const { JSStream } = internalBinding('js_stream');
 
 const external = (new JSStream())._externalStream;
-
-// TODO(LiviaMedeiros): once linter recognizes `Float16Array`, remove next line
-const { Float16Array } = globalThis;
 
 for (const [ value, _method ] of [
   [ external, 'isExternal' ],
@@ -651,23 +647,6 @@ for (const [ value, _method ] of [
   if (common.isDebug) {
     const { getV8FastApiCallCount } = internalBinding('debug');
     assert.strictEqual(getV8FastApiCallCount('types.isArrayBuffer'), 2);
-  }
-}
-
-{
-  function testIsDataView(input) {
-    return types.isDataView(input);
-  }
-
-  eval('%PrepareFunctionForOptimization(testIsDataView)');
-  testIsDataView(new DataView(new ArrayBuffer()));
-  eval('%OptimizeFunctionOnNextCall(testIsDataView)');
-  assert.strictEqual(testIsDataView(new DataView(new ArrayBuffer())), true);
-  assert.strictEqual(testIsDataView(Math.random()), false);
-
-  if (common.isDebug) {
-    const { getV8FastApiCallCount } = internalBinding('debug');
-    assert.strictEqual(getV8FastApiCallCount('types.isDataView'), 2);
   }
 }
 

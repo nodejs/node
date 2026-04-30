@@ -8,6 +8,8 @@
 #include "include/v8-platform.h"
 #include "src/base/base-export.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/platform/memory-protection-key.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/region-allocator.h"
 
@@ -34,12 +36,6 @@ class VirtualAddressSpaceBase
   // in the parent space.
   virtual void FreeSubspace(VirtualAddressSubspace* subspace) = 0;
 };
-
-/*
- * Helper routine to determine whether one set of page permissions (the lhs) is
- * a subset of another one (the rhs).
- */
-V8_BASE_EXPORT bool IsSubset(PagePermissions lhs, PagePermissions rhs);
 
 /*
  * The virtual address space of the current process. Conceptionally, there
@@ -70,16 +66,20 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
-                              PlatformSharedMemoryHandle handle,
+                              SharedMemoryHandle handle,
                               uint64_t offset) override;
 
   void FreeSharedPages(Address address, size_t size) override;
+
+  std::optional<MemoryProtectionKeyId> ActiveMemoryProtectionKey() override;
 
   bool CanAllocateSubspaces() override;
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_page_permissions) override;
+      PagePermissions max_page_permissions,
+      std::optional<MemoryProtectionKeyId> key = std::nullopt,
+      std::optional<SharedMemoryHandle> handle = std::nullopt) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions access) override;
@@ -87,6 +87,9 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
   bool DiscardSystemPages(Address address, size_t size) override;
 
   bool DecommitPages(Address address, size_t size) override;
+
+  // It's not possible to assign a name to the root virtual address space.
+  bool SetName(const std::string& name) override { return false; }
 
  private:
   void FreeSubspace(VirtualAddressSubspace* subspace) override;
@@ -118,16 +121,20 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
 
   Address AllocateSharedPages(Address hint, size_t size,
                               PagePermissions permissions,
-                              PlatformSharedMemoryHandle handle,
+                              SharedMemoryHandle handle,
                               uint64_t offset) override;
 
   void FreeSharedPages(Address address, size_t size) override;
+
+  std::optional<MemoryProtectionKeyId> ActiveMemoryProtectionKey() override;
 
   bool CanAllocateSubspaces() override { return true; }
 
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
-      PagePermissions max_page_permissions) override;
+      PagePermissions max_page_permissions,
+      std::optional<MemoryProtectionKeyId> key,
+      std::optional<SharedMemoryHandle> handle) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions permissions) override;
@@ -135,6 +142,8 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   bool DiscardSystemPages(Address address, size_t size) override;
 
   bool DecommitPages(Address address, size_t size) override;
+
+  bool SetName(const std::string& name) override;
 
  private:
   // The VirtualAddressSpace class creates instances of this class when
@@ -145,7 +154,8 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
 
   VirtualAddressSubspace(AddressSpaceReservation reservation,
                          VirtualAddressSpaceBase* parent_space,
-                         PagePermissions max_page_permissions);
+                         PagePermissions max_page_permissions,
+                         std::optional<MemoryProtectionKeyId> key);
 
   // The address space reservation backing this subspace.
   AddressSpaceReservation reservation_;
@@ -164,6 +174,20 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   // Pointer to the parent space. Must be kept alive by the owner of this
   // instance during its lifetime.
   VirtualAddressSpaceBase* parent_space_;
+
+  // Memory protection key for this virtual address subspace.
+  // If set, all memory pages allocated in this subspace will use this key.
+  //
+  // The way this is implemented is that we initially set the key for the
+  // entire backing memory and then ensure that we re-set it whenever we
+  // replace pages in for example FreePages() and DecommitPages(). This way,
+  // all memory pages in this space always have this key set.
+  std::optional<MemoryProtectionKeyId> pkey_;
+
+  // The name assigned to this virtual address space. Only used if SetName is
+  // called and completes successfully, meaning that the OS supports names for
+  // anonymous memory regions.
+  std::string name_;
 };
 
 }  // namespace base

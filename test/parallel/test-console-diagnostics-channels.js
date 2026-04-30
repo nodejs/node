@@ -1,7 +1,7 @@
 'use strict';
 
 const { mustCall } = require('../common');
-const { deepStrictEqual, ok, strictEqual } = require('assert');
+const assert = require('assert');
 
 const { channel } = require('diagnostics_channel');
 
@@ -54,10 +54,10 @@ for (const method of methods) {
   channels[method].subscribe(mustCall((args) => {
     // Should not have been formatted yet.
     intercepted = true;
-    ok(!formatted);
+    assert.ok(!formatted);
 
     // Should receive expected log message args.
-    deepStrictEqual(args, [foo, bar, baz]);
+    assert.deepStrictEqual(args, [foo, bar, baz]);
 
     // Should be able to mutate message args and have it reflected in output.
     bar.added = true;
@@ -66,10 +66,10 @@ for (const method of methods) {
   hijack(mustCall((output) => {
     // Should have already been intercepted.
     formatted = true;
-    ok(intercepted);
+    assert.ok(intercepted);
 
     // Should produce expected formatted output with mutated message args.
-    strictEqual(output, 'string { key: /value/, added: true } [ 1, 2, 3 ]\n');
+    assert.strictEqual(output, 'string { key: /value/, added: true } [ 1, 2, 3 ]\n');
   }));
 
   console[method](foo, bar, baz);

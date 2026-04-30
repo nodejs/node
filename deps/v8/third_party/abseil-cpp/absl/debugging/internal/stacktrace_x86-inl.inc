@@ -33,6 +33,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/address_is_readable.h"
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
 
@@ -163,6 +164,7 @@ static uintptr_t GetFP(const void *vuc) {
 template <bool STRICT_UNWINDING, bool WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_fp, const void *uc,
                              size_t stack_low, size_t stack_high) {
   void **new_fp = (void **)*old_fp;
@@ -243,6 +245,7 @@ static void **NextStackFrame(void **old_fp, const void *uc,
   }
 #endif
 
+  const size_t page_size = static_cast<size_t>(getpagesize());
   const uintptr_t old_fp_u = reinterpret_cast<uintptr_t>(old_fp);
   const uintptr_t new_fp_u = reinterpret_cast<uintptr_t>(new_fp);
 
@@ -259,19 +262,19 @@ static void **NextStackFrame(void **old_fp, const void *uc,
   // it's supposed to.
   if (STRICT_UNWINDING &&
       (!WITH_CONTEXT || uc == nullptr || new_fp_u != GetFP(uc))) {
-    // With the stack growing downwards, older stack frame must be
-    // at a greater address that the current one.
-    if (new_fp_u <= old_fp_u) return nullptr;
-
+    // With the stack growing downwards, older stack frame should be
+    // at a greater address that the current one. However if we get multiple
+    // signals handled on altstack the new frame pointer might return to the
+    // main stack, but be different than the value from the most recent
+    // ucontext.
     // If we get a very large frame size, it may be an indication that we
     // guessed frame pointers incorrectly and now risk a paging fault
     // dereferencing a wrong frame pointer. Or maybe not because large frames
     // are possible as well. The main stack is assumed to be readable,
     // so we assume the large frame is legit if we know the real stack bounds
     // and are within the stack.
-    if (new_fp_u - old_fp_u > kMaxFrameBytes) {
-      if (stack_high < kUnknownStackEnd &&
-          static_cast<size_t>(getpagesize()) < stack_low) {
+    if (new_fp_u <= old_fp_u || new_fp_u - old_fp_u > kMaxFrameBytes) {
+      if (stack_high < kUnknownStackEnd && page_size < stack_low) {
         // Stack bounds are known.
         if (!(stack_low < new_fp_u && new_fp_u <= stack_high)) {
           // new_fp_u is not within the known stack.
@@ -308,7 +311,12 @@ static void **NextStackFrame(void **old_fp, const void *uc,
   if (new_fp_u >= 0xffffe000) return nullptr;
 #endif
 #if !defined(_WIN32)
-  if (!STRICT_UNWINDING) {
+  const uintptr_t old_fp_page = old_fp_u & ~(page_size - 1);
+  const uintptr_t new_fp_page = new_fp_u & ~(page_size - 1);
+  if (old_fp_page == new_fp_page && (new_fp_u & (sizeof(void*) - 1)) == 0) {
+    // We dereferenced the old_fp above, so it is safe to dereference
+    // new_fp if it's on the same page as the old_fp and is aligned.
+  } else if (!STRICT_UNWINDING) {
     // Lax sanity checks cause a crash in 32-bit tcmalloc/crash_reason_test
     // on AMD-based machines with VDSO-enabled kernels.
     // Make an extra sanity check to insure new_fp is readable.
@@ -326,9 +334,11 @@ static void **NextStackFrame(void **old_fp, const void *uc,
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 ABSL_ATTRIBUTE_NOINLINE
-static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
-                      const void *ucp, int *min_dropped_frames) {
+static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
+                      int max_depth, int skip_count, const void *ucp,
+                      int *min_dropped_frames) {
   int n = 0;
   void **fp = reinterpret_cast<void **>(__builtin_frame_address(0));
 
@@ -349,13 +359,19 @@ static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
     } else {
       result[n] = *(fp + 1);
       if (IS_STACK_FRAMES) {
-        if (next_fp > fp) {
-          sizes[n] = static_cast<int>(
-              reinterpret_cast<uintptr_t>(next_fp) -
-              reinterpret_cast<uintptr_t>(fp));
-        } else {
-          // A frame-size of 0 is used to indicate unknown frame size.
-          sizes[n] = 0;
+        if (frames) {
+          frames[n] = absl::debugging_internal::StripPointerMetadata(fp) +
+                      2 * sizeof(void *) /* go past the return address */;
+        }
+        if (sizes) {
+          if (next_fp > fp) {
+            sizes[n] = static_cast<int>(
+                absl::debugging_internal::StripPointerMetadata(next_fp) -
+                absl::debugging_internal::StripPointerMetadata(fp));
+          } else {
+            // A frame-size of 0 is used to indicate unknown frame size.
+            sizes[n] = 0;
+          }
         }
       }
       n++;

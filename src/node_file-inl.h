@@ -153,6 +153,7 @@ void FillStatFsArray(AliasedBufferBase<NativeT, V8T>* fields,
 
   SET_FIELD(kType, s->f_type);
   SET_FIELD(kBSize, s->f_bsize);
+  SET_FIELD(kFrSize, s->f_frsize);
   SET_FIELD(kBlocks, s->f_blocks);
   SET_FIELD(kBFree, s->f_bfree);
   SET_FIELD(kBAvail, s->f_bavail);
@@ -287,21 +288,27 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
                       int index,
                       bool use_bigint) {
   v8::Local<v8::Value> value = args[index];
+  FSReqBase* result = nullptr;
   if (value->IsObject()) {
-    return BaseObject::Unwrap<FSReqBase>(value.As<v8::Object>());
-  }
+    result = BaseObject::Unwrap<FSReqBase>(value.As<v8::Object>());
+  } else {
+    Realm* realm = Realm::GetCurrent(args);
+    BindingData* binding_data = realm->GetBindingData<BindingData>();
 
-  Realm* realm = Realm::GetCurrent(args);
-  BindingData* binding_data = realm->GetBindingData<BindingData>();
-
-  if (value->StrictEquals(realm->isolate_data()->fs_use_promises_symbol())) {
-    if (use_bigint) {
-      return FSReqPromise<AliasedBigInt64Array>::New(binding_data, use_bigint);
-    } else {
-      return FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
+    if (value->StrictEquals(realm->isolate_data()->fs_use_promises_symbol())) {
+      if (use_bigint) {
+        result =
+            FSReqPromise<AliasedBigInt64Array>::New(binding_data, use_bigint);
+      } else {
+        result =
+            FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
+      }
     }
   }
-  return nullptr;
+  if (result != nullptr) {
+    result->SetReturnValue(args);
+  }
+  return result;
 }
 
 // Returns nullptr if the operation fails from the start.
@@ -320,10 +327,7 @@ FSReqBase* AsyncDestCall(Environment* env, FSReqBase* req_wrap,
     uv_req->path = nullptr;
     after(uv_req);  // after may delete req_wrap if there is an error
     req_wrap = nullptr;
-  } else {
-    req_wrap->SetReturnValue(args);
   }
-
   return req_wrap;
 }
 

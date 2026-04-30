@@ -13,7 +13,7 @@ const {
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
-  stream.on('error', (err) => assert.strictEqual(err.code, 'ECONNRESET'));
+  stream.on('error', common.mustCallAtLeast((err) => assert.strictEqual(err.code, 'ECONNRESET'), 0));
   stream.respondWithFile(process.execPath, {
     [HTTP2_HEADER_CONTENT_TYPE]: 'application/octet-stream'
   });

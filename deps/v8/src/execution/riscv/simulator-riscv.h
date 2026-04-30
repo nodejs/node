@@ -50,6 +50,7 @@
 #define V8_EXECUTION_RISCV_SIMULATOR_RISCV_H_
 
 // globals.h defines USE_SIMULATOR.
+#include "src/base/float16.h"
 #include "src/common/globals.h"
 
 template <typename T>
@@ -63,8 +64,7 @@ int Compare(const T& a, const T& b) {
 }
 
 // Returns the negative absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_signed_v<T>>>
 T Nabs(T a) {
   return a < 0 ? a : -a;
 }
@@ -81,8 +81,17 @@ typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 #include "src/utils/allocation.h"
 #include "src/utils/boxed-float.h"
 
+namespace heap::base {
+class StackVisitor;
+}
+
 namespace v8 {
 namespace internal {
+
+struct VRegisterValue {
+  static const int kChunks = kSimulatorRvvVLEN / 64;
+  uint64_t chunks[kChunks];
+};
 
 // -----------------------------------------------------------------------------
 // Utility types and functions for RISCV
@@ -100,6 +109,7 @@ using sfreg_t = int64_t;
 #error "Cannot detect Riscv's bitwidth"
 #endif
 
+#define sext16(x) ((sreg_t)(int16_t)(x))
 #define sext32(x) ((sreg_t)(int32_t)(x))
 #define zext32(x) ((reg_t)(uint32_t)(x))
 
@@ -215,12 +225,17 @@ inline Float64 fsgnj64(Float64 rs1, Float64 rs2, bool n, bool x) {
   }
   return Float64::FromBits(res.u);
 }
+
+inline bool is_boxed_float16(int64_t v) {
+  return (uint16_t)((v >> 16) + 1) == 0;
+}
 inline bool is_boxed_float(int64_t v) { return (uint32_t)((v >> 32) + 1) == 0; }
 inline int64_t box_float(float v) {
   return (0xFFFFFFFF00000000 | base::bit_cast<int32_t>(v));
 }
 
 inline uint64_t box_float(uint32_t v) { return (0xFFFFFFFF00000000 | v); }
+inline uint64_t box_float16(uint16_t v) { return (0xFFFFFFFFFFFF0000 | v); }
 
 // -----------------------------------------------------------------------------
 // Utility functions
@@ -419,19 +434,22 @@ class Simulator : public SimulatorBase {
   double get_double_from_register_pair(int reg);
 
   // Same for FPURegisters.
-  void set_fpu_register(int fpureg, int64_t value);
   void set_fpu_register_word(int fpureg, int32_t value);
   void set_fpu_register_hi_word(int fpureg, int32_t value);
-  void set_fpu_register_float(int fpureg, float value);
-  void set_fpu_register_float(int fpureg, Float32 value);
-  void set_fpu_register_double(int fpureg, double value);
-  void set_fpu_register_double(int fpureg, Float64 value);
+
+  void set_fpu_register(int fpureg, int64_t value);
+  void set_fpu_register(int fpureg, uint16_t value);
+  void set_fpu_register(int fpureg, float value);
+  void set_fpu_register(int fpureg, Float32 value);
+  void set_fpu_register(int fpureg, double value);
+  void set_fpu_register(int fpureg, Float64 value);
 
   int64_t get_fpu_register(int fpureg) const;
   int32_t get_fpu_register_word(int fpureg) const;
   int32_t get_fpu_register_signed_word(int fpureg) const;
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
+  uint16_t get_fpu_register_Float16(int fpureg, bool check_nanbox = true) const;
   Float32 get_fpu_register_Float32(int fpureg, bool check_nanbox = true) const;
   double get_fpu_register_double(int fpureg) const;
   Float64 get_fpu_register_Float64(int fpureg) const;
@@ -447,8 +465,8 @@ class Simulator : public SimulatorBase {
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV CSR
-  __int128_t get_vregister(int vreg) const;
-  inline uint64_t rvv_vlen() const { return kRvvVLEN; }
+  VRegisterValue get_vregister(int vreg) const;
+  inline uint64_t rvv_vlen() const { return kSimulatorRvvVLEN; }
   inline uint64_t rvv_vtype() const { return vtype_; }
   inline uint64_t rvv_vl() const { return vl_; }
   inline uint64_t rvv_vstart() const { return vstart_; }
@@ -466,6 +484,11 @@ class Simulator : public SimulatorBase {
     }
   }
   inline uint32_t rvv_vsew() const { return ((rvv_vtype() >> 3) & 0x7); }
+  inline uint32_t rvv_vill() const {
+    return ((rvv_vtype() >> (kRvXLEN - 1)) & 0x1);
+  }
+  inline void set_vill_ignore(bool ignored) { vill_ignore_ = ignored; }
+  inline bool get_vill_ignore() const { return vill_ignore_; }
 
   inline const char* rvv_sew_s() const {
     uint32_t vsew = rvv_vsew();
@@ -530,9 +553,16 @@ class Simulator : public SimulatorBase {
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
-  // Return current stack view, without additional safety margins.
+  uintptr_t StackBase() const;
+  // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
-  base::Vector<uint8_t> GetCurrentStackView() const;
+  base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kAdditionalStackMargin; }
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
+
+  // Pseudo instruction for switching stack limit
+  void DoSwitchStackLimit(Instruction* instr);
 
   // Executes RISC-V instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -553,8 +583,9 @@ class Simulator : public SimulatorBase {
       type_ = FP_ARG;
     }
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested.
-      UNIMPLEMENTED();
+      auto arg = box_float(argument);
+      memcpy(&bits_, &arg, sizeof(arg));
+      type_ = FP_ARG;
     }
     // This indicates the end of the arguments list, so that CallArgument
     // objects can be passed into varargs functions.
@@ -588,10 +619,10 @@ class Simulator : public SimulatorBase {
   double CallFP(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);
@@ -608,6 +639,12 @@ class Simulator : public SimulatorBase {
   // Returns true if pc register contains one of the 'special_values' defined
   // below (bad_ra, end_sim_pc).
   bool has_bad_pc() const;
+
+  int64_t SSMismatchCount() { return ss_mismatch_count_; }
+
+  void PushShadowStack(uintptr_t value);
+  uintptr_t PopShadowStack(uintptr_t value);
+  uintptr_t SwapShadowStack(uintptr_t value, int nest);
 
  private:
   enum special_values {
@@ -629,14 +666,12 @@ class Simulator : public SimulatorBase {
                             const EncodedCSignature& signature);
   // Read floating point return values.
   template <typename T>
-  typename std::enable_if<std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  typename std::enable_if_t<std::is_floating_point_v<T>, T> ReadReturn() {
     return static_cast<T>(get_fpu_register_double(fa0));
   }
   // Read non-float return values.
   template <typename T>
-  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  typename std::enable_if_t<!std::is_floating_point_v<T>, T> ReadReturn() {
     return ConvertReturn<T>(get_register(a0));
   }
 #else
@@ -660,6 +695,10 @@ class Simulator : public SimulatorBase {
     // WORD_DWORD
   };
 
+  template <typename T, typename OP>
+  void AtomicMemoryHelper(sreg_t rs1, T value, OP f, Instruction* instr);
+
+  void CheckMemoryAccess(uintptr_t address, uintptr_t stack);
   // "Probe" if an address range can be read. This is currently implemented
   // by doing a 1-byte read of the last accessed byte, since the assumption is
   // that if the last byte is accessible, also all lower bytes are accessible
@@ -677,13 +716,6 @@ class Simulator : public SimulatorBase {
   T ReadMem(sreg_t addr, Instruction* instr);
   template <typename T>
   void WriteMem(sreg_t addr, T value, Instruction* instr);
-  template <typename T, typename OP>
-  T amo(sreg_t addr, OP f, Instruction* instr, TraceType t) {
-    auto lhs = ReadMem<T>(addr, instr);
-    // TODO(RISCV): trace memory read for AMO
-    WriteMem<T>(addr, (T)f(lhs), instr);
-    return lhs;
-  }
 
   // Helper for debugging memory access.
   inline void DieOrDebug();
@@ -784,20 +816,25 @@ class Simulator : public SimulatorBase {
     if (trace) TraceRegWr(get_register(rd_reg()), WORD);
 #endif
   }
+
+  inline void set_frd(Float16 value, bool trace = true) {
+    set_fpu_register(rd_reg(), value.get_bits());
+    if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
+  }
   inline void set_frd(float value, bool trace = true) {
-    set_fpu_register_float(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
   }
   inline void set_frd(Float32 value, bool trace = true) {
-    set_fpu_register_float(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register_word(rd_reg()), FLOAT);
   }
   inline void set_drd(double value, bool trace = true) {
-    set_fpu_register_double(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rd_reg()), DOUBLE);
   }
   inline void set_drd(Float64 value, bool trace = true) {
-    set_fpu_register_double(rd_reg(), value);
+    set_fpu_register(rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rd_reg()), DOUBLE);
   }
   inline void set_rvc_rd(sreg_t value, bool trace = true) {
@@ -825,15 +862,15 @@ class Simulator : public SimulatorBase {
 #endif
   }
   inline void set_rvc_drd(double value, bool trace = true) {
-    set_fpu_register_double(rvc_rd_reg(), value);
+    set_fpu_register(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
   inline void set_rvc_drd(Float64 value, bool trace = true) {
-    set_fpu_register_double(rvc_rd_reg(), value);
+    set_fpu_register(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
   inline void set_rvc_frd(Float32 value, bool trace = true) {
-    set_fpu_register_float(rvc_rd_reg(), value);
+    set_fpu_register(rvc_rd_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rd_reg()), DOUBLE);
   }
   inline void set_rvc_rs2s(sreg_t value, bool trace = true) {
@@ -845,16 +882,16 @@ class Simulator : public SimulatorBase {
 #endif
   }
   inline void set_rvc_drs2s(double value, bool trace = true) {
-    set_fpu_register_double(rvc_rs2s_reg(), value);
+    set_fpu_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rs2s_reg()), DOUBLE);
   }
   inline void set_rvc_drs2s(Float64 value, bool trace = true) {
-    set_fpu_register_double(rvc_rs2s_reg(), value);
+    set_fpu_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rs2s_reg()), DOUBLE);
   }
 
   inline void set_rvc_frs2s(Float32 value, bool trace = true) {
-    set_fpu_register_float(rvc_rs2s_reg(), value);
+    set_fpu_register(rvc_rs2s_reg(), value);
     if (trace) TraceRegWr(get_fpu_register(rvc_rs2s_reg()), FLOAT);
   }
   inline int16_t shamt6() const { return (imm12() & 0x3F); }
@@ -870,37 +907,51 @@ class Simulator : public SimulatorBase {
   }
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
+  inline void printf_vreg(int vreg) {
+    PrintF("\t%s:0x", v8::internal::Registers::Name(static_cast<int>(vreg)));
+    VRegisterValue value = get_vregister(vreg);
+    for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
+      const char* format =
+          i != VRegisterValue::kChunks - 1 ? "_%016" PRIx64 : "%016" PRIx64;
+      PrintF(format, value.chunks[i]);
+    }
+    PrintF("\n");
+  }
+
+  inline int snprintf_vreg(int vreg, int offset = 0) {
+    VRegisterValue value = get_vregister(vreg);
+    for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
+      const char* format =
+          i != VRegisterValue::kChunks - 1 ? "_%016" PRIx64 : "%016" PRIx64;
+      int written = SNPrintF(trace_buf_.SubVector(offset, trace_buf_.length()),
+                             format, value.chunks[i]);
+      offset += written;
+    }
+    return offset;
+  }
+
   inline void rvv_trace_vd() {
     if (v8_flags.trace_sim) {
-      __int128_t value = Vregister_[rvv_vd_reg()];
-      SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
-               *(reinterpret_cast<int64_t*>(&value) + 1),
-               *reinterpret_cast<int64_t*>(&value), icount_);
+      int offset = snprintf_vreg(rvv_vd_reg());
+      SNPrintF(trace_buf_.SubVector(offset, trace_buf_.length()),
+               " (%" PRId64 ")", icount_);
     }
   }
 
   inline void rvv_trace_vs1() {
     if (v8_flags.trace_sim) {
-      PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
-             v8::internal::VRegisters::Name(static_cast<int>(rvv_vs1_reg())),
-             (uint64_t)(get_vregister(static_cast<int>(rvv_vs1_reg())) >> 64),
-             (uint64_t)get_vregister(static_cast<int>(rvv_vs1_reg())));
+      printf_vreg(rvv_vs1_reg());
     }
   }
 
   inline void rvv_trace_vs2() {
     if (v8_flags.trace_sim) {
-      PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
-             v8::internal::VRegisters::Name(static_cast<int>(rvv_vs2_reg())),
-             (uint64_t)(get_vregister(static_cast<int>(rvv_vs2_reg())) >> 64),
-             (uint64_t)get_vregister(static_cast<int>(rvv_vs2_reg())));
+      printf_vreg(rvv_vs2_reg());
     }
   }
   inline void rvv_trace_v0() {
     if (v8_flags.trace_sim) {
-      PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
-             v8::internal::VRegisters::Name(v0),
-             (uint64_t)(get_vregister(v0) >> 64), (uint64_t)get_vregister(v0));
+      printf_vreg(v0);
     }
   }
 
@@ -919,7 +970,7 @@ class Simulator : public SimulatorBase {
         if (trace_buf_[i] == '\0') break;
       }
       SNPrintF(trace_buf_.SubVector(i, trace_buf_.length()),
-               "  sew:%s lmul:%s vstart:%" PRId64 "vl:%" PRId64, rvv_sew_s(),
+               "  sew:%s lmul:%s vstart:%" PRId64 " vl:%" PRId64, rvv_sew_s(),
                rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
   }
@@ -968,7 +1019,7 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOpFMA(Func fn, T dst, T src1, T src2) {
-    static_assert(std::is_floating_point<T>::value);
+    static_assert(std::is_floating_point_v<T>);
     auto alu_out = fn(dst, src1, src2);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
@@ -983,10 +1034,10 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp3(Func fn) {
-    static_assert(std::is_floating_point<T>::value);
-    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
-    T src2 = std::is_same<float, T>::value ? frs2() : drs2();
-    T src3 = std::is_same<float, T>::value ? frs3() : drs3();
+    static_assert(std::is_floating_point_v<T>);
+    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+    T src2 = std::is_same_v<float, T> ? frs2() : drs2();
+    T src3 = std::is_same_v<float, T> ? frs3() : drs3();
     auto alu_out = fn(src1, src2, src3);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2) ||
@@ -1001,9 +1052,9 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp2(Func fn) {
-    static_assert(std::is_floating_point<T>::value);
-    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
-    T src2 = std::is_same<float, T>::value ? frs2() : drs2();
+    static_assert(std::is_floating_point_v<T>);
+    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
+    T src2 = std::is_same_v<float, T> ? frs2() : drs2();
     auto alu_out = fn(src1, src2);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1) || std::isnan(src2)) {
@@ -1017,8 +1068,8 @@ class Simulator : public SimulatorBase {
 
   template <typename T, typename Func>
   inline T CanonicalizeFPUOp1(Func fn) {
-    static_assert(std::is_floating_point<T>::value);
-    T src1 = std::is_same<float, T>::value ? frs1() : drs1();
+    static_assert(std::is_floating_point_v<T>);
+    T src1 = std::is_same_v<float, T> ? frs1() : drs1();
     auto alu_out = fn(src1);
     // if any input or result is NaN, the result is quiet_NaN
     if (std::isnan(alu_out) || std::isnan(src1)) {
@@ -1046,15 +1097,15 @@ class Simulator : public SimulatorBase {
   }
 
   template <typename Func>
-  inline float CanonicalizeFloatToDoubleOperation(Func fn, float frs) {
+  inline double CanonicalizeFloatToDoubleOperation(Func fn, float frs) {
     double alu_out = fn(frs);
-    if (std::isnan(alu_out) || std::isnan(frs1()))
+    if (std::isnan(alu_out) || std::isnan(frs))
       alu_out = std::numeric_limits<double>::quiet_NaN();
     return alu_out;
   }
 
   template <typename Func>
-  inline float CanonicalizeFloatToDoubleOperation(Func fn) {
+  inline double CanonicalizeFloatToDoubleOperation(Func fn) {
     double alu_out = fn(frs1());
     if (std::isnan(alu_out) || std::isnan(frs1()))
       alu_out = std::numeric_limits<double>::quiet_NaN();
@@ -1113,6 +1164,7 @@ class Simulator : public SimulatorBase {
   // Stop helper functions.
   bool IsWatchpoint(reg_t code);
   bool IsTracepoint(reg_t code);
+  bool IsSwitchStackLimit(reg_t code);
   void PrintWatchpoint(reg_t code);
   void HandleStop(reg_t code);
   bool IsStopInstruction(Instruction* instr);
@@ -1160,15 +1212,27 @@ class Simulator : public SimulatorBase {
   // Floating-point control and status register.
   uint32_t FCSR_;
 
+  base::Vector<uintptr_t> shadow_stack_ =
+      base::Vector<uintptr_t>::New(kInitialShadowStackSize);
+  size_t csr_ssp_ = shadow_stack_.size();  // Shadow stack pointer
+  int64_t ss_mismatch_count_ = 0;
+
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   // RVV registers
-  __int128_t Vregister_[kNumVRegisters];
-  static_assert(sizeof(__int128_t) == kRvvVLEN / 8, "unmatch vlen");
+  VRegisterValue Vregister_[kNumVRegisters];
+  static_assert(sizeof(VRegisterValue) == kSimulatorRvvVLEN / 8,
+                "unmatch vlen");
   uint64_t vstart_, vxsat_, vxrm_, vcsr_, vtype_, vl_, vlenb_;
+  // For simplicity, we only track whether the vector unit was enabled or not.
+  // The hardware's mstatus.VS status field can have 4 values: 'Off', 'Initial',
+  // 'Clean', or 'Dirty', but for the simulator we only need to know if it is
+  // enabled or not.
+  bool vu_enabled_ = false;
+  bool vill_ignore_ = false;
 #endif
   // Simulator support.
   // Allocate 1MB for stack.
-  uint8_t* stack_;
+  uintptr_t stack_;
   static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
   // This includes a protection margin at each end of the stack area.
   static size_t AllocatedStackSize() {
@@ -1182,6 +1246,10 @@ class Simulator : public SimulatorBase {
   static size_t UsableStackSize() {
     return AllocatedStackSize() - kStackProtectionSize;
   }
+
+  uintptr_t stack_limit_;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 20 * KB;
 
   bool pc_modified_;
   int64_t icount_;
@@ -1248,6 +1316,18 @@ class Simulator : public SimulatorBase {
 
   class GlobalMonitor {
    public:
+    class SimulatorMutex final {
+     public:
+      explicit SimulatorMutex(GlobalMonitor* global_monitor) {
+        if (!global_monitor->IsSingleThreaded()) {
+          guard.emplace(global_monitor->mutex_);
+        }
+      }
+
+     private:
+      std::optional<base::MutexGuard> guard;
+    };
+
     class LinkedAddress {
      public:
       LinkedAddress();
@@ -1274,32 +1354,32 @@ class Simulator : public SimulatorBase {
       int failure_counter_;
     };
 
-    // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
-    base::Mutex mutex;
-
     void NotifyLoadLinked_Locked(uintptr_t addr, LinkedAddress* linked_address);
     void NotifyStore_Locked(LinkedAddress* linked_address);
     bool NotifyStoreConditional_Locked(uintptr_t addr,
                                        LinkedAddress* linked_address);
 
+    // Called when the simulator is constructed.
+    void PrependLinkedAddress(LinkedAddress* linked_address);
     // Called when the simulator is destroyed.
     void RemoveLinkedAddress(LinkedAddress* linked_address);
 
     static GlobalMonitor* Get();
 
    private:
+    bool IsSingleThreaded() const { return num_linked_address_ == 1; }
     // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
     GlobalMonitor() = default;
     friend class base::LeakyObject<GlobalMonitor>;
 
-    bool IsProcessorInLinkedList_Locked(LinkedAddress* linked_address) const;
-    void PrependProcessor_Locked(LinkedAddress* linked_address);
-
     LinkedAddress* head_ = nullptr;
+    std::atomic<uint32_t> num_linked_address_ = 0;
+    base::Mutex mutex_;
   };
 
   LocalMonitor local_monitor_;
   GlobalMonitor::LinkedAddress global_monitor_thread_;
+  GlobalMonitor* global_monitor_;
 };
 }  // namespace internal
 }  // namespace v8

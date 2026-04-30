@@ -267,9 +267,6 @@ struct watcher_root {
 };
 
 static int uv__inotify_fork(uv_loop_t* loop, struct watcher_list* root);
-static void uv__inotify_read(uv_loop_t* loop,
-                             uv__io_t* w,
-                             unsigned int revents);
 static int compare_watchers(const struct watcher_list* a,
                             const struct watcher_list* b);
 static void maybe_free_watcher_list(struct watcher_list* w,
@@ -878,7 +875,7 @@ int uv__iou_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req) {
     return 0;
 
   sqe->fd = req->file;
-  sqe->len = req->off;
+  sqe->off = req->off;
   sqe->opcode = UV__IORING_OP_FTRUNCATE;
   uv__iou_submit(iou);
 
@@ -1450,25 +1447,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       while (*ctl->sqhead != *ctl->sqtail)
         uv__epoll_ctl_flush(epollfd, ctl, &prep);
 
-    /* Only need to set the provider_entry_time if timeout != 0. The function
-     * will return early if the loop isn't configured with UV_METRICS_IDLE_TIME.
-     */
-    if (timeout != 0)
-      uv__metrics_set_provider_entry_time(loop);
-
-    /* Store the current timeout in a location that's globally accessible so
-     * other locations like uv__work_done() can determine whether the queue
-     * of events in the callback were waiting when poll was called.
-     */
-    lfields->current_timeout = timeout;
-
+    uv__io_poll_prepare(loop, NULL, timeout);
     nfds = epoll_pwait(epollfd, events, ARRAY_SIZE(events), timeout, sigmask);
-
-    /* Update loop->time unconditionally. It's tempting to skip the update when
-     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
-     * operating system didn't reschedule our process while in the syscall.
-     */
-    SAVE_ERRNO(uv__update_time(loop));
+    uv__io_poll_check(loop, NULL);
 
     if (nfds == -1)
       assert(errno == EINTR);
@@ -1562,7 +1543,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           have_signals = 1;
         } else {
           uv__metrics_update_idle_time(loop);
-          w->cb(loop, w, pe->events);
+          uv__io_cb(loop, w, pe->events);
         }
 
         nevents++;
@@ -1578,7 +1559,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (have_signals != 0) {
       uv__metrics_update_idle_time(loop);
-      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+      uv__signal_event(loop, &loop->signal_io_watcher, POLLIN);
     }
 
     lfields->inv = NULL;
@@ -1750,7 +1731,7 @@ int uv_cpu_info(uv_cpu_info_t** ci, int* count) {
     "0xd0b\nCortex-A76\n"   "0xd0c\nNeoverse-N1\n"  "0xd0d\nCortex-A77\n"
     "0xd0e\nCortex-A76AE\n" "0xd13\nCortex-R52\n"   "0xd20\nCortex-M23\n"
     "0xd21\nCortex-M33\n"   "0xd41\nCortex-A78\n"   "0xd42\nCortex-A78AE\n"
-    "0xd4a\nNeoverse-E1\n"  "0xd4b\nCortex-A78C\n"
+    "0xd4a\nNeoverse-E1\n"  "0xd4b\nCortex-A78C\n"  "0xd4f\nNeoverse-V2\n"
 #endif
     "";
   struct cpu {
@@ -1758,7 +1739,7 @@ int uv_cpu_info(uv_cpu_info_t** ci, int* count) {
     unsigned model;
   };
   FILE* fp;
-  char* p;
+  const char* p;
   int found;
   int n;
   unsigned i;
@@ -1954,11 +1935,15 @@ static int uv__ifaddr_exclude(struct ifaddrs *ent, int exclude_type) {
   return !exclude_type;
 }
 
+/* TODO(bnoordhuis) share with bsd-ifaddrs.c */
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  struct ifaddrs *addrs, *ent;
   uv_interface_address_t* address;
+  struct sockaddr_ll* sll;
+  struct ifaddrs* addrs;
+  struct ifaddrs* ent;
+  size_t namelen;
+  char* name;
   int i;
-  struct sockaddr_ll *sll;
 
   *count = 0;
   *addresses = NULL;
@@ -1967,10 +1952,12 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return UV__ERR(errno);
 
   /* Count the number of interfaces */
+  namelen = 0;
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFADDR))
       continue;
 
+    namelen += strlen(ent->ifa_name) + 1;
     (*count)++;
   }
 
@@ -1980,19 +1967,22 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   }
 
   /* Make sure the memory is initiallized to zero using calloc() */
-  *addresses = uv__calloc(*count, sizeof(**addresses));
-  if (!(*addresses)) {
+  *addresses = uv__calloc(1, *count * sizeof(**addresses) + namelen);
+  if (*addresses == NULL) {
     freeifaddrs(addrs);
     return UV_ENOMEM;
   }
 
+  name = (char*) &(*addresses)[*count];
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent, UV__EXCLUDE_IFADDR))
       continue;
 
-    address->name = uv__strdup(ent->ifa_name);
+    namelen = strlen(ent->ifa_name) + 1;
+    address->name = memcpy(name, ent->ifa_name, namelen);
+    name += namelen;
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -2033,18 +2023,6 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   freeifaddrs(addrs);
 
   return 0;
-}
-
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    uv__free(addresses[i].name);
-  }
-
-  uv__free(addresses);
 }
 
 
@@ -2223,11 +2201,20 @@ static uint64_t uv__get_cgroup_constrained_memory(char buf[static 1024]) {
 
 uint64_t uv_get_constrained_memory(void) {
   char buf[1024];
+  uint64_t cgroup_limit;
+  uint64_t rlimit_limit;
 
-  if (uv__slurp("/proc/self/cgroup", buf, sizeof(buf)))
-    return 0;
+  cgroup_limit = 0;
+  if (uv__slurp("/proc/self/cgroup", buf, sizeof(buf)) == 0)
+    cgroup_limit = uv__get_cgroup_constrained_memory(buf);
+  rlimit_limit = uv__get_rlimit_max_memory();
 
-  return uv__get_cgroup_constrained_memory(buf);
+  /* Return the minimum of cgroup and rlimit constraints. */
+  if (cgroup_limit == 0)
+    return rlimit_limit;
+  if (rlimit_limit == 0)
+    return cgroup_limit;
+  return cgroup_limit < rlimit_limit ? cgroup_limit : rlimit_limit;
 }
 
 
@@ -2301,57 +2288,93 @@ uint64_t uv_get_available_memory(void) {
 
 
 static int uv__get_cgroupv2_constrained_cpu(const char* cgroup,
-                                            uv__cpu_constraint* constraint) {
-  char path[256];
-  char buf[1024];
-  unsigned int weight;
-  int cgroup_size;
+                                            long long* quota) {
+  static const char cgroup_mount[] = "/sys/fs/cgroup";
   const char* cgroup_trimmed;
+  char buf[1024];
+  char path[256];
+  char full_path[sizeof(path) + sizeof("/cpu.max")];
   char quota_buf[16];
+  char* last_slash;
+  int cgroup_size;
+  long long limit;
+  long long min_quota;
+  long long period;
 
   if (strncmp(cgroup, "0::/", 4) != 0)
     return UV_EINVAL;
 
   /* Trim ending \n by replacing it with a 0 */
   cgroup_trimmed = cgroup + sizeof("0::/") - 1;      /* Skip the prefix "0::/" */
-  cgroup_size = (int)strcspn(cgroup_trimmed, "\n");  /* Find the first slash */
+  cgroup_size = (int)strcspn(cgroup_trimmed, "\n");  /* Find the first \n */
+  min_quota = LLONG_MAX;
 
-  /* Construct the path to the cpu.max file */
-  snprintf(path, sizeof(path), "/sys/fs/cgroup/%.*s/cpu.max", cgroup_size,
-           cgroup_trimmed);
+  /* Construct the path to the cpu.max files */
+  snprintf(path, sizeof(path), "%s/%.*s/cgroup.controllers", cgroup_mount,
+           cgroup_size, cgroup_trimmed);
 
-  /* Read cpu.max */
+  /* Read controllers, if not exists, not really a cgroup */
   if (uv__slurp(path, buf, sizeof(buf)) < 0)
     return UV_EIO;
 
-  if (sscanf(buf, "%15s %llu", quota_buf, &constraint->period_length) != 2)
-    return UV_EINVAL;
-
-  if (strncmp(quota_buf, "max", 3) == 0)
-    constraint->quota_per_period = LLONG_MAX;
-  else if (sscanf(quota_buf, "%lld", &constraint->quota_per_period) != 1)
-    return UV_EINVAL; // conversion failed
-
-  /* Construct the path to the cpu.weight file */
-  snprintf(path, sizeof(path), "/sys/fs/cgroup/%.*s/cpu.weight", cgroup_size,
+  snprintf(path, sizeof(path), "%s/%.*s", cgroup_mount, cgroup_size,
            cgroup_trimmed);
 
-  /* Read cpu.weight */
-  if (uv__slurp(path, buf, sizeof(buf)) < 0)
-    return UV_EIO;
+  /*
+   * Traverse up the cgroup v2 hierarchy, starting from the current cgroup path.
+   * At each level, attempt to read the "cpu.max" file, which defines the CPU
+   * quota and period.
+   *
+   * This reflects how Linux applies cgroup limits hierarchically.
+   *
+   * e.g: given a path like /sys/fs/cgroup/foo/bar/baz, we check:
+   *   - /sys/fs/cgroup/foo/bar/baz/cpu.max
+   *   - /sys/fs/cgroup/foo/bar/cpu.max
+   *   - /sys/fs/cgroup/foo/cpu.max
+   *   - /sys/fs/cgroup/cpu.max
+   */
+  while (strncmp(path, cgroup_mount, strlen(cgroup_mount)) == 0) {
+    snprintf(full_path, sizeof(full_path), "%s/cpu.max", path);
 
-  if (sscanf(buf, "%u", &weight) != 1)
-    return UV_EINVAL;
+    /* Silently ignore and continue if the file does not exist */
+    if (uv__slurp(full_path, quota_buf, sizeof(quota_buf)) < 0)
+      goto next;
 
-  constraint->proportions = (double)weight / 100.0;
+    /* No limit, move on */
+    if (strncmp(quota_buf, "max", 3) == 0)
+      goto next;
+
+    /* Read cpu.max */
+    if (sscanf(quota_buf, "%lld %lld", &limit, &period) != 2)
+      goto next;
+
+    /* Can't divide by 0 */
+    if (period == 0)
+      goto next;
+
+    *quota = limit / period;
+    if (*quota == 0)
+        *quota = 1;
+    if (*quota < min_quota)
+      min_quota = *quota;
+
+next:
+    /* Move up one level in the cgroup hierarchy by trimming the last path.
+     * The loop ends once we reach the cgroup root mount point.
+     */
+    last_slash = strrchr(path, '/');
+    if (last_slash == NULL || strcmp(path, cgroup_mount) == 0)
+      break;
+    *last_slash = '\0';
+  }
 
   return 0;
 }
 
-static char* uv__cgroup1_find_cpu_controller(const char* cgroup,
+static const char* uv__cgroup1_find_cpu_controller(const char* cgroup,
                                              int* cgroup_size) {
   /* Seek to the cpu controller line. */
-  char* cgroup_cpu = strstr(cgroup, ":cpu,");
+  const char* cgroup_cpu = strstr(cgroup, ":cpu,");
 
   if (cgroup_cpu != NULL) {
     /* Skip the controller prefix to the start of the cgroup path. */
@@ -2364,12 +2387,13 @@ static char* uv__cgroup1_find_cpu_controller(const char* cgroup,
 }
 
 static int uv__get_cgroupv1_constrained_cpu(const char* cgroup,
-                                            uv__cpu_constraint* constraint) {
+                                            long long* quota) {
   char path[256];
   char buf[1024];
-  unsigned int shares;
   int cgroup_size;
-  char* cgroup_cpu;
+  const char* cgroup_cpu;
+  long long period_length;
+  long long quota_per_period;
 
   cgroup_cpu = uv__cgroup1_find_cpu_controller(cgroup, &cgroup_size);
 
@@ -2380,10 +2404,11 @@ static int uv__get_cgroupv1_constrained_cpu(const char* cgroup,
   snprintf(path, sizeof(path), "/sys/fs/cgroup/%.*s/cpu.cfs_quota_us",
            cgroup_size, cgroup_cpu);
 
+  /* Read cpu.cfs_quota_us */
   if (uv__slurp(path, buf, sizeof(buf)) < 0)
     return UV_EIO;
 
-  if (sscanf(buf, "%lld", &constraint->quota_per_period) != 1)
+  if (sscanf(buf, "%lld", &quota_per_period) != 1)
     return UV_EINVAL;
 
   /* Construct the path to the cpu.cfs_period_us file */
@@ -2394,26 +2419,19 @@ static int uv__get_cgroupv1_constrained_cpu(const char* cgroup,
   if (uv__slurp(path, buf, sizeof(buf)) < 0)
     return UV_EIO;
 
-  if (sscanf(buf, "%lld", &constraint->period_length) != 1)
+  if (sscanf(buf, "%lld", &period_length) != 1)
     return UV_EINVAL;
 
-  /* Construct the path to the cpu.shares file */
-  snprintf(path, sizeof(path), "/sys/fs/cgroup/%.*s/cpu.shares", cgroup_size,
-           cgroup_cpu);
-
-  /* Read cpu.shares */
-  if (uv__slurp(path, buf, sizeof(buf)) < 0)
-    return UV_EIO;
-
-  if (sscanf(buf, "%u", &shares) != 1)
+  /* Can't divide by 0 */
+  if (period_length == 0)
     return UV_EINVAL;
 
-  constraint->proportions = (double)shares / 1024.0;
+  *quota = quota_per_period / period_length;
 
   return 0;
 }
 
-int uv__get_constrained_cpu(uv__cpu_constraint* constraint) {
+int uv__get_constrained_cpu(long long* quota) {
   char cgroup[1024];
 
   /* Read the cgroup from /proc/self/cgroup */
@@ -2424,9 +2442,9 @@ int uv__get_constrained_cpu(uv__cpu_constraint* constraint) {
    * The entry for cgroup v2 is always in the format "0::$PATH"
    * see https://docs.kernel.org/admin-guide/cgroup-v2.html */
   if (strncmp(cgroup, "0::/", 4) == 0)
-    return uv__get_cgroupv2_constrained_cpu(cgroup, constraint);
+    return uv__get_cgroupv2_constrained_cpu(cgroup, quota);
   else
-    return uv__get_cgroupv1_constrained_cpu(cgroup, constraint);
+    return uv__get_cgroupv1_constrained_cpu(cgroup, quota);
 }
 
 
@@ -2456,6 +2474,7 @@ static int compare_watchers(const struct watcher_list* a,
 
 
 static int init_inotify(uv_loop_t* loop) {
+  int err;
   int fd;
 
   if (loop->inotify_fd != -1)
@@ -2465,10 +2484,14 @@ static int init_inotify(uv_loop_t* loop) {
   if (fd < 0)
     return UV__ERR(errno);
 
-  loop->inotify_fd = fd;
-  uv__io_init(&loop->inotify_read_watcher, uv__inotify_read, loop->inotify_fd);
-  uv__io_start(loop, &loop->inotify_read_watcher, POLLIN);
+  err = uv__io_init_start(loop, &loop->inotify_read_watcher, UV__INOTIFY_READ,
+                          fd, POLLIN);
+  if (err) {
+    uv__close(fd);
+    return err;
+  }
 
+  loop->inotify_fd = fd;
   return 0;
 }
 
@@ -2557,9 +2580,7 @@ static void maybe_free_watcher_list(struct watcher_list* w, uv_loop_t* loop) {
 }
 
 
-static void uv__inotify_read(uv_loop_t* loop,
-                             uv__io_t* dummy,
-                             unsigned int events) {
+void uv__inotify_read(uv_loop_t* loop, uv__io_t* dummy, unsigned int events) {
   const struct inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;

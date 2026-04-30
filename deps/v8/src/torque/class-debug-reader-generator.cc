@@ -81,7 +81,8 @@ class ValueTypeFieldsRange {
   ValueTypeFieldIterator end() {
     size_t index = 0;
     std::optional<const StructType*> struct_type = type_->StructSupertype();
-    if (struct_type && *struct_type != TypeOracle::GetFloat64OrHoleType()) {
+    if (struct_type &&
+        *struct_type != TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
       index = (*struct_type)->fields().size();
     }
     const Type* type = type_;
@@ -534,8 +535,11 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     h_contents << "#include <cstdint>\n";
     h_contents << "#include <vector>\n\n";
 
-    for (const std::string& include_path : GlobalContext::CppIncludes()) {
-      h_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    for (const CppInclude& include : GlobalContext::CppIncludes()) {
+      if (include.csa_selected()) {
+        h_contents << "#include " << StringLiteralQuote(include.include_path)
+                   << "\n";
+      }
     }
 
     h_contents

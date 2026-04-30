@@ -28,15 +28,15 @@ const { createConnection } = require('net');
     autoSelectFamilyAttemptTimeout: 10,
   });
 
-  connection.on('connectionAttempt', (address, port, family) => {
+  connection.on('connectionAttempt', common.mustCallAtLeast((address, port, family) => {
     assert.strictEqual(address, INET4_IP);
     assert.strictEqual(port, 10);
     assert.strictEqual(family, 4);
 
     pass();
-  });
+  }, 0));
 
-  connection.on('connectionAttemptFailed', (address, port, family, error) => {
+  connection.on('connectionAttemptFailed', common.mustCallAtLeast((address, port, family, error) => {
     assert.strictEqual(address, INET4_IP);
     assert.strictEqual(port, 10);
     assert.strictEqual(family, 4);
@@ -47,7 +47,7 @@ const { createConnection } = require('net');
     );
 
     pass();
-  });
+  }, 0));
 
   connection.on('ready', () => {
     pass();
@@ -85,7 +85,7 @@ const { createConnection } = require('net');
     { address: INET4_IP, port: 10, family: 4 },
   ];
 
-  connection.on('connectionAttempt', (address, port, family) => {
+  connection.on('connectionAttempt', common.mustCallAtLeast((address, port, family) => {
     const expected = addresses.shift();
 
     assert.strictEqual(address, expected.address);
@@ -93,9 +93,9 @@ const { createConnection } = require('net');
     assert.strictEqual(family, expected.family);
 
     pass();
-  });
+  }, 0));
 
-  connection.on('connectionAttemptFailed', (address, port, family, error) => {
+  connection.on('connectionAttemptFailed', common.mustCallAtLeast((address, port, family, error) => {
     const expected = addresses.shift();
 
     assert.strictEqual(address, expected.address);
@@ -108,7 +108,7 @@ const { createConnection } = require('net');
     );
 
     pass();
-  });
+  }, 0));
 
   connection.on('ready', () => {
     pass();

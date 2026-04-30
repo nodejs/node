@@ -7,7 +7,7 @@ function verifyStatFsObject(statfs, isBigint = false) {
   const valueType = isBigint ? 'bigint' : 'number';
 
   [
-    'type', 'bsize', 'blocks', 'bfree', 'bavail', 'files', 'ffree',
+    'type', 'bsize', 'frsize', 'blocks', 'bfree', 'bavail', 'files', 'ffree',
   ].forEach((k) => {
     assert.ok(Object.hasOwn(statfs, k));
     assert.strictEqual(typeof statfs[k], valueType,
@@ -20,11 +20,10 @@ fs.statfs(__filename, common.mustSucceed(function(stats) {
   assert.strictEqual(this, undefined);
 }));
 
-fs.statfs(__filename, { bigint: true }, function(err, stats) {
-  assert.ifError(err);
+fs.statfs(__filename, { bigint: true }, common.mustSucceed(function(stats) {
   verifyStatFsObject(stats, true);
   assert.strictEqual(this, undefined);
-});
+}));
 
 // Synchronous
 {

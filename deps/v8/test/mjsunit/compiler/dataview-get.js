@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 var buffer = new ArrayBuffer(64);
 var dataview = new DataView(buffer, 8, 24);
@@ -216,6 +216,6 @@ assertUnoptimized(readFloat64);
   warmup(readInt8Handled);
   assertOptimized(readInt8Handled);
   %ArrayBufferDetach(buffer);
-  assertInstanceof(readInt8Handled(0), TypeError);
   assertUnoptimized(readInt8Handled);
+  assertInstanceof(readInt8Handled(0), TypeError);
 })();

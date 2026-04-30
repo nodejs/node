@@ -17,7 +17,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone, Mode mode,
                            int registers_to_save);
   ~RegExpMacroAssemblerMIPS() override;
-  int stack_limit_slack() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -28,9 +27,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
                               Label* on_equal) override;
   void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
-  // A "greedy loop" is a loop that is both greedy and with a simple
+  // A "fixed length loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
@@ -53,16 +52,17 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
-                           Handle<ByteArray> nibble_table,
-                           int advance_by) override;
+                           Handle<ByteArray> nibble_table, int advance_by,
+                           Label* on_match, Label* on_no_match) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
-  Handle<HeapObject> GetCode(Handle<String> source) override;
+  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+                                   RegExpFlags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
@@ -84,7 +84,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
   void ClearRegisters(int reg_from, int reg_to) override;
   void WriteStackPointerToRegister(int reg) override;
-  bool CanReadUnaligned() const override;
+
+  void RecordComment(std::string_view comment) override {
+    masm_->RecordComment(comment);
+  }
+  MacroAssembler* masm() override { return masm_.get(); }
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -163,7 +167,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
-
+  void AssertAboveStackLimitMinusSlack();
 
   // Generate a call to CheckStackGuardState.
   void CallCheckStackGuardState(Register scratch,
@@ -193,9 +197,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return s1; }
-
-  // Byte size of chars in the string to match (decided by the Mode argument).
-  inline int char_size() const { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
@@ -230,9 +231,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
-
-  // Which mode to generate code for (Latin1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

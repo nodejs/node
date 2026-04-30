@@ -2,12 +2,12 @@
 
 // Flags: --expose-gc
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const w = new globalThis.WeakRef({});
 
-setTimeout(() => {
+setTimeout(common.mustCall(() => {
   globalThis.gc();
   assert.strictEqual(w.deref(), undefined);
-}, 200);
+}), 200);

@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/js-operator.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 
 namespace v8 {
@@ -111,6 +112,11 @@ class JSTypeHintLowering {
                                        Node* right, Node* effect, Node* control,
                                        FeedbackSlot slot) const;
 
+  LoweringResult ReduceBinaryOperationWithEmbeddedHint(const Operator* op,
+                                                       Node* left, Node* right,
+                                                       Node* effect,
+                                                       Node* control) const;
+
   // Potential reduction to for..in operations
   LoweringResult ReduceForInNextOperation(Node* receiver, Node* cache_array,
                                           Node* cache_type, Node* index,
@@ -124,11 +130,6 @@ class JSTypeHintLowering {
   LoweringResult ReduceToNumberOperation(Node* value, Node* effect,
                                          Node* control,
                                          FeedbackSlot slot) const;
-
-  // Potential reduction of call operations.
-  LoweringResult ReduceCallOperation(const Operator* op, Node* const* args,
-                                     int arg_count, Node* effect, Node* control,
-                                     FeedbackSlot slot) const;
 
   // Potential reduction of construct operations.
   LoweringResult ReduceConstructOperation(const Operator* op, Node* const* args,
@@ -166,7 +167,10 @@ class JSTypeHintLowering {
   CompareOperationHint GetCompareOperationHint(FeedbackSlot slot) const;
   Node* BuildDeoptIfFeedbackIsInsufficient(FeedbackSlot slot, Node* effect,
                                            Node* control,
-                                           DeoptimizeReason reson) const;
+                                           DeoptimizeReason reason) const;
+  Node* BuildDeoptIfFeedbackIsInsufficient(
+      const EmbeddedHintParameter& embedded_hint, Node* effect, Node* control,
+      DeoptimizeReason reason) const;
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }

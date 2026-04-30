@@ -17,6 +17,9 @@
 // -----------------------------------------------------------------------------
 #include "absl/status/status_matchers.h"
 
+#include <string>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest-spi.h"
 #include "gtest/gtest.h"
@@ -29,7 +32,39 @@ namespace {
 using ::absl_testing::IsOk;
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::Gt;
+using ::testing::MatchesRegex;
+using ::testing::Not;
+using ::testing::Ref;
+
+TEST(StatusMatcherTest, AbslExpectAssertOk) {
+  ABSL_EXPECT_OK(absl::OkStatus());
+  ABSL_ASSERT_OK(absl::OkStatus());
+  EXPECT_NONFATAL_FAILURE(ABSL_EXPECT_OK(absl::InternalError("Smigla error")),
+                          "Smigla error");
+  EXPECT_FATAL_FAILURE(ABSL_ASSERT_OK(absl::InternalError("Smigla error")),
+                       "Smigla error");
+}
+
+TEST(StatusMatcherTest, ExpectAssertOk) {
+#ifdef ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
+  EXPECT_OK(absl::OkStatus());
+  ASSERT_OK(absl::OkStatus());
+  EXPECT_NONFATAL_FAILURE(EXPECT_OK(absl::InternalError("Smigla error")),
+                          "Smigla error");
+  EXPECT_FATAL_FAILURE(ASSERT_OK(absl::InternalError("Smigla error")),
+                       "Smigla error");
+#else
+#ifdef EXPECT_OK
+  static_assert(false, "EXPECT_OK defined despite being turned off.");
+#endif  // EXPECT_OK
+#ifdef ASSERT_OK
+  static_assert(false, "ASSERT_OK defined despite being turned off.");
+#endif  // ASSERT_OK
+#endif  // ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
+}
 
 TEST(StatusMatcherTest, StatusIsOk) { EXPECT_THAT(absl::OkStatus(), IsOk()); }
 
@@ -66,6 +101,13 @@ TEST(StatusMatcherTest, IsOkAndHoldsFailure) {
                           "actual");
 }
 
+template <typename MatcherType, typename Value>
+std::string Explain(const MatcherType& m, const Value& x) {
+  ::testing::StringMatchResultListener listener;
+  ExplainMatchResult(m, x, &listener);
+  return listener.str();
+}
+
 TEST(StatusMatcherTest, StatusIs) {
   absl::Status unknown = absl::UnknownError("unbekannt");
   absl::Status invalid = absl::InvalidArgumentError("ungueltig");
@@ -78,6 +120,20 @@ TEST(StatusMatcherTest, StatusIs) {
   EXPECT_THAT(invalid, StatusIs(3));
   EXPECT_THAT(invalid,
               StatusIs(absl::StatusCode::kInvalidArgument, "ungueltig"));
+
+  auto m = StatusIs(absl::StatusCode::kInternal, "internal error");
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::Status>(m),
+      MatchesRegex(
+          "has a status code that .*, and has an error message that .*"));
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::Status>(m, /*negation=*/true),
+      MatchesRegex(
+          "either has a status code that .*, or has an error message that .*"));
+  EXPECT_THAT(Explain(m, absl::InvalidArgumentError("internal error")),
+              Eq("whose status code is wrong"));
+  EXPECT_THAT(Explain(m, absl::InternalError("unexpected error")),
+              Eq("whose error message is wrong"));
 }
 
 TEST(StatusMatcherTest, StatusOrIs) {
@@ -94,6 +150,23 @@ TEST(StatusMatcherTest, StatusOrIs) {
   EXPECT_THAT(invalid, StatusIs(3));
   EXPECT_THAT(invalid,
               StatusIs(absl::StatusCode::kInvalidArgument, "ungueltig"));
+
+  auto m = StatusIs(absl::StatusCode::kInternal, "internal error");
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::StatusOr<int>>(m),
+      MatchesRegex(
+          "has a status code that .*, and has an error message that .*"));
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::StatusOr<int>>(m, /*negation=*/true),
+      MatchesRegex(
+          "either has a status code that .*, or has an error message that .*"));
+  EXPECT_THAT(Explain(m, absl::StatusOr<int>(57)), Eq("which is OK"));
+  EXPECT_THAT(Explain(m, absl::StatusOr<int>(
+                             absl::InvalidArgumentError("internal error"))),
+              Eq("whose status code is wrong"));
+  EXPECT_THAT(
+      Explain(m, absl::StatusOr<int>(absl::InternalError("unexpected error"))),
+      Eq("whose error message is wrong"));
 }
 
 TEST(StatusMatcherTest, StatusIsFailure) {
@@ -114,6 +187,25 @@ TEST(StatusMatcherTest, StatusIsFailure) {
       EXPECT_THAT(invalid,
                   StatusIs(absl::StatusCode::kInvalidArgument, "invalide")),
       "ungueltig");
+}
+
+TEST(StatusMatcherTest, ReferencesWork) {
+  int i = 17;
+  int j = 19;
+  EXPECT_THAT(absl::StatusOr<int&>(i), IsOkAndHolds(17));
+  EXPECT_THAT(absl::StatusOr<int&>(i), Not(IsOkAndHolds(19)));
+  EXPECT_THAT(absl::StatusOr<const int&>(i), IsOkAndHolds(17));
+
+  // Reference testing works as expected.
+  EXPECT_THAT(absl::StatusOr<int&>(i), IsOkAndHolds(Ref(i)));
+  EXPECT_THAT(absl::StatusOr<int&>(i), Not(IsOkAndHolds(Ref(j))));
+
+  // Try a more complex one.
+  std::vector<std::string> vec = {"A", "B", "C"};
+  EXPECT_THAT(absl::StatusOr<std::vector<std::string>&>(vec),
+              IsOkAndHolds(ElementsAre("A", "B", "C")));
+  EXPECT_THAT(absl::StatusOr<std::vector<std::string>&>(vec),
+              Not(IsOkAndHolds(ElementsAre("A", "X", "C"))));
 }
 
 }  // namespace

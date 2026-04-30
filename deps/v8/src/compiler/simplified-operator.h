@@ -9,6 +9,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/container-utils.h"
+#include "src/base/macros.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
@@ -17,7 +18,7 @@
 #include "src/compiler/globals.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/handles/handles.h"
@@ -47,7 +48,7 @@ struct WasmTypeCheckConfig;
 
 size_t hash_value(BaseTaggedness);
 
-std::ostream& operator<<(std::ostream&, BaseTaggedness);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
 struct ConstFieldInfo {
   // the map that introduced the const field, if any. An access is considered
@@ -113,7 +114,12 @@ struct FieldAccess {
   ConstFieldInfo const_field_info;// the constness of this access, and the
                                   // field owner map, if the access is const
   bool is_store_in_literal;       // originates from a kStoreInLiteral access
-  ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
+  ExternalPointerTag external_pointer_tag =
+      kExternalPointerNullTag;  // the external pointer tag if this is an
+                                // external pointer field
+  IndirectPointerTag indirect_pointer_tag =
+      kIndirectPointerNullTag;  // the indirect pointer tag if this is an
+                                // indirect pointer field
   bool maybe_initializing_or_transitioning_store;  // store is potentially
                                                    // initializing a newly
                                                    // allocated object or part
@@ -126,7 +132,6 @@ struct FieldAccess {
                                         // decoding.
   bool is_immutable = false;  // Whether this field is known to be immutable for
                               // the purpose of loads.
-  IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag;
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -146,9 +151,9 @@ struct FieldAccess {
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
+              IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag,
               bool maybe_initializing_or_transitioning_store = false,
-              bool is_immutable = false,
-              IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
+              bool is_immutable = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -159,10 +164,10 @@ struct FieldAccess {
         const_field_info(const_field_info),
         is_store_in_literal(is_store_in_literal),
         external_pointer_tag(external_pointer_tag),
+        indirect_pointer_tag(indirect_pointer_tag),
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store),
-        is_immutable(is_immutable),
-        indirect_pointer_tag(indirect_pointer_tag) {
+        is_immutable(is_immutable) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(
         machine_type.IsMapWord(),
@@ -287,6 +292,7 @@ CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 enum class CheckBoundsFlag : uint8_t {
   kConvertStringAndMinusZero = 1 << 0,  // instead of deopting on such inputs
   kAbortOnOutOfBounds = 1 << 1,         // instead of deopting if input is OOB
+  kAllow64BitBounds = 1 << 2,           // the bounds may exceed 32 bit range
 };
 using CheckBoundsFlags = base::Flags<CheckBoundsFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CheckBoundsFlags)
@@ -375,6 +381,7 @@ bool operator!=(CheckFloat64HoleParameters const&,
 Handle<FeedbackCell> FeedbackCellOf(const Operator* op);
 
 enum class CheckTaggedInputMode : uint8_t {
+  kAdditiveSafeInteger,
   kNumber,
   kNumberOrBoolean,
   kNumberOrOddball,
@@ -440,6 +447,7 @@ bool operator==(CheckMinusZeroParameters const&,
 enum class CheckMapsFlag : uint8_t {
   kNone = 0u,
   kTryMigrateInstance = 1u << 0,
+  kTryMigrateInstanceAndDeopt = 1u << 1,
 };
 using CheckMapsFlags = base::Flags<CheckMapsFlag>;
 
@@ -538,13 +546,38 @@ class ElementsTransition final {
   MapRef const target_;
 };
 
+class ElementsTransitionWithMultipleSources final {
+ public:
+  ElementsTransitionWithMultipleSources(
+      ZoneRefSet<Map> sources, MapRef target,
+      const FeedbackSource& feedback = FeedbackSource())
+      : sources_(sources), target_(target), feedback_(feedback) {}
+
+  const ZoneRefSet<Map>& sources() const { return sources_; }
+  MapRef target() const { return target_; }
+  const FeedbackSource& feedback() const { return feedback_; }
+
+ private:
+  ZoneRefSet<Map> sources_;
+  const MapRef target_;
+  FeedbackSource feedback_;
+};
+
 bool operator==(ElementsTransition const&, ElementsTransition const&);
+bool operator==(ElementsTransitionWithMultipleSources const&,
+                ElementsTransitionWithMultipleSources const&);
 
 size_t hash_value(ElementsTransition);
+size_t hash_value(ElementsTransitionWithMultipleSources);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
+std::ostream& operator<<(std::ostream&, ElementsTransitionWithMultipleSources);
 
 ElementsTransition const& ElementsTransitionOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
+ElementsTransitionWithMultipleSources const&
+ElementsTransitionWithMultipleSourcesOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreElement, or
@@ -558,11 +591,13 @@ Type ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
-  kSignedSmall,        // Inputs were Smi, output was in Smi.
-  kSignedSmallInputs,  // Inputs were Smi, output was Number.
-  kNumber,             // Inputs were Number, output was Number.
-  kNumberOrBoolean,    // Inputs were Number or Boolean, output was Number.
-  kNumberOrOddball,    // Inputs were Number or Oddball, output was Number.
+  kSignedSmall,          // Inputs were Smi, output was in Smi.
+  kSignedSmallInputs,    // Inputs were Smi, output was Number.
+  kAdditiveSafeInteger,  // Inputs were AdditiveSafeInteger, output was
+                         // AdditiveSafeInteger.
+  kNumber,               // Inputs were Number, output was Number.
+  kNumberOrBoolean,      // Inputs were Number or Boolean, output was Number.
+  kNumberOrOddball,      // Inputs were Number or Oddball, output was Number.
 };
 
 enum class BigIntOperationHint : uint8_t {
@@ -682,7 +717,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator*) V8_WARN_UNUSED_RESULT;
 
 AbortReason AbortReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+SilenceNanMode SilenceNanModeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class NewArgumentsElementsParameters {
  public:
@@ -716,35 +751,25 @@ struct FastApiCallFunction {
     return address == rhs.address && signature == rhs.signature;
   }
 };
-typedef ZoneVector<FastApiCallFunction> FastApiCallFunctionVector;
 
 class FastApiCallParameters {
  public:
-  explicit FastApiCallParameters(const FastApiCallFunctionVector& c_functions,
+  explicit FastApiCallParameters(FastApiCallFunction c_function,
                                  FeedbackSource const& feedback,
                                  CallDescriptor* descriptor)
-      : c_functions_(c_functions),
-        feedback_(feedback),
-        descriptor_(descriptor) {}
+      : c_function_(c_function), feedback_(feedback), descriptor_(descriptor) {}
 
-  const FastApiCallFunctionVector& c_functions() const { return c_functions_; }
+  FastApiCallFunction c_function() const { return c_function_; }
   FeedbackSource const& feedback() const { return feedback_; }
   CallDescriptor* descriptor() const { return descriptor_; }
-  const CFunctionInfo* signature() const {
-    DCHECK(!c_functions_.empty());
-    return c_functions_[0].signature;
-  }
+  const CFunctionInfo* signature() const { return c_function_.signature; }
   unsigned int argument_count() const {
     const unsigned int count = signature()->ArgumentCount();
-    DCHECK(base::all_of(c_functions_, [count](const auto& f) {
-      return f.signature->ArgumentCount() == count;
-    }));
     return count;
   }
 
  private:
-  // A single FastApiCall node can represent multiple overloaded functions.
-  const FastApiCallFunctionVector c_functions_;
+  FastApiCallFunction c_function_;
 
   const FeedbackSource feedback_;
   CallDescriptor* descriptor_;
@@ -862,7 +887,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberToUint8Clamped();
   const Operator* Integral32OrMinusZeroToBigInt();
 
-  const Operator* NumberSilenceNaN();
+  const Operator* NumberSilenceNaN(
+      SilenceNanMode mode = SilenceNanMode::kSilenceUndefined);
 
   const Operator* BigIntAdd();
   const Operator* BigIntSubtract();
@@ -880,8 +906,11 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntLessThan();
   const Operator* BigIntLessThanOrEqual();
 
-  const Operator* SpeculativeSafeIntegerAdd(NumberOperationHint hint);
-  const Operator* SpeculativeSafeIntegerSubtract(NumberOperationHint hint);
+  const Operator* SpeculativeAdditiveSafeIntegerAdd(NumberOperationHint hint);
+  const Operator* SpeculativeAdditiveSafeIntegerSubtract(
+      NumberOperationHint hint);
+  const Operator* SpeculativeSmallIntegerAdd(NumberOperationHint hint);
+  const Operator* SpeculativeSmallIntegerSubtract(NumberOperationHint hint);
 
   const Operator* SpeculativeNumberAdd(NumberOperationHint hint);
   const Operator* SpeculativeNumberSubtract(NumberOperationHint hint);
@@ -932,6 +961,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringOrOddballStrictEqual();
   const Operator* StringCharCodeAt();
   const Operator* StringCodePointAt();
   const Operator* StringFromSingleCharCode();
@@ -939,9 +969,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringFromCodePointAt();
   const Operator* StringIndexOf();
   const Operator* StringLength();
+  const Operator* StringWrapperLength();
   const Operator* StringToLowerCaseIntl();
   const Operator* StringToUpperCaseIntl();
   const Operator* StringSubstring();
+
+  const Operator* TypedArrayLength(ElementsKind elements_kind);
 
   const Operator* FindOrderedHashMapEntryForInt32Key();
   const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
@@ -964,6 +997,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
   const Operator* ChangeTaggedToTaggedSigned();
+  const Operator* ChangeNumberOrHoleToFloat64();
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
   const Operator* ChangeInt64ToTagged();
@@ -971,14 +1005,18 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeUint64ToTagged();
   const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64ToTaggedPointer();
+  const Operator* ChangeFloat64OrUndefinedToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64HoleToTagged();
+  const Operator* ChangeFloat64OrUndefinedOrHoleToTagged();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateBigIntToWord64();
   const Operator* ChangeInt64ToBigInt();
   const Operator* ChangeUint64ToBigInt();
-  const Operator* TruncateTaggedToWord32();
+  const Operator* TruncateNumberOrOddballToWord32();
+  const Operator* TruncateNumberOrOddballOrHoleToWord32();
   const Operator* TruncateTaggedToFloat64();
+  const Operator* TruncateTaggedToFloat64PreserveUndefined();
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
@@ -1004,15 +1042,20 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                             const FeedbackSource& = FeedbackSource());
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
+  const Operator* CheckNumberOrUndefined(const FeedbackSource& feedback);
+  const Operator* CheckNumberFitsInt32(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
   const Operator* CheckReceiverOrNullOrUndefined();
   const Operator* CheckSmi(const FeedbackSource& feedback);
   const Operator* CheckString(const FeedbackSource& feedback);
   const Operator* CheckStringOrStringWrapper(const FeedbackSource& feedback);
+  const Operator* CheckStringOrOddball(const FeedbackSource& feedback);
   const Operator* CheckSymbol();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
                                         const FeedbackSource& feedback);
+  const Operator* CheckedFloat64ToAdditiveSafeInteger(
+      CheckForMinusZeroMode, const FeedbackSource& feedback);
   const Operator* CheckedFloat64ToInt64(CheckForMinusZeroMode,
                                         const FeedbackSource& feedback);
   const Operator* CheckedInt32Add();
@@ -1020,6 +1063,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
+  const Operator* CheckedAdditiveSafeIntegerAdd();
+  const Operator* CheckedAdditiveSafeIntegerSub();
   const Operator* CheckedInt64Add();
   const Operator* CheckedInt64Sub();
   const Operator* CheckedInt64Mul();
@@ -1027,6 +1072,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt64Mod();
   const Operator* CheckedInt32ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedInt64ToInt32(const FeedbackSource& feedback);
+  const Operator* CheckedInt64ToAdditiveSafeInteger(
+      const FeedbackSource& feedback);
   const Operator* CheckedInt64ToTaggedSigned(const FeedbackSource& feedback);
   const Operator* CheckedTaggedSignedToInt32(const FeedbackSource& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,
@@ -1034,6 +1081,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
   const Operator* CheckedTaggedToArrayIndex(const FeedbackSource& feedback);
+  const Operator* CheckedTaggedToAdditiveSafeInteger(
+      CheckForMinusZeroMode, const FeedbackSource& feedback);
   const Operator* CheckedTaggedToInt64(CheckForMinusZeroMode,
                                        const FeedbackSource& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const FeedbackSource& feedback);
@@ -1101,6 +1150,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);
+  const Operator* TransitionElementsKindOrCheckMap(
+      ElementsTransitionWithMultipleSources transition);
 
   const Operator* Allocate(Type type,
                            AllocationType allocation = AllocationType::kYoung);
@@ -1182,7 +1233,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* IsNull(wasm::ValueType type);
   const Operator* IsNotNull(wasm::ValueType type);
   const Operator* Null(wasm::ValueType type);
-  const Operator* RttCanon(int index);
+  const Operator* RttCanon(wasm::ModuleTypeIndex index);
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
   const Operator* WasmTypeCheckAbstract(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
@@ -1214,9 +1265,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* Unsigned32Divide();
 
   // Represents the inputs necessary to construct a fast and a slow API call.
-  const Operator* FastApiCall(
-      const FastApiCallFunctionVector& c_candidate_functions,
-      FeedbackSource const& feedback, CallDescriptor* descriptor);
+  const Operator* FastApiCall(FastApiCallFunction c_function,
+                              FeedbackSource const& feedback,
+                              CallDescriptor* descriptor);
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   const Operator* GetContinuationPreservedEmbedderData();

@@ -62,7 +62,7 @@ double UnscaledCycleClock::Frequency() {
 
 int64_t UnscaledCycleClock::Now() {
 #ifdef __GLIBC__
-  return __ppc_get_timebase();
+  return static_cast<int64_t>(__ppc_get_timebase());
 #else
 #ifdef __powerpc64__
   int64_t tbr;
@@ -85,6 +85,10 @@ int64_t UnscaledCycleClock::Now() {
 double UnscaledCycleClock::Frequency() {
 #ifdef __GLIBC__
   return __ppc_get_timebase_freq();
+#elif defined(__linux__)
+  // Fallback for musl + ppc64le: use constant timebase frequency (512 MHz)
+  // Must come after __GLIBC__.
+  return static_cast<double>(512000000);
 #elif defined(_AIX)
   // This is the same constant value as returned by
   // __ppc_get_timebase_freq().
@@ -104,16 +108,6 @@ double UnscaledCycleClock::Frequency() {
 }
 
 #elif defined(__aarch64__)
-
-// System timer of ARMv8 runs at a different frequency than the CPU's.
-// The frequency is fixed, typically in the range 1-50MHz.  It can be
-// read at CNTFRQ special register.  We assume the OS has set up
-// the virtual timer properly.
-int64_t UnscaledCycleClock::Now() {
-  int64_t virtual_timer_value;
-  asm volatile("mrs %0, cntvct_el0" : "=r"(virtual_timer_value));
-  return virtual_timer_value;
-}
 
 double UnscaledCycleClock::Frequency() {
   uint64_t aarch64_timer_frequency;

@@ -15,6 +15,15 @@ const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
   200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414, 501
 ]
 
+// Status codes which semantic is not handled by the cache
+// https://datatracker.ietf.org/doc/html/rfc9111#section-3
+// This list should not grow beyond 206 unless the RFC is updated
+// by a newer one including more. Please introduce another list if
+// implementing caching of responses with the 'must-understand' directive.
+const NOT_UNDERSTOOD_STATUS_CODES = [
+  206
+]
+
 const MAX_RESPONSE_AGE = 2147483647000
 
 /**
@@ -95,6 +104,7 @@ class CacheHandler {
         resHeaders,
         statusMessage
       )
+    const handler = this
 
     if (
       !util.safeHTTPMethods.includes(this.#cacheKey.method) &&
@@ -125,7 +135,7 @@ class CacheHandler {
     }
 
     const cacheControlDirectives = cacheControlHeader ? parseCacheControlHeader(cacheControlHeader) : {}
-    if (!canCacheResponse(this.#cacheType, statusCode, resHeaders, cacheControlDirectives)) {
+    if (!canCacheResponse(this.#cacheType, statusCode, resHeaders, cacheControlDirectives, this.#cacheKey.headers)) {
       return downstreamOnHeaders()
     }
 
@@ -163,7 +173,8 @@ class CacheHandler {
       }
     }
 
-    const deleteAt = determineDeleteAt(baseTime, cacheControlDirectives, absoluteStaleAt)
+    const cachedAt = resAge ? now - resAge : now
+    const deleteAt = determineDeleteAt(baseTime, cachedAt, cacheControlDirectives, absoluteStaleAt)
     const strippedHeaders = stripNecessaryHeaders(resHeaders, cacheControlDirectives)
 
     /**
@@ -175,41 +186,132 @@ class CacheHandler {
       headers: strippedHeaders,
       vary: varyDirectives,
       cacheControlDirectives,
-      cachedAt: resAge ? now - resAge : now,
+      cachedAt,
       staleAt: absoluteStaleAt,
       deleteAt
     }
 
-    if (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) {
-      value.etag = resHeaders.etag
-    }
-
-    this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
-    if (!this.#writeStream) {
-      return downstreamOnHeaders()
-    }
-
-    const handler = this
-    this.#writeStream
-      .on('drain', () => controller.resume())
-      .on('error', function () {
-        // TODO (fix): Make error somehow observable?
-        handler.#writeStream = undefined
-
-        // Delete the value in case the cache store is holding onto state from
-        //  the call to createWriteStream
-        handler.#store.delete(handler.#cacheKey)
-      })
-      .on('close', function () {
-        if (handler.#writeStream === this) {
-          handler.#writeStream = undefined
+    // Not modified, re-use the cached value
+    // https://www.rfc-editor.org/rfc/rfc9111.html#name-handling-304-not-modified
+    if (statusCode === 304) {
+      const handle304 = (cachedValue) => {
+        if (!cachedValue) {
+          // Do not create a new cache entry, as a 304 won't have a body - so cannot be cached.
+          return downstreamOnHeaders()
         }
 
-        // TODO (fix): Should we resume even if was paused downstream?
-        controller.resume()
-      })
+        // Re-use the cached value: statuscode, statusmessage, headers and body
+        value.statusCode = cachedValue.statusCode
+        value.statusMessage = cachedValue.statusMessage
+        value.etag = cachedValue.etag
+        value.headers = { ...cachedValue.headers, ...strippedHeaders }
 
-    return downstreamOnHeaders()
+        downstreamOnHeaders()
+
+        this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
+
+        if (!this.#writeStream || !cachedValue?.body) {
+          return
+        }
+
+        if (typeof cachedValue.body.values === 'function') {
+          const bodyIterator = cachedValue.body.values()
+
+          const streamCachedBody = () => {
+            for (const chunk of bodyIterator) {
+              const full = this.#writeStream.write(chunk) === false
+              this.#handler.onResponseData?.(controller, chunk)
+              // when stream is full stop writing until we get a 'drain' event
+              if (full) {
+                break
+              }
+            }
+          }
+
+          this.#writeStream
+            .on('error', function () {
+              handler.#writeStream = undefined
+              handler.#store.delete(handler.#cacheKey)
+            })
+            .on('drain', () => {
+              streamCachedBody()
+            })
+            .on('close', function () {
+              if (handler.#writeStream === this) {
+                handler.#writeStream = undefined
+              }
+            })
+
+          streamCachedBody()
+        } else if (typeof cachedValue.body.on === 'function') {
+          // Readable stream body (e.g. from async/remote cache stores)
+          cachedValue.body
+            .on('data', (chunk) => {
+              this.#writeStream.write(chunk)
+              this.#handler.onResponseData?.(controller, chunk)
+            })
+            .on('end', () => {
+              this.#writeStream.end()
+            })
+            .on('error', () => {
+              this.#writeStream = undefined
+              this.#store.delete(this.#cacheKey)
+            })
+
+          this.#writeStream
+            .on('error', function () {
+              handler.#writeStream = undefined
+              handler.#store.delete(handler.#cacheKey)
+            })
+            .on('close', function () {
+              if (handler.#writeStream === this) {
+                handler.#writeStream = undefined
+              }
+            })
+        }
+      }
+
+      /**
+       * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
+       */
+      const result = this.#store.get(this.#cacheKey)
+      if (result && typeof result.then === 'function') {
+        result.then(handle304)
+      } else {
+        handle304(result)
+      }
+    } else {
+      if (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) {
+        value.etag = resHeaders.etag
+      }
+
+      this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
+
+      if (!this.#writeStream) {
+        return downstreamOnHeaders()
+      }
+
+      this.#writeStream
+        .on('drain', () => controller.resume())
+        .on('error', function () {
+          // TODO (fix): Make error somehow observable?
+          handler.#writeStream = undefined
+
+          // Delete the value in case the cache store is holding onto state from
+          //  the call to createWriteStream
+          handler.#store.delete(handler.#cacheKey)
+        })
+        .on('close', function () {
+          if (handler.#writeStream === this) {
+            handler.#writeStream = undefined
+          }
+
+          // TODO (fix): Should we resume even if was paused downstream?
+          controller.resume()
+        })
+
+      downstreamOnHeaders()
+    }
   }
 
   onResponseData (controller, chunk) {
@@ -239,9 +341,22 @@ class CacheHandler {
  * @param {number} statusCode
  * @param {import('../../types/header.d.ts').IncomingHttpHeaders} resHeaders
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
+ * @param {import('../../types/header.d.ts').IncomingHttpHeaders} [reqHeaders]
  */
-function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives) {
-  if (statusCode !== 200 && statusCode !== 307) {
+function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives, reqHeaders) {
+  // Status code must be final and understood.
+  if (statusCode < 200 || NOT_UNDERSTOOD_STATUS_CODES.includes(statusCode)) {
+    return false
+  }
+  // Responses with neither status codes that are heuristically cacheable, nor "explicit enough" caching
+  // directives, are not cacheable. "Explicit enough": see https://www.rfc-editor.org/rfc/rfc9111.html#section-3
+  if (!HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode) && !resHeaders['expires'] &&
+    !cacheControlDirectives.public &&
+    cacheControlDirectives['max-age'] === undefined &&
+    // RFC 9111: a private response directive, if the cache is not shared
+    !(cacheControlDirectives.private && cacheType === 'private') &&
+    !(cacheControlDirectives['s-maxage'] !== undefined && cacheType === 'shared')
+  ) {
     return false
   }
 
@@ -259,8 +374,16 @@ function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirect
   }
 
   // https://www.rfc-editor.org/rfc/rfc9111.html#name-storing-responses-to-authen
-  if (resHeaders.authorization) {
-    if (!cacheControlDirectives.public || typeof resHeaders.authorization !== 'string') {
+  if (reqHeaders?.authorization) {
+    if (
+      !cacheControlDirectives.public &&
+      !cacheControlDirectives['s-maxage'] &&
+      !cacheControlDirectives['must-revalidate']
+    ) {
+      return false
+    }
+
+    if (typeof reqHeaders.authorization !== 'string') {
       return false
     }
 
@@ -363,11 +486,12 @@ function determineStaleAt (cacheType, now, age, resHeaders, responseDate, cacheC
 }
 
 /**
- * @param {number} now
+ * @param {number} baseTime
+ * @param {number} cachedAt
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  * @param {number} staleAt
  */
-function determineDeleteAt (now, cacheControlDirectives, staleAt) {
+function determineDeleteAt (baseTime, cachedAt, cacheControlDirectives, staleAt) {
   let staleWhileRevalidate = -Infinity
   let staleIfError = -Infinity
   let immutable = -Infinity
@@ -380,8 +504,22 @@ function determineDeleteAt (now, cacheControlDirectives, staleAt) {
     staleIfError = staleAt + (cacheControlDirectives['stale-if-error'] * 1000)
   }
 
-  if (staleWhileRevalidate === -Infinity && staleIfError === -Infinity) {
-    immutable = now + 31536000000
+  if (cacheControlDirectives.immutable && staleWhileRevalidate === -Infinity && staleIfError === -Infinity) {
+    immutable = cachedAt + 31536000000
+  }
+
+  // When no stale directives or immutable flag, add a revalidation buffer
+  // equal to the freshness lifetime so the entry survives past staleAt long
+  // enough to be revalidated instead of silently disappearing.
+  //
+  // Response Date headers only have second precision, so baseTime can trail the
+  // actual cache insertion time by up to ~1s. Pad the buffer by that bounded
+  // skew so short-lived entries do not disappear exactly when they should be
+  // revalidated.
+  if (staleWhileRevalidate === -Infinity && staleIfError === -Infinity && immutable === -Infinity) {
+    const freshnessLifetime = staleAt - baseTime
+    const datePrecisionPadding = Math.min(Math.max(cachedAt - baseTime, 0), 1000)
+    return staleAt + freshnessLifetime + datePrecisionPadding
   }
 
   return Math.max(staleAt, staleWhileRevalidate, staleIfError, immutable)
