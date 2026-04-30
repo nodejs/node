@@ -1413,7 +1413,7 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
-### `--experimental-test-tag-filter=<tag>`
+### `--experimental-test-tag-filter='<expr>'`
 
 <!-- YAML
 added: REPLACEME
@@ -1421,14 +1421,20 @@ added: REPLACEME
 
 > Stability: 1.0 - Early development
 
-Run only tests whose tag set contains `<tag>`. Tests declare tags via the
-`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
-inherit from suites to nested tests by union. Filtering is
-case-insensitive.
+Run only tests that match the provided boolean tag-filter expression. Tests
+declare tags via the `tags` option on `test()`, `it()`, `suite()`, or
+`describe()`. Tags inherit from suites to nested tests by union.
 
-The flag may be specified more than once; tests must contain **every**
-filter value to run. See [Test tags][] for details on declaring and
-inheriting tags.
+The expression supports boolean operators (`and`/`&&`, `or`/`||`,
+`not`/`!`), parentheses for grouping, and `*` wildcards inside identifiers.
+Standard precedence applies: `not` binds tighter than `and`, which binds
+tighter than `or`. See [Test tags][] for the full grammar and behavior.
+
+The flag may be specified more than once; multiple expressions are combined
+with AND, so a test must satisfy every expression to run.
+
+A malformed expression causes the test runner to exit with a non-zero status
+before running any tests.
 
 ### `--experimental-vm-modules`
 
