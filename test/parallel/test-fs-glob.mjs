@@ -1,5 +1,6 @@
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
+import { spawnSync } from 'node:child_process';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
 import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
@@ -389,6 +390,76 @@ describe('fsPromises.glob - with file: URL as cwd', function() {
       assert.deepStrictEqual(actual, normalized);
     });
   }
+});
+
+test('glob handles seen children without aborting sibling processing', () => {
+  const script = `
+    const assert = require('node:assert');
+    const fs = require('node:fs');
+    const fsPromises = require('node:fs/promises');
+    const os = require('node:os');
+    const path = require('node:path');
+
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'glob-seen-'));
+    const a = path.join(cwd, 'a');
+    fs.mkdirSync(path.join(a, 'b', 'c', 'd'), { recursive: true });
+    fs.mkdirSync(path.join(a, 'c', 'd', 'c'), { recursive: true });
+    fs.writeFileSync(path.join(a, 'x'), '');
+    fs.writeFileSync(path.join(a, 'z'), '');
+
+    const originalReaddirSync = fs.readdirSync;
+    const originalReaddir = fsPromises.readdir;
+
+    const reorder = (target, entries) => {
+      if (!Array.isArray(entries)) return entries;
+      if (target === a) {
+        const names = ['c', 'b', 'x', 'z'];
+        return names.map((name) => entries.find((entry) => entry.name === name)).filter(Boolean);
+      }
+      if (target === path.join(a, 'c', 'd')) {
+        const names = ['c'];
+        return names.map((name) => entries.find((entry) => entry.name === name)).filter(Boolean);
+      }
+      return entries;
+    };
+
+    fs.readdirSync = function(target, options) {
+      return reorder(target, originalReaddirSync.call(this, target, options));
+    };
+    fsPromises.readdir = async function(target, options) {
+      return reorder(target, await originalReaddir.call(this, target, options));
+    };
+
+    const { Glob } = require('internal/fs/glob');
+    const expected = ['a/b', 'a/c', 'a/x', 'a/z'];
+
+    (async () => {
+      const syncResults = new Glob('a/**/../*', { cwd }).globSync().sort();
+      for (const item of expected) {
+        assert.ok(syncResults.includes(item), \`missing \${item} from \${syncResults}\`);
+      }
+
+      const asyncResults = [];
+      for await (const item of new Glob('a/**/../*', { cwd }).glob()) asyncResults.push(item);
+      asyncResults.sort();
+      for (const item of expected) {
+        assert.ok(asyncResults.includes(item), \`missing \${item} from \${asyncResults}\`);
+      }
+
+      fs.rmSync(cwd, { recursive: true, force: true });
+    })().catch((err) => {
+      console.error(err);
+      fs.rmSync(cwd, { recursive: true, force: true });
+      process.exitCode = 1;
+    });
+  `;
+
+  const child = spawnSync(process.execPath, ['--expose-internals', '-e', script], {
+    cwd: fixtureDir,
+    encoding: 'utf8',
+  });
+
+  assert.strictEqual(child.status, 0, child.stderr || child.stdout);
 });
 
 const normalizeDirent = (dirent) => relative(fixtureDir, join(dirent.parentPath, dirent.name));
