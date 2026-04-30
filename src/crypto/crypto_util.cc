@@ -553,44 +553,51 @@ Maybe<void> Decorate(Environment* env,
         c = ToUpper(c);
     }
 
-#define OSSL_ERROR_CODES_MAP(V)                                               \
-    V(SYS)                                                                    \
-    V(BN)                                                                     \
-    V(RSA)                                                                    \
-    V(DH)                                                                     \
-    V(EVP)                                                                    \
-    V(BUF)                                                                    \
-    V(OBJ)                                                                    \
-    V(PEM)                                                                    \
-    V(DSA)                                                                    \
-    V(X509)                                                                   \
-    V(ASN1)                                                                   \
-    V(CONF)                                                                   \
-    V(CRYPTO)                                                                 \
-    V(EC)                                                                     \
-    V(SSL)                                                                    \
-    V(BIO)                                                                    \
-    V(PKCS7)                                                                  \
-    V(X509V3)                                                                 \
-    V(PKCS12)                                                                 \
-    V(RAND)                                                                   \
-    V(DSO)                                                                    \
-    V(ENGINE)                                                                 \
-    V(OCSP)                                                                   \
-    V(UI)                                                                     \
-    V(COMP)                                                                   \
-    V(ECDSA)                                                                  \
-    V(ECDH)                                                                   \
-    V(OSSL_STORE)                                                             \
-    V(FIPS)                                                                   \
-    V(CMS)                                                                    \
-    V(TS)                                                                     \
-    V(HMAC)                                                                   \
-    V(CT)                                                                     \
-    V(ASYNC)                                                                  \
-    V(KDF)                                                                    \
-    V(SM2)                                                                    \
-    V(USER)                                                                   \
+#ifdef OPENSSL_IS_BORINGSSL
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
+#else
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)                                   \
+  V(PKCS12)                                                                    \
+  V(DSO)                                                                       \
+  V(OSSL_STORE)                                                                \
+  V(FIPS)                                                                      \
+  V(TS)                                                                        \
+  V(CT)                                                                        \
+  V(ASYNC)                                                                     \
+  V(KDF)                                                                       \
+  V(SM2)
+#endif
+
+#define OSSL_ERROR_CODES_MAP(V)                                                \
+  V(SYS)                                                                       \
+  V(BN)                                                                        \
+  V(RSA)                                                                       \
+  V(DH)                                                                        \
+  V(EVP)                                                                       \
+  V(BUF)                                                                       \
+  V(OBJ)                                                                       \
+  V(PEM)                                                                       \
+  V(DSA)                                                                       \
+  V(X509)                                                                      \
+  V(ASN1)                                                                      \
+  V(CONF)                                                                      \
+  V(CRYPTO)                                                                    \
+  V(EC)                                                                        \
+  V(SSL)                                                                       \
+  V(BIO)                                                                       \
+  V(PKCS7)                                                                     \
+  V(X509V3)                                                                    \
+  V(RAND)                                                                      \
+  V(ENGINE)                                                                    \
+  V(OCSP)                                                                      \
+  V(UI)                                                                        \
+  V(COMP)                                                                      \
+  V(ECDSA)                                                                     \
+  V(ECDH)                                                                      \
+  V(CMS)                                                                       \
+  V(HMAC)                                                                      \
+  V(USER)                                                                      \
+  OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
 
 #define V(name) case ERR_LIB_##name: lib = #name "_"; break;
     const char* lib = "";
@@ -600,6 +607,7 @@ Maybe<void> Decorate(Environment* env,
     }
 #undef V
 #undef OSSL_ERROR_CODES_MAP
+#undef OSSL_ERROR_CODES_MAP_OPENSSL_ONLY
     // Don't generate codes like "ERR_OSSL_SSL_".
     if (lib && strcmp(lib, "SSL_") == 0)
       prefix = "";
@@ -728,7 +736,6 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = args[0].As<Uint32>()->Value();
 
   auto data = DataPointer::SecureAlloc(len);
-  CHECK(data.isSecure());
   if (!data) {
     return THROW_ERR_OPERATION_FAILED(env, "Allocation failed");
   }

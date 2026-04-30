@@ -4,6 +4,10 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  common.skip('Skipping unsupported ML-DSA key tests');
+}
+
 const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');

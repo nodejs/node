@@ -428,7 +428,7 @@ async function testImportRaw({ name, publicUsages }) {
 
   for (const [name, publicUsages, privateUsages] of [
     ['Ed25519', ['verify'], ['sign']],
-    ['X448', [], ['deriveBits']],
+    ['X25519', [], ['deriveBits']],
   ]) {
     assert.rejects(subtle.importKey(
       'spki',

@@ -192,7 +192,9 @@ for (const options of incompatibleOptions) {
 
 for (const options of toobig) {
   const expected = {
-    message: /Invalid scrypt params:.*memory limit exceeded/,
+    message: process.features.openssl_is_boringssl ?
+      /Invalid scrypt params:.*(INVALID_PARAMETERS|MEMORY_LIMIT_EXCEEDED)/ :
+      /Invalid scrypt params:.*memory limit exceeded/,
     code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS',
   };
   assert.throws(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
