@@ -948,6 +948,8 @@ class Http2Session : public AsyncWrap,
   std::vector<NgHttp2StreamWrite> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
+  size_t current_write_size_ = 0;
+  uint64_t current_write_start_time_ = 0;
   std::vector<int32_t> pending_rst_streams_;
   // Count streams that have been rejected while being opened. Exceeding a fixed
   // limit will result in the session being destroyed, as an indication of a
