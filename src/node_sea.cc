@@ -11,6 +11,7 @@
 #include "node_snapshot_builder.h"
 #include "node_union_bytes.h"
 #include "node_v8_platform-inl.h"
+#include "node_v8_sandbox.h"
 #include "simdjson.h"
 #include "util-inl.h"
 
@@ -833,6 +834,11 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   if (it == sea_resource.assets.end()) {
     return;
   }
+#ifdef V8_ENABLE_SANDBOX
+  std::unique_ptr<v8::BackingStore> store =
+      CopyCageBackingStore(it->second.data(), it->second.size());
+  CHECK(store);
+#else
   // We cast away the constness here, the JS land should ensure that
   // the data is not mutated.
   std::unique_ptr<v8::BackingStore> store = ArrayBuffer::NewBackingStore(
@@ -840,6 +846,7 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
       it->second.size(),
       [](void*, size_t, void*) {},
       nullptr);
+#endif
   Local<ArrayBuffer> ab = ArrayBuffer::New(args.GetIsolate(), std::move(store));
   args.GetReturnValue().Set(ab);
 }

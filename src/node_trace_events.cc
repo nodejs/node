@@ -5,6 +5,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_v8_platform-inl.h"
+#include "node_v8_sandbox.h"
 #include "tracing/agent.h"
 #include "util-inl.h"
 
@@ -123,18 +124,31 @@ static void SetTraceCategoryStateUpdateHandler(
 static void GetCategoryEnabledBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
-  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
   node::Utf8Value category_name(isolate, args[0]);
 
   const uint8_t* enabled_pointer =
       TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_name.out());
   uint8_t* enabled_pointer_cast = const_cast<uint8_t*>(enabled_pointer);
+  constexpr size_t size = sizeof(*enabled_pointer_cast);
 
+#ifdef V8_ENABLE_SANDBOX
+  // The V8 sandbox requires all ArrayBuffer backing stores to be inside the
+  // memory cage, so we cannot wrap enabled_pointer directly. Instead, allocate
+  // a cage-resident copy and register a mapping so that
+  // TrackingTraceStateObserver::UpdateTraceCategoryState() keeps it in sync
+  // with the original pointer whenever trace categories change.
+  std::unique_ptr<BackingStore> bs =
+      CopyCageBackingStore(enabled_pointer_cast, size);
+  CHECK(bs);
+  uint8_t* cage_copy = static_cast<uint8_t*>(bs->Data());
+  env->AddTraceCategoryMapping(enabled_pointer, cage_copy);
+#else
   std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-      enabled_pointer_cast,
-      sizeof(*enabled_pointer_cast),
-      [](void*, size_t, void*) {},
-      nullptr);
+      enabled_pointer_cast, size, [](void*, size_t, void*) {}, nullptr);
+#endif
+
   auto ab = ArrayBuffer::New(isolate, std::move(bs));
   v8::Local<Uint8Array> u8 = v8::Uint8Array::New(ab, 0, 1);
 

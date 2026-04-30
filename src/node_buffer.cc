@@ -32,6 +32,7 @@
 #include "simdutf.h"
 #include "string_bytes.h"
 
+#include "node_v8_sandbox.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
@@ -123,6 +124,18 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
   CHECK_NOT_NULL(callback);
   CHECK_IMPLIES(data == nullptr, length == 0);
 
+#ifdef V8_ENABLE_SANDBOX
+  // When the V8 sandbox is enabled, external backing stores are not supported.
+  // Copy the data into the cage and immediately free the original via callback.
+  void* cage_data = SandboxAllocate(length, /* zero_fill */ false);
+  CHECK_NOT_NULL(cage_data);
+  if (length > 0) memcpy(cage_data, data, length);
+  callback(data, hint);
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      cage_data, length, SandboxBackingStoreDeleter, nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), std::move(bs));
+  // No CallbackInfo needed — the original data has already been freed.
+#else
   CallbackInfo* self = new CallbackInfo(env, callback, data, hint);
   std::unique_ptr<BackingStore> bs =
       ArrayBuffer::NewBackingStore(data, length, [](void*, size_t, void* arg) {
@@ -140,6 +153,7 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
     self->persistent_.Reset(env->isolate(), ab);
     self->persistent_.SetWeak();
   }
+#endif  // V8_ENABLE_SANDBOX
 
   return ab;
 }
@@ -529,7 +543,7 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
-#if defined(V8_ENABLE_SANDBOX)
+#ifdef V8_ENABLE_SANDBOX
   // When v8 sandbox is enabled, external backing stores are not supported
   // since all arraybuffer allocations are expected to be done by the isolate.
   // Since this violates the contract of this function, let's free the data and
@@ -1517,9 +1531,7 @@ inline size_t CheckNumberToSize(Local<Value> number) {
   double maxSize = static_cast<double>(std::numeric_limits<size_t>::max());
   CHECK(value >= 0 && value < maxSize);
   size_t size = static_cast<size_t>(value);
-#ifdef V8_ENABLE_SANDBOX
-  CHECK_LE(size, kMaxSafeBufferSizeForSandbox);
-#endif
+  CHECK_LE(size, v8::ArrayBuffer::kMaxByteLength);
   return size;
 }
 
@@ -1541,16 +1553,13 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
       env->isolate_data()->is_building_snapshot()) {
     buf = ArrayBuffer::New(isolate, size);
   } else {
-    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-        isolate,
-        size,
-        BackingStoreInitializationMode::kUninitialized,
-        v8::BackingStoreOnFailureMode::kReturnNull);
-
-    if (!store) [[unlikely]] {
+    void* data = SandboxAllocate(size, /* zero_fill */ false);
+    if (!data) [[unlikely]] {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return;
     }
+    std::unique_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+        data, size, SandboxBackingStoreDeleter, nullptr);
 
     buf = ArrayBuffer::New(isolate, std::move(store));
   }

@@ -7,6 +7,7 @@
 #include "ncrypto.h"
 #include "node_buffer.h"
 #include "node_options-inl.h"
+#include "node_v8_sandbox.h"
 #include "string_bytes.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -34,8 +35,6 @@ using ncrypto::EnginePointer;
 using ncrypto::SSLPointer;
 using v8::ArrayBuffer;
 using v8::BackingStore;
-using v8::BackingStoreInitializationMode;
-using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -386,22 +385,12 @@ std::unique_ptr<BackingStore> ByteSource::ReleaseToBackingStore(
   // only if size_ is zero.
   CHECK_IMPLIES(size_ > 0, allocated_data_ != nullptr);
 #ifdef V8_ENABLE_SANDBOX
-  // If the v8 sandbox is enabled, then all array buffers must be allocated
-  // via the isolate. External buffers are not allowed. So, instead of wrapping
-  // the allocated data we'll copy it instead.
-
-  // TODO(@jasnell): It would be nice to use an abstracted utility to do this
-  // branch instead of duplicating the V8_ENABLE_SANDBOX check each time.
-  std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
-      env->isolate(),
-      size(),
-      BackingStoreInitializationMode::kUninitialized,
-      BackingStoreOnFailureMode::kReturnNull);
+  std::unique_ptr<BackingStore> ptr =
+      CopyCageBackingStore(allocated_data_, size());
   if (!ptr) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return nullptr;
   }
-  memcpy(ptr->Data(), allocated_data_, size());
   OPENSSL_clear_free(allocated_data_, size_);
 #else
   std::unique_ptr<BackingStore> ptr = ArrayBuffer::NewBackingStore(
@@ -712,20 +701,18 @@ namespace {
 // using OPENSSL_malloc. However, if the secure heap is
 // initialized, SecureBuffer will automatically use it.
 void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-#ifdef V8_ENABLE_SANDBOX
-  // The v8 sandbox is enabled, so we cannot use the secure heap because
-  // the sandbox requires that all array buffers be allocated via the isolate.
-  // That is fundamentally incompatible with the secure heap which allocates
-  // in openssl's secure heap area. Instead we'll just throw an error here.
-  //
-  // That said, we really shouldn't get here in the first place since the
-  // option to enable the secure heap is only available when the sandbox
-  // is disabled.
-  UNREACHABLE();
-#else
   CHECK(args[0]->IsUint32());
   uint32_t len = args[0].As<Uint32>()->Value();
+#ifdef V8_ENABLE_SANDBOX
+  // The V8 sandbox requires all array buffers to be allocated inside the cage,
+  // which is incompatible with OpenSSL's secure heap. Fall back to a regular
+  // V8-managed allocation. The --secure-heap option is disabled at the CLI
+  // level when the sandbox is enabled, but this function can still be reached
+  // via internal callers like randomUUID.
+  Local<ArrayBuffer> buffer = ArrayBuffer::New(args.GetIsolate(), len);
+  args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
+#else
+  Environment* env = Environment::GetCurrent(args);
 
   auto data = DataPointer::SecureAlloc(len);
   CHECK(data.isSecure());

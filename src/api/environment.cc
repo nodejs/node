@@ -299,14 +299,21 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
   SetIsolateUpForNode(isolate, settings);
 }
 
-//
 IsolateGroup GetOrCreateIsolateGroup() {
-  // When pointer compression is disabled, we cannot create new groups,
-  // in which case we'll always return the default.
+#ifndef V8_ENABLE_SANDBOX
+  // IsolateGroup::CanCreateNewGroups() only reflects whether multiple pointer
+  // compression cages are supported at build time; it has no awareness of the
+  // V8 sandbox (they are orthogonal concepts). However, when the sandbox is
+  // enabled the cage-allocation helpers (node_v8_sandbox.h) route through the
+  // default allocator, which allocates inside the *default* group's sandbox.
+  // Creating a new group would give it its own sandbox, so ArrayBuffers
+  // allocated by the default allocator would be invalid for isolates in that
+  // group. We therefore always fall through to GetDefault() when the sandbox
+  // is enabled.
   if (IsolateGroup::CanCreateNewGroups()) {
     return IsolateGroup::Create();
   }
-
+#endif
   return IsolateGroup::GetDefault();
 }
 

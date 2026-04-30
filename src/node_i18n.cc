@@ -105,7 +105,13 @@ namespace {
 template <typename T>
 MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
   Local<Object> ret;
+#ifdef V8_ENABLE_SANDBOX
+  if (!Buffer::Copy(
+           env, reinterpret_cast<char*>(buf->out()), buf->length() * sizeof(T))
+           .ToLocal(&ret)) {
+#else
   if (!Buffer::New(env, buf).ToLocal(&ret)) {
+#endif
     return {};
   }
 
@@ -182,7 +188,13 @@ MaybeLocal<Object> TranscodeLatin1ToUcs2(Environment* env,
     return {};
   }
 
+#ifdef V8_ENABLE_SANDBOX
+  return Buffer::Copy(env,
+                      reinterpret_cast<char*>(destbuf.out()),
+                      destbuf.length() * sizeof(char16_t));
+#else
   return Buffer::New(env, &destbuf);
+#endif
 }
 
 MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
@@ -227,7 +239,13 @@ MaybeLocal<Object> TranscodeUcs2FromUtf8(Environment* env,
     return {};
   }
 
+#ifdef V8_ENABLE_SANDBOX
+  return Buffer::Copy(env,
+                      reinterpret_cast<char*>(destbuf.out()),
+                      destbuf.length() * sizeof(char16_t));
+#else
   return Buffer::New(env, &destbuf);
+#endif
 }
 
 MaybeLocal<Object> TranscodeUtf8FromUcs2(Environment* env,
@@ -251,7 +269,13 @@ MaybeLocal<Object> TranscodeUtf8FromUcs2(Environment* env,
     return {};
   }
 
+#ifdef V8_ENABLE_SANDBOX
+  return Buffer::Copy(env,
+                      reinterpret_cast<char*>(destbuf.out()),
+                      destbuf.length() * sizeof(char));
+#else
   return Buffer::New(env, &destbuf);
+#endif
 }
 
 constexpr const char* EncodingName(const enum encoding encoding) {

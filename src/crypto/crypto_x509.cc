@@ -7,6 +7,7 @@
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
 #include "node_errors.h"
+#include "node_v8_sandbox.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -29,7 +30,6 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStoreInitializationMode;
-using v8::BackingStoreOnFailureMode;
 using v8::Boolean;
 using v8::Context;
 using v8::Date;
@@ -141,19 +141,11 @@ MaybeLocal<Value> ToBuffer(Environment* env, BIOPointer* bio) {
   if (!mem) [[unlikely]]
     return {};
 #ifdef V8_ENABLE_SANDBOX
-  // If the v8 sandbox is enabled, then all array buffers must be allocated
-  // via the isolate. External buffers are not allowed. So, instead of wrapping
-  // the BIOPointer we'll copy it instead.
-  auto backing = ArrayBuffer::NewBackingStore(
-      env->isolate(),
-      mem->length,
-      BackingStoreInitializationMode::kUninitialized,
-      BackingStoreOnFailureMode::kReturnNull);
+  auto backing = CopyCageBackingStore(mem->data, mem->length);
   if (!backing) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return MaybeLocal<Value>();
   }
-  memcpy(backing->Data(), mem->data, mem->length);
 #else
   auto backing = ArrayBuffer::NewBackingStore(
       mem->data,

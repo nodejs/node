@@ -3,6 +3,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "node_v8_sandbox.h"
 #include "util-inl.h"
 
 namespace node {
@@ -37,10 +38,15 @@ class SerializerContext : public BaseObject,
 
   ~SerializerContext() override = default;
 
+  // v8::ValueSerializer::Delegate
   void ThrowDataCloneError(Local<String> message) override;
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override;
   Maybe<uint32_t> GetSharedArrayBufferId(
       Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer) override;
+  void* ReallocateBufferMemory(void* old_buffer,
+                               size_t old_length,
+                               size_t* new_length) override;
+  void FreeBufferMemory(void* buffer) override;
 
   static void SetTreatArrayBufferViewsAsHostObjects(
       const FunctionCallbackInfo<Value>& args);
@@ -61,6 +67,7 @@ class SerializerContext : public BaseObject,
 
  private:
   ValueSerializer serializer_;
+  size_t last_length_ = 0;
 };
 
 class DeserializerContext : public BaseObject,
@@ -145,6 +152,24 @@ Maybe<uint32_t> SerializerContext::GetSharedArrayBufferId(
   return id->Uint32Value(env()->context());
 }
 
+void* SerializerContext::ReallocateBufferMemory(void* old_buffer,
+                                                size_t requested_size,
+                                                size_t* new_length) {
+  *new_length = std::max(static_cast<size_t>(4096), requested_size);
+  if (old_buffer) {
+    void* ret = SandboxReallocate(old_buffer, last_length_, *new_length);
+    last_length_ = *new_length;
+    return ret;
+  } else {
+    last_length_ = *new_length;
+    return SandboxAllocate(*new_length);
+  }
+}
+
+void SerializerContext::FreeBufferMemory(void* buffer) {
+  SandboxFree(buffer, last_length_);
+}
+
 Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
                                                Local<Object> input) {
   Local<Value> args[1] = { input };
@@ -208,14 +233,14 @@ void SerializerContext::ReleaseBuffer(const FunctionCallbackInfo<Value>& args) {
   SerializerContext* ctx;
   ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
 
-  // Note: Both ValueSerializer and this Buffer::New() variant use malloc()
-  // as the underlying allocator.
   std::pair<uint8_t*, size_t> ret = ctx->serializer_.Release();
-  Local<Object> buf;
-  if (Buffer::New(ctx->env(), reinterpret_cast<char*>(ret.first), ret.second)
-          .ToLocal(&buf)) {
-    args.GetReturnValue().Set(buf);
-  }
+  std::unique_ptr<v8::BackingStore> bs = v8::ArrayBuffer::NewBackingStore(
+      ret.first, ret.second, SandboxBackingStoreDeleter, nullptr);
+  Local<ArrayBuffer> ab =
+      v8::ArrayBuffer::New(ctx->env()->isolate(), std::move(bs));
+
+  auto buf = Buffer::New(ctx->env(), ab, 0, ret.second);
+  if (!buf.IsEmpty()) args.GetReturnValue().Set(buf.ToLocalChecked());
 }
 
 void SerializerContext::TransferArrayBuffer(
