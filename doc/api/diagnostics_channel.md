@@ -1559,6 +1559,37 @@ passed to `console.warn()`.
 Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
+#### Logger
+
+> Stability: 1.1 - Active Development
+
+Published by the [`node:logger`][] module. Each log level has its own channel,
+allowing subscribers to filter by severity without matching on record contents.
+
+##### Event: `'log:trace'`
+
+* `record` {Object} Log record emitted at the `trace` level.
+
+##### Event: `'log:debug'`
+
+* `record` {Object} Log record emitted at the `debug` level.
+
+##### Event: `'log:info'`
+
+* `record` {Object} Log record emitted at the `info` level.
+
+##### Event: `'log:warn'`
+
+* `record` {Object} Log record emitted at the `warn` level.
+
+##### Event: `'log:error'`
+
+* `record` {Object} Log record emitted at the `error` level.
+
+##### Event: `'log:fatal'`
+
+* `record` {Object} Log record emitted at the `fatal` level.
+
 #### HTTP
 
 > Stability: 1 - Experimental
@@ -1934,6 +1965,7 @@ Emitted when a new thread is created.
 [`error` event]: #errorevent
 [`locks.request()`]: worker_threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
+[`node:logger`]: logger.md
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
