@@ -5,7 +5,9 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_diagnostics_channel.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_mem-inl.h"
 #include "node_url.h"
 #include "simdutf.h"
@@ -77,6 +79,30 @@ inline MaybeLocal<String> Utf8StringMaybeOneByte(Isolate* isolate,
   }
   return String::NewFromUtf8(
       isolate, input.data(), NewStringType::kNormal, len);
+}
+
+BindingData::BindingData(Realm* realm, Local<Object> wrap)
+    : BaseObject(realm, wrap) {
+  MakeWeak();
+}
+
+void BindingData::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("open_databases",
+                              open_databases.size() * sizeof(DatabaseSync*),
+                              "open_databases");
+}
+
+void BindingData::CreatePerContextProperties(Local<Object> target,
+                                             Local<Value> unused,
+                                             Local<Context> context,
+                                             void* priv) {
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
+  Realm* principal = env->principal_realm();
+
+  if (principal->GetBindingData<BindingData>() != nullptr) return;
+
+  principal->AddBindingData<BindingData>(target);
 }
 
 #define CHECK_ERROR_OR_THROW(isolate, db, expr, expected, ret)                 \
@@ -886,6 +912,9 @@ DatabaseSync::DatabaseSync(Environment* env,
   enable_load_extension_ = allow_load_extension;
   ignore_next_sqlite_error_ = false;
 
+  BindingData* binding = env->principal_realm()->GetBindingData<BindingData>();
+  if (binding != nullptr) binding->open_databases.insert(this);
+
   if (open) {
     Open();
   }
@@ -909,6 +938,10 @@ void DatabaseSync::DeleteSessions() {
 }
 
 DatabaseSync::~DatabaseSync() {
+  BindingData* binding =
+      env()->principal_realm()->GetBindingData<BindingData>();
+  if (binding != nullptr) binding->open_databases.erase(this);
+
   FinalizeBackups();
 
   if (IsOpen()) {
@@ -993,7 +1026,26 @@ bool DatabaseSync::Open() {
         env()->isolate(), this, load_extension_ret, SQLITE_OK, false);
   }
 
+  trace_channel_ = diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
+  if (trace_channel_ != nullptr && trace_channel_->HasSubscribers()) {
+    sqlite3_trace_v2(connection_, SQLITE_TRACE_PROFILE, TraceCallback, this);
+  }
+
   return true;
+}
+
+void DatabaseSync::EnableTracing() {
+  if (!IsOpen()) return;
+  if (trace_channel_ == nullptr) {
+    trace_channel_ =
+        diagnostics_channel::Channel::Get(env(), "sqlite.db.query");
+  }
+  sqlite3_trace_v2(connection_, SQLITE_TRACE_PROFILE, TraceCallback, this);
+}
+
+void DatabaseSync::DisableTracing() {
+  if (!IsOpen()) return;
+  sqlite3_trace_v2(connection_, 0, nullptr, nullptr);
 }
 
 void DatabaseSync::FinalizeBackups() {
@@ -2540,6 +2592,65 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   return int_result;
 }
 
+int DatabaseSync::TraceCallback(unsigned int type,
+                                void* user_data,
+                                void* p,
+                                void* x) {
+  if (type != SQLITE_TRACE_PROFILE) {
+    return 0;
+  }
+
+  DatabaseSync* db = static_cast<DatabaseSync*>(user_data);
+  Environment* env = db->env();
+
+  diagnostics_channel::Channel* ch = db->trace_channel_;
+  if (ch == nullptr || !ch->HasSubscribers()) {
+    return 0;
+  }
+
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+
+  char* expanded = sqlite3_expanded_sql(static_cast<sqlite3_stmt*>(p));
+  Local<Value> sql_string;
+  if (expanded != nullptr) {
+    bool ok = String::NewFromUtf8(isolate, expanded).ToLocal(&sql_string);
+    sqlite3_free(expanded);
+    if (!ok) {
+      return 0;
+    }
+  } else {
+    // Fallback to source SQL if expanded is unavailable
+    const char* source = sqlite3_sql(static_cast<sqlite3_stmt*>(p));
+    if (source == nullptr ||
+        !String::NewFromUtf8(isolate, source).ToLocal(&sql_string)) {
+      return 0;
+    }
+  }
+
+  // x points to the estimated statement run time in nanoseconds. A double is
+  // sufficient since 2^53 ns (~104 days) exceeds any realistic query duration.
+  sqlite3_int64 duration_ns = *static_cast<sqlite3_int64*>(x);
+
+  Local<Name> keys[3] = {
+      env->sql_string().As<Name>(),
+      env->database_string().As<Name>(),
+      env->duration_string().As<Name>(),
+  };
+
+  Local<Value> values[3] = {
+      sql_string,
+      db->object(),
+      Number::New(isolate, static_cast<double>(duration_ns)),
+  };
+
+  Local<Object> payload = Object::New(isolate, Null(isolate), keys, values, 3);
+
+  ch->Publish(env, payload);
+
+  return 0;
+}
+
 StatementSync::StatementSync(Environment* env,
                              Local<Object> object,
                              BaseObjectPtr<DatabaseSync> db,
@@ -3921,7 +4032,31 @@ static void Initialize(Local<Object> target,
                        Local<Context> context,
                        void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Realm* realm = env->principal_realm();
   Isolate* isolate = env->isolate();
+
+  // Set up the per-Environment database registry.
+  BindingData::CreatePerContextProperties(target, unused, context, priv);
+
+  // Register a native callback on the sqlite.db.query diagnostic channel so
+  // that SQLite tracing is enabled/disabled as subscribers come and go.
+  auto* diag_binding =
+      realm->GetBindingData<diagnostics_channel::BindingData>();
+  auto* sqlite_bd = realm->GetBindingData<BindingData>();
+  if (diag_binding != nullptr && sqlite_bd != nullptr) {
+    uint32_t idx = diag_binding->GetOrCreateChannelIndex("sqlite.db.query");
+    BaseObjectPtr<BindingData> bd_ptr(sqlite_bd);
+    diag_binding->SetChannelStatusCallback(idx, [bd_ptr](bool is_active) {
+      BindingData* bd = bd_ptr.get();
+      if (bd == nullptr) return;
+      for (DatabaseSync* db : bd->open_databases) {
+        if (is_active)
+          db->EnableTracing();
+        else
+          db->DisableTracing();
+      }
+    });
+  }
   Local<FunctionTemplate> db_tmpl =
       NewFunctionTemplate(isolate, DatabaseSync::New);
   db_tmpl->InstanceTemplate()->SetInternalFieldCount(

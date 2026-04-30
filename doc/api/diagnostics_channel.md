@@ -1913,10 +1913,33 @@ added: v16.18.0
 
 Emitted when a new thread is created.
 
+#### SQLite
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+##### Event: `'sqlite.db.query'`
+
+* `sql` {string} The expanded SQL with bound parameter values substituted.
+  If expansion fails, the source SQL with unsubstituted placeholders is used
+  instead.
+* `database` {DatabaseSync} The [`DatabaseSync`][] instance that executed the
+  statement.
+* `duration` {number} The estimated statement run time in nanoseconds.
+
+Emitted when a SQL statement is executed against a [`DatabaseSync`][] instance.
+This allows subscribers to observe every SQL statement executed without
+modifying the database code itself. Tracing is zero-cost when there are no
+subscribers.
+
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`BoundedChannel`]: #class-boundedchannel
+[`DatabaseSync`]: sqlite.md#class-databasesync
 [`TracingChannel`]: #class-tracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
