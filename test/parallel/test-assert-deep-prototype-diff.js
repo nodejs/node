@@ -113,3 +113,44 @@ test('deepStrictEqual on structurally-equal values with same prototype still fai
     }
   );
 });
+
+// The narrowed implementation must NOT emit the prototype line when neither
+// side has a custom prototype: comparisons between a plain object/array and
+// a null-prototype object already inspect differently, so the existing diff
+// path is sufficient and the new branch should not fire there. These tests
+// confirm the narrowing scope.
+
+test('deepStrictEqual between plain and null-prototype objects uses ordinary diff', () => {
+  const plain = { a: 1 };
+  const nullProto = Object.assign({ __proto__: null }, { a: 1 });
+  // These two values inspect differently (`{ a: 1 }` vs
+  // `[Object: null prototype] { a: 1 }`), so they take the ordinary
+  // diff path. The narrowed prototype-mismatch branch must not fire,
+  // because at least one side has a non-default prototype but the
+  // values do not inspect identically - the existing diff already
+  // surfaces the difference.
+  assert.throws(
+    () => assert.deepStrictEqual(plain, nullProto),
+    (err) => {
+      assert.strictEqual(err.code, 'ERR_ASSERTION');
+      assert.doesNotMatch(err.message, /Object prototypes differ:/);
+      return true;
+    }
+  );
+});
+
+test('strictEqual between two distinct anonymous-class instances still uses notIdentical', () => {
+  // strictEqual is a reference-equality check, not deep-equality, so the
+  // prototype-mismatch branch must not fire even when both values are
+  // anonymous-class instances that inspect identically.
+  const A = (() => class {})();
+  const B = (() => class {})();
+  assert.throws(
+    () => assert.strictEqual(new A(), new B()),
+    (err) => {
+      assert.strictEqual(err.code, 'ERR_ASSERTION');
+      assert.doesNotMatch(err.message, /Object prototypes differ:/);
+      return true;
+    }
+  );
+});
