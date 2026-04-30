@@ -340,12 +340,12 @@
             '<(V8_ROOT)/src/builtins/arm64/builtins-arm64.cc',
           ],
         }],
-        ['v8_target_arch=="riscv64" or v8_target_arch=="riscv64"', {
+        ['v8_target_arch=="riscv64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/riscv/builtins-riscv.cc',
           ],
         }],
-        ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
+        ['v8_target_arch=="loong64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/loong64/builtins-loong64.cc',
           ],
