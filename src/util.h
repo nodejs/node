@@ -1078,26 +1078,6 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
       ->ToString(context)
       .ToLocalChecked();
 }
-bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
-
-struct HeapProfileOptions {
-  uint64_t sample_interval = 512 * 1024;
-  int stack_depth = 16;
-  v8::HeapProfiler::SamplingFlags flags =
-      v8::HeapProfiler::SamplingFlags::kSamplingNoFlags;
-};
-
-HeapProfileOptions ParseHeapProfileOptions(
-    const v8::FunctionCallbackInfo<v8::Value>& args);
-
-struct CpuProfileOptions {
-  int sampling_interval_us = 0;
-  uint32_t max_samples = v8::CpuProfilingOptions::kNoSampleLimit;
-};
-
-CpuProfileOptions ParseCpuProfileOptions(
-    const v8::FunctionCallbackInfo<v8::Value>& args);
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
