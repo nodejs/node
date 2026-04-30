@@ -1267,6 +1267,27 @@ added:
 
 Enable experimental support for the network inspection with Chrome DevTools.
 
+### `--experimental-package-map=<path>`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental package map resolution. The `path` argument specifies the
+location of a JSON configuration file that defines package resolution mappings.
+
+```bash
+node --experimental-package-map=./package-map.json app.js
+```
+
+When enabled, bare specifier resolution consults the package map for resolution.
+This allows explicit control over which packages can import which dependencies.
+
+See [Package maps][] for details on the configuration file format and
+resolution algorithm.
+
 ### `--experimental-print-required-tla`
 
 <!-- YAML
@@ -3702,6 +3723,7 @@ one is included in the list below.
 * `--experimental-json-modules`
 * `--experimental-loader`
 * `--experimental-modules`
+* `--experimental-package-map`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
 * `--experimental-require-module`
@@ -4298,6 +4320,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
+[Package maps]: packages.md#package-maps
 [Permission Model]: permissions.md#permission-model
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
