@@ -666,8 +666,6 @@ class OptionsParser {
   friend std::unordered_map<std::string, OptionMappingDetails>
   MapOptionsByNamespace(std::string namespace_name);
   friend std::vector<std::string> MapAvailableNamespaces();
-  friend void GetEnvOptionsInputType(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
   friend void GetOptionsAsFlags(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 };
