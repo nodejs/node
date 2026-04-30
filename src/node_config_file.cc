@@ -1,5 +1,7 @@
 #include "node_config_file.h"
+#include "ata.h"
 #include "debug_utils-inl.h"
+#include "node_options.h"
 #include "simdjson.h"
 
 namespace node {
@@ -235,25 +237,27 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::FileError;
   }
 
-  // Parse the configuration file
+  {
+    static const ata::schema_ref compiled_schema =
+        ata::compile(options_parser::GenerateConfigJsonSchema(false));
+    CHECK(compiled_schema);
+    auto result = ata::validate(compiled_schema, file_content);
+    if (!result.valid) {
+      FPrintF(stderr, "Invalid configuration in %s:\n", config_path.data());
+      for (const auto& err : result.errors) {
+        FPrintF(stderr, "  %s\n", ata::format_prose(err));
+      }
+      return ParseResult::InvalidContent;
+    }
+  }
+
   simdjson::ondemand::parser json_parser;
   simdjson::ondemand::document document;
   if (json_parser.iterate(file_content).get(document)) {
-    FPrintF(stderr, "Can't parse %s\n", config_path.data());
     return ParseResult::InvalidContent;
   }
-
-  // Validate config is an object
   simdjson::ondemand::object main_object;
-  auto root_error = document.get_object().get(main_object);
-  if (root_error) {
-    if (root_error == simdjson::error_code::INCORRECT_TYPE) {
-      FPrintF(stderr,
-              "Root value unexpected not an object for %s\n\n",
-              config_path.data());
-    } else {
-      FPrintF(stderr, "Can't parse %s\n", config_path.data());
-    }
+  if (document.get_object().get(main_object)) {
     return ParseResult::InvalidContent;
   }
 
@@ -310,16 +314,8 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       }
     }
 
-    // Get the namespace object
     simdjson::ondemand::object namespace_object;
-    auto field_error = field.value().get_object().get(namespace_object);
-
-    // If namespace value is not an object
-    if (field_error) {
-      FPrintF(stderr,
-              "\"%s\" value unexpected for %s (should be an object)\n",
-              namespace_name,
-              config_path.data());
+    if (field.value().get_object().get(namespace_object)) {
       return ParseResult::InvalidContent;
     }
 

@@ -1,0 +1,6 @@
+{
+  "nodeOptions": {
+    "addons": "not-a-boolean",
+    "max-http-header-size": "not-a-number"
+  }
+}
