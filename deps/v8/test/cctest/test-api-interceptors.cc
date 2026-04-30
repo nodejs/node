@@ -2100,7 +2100,7 @@ THREADED_TEST(EmptyInterceptorVsStoreGlobalICs) {
 namespace {
 
 void CheckGlobalInterceptorIC(v8::NamedPropertyGetterCallback getter,
-                              v8::NamedPropertySetterCallback setter,
+                              v8::NamedPropertySetterCallbackV2 setter,
                               v8::NamedPropertyQueryCallback query,
                               v8::PropertyHandlerFlags flags,
                               const char* source, std::optional<int> expected) {
