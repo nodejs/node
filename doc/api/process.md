@@ -625,6 +625,17 @@ added:
 
 The `'worker'` event is emitted after a new {Worker} thread has been created.
 
+### Event: `'signalMonitor'`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+* `signal` {string} The signal name, such as `SIGINT`.
+
+The `'signalMonitor'` event is emitted after a signal is received.
+
 ### Signal events
 
 <!--type=event-->
