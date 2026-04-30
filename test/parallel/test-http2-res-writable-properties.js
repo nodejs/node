@@ -7,11 +7,14 @@ const http2 = require('http2');
 const server = http2.createServer(common.mustCall((req, res) => {
   const hwm = req.socket.writableHighWaterMark;
   assert.strictEqual(res.writableHighWaterMark, hwm);
+  assert.strictEqual(res.writableObjectMode, res.stream.writableObjectMode);
+  assert.strictEqual(res.writableNeedDrain, res.stream.writableNeedDrain);
   assert.strictEqual(res.writableLength, 0);
   res.write('');
   const len = res.writableLength;
   res.write('asd');
   assert.strictEqual(res.writableLength, len + 3);
+  assert.strictEqual(res.writableNeedDrain, res.stream.writableNeedDrain);
   res.end();
   res.on('finish', common.mustCall(() => {
     assert.strictEqual(res.writableLength, 0);
