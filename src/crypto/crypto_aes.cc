@@ -48,7 +48,9 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
 
   auto ctx = CipherCtxPointer::New();
-  CHECK(ctx);
+  if (!ctx) {
+    return WebCryptoCipherStatus::FAILED;
+  }
 
   if (params.cipher.isWrapMode()) {
     ctx.setAllowWrap();

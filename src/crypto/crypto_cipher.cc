@@ -338,7 +338,11 @@ void CipherBase::CommonInit(const char* cipher_type,
   MarkPopErrorOnReturn mark_pop_error_on_return;
   CHECK(!ctx_);
   ctx_ = CipherCtxPointer::New();
-  CHECK(ctx_);
+  if (!ctx_) {
+    return ThrowCryptoError(env(),
+                            mark_pop_error_on_return.peekError(),
+                            "Failed to allocate cipher context");
+  }
 
   if (cipher.isWrapMode()) {
     ctx_.setAllowWrap();
