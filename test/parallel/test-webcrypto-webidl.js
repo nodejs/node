@@ -16,6 +16,21 @@ const prefix = "Failed to execute 'fn' on 'interface'";
 const context = '1st argument';
 const opts = { prefix, context };
 
+function asIdlDictionary(value) {
+  return { __proto__: null, ...value };
+}
+
+function assertIdlDictionary(actual, expected) {
+  assert.deepStrictEqual(actual, asIdlDictionary(expected));
+}
+
+function assertJsonWebKey(actual, expected) {
+  const idlDictionary = asIdlDictionary(expected);
+  if (idlDictionary.oth !== undefined)
+    idlDictionary.oth = idlDictionary.oth.map(asIdlDictionary);
+  assert.deepStrictEqual(actual, idlDictionary);
+}
+
 // Required arguments.length
 {
   assert.throws(() => webidl.requiredArguments(0, 3, { prefix }), {
@@ -158,6 +173,14 @@ const opts = { prefix, context };
     code: 'ERR_INVALID_ARG_TYPE',
     message: `${prefix}: ${context} is a view on a SharedArrayBuffer, which is not allowed.`
   });
+
+  {
+    const resizable = new ArrayBuffer(8, { maxByteLength: 16 });
+    const view = new Uint8Array(resizable);
+
+    // TODO(panva): Reject resizable backing stores in a semver-major
+    assert.deepStrictEqual(converters.BigInteger(view), view);
+  }
 }
 
 // BufferSource
@@ -194,6 +217,39 @@ const opts = { prefix, context };
     code: 'ERR_INVALID_ARG_TYPE',
     message: `${prefix}: ${context} is a view on a SharedArrayBuffer, which is not allowed.`
   });
+
+  {
+    const resizable = new ArrayBuffer(8, { maxByteLength: 16 });
+    const view = new Uint8Array(resizable);
+    const dataView = new DataView(resizable);
+
+    // TODO(panva): Reject resizable backing stores in a semver-major by
+    // removing the crypto/webidl BufferSource override.
+    assert.deepStrictEqual(converters.BufferSource(resizable), resizable);
+    assert.deepStrictEqual(converters.BufferSource(view), view);
+    assert.deepStrictEqual(converters.BufferSource(dataView), dataView);
+    const resizableError = {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: `${prefix}: ${context} is backed by a resizable ` +
+        'ArrayBuffer, which is not allowed.',
+    };
+    assert.throws(() => converters.BufferSource(resizable, {
+      __proto__: null,
+      ...opts,
+      allowResizable: false,
+    }), resizableError);
+    assert.throws(() => converters.BufferSource(view, {
+      __proto__: null,
+      ...opts,
+      allowResizable: false,
+    }), resizableError);
+    assert.throws(() => converters.BufferSource(dataView, {
+      __proto__: null,
+      ...opts,
+      allowResizable: false,
+    }), resizableError);
+  }
 }
 
 // CryptoKey
@@ -231,8 +287,8 @@ const opts = { prefix, context };
     { oth: [] },
     { oth: [{ r: '', d: '', t: '' }] },
   ]) {
-    assert.deepStrictEqual(converters.JsonWebKey(good), good);
-    assert.deepStrictEqual(converters.JsonWebKey({ ...good, filtered: 'out' }), good);
+    assertJsonWebKey(converters.JsonWebKey(good), good);
+    assertJsonWebKey(converters.JsonWebKey({ ...good, filtered: 'out' }), good);
   }
 }
 
@@ -255,7 +311,7 @@ const opts = { prefix, context };
     assert.throws(() => converters.KeyFormat(bad, opts), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: `${prefix}: ${context} value '${bad}' is not a valid enum value of type KeyFormat.`,
+      message: `${prefix}: ${context} '${bad}' is not a valid enum value of type KeyFormat.`,
     });
   }
 }
@@ -283,7 +339,7 @@ const opts = { prefix, context };
     assert.throws(() => converters.KeyUsage(bad, opts), {
       name: 'TypeError',
       code: 'ERR_INVALID_ARG_VALUE',
-      message: `${prefix}: ${context} value '${bad}' is not a valid enum value of type KeyUsage.`,
+      message: `${prefix}: ${context} '${bad}' is not a valid enum value of type KeyUsage.`,
     });
   }
 }
@@ -291,12 +347,12 @@ const opts = { prefix, context };
 // Algorithm
 {
   const good = { name: 'RSA-PSS' };
-  assert.deepStrictEqual(converters.Algorithm({ ...good, filtered: 'out' }, opts), good);
+  assertIdlDictionary(converters.Algorithm({ ...good, filtered: 'out' }, opts), good);
 
   assert.throws(() => converters.Algorithm({}, opts), {
     name: 'TypeError',
     code: 'ERR_MISSING_OPTION',
-    message: `${prefix}: ${context} can not be converted to 'Algorithm' because 'name' is required in 'Algorithm'.`,
+    message: `${prefix}: ${context} cannot be converted to 'Algorithm' because 'name' is required in 'Algorithm'.`,
   });
 }
 
@@ -316,12 +372,12 @@ const opts = { prefix, context };
       publicExponent: new Uint8Array([1, 0, 1]),
     },
   ]) {
-    assert.deepStrictEqual(converters.RsaHashedKeyGenParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.RsaHashedKeyGenParams({ ...good, filtered: 'out' }, opts), good);
     for (const required of ['hash', 'publicExponent', 'modulusLength']) {
       assert.throws(() => converters.RsaHashedKeyGenParams({ ...good, [required]: undefined }, opts), {
         name: 'TypeError',
         code: 'ERR_MISSING_OPTION',
-        message: `${prefix}: ${context} can not be converted to 'RsaHashedKeyGenParams' because '${required}' is required in 'RsaHashedKeyGenParams'.`,
+        message: `${prefix}: ${context} cannot be converted to 'RsaHashedKeyGenParams' because '${required}' is required in 'RsaHashedKeyGenParams'.`,
       });
     }
   }
@@ -333,11 +389,11 @@ const opts = { prefix, context };
     { name: 'RSA-OAEP', hash: { name: 'SHA-1' } },
     { name: 'RSA-OAEP', hash: 'SHA-1' },
   ]) {
-    assert.deepStrictEqual(converters.RsaHashedImportParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.RsaHashedImportParams({ ...good, filtered: 'out' }, opts), good);
     assert.throws(() => converters.RsaHashedImportParams({ ...good, hash: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'RsaHashedImportParams' because 'hash' is required in 'RsaHashedImportParams'.`,
+      message: `${prefix}: ${context} cannot be converted to 'RsaHashedImportParams' because 'hash' is required in 'RsaHashedImportParams'.`,
     });
   }
 }
@@ -345,19 +401,19 @@ const opts = { prefix, context };
 // RsaPssParams
 {
   const good = { name: 'RSA-PSS', saltLength: 20 };
-  assert.deepStrictEqual(converters.RsaPssParams({ ...good, filtered: 'out' }, opts), good);
+  assertIdlDictionary(converters.RsaPssParams({ ...good, filtered: 'out' }, opts), good);
 
   assert.throws(() => converters.RsaPssParams({ ...good, saltLength: undefined }, opts), {
     name: 'TypeError',
     code: 'ERR_MISSING_OPTION',
-    message: `${prefix}: ${context} can not be converted to 'RsaPssParams' because 'saltLength' is required in 'RsaPssParams'.`,
+    message: `${prefix}: ${context} cannot be converted to 'RsaPssParams' because 'saltLength' is required in 'RsaPssParams'.`,
   });
 }
 
 // RsaOaepParams
 {
   for (const good of [{ name: 'RSA-OAEP' }, { name: 'RSA-OAEP', label: Buffer.alloc(0) }]) {
-    assert.deepStrictEqual(converters.RsaOaepParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.RsaOaepParams({ ...good, filtered: 'out' }, opts), good);
   }
 }
 
@@ -367,12 +423,12 @@ const opts = { prefix, context };
     const { [name]: converter } = converters;
 
     const good = { name: 'ECDSA', namedCurve: 'P-256' };
-    assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converter({ ...good, filtered: 'out' }, opts), good);
 
     assert.throws(() => converter({ ...good, namedCurve: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to '${name}' because 'namedCurve' is required in '${name}'.`,
+      message: `${prefix}: ${context} cannot be converted to '${name}' because 'namedCurve' is required in '${name}'.`,
     });
   }
 }
@@ -383,11 +439,11 @@ const opts = { prefix, context };
     { name: 'ECDSA', hash: { name: 'SHA-1' } },
     { name: 'ECDSA', hash: 'SHA-1' },
   ]) {
-    assert.deepStrictEqual(converters.EcdsaParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.EcdsaParams({ ...good, filtered: 'out' }, opts), good);
     assert.throws(() => converters.EcdsaParams({ ...good, hash: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'EcdsaParams' because 'hash' is required in 'EcdsaParams'.`,
+      message: `${prefix}: ${context} cannot be converted to 'EcdsaParams' because 'hash' is required in 'EcdsaParams'.`,
     });
   }
 }
@@ -403,11 +459,11 @@ const opts = { prefix, context };
       { name: 'HMAC', hash: 'SHA-1' },
       { name: 'HMAC', hash: 'SHA-1', length: 32 },
     ]) {
-      assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
+      assertIdlDictionary(converter({ ...good, filtered: 'out' }, opts), good);
       assert.throws(() => converter({ ...good, hash: undefined }, opts), {
         name: 'TypeError',
         code: 'ERR_MISSING_OPTION',
-        message: `${prefix}: ${context} can not be converted to '${name}' because 'hash' is required in '${name}'.`,
+        message: `${prefix}: ${context} cannot be converted to '${name}' because 'hash' is required in '${name}'.`,
       });
     }
   }
@@ -419,12 +475,12 @@ const opts = { prefix, context };
     const { [name]: converter } = converters;
 
     const good = { name: 'AES-CBC', length: 128 };
-    assert.deepStrictEqual(converter({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converter({ ...good, filtered: 'out' }, opts), good);
 
     assert.throws(() => converter({ ...good, length: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to '${name}' because 'length' is required in '${name}'.`,
+      message: `${prefix}: ${context} cannot be converted to '${name}' because 'length' is required in '${name}'.`,
     });
   }
 }
@@ -435,12 +491,12 @@ const opts = { prefix, context };
     { name: 'HKDF', hash: { name: 'SHA-1' }, salt: Buffer.alloc(0), info: Buffer.alloc(0) },
     { name: 'HKDF', hash: 'SHA-1', salt: Buffer.alloc(0), info: Buffer.alloc(0) },
   ]) {
-    assert.deepStrictEqual(converters.HkdfParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.HkdfParams({ ...good, filtered: 'out' }, opts), good);
     for (const required of ['hash', 'salt', 'info']) {
       assert.throws(() => converters.HkdfParams({ ...good, [required]: undefined }, opts), {
         name: 'TypeError',
         code: 'ERR_MISSING_OPTION',
-        message: `${prefix}: ${context} can not be converted to 'HkdfParams' because '${required}' is required in 'HkdfParams'.`,
+        message: `${prefix}: ${context} cannot be converted to 'HkdfParams' because '${required}' is required in 'HkdfParams'.`,
       });
     }
   }
@@ -452,12 +508,12 @@ const opts = { prefix, context };
     { name: 'PBKDF2', hash: { name: 'SHA-1' }, iterations: 5, salt: Buffer.alloc(0) },
     { name: 'PBKDF2', hash: 'SHA-1', iterations: 5, salt: Buffer.alloc(0) },
   ]) {
-    assert.deepStrictEqual(converters.Pbkdf2Params({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.Pbkdf2Params({ ...good, filtered: 'out' }, opts), good);
     for (const required of ['hash', 'iterations', 'salt']) {
       assert.throws(() => converters.Pbkdf2Params({ ...good, [required]: undefined }, opts), {
         name: 'TypeError',
         code: 'ERR_MISSING_OPTION',
-        message: `${prefix}: ${context} can not be converted to 'Pbkdf2Params' because '${required}' is required in 'Pbkdf2Params'.`,
+        message: `${prefix}: ${context} cannot be converted to 'Pbkdf2Params' because '${required}' is required in 'Pbkdf2Params'.`,
       });
     }
   }
@@ -466,12 +522,12 @@ const opts = { prefix, context };
 // AesCbcParams
 {
   const good = { name: 'AES-CBC', iv: Buffer.alloc(16) };
-  assert.deepStrictEqual(converters.AesCbcParams({ ...good, filtered: 'out' }, opts), good);
+  assertIdlDictionary(converters.AesCbcParams({ ...good, filtered: 'out' }, opts), good);
 
   assert.throws(() => converters.AesCbcParams({ ...good, iv: undefined }, opts), {
     name: 'TypeError',
     code: 'ERR_MISSING_OPTION',
-    message: `${prefix}: ${context} can not be converted to 'AesCbcParams' because 'iv' is required in 'AesCbcParams'.`,
+    message: `${prefix}: ${context} cannot be converted to 'AesCbcParams' because 'iv' is required in 'AesCbcParams'.`,
   });
 }
 
@@ -482,12 +538,12 @@ const opts = { prefix, context };
     { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64 },
     { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64, additionalData: Buffer.alloc(0) },
   ]) {
-    assert.deepStrictEqual(converters.AeadParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.AeadParams({ ...good, filtered: 'out' }, opts), good);
 
     assert.throws(() => converters.AeadParams({ ...good, iv: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'AeadParams' because 'iv' is required in 'AeadParams'.`,
+      message: `${prefix}: ${context} cannot be converted to 'AeadParams' because 'iv' is required in 'AeadParams'.`,
     });
   }
 }
@@ -495,13 +551,13 @@ const opts = { prefix, context };
 // AesCtrParams
 {
   const good = { name: 'AES-CTR', counter: Buffer.alloc(16), length: 20 };
-  assert.deepStrictEqual(converters.AesCtrParams({ ...good, filtered: 'out' }, opts), good);
+  assertIdlDictionary(converters.AesCtrParams({ ...good, filtered: 'out' }, opts), good);
 
   for (const required of ['counter', 'length']) {
     assert.throws(() => converters.AesCtrParams({ ...good, [required]: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'AesCtrParams' because '${required}' is required in 'AesCtrParams'.`,
+      message: `${prefix}: ${context} cannot be converted to 'AesCtrParams' because '${required}' is required in 'AesCtrParams'.`,
     });
   }
 }
@@ -510,12 +566,12 @@ const opts = { prefix, context };
 {
   subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']).then((kp) => {
     const good = { name: 'ECDH', public: kp.publicKey };
-    assert.deepStrictEqual(converters.EcdhKeyDeriveParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.EcdhKeyDeriveParams({ ...good, filtered: 'out' }, opts), good);
 
     assert.throws(() => converters.EcdhKeyDeriveParams({ ...good, public: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'EcdhKeyDeriveParams' because 'public' is required in 'EcdhKeyDeriveParams'.`,
+      message: `${prefix}: ${context} cannot be converted to 'EcdhKeyDeriveParams' because 'public' is required in 'EcdhKeyDeriveParams'.`,
     });
   }).then(common.mustCall());
 }
@@ -526,6 +582,28 @@ const opts = { prefix, context };
     { name: 'Ed448', context: new Uint8Array() },
     { name: 'Ed448' },
   ]) {
-    assert.deepStrictEqual(converters.ContextParams({ ...good, filtered: 'out' }, opts), good);
+    assertIdlDictionary(converters.ContextParams({ ...good, filtered: 'out' }, opts), good);
   }
+}
+
+// Argon2Params
+{
+  const maxParallelism = 2 ** 24 - 1;
+  const good = {
+    name: 'Argon2id',
+    nonce: Buffer.alloc(8),
+    parallelism: maxParallelism,
+    memory: 8 * maxParallelism,
+    passes: 1,
+  };
+  assertIdlDictionary(converters.Argon2Params({ ...good, filtered: 'out' }, opts), good);
+
+  assert.throws(() => converters.Argon2Params({
+    ...good,
+    parallelism: maxParallelism + 1,
+    memory: 8 * (maxParallelism + 1),
+  }, opts), {
+    name: 'OperationError',
+    message: 'parallelism must be > 0 and <= 16777215',
+  });
 }

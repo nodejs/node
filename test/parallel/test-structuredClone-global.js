@@ -6,7 +6,7 @@ const assert = require('assert');
 const prefix = "Failed to execute 'structuredClone'";
 const key = 'transfer';
 const context = 'Options';
-const memberConverterError = `${prefix}: ${key} in ${context} can not be converted to sequence.`;
+const memberConverterError = `${prefix}: ${key} in ${context} cannot be converted to sequence.`;
 const dictionaryConverterError = `${prefix}: ${context} cannot be converted to a dictionary`;
 
 assert.throws(() => structuredClone(), { code: 'ERR_MISSING_ARGS' });
