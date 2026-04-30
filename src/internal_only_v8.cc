@@ -33,8 +33,8 @@ class PrototypeChainHas : public v8::QueryObjectPredicate {
     if (creation_context != context_) {
       return false;
     }
-    for (Local<Value> proto = object->GetPrototypeV2(); proto->IsObject();
-         proto = proto.As<Object>()->GetPrototypeV2()) {
+    for (Local<Value> proto = object->GetPrototype(); proto->IsObject();
+         proto = proto.As<Object>()->GetPrototype()) {
       if (search_ == proto) return true;
     }
     return false;

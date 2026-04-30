@@ -1284,7 +1284,7 @@ void CreatePerContextProperties(Local<Object> target,
   Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
 
-  CHECK(target->SetPrototypeV2(env->context(), Null(isolate)).FromJust());
+  CHECK(target->SetPrototype(env->context(), Null(isolate)).FromJust());
 
   Local<Object> os_constants =
       Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
