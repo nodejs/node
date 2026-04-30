@@ -1045,7 +1045,7 @@ added:
 
 Enable experimental import support for `.node` addons.
 
-### `--experimental-config-file=path`, `--experimental-config-file`
+### `-f`, `--experimental-config-file=path`, `--experimental-config-file`
 
 <!-- YAML
 added:
@@ -1058,8 +1058,11 @@ added:
 If present, Node.js will look for a configuration file at the specified path.
 If the path is not specified, Node.js will look for a `node.config.json` file
 in the current working directory.
-To specify a custom path, use the `--experimental-config-file=path` form.
-The space-separated `--experimental-config-file path` form is not supported.
+The short alias `-f` is equivalent to `--experimental-config-file`.
+To specify a custom path, use the `-f=path` or
+`--experimental-config-file=path` form.
+The space-separated `-f path` and `--experimental-config-file path` forms are
+not supported for specifying a config file path.
 The alias `--experimental-default-config-file` is equivalent to
 `--experimental-config-file` without an argument.
 Node.js will read the configuration file and apply the settings. The

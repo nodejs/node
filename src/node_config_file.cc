@@ -7,6 +7,7 @@ namespace node {
 constexpr std::string_view kConfigFileFlag = "--experimental-config-file";
 constexpr std::string_view kDefaultConfigFileFlag =
     "--experimental-default-config-file";
+constexpr std::string_view kConfigFileShortFlag = "-f";
 constexpr std::string_view kDefaultConfigFileName = "node.config.json";
 constexpr std::string_view kSchemaField = "$schema";
 
@@ -28,12 +29,25 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
       arg = std::string(kConfigFileFlag) + "=" +
             std::string(kDefaultConfigFileName);
       result = kDefaultConfigFileName;
+    } else if (arg == kConfigFileShortFlag) {
+      // -f
+      arg = std::string(kConfigFileFlag) + "=" +
+            std::string(kDefaultConfigFileName);
+      result = kDefaultConfigFileName;
     } else if (HasEqualsPrefix(arg, kConfigFileFlag)) {
       // --experimental-config-file=path
       std::string_view path =
           std::string_view(arg).substr(kConfigFileFlag.size() + 1);
       if (!path.empty()) {
         result = path;
+      }
+    } else if (HasEqualsPrefix(arg, kConfigFileShortFlag)) {
+      // -f=path
+      std::string path =
+          std::string(arg).substr(kConfigFileShortFlag.size() + 1);
+      arg = std::string(kConfigFileFlag) + "=" + std::string(path);
+      if (!path.empty()) {
+        result = std::string_view(arg).substr(kConfigFileFlag.size() + 1);
       }
     } else if (arg == kDefaultConfigFileFlag) {
       // --experimental-default-config-file
