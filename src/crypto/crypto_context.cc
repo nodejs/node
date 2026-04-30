@@ -369,7 +369,10 @@ TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
     CFStringRef policy_oid = reinterpret_cast<CFStringRef>(
         const_cast<void*>(CFDictionaryGetValue(policy_dict, kSecPolicyOid)));
 
-    if (!CFEqual(policy_oid, kSecPolicyAppleSSL)) {
+    bool matches_ssl = CFEqual(policy_oid, kSecPolicyAppleSSL);
+    CFRelease(policy_dict);
+
+    if (!matches_ssl) {
       return TrustStatus::UNSPECIFIED;
     }
   }
@@ -386,35 +389,44 @@ TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
                           &trust_settings_result)) {
       return TrustStatus::UNSPECIFIED;
     }
+  }
 
-    if (trust_settings_result == kSecTrustSettingsResultDeny) {
-      return TrustStatus::DISTRUSTED;
-    }
+  // When kSecTrustSettingsResult is absent from the trust dict,
+  // Apple docs specify kSecTrustSettingsResultTrustRoot as the default.
+  // Refs
+  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/trust/headers/SecTrustSettings.h#L119-L122
+  // This is also enforced at write time for self-signed certs get TrustRoot,
+  // and non-self-signed certs cannot have an empty settings,
+  // Refs
+  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/OSX/sec/Security/SecTrustStore.c#L196-L207
 
-    // This is a bit of a hack: if the cert is self-issued allow either
-    // kSecTrustSettingsResultTrustRoot or kSecTrustSettingsResultTrustAsRoot on
-    // the basis that SecTrustSetTrustSettings should not allow creating an
-    // invalid trust record in the first place. (The spec is that
-    // kSecTrustSettingsResultTrustRoot can only be applied to root(self-signed)
-    // certs and kSecTrustSettingsResultTrustAsRoot is used for other certs.)
-    // This hack avoids having to check the signature on the cert which is slow
-    // if using the platform APIs, and may require supporting MD5 signature
-    // algorithms on some older OSX versions or locally added roots, which is
-    // undesirable in the built-in signature verifier.
-    if (is_self_issued) {
-      return trust_settings_result == kSecTrustSettingsResultTrustRoot ||
-                     trust_settings_result == kSecTrustSettingsResultTrustAsRoot
-                 ? TrustStatus::TRUSTED
-                 : TrustStatus::UNSPECIFIED;
-    }
+  if (trust_settings_result == kSecTrustSettingsResultDeny) {
+    return TrustStatus::DISTRUSTED;
+  }
 
-    // kSecTrustSettingsResultTrustAsRoot can only be applied to non-root certs.
-    return (trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
+  // From
+  // https://source.chromium.org/chromium/chromium/src/+/main:net/cert/internal/trust_store_mac.cc;l=144-146
+  // This is a bit of a hack: if the cert is self-issued allow either
+  // kSecTrustSettingsResultTrustRoot or kSecTrustSettingsResultTrustAsRoot on
+  // the basis that SecTrustSetTrustSettings should not allow creating an
+  // invalid trust record in the first place. (The spec is that
+  // kSecTrustSettingsResultTrustRoot can only be applied to root(self-signed)
+  // certs and kSecTrustSettingsResultTrustAsRoot is used for other certs.)
+  // This hack avoids having to check the signature on the cert which is slow
+  // if using the platform APIs, and may require supporting MD5 signature
+  // algorithms on some older OSX versions or locally added roots, which is
+  // undesirable in the built-in signature verifier.
+  if (is_self_issued) {
+    return (trust_settings_result == kSecTrustSettingsResultTrustRoot ||
+            trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
                ? TrustStatus::TRUSTED
                : TrustStatus::UNSPECIFIED;
   }
 
-  return TrustStatus::UNSPECIFIED;
+  // kSecTrustSettingsResultTrustAsRoot can only be applied to non-root certs.
+  return (trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
+             ? TrustStatus::TRUSTED
+             : TrustStatus::UNSPECIFIED;
 }
 
 TrustStatus IsTrustSettingsTrustedForPolicy(CFArrayRef trust_settings,
@@ -447,6 +459,17 @@ bool IsCertificateTrustValid(SecCertificateRef ref) {
       CFArrayCreateMutable(nullptr, 1, &kCFTypeArrayCallBacks);
   CFArraySetValueAtIndex(subj_certs, 0, ref);
 
+  // SecTrustEvaluateWithError is used to check whether an individual
+  // certificate is trusted by the system — not to validate it for a
+  // specific role (server, intermediate, etc.). We just need a minimal
+  // policy that guarantees the certificate can be chained to a known
+  // trust anchor while filtering out irrelevant certificates.
+  //
+  // Refs
+  // https://github.com/apple-oss-distributions/Security/blob/db15acbe6a7f257a859ad9a3bb86097bfe0679d9/OSX/sec/Security/SecPolicy.c#L1855-L1890
+  // SecPolicyCreateSSL (both mark EKU optional):
+  //   server=true  -> BasicX509 + serverAuth + anyExtendedKeyUsage + SGC
+  //   server=false -> BasicX509 + clientAuth + anyExtendedKeyUsage
   SecPolicyRef policy = SecPolicyCreateSSL(false, nullptr);
   OSStatus ortn =
       SecTrustCreateWithCertificates(subj_certs, policy, &sec_trust);
@@ -516,6 +539,21 @@ bool IsCertificateTrustedForPolicy(X509* cert, SecCertificateRef ref) {
   return false;
 }
 
+// Checks if a certificate has expired.
+// Returns true if the certificate's notAfter date is in the past.
+static bool IsCertificateExpired(X509* cert) {
+  // X509_cmp_current_time returns:
+  // -1 if the time is in the past (expired)
+  //  0 if there was an error
+  //  1 if the time is in the future (not yet expired)
+  ASN1_TIME* not_after = X509_get_notAfter(cert);
+  if (not_after == nullptr) {
+    return false;
+  }
+  int cmp = X509_cmp_current_time(not_after);
+  return cmp < 0;
+}
+
 void ReadMacOSKeychainCertificates(
     std::vector<X509*>* system_root_certificates_X509) {
   CFTypeRef search_keys[] = {kSecClass, kSecMatchLimit, kSecReturnRef};
@@ -543,6 +581,10 @@ void ReadMacOSKeychainCertificates(
 
   CFIndex count = CFArrayGetCount(curr_anchors);
 
+  // Track seen certificates to detect duplicates (same cert in multiple
+  // keychains).
+  std::set<X509*, X509Less> seen_certs;
+
   for (int i = 0; i < count; ++i) {
     SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(curr_anchors, i)));
@@ -568,11 +610,28 @@ void ReadMacOSKeychainCertificates(
     }
 
     bool is_valid = IsCertificateTrustedForPolicy(cert, cert_ref);
-    if (is_valid) {
-      system_root_certificates_X509->emplace_back(cert);
-    } else {
+    if (!is_valid) {
       X509_free(cert);
+      continue;
     }
+
+    // Skip duplicate certificates.
+    auto [it, inserted] = seen_certs.insert(cert);
+    if (!inserted) {
+      X509_free(cert);
+      continue;
+    }
+
+    // Skip expired certificates.
+    if (IsCertificateExpired(cert)) {
+      per_process::Debug(DebugCategory::CRYPTO,
+                         "Skipping expired system certificate\n");
+      seen_certs.erase(it);
+      X509_free(cert);
+      continue;
+    }
+
+    system_root_certificates_X509->emplace_back(cert);
   }
   CFRelease(curr_anchors);
 }
