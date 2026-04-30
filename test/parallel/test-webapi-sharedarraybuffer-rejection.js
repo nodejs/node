@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
+const { Blob } = require('buffer');
 const { ReadableStream } = require('stream/web');
 
 const sab = new SharedArrayBuffer(8);
@@ -96,6 +97,29 @@ test('ReadableByteStreamController.enqueue() rejects SAB-backed DataView', async
   const { value } = await reader.read();
   assert.deepStrictEqual(value, new Uint8Array([2]));
   reader.releaseLock();
+});
+
+// -- Blob --
+
+test('Blob rejects SharedArrayBuffer part', () => {
+  assert.throws(
+    () => new Blob([sab]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+});
+
+test('Blob rejects SAB-backed Uint8Array part', () => {
+  assert.throws(
+    () => new Blob([sabView]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+});
+
+test('Blob rejects SAB-backed DataView part', () => {
+  assert.throws(
+    () => new Blob([sabDataView]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
 });
 
 // -- SharedWebIDL converters --
