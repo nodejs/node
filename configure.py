@@ -1855,6 +1855,10 @@ def configure_node(o):
   if flavor == 'win':
     o['variables']['cargo_rust_target'] = \
       'aarch64-pc-windows-msvc' if target_arch == 'arm64' else 'x86_64-pc-windows-msvc'
+  # Always set the Rust target for x64 macOS in case we will be building
+  # under Rosetta 2.
+  if flavor == 'mac' and target_arch == 'x64':
+    o['variables']['cargo_rust_target'] = 'x86_64-apple-darwin'
 
   # Allow overriding the compiler - needed by embedders.
   if options.use_clang:
