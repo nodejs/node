@@ -486,6 +486,9 @@ const patterns2 = [
   [ 'a/**', [ 'a/**' ], [] ],
 ];
 
+const excludedNestedFile = ['a', 'b', 'c', 'd'].join(sep);
+const excludesNestedFile = (path) => path === excludedNestedFile;
+
 describe('globSync - exclude', function() {
   for (const [pattern, exclude] of Object.entries(patterns).map(([k, v]) => [k, v.filter(Boolean)])) {
     test(`${pattern} - exclude: ${exclude}`, () => {
@@ -500,6 +503,22 @@ describe('globSync - exclude', function() {
       assert.deepStrictEqual(actual, normalized);
     });
   }
+
+  test('applies function exclude to terminal globstar results', () => {
+    const actual = globSync('**', {
+      cwd: fixtureDir,
+      exclude: excludesNestedFile,
+    });
+    assert.ok(!actual.includes(excludedNestedFile));
+  });
+
+  test('applies function exclude to terminal pattern results', () => {
+    const actual = globSync('**/d', {
+      cwd: fixtureDir,
+      exclude: excludesNestedFile,
+    });
+    assert.ok(!actual.includes(excludedNestedFile));
+  });
 });
 
 describe('glob - exclude', function() {
@@ -517,6 +536,22 @@ describe('glob - exclude', function() {
       assert.deepStrictEqual(actual, normalized);
     });
   }
+
+  test('applies function exclude to terminal globstar results', async () => {
+    const actual = await promisified('**', {
+      cwd: fixtureDir,
+      exclude: excludesNestedFile,
+    });
+    assert.ok(!actual.includes(excludedNestedFile));
+  });
+
+  test('applies function exclude to terminal pattern results', async () => {
+    const actual = await promisified('**/d', {
+      cwd: fixtureDir,
+      exclude: excludesNestedFile,
+    });
+    assert.ok(!actual.includes(excludedNestedFile));
+  });
 });
 
 describe('fsPromises glob - exclude', function() {
@@ -536,6 +571,28 @@ describe('fsPromises glob - exclude', function() {
       assert.deepStrictEqual(actual.sort(), normalized);
     });
   }
+
+  test('applies function exclude to terminal globstar results', async () => {
+    const actual = [];
+    for await (const item of asyncGlob('**', {
+      cwd: fixtureDir,
+      exclude: excludesNestedFile,
+    })) {
+      actual.push(item);
+    }
+    assert.ok(!actual.includes(excludedNestedFile));
+  });
+
+  test('applies function exclude to terminal pattern results', async () => {
+    const actual = [];
+    for await (const item of asyncGlob('**/d', {
+      cwd: fixtureDir,
+      exclude: excludesNestedFile,
+    })) {
+      actual.push(item);
+    }
+    assert.ok(!actual.includes(excludedNestedFile));
+  });
 });
 
 const followSymlinkPattern = 'follow/**';
