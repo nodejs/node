@@ -454,7 +454,7 @@ ContextifyContext* ContextifyContext::Get(const PropertyCallbackInfo<T>& args) {
   // args.GetIsolate()->GetCurrentContext() and take the pointer at
   // ContextEmbedderIndex::kContextifyContext, as V8 is supposed to
   // push the creation context before invoking these callbacks.
-  return Get(args.HolderV2());
+  return Get(args.Holder());
 }
 
 ContextifyContext* ContextifyContext::Get(Local<Object> object) {
