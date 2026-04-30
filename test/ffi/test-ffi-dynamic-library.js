@@ -1,7 +1,8 @@
-// Flags: --experimental-ffi
+// Flags: --experimental-ffi --expose-gc
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
+const { gcUntil } = require('../common/gc');
 const assert = require('node:assert');
 const { test } = require('node:test');
 const ffi = require('node:ffi');
@@ -115,6 +116,27 @@ test('getFunction caches signatures consistently', () => {
   } finally {
     lib.close();
   }
+});
+
+test('FFI functions keep their owning library alive', async () => {
+  let lib = new ffi.DynamicLibrary(libraryPath);
+  const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+  const ref = new WeakRef(lib);
+
+  lib = null;
+
+  for (let i = 0; i < 5; i++) {
+    await gcUntil(
+      'FFI function keeps its owning library alive',
+      () => true,
+      1,
+    );
+    assert.ok(ref.deref() instanceof ffi.DynamicLibrary);
+    assert.strictEqual(addI32(20, 22), 42);
+  }
+
+  ref.deref().close();
+  assert.throws(() => addI32(20, 22), /Library is closed/);
 });
 
 test('closed libraries reject subsequent operations', () => {

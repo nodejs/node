@@ -194,6 +194,7 @@ void DynamicLibrary::CleanupFunctionInfo(
   FFIFunctionInfo* info = data.GetParameter();
   info->fn.reset();
   info->self.Reset();
+  info->library.Reset();
   delete info;
 }
 
@@ -313,6 +314,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   }
 
   info->self.Reset(isolate, ret);
+  info->library.Reset(isolate, object());
   info->self.SetWeak(info.release(),
                      DynamicLibrary::CleanupFunctionInfo,
                      WeakCallbackType::kParameter);
