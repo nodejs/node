@@ -1530,6 +1530,10 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   BaseObjectPtr<StatementSync> stmt =
       StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
+  if (!stmt) {
+    sqlite3_finalize(s);
+    return;
+  }
   db->statements_.insert(stmt.get());
 
   if (return_arrays.has_value()) {
