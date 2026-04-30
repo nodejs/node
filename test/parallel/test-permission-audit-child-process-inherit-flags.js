@@ -23,20 +23,20 @@ assert.strictEqual(typeof process.permission.has, 'function');
 
 // Child should inherit --permission-audit and the allow-flags via NODE_OPTIONS
 {
-  const { status, stdout, stderr } = childProcess.spawnSync(process.execPath,
-    [
-      '-e',
-      `
+  const { status, stdout } = childProcess.spawnSync(process.execPath,
+                                                    [
+                                                      '-e',
+                                                      `
       console.log(typeof process.permission);
       console.log(process.permission.has("fs.write"));
       console.log(process.permission.has("fs.read"));
       console.log(process.permission.has("child"));
       `,
-    ]
+                                                    ]
   );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  assert.strictEqual(status, 0);
   const [permType, fsWrite, fsRead, child] = stdout.toString().split('\n');
-  assert.strictEqual(permType, 'object', 'child should have process.permission defined');
+  assert.strictEqual(permType, 'object');
   assert.strictEqual(fsWrite, 'true');
   assert.strictEqual(fsRead, 'true');
   assert.strictEqual(child, 'true');
@@ -44,7 +44,7 @@ assert.strictEqual(typeof process.permission.has, 'function');
 
 // Child spawned with explicit --permission should use its own flags, not inherit parent's
 {
-  const { status, stdout, stderr } = childProcess.spawnSync(
+  const { status, stdout } = childProcess.spawnSync(
     process.execPath,
     [
       '--permission',
@@ -58,7 +58,7 @@ assert.strictEqual(typeof process.permission.has, 'function');
       `,
     ]
   );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  assert.strictEqual(status, 0);
   const [permType, fsWrite, fsRead, child] = stdout.toString().split('\n');
   assert.strictEqual(permType, 'object');
   assert.strictEqual(fsWrite, 'true');
@@ -68,7 +68,7 @@ assert.strictEqual(typeof process.permission.has, 'function');
 
 // Child spawned with explicit --permission-audit should use its own flags
 {
-  const { status, stdout, stderr } = childProcess.spawnSync(
+  const { status, stdout } = childProcess.spawnSync(
     process.execPath,
     [
       '--permission-audit',
@@ -81,11 +81,10 @@ assert.strictEqual(typeof process.permission.has, 'function');
       `,
     ]
   );
-  assert.strictEqual(status, 0, `stderr: ${stderr}`);
+  assert.strictEqual(status, 0);
   const [permType, fsWrite, fsRead] = stdout.toString().split('\n');
   assert.strictEqual(permType, 'object');
   assert.strictEqual(fsWrite, 'true');
-  // fs.read was not allowed in the explicit child flags
   assert.strictEqual(fsRead, 'false');
 }
 
