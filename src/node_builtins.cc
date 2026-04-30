@@ -155,6 +155,10 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/inspector/webstorage",
 #endif
         "internal/test/binding", "internal/v8_prof_polyfill",
+        "internal/v8_prof_processor",
+#if !_WIN32
+        "internal/code_integrity",  // Only implemented on Windows
+#endif
   };
 
   auto source = source_.read();
