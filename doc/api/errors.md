@@ -2651,6 +2651,19 @@ added:
 
 Opening a QUIC stream failed.
 
+<a id="ERR_QUIC_STREAM_RESET"></a>
+
+### `ERR_QUIC_STREAM_RESET`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC stream was reset by the peer. The error includes the reset code
+provided by the peer.
+
 <a id="ERR_QUIC_TRANSPORT_ERROR"></a>
 
 ### `ERR_QUIC_TRANSPORT_ERROR`

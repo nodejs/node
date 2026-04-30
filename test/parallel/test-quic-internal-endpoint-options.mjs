@@ -3,6 +3,8 @@ import { hasQuic, skip } from '../common/index.mjs';
 import assert from 'node:assert';
 import { inspect } from 'node:util';
 
+const { strictEqual, throws } = assert;
+
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
@@ -12,7 +14,7 @@ const { QuicEndpoint } = await import('node:quic');
 
 // Reject invalid options
 ['a', null, false, NaN].forEach((i) => {
-  assert.throws(() => new QuicEndpoint(i), {
+  throws(() => new QuicEndpoint(i), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 });
@@ -39,16 +41,16 @@ const cases = [
   {
     key: 'maxConnectionsPerHost',
     valid: [
-      1, 10, 100, 1000, 10000, 10000n,
+      0, 1, 10, 100, 1000, 10000, 65535,
     ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    invalid: [-1, 65536, 1.5, 'a', null, false, true, {}, [], () => {}]
   },
   {
     key: 'maxConnectionsTotal',
     valid: [
-      1, 10, 100, 1000, 10000, 10000n,
+      0, 1, 10, 100, 1000, 10000, 65535,
     ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    invalid: [-1, 65536, 1.5, 'a', null, false, true, {}, [], () => {}]
   },
   {
     key: 'maxStatelessResetsPerHost',
@@ -147,7 +149,7 @@ for (const { key, valid, invalid } of cases) {
   for (const value of invalid) {
     const options = {};
     options[key] = value;
-    assert.throws(() => new QuicEndpoint(options), {
+    throws(() => new QuicEndpoint(options), {
       message: new RegExp(`${RegExp.escape(key)}`),
     }, value);
   }
@@ -155,7 +157,7 @@ for (const { key, valid, invalid } of cases) {
 
 // It can be inspected
 const endpoint = new QuicEndpoint({});
-assert.strictEqual(typeof inspect(endpoint), 'string');
+strictEqual(typeof inspect(endpoint), 'string');
 endpoint.close();
 await endpoint.closed;
 
@@ -166,6 +168,6 @@ new QuicEndpoint({
 new QuicEndpoint({
   address: '127.0.0.1:0',
 });
-assert.throws(() => new QuicEndpoint({ address: 123 }), {
+throws(() => new QuicEndpoint({ address: 123 }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
