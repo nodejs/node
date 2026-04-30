@@ -196,7 +196,7 @@ jobs:
           V8_DRV=$(
             nix-instantiate -E "builtins.filter (p: p.pname == ''v8'') (import $TAR_DIR/shell.nix { useSeparateDerivationForV8=true; }).buildInputs"
           )
-          STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
+          V8_STORE_PATH=$(nix-store -q --outputs "$V8_DRV")
           echo "V8_DRV=$V8_DRV" >> "$GITHUB_OUTPUT"
           set -x
           [ "$(curl -ISsw "%{http_code}" -o /dev/null "https://nodejs.cachix.org/$(basename ${V8_STORE_PATH%-v8-*}).narinfo")" != "200" ] ||
