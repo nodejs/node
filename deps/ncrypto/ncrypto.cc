@@ -2828,7 +2828,9 @@ SSL* SSLPointer::release() {
 
 SSLPointer SSLPointer::New(const SSLCtxPointer& ctx) {
   if (!ctx) return {};
-  return SSLPointer(SSL_new(ctx.get()));
+  SSL* ssl = SSL_new(ctx.get());
+  if (ssl == nullptr) return {};
+  return SSLPointer(ssl);
 }
 
 void SSLPointer::getCiphers(std::function<void(const char*)> cb) const {
