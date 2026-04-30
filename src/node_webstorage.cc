@@ -650,7 +650,7 @@ static Intercepted StorageGetter(Local<Name> property,
 
 static Intercepted StorageSetter(Local<Name> property,
                                  Local<Value> value,
-                                 const PropertyCallbackInfo<void>& info) {
+                                 const PropertyCallbackInfo<Boolean>& info) {
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
 
@@ -700,7 +700,7 @@ static void StorageEnumerator(const PropertyCallbackInfo<Array>& info) {
 
 static Intercepted StorageDefiner(Local<Name> property,
                                   const PropertyDescriptor& desc,
-                                  const PropertyCallbackInfo<void>& info) {
+                                  const PropertyCallbackInfo<Boolean>& info) {
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
 
@@ -720,7 +720,7 @@ static Intercepted IndexedGetter(uint32_t index,
 
 static Intercepted IndexedSetter(uint32_t index,
                                  Local<Value> value,
-                                 const PropertyCallbackInfo<void>& info) {
+                                 const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<Name> name = Uint32ToString(env->context(), index);
   return StorageSetter(name, value, info);
@@ -742,7 +742,7 @@ static Intercepted IndexedDeleter(uint32_t index,
 
 static Intercepted IndexedDefiner(uint32_t index,
                                   const PropertyDescriptor& desc,
-                                  const PropertyCallbackInfo<void>& info) {
+                                  const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<Name> name = Uint32ToString(env->context(), index);
   return StorageDefiner(name, desc, info);
