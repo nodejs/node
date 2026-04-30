@@ -17,8 +17,8 @@ const settings = http2.getDefaultSettings();
 assert.strictEqual(settings.headerTableSize, 4096);
 assert.strictEqual(settings.enablePush, true);
 assert.strictEqual(settings.maxConcurrentStreams, 4294967295);
-assert.strictEqual(settings.initialWindowSize, 65535);
-assert.strictEqual(settings.maxFrameSize, 16384);
+assert.strictEqual(settings.initialWindowSize, 256 * 1024);
+assert.strictEqual(settings.maxFrameSize, 32 * 1024);
 
 assert.strictEqual(binding.nghttp2ErrorString(-517),
                    'GOAWAY has already been sent');
