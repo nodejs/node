@@ -1,14 +1,17 @@
 // Regression test for https://github.com/nodejs/node/issues/62904.
-// This test drives that scenario by writing the CONNECT response one byte at
-// a time with a short delay between writes, and asserts that no warning is
-// ever emitted while the full HTTPS response is received correctly.
+// Drives an HTTPS request through a proxy that writes the CONNECT response
+// one byte at a time. The pre-fix code re-attached the `'readable'` listener
+// inside the read function on every chunk, doubling the listener count and
+// tripping MaxListenersExceededWarning. The request runs in a subprocess so
+// the warning lands in its stderr where we can assert against it.
 
 import * as common from '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
 import assert from 'node:assert';
+import { once } from 'events';
 import http from 'node:http';
 import net from 'node:net';
-import { once } from 'events';
+import { runProxiedRequest } from '../common/proxy-server.js';
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -17,7 +20,6 @@ if (!common.hasCrypto)
 // can skip it.
 const { default: https } = await import('node:https');
 
-// Target HTTPS server the client ultimately wants to reach.
 const server = https.createServer({
   cert: fixtures.readKey('agent8-cert.pem'),
   key: fixtures.readKey('agent8-key.pem'),
@@ -28,9 +30,8 @@ server.on('error', common.mustNotCall((err) => { console.error('Server error', e
 server.listen(0);
 await once(server, 'listening');
 
-// Proxy server that writes the CONNECT response one byte at a time. Using the
-// built-in HTTP server avoids having to parse the CONNECT request ourselves
-// (which cannot rely on a single TCP chunk containing the whole request line).
+// Proxy that writes the CONNECT response byte-by-byte, forcing many separate
+// 'readable' events on the client.
 const proxy = http.createServer();
 proxy.on('connect', common.mustCall(async (req, res, head) => {
   const { hostname, port } = new URL(`https://${req.url}`);
@@ -38,16 +39,18 @@ proxy.on('connect', common.mustCall(async (req, res, head) => {
     hostname.slice(1, -1) : hostname;
 
   const upstream = net.connect(Number(port), normalizedHost);
-  upstream.on('error', () => res.destroy());
-  res.on('error', () => upstream.destroy());
-  await once(upstream, 'connect');
+  upstream.once('error', () => res.destroy());
+  res.once('error', () => upstream.destroy());
+  try {
+    await once(upstream, 'connect');
+  } catch {
+    res.destroy();
+    return;
+  }
 
   const response = 'HTTP/1.1 200 Connection Established\r\n' +
                   'Proxy-agent: Node.js-Proxy\r\n' +
                   '\r\n';
-  // Feed the response byte by byte with a macrotask boundary between writes
-  // so the client sees many separate 'readable' events during tunnel setup.
-  // This is what triggers the listener leak described in the issue.
   for (let i = 0; i < response.length; i++) {
     if (res.destroyed) {
       upstream.destroy();
@@ -64,34 +67,27 @@ proxy.on('error', common.mustNotCall((err) => { console.error('Proxy error', err
 proxy.listen(0);
 await once(proxy, 'listening');
 
-// No warning should be emitted during the proxied request. The pre-fix code
-// emits MaxListenersExceededWarning; any other warning here would also be
-// unexpected and should fail the test.
-process.on('warning',
-           common.mustNotCall('unexpected warning during proxied request'));
+const serverHost = `localhost:${server.address().port}`;
+const requestUrl = `https://${serverHost}/test`;
+const proxyUrl = `http://localhost:${proxy.address().port}`;
 
-const agent = new https.Agent({
-  proxyEnv: {
-    HTTPS_PROXY: `http://localhost:${proxy.address().port}`,
-  },
-  ca: fixtures.readKey('fake-startcom-root-cert.pem'),
+// Pin every proxy env var so an ambient shell setting (lower-case `https_proxy`
+// takes precedence over upper-case in lib/internal/http.js, and `no_proxy=*`
+// would bypass the proxy entirely) cannot distort the subprocess.
+const { code, signal, stderr, stdout } = await runProxiedRequest({
+  NODE_USE_ENV_PROXY: 1,
+  REQUEST_URL: requestUrl,
+  HTTPS_PROXY: proxyUrl,
+  https_proxy: proxyUrl,
+  NO_PROXY: '',
+  no_proxy: '',
+  NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'fake-startcom-root-cert.pem'),
 });
 
-const req = https.request({
-  hostname: 'localhost',
-  port: server.address().port,
-  path: '/test',
-  agent,
-}, common.mustCall((res) => {
-  let data = '';
-  res.setEncoding('utf8');
-  res.on('data', (chunk) => { data += chunk; });
-  res.on('end', common.mustCall(() => {
-    assert.strictEqual(data, 'Hello world');
-    assert.strictEqual(res.statusCode, 200);
-    proxy.close();
-    server.close();
-  }));
-}));
-req.on('error', common.mustNotCall());
-req.end();
+assert.strictEqual(stderr.trim(), '');
+assert.match(stdout, /Hello world/);
+assert.strictEqual(code, 0);
+assert.strictEqual(signal, null);
+
+proxy.close();
+server.close();
