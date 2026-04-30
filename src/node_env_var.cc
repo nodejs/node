@@ -450,7 +450,7 @@ static Intercepted EnvGetter(Local<Name> property,
 
 static Intercepted EnvSetter(Local<Name> property,
                              Local<Value> value,
-                             const PropertyCallbackInfo<void>& info) {
+                             const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   CHECK(env->has_run_bootstrapping_code());
   // calling env->EmitProcessEnvWarning() sets a variable indicating that
@@ -531,7 +531,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 
 static Intercepted EnvDefiner(Local<Name> property,
                               const PropertyDescriptor& desc,
-                              const PropertyCallbackInfo<void>& info) {
+                              const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   if (desc.has_value()) {
     if (!desc.has_writable() ||
@@ -581,7 +581,7 @@ static Intercepted EnvGetterIndexed(uint32_t index,
 
 static Intercepted EnvSetterIndexed(uint32_t index,
                                     Local<Value> value,
-                                    const PropertyCallbackInfo<void>& info) {
+                                    const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<Name> name = Uint32ToString(env->context(), index);
   return EnvSetter(name, value, info);
@@ -603,7 +603,7 @@ static Intercepted EnvDeleterIndexed(
 
 static Intercepted EnvDefinerIndexed(uint32_t index,
                                      const PropertyDescriptor& desc,
-                                     const PropertyCallbackInfo<void>& info) {
+                                     const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<Name> name = Uint32ToString(env->context(), index);
   return EnvDefiner(name, desc, info);

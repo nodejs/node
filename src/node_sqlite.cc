@@ -774,7 +774,7 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
 Intercepted DatabaseSyncLimits::LimitsSetter(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& info) {
+    const PropertyCallbackInfo<Boolean>& info) {
   if (!property->IsString()) {
     return Intercepted::kNo;
   }
