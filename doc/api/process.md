@@ -3214,6 +3214,65 @@ process.permission.has('fs.read', './README.md');
 process.permission.has('fs.read');
 ```
 
+### `process.permission.drop(scope[, reference])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+* `scope` {string}
+* `reference` {string}
+
+Drops the specified permission from the current process. This operation is
+**irreversible** — once a permission is dropped, it cannot be restored through
+any Node.js API.
+
+If no reference is provided, the entire scope is dropped. For example,
+`process.permission.drop('fs.read')` will revoke ALL file system read
+permissions.
+
+When a reference is provided, only the permission for that specific resource
+is dropped. For example, `process.permission.drop('fs.read', '/etc/myapp')`
+will revoke read access to that directory while keeping other read
+permissions intact.
+
+**Important:** You can only drop the exact resource that was explicitly
+granted. The reference passed to `drop()` must match the original grant:
+
+* If a permission was granted using a wildcard (`*`), such as
+  `--allow-fs-read=*`, individual paths cannot be dropped - only the entire
+  scope can be dropped (by calling `drop()` without a reference).
+* If a directory was granted (e.g. `--allow-fs-read=/my/folder`), you cannot
+  drop access to individual files inside it. You must drop the same directory
+  that was granted. Any remaining grants continue to apply.
+
+The available scopes are the same as [`process.permission.has()`][]:
+
+* `fs` - All File System (drops both read and write)
+* `fs.read` - File System read operations
+* `fs.write` - File System write operations
+* `child` - Child process spawning operations
+* `worker` - Worker thread spawning operation
+* `net` - Network operations
+* `inspector` - Inspector operations
+* `wasi` - WASI operations
+* `addon` - Native addon operations
+
+```js
+const fs = require('node:fs');
+
+// Read configuration during startup
+const config = fs.readFileSync('/etc/myapp/config.json', 'utf8');
+
+// Drop read access to the config directory after initialization
+process.permission.drop('fs.read', '/etc/myapp');
+
+// This will now throw ERR_ACCESS_DENIED
+fs.readFileSync('/etc/myapp/config.json');
+```
+
 ## `process.pid`
 
 <!-- YAML
@@ -4642,6 +4701,7 @@ cases:
 [`process.hrtime()`]: #processhrtimetime
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal
+[`process.permission.has()`]: #processpermissionhasscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: #processsetuncaughtexceptioncapturecallbackfn
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`queueMicrotask()`]: globals.md#queuemicrotaskcallback
