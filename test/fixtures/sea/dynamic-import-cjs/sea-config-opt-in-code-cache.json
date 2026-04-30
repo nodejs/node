@@ -1,0 +1,7 @@
+{
+  "main": "sea.js",
+  "output": "sea",
+  "allowDynamicImportFromFileSystem": true,
+  "useCodeCache": true,
+  "disableExperimentalSEAWarning": true
+}
