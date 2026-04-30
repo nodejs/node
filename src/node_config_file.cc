@@ -148,15 +148,6 @@ ParseResult ConfigReader::ProcessOptionValue(
       output->push_back(option_name + "=" + std::to_string(result));
       break;
     }
-    case options_parser::OptionType::kNoOp: {
-      FPrintF(
-          stderr, "No-op flag %s is currently not supported\n", option_name);
-      return ParseResult::InvalidContent;
-    }
-    case options_parser::OptionType::kV8Option: {
-      FPrintF(stderr, "V8 flag %s is currently not supported\n", option_name);
-      return ParseResult::InvalidContent;
-    }
     default:
       UNREACHABLE();
   }
@@ -197,30 +188,20 @@ ParseResult ConfigReader::ParseOptions(
       return ParseResult::InvalidContent;
     }
 
-    // The key needs to match the CLI option
     std::string prefix = "--";
     auto option = options_map.find(prefix.append(option_key));
-    if (option != options_map.end()) {
-      // If the option has already been set, return an error
-      if (unique_options->contains(option->first)) {
-        FPrintF(stderr, "Option %s is already defined\n", option->first);
-        return ParseResult::InvalidContent;
-      }
-      // Add the option to the unique set to prevent duplicates
-      // on future iterations
-      unique_options->insert(option->first);
-      // Process the option value based on its type
-      ParseResult result =
-          ProcessOptionValue(*option, &option_value, output_vector);
-      if (result != ParseResult::Valid) {
-        return result;
-      }
-    } else {
-      FPrintF(stderr,
-              "Unknown or not allowed option %s for namespace %s\n",
-              option_key,
-              namespace_name);
+    if (option == options_map.end()) {
       return ParseResult::InvalidContent;
+    }
+    if (unique_options->contains(option->first)) {
+      FPrintF(stderr, "Option %s is already defined\n", option->first);
+      return ParseResult::InvalidContent;
+    }
+    unique_options->insert(option->first);
+    ParseResult result =
+        ProcessOptionValue(*option, &option_value, output_vector);
+    if (result != ParseResult::Valid) {
+      return result;
     }
   }
   return ParseResult::Valid;
@@ -261,18 +242,7 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::InvalidContent;
   }
 
-  // Get all available namespaces for validation
-  std::vector<std::string> available_namespaces =
-      options_parser::MapAvailableNamespaces();
-  // Add "nodeOptions" as a special case for backward compatibility
-  available_namespaces.emplace_back("nodeOptions");
-
-  // Create a set for faster lookup of valid namespaces
-  std::unordered_set<std::string> valid_namespaces(available_namespaces.begin(),
-                                                   available_namespaces.end());
-  // Create a set to track unique options
   std::unordered_set<std::string> unique_options;
-  // Namespaces in OPTION_NAMESPACE_LIST
   std::unordered_set<std::string> namespaces_with_implicit_flags;
 
   // Iterate through the main object to find all namespaces
@@ -284,25 +254,8 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
 
     std::string namespace_name(field_name);
 
-    // TODO(@marco-ippolito): Remove warning for testRunner namespace
-    if (namespace_name == "testRunner") {
-      FPrintF(stderr,
-              "the \"testRunner\" namespace has been removed. "
-              "Use \"test\" instead.\n");
-      // Better to throw an error than to ignore it
-      // Otherwise users might think their test suite is green
-      // when it's not running
-      return ParseResult::InvalidContent;
-    }
-
     if (namespace_name == kSchemaField) {
       continue;
-    }
-
-    // Check if this field is a valid namespace
-    if (!valid_namespaces.contains(namespace_name)) {
-      FPrintF(stderr, "Unknown namespace %s\n", namespace_name);
-      return ParseResult::InvalidContent;
     }
 
     // List of implicit namespace flags
