@@ -56,6 +56,19 @@
 # define AI_V4MAPPED 0
 #endif
 
+// Suppress c-ares deprecation warnings. c-ares has deprecated many legacy
+// APIs (ares_parse_*_reply, ares_get_servers_ports, ares_set_servers_ports,
+// etc.) in favor of ares_dns_parse, ares_get_servers_csv, and
+// ares_set_servers_csv. A full migration is tracked separately; this pragma
+// silences the build warnings until that work is complete.
+// TODO(omghante): Migrate to the replacement c-ares APIs.
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(disable : 4996)
+#endif
 
 namespace node {
 namespace cares_wrap {
