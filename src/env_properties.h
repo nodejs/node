@@ -407,6 +407,7 @@
   V(contextify_global_template, v8::ObjectTemplate)                            \
   V(contextify_wrapper_template, v8::ObjectTemplate)                           \
   V(cpu_usage_template, v8::DictionaryTemplate)                                \
+  V(crypto_cryptokey_constructor_template, v8::FunctionTemplate)               \
   V(crypto_key_object_handle_constructor, v8::FunctionTemplate)                \
   V(env_proxy_template, v8::ObjectTemplate)                                    \
   V(env_proxy_ctor_template, v8::FunctionTemplate)                             \
@@ -481,6 +482,7 @@
   V(async_hooks_init_function, v8::Function)                                   \
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
+  V(crypto_internal_cryptokey_constructor, v8::Function)                       \
   V(crypto_key_object_private_constructor, v8::Function)                       \
   V(crypto_key_object_public_constructor, v8::Function)                        \
   V(crypto_key_object_secret_constructor, v8::Function)                        \

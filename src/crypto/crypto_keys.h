@@ -13,6 +13,7 @@
 
 #include <openssl/evp.h>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -231,6 +232,94 @@ class NativeKeyObject : public BaseObject {
   }
 
   KeyObjectData handle_data_;
+};
+
+// NativeCryptoKey is the native base class for the Web Crypto
+// `CryptoKey`. It holds the internal slots - `[[type]]` as an enum,
+// `[[extractable]]`, `[[algorithm]]`, `[[usages]]` as a mask, and the
+// underlying KeyObjectData. The public `type`, `extractable`,
+// `algorithm`, and `usages` accessors on `CryptoKey.prototype` are
+// user-configurable per Web IDL, so internal consumers read these
+// values directly from the C++ side via a single `GetSlots` call
+// which returns all slots at once; JS primes a per-instance cache
+// from that result.
+class NativeCryptoKey : public BaseObject {
+ public:
+  enum InternalFields {
+    kAlgorithmField = BaseObject::kInternalFieldCount,
+    kInternalFieldCount,
+  };
+
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateCryptoKeyClass(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // True if `value` is a real NativeCryptoKey instance. Uses the
+  // FunctionTemplate stored on the Environment as a brand check.
+  // Used by `GetSlots` to validate its receiver.
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
+
+  // Returns [type, extractable, algorithm, usages mask, handle] in one call
+  // so JS can prime a per-instance cache on first access.
+  static void GetSlots(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(NativeCryptoKey)
+  SET_SELF_SIZE(NativeCryptoKey)
+
+  class CryptoKeyTransferData : public worker::TransferData {
+   public:
+    CryptoKeyTransferData(const KeyObjectData& data,
+                          v8::Global<v8::Object>&& algorithm,
+                          uint32_t usages_mask,
+                          bool extractable)
+        : data_(data.addRef()),
+          algorithm_(std::move(algorithm)),
+          usages_mask_(usages_mask),
+          extractable_(extractable) {}
+
+    BaseObjectPtr<BaseObject> Deserialize(
+        Environment* env,
+        v8::Local<v8::Context> context,
+        std::unique_ptr<worker::TransferData> self) override;
+
+    v8::Maybe<bool> FinalizeTransferWrite(
+        v8::Local<v8::Context> context,
+        v8::ValueSerializer* serializer) override;
+
+    void MemoryInfo(MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(CryptoKeyTransferData)
+    SET_SELF_SIZE(CryptoKeyTransferData)
+
+   private:
+    KeyObjectData data_;
+    v8::Global<v8::Object> algorithm_;
+    uint32_t usages_mask_;
+    bool extractable_;
+  };
+
+  BaseObject::TransferMode GetTransferMode() const override;
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+  v8::Maybe<void> FinalizeTransferRead(
+      v8::Local<v8::Context> context,
+      v8::ValueDeserializer* deserializer) override;
+
+  const KeyObjectData& handle_data() const { return handle_data_; }
+
+ private:
+  NativeCryptoKey(Environment* env,
+                  v8::Local<v8::Object> wrap,
+                  const KeyObjectData& handle_data)
+      : BaseObject(env, wrap), handle_data_(handle_data.addRef()) {
+    MakeWeak();
+  }
+
+  KeyObjectData handle_data_;
+  uint32_t usages_mask_ = 0;
+  bool extractable_ = false;
 };
 
 enum WebCryptoKeyFormat {

@@ -48,6 +48,7 @@ namespace crypto {
   V(Hmac)                                                                      \
   V(Keygen)                                                                    \
   V(Keys)                                                                      \
+  V(NativeCryptoKey)                                                           \
   V(NativeKeyObject)                                                           \
   V(PBKDF2Job)                                                                 \
   V(Random)                                                                    \
