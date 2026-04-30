@@ -635,10 +635,14 @@ added: v22.5.0
     database options or `true`.
   * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
     are ignored. **Default:** inherited from database options or `false`.
+  * `persistent` {boolean} If `true`, hints to SQLite that this statement will
+    be reused many times, causing it to use a different memory allocation
+    strategy that reduces heap fragmentation. Corresponds to the
+    [`SQLITE_PREPARE_PERSISTENT`][] flag. **Default:** `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
-around [`sqlite3_prepare_v2()`][].
+around [`sqlite3_prepare_v3()`][].
 
 ### `database.createTagStore([maxSize])`
 
@@ -1629,6 +1633,7 @@ callback function to indicate what type of operation is being authorized.
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
+[`SQLITE_PREPARE_PERSISTENT`]: https://sqlite.org/c3ref/c_prepare_dont_log.html#sqlitepreparepersistent
 [`SQLTagStore`]: #class-sqltagstore
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [`database.createTagStore()`]: #databasecreatetagstoremaxsize
@@ -1653,7 +1658,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
-[`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
+[`sqlite3_prepare_v3()`]: https://www.sqlite.org/c3ref/prepare.html
 [`sqlite3_serialize()`]: https://sqlite.org/c3ref/serialize.html
 [`sqlite3_set_authorizer()`]: https://sqlite.org/c3ref/set_authorizer.html
 [`sqlite3_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html

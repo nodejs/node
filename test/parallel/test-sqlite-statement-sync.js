@@ -909,3 +909,46 @@ suite('options.allowBareNamedParameters', () => {
     );
   });
 });
+
+suite('options.persistent', () => {
+  test('statement executes correctly when persistent is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    const stmt = db.prepare('SELECT val FROM data', { persistent: true });
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42 });
+  });
+
+  test('statement executes correctly when persistent is false', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    const stmt = db.prepare('SELECT val FROM data', { persistent: false });
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42 });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    t.assert.throws(() => {
+      db.prepare('SELECT 1', { persistent: 'yes' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.persistent" argument must be a boolean/,
+    });
+  });
+
+  test('can be combined with other options', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;');
+    db.exec('INSERT INTO data (key, val) VALUES (1, 42);');
+    const stmt = db.prepare(
+      'SELECT val FROM data',
+      { persistent: true, readBigInts: true }
+    );
+    t.assert.deepStrictEqual(stmt.get(), { __proto__: null, val: 42n });
+  });
+});
