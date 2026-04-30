@@ -14,6 +14,13 @@ changes:
 
 <!--introduced_in=v15.1.0-->
 
+<!-- YAML
+llm_description: >
+  Publish/subscribe API for custom diagnostic events (e.g., database query
+  metrics, HTTP request lifecycle). Integrates with APM tools or logging
+  systems to monitor internal operations.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/diagnostics_channel.js -->
