@@ -1,3 +1,4 @@
+// Flags: --expose-gc
 import { isWindows, skipIfSQLiteMissing } from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
@@ -313,4 +314,44 @@ test('backup fails when path cannot be opened', async (t) => {
 test('backup has correct name and length', (t) => {
   t.assert.strictEqual(backup.name, 'backup');
   t.assert.strictEqual(backup.length, 2);
+});
+
+test('source database is kept alive while a backup is in flight', async (t) => {
+  // Regression test: previously, BackupJob stored a raw DatabaseSync* and the
+  // source could be garbage-collected while the backup was still running,
+  // leading to a use-after-free when BackupJob::Finalize() dereferenced the
+  // stale pointer via source_->RemoveBackup(this).
+  const destDb = nextDb();
+
+  let database = makeSourceDb();
+  // Insert enough rows to ensure the backup takes multiple steps.
+  const insert = database.prepare('INSERT INTO data (key, value) VALUES (?, ?)');
+  for (let i = 3; i <= 500; i++) {
+    insert.run(i, 'A'.repeat(1024) + i);
+  }
+
+  const p = backup(database, destDb, {
+    rate: 1,
+    progress() {},
+  });
+  // Drop the last strong JS reference to the source database. With the bug,
+  // the DatabaseSync could be collected here and the in-flight backup would
+  // later crash while accessing the freed source.
+  database = null;
+
+  // Nudge the GC aggressively, but the backup must keep the source alive
+  // regardless. Without the fix, the source DatabaseSync would be collected
+  // and BackupJob::Finalize() would crash the process.
+  for (let i = 0; i < 5; i++) {
+    global.gc();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  const totalPages = await p;
+  t.assert.ok(totalPages > 0);
+
+  const backupDb = new DatabaseSync(destDb);
+  t.after(() => { backupDb.close(); });
+  const rows = backupDb.prepare('SELECT COUNT(*) AS n FROM data').get();
+  t.assert.strictEqual(rows.n, 500);
 });
