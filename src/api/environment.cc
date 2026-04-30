@@ -943,7 +943,7 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
 
   Local<Object> private_symbols_object;
   if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
-      private_symbols_object->SetPrototypeV2(context, Null(isolate))
+      private_symbols_object->SetPrototype(context, Null(isolate))
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
@@ -969,7 +969,7 @@ MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
   Local<Object> per_isolate_symbols_object;
   if (!per_isolate_symbols->NewInstance(context).ToLocal(
           &per_isolate_symbols_object) ||
-      per_isolate_symbols_object->SetPrototypeV2(context, Null(isolate))
+      per_isolate_symbols_object->SetPrototype(context, Null(isolate))
           .IsNothing()) {
     return MaybeLocal<Object>();
   }

@@ -1032,7 +1032,7 @@ void ModuleWrap::HasAsyncGraph(Local<Name> property,
   Isolate* isolate = args.GetIsolate();
   Environment* env = Environment::GetCurrent(isolate);
   ModuleWrap* obj;
-  ASSIGN_OR_RETURN_UNWRAP(&obj, args.HolderV2());
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.Holder());
 
   Local<Module> module = obj->module_.Get(isolate);
   if (module->GetStatus() < Module::kInstantiated) {
@@ -1248,7 +1248,7 @@ void ModuleWrap::SetImportMetaResolveInitializer(
 static void ImportMetaResolveLazyGetter(
     Local<v8::Name> name, const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> receiver_val = info.HolderV2();
+  Local<Value> receiver_val = info.Holder();
   if (!receiver_val->IsObject()) {
     THROW_ERR_INVALID_INVOCATION(isolate);
     return;
@@ -1289,7 +1289,7 @@ static void PathHelpersLazyGetter(Local<v8::Name> name,
   // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
   // returns a nullptr and retrieve the creation context via `this` object and
   // get the creation Realm.
-  Local<Value> receiver_val = info.HolderV2();
+  Local<Value> receiver_val = info.Holder();
   if (!receiver_val->IsObject()) {
     THROW_ERR_INVALID_INVOCATION(isolate);
     return;
