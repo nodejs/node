@@ -2013,6 +2013,14 @@ changes:
 
 Disable the experimental [`node:sqlite`][] module.
 
+### `--no-experimental-validator`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disable the experimental [`node:validator`][] module.
+
 ### `--no-experimental-websocket`
 
 <!-- YAML
@@ -3744,6 +3752,7 @@ one is included in the list below.
 * `--no-experimental-repl-await`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
+* `--no-experimental-validator`
 * `--no-experimental-websocket`
 * `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
@@ -4351,6 +4360,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
+[`node:validator`]: validator.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version

@@ -221,6 +221,10 @@
           "type": "boolean",
           "description": "experimental node:sqlite module"
         },
+        "experimental-validator": {
+          "type": "boolean",
+          "description": "experimental node:validator module"
+        },
         "experimental-vm-modules": {
           "type": "boolean",
           "description": "experimental ES Module support in vm module"
