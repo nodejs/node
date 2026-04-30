@@ -1585,7 +1585,7 @@ napi_status NAPI_CDECL node_api_set_prototype(napi_env env,
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
 
-  v8::Maybe<bool> set_maybe = obj->SetPrototypeV2(context, val);
+  v8::Maybe<bool> set_maybe = obj->SetPrototype(context, val);
 
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(
       env, set_maybe.FromMaybe(false), napi_generic_failure);
@@ -1604,7 +1604,7 @@ napi_status NAPI_CDECL napi_get_prototype(napi_env env,
   CHECK_TO_OBJECT(env, context, obj, object);
 
   // This doesn't invokes Proxy's [[GetPrototypeOf]] handler.
-  v8::Local<v8::Value> val = obj->GetPrototypeV2();
+  v8::Local<v8::Value> val = obj->GetPrototype();
   *result = v8impl::JsValueFromV8LocalValue(val);
   return GET_RETURN_STATUS(env);
 }
