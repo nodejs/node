@@ -469,9 +469,10 @@
             './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
             './deps/ngtcp2/ngtcp2.gyp:nghttp3',
 
-            # For tests
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
+            # Example implementations used in test suite
+            # TODO(@nodejs/quic): re-enable once builds support c++-23 headers
+            #'./deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
+            #'./deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
           ],
         }],
       ],

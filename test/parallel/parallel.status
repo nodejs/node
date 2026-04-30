@@ -22,6 +22,10 @@ test-snapshot-incompatible: SKIP
 # https://github.com/nodejs/node/issues/53579
 test-snapshot-reproducible: SKIP
 
+# ngtcp2's example implementations cannot be built without c++-23 headers.
+test-quic-test-client: SKIP
+test-quic-test-server: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/59090
 test-inspector-network-fetch: PASS, FLAKY
