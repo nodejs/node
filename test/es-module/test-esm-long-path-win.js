@@ -47,6 +47,28 @@ describe('long path on Windows', () => {
     tmpdir.refresh();
   });
 
+  it('check extended-length path in executeUserEntryPoint', async () => {
+    const packageDirPath = tmpdir.resolve('issue-62446');
+    const mainJsFilePath = path.resolve(packageDirPath, 'main.js');
+    const namespacedMainJsPath = path.toNamespacedPath(mainJsFilePath);
+
+    tmpdir.refresh();
+
+    fs.mkdirSync(packageDirPath);
+    fs.writeFileSync(mainJsFilePath, 'console.log("hello world");');
+
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [namespacedMainJsPath],
+    );
+    assert.strictEqual(stderr.trim(), '');
+    assert.strictEqual(stdout.trim(), 'hello world');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+
+    tmpdir.refresh();
+  });
+
   it('check long path in LegacyMainResolve - 1', () => {
     // Module layout will be the following:
     //  package.json
