@@ -433,7 +433,7 @@ class DatabaseSyncLimits : public BaseObject {
   static v8::Intercepted LimitsSetter(
       v8::Local<v8::Name> property,
       v8::Local<v8::Value> value,
-      const v8::PropertyCallbackInfo<void>& info);
+      const v8::PropertyCallbackInfo<v8::Boolean>& info);
   static v8::Intercepted LimitsQuery(
       v8::Local<v8::Name> property,
       const v8::PropertyCallbackInfo<v8::Integer>& info);
