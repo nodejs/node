@@ -9,8 +9,8 @@ const v8 = require('v8');
 const assert = require('assert');
 
 v8.startupSnapshot.setDeserializeMainFunction(( { ts }) => {
-  const input = process.argv[1];
-  const output = process.argv[2];
+  const input = process.argv[2];
+  const output = process.argv[3];
   console.error(`Compiling ${input} to ${output}`);
   assert(input);
   assert(output);
