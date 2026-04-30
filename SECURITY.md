@@ -4,6 +4,15 @@
 
 Report security bugs in Node.js via [HackerOne](https://hackerone.com/nodejs).
 
+Before suggesting, drafting, or filing a security report, review
+[`AGENTS.md`](./AGENTS.md) for the recommended documentation checklist. At a
+minimum, reporters and automated tools should read this document's threat model
+and vulnerability criteria together with the relevant API documentation in
+[`doc/`](./doc/). Common false positives are often addressed in
+[`doc/api/permissions.md`](./doc/api/permissions.md),
+[`doc/api/wasi.md`](./doc/api/wasi.md), and the inspector security warning in
+[`doc/api/cli.md`](./doc/api/cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure).
+
 Normally, your report will be acknowledged within 5 days, and you'll receive
 a more detailed response to your report within 10 days indicating the
 next steps in handling your submission. These timelines may extend when
