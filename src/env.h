@@ -79,7 +79,7 @@ class ShadowRealm;
 namespace contextify {
 class ContextifyScript;
 class CompiledFnEntry;
-}
+}  // namespace contextify
 
 namespace performance {
 class PerformanceState;
@@ -111,6 +111,12 @@ class ModuleWrap;
 
 class Environment;
 class Realm;
+
+namespace coro {
+namespace detail {
+struct TrackedPromiseBase;
+}  // namespace detail
+}  // namespace coro
 
 struct IsolateDataSerializeInfo {
   std::vector<SnapshotIndex> primitive_values;
@@ -176,7 +182,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
 #define VR(PropertyName, TypeName) V(v8::Private, per_realm_##PropertyName)
-#define V(TypeName, PropertyName)                                             \
+#define V(TypeName, PropertyName)                                              \
   inline v8::Local<TypeName> PropertyName() const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
@@ -218,8 +224,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 #define VR(PropertyName, TypeName) V(v8::Private, per_realm_##PropertyName)
 #define VM(PropertyName) V(v8::ObjectTemplate, PropertyName##_binding_template)
 #define VT(PropertyName, TypeName) V(TypeName, PropertyName)
-#define V(TypeName, PropertyName)                                             \
-  v8::Eternal<TypeName> PropertyName ## _;
+#define V(TypeName, PropertyName) v8::Eternal<TypeName> PropertyName##_;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -472,18 +477,14 @@ class TickInfo : public MemoryRetainer {
   AliasedUint8Array fields_;
 };
 
-class TrackingTraceStateObserver :
-    public v8::TracingController::TraceStateObserver {
+class TrackingTraceStateObserver
+    : public v8::TracingController::TraceStateObserver {
  public:
   explicit TrackingTraceStateObserver(Environment* env) : env_(env) {}
 
-  void OnTraceEnabled() override {
-    UpdateTraceCategoryState();
-  }
+  void OnTraceEnabled() override { UpdateTraceCategoryState(); }
 
-  void OnTraceDisabled() override {
-    UpdateTraceCategoryState();
-  }
+  void OnTraceDisabled() override { UpdateTraceCategoryState(); }
 
  private:
   void UpdateTraceCategoryState();
@@ -862,7 +863,7 @@ class Environment final : public MemoryRetainer {
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
-#define V(TypeName, PropertyName)                                             \
+#define V(TypeName, PropertyName)                                              \
   inline v8::Local<TypeName> PropertyName() const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
@@ -872,9 +873,9 @@ class Environment final : public MemoryRetainer {
 #undef VY
 #undef VP
 
-#define V(PropertyName, TypeName)                                             \
-  inline v8::Local<TypeName> PropertyName() const;                            \
-  inline void set_ ## PropertyName(v8::Local<TypeName> value);
+#define V(PropertyName, TypeName)                                              \
+  inline v8::Local<TypeName> PropertyName() const;                             \
+  inline void set_##PropertyName(v8::Local<TypeName> value);
   PER_ISOLATE_TEMPLATE_PROPERTIES(V)
   // Per-realm strong persistent values of the principal realm.
   // Get/set the value with an explicit realm instead when possible.
@@ -910,6 +911,11 @@ class Environment final : public MemoryRetainer {
   }
   inline ReqWrapQueue* req_wrap_queue() { return &req_wrap_queue_; }
 
+  // Active coroutine tasks — tracked for cancellation during teardown.
+  inline std::list<coro::detail::TrackedPromiseBase*>* coro_task_list() {
+    return &coro_task_list_;
+  }
+
   // https://w3c.github.io/hr-time/#dfn-time-origin
   inline uint64_t time_origin() {
     return time_origin_;
@@ -935,8 +941,8 @@ class Environment final : public MemoryRetainer {
   // Unlike the JS setImmediate() function, nested SetImmediate() calls will
   // be run without returning control to the event loop, similar to nextTick().
   template <typename Fn>
-  inline void SetImmediate(
-      Fn&& cb, CallbackFlags::Flags flags = CallbackFlags::kRefed);
+  inline void SetImmediate(Fn&& cb,
+                           CallbackFlags::Flags flags = CallbackFlags::kRefed);
   template <typename Fn>
   // This behaves like SetImmediate() but can be called from any thread.
   inline void SetImmediateThreadsafe(
@@ -1205,6 +1211,9 @@ class Environment final : public MemoryRetainer {
   int handle_cleanup_waiting_ = 0;
   int request_waiting_ = 0;
 
+  // Active coroutine tasks tracked for cancellation during teardown.
+  std::list<coro::detail::TrackedPromiseBase*> coro_task_list_;
+
   EnabledDebugList enabled_debug_list_;
 
   std::vector<v8::Global<v8::Context>> contexts_;
@@ -1231,7 +1240,7 @@ class Environment final : public MemoryRetainer {
   // yet or already have been destroyed.
   bool task_queues_async_initialized_ = false;
 
-  std::atomic<Environment**> interrupt_data_ {nullptr};
+  std::atomic<Environment**> interrupt_data_{nullptr};
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
