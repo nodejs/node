@@ -187,6 +187,18 @@ goto next-arg
 
 :args-done
 
+if defined build_release (
+  set config=Release
+  set package=1
+  set msi=1
+  set licensertf=1
+  set download_arg="--download=all"
+  set i18n_arg=full-icu
+  set projgen=1
+  set cctest=1
+  set thin_lto=1
+)
+
 :: LTO mutual exclusion
 set lto_count=0
 if defined ltcg       set /a lto_count+=1
@@ -206,18 +218,6 @@ if defined pgo_generate if defined pgo_use (
   echo   pgo-generate : build instrumented binary, then profile it
   echo   pgo-use      : rebuild using the collected profile data
   exit /b 1
-)
-
-if defined build_release (
-  set config=Release
-  set package=1
-  set msi=1
-  set licensertf=1
-  set download_arg="--download=all"
-  set i18n_arg=full-icu
-  set projgen=1
-  set cctest=1
-  set ltcg=1
 )
 
 if defined msi     set stage_package=1
