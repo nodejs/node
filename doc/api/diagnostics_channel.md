@@ -266,6 +266,91 @@ const channelsByCollection = diagnostics_channel.tracingChannel({
 });
 ```
 
+#### `diagnostics_channel.syncTracingChannel(nameOrChannels)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|SyncTracingChannel|Object} Channel name or
+  object containing the `start`, `end`, and `error` channels
+* Returns: {SyncTracingChannel}
+
+Creates a [`SyncTracingChannel`][] wrapper. Named construction creates channels
+using `tracing:${name}:start`, `tracing:${name}:end`, and
+`tracing:${name}:error`.
+
+#### `diagnostics_channel.callbackTracingChannel(nameOrChannels)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|CallbackTracingChannel|Object} Channel name or
+  object containing the `asyncStart`, `asyncEnd`, and `error` channels
+* Returns: {CallbackTracingChannel}
+
+Creates a [`CallbackTracingChannel`][] wrapper. Named construction creates
+channels using `tracing:${name}:asyncStart`, `tracing:${name}:asyncEnd`, and
+`tracing:${name}:error`.
+
+#### `diagnostics_channel.promiseTracingChannel(nameOrChannels)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|PromiseTracingChannel|Object} Channel name or object
+  containing the `asyncStart`, `asyncEnd`, and `error` channels
+* Returns: {PromiseTracingChannel}
+
+Creates a [`PromiseTracingChannel`][] wrapper. Named construction creates
+channels using `tracing:${name}:asyncStart`, `tracing:${name}:asyncEnd`, and
+`tracing:${name}:error`.
+
+#### `diagnostics_channel.syncIteratorTracingChannel(nameOrChannels)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|SyncIteratorTracingChannel|Object} Channel name or
+  object containing the `yield`, `return`, and `error` channels
+* Returns: {SyncIteratorTracingChannel}
+
+Creates a [`SyncIteratorTracingChannel`][] wrapper. Named construction creates
+channels using `tracing:${name}:syncYield`, `tracing:${name}:return`, and
+`tracing:${name}:error`.
+
+#### `diagnostics_channel.asyncIteratorTracingChannel(nameOrChannels)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `nameOrChannels` {string|AsyncIteratorTracingChannel|Object} Channel name or
+  object containing the `yield`, `return`, and `error` channels
+* Returns: {AsyncIteratorTracingChannel}
+
+Creates an [`AsyncIteratorTracingChannel`][] wrapper. Named construction creates
+channels using `tracing:${name}:asyncYield`, `tracing:${name}:return`, and
+`tracing:${name}:error`.
+
 ```cjs
 const diagnostics_channel = require('node:diagnostics_channel');
 
@@ -754,7 +839,34 @@ simplify the process of producing events for tracing application flow.
 [`diagnostics_channel.tracingChannel()`][] is used to construct a
 `TracingChannel`. As with `Channel` it is recommended to create and reuse a
 single `TracingChannel` at the top-level of the file rather than creating them
-dynamically.
+dynamically. `TracingChannel` remains the aggregate compatibility wrapper for
+the original tracing channels.
+
+#### `tracingChannel.wrap(fn[, options])`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+* `fn` {Function} Function to wrap
+* `options` {Object}
+  * `context` {Object|Function} Context object or per-call context builder
+  * `wrapArgs` {Function} Rewrite arguments before the call
+  * `mapResult` {Function} Transform the immediate return value
+* Returns: {Function} Wrapped function
+
+Wrap a function once and reuse the wrapped callable across multiple invocations.
+This is the recommended API for composing tracing behavior. The `context`
+option may be either a plain object or a builder function. If `context` is an
+object, that same object is published for each operation. If `context` is a
+function, it is called once per invocation with the wrapped receiver as `this`
+and the original arguments. `wrapArgs` and `mapResult` run inside the
+synchronous trace, so errors thrown from either are treated as call errors.
+
+This method is intended to compose the specialized tracers. For example,
+`wrapArgs` can use `callbackTracingChannel.wrapArgs()` and `mapResult` can use
+`promiseTracingChannel.wrap()` or one of the iterator wrappers.
 
 #### `tracingChannel.subscribe(subscribers)`
 
@@ -1419,6 +1531,91 @@ is automatically published when disposal occurs at the end of the block. All
 events share the same context object, which can be extended with additional
 properties like `result` during scope execution.
 
+### Class: `SyncTracingChannel`
+
+> Stability: 1 - Experimental
+
+`SyncTracingChannel` publishes `start`, `end`, and `error` events around the
+synchronous call boundary of a wrapped function.
+
+#### `syncTracingChannel.wrap(fn[, options])`
+
+* `fn` {Function} Function to wrap
+* `options` {Object}
+  * `context` {Object|Function} Context object or per-call context builder
+  * `wrapArgs` {Function} Rewrite arguments before the call
+  * `mapResult` {Function} Transform the immediate return value
+* Returns: {Function} Wrapped function
+
+### Class: `CallbackTracingChannel`
+
+> Stability: 1 - Experimental
+
+`CallbackTracingChannel` wraps callback functions and callback arguments using
+`asyncStart`, `asyncEnd`, and `error`.
+
+#### `callbackTracingChannel.wrap(callback[, options])`
+
+* `callback` {Function} Callback to wrap
+* `options` {Object}
+  * `context` {Object|Function} Context object or callback-time context builder
+  * `mapOutcome` {Function} Map callback arguments to `{ error, result }`
+* Returns: {Function} Wrapped callback
+
+#### `callbackTracingChannel.wrapArgs(args, index[, options])`
+
+* `args` {Array} Arguments array
+* `index` {number} Index of the callback argument
+* `options` {Object}
+  * `context` {Object|Function} Context object or callback-time context builder
+  * `mapOutcome` {Function} Map callback arguments to `{ error, result }`
+* Returns: {Array} A shallow copy of `args` with the callback replaced
+
+### Class: `PromiseTracingChannel`
+
+> Stability: 1 - Experimental
+
+`PromiseTracingChannel` instruments a thenable or promise that has already been
+produced and publishes `asyncStart`, `asyncEnd`, and `error` on settlement.
+
+#### `promiseTracingChannel.wrap(value[, options])`
+
+* `value` {any} Promise or thenable to wrap
+* `options` {Object}
+  * `context` {Object|Function} Context object or context builder
+  * `mapResult` {Function} Transform the fulfilled value
+* Returns: {any} The original value, or the result of calling `.then(...)`
+
+### Class: `SyncIteratorTracingChannel`
+
+> Stability: 1 - Experimental
+
+`SyncIteratorTracingChannel` instruments a synchronous iterator and publishes
+`yield`, `return`, and `error` events for `next()`, `return()`, and `throw()`.
+
+#### `syncIteratorTracingChannel.wrap(iterator[, options])`
+
+* `iterator` {Object} Iterator to wrap
+* `options` {Object}
+  * `context` {Object|Function} Context object or context builder
+  * `mapResult` {Function} Transform the produced `IteratorResult`
+* Returns: {Object} Wrapped iterator
+
+### Class: `AsyncIteratorTracingChannel`
+
+> Stability: 1 - Experimental
+
+`AsyncIteratorTracingChannel` instruments an asynchronous iterator and publishes
+`yield`, `return`, and `error` events for `next()`, `return()`, and `throw()`.
+
+#### `asyncIteratorTracingChannel.wrap(iterator[, options])`
+
+* `iterator` {Object} Async iterator to wrap
+* `options` {Object}
+  * `context` {Object|Function} Context object or context builder
+  * `mapResult` {Function} Transform the produced `IteratorResult`
+* Returns: {Object} Wrapped iterator
+
 ### TracingChannel Channels
 
 A TracingChannel is a collection of several diagnostics\_channels representing
@@ -1916,8 +2113,13 @@ Emitted when a new thread is created.
 [BoundedChannel Channels]: #boundedchannel-channels
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`AsyncIteratorTracingChannel`]: #class-asynciteratortracingchannel
 [`BoundedChannel`]: #class-boundedchannel
 [`TracingChannel`]: #class-tracingchannel
+[`CallbackTracingChannel`]: #class-callbacktracingchannel
+[`PromiseTracingChannel`]: #class-promisetracingchannel
+[`SyncIteratorTracingChannel`]: #class-synciteratortracingchannel
+[`SyncTracingChannel`]: #class-synctracingchannel
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
 [`boundedChannel.withScope(context)`]: #boundedchannelwithscopecontext
