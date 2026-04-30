@@ -27,6 +27,11 @@ async function test() {
   );
 
   await assert.rejects(
+    import(jsModuleDataUrl, { with: { type: 'text' } }),
+    { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
+  );
+
+  await assert.rejects(
     import(jsModuleDataUrl, { with: { type: 'json', other: 'unsupported' } }),
     { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
   );

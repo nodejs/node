@@ -643,6 +643,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--experimental-wasm-modules", "", NoOp{}, kAllowedInEnvvar);
+  AddOption("--experimental-import-text",
+            "experimental support for importing source as text with import "
+            "attributes",
+            &EnvironmentOptions::experimental_import_text,
+            kAllowedInEnvvar);
   AddOption("--experimental-import-meta-resolve",
             "experimental ES Module import.meta.resolve() parentURL support",
             &EnvironmentOptions::experimental_import_meta_resolve,

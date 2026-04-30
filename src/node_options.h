@@ -137,6 +137,7 @@ class EnvironmentOptions : public Options {
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
+  bool experimental_import_text = false;
   bool experimental_import_meta_resolve = EXPERIMENTALS_DEFAULT_VALUE;
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;

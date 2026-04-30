@@ -294,8 +294,10 @@ Node.js only supports the `type` attribute, for which it supports the following 
 | Attribute `type` | Needed for       |
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
+| `'text'`         | [Text modules][] |
 
 The `type: 'json'` attribute is mandatory when importing JSON modules.
+The `type: 'text'` attribute is mandatory when importing text modules.
 
 ## Built-in modules
 
@@ -708,6 +710,25 @@ The imported JSON only exposes a `default` export. There is no support for named
 exports. A cache entry is created in the CommonJS cache to avoid duplication.
 The same object is returned in CommonJS if the JSON module has already been
 imported from the same path.
+
+<i id="esm_experimental_text_modules"></i>
+
+## Text modules
+
+> Stability: 1.0 - Early development
+
+Text modules are available behind the `--experimental-import-text` flag.
+
+Text files can be referenced by `import`:
+
+```js
+import message from './message.txt' with { type: 'text' };
+```
+
+The `with { type: 'text' }` syntax is mandatory; see [Import Attributes][].
+
+The imported text only exposes a `default` export whose value is the module
+source as a string.
 
 <i id="esm_experimental_wasm_modules"></i>
 
@@ -1308,6 +1329,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
 [Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
+[Text modules]: #text-modules
 [URL]: https://url.spec.whatwg.org/
 [WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
