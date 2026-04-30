@@ -186,7 +186,9 @@ class ChannelWrap final : public AsyncWrap {
  private:
   uv_timer_t* timer_handle_ = nullptr;
   ares_channel channel_ = nullptr;
-  bool query_last_ok_ = true;
+  // Start pessimistically so the first query validates whether c-ares fell
+  // back to a loopback resolver while using the system DNS configuration.
+  bool query_last_ok_ = false;
   bool is_servers_default_ = true;
   bool library_inited_ = false;
   int timeout_;
