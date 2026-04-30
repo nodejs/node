@@ -873,7 +873,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> functions = Object::New(isolate);
-  if (!functions->SetPrototypeV2(context, Null(isolate)).FromMaybe(false)) {
+  if (!functions->SetPrototype(context, Null(isolate)).FromMaybe(false)) {
     return;
   }
 
@@ -1022,7 +1022,7 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> symbols = Object::New(isolate);
-  if (!symbols->SetPrototypeV2(context, Null(isolate)).FromMaybe(false)) {
+  if (!symbols->SetPrototype(context, Null(isolate)).FromMaybe(false)) {
     return;
   }
   for (const auto& entry : lib->symbols_) {

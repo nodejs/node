@@ -614,7 +614,7 @@ template <typename T>
 static bool ShouldIntercept(Local<Name> property,
                             const PropertyCallbackInfo<T>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Value> proto = info.HolderV2()->GetPrototypeV2();
+  Local<Value> proto = info.Holder()->GetPrototype();
 
   if (proto->IsObject()) {
     bool has_prop;
@@ -638,7 +638,7 @@ static Intercepted StorageGetter(Local<Name> property,
   }
 
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
   Local<Value> result;
 
   if (storage->Load(property).ToLocal(&result) && !result->IsNull()) {
@@ -652,7 +652,7 @@ static Intercepted StorageSetter(Local<Name> property,
                                  Local<Value> value,
                                  const PropertyCallbackInfo<void>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
 
   if (storage->Store(property, value).IsNothing()) {
     info.GetReturnValue().SetFalse();
@@ -668,7 +668,7 @@ static Intercepted StorageQuery(Local<Name> property,
   }
 
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
   Local<Value> result;
   if (!storage->Load(property).ToLocal(&result) || result->IsNull()) {
     return Intercepted::kNo;
@@ -681,7 +681,7 @@ static Intercepted StorageQuery(Local<Name> property,
 static Intercepted StorageDeleter(Local<Name> property,
                                   const PropertyCallbackInfo<Boolean>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
 
   info.GetReturnValue().Set(storage->Remove(property).IsJust());
 
@@ -690,7 +690,7 @@ static Intercepted StorageDeleter(Local<Name> property,
 
 static void StorageEnumerator(const PropertyCallbackInfo<Array>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.HolderV2());
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder());
   Local<Array> result;
   if (!storage->Enumerate().ToLocal(&result)) {
     return;
@@ -702,7 +702,7 @@ static Intercepted StorageDefiner(Local<Name> property,
                                   const PropertyDescriptor& desc,
                                   const PropertyCallbackInfo<void>& info) {
   Storage* storage;
-  ASSIGN_OR_RETURN_UNWRAP(&storage, info.HolderV2(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&storage, info.Holder(), Intercepted::kNo);
 
   if (desc.has_value()) {
     return StorageSetter(property, desc.value(), info);
