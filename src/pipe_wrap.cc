@@ -28,6 +28,7 @@
 #include "handle_wrap.h"
 #include "node.h"
 #include "node_buffer.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
@@ -80,6 +81,7 @@ void PipeWrap::Initialize(Local<Object> target,
   SetProtoMethod(isolate, t, "listen", Listen);
   SetProtoMethod(isolate, t, "connect", Connect);
   SetProtoMethod(isolate, t, "open", Open);
+  SetProtoMethod(isolate, t, "watchPeerClose", WatchPeerClose);
 
 #ifdef _WIN32
   SetProtoMethod(isolate, t, "setPendingInstances", SetPendingInstances);
@@ -110,6 +112,7 @@ void PipeWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Listen);
   registry->Register(Connect);
   registry->Register(Open);
+  registry->Register(WatchPeerClose);
 #ifdef _WIN32
   registry->Register(SetPendingInstances);
 #endif
@@ -217,6 +220,103 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void PipeWrap::WatchPeerClose(const FunctionCallbackInfo<Value>& args) {
+  PipeWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+  CHECK_GT(args.Length(), 0);
+  CHECK(args[0]->IsBoolean());
+  const bool enable = args[0].As<v8::Boolean>()->Value();
+  Environment* env = wrap->env();
+  Isolate* isolate = env->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(env->context());
+  Local<Object> obj = wrap->object();
+
+  // UnwatchPeerClose
+  if (!enable) {
+    if (obj->GetInternalField(kPeerCloseCallbackField)
+            .As<Value>()
+            ->IsUndefined()) {
+      return;
+    }
+
+    obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
+    uv_read_stop(wrap->stream());
+    return;
+  }
+
+  if (!wrap->IsAlive()) {
+    return;
+  }
+  if (!obj->GetInternalField(kPeerCloseCallbackField)
+           .As<Value>()
+           ->IsUndefined()) {
+    return;
+  }
+
+  CHECK_GT(args.Length(), 1);
+  CHECK(args[1]->IsFunction());
+
+  // Store the JS callback in an internal field.
+  obj->SetInternalField(kPeerCloseCallbackField, args[1]);
+
+  // Start reading to detect EOF/ECONNRESET from the peer.
+  // We use our custom allocator and reader, ignoring actual data.
+  int err = uv_read_start(wrap->stream(), PeerCloseAlloc, PeerCloseRead);
+  if (err != 0) {
+    obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
+  }
+}
+
+void PipeWrap::PeerCloseAlloc(uv_handle_t* handle,
+                              size_t suggested_size,
+                              uv_buf_t* buf) {
+  // We only care about EOF, not the actual data.
+  // Using a static 1-byte buffer avoids dynamic memory allocation overhead.
+  static char scratch;
+  *buf = uv_buf_init(&scratch, 1);
+}
+
+void PipeWrap::PeerCloseRead(uv_stream_t* stream,
+                             ssize_t nread,
+                             const uv_buf_t* buf) {
+  PipeWrap* wrap = static_cast<PipeWrap*>(stream->data);
+  if (wrap == nullptr) return;
+
+  // Ignore actual data reads or EAGAIN (0). We only watch for disconnects.
+  if (nread > 0 || nread == 0) return;
+
+  // Wait specifically for EOF or connection reset (peer closed).
+  if (nread != UV_EOF && nread != UV_ECONNRESET) return;
+
+  // Peer has closed the connection. Stop reading immediately.
+  uv_read_stop(stream);
+
+  Environment* env = wrap->env();
+  Isolate* isolate = env->isolate();
+
+  // Set up V8 context and handles to safely execute the JS callback.
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::Scope context_scope(env->context());
+  Local<Object> obj = wrap->object();
+
+  // Check if callback is set
+  if (obj->GetInternalField(kPeerCloseCallbackField)
+          .As<Value>()
+          ->IsUndefined()) {
+    return;
+  }
+  Local<Value> cb_value =
+      obj->GetInternalField(kPeerCloseCallbackField).As<Value>();
+  Local<Function> cb = cb_value.As<Function>();
+  // Reset before calling to prevent re-entrancy issues
+  obj->SetInternalField(kPeerCloseCallbackField, v8::Undefined(isolate));
+
+  // MakeCallback properly tracks AsyncHooks context and flushes microtasks.
+  wrap->MakeCallback(cb, 0, nullptr);
+}
+
 void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -256,7 +356,6 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(err);
 }
-
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(pipe_wrap, node::PipeWrap::Initialize)
