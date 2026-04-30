@@ -574,6 +574,10 @@ if (hasOpenSSL(3, 2)) {
       key: pubKey,
       context: Buffer.from('wrong'),
     }, sig), false);
+
+    // Ed25519ctx signatures are NOT compatible with Ed25519ph (verifyDigest).
+    const digest = crypto.createHash('sha512').update(data).digest();
+    assert.strictEqual(crypto.verifyDigest(null, digest, { key: pubKey, context }, sig), false);
   }
 
   {
