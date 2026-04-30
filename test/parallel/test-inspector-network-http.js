@@ -62,7 +62,7 @@ function getPathName(req) {
   return new URL(req.url, `http://${req.headers.host}`).pathname;
 }
 
-const handleRequest = (req, res) => {
+const handleRequest = common.mustCall((req, res) => {
   const path = getPathName(req);
   switch (path) {
     case '/hello-world':
@@ -116,7 +116,7 @@ const handleRequest = (req, res) => {
     default:
       assert.fail(`Unexpected path: ${path}`);
   }
-};
+}, 5);
 
 const httpServer = http.createServer(handleRequest);
 
@@ -130,7 +130,7 @@ const terminate = () => {
   httpServer.close();
   httpsServer.close();
   inspector.close();
-};
+}, 7);
 
 function findFrameInInitiator(scriptName, initiator) {
   const frame = initiator.stack.callFrames.find((it) => {
