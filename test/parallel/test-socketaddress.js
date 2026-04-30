@@ -141,12 +141,16 @@ describe('net.SocketAddress...', () => {
   it('SocketAddress.parse() works as expected', () => {
     const good = [
       { input: '1.2.3.4', address: '1.2.3.4', port: 0, family: 'ipv4' },
+      { input: '1.2.3.4:80', address: '1.2.3.4', port: 80, family: 'ipv4' },
+      { input: '1.2.3.4:080', address: '1.2.3.4', port: 80, family: 'ipv4' },
       { input: '192.168.257:1', address: '192.168.1.1', port: 1, family: 'ipv4' },
       { input: '256', address: '0.0.1.0', port: 0, family: 'ipv4' },
+      { input: '999999999:80', address: '59.154.201.255', port: 80, family: 'ipv4' },
       { input: '999999999:12', address: '59.154.201.255', port: 12, family: 'ipv4' },
       { input: '0xffffffff', address: '255.255.255.255', port: 0, family: 'ipv4' },
       { input: '0x.0x.0', address: '0.0.0.0', port: 0, family: 'ipv4' },
       { input: '[1:0::]', address: '1::', port: 0, family: 'ipv6' },
+      { input: '[1::8]:80', address: '1::8', port: 80, family: 'ipv6' },
       { input: '[1::8]:123', address: '1::8', port: 123, family: 'ipv6' },
     ];
 
