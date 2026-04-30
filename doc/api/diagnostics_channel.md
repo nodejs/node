@@ -1590,6 +1590,18 @@ Emitted when an error occurs during a client request.
 
 Emitted when client receives a response.
 
+##### Event: `'http.client.request.upgrade'`
+
+* `request` {http.ClientRequest}
+* `response` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `head` {Buffer}
+* `protocol` {string}
+
+Emitted when an HTTP/1.1 client request upgrades to WebSocket.
+The `head` value matches the `upgradeHead` argument emitted with the request's
+`'upgrade'` event.
+
 ##### Event: `'http.server.request.start'`
 
 * `request` {http.IncomingMessage}
@@ -1615,6 +1627,78 @@ The event is emitted before the response is sent.
 * `server` {http.Server}
 
 Emitted when server sends a response.
+
+##### Event: `'http.server.request.upgrade'`
+
+* `request` {http.IncomingMessage}
+* `socketOrStream` {net.Socket|stream.Duplex}
+* `head` {Buffer}
+* `protocol` {string}
+
+Emitted when an HTTP/1.1 server request upgrades to WebSocket.
+The `socketOrStream` value matches the upgraded object exposed to the server's
+`'upgrade'` event.
+
+#### WebSocket
+
+> Stability: 1 - Experimental
+
+The following WebSocket diagnostics channels currently observe HTTP/1.1
+WebSocket upgrades handled by the built-in `http` and `https` modules.
+
+##### Event: `'websocket.client.frameSent'`
+
+* `request` {http.ClientRequest}
+* `response` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `opcode` {number}
+* `fin` {boolean}
+* `masked` {boolean}
+* `compressed` {boolean}
+* `payloadLength` {number}
+* `payload` {Buffer}
+
+Emitted when a complete WebSocket frame sent by the client has been observed.
+
+##### Event: `'websocket.client.frameReceived'`
+
+* `request` {http.ClientRequest}
+* `response` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `opcode` {number}
+* `fin` {boolean}
+* `masked` {boolean}
+* `compressed` {boolean}
+* `payloadLength` {number}
+* `payload` {Buffer}
+
+Emitted when a complete WebSocket frame received by the client has been observed.
+
+##### Event: `'websocket.server.frameSent'`
+
+* `request` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `opcode` {number}
+* `fin` {boolean}
+* `masked` {boolean}
+* `compressed` {boolean}
+* `payloadLength` {number}
+* `payload` {Buffer}
+
+Emitted when a complete WebSocket frame sent by the server has been observed.
+
+##### Event: `'websocket.server.frameReceived'`
+
+* `request` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `opcode` {number}
+* `fin` {boolean}
+* `masked` {boolean}
+* `compressed` {boolean}
+* `payloadLength` {number}
+* `payload` {Buffer}
+
+Emitted when a complete WebSocket frame received by the server has been observed.
 
 #### HTTP/2
 

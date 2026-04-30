@@ -97,6 +97,17 @@ const EXPECTED_EVENTS = {
 
     },
     {
+      name: 'webSocketWillSendHandshakeRequest',
+      params: {
+        requestId: 'websocket-id-1',
+        timestamp: 1000,
+        wallTime: 1000,
+        request: {
+          headers: { upgrade: 'websocket' },
+        },
+      }
+    },
+    {
       name: 'webSocketHandshakeResponseReceived',
       params: {
         requestId: 'websocket-id-1',
@@ -114,6 +125,30 @@ const EXPECTED_EVENTS = {
         requestId: 'websocket-id-1',
         timestamp: 1000,
 
+      }
+    },
+    {
+      name: 'webSocketFrameReceived',
+      params: {
+        requestId: 'websocket-id-1',
+        timestamp: 1000,
+        response: {
+          opcode: 1,
+          mask: false,
+          payloadData: 'hello',
+        },
+      }
+    },
+    {
+      name: 'webSocketFrameSent',
+      params: {
+        requestId: 'websocket-id-1',
+        timestamp: 1000,
+        response: {
+          opcode: 1,
+          mask: true,
+          payloadData: 'hello',
+        },
       }
     },
   ],
