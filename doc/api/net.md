@@ -1404,6 +1404,10 @@ data packet received and the first keepalive probe. Setting `0` for
 `initialDelay` will leave the value unchanged from the default
 (or previous) setting.
 
+**Note**: Node.js converts initialDelay from milliseconds to seconds and truncates any fractional part.
+For example, `setKeepAlive(true, 500)` does not update the delay because it is truncated to `0`, leaving the value
+unchanged, while `setKeepAlive(true, 1500)` sets it to `1` second.
+
 Enabling the keep-alive functionality will set the following socket options:
 
 * `SO_KEEPALIVE=1`
