@@ -596,7 +596,7 @@ Intercepted ContextifyContext::PropertyGetterCallback(
 Intercepted ContextifyContext::PropertySetterCallback(
     Local<Name> property,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -689,7 +689,7 @@ Intercepted ContextifyContext::PropertyDescriptorCallback(
 Intercepted ContextifyContext::PropertyDefinerCallback(
     Local<Name> property,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -869,7 +869,7 @@ Intercepted ContextifyContext::IndexedPropertyGetterCallback(
 Intercepted ContextifyContext::IndexedPropertySetterCallback(
     uint32_t index,
     Local<Value> value,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -898,7 +898,7 @@ Intercepted ContextifyContext::IndexedPropertyDescriptorCallback(
 Intercepted ContextifyContext::IndexedPropertyDefinerCallback(
     uint32_t index,
     const PropertyDescriptor& desc,
-    const PropertyCallbackInfo<void>& args) {
+    const PropertyCallbackInfo<Boolean>& args) {
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
