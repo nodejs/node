@@ -49,6 +49,16 @@ const { sleep } = require('internal/util');
       }
     );
   });
+
+  [null, 'a', 1, {}, []].forEach((i) => {
+    assert.throws(
+      () => monitorEventLoopDelay({ samplePerIteration: i }),
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_TYPE',
+      }
+    );
+  });
 }
 
 {
@@ -108,6 +118,18 @@ const { sleep } = require('internal/util');
     }
   }
   spinAWhile();
+}
+
+{
+  const histogram = monitorEventLoopDelay({ samplePerIteration: true });
+  histogram.enable();
+  setTimeout(common.mustCall(() => {
+    histogram.disable();
+    assert(histogram.count > 0,
+           `Expected samples to be recorded, got count=${histogram.count}`);
+    assert(histogram.min > 0);
+    assert(histogram.max > 0);
+  }), common.platformTimeout(20));
 }
 
 // Make sure that the histogram instances can be garbage-collected without

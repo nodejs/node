@@ -1708,8 +1708,11 @@ added: v11.10.0
 -->
 
 * `options` {Object}
-  * `resolution` {number} The sampling rate in milliseconds. Must be greater
-    than zero. **Default:** `10`.
+  * `samplePerIteration` {boolean} When `true`, samples are taken once per
+    event loop iteration. **Default:** `false`.
+  * `resolution` {number} The sampling rate in milliseconds for interval-based
+    sampling. Must be greater than zero. This option is ignored when
+    `samplePerIteration` is `true`. **Default:** `10`.
 * Returns: {IntervalHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
@@ -1717,11 +1720,11 @@ _This property is an extension by Node.js. It is not available in Web browsers._
 Creates an `IntervalHistogram` object that samples and reports the event loop
 delay over time. The delays will be reported in nanoseconds.
 
-Using a timer to detect approximate event loop delay works because the
-execution of timers is tied specifically to the lifecycle of the libuv
-event loop. That is, a delay in the loop will cause a delay in the execution
-of the timer, and those delays are specifically what this API is intended to
-detect.
+By default, the histogram is updated by a timer using the configured
+`resolution`. When `samplePerIteration` is `true`, samples are taken once per
+event loop iteration using `uv_prepare_t` and `uv_check_t` hooks. In that mode,
+the histogram does not keep the loop alive or force additional iterations when
+the application is idle.
 
 ```mjs
 import { monitorEventLoopDelay } from 'node:perf_hooks';
@@ -2000,7 +2003,7 @@ The standard deviation of the recorded event loop delays.
 
 ## Class: `IntervalHistogram extends Histogram`
 
-A `Histogram` that is periodically updated on a given interval.
+A `Histogram` that records event loop delay.
 
 ### `histogram.disable()`
 
@@ -2010,7 +2013,7 @@ added: v11.10.0
 
 * Returns: {boolean}
 
-Disables the update interval timer. Returns `true` if the timer was
+Disables event loop delay sampling. Returns `true` if sampling was
 stopped, `false` if it was already stopped.
 
 ### `histogram.enable()`
@@ -2021,7 +2024,7 @@ added: v11.10.0
 
 * Returns: {boolean}
 
-Enables the update interval timer. Returns `true` if the timer was
+Enables event loop delay sampling. Returns `true` if sampling was
 started, `false` if it was already started.
 
 ### `histogram[Symbol.dispose]()`
@@ -2030,7 +2033,7 @@ started, `false` if it was already started.
 added: v24.2.0
 -->
 
-Disables the update interval timer when the histogram is disposed.
+Disables event loop delay sampling when the histogram is disposed.
 
 ```js
 const { monitorEventLoopDelay } = require('node:perf_hooks');
