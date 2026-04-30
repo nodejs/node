@@ -1576,12 +1576,34 @@ Unlike `http.client.request.start`, this event is emitted before the request has
 
 Emitted when client starts a request.
 
+##### Event: `'http.client.request.bodyChunkSent'`
+
+* `request` {http.ClientRequest}
+* `chunk` {string|Buffer|TypedArray|DataView}
+* `encoding` {string|null}
+
+Emitted when a chunk of the client request body is being sent.
+
+##### Event: `'http.client.request.bodySent'`
+
+* `request` {http.ClientRequest}
+
+Emitted after the client request body has been fully sent.
+
 ##### Event: `'http.client.request.error'`
 
 * `request` {http.ClientRequest}
 * `error` {Error}
 
 Emitted when an error occurs during a client request.
+
+##### Event: `'http.client.response.bodyChunkReceived'`
+
+* `request` {http.ClientRequest}
+* `response` {http.IncomingMessage}
+* `chunk` {Buffer}
+
+Emitted when a chunk of the client response body is received.
 
 ##### Event: `'http.client.response.finish'`
 
