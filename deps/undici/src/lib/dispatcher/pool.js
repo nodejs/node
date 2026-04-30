@@ -63,14 +63,11 @@ class Pool extends PoolBase {
       })
     }
 
-    super()
+    super(options)
 
     this[kConnections] = connections || null
     this[kUrl] = util.parseOrigin(origin)
     this[kOptions] = { ...util.deepClone(options), connect, allowH2, clientTtl, socketPath }
-    this[kOptions].interceptors = options.interceptors
-      ? { ...options.interceptors }
-      : undefined
     this[kFactory] = factory
 
     this.on('connect', (origin, targets) => {

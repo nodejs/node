@@ -188,6 +188,10 @@ typedef void(NAPI_CDECL* node_api_nogc_finalize)(node_api_nogc_env env,
 #endif
 typedef node_api_nogc_finalize node_api_basic_finalize;
 
+// A finalizer that can be called from any thread and at any time.
+typedef void(NAPI_CDECL* node_api_noenv_finalize)(void* finalize_data,
+                                                  void* finalize_hint);
+
 typedef struct {
   // One of utf8name or name should be NULL.
   const char* utf8name;

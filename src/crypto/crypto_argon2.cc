@@ -104,27 +104,14 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   config->type =
       static_cast<ncrypto::Argon2Type>(args[offset + 8].As<Uint32>()->Value());
 
-  if (!ncrypto::argon2(config->pass,
-                       config->salt,
-                       config->lanes,
-                       config->keylen,
-                       config->memcost,
-                       config->iter,
-                       config->version,
-                       config->secret,
-                       config->ad,
-                       config->type)) {
-    THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
-    return Nothing<void>();
-  }
-
   return JustVoid();
 }
 
 bool Argon2Traits::DeriveBits(Environment* env,
                               const Argon2Config& config,
                               ByteSource* out,
-                              CryptoJobMode mode) {
+                              CryptoJobMode mode,
+                              CryptoErrorStore* errors) {
   // If the config.length is zero-length, just return an empty buffer.
   // It's useless, yes, but allowed via the API.
   if (config.keylen == 0) {
@@ -144,7 +131,10 @@ bool Argon2Traits::DeriveBits(Environment* env,
                             config.ad,
                             config.type);
 
-  if (!dp) return false;
+  if (!dp) {
+    errors->Insert(NodeCryptoError::ARGON2_FAILED);
+    return false;
+  }
   DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;

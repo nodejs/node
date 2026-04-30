@@ -83,6 +83,15 @@
 /src/node_http2* @nodejs/http2 @nodejs/net
 /src/node_mem* @nodejs/http2
 
+# quic
+
+/deps/ngtcp2/* @nodejs/quic
+/doc/api/quic.md @nodejs/quic
+/lib/quic.js @nodejs/quic
+/lib/internal/quic/* @nodejs/quic
+/src/quic/* @nodejs/quic
+/test/parallel/test-quic-* @nodejs/quic
+
 # modules, including loaders
 
 /doc/api/esm.md @nodejs/loaders
@@ -234,3 +243,11 @@
 # dev container
 /.devcontainer/* @nodejs/devcontainer
 /doc/contributing/using-devcontainer.md @nodejs/devcontainer
+
+# FFI
+/deps/libffi/ @nodejs/ffi
+/doc/api/ffi.md @nodejs/ffi
+/lib/ffi.js @nodejs/ffi
+/src/ffi/ @nodejs/ffi
+/src/node_ffi.* @nodejs/ffi
+/test/ffi/ @nodejs/ffi

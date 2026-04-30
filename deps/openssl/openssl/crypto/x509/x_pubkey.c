@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,8 +65,8 @@ ASN1_SEQUENCE(X509_PUBKEY_INTERNAL) = {
     ASN1_SIMPLE(X509_PUBKEY, public_key, ASN1_BIT_STRING)
 } static_ASN1_SEQUENCE_END_name(X509_PUBKEY, X509_PUBKEY_INTERNAL)
 
-                                          X509_PUBKEY
-    * ossl_d2i_X509_PUBKEY_INTERNAL(const unsigned char **pp, long len, OSSL_LIB_CTX *libctx, const char *propq)
+X509_PUBKEY
+*ossl_d2i_X509_PUBKEY_INTERNAL(const unsigned char **pp, long len, OSSL_LIB_CTX *libctx, const char *propq)
 {
     X509_PUBKEY *xpub = OPENSSL_zalloc(sizeof(*xpub));
 

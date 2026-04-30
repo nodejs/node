@@ -84,7 +84,14 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
 
   static bool IsNeeded(Tagged<String> str, bool check_local_heap = true) {
     if (check_local_heap) {
-      if (LocalHeap::Current()->is_main_thread()) {
+      LocalHeap* current = LocalHeap::TryGetCurrent();
+
+      if (!current) {
+        // GC worker threads may access the string content but do not have a
+        // LocalHeap.
+        DCHECK_EQ(Isolate::Current()->heap()->gc_state(), Heap::MARK_COMPACT);
+        return false;
+      } else if (current->is_main_thread()) {
         // Don't acquire the lock for the main thread.
         return false;
       }
@@ -118,7 +125,11 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
 
     DCHECK(!ReadOnlyHeap::Contains(str));
     Isolate* isolate = Isolate::Current();
-    if (str->IsShared()) isolate = isolate->shared_space_isolate();
+    // For strings in the shared space we need the shared space isolate instead
+    // of the current isolate.
+    if (HeapLayout::InWritableSharedSpace(str)) {
+      isolate = isolate->shared_space_isolate();
+    }
     DCHECK_EQ(isolate->heap(), Heap::FromWritableHeapObject(str));
     return isolate;
   }
@@ -605,14 +616,6 @@ template <typename SeqString>
 class SeqSubStringKey final : public StringTableKey {
  public:
   using Char = typename SeqString::Char;
-// VS 2017 on official builds gives this spurious warning:
-// warning C4789: buffer 'key' of size 16 bytes will be overrun; 4 bytes will
-// be written starting at offset 16
-// https://bugs.chromium.org/p/v8/issues/detail?id=6068
-#if defined(V8_CC_MSVC)
-#pragma warning(push)
-#pragma warning(disable : 4789)
-#endif
   SeqSubStringKey(Isolate* isolate, DirectHandle<SeqString> string, int from,
                   int len, bool convert = false)
       : StringTableKey(0, len),
@@ -630,9 +633,6 @@ class SeqSubStringKey final : public StringTableKey {
     DCHECK_EQ(IsSeqOneByteString(*string_), sizeof(Char) == 1);
     DCHECK_EQ(IsSeqTwoByteString(*string_), sizeof(Char) == 2);
   }
-#if defined(V8_CC_MSVC)
-#pragma warning(pop)
-#endif
 
   bool IsMatch(Isolate* isolate, Tagged<String> string) {
     DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
@@ -1221,6 +1221,12 @@ size_t String::Utf8Length(Isolate* isolate, DirectHandle<String> string) {
         reinterpret_cast<const char*>(vec.begin()), vec.size());
   }
 
+  base::Vector<const base::uc16> vec = content.ToUC16Vector();
+  const char16_t* data = reinterpret_cast<const char16_t*>(vec.begin());
+  if (simdutf::validate_utf16(data, vec.size())) {
+    return simdutf::utf8_length_from_utf16(data, vec.size());
+  }
+
   // TODO(419496232): Use simdutf once upstream bug is resolved.
   size_t utf8_length = 0;
   uint16_t last_character = unibrow::Utf16::kNoPreviousCharacter;
@@ -1766,7 +1772,8 @@ bool String::AsArrayIndex(uint32_t* index) {
   DisallowGarbageCollection no_gc;
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
@@ -1778,7 +1785,8 @@ bool String::AsArrayIndex(uint32_t* index) {
 bool String::AsIntegerIndex(size_t* index) {
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {

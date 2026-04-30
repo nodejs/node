@@ -74,6 +74,7 @@ absl_source_set("profile_builder") {
     "//third_party/abseil-cpp/absl/container:btree",
     "//third_party/abseil-cpp/absl/container:flat_hash_map",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
     "//third_party/abseil-cpp/absl/types:span",
   ]
 }

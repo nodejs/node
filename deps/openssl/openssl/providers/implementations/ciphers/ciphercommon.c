@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -688,6 +688,10 @@ int ossl_cipher_generic_set_ctx_params(void *vctx, const OSSL_PARAM params[])
         unsigned int num;
 
         if (!OSSL_PARAM_get_uint(p, &num)) {
+            ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
+            return 0;
+        }
+        if (ctx->blocksize > 0 && num >= (unsigned int)ctx->blocksize) {
             ERR_raise(ERR_LIB_PROV, PROV_R_FAILED_TO_GET_PARAMETER);
             return 0;
         }

@@ -2796,10 +2796,14 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/59917
     description: Added the `strictSingleValueFields` option.
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61713
     description: Added `http1Options` option. The `Http1IncomingMessage`
                  and `Http1ServerResponse` options are now deprecated.
@@ -3019,10 +3023,14 @@ server.listen(8000);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/59917
     description: Added the `strictSingleValueFields` option.
-  - version: v25.7.0
+  - version:
+     - v25.7.0
+     - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61713
     description: Added `http1Options` option.
   - version:
@@ -4112,6 +4120,9 @@ The request/response headers object.
 
 Key-value pairs of header names and values. Header names are lower-cased.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ```js
 // Prints something like:
 //
@@ -4270,6 +4281,9 @@ added: v8.4.0
 * Type: {Object}
 
 The request/response trailers object. Only populated at the `'end'` event.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 #### `request.url`
 

@@ -76,7 +76,24 @@ wrapped function rejects a `Promise` with a falsy value as a reason, the value
 is wrapped in an `Error` with the original value stored in a field named
 `reason`.
 
-```js
+```mjs
+import util from 'node:util';
+
+function fn() {
+  return Promise.reject(null);
+}
+const callbackFunction = util.callbackify(fn);
+
+callbackFunction((err, ret) => {
+  // When the Promise was rejected with `null` it is wrapped with an Error and
+  // the original value is stored in `reason`.
+  err && Object.hasOwn(err, 'reason') && err.reason === null;  // true
+});
+```
+
+```cjs
+const util = require('node:util');
+
 function fn() {
   return Promise.reject(null);
 }
@@ -2531,6 +2548,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61556
+    description: Add support for hexadecimal colors.
   - version:
       - v24.2.0
       - v22.17.0
@@ -2550,8 +2570,9 @@ changes:
 -->
 
 * `format` {string | Array} A text format or an Array
-  of text formats defined in `util.inspect.colors`.
-* `text` {string} The text to to be formatted.
+  of text formats defined in `util.inspect.colors`, or a hex color in `#RGB`
+  or `#RRGGBB` form.
+* `text` {string} The text to be formatted.
 * `options` {Object}
   * `validateStream` {boolean} When true, `stream` is checked to see if it can handle colors. **Default:** `true`.
   * `stream` {Stream} A stream that will be validated if it can be colored. **Default:** `process.stdout`.
@@ -2612,6 +2633,30 @@ console.log(
 ```
 
 The special format value `none` applies no additional styling to the text.
+
+In addition to predefined color names, `util.styleText()` supports hex color
+strings using ANSI TrueColor (24-bit) escape sequences. Hex colors can be
+specified in either 3-digit (`#RGB`) or 6-digit (`#RRGGBB`) format:
+
+```mjs
+import { styleText } from 'node:util';
+
+// 6-digit hex color
+console.log(styleText('#ff5733', 'Orange text'));
+
+// 3-digit hex color (shorthand)
+console.log(styleText('#f00', 'Red text'));
+```
+
+```cjs
+const { styleText } = require('node:util');
+
+// 6-digit hex color
+console.log(styleText('#ff5733', 'Orange text'));
+
+// 3-digit hex color (shorthand)
+console.log(styleText('#f00', 'Red text'));
+```
 
 The full list of formats can be found in [modifiers][].
 

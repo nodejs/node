@@ -3,7 +3,6 @@
 const { createInflate, createGunzip, createBrotliDecompress, createZstdDecompress } = require('node:zlib')
 const { pipeline } = require('node:stream')
 const DecoratorHandler = require('../handler/decorator-handler')
-const { runtimeFeatures } = require('../util/runtime-features')
 
 /** @typedef {import('node:stream').Transform} Transform */
 /** @typedef {import('node:stream').Transform} Controller */
@@ -17,7 +16,7 @@ const supportedEncodings = {
   deflate: createInflate,
   compress: createInflate,
   'x-compress': createInflate,
-  ...(runtimeFeatures.has('zstd') ? { zstd: createZstdDecompress } : {})
+  zstd: createZstdDecompress
 }
 
 const defaultSkipStatusCodes = /** @type {const} */ ([204, 304])
@@ -180,6 +179,33 @@ class DecompressHandler extends DecoratorHandler {
 
     // Remove compression headers since we're decompressing
     const { 'content-encoding': _, 'content-length': __, ...newHeaders } = headers
+
+    if (controller?.rawHeaders) {
+      const rawHeaders = controller.rawHeaders
+
+      if (Array.isArray(rawHeaders)) {
+        const filteredHeaders = []
+        for (let i = 0; i < rawHeaders.length; i += 2) {
+          const headerName = rawHeaders[i]
+          const name = Buffer.isBuffer(headerName) ? headerName.toString('latin1') : `${headerName}`
+          const lowerName = name.toLowerCase()
+
+          if (lowerName === 'content-encoding' || lowerName === 'content-length') {
+            continue
+          }
+
+          filteredHeaders.push(rawHeaders[i], rawHeaders[i + 1])
+        }
+        controller.rawHeaders = filteredHeaders
+      } else if (typeof rawHeaders === 'object') {
+        for (const name of Object.keys(rawHeaders)) {
+          const lowerName = name.toLowerCase()
+          if (lowerName === 'content-encoding' || lowerName === 'content-length') {
+            delete rawHeaders[name]
+          }
+        }
+      }
+    }
 
     if (this.#decompressors.length === 1) {
       this.#setupSingleDecompressor(controller)

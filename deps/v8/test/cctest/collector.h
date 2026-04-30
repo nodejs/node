@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/base/iterator.h"
 #include "src/base/vector.h"
 #include "src/common/checks.h"
 
@@ -33,8 +34,8 @@ class Collector {
   virtual ~Collector() {
     // Free backing store (in reverse allocation order).
     current_chunk_.Dispose();
-    for (auto rit = chunks_.rbegin(); rit != chunks_.rend(); ++rit) {
-      rit->Dispose();
+    for (auto& chunk : base::Reversed(chunks_)) {
+      chunk.Dispose();
     }
   }
 
@@ -111,8 +112,8 @@ class Collector {
 
   // Resets the collector to be empty.
   virtual void Reset() {
-    for (auto rit = chunks_.rbegin(); rit != chunks_.rend(); ++rit) {
-      rit->Dispose();
+    for (auto& chunk : base::Reversed(chunks_)) {
+      chunk.Dispose();
     }
     chunks_.clear();
     index_ = 0;

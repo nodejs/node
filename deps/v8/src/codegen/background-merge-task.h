@@ -5,6 +5,7 @@
 #ifndef V8_CODEGEN_BACKGROUND_MERGE_TASK_H_
 #define V8_CODEGEN_BACKGROUND_MERGE_TASK_H_
 
+#include <unordered_set>
 #include <vector>
 
 #include "src/handles/maybe-handles.h"
@@ -88,6 +89,7 @@ class V8_EXPORT_PRIVATE BackgroundMergeTask {
     Handle<SharedFunctionInfo> new_sfi;
   };
   std::vector<NewCompiledDataForCachedSfi> new_compiled_data_for_cached_sfis_;
+  std::unordered_set<int> sfis_without_scope_info_;
 
   enum State {
     kNotStarted,

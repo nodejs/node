@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,7 @@
 #include "crypto/bn_dh.h"
 
 #if BN_BITS2 == 64
-#define BN_DEF(lo, hi) (BN_ULONG) hi << 32 | lo
+#define BN_DEF(lo, hi) (BN_ULONG)hi << 32 | lo
 #else
 #define BN_DEF(lo, hi) lo, hi
 #endif
@@ -1387,37 +1387,37 @@ const BIGNUM ossl_bignum_const_2 = {
 };
 
 make_dh_bn(dh1024_160_p)
-    make_dh_bn(dh1024_160_q)
-        make_dh_bn(dh1024_160_g)
-            make_dh_bn(dh2048_224_p)
-                make_dh_bn(dh2048_224_q)
-                    make_dh_bn(dh2048_224_g)
-                        make_dh_bn(dh2048_256_p)
-                            make_dh_bn(dh2048_256_q)
-                                make_dh_bn(dh2048_256_g)
+make_dh_bn(dh1024_160_q)
+make_dh_bn(dh1024_160_g)
+make_dh_bn(dh2048_224_p)
+make_dh_bn(dh2048_224_q)
+make_dh_bn(dh2048_224_g)
+make_dh_bn(dh2048_256_p)
+make_dh_bn(dh2048_256_q)
+make_dh_bn(dh2048_256_g)
 
-                                    make_dh_bn(ffdhe2048_p)
-                                        make_dh_bn(ffdhe2048_q)
-                                            make_dh_bn(ffdhe3072_p)
-                                                make_dh_bn(ffdhe3072_q)
-                                                    make_dh_bn(ffdhe4096_p)
-                                                        make_dh_bn(ffdhe4096_q)
-                                                            make_dh_bn(ffdhe6144_p)
-                                                                make_dh_bn(ffdhe6144_q)
-                                                                    make_dh_bn(ffdhe8192_p)
-                                                                        make_dh_bn(ffdhe8192_q)
+make_dh_bn(ffdhe2048_p)
+make_dh_bn(ffdhe2048_q)
+make_dh_bn(ffdhe3072_p)
+make_dh_bn(ffdhe3072_q)
+make_dh_bn(ffdhe4096_p)
+make_dh_bn(ffdhe4096_q)
+make_dh_bn(ffdhe6144_p)
+make_dh_bn(ffdhe6144_q)
+make_dh_bn(ffdhe8192_p)
+make_dh_bn(ffdhe8192_q)
 
 #ifndef FIPS_MODULE
-                                                                            make_dh_bn(modp_1536_p)
-                                                                                make_dh_bn(modp_1536_q)
+make_dh_bn(modp_1536_p)
+make_dh_bn(modp_1536_q)
 #endif
-                                                                                    make_dh_bn(modp_2048_p)
-                                                                                        make_dh_bn(modp_2048_q)
-                                                                                            make_dh_bn(modp_3072_p)
-                                                                                                make_dh_bn(modp_3072_q)
-                                                                                                    make_dh_bn(modp_4096_p)
-                                                                                                        make_dh_bn(modp_4096_q)
-                                                                                                            make_dh_bn(modp_6144_p)
-                                                                                                                make_dh_bn(modp_6144_q)
-                                                                                                                    make_dh_bn(modp_8192_p)
-                                                                                                                        make_dh_bn(modp_8192_q)
+make_dh_bn(modp_2048_p)
+make_dh_bn(modp_2048_q)
+make_dh_bn(modp_3072_p)
+make_dh_bn(modp_3072_q)
+make_dh_bn(modp_4096_p)
+make_dh_bn(modp_4096_q)
+make_dh_bn(modp_6144_p)
+make_dh_bn(modp_6144_q)
+make_dh_bn(modp_8192_p)
+make_dh_bn(modp_8192_q)

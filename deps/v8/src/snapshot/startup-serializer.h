@@ -54,6 +54,7 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
 
   SharedHeapSerializer* const shared_heap_serializer_;
   GlobalHandleVector<AccessorInfo> accessor_infos_;
+  GlobalHandleVector<InterceptorInfo> interceptor_infos_;
   GlobalHandleVector<FunctionTemplateInfo> function_template_infos_;
 };
 

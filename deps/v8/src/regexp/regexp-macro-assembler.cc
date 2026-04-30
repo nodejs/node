@@ -20,15 +20,21 @@
 namespace v8 {
 namespace internal {
 
-RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
+RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone,
+                                           Mode mode)
     : slow_safe_compiler_(false),
       backtrack_limit_(JSRegExp::kNoBacktrackLimit),
       global_mode_(NOT_GLOBAL),
       isolate_(isolate),
-      zone_(zone) {}
+      zone_(zone),
+      mode_(mode) {}
 
 bool RegExpMacroAssembler::has_backtrack_limit() const {
   return backtrack_limit_ != JSRegExp::kNoBacktrackLimit;
+}
+
+int RegExpMacroAssembler::stack_limit_slack_slot_count() const {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
 
 bool RegExpMacroAssembler::CanReadUnaligned() const {
@@ -352,6 +358,63 @@ void RegExpMacroAssembler::SkipUntilOneOfMasked(
   AdvanceCurrentPosition(advance_by);
   GoTo(&loop);
 }
+
+bool RegExpMacroAssembler::CanOptimizeSpecialClassRanges(
+    StandardCharacterSet character_set) const {
+  if (character_set == StandardCharacterSet::kNotWhitespace) {
+    // The emitted code for generic character classes is good enough.
+    return false;
+  }
+  if (character_set == StandardCharacterSet::kWhitespace &&
+      mode() != Mode::LATIN1) {
+    // TODO(pthier): Support \s for 2-byte inputs.
+    return false;
+  }
+  return true;
+}
+
+void RegExpMacroAssembler::SkipUntilOneOfMasked3(
+    const SkipUntilOneOfMasked3Args& args) {
+  // The base implementation for architectures that don't implement simd
+  // optimizations.
+  //
+  // See the definition of the kSkipUntilOneOfMasked3 peephole bytecode
+  // for more context. The initial bytecode sequence is:
+  //
+  // sequence offset name
+  // bc0   0  SkipUntilBitInTable
+  // bc1  20  CheckPosition
+  // bc2  28  Load4CurrentCharsUnchecked
+  // bc3  2c  AndCheck4Chars
+  // bc4  3c  AdvanceCpAndGoto
+  // bc5  48  Load4CurrentChars
+  // bc6  4c  AndCheck4Chars
+  // bc7  5c  AndCheck4Chars
+  // bc8  6c  AndCheckNot4Chars
+
+  Label bc0_skip_until_bit_in_table, bc1_check_current_position,
+      bc4_advance_cp_and_goto, bc5_load_4_current_chars;
+  Bind(&bc0_skip_until_bit_in_table);
+  SkipUntilBitInTable(args.bc0_cp_offset, args.bc0_table, args.bc0_nibble_table,
+                      args.bc0_advance_by, &bc1_check_current_position,
+                      &bc1_check_current_position);
+  Bind(&bc1_check_current_position);
+  CheckPosition(args.bc1_cp_offset, args.bc1_on_failure);
+  LoadCurrentCharacter(args.bc2_cp_offset, nullptr, false, 4);
+  CheckCharacterAfterAnd(args.bc3_characters, args.bc3_mask,
+                         &bc5_load_4_current_chars);
+  Bind(&bc4_advance_cp_and_goto);
+  AdvanceCurrentPosition(args.bc4_by);
+  GoTo(&bc0_skip_until_bit_in_table);
+  Bind(&bc5_load_4_current_chars);
+  LoadCurrentCharacter(args.bc5_cp_offset, &bc4_advance_cp_and_goto, true, 4);
+  CheckCharacterAfterAnd(args.bc6_characters, args.bc6_mask, args.bc6_on_equal);
+  CheckCharacterAfterAnd(args.bc7_characters, args.bc7_mask, args.bc7_on_equal);
+  CheckNotCharacterAfterAnd(args.bc8_characters, args.bc8_mask,
+                            &bc4_advance_cp_and_goto);
+  GoTo(args.fallthrough_jump_target);
+}
+
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // This method may only be called after an interrupt.
@@ -535,7 +598,7 @@ int NativeRegExpMacroAssembler::Execute(
 #endif  // !COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER
 
 // clang-format off
-const uint8_t NativeRegExpMacroAssembler::word_character_map[] = {
+const uint8_t RegExpMacroAssembler::word_character_map_[] = {
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,

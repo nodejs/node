@@ -74,11 +74,16 @@ if (global.gc) {
   intrinsics.add('gc');
 }
 
+if (global.Temporal) {
+  intrinsics.add('Temporal');
+}
+
 // v8 exposes console in the global scope.
 intrinsics.add('console');
 
 const webIdlExposedWildcard = new Set([
   'DOMException',
+  'QuotaExceededError',
   'TextEncoder',
   'TextDecoder',
   'AbortController',

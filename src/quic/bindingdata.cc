@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "bindingdata.h"
 #include <base_object-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -13,6 +12,7 @@
 #include <node_mem-inl.h>
 #include <node_realm-inl.h>
 #include <v8.h>
+#include "bindingdata.h"
 
 namespace node {
 
@@ -61,8 +61,6 @@ void BindingData::DecreaseAllocatedSize(size_t size) {
 
 void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
-  SetMethod(
-      realm->context(), target, "flushPacketFreelist", FlushPacketFreelist);
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
 
@@ -70,7 +68,6 @@ void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(IllegalConstructor);
   registry->Register(SetCallbacks);
-  registry->Register(FlushPacketFreelist);
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
@@ -163,12 +160,6 @@ JS_METHOD_IMPL(BindingData::SetCallbacks) {
   QUIC_JS_CALLBACKS(V)
 
 #undef V
-}
-
-JS_METHOD_IMPL(BindingData::FlushPacketFreelist) {
-  auto env = Environment::GetCurrent(args);
-  auto& state = Get(env);
-  state.packet_freelist.clear();
 }
 
 NgTcp2CallbackScope::NgTcp2CallbackScope(Environment* env) : env(env) {

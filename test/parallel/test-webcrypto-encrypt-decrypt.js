@@ -43,14 +43,14 @@ const { subtle } = globalThis.crypto;
       name: 'RSA-OAEP',
     }, privateKey, buf), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key'
+      message: 'Unable to use this key to encrypt'
     });
 
     await assert.rejects(() => subtle.decrypt({
       name: 'RSA-OAEP',
     }, publicKey, ciphertext), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key'
+      message: 'Unable to use this key to decrypt'
     });
   }
 
@@ -88,14 +88,14 @@ if (!process.features.openssl_is_boringssl) {
       name: 'RSA-OAEP',
     }, privateKey, buf), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key'
+      message: 'Unable to use this key to encrypt'
     });
 
     await assert.rejects(() => subtle.decrypt({
       name: 'RSA-OAEP',
     }, publicKey, ciphertext), {
       name: 'InvalidAccessError',
-      message: 'The requested operation is not valid for the provided key'
+      message: 'Unable to use this key to decrypt'
     });
   }
 

@@ -1,12 +1,15 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "sessionticket.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <node_buffer.h>
 #include <node_errors.h>
+#include <node_sockaddr-inl.h>
+#include "session.h"
+#include "sessionticket.h"
+#include "tlscontext.h"
 
 namespace node {
 
@@ -25,12 +28,8 @@ namespace quic {
 
 namespace {
 SessionTicket::AppData::Source* GetAppDataSource(SSL* ssl) {
-  ngtcp2_crypto_conn_ref* ref =
-      static_cast<ngtcp2_crypto_conn_ref*>(SSL_get_app_data(ssl));
-  if (ref != nullptr && ref->user_data != nullptr) {
-    return static_cast<SessionTicket::AppData::Source*>(ref->user_data);
-  }
-  return nullptr;
+  auto& tls_session = TLSSession::From(ssl);
+  return &tls_session.session().ticket_app_data_source();
 }
 }  // namespace
 

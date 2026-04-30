@@ -110,6 +110,12 @@ all: \
   ml_dsa_87_private_seed_only.pem \
   ml_dsa_87_private_priv_only.pem \
   ml_dsa_87_public.pem \
+  ml-dsa-44.json \
+  ml-dsa-65.json \
+  ml-dsa-87.json \
+  ml-kem-512.json \
+  ml-kem-768.json \
+  ml-kem-1024.json \
   ml_kem_512_private.pem \
   ml_kem_512_private_seed_only.pem \
   ml_kem_512_private_priv_only.pem \
@@ -146,6 +152,18 @@ all: \
   slh_dsa_shake_256s_public.pem \
   slh_dsa_shake_256f_private.pem \
   slh_dsa_shake_256f_public.pem \
+  slh-dsa-sha2-128s.json \
+  slh-dsa-sha2-128f.json \
+  slh-dsa-sha2-192s.json \
+  slh-dsa-sha2-192f.json \
+  slh-dsa-sha2-256s.json \
+  slh-dsa-sha2-256f.json \
+  slh-dsa-shake-128s.json \
+  slh-dsa-shake-128f.json \
+  slh-dsa-shake-192s.json \
+  slh-dsa-shake-192f.json \
+  slh-dsa-shake-256s.json \
+  slh-dsa-shake-256f.json \
 
 #
 # Create Certificate Authority: ca1
@@ -1046,6 +1064,39 @@ ml_kem_1024_private_priv_only.pem: ml_kem_1024_private.pem
 
 ml_kem_1024_public.pem: ml_kem_1024_private.pem
 	openssl pkey -in ml_kem_1024_private.pem -pubout -out ml_kem_1024_public.pem
+
+define GEN_PQC_JWK
+$(1): $(subst -,_,$(basename $(1)))_private.pem
+	../../../node -e '\
+		const { readFileSync, writeFileSync } = require("fs"); \
+		const { createPrivateKey } = require("crypto"); \
+		const pem = "$(subst -,_,$(basename $(1)))_private.pem"; \
+		const key = createPrivateKey(readFileSync(pem)); \
+		const jwk = JSON.stringify(key.export({ format: "jwk" }), null, 2); \
+		writeFileSync("$(1)", jwk + "\n")'
+endef
+
+PQC_JWK_FIXTURES = \
+  ml-dsa-44.json \
+  ml-dsa-65.json \
+  ml-dsa-87.json \
+  ml-kem-512.json \
+  ml-kem-768.json \
+  ml-kem-1024.json \
+  slh-dsa-sha2-128s.json \
+  slh-dsa-sha2-128f.json \
+  slh-dsa-sha2-192s.json \
+  slh-dsa-sha2-192f.json \
+  slh-dsa-sha2-256s.json \
+  slh-dsa-sha2-256f.json \
+  slh-dsa-shake-128s.json \
+  slh-dsa-shake-128f.json \
+  slh-dsa-shake-192s.json \
+  slh-dsa-shake-192f.json \
+  slh-dsa-shake-256s.json \
+  slh-dsa-shake-256f.json \
+
+$(foreach v,$(PQC_JWK_FIXTURES),$(eval $(call GEN_PQC_JWK,$(v))))
 
 x448_private.pem:
 	openssl genpkey -algorithm x448 -out x448_private.pem

@@ -314,14 +314,14 @@ git checkout -b v1.2.3-proposal upstream/v1.x-staging
 You can also run:
 
 ```bash
-git node release -S --prepare --security --filterLabel vX.x
+git node release -S --prepare --security=../vulnerabilities.json --filterLabel vX.x
 ```
 
 Example:
 
 ```bash
 git checkout v20.x
-git node release -S --prepare --security --filterLabel v20.x
+git node release -S --prepare --security=../vulnerabilities.json --filterLabel v20.x
 ```
 
 to automate the remaining steps until step 6 or you can perform it manually
@@ -329,7 +329,7 @@ following the below steps. For semver-minors, you can pass the new version
 explicitly with `--newVersion` arg:
 
 ```bash
-git node release -S --prepare --security --filterLabel v20.x --newVersion 20.20.0
+git node release -S --prepare --security=../vulnerabilities.json --filterLabel v20.x --newVersion 20.20.0
 ```
 
 <details>
@@ -1124,7 +1124,7 @@ This script will use the promoted builds and changelog to generate the post.
 
 The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on social media, please ping the @nodejs-social-team
-on offical slack channel.
+on official slack channel.
 
 Node.js is also available on Bluesky and a release announcement can be
 reposted using [nodejs/bluesky](https://github.com/nodejs/bluesky) repository.

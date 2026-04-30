@@ -120,9 +120,8 @@ transitioning javascript builtin TypedArrayFrom(
           }
 
           case (sourceTypedArray: JSTypedArray): {
-            finalLength =
-                LoadJSTypedArrayLengthAndCheckDetached(sourceTypedArray)
-                otherwise UseUserProvidedIterator;
+            finalLength = LoadJSTypedArrayLengthAndValidate(
+                sourceTypedArray, TypedArrayAccessMode::kRead) otherwise Fail;
 
             // Check that the iterator function is exactly
             // Builtin::kTypedArrayPrototypeValues.
@@ -158,6 +157,8 @@ transitioning javascript builtin TypedArrayFrom(
             goto UseUserProvidedIterator;
           }
         }
+      } label Fail {
+        goto UseUserProvidedIterator;
       } label UseUserProvidedIterator {
         // 6. If usingIterator is not undefined, then
         //  a. Let values be ? IterableToList(source, usingIterator).
@@ -193,8 +194,9 @@ transitioning javascript builtin TypedArrayFrom(
     const finalLengthNum = Convert<Number>(finalLength);
 
     // 6c/10. Let targetObj be ? TypedArrayCreate(C, «len»).
-    const targetObj =
-        TypedArrayCreateByLength(constructor, finalLengthNum, kBuiltinNameFrom);
+    const targetObj = TypedArrayCreateByLength(
+        constructor, finalLengthNum, kBuiltinNameFrom,
+        TypedArrayAccessMode::kWrite);
 
     if (!mapping) {
       // Fast path.

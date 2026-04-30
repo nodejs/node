@@ -77,9 +77,14 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
+        working-directory: node
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
       - name: Test
-        run: make -C node test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+        working-directory: node
+        run: make test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+      - name: Ensure running tests did not cause any change in the tree
+        working-directory: node
+        run: git add -A && git diff --name-only --exit-code --staged
       - name: Re-run test in a folder whose name contains unusual chars
         run: |
           mv node "$DIR"

@@ -15,6 +15,9 @@
 #include "quic/guard.h"
 #include "sqlite3.h"
 #endif  // HAVE_SQLITE
+#if HAVE_FFI
+#include "ffi.h"
+#endif  // HAVE_FFI
 #include "undici_version.h"
 #include "util.h"
 #include "uv.h"
@@ -169,6 +172,9 @@ Metadata::Versions::Versions() {
 #if HAVE_SQLITE
   sqlite = SQLITE_VERSION;
 #endif  // HAVE_SQLITE
+#if HAVE_FFI
+  libffi = FFI_VERSION_STRING;
+#endif  // HAVE_FFI
   ada = ADA_VERSION;
   nbytes = NBYTES_VERSION;
 }

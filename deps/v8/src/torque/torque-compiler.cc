@@ -7,12 +7,17 @@
 #include <fstream>
 #include <optional>
 
+#include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/global-context.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/torque-parser.h"
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+#include "src/torque/tsa-generator.h"
+#endif
 #include "src/torque/type-oracle.h"
+#include "src/torque/utils.h"
 
 namespace v8::internal::torque {
 
@@ -46,6 +51,8 @@ void ReadAndParseTorqueFile(const std::string& path) {
 }
 
 void CompileCurrentAst(TorqueCompilerOptions options) {
+  std::string output_directory = options.output_directory;
+
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
   if (options.collect_language_server_data) {
     GlobalContext::SetCollectLanguageServerData();
@@ -74,7 +81,17 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   // mutually refer to each others.
   TypeOracle::FinalizeAggregateTypes();
 
-  std::string output_directory = options.output_directory;
+  if (options.output_tsa) {
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+#ifdef DEBUG
+    std::cout << "=== RUNNING TORQUE TO GENERATE TSA ===" << std::endl;
+#endif
+    GenerateTSA(*GlobalContext::ast(), output_directory);
+    return;
+#else
+    UNREACHABLE();
+#endif
+  }
 
   ImplementationVisitor implementation_visitor;
   implementation_visitor.SetDryRun(output_directory.empty());

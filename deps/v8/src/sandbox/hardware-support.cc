@@ -47,7 +47,7 @@ bool SandboxHardwareSupport::IsStrict() {
 }
 
 // static
-void SandboxHardwareSupport::EnableForCurrentThread() {
+void SandboxHardwareSupport::EnableForCurrentThread(void* limit_address) {
   if (!IsActive()) return;
 
   // Per-thread setup is only required if the strict sandboxing mode is used.
@@ -77,8 +77,8 @@ void SandboxHardwareSupport::EnableForCurrentThread() {
   // the extension_pkey_ to it here.
   // Note: this is unsafe. For any production use, we'd probably need to use
   // untrusted stacks. See https://crbug.com/428680013.
-  CHECK(
-      base::MemoryProtectionKey::SetKeyForCurrentThreadsStack(extension_pkey_));
+  CHECK(base::MemoryProtectionKey::SetKeyForCurrentThreadsStack(extension_pkey_,
+                                                                limit_address));
 }
 
 void SandboxHardwareSupport::RegisterOutOfSandboxMemory(
@@ -243,36 +243,17 @@ bool SandboxHardwareSupport::TryActivate() {
 }
 
 #ifdef DEBUG
-// DisallowSandboxAccess scopes can be arbitrarily nested and even attached to
-// heap-allocated objects (so their lifetime isn't necessarily tied to a stack
-// frame). For that to work correctly, we need to track the activation count in
-// a per-thread global variable.
-thread_local unsigned disallow_sandbox_access_activation_counter_ = 0;
-// AllowSandboxAccess scopes on the other hand cannot be nested. There must be
-// at most a single one active at any point in time. These are supposed to only
-// be used for short sequences of code that's otherwise running with an active
-// DisallowSandboxAccess scope.
-thread_local bool has_active_allow_sandbox_access_scope_ = false;
-
-DisallowSandboxAccess::DisallowSandboxAccess() {
+DisallowSandboxAccess::DisallowSandboxAccess(const char* reason) {
   pkey_ = SandboxHardwareSupport::sandbox_pkey_;
   if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
     return;
   }
 
-  // Using a DisallowSandboxAccess inside an AllowSandboxAccess isn't currently
-  // allowed, but we could add support for that in the future if needed.
-  DCHECK_WITH_MSG(!has_active_allow_sandbox_access_scope_,
-                  "DisallowSandboxAccess cannot currently be nested inside an "
-                  "AllowSandboxAccess");
-
-  if (disallow_sandbox_access_activation_counter_ == 0) {
-    DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
-              base::MemoryProtectionKey::Permission::kNoRestrictions);
+  previous_permission_ = base::MemoryProtectionKey::GetKeyPermission(pkey_);
+  if (previous_permission_ != base::MemoryProtectionKey::kDisableAccess) {
     base::MemoryProtectionKey::SetPermissionsForKey(
         pkey_, base::MemoryProtectionKey::Permission::kDisableAccess);
   }
-  disallow_sandbox_access_activation_counter_ += 1;
 }
 
 DisallowSandboxAccess::~DisallowSandboxAccess() {
@@ -280,60 +261,48 @@ DisallowSandboxAccess::~DisallowSandboxAccess() {
     return;
   }
 
-  DCHECK_NE(disallow_sandbox_access_activation_counter_, 0);
-  disallow_sandbox_access_activation_counter_ -= 1;
-  if (disallow_sandbox_access_activation_counter_ == 0) {
-    DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
-              base::MemoryProtectionKey::Permission::kDisableAccess);
+  // When this scope is destroyed, the pkey must be in the state that we set it
+  // to in the constructor. If this check fails, then the scopes were not used
+  // in a strict LIFO order (i.e. an inner scope outlived an outer scope).
+  base::MemoryProtectionKey::Permission current_permission =
+      base::MemoryProtectionKey::GetKeyPermission(pkey_);
+  DCHECK_EQ(current_permission, base::MemoryProtectionKey::kDisableAccess);
+
+  if (current_permission != previous_permission_) {
+    base::MemoryProtectionKey::SetPermissionsForKey(pkey_,
+                                                    previous_permission_);
+  }
+}
+
+AllowSandboxAccess::AllowSandboxAccess(const char* justification) {
+  pkey_ = SandboxHardwareSupport::sandbox_pkey_;
+  if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
+    return;
+  }
+
+  previous_permission_ = base::MemoryProtectionKey::GetKeyPermission(pkey_);
+  if (previous_permission_ != base::MemoryProtectionKey::kNoRestrictions) {
     base::MemoryProtectionKey::SetPermissionsForKey(
         pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
   }
 }
 
-AllowSandboxAccess::AllowSandboxAccess() {
-  if (disallow_sandbox_access_activation_counter_ == 0) {
-    // This means that either scope enforcement is disabled due to a lack of
-    // PKEY support on the system or that there is no active
-    // DisallowSandboxAccess. In both cases, we don't need to do anything here
-    // and this scope object is just a no-op.
-    pkey_ = base::MemoryProtectionKey::kNoMemoryProtectionKey;
-    return;
-  }
-
-  DCHECK_WITH_MSG(!has_active_allow_sandbox_access_scope_,
-                  "AllowSandboxAccess scopes cannot be nested");
-  has_active_allow_sandbox_access_scope_ = true;
-
-  pkey_ = SandboxHardwareSupport::sandbox_pkey_;
-  // We must have an active DisallowSandboxAccess so PKEYs must be supported.
-  DCHECK_NE(pkey_, base::MemoryProtectionKey::kNoMemoryProtectionKey);
-
-  DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
-            base::MemoryProtectionKey::Permission::kDisableAccess);
-  base::MemoryProtectionKey::SetPermissionsForKey(
-      pkey_, base::MemoryProtectionKey::Permission::kNoRestrictions);
-}
-
 AllowSandboxAccess::~AllowSandboxAccess() {
   if (pkey_ == base::MemoryProtectionKey::kNoMemoryProtectionKey) {
-    // There was no DisallowSandboxAccess scope active when this
-    // AllowSandboxAccess scope was created, and we don't expect one to have
-    // been created in the meantime.
-    DCHECK_EQ(disallow_sandbox_access_activation_counter_, 0);
     return;
   }
 
-  // There was an active DisallowSandboxAccess scope when this
-  // AllowSandboxAccess scope was created, and we expect it to still be there.
-  DCHECK_GT(disallow_sandbox_access_activation_counter_, 0);
+  // When this scope is destroyed, the pkey must be in the state that we set it
+  // to in the constructor. If this check fails, then the scopes were not used
+  // in a strict LIFO order (i.e. an inner scope outlived an outer scope).
+  base::MemoryProtectionKey::Permission current_permission =
+      base::MemoryProtectionKey::GetKeyPermission(pkey_);
+  DCHECK_EQ(current_permission, base::MemoryProtectionKey::kNoRestrictions);
 
-  DCHECK(has_active_allow_sandbox_access_scope_);
-  has_active_allow_sandbox_access_scope_ = false;
-
-  DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(pkey_),
-            base::MemoryProtectionKey::Permission::kNoRestrictions);
-  base::MemoryProtectionKey::SetPermissionsForKey(
-      pkey_, base::MemoryProtectionKey::Permission::kDisableAccess);
+  if (current_permission != previous_permission_) {
+    base::MemoryProtectionKey::SetPermissionsForKey(pkey_,
+                                                    previous_permission_);
+  }
 }
 #endif  // DEBUG
 

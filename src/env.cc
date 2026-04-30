@@ -938,6 +938,9 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kChildProcess);
     }
+    if (!options_->allow_ffi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kFFI);
+    }
     if (!options_->allow_worker_threads) {
       permission()->Apply(
           this, {"*"}, permission::PermissionScope::kWorkerThreads);
@@ -2261,14 +2264,18 @@ void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
 
-v8::CpuProfilingResult Environment::StartCpuProfile() {
+v8::CpuProfilingResult Environment::StartCpuProfile(
+    const CpuProfileOptions& options) {
   HandleScope handle_scope(isolate());
   if (!cpu_profiler_) {
     cpu_profiler_ = v8::CpuProfiler::New(isolate());
   }
-  v8::CpuProfilingResult result = cpu_profiler_->Start(
-      v8::CpuProfilingOptions{v8::CpuProfilingMode::kLeafNodeLineNumbers,
-                              v8::CpuProfilingOptions::kNoSampleLimit});
+  v8::CpuProfilingOptions start_options(
+      v8::CpuProfilingMode::kLeafNodeLineNumbers,
+      options.max_samples,
+      options.sampling_interval_us);
+  v8::CpuProfilingResult result =
+      cpu_profiler_->Start(std::move(start_options));
   if (result.status == v8::CpuProfilingStatus::kStarted) {
     pending_profiles_.push_back(result.id);
   }

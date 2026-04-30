@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -81,7 +81,7 @@ ASN1_SEQUENCE(SSL_SESSION_ASN1) = {
     ASN1_EXP_OPT(SSL_SESSION_ASN1, peer_rpk, ASN1_OCTET_STRING, 20)
 } static_ASN1_SEQUENCE_END(SSL_SESSION_ASN1)
 
-    IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(SSL_SESSION_ASN1)
+IMPLEMENT_STATIC_ASN1_ENCODE_FUNCTIONS(SSL_SESSION_ASN1)
 
 /* Utility functions for i2d_SSL_SESSION */
 

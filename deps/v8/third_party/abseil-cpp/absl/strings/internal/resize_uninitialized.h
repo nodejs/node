@@ -68,18 +68,6 @@ inline void STLStringResizeUninitialized(string_type* s, size_t new_size) {
   ResizeUninitializedTraits<string_type>::Resize(s, new_size);
 }
 
-// Used to ensure exponential growth so that the amortized complexity of
-// increasing the string size by a small amount is O(1), in contrast to
-// O(str->size()) in the case of precise growth.
-template <typename string_type>
-void STLStringReserveAmortized(string_type* s, size_t new_size) {
-  const size_t cap = s->capacity();
-  if (new_size > cap) {
-    // Make sure to always grow by at least a factor of 2x.
-    s->reserve((std::max)(new_size, 2 * cap));
-  }
-}
-
 // In this type trait, we look for an __append_default_init member function, and
 // we use it if available, otherwise, we use append.
 template <typename string_type, typename = void>

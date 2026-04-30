@@ -45,13 +45,25 @@ ABSL_NAMESPACE_BEGIN
 namespace log_internal {
 
 namespace {
-bool ModuleIsPath(absl::string_view module_pattern) {
+
 #ifdef _WIN32
-  return module_pattern.find_first_of("/\\") != module_pattern.npos;
+constexpr char kPathSeparators[] = "/\\";
 #else
-  return module_pattern.find('/') != module_pattern.npos;
+constexpr char kPathSeparators[] = "/";
 #endif
+
+bool ModuleIsPath(absl::string_view module_pattern) {
+  return module_pattern.find_first_of(kPathSeparators) != module_pattern.npos;
 }
+
+absl::string_view Basename(absl::string_view file) {
+  auto sep = file.find_last_of(kPathSeparators);
+  if (sep != file.npos) {
+    file.remove_prefix(sep + 1);
+  }
+  return file;
+}
+
 }  // namespace
 
 bool VLogSite::SlowIsEnabled(int stale_v, int level) {
@@ -129,21 +141,9 @@ int VLogLevel(absl::string_view file, const std::vector<VModuleInfo>* infos,
   // parsing flags).  We can't allocate in `VLOG`, so we treat null as empty
   // here and press on.
   if (!infos || infos->empty()) return current_global_v;
-  // Get basename for file
-  absl::string_view basename = file;
-  {
-    const size_t sep = basename.rfind('/');
-    if (sep != basename.npos) {
-      basename.remove_prefix(sep + 1);
-#ifdef _WIN32
-    } else {
-      const size_t sep = basename.rfind('\\');
-      if (sep != basename.npos) basename.remove_prefix(sep + 1);
-#endif
-    }
-  }
 
-  absl::string_view stem = file, stem_basename = basename;
+  absl::string_view stem = file;
+  absl::string_view stem_basename = Basename(stem);
   {
     const size_t sep = stem_basename.find('.');
     if (sep != stem_basename.npos) {

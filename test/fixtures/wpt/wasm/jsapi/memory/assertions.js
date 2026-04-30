@@ -26,6 +26,7 @@ function assert_ArrayBuffer(actual, { size=0, shared=false, detached=false }, me
   assert_equals(Object.isFrozen(actual), shared, "buffer frozen");
   assert_equals(Object.isExtensible(actual), !shared, "buffer extensibility");
 }
+globalThis.assert_ArrayBuffer = assert_ArrayBuffer;
 
 function assert_Memory(memory, { size=0, shared=false }) {
   assert_equals(Object.getPrototypeOf(memory), WebAssembly.Memory.prototype,
@@ -36,3 +37,4 @@ function assert_Memory(memory, { size=0, shared=false }) {
   assert_equals(memory.buffer, memory.buffer, "buffer should be idempotent");
   assert_ArrayBuffer(memory.buffer, { size, shared });
 }
+globalThis.assert_Memory = assert_Memory;

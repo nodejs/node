@@ -50,9 +50,9 @@ flag.
 
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
-spawn processes, use `node:worker_threads`, use native addons, use WASI, and
-enable the runtime inspector will be restricted (the listener for SIGUSR1 won't
-be created).
+spawn processes, use `node:worker_threads`, use native addons, use WASI, use
+FFI, and enable the runtime inspector will be restricted (the listener for
+SIGUSR1 won't be created).
 
 ```console
 $ node --permission index.js
@@ -70,7 +70,9 @@ using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
 To allow network access, use [`--allow-net`][] and for allowing native addons
 when using permission model, use the [`--allow-addons`][]
-flag. For WASI, use the [`--allow-wasi`][] flag.
+flag. For WASI, use the [`--allow-wasi`][] flag. For FFI, use the
+[`--allow-ffi`][] flag. The [`node:ffi`](ffi.md) module also requires the
+`--experimental-ffi` flag and is only available in builds with FFI support.
 
 #### Runtime API
 
@@ -170,7 +172,8 @@ Example `node.config.json`:
     "allow-child-process": true,
     "allow-worker": true,
     "allow-net": true,
-    "allow-addons": false
+    "allow-addons": false,
+    "allow-ffi": false
   }
 }
 ```
@@ -232,6 +235,7 @@ There are constraints you need to know before using this system:
   * Inspector protocol
   * File system access
   * WASI
+  * FFI
 * The Permission Model is initialized after the Node.js environment is set up.
   However, certain flags such as `--env-file` or `--openssl-config` are designed
   to read files before environment initialization. As a result, such flags are
@@ -244,6 +248,30 @@ There are constraints you need to know before using this system:
 * Using existing file descriptors via the `node:fs` module bypasses the
   Permission Model.
 
+#### process.\_debugProcess() and cross-process Inspector activation
+
+The `kInspector` permission scope restricts the current process from opening its own V8 Inspector. However,
+process.\_debugProcess(pid) — which sends an OS-level signal (SIGUSR1 on POSIX, a remote thread on Windows)
+to an external process — is not gated by the `kInspector` scope or any other Permission Model scope.
+
+A sandboxed process running under --permission with no additional grants can call process.\_debugProcess(pid)
+to force another Node.js process to open its V8 Inspector. The target process does not need to be running
+under --permission for this to work — any Node.js process running on the same host under the same OS user
+can be signaled.
+
+This is consistent with the Node.js threat model: Node.js trusts the OS environment in which it runs.
+Cross-process signaling is an operating-system-level capability; restricting it is the responsibility of
+the operator (for example, using OS-level process isolation, separate OS users per process, or
+seccomp/AppArmor profiles on Linux).
+
+Developers relying on --permission to sandbox untrusted code should be aware that:
+
+* process.\_debugProcess() is callable from any sandboxed process with no grants.
+* If a target Node.js process is running on the same host under the same OS user, it can be forced to
+  open its Inspector via this API.
+* To prevent this, run sandboxed and target processes under different OS users, or use OS-level isolation
+  mechanisms outside of Node.js.
+
 #### Limitations and Known Issues
 
 * Symbolic links will be followed even to locations outside of the set of paths
@@ -255,6 +283,7 @@ There are constraints you need to know before using this system:
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
+[`--allow-ffi`]: cli.md#--allow-ffi
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
 [`--allow-net`]: cli.md#--allow-net

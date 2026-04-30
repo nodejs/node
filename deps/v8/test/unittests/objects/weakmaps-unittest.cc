@@ -273,7 +273,7 @@ TEST_F(WeakMapsTest, Regress2060a) {
   DirectHandle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Start second old-space page so that values land on evacuation candidate.
-  PageMetadata* first_page = heap->old_space()->first_page();
+  NormalPage* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
@@ -313,7 +313,7 @@ TEST_F(WeakMapsTest, Regress2060b) {
       factory->NewFunctionForTesting(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  PageMetadata* first_page = heap->old_space()->first_page();
+  NormalPage* first_page = heap->old_space()->first_page();
   SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
@@ -361,7 +361,7 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
       i_isolate()->heap());
   v8::HandleScope scope(isolate);
 
-  const int initial_gc_count = i_isolate()->heap()->gc_count();
+  const GCEpoch initial_gc_count = i_isolate()->heap()->gc_count();
   DirectHandle<JSWeakMap> weakmap1 = i_isolate()->factory()->NewJSWeakMap();
   DirectHandle<JSWeakMap> weakmap2 = i_isolate()->factory()->NewJSWeakMap();
   v8::Global<v8::Object> g1;
@@ -384,7 +384,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
   InvokeMajorGC();
   CHECK(g1.IsEmpty());
   CHECK(g2.IsEmpty());
-  CHECK_EQ(1, i_isolate()->heap()->gc_count() - initial_gc_count);
+  CHECK_EQ(1,
+           i_isolate()->heap()->gc_count().value() - initial_gc_count.value());
 }
 
 }  // namespace test_weakmaps

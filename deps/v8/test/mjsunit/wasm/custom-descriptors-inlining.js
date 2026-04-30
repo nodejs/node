@@ -29,7 +29,7 @@ let $make = builder.addFunction("make", makeSig([], [kWasmExternRef]))
     .exportFunc()
     .addBody([
       kExprGlobalGet, $glob0.index,
-      kGCPrefix, kExprStructNewDefault, $struct0,
+      kGCPrefix, kExprStructNewDefaultDesc, $struct0,
       kGCPrefix, kExprExternConvertAny,
     ]);
 

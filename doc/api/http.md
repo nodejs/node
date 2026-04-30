@@ -957,7 +957,8 @@ changes:
 
 Destroy the request. Optionally emit an `'error'` event,
 and emit a `'close'` event. Calling this will cause remaining data
-in the response to be dropped and the socket to be destroyed.
+in the response to be dropped, and the socket to be destroyed if used,
+or returned to the corresponding Agent pool otherwise if possible.
 
 See [`writable.destroy()`][] for further details.
 
@@ -1998,9 +1999,13 @@ value only affects new connections to the server, not any existing connections.
 
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62782
+    description: the default value for `http.Server.keepAliveTimeout` is changed from 5 to 65 seconds.
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
+* Type: {number} Timeout in milliseconds. **Default:** `65000` (65 seconds).
 
 The number of milliseconds of inactivity a server needs to wait for additional
 incoming data, after it has finished writing the last response, before a socket
@@ -2319,8 +2324,8 @@ added: v0.7.5
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
 
-This should only be disabled for testing; HTTP requires the Date header
-in responses.
+This should only be disabled for testing; the Date header is required in
+most HTTP responses (see [RFC 9110 Section 6.6.1][] for details).
 
 ### `response.setHeader(name, value)`
 
@@ -2863,6 +2868,9 @@ The request/response headers object.
 
 Key-value pairs of header names and values. Header names are lower-cased.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ```js
 // Prints something like:
 //
@@ -2899,6 +2907,9 @@ added:
 
 Similar to [`message.headers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 ```js
 // Prints something like:
@@ -2989,6 +3000,51 @@ added: v0.5.9
 
 Calls `message.socket.setTimeout(msecs, callback)`.
 
+### `message.signal`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {AbortSignal}
+
+An {AbortSignal} that is aborted when the underlying socket closes or the
+request is destroyed. The signal is created lazily on first access — no
+{AbortController} is allocated for requests that never use this property.
+
+This is useful for cancelling downstream asynchronous work such as database
+queries or `fetch` calls when a client disconnects mid-request.
+
+```mjs
+import http from 'node:http';
+
+http.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
+```cjs
+const http = require('node:http');
+
+http.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
 ### `message.socket`
 
 <!-- YAML
@@ -3041,6 +3097,9 @@ added: v0.3.0
 
 The request/response trailers object. Only populated at the `'end'` event.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ### `message.trailersDistinct`
 
 <!-- YAML
@@ -3054,6 +3113,9 @@ added:
 Similar to [`message.trailers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
 Only populated at the `'end'` event.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 ### `message.url`
 
@@ -4583,6 +4645,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 
 [Built-in Proxy Support]: #built-in-proxy-support
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
+[RFC 9110 Section 6.6.1]: https://www.rfc-editor.org/rfc/rfc9110#section-6.6.1
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue
 [`'finish'`]: #event-finish

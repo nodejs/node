@@ -3118,5 +3118,41 @@
     "expected_match": {
       "hostname": { "input": "localhost", "groups": { "domain" : "localhost"} }
     }
+  },
+  {
+    "pattern": ["((?R)):"],
+    "expected_obj": "error"
+  },
+  {
+    "pattern": ["(\\H):"],
+    "expected_obj": "error"
+  },
+  {
+    "pattern": [
+      {"pathname": "/:foo((?<x>a))"}
+    ],
+    "inputs": [
+      {"pathname": "/a"}
+    ],
+    "expected_match": {
+      "pathname": {
+        "input": "/a",
+        "groups": {"foo": "a"}
+      }
+    }
+  },
+  {
+    "pattern": [
+      {"pathname": "/foo/(bar(?<x>baz))"}
+    ],
+    "inputs": [
+      {"pathname": "/foo/barbaz"}
+    ],
+    "expected_match": {
+      "pathname": {
+        "input": "/foo/barbaz",
+        "groups": {"0": "barbaz"}
+      }
+    }
   }
 ]

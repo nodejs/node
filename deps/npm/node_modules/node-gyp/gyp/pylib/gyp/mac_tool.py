@@ -545,7 +545,7 @@ class MacTool:
         # If the user has multiple provisioning profiles installed that can be
         # used for ${bundle_identifier}, pick the most specific one (ie. the
         # provisioning profile whose pattern is the longest).
-        selected_key = max(valid_provisioning_profiles, key=lambda v: len(v))
+        selected_key = max(valid_provisioning_profiles, key=len)
         return valid_provisioning_profiles[selected_key]
 
     def _LoadProvisioningProfile(self, profile_path):

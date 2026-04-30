@@ -318,7 +318,7 @@ v8: ## Build deps/v8.
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Run addon tests and JS tests.
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Run addon tests and JS tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -338,21 +338,23 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 
 .PHONY: test
 # This does not run tests of third-party libraries inside deps.
-test: all ## Run default tests, linters, and build docs.
+test: all ## Run default tests and build docs.
 	$(MAKE) -s tooltest
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
 	$(MAKE) -s build-sqlite-tests
+	$(MAKE) -s build-ffi-tests
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
 
 .PHONY: test-only
-test-only: all  ## Run default tests, without linters or building the docs.
+test-only: all  ## Run default tests without building the docs.
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) build-sqlite-tests
+	$(MAKE) build-ffi-tests
 	$(MAKE) cctest
 	$(MAKE) jstest
 	$(MAKE) tooltest
@@ -364,6 +366,7 @@ test-cov: all ## Run coverage tests.
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
 	$(MAKE) build-sqlite-tests
+	$(MAKE) build-ffi-tests
 	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
@@ -384,21 +387,19 @@ ifeq ($(OSTYPE),os400)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
 endif
 
-DOC_KIT ?= tools/doc/node_modules/@nodejs/doc-kit/bin/cli.mjs
+DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
-test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/addon-verify.mjs
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
 		$(call available-node, \
-			$(DOC_KIT) generate \
-			-t addon-verify \
-			-i doc/api/addons.md \
-			-o test/addons/ \
-			--type-map doc/type-map.json \
+			tools/doc/addon-verify.mjs \
+			--input doc/api/addons.md \
+			--output test/addons/ \
 		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
@@ -542,6 +543,29 @@ else
 build-sqlite-tests:
 endif
 
+FFI_BINDING_GYPS := $(wildcard test/ffi/*/binding.gyp)
+
+FFI_BINDING_SOURCES := \
+	$(wildcard test/ffi/*/*.c) \
+	$(wildcard test/ffi/*/*.def)
+
+ifndef NOFFI
+# Depends on $(NODE_EXE) as order-only to avoid ETXTBSY on AIX when make
+# tries to execute node while it is still being linked in parallel.
+test/ffi/.buildstamp: $(ADDONS_PREREQS) \
+	$(FFI_BINDING_GYPS) $(FFI_BINDING_SOURCES) | $(NODE_EXE)
+	@$(call run_build_addons,"$$PWD/test/ffi",$@)
+else
+test/ffi/.buildstamp:
+endif
+
+.PHONY: build-ffi-tests
+ifndef NOFFI
+build-ffi-tests: | test/ffi/.buildstamp ## Build FFI tests.
+else
+build-ffi-tests:
+endif
+
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.
 	$(info Clean up any leftover processes but don't error if found.)
@@ -552,7 +576,7 @@ clear-stalled: ## Clear any stalled processes.
 	fi
 
 .PHONY: test-build
-test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Build all tests.
+test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests ## Build all tests.
 
 .PHONY: test-build-js-native-api
 test-build-js-native-api: all build-js-native-api-tests ## Build JS Native-API tests.
@@ -563,6 +587,8 @@ test-build-node-api: all build-node-api-tests ## Build Node-API tests.
 .PHONY: test-build-sqlite
 test-build-sqlite: all build-sqlite-tests ## Build SQLite tests.
 
+.PHONY: test-build-ffi
+test-build-ffi: all build-ffi-tests ## Build FFI tests.
 
 .PHONY: test-all
 test-all: test-build ## Run default tests with both Debug and Release builds.
@@ -591,7 +617,7 @@ endif
 
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info ## Build and test addons without building anything else.
-test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp
+test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp test/ffi/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -614,7 +640,7 @@ test-ci-js: | clear-stalled ## Build and test JavaScript with building anything 
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info ## Build and test everything (CI).
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests build-ffi-tests doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
@@ -632,6 +658,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 build-ci: ## Build everything (CI).
 	$(PYTHON) ./configure --verbose $(CONFIG_FLAGS)
 	$(MAKE)
+	$(MAKE) build-ffi-tests
 
 .PHONY: run-ci
 # Run by CI tests, exceptions:
@@ -733,6 +760,16 @@ test-sqlite: test-build-sqlite ## Run SQLite tests.
 test-sqlite-clean: ## Remove SQLite testing artifacts.
 	$(RM) -r test/sqlite/*/build
 	$(RM) test/sqlite/.buildstamp
+
+.PHONY: test-ffi
+test-ffi: test-build-ffi ## Run FFI tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) ffi
+
+.PHONY: test-ffi-clean
+.NOTPARALLEL: test-ffi-clean
+test-ffi-clean: ## Remove FFI testing artifacts.
+	$(RM) -r test/ffi/*/build
+	$(RM) test/ffi/.buildstamp
 
 .PHONY: test-addons
 test-addons: test-build test-js-native-api test-node-api ## Run addon tests.
@@ -1207,11 +1244,19 @@ pkg-upload: pkg
 	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
-$(TARBALL): release-only doc-only
+TARBALL_DEPS=release-only
+ifneq ($(SKIP_SHARED_DEPS), 1)
+TARBALL_DEPS+= doc-only
+endif
+
+$(TARBALL): $(TARBALL_DEPS)
 	git checkout-index -a -f --prefix=$(TARNAME)/
+ifneq ($(SKIP_SHARED_DEPS), 1)
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+endif
+	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
@@ -1227,6 +1272,7 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
 	$(RM) -r $(TARNAME)/deps/LIEF
+	$(RM) -r $(TARNAME)/deps/libffi
 	$(RM) -r $(TARNAME)/deps/llhttp
 	$(RM) -r $(TARNAME)/deps/merve
 	$(RM) -r $(TARNAME)/deps/nbytes
@@ -1251,7 +1297,6 @@ endif
 	$(RM) -r $(TARNAME)/deps/v8/samples
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
-	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint
@@ -1501,6 +1546,7 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/embedding/*.cc \
 	test/embedding/*.h \
 	test/sqlite/*/*.c \
+	test/ffi/*/*.c \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/node-api/*/*.cc \
@@ -1525,6 +1571,7 @@ FORMAT_CPP_FILES += $(wildcard \
 	test/node-api/*/*.c \
 	test/node-api/*/*.h \
 	test/sqlite/*/*.c \
+	test/ffi/*/*.c \
 	)
 
 # Code blocks don't have newline at the end,

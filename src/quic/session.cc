@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "session.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <crypto/crypto_util.h>
@@ -29,6 +28,7 @@
 #include "ncrypto.h"
 #include "packet.h"
 #include "preferredaddress.h"
+#include "session.h"
 #include "sessionticket.h"
 #include "streams.h"
 #include "tlscontext.h"
@@ -71,6 +71,7 @@ namespace quic {
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
+  V(APPLICATION_TYPE, application_type, uint8_t)                               \
   V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)
 
 #define SESSION_STATS(V)                                                       \
@@ -252,33 +253,6 @@ bool SetOption(Environment* env,
   return true;
 }
 
-template <typename Opt,
-          BaseObjectPtr<Session::ApplicationProvider> Opt::*member>
-bool SetOption(Environment* env,
-               Opt* options,
-               const Local<Object>& object,
-               const Local<String>& name) {
-  Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) {
-    return false;
-  }
-  if (!value->IsUndefined()) {
-    // We currently only support Http3Application for this option.
-    if (!Http3Application::HasInstance(env, value)) {
-      THROW_ERR_INVALID_ARG_TYPE(env,
-                                 "Application must be an Http3Application");
-      return false;
-    }
-    Http3Application* app;
-    ASSIGN_OR_RETURN_UNWRAP(&app, value.As<Object>(), false);
-    CHECK_NOT_NULL(app);
-    auto& assigned = options->*member =
-                         BaseObjectPtr<Session::ApplicationProvider>(app);
-    assigned->Detach();
-  }
-  return true;
-}
-
 template <typename Opt, ngtcp2_cc_algo Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
@@ -345,7 +319,10 @@ Session::Config::Config(Environment* env,
   ngtcp2_settings_default(&settings);
   settings.initial_ts = uv_hrtime();
 
-  // We currently do not support Path MTU Discovery. Once we do, unset this.
+  // TODO(@jasnell): Path MTU Discovery is disabled because libuv does not
+  // currently expose the IP_DONTFRAG / IP_MTU_DISCOVER socket options
+  // needed for PMTUD probes to work correctly. Revisit when libuv adds
+  // support or if we bypass libuv for the UDP socket options.
   settings.no_pmtud = 1;
   // Per the ngtcp2 documentation, when no_tx_udp_payload_size_shaping is set
   // to a non-zero value, it tells ngtcp2 not to limit the UDP payload size to
@@ -372,6 +349,11 @@ Session::Config::Config(Environment* env,
   settings.max_window = options.max_window;
   settings.ack_thresh = options.unacknowledged_packet_threshold;
   settings.cc_algo = options.cc_algorithm;
+
+  if (side == Side::CLIENT && options.token.has_value()) {
+    ngtcp2_vec vec = options.token.value();
+    set_token(vec.base, vec.len, NGTCP2_TOKEN_TYPE_NEW_TOKEN);
+  }
 }
 
 Session::Config::Config(Environment* env,
@@ -454,16 +436,75 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
-      !SET(application_provider) || !SET(handshake_timeout) ||
-      !SET(max_stream_window) || !SET(max_window) || !SET(max_payload_size) ||
-      !SET(unacknowledged_packet_threshold) || !SET(cc_algorithm)) {
+      !SET(handshake_timeout) || !SET(max_stream_window) || !SET(max_window) ||
+      !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
+      !SET(cc_algorithm)) {
     return Nothing<Options>();
   }
 
 #undef SET
 
+  // Parse the application-specific options (HTTP/3 qpack settings, etc.).
+  // These are used if the negotiated ALPN selects Http3ApplicationImpl.
+  {
+    Local<Value> app_val;
+    if (params->Get(env->context(), state.application_string())
+            .ToLocal(&app_val) &&
+        !app_val->IsUndefined()) {
+      if (!Application_Options::From(env, app_val)
+               .To(&options.application_options)) {
+        return Nothing<Options>();
+      }
+    }
+  }
+
+  // Parse the SNI map from the tls options.
+  {
+    Local<Value> tls_val;
+    if (params->Get(env->context(), state.tls_options_string())
+            .ToLocal(&tls_val) &&
+        tls_val->IsObject()) {
+      Local<Value> sni_val;
+      if (tls_val.As<Object>()
+              ->Get(env->context(), state.sni_string())
+              .ToLocal(&sni_val) &&
+          sni_val->IsObject()) {
+        auto sni_obj = sni_val.As<Object>();
+        Local<Array> hostnames;
+        if (sni_obj->GetOwnPropertyNames(env->context()).ToLocal(&hostnames)) {
+          for (uint32_t i = 0; i < hostnames->Length(); i++) {
+            Local<Value> key;
+            Local<Value> entry_val;
+            if (!hostnames->Get(env->context(), i).ToLocal(&key) ||
+                !key->IsString() ||
+                !sni_obj->Get(env->context(), key).ToLocal(&entry_val)) {
+              continue;
+            }
+            Utf8Value hostname(env->isolate(), key);
+            auto entry_options = TLSContext::Options::From(env, entry_val);
+            if (entry_options.IsNothing()) {
+              return Nothing<Options>();
+            }
+            options.sni[std::string(*hostname, hostname.length())] =
+                entry_options.FromJust();
+          }
+        }
+      }
+    }
+  }
+
   // TODO(@jasnell): Later we will also support setting the CID::Factory.
   // For now, we're just using the default random factory.
+
+  // Parse the optional NEW_TOKEN for address validation on reconnection.
+  Local<Value> token_val;
+  if (params->Get(env->context(), state.token_string()).ToLocal(&token_val) &&
+      token_val->IsArrayBufferView()) {
+    Store token_store;
+    if (Store::From(token_val.As<ArrayBufferView>()).To(&token_store)) {
+      options.token = std::move(token_store);
+    }
+  }
 
   return Just<Options>(options);
 }
@@ -541,7 +582,6 @@ struct Session::Impl final : public MemoryRetainer {
         config_(config),
         local_address_(config.local_address),
         remote_address_(config.remote_address),
-        application_(SelectApplication(session, config_)),
         timer_(session_->env(), [this] { session_->OnTimeout(); }) {
     timer_.Unref();
   }
@@ -771,16 +811,16 @@ struct Session::Impl final : public MemoryRetainer {
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
-    if (session->is_destroyed()) {
+    if (session->is_destroyed()) [[unlikely]] {
       return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     DCHECK(args[0]->IsUint32());
 
     // GetDataQueueFromSource handles type validation.
-    std::shared_ptr<DataQueue> data_source =
-        Stream::GetDataQueueFromSource(env, args[1]).ToChecked();
-    if (data_source == nullptr) {
+    std::shared_ptr<DataQueue> data_source;
+    if (!Stream::GetDataQueueFromSource(env, args[1]).To(&data_source) ||
+        data_source == nullptr) [[unlikely]] {
       THROW_ERR_INVALID_ARG_VALUE(env, "Invalid data source");
     }
 
@@ -878,7 +918,8 @@ struct Session::Impl final : public MemoryRetainer {
                                                uint64_t max_streams,
                                                void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    // TODO(@jasnell): Do anything here?
+    Debug(
+        session, "Max remote bidi streams increased to %" PRIu64, max_streams);
     return NGTCP2_SUCCESS;
   }
 
@@ -886,7 +927,7 @@ struct Session::Impl final : public MemoryRetainer {
                                               uint64_t max_streams,
                                               void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    // TODO(@jasnell): Do anything here?
+    Debug(session, "Max remote uni streams increased to %" PRIu64, max_streams);
     return NGTCP2_SUCCESS;
   }
 
@@ -993,7 +1034,8 @@ struct Session::Impl final : public MemoryRetainer {
                                   size_t tokenlen,
                                   void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    // We currently do nothing with this callback.
+    Debug(session, "Received NEW_TOKEN (%zu bytes)", tokenlen);
+    session->EmitNewToken(token, tokenlen);
     return NGTCP2_SUCCESS;
   }
 
@@ -1155,8 +1197,9 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_early_data_rejected(ngtcp2_conn* conn, void* user_data) {
-    // TODO(@jasnell): Called when early data was rejected by server during the
-    // TLS handshake or client decided not to attempt early data.
+    auto session = Impl::From(conn, user_data);
+    if (session == nullptr) return NGTCP2_ERR_CALLBACK_FAILURE;
+    Debug(session, "Early data was rejected");
     return NGTCP2_SUCCESS;
   }
 
@@ -1165,7 +1208,8 @@ struct Session::Impl final : public MemoryRetainer {
                                       const ngtcp2_path* path,
                                       const ngtcp2_path* fallback_path,
                                       void* user_data) {
-    // TODO(@jasnell): Implement?
+    NGTCP2_CALLBACK_SCOPE(session)
+    Debug(session, "Path validation started");
     return NGTCP2_SUCCESS;
   }
 
@@ -1273,7 +1317,8 @@ Session::SendPendingDataScope::SendPendingDataScope(
 Session::SendPendingDataScope::~SendPendingDataScope() {
   if (session->is_destroyed()) return;
   DCHECK_GE(session->impl_->send_scope_depth_, 1);
-  if (--session->impl_->send_scope_depth_ == 0) {
+  if (--session->impl_->send_scope_depth_ == 0 &&
+      session->impl_->application_) {
     session->application().SendPendingData();
   }
 }
@@ -1301,6 +1346,16 @@ Session::Session(Endpoint* endpoint,
       connection_(InitConnection()),
       tls_session_(tls_context->NewSession(this, session_ticket)) {
   DCHECK(impl_);
+
+  // For clients, select the Application immediately — the ALPN is
+  // known upfront from the options. For servers, application_ stays
+  // null until OnSelectAlpn fires during the TLS handshake.
+  if (config.side == Side::CLIENT) {
+    auto app =
+        SelectApplicationFromAlpn(DecodeAlpn(config.options.tls_options.alpn));
+    if (app) SetApplication(std::move(app));
+  }
+
   MakeWeak();
   Debug(this, "Session created.");
   auto& binding = BindingData::Get(env());
@@ -1514,7 +1569,35 @@ TLSSession& Session::tls_session() const {
 
 Session::Application& Session::application() const {
   DCHECK(!is_destroyed());
+  DCHECK(impl_->application_);
   return *impl_->application_;
+}
+
+std::string_view Session::DecodeAlpn(std::string_view wire) {
+  // ALPN wire format is length-prefixed: [len][name]. Extract the first entry.
+  if (wire.size() >= 2) {
+    uint8_t len = static_cast<uint8_t>(wire[0]);
+    if (len > 0 && static_cast<size_t>(len + 1) <= wire.size()) {
+      return wire.substr(1, len);
+    }
+  }
+  return {};
+}
+
+std::unique_ptr<Session::Application> Session::SelectApplicationFromAlpn(
+    std::string_view alpn) {
+  // h3 and h3-XX variants use Http3ApplicationImpl.
+  // Everything else uses DefaultApplication.
+  if (alpn == "h3" || (alpn.size() > 3 && alpn.substr(0, 3) == "h3-")) {
+    return CreateHttp3Application(this, config().options.application_options);
+  }
+  return CreateDefaultApplication(this, config().options.application_options);
+}
+
+void Session::SetApplication(std::unique_ptr<Application> app) {
+  DCHECK(!impl_->application_);
+  impl_->state_->application_type = static_cast<uint8_t>(app->type());
+  impl_->application_ = std::move(app);
 }
 
 const SocketAddress& Session::remote_address() const {
@@ -1606,13 +1689,19 @@ bool Session::Receive(Store&& store,
   // ngtcp2_conn_read_pkt here, we will need to double check that the
   // session is not destroyed before we try doing anything with it
   // (like updating stats, sending pending data, etc).
-  int err = ngtcp2_conn_read_pkt(
-      *this, &path, nullptr, vec.base, vec.len, uv_hrtime());
+  int err =
+      ngtcp2_conn_read_pkt(*this,
+                           &path,
+                           // TODO(@jasnell): ECN pkt_info blocked on libuv
+                           nullptr,
+                           vec.base,
+                           vec.len,
+                           uv_hrtime());
 
   switch (err) {
     case 0: {
       Debug(this, "Session successfully received %zu-byte packet", vec.len);
-      if (!is_destroyed()) [[unlikely]] {
+      if (!is_destroyed()) [[likely]] {
         auto& stats_ = impl_->stats_;
         STAT_INCREMENT_N(Stats, bytes_received, vec.len);
       }
@@ -1691,7 +1780,7 @@ bool Session::Receive(Store&& store,
   return false;
 }
 
-void Session::Send(const BaseObjectPtr<Packet>& packet) {
+void Session::Send(Packet::Ptr packet) {
   // Sending a Packet is generally best effort. If we're not in a state
   // where we can send a packet, it's ok to drop it on the floor. The
   // packet loss mechanisms will cause the packet data to be resent later
@@ -1703,21 +1792,21 @@ void Session::Send(const BaseObjectPtr<Packet>& packet) {
   DCHECK(!is_in_draining_period());
 
   if (!can_send_packets()) [[unlikely]] {
-    return packet->CancelPacket();
+    // Ptr destructor releases the packet back to the pool.
+    return;
   }
 
   Debug(this, "Session is sending %s", packet->ToString());
   auto& stats_ = impl_->stats_;
   STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
-  endpoint().Send(packet);
+  endpoint().Send(std::move(packet));
 }
 
-void Session::Send(const BaseObjectPtr<Packet>& packet,
-                   const PathStorage& path) {
+void Session::Send(Packet::Ptr packet, const PathStorage& path) {
   DCHECK(!is_destroyed());
   DCHECK(!is_in_draining_period());
   UpdatePath(path);
-  Send(packet);
+  Send(std::move(packet));
 }
 
 datagram_id Session::SendDatagram(Store&& data) {
@@ -1750,7 +1839,7 @@ datagram_id Session::SendDatagram(Store&& data) {
     return 0;
   }
 
-  BaseObjectPtr<Packet> packet;
+  Packet::Ptr packet;
   uint8_t* pos = nullptr;
   int accepted = 0;
   ngtcp2_vec vec = data;
@@ -1776,11 +1865,10 @@ datagram_id Session::SendDatagram(Store&& data) {
     // datagram. It's entirely up to ngtcp2 whether to include the datagram
     // in the packet on each call to ngtcp2_conn_writev_datagram.
     if (!packet) {
-      packet = Packet::Create(env(),
-                              endpoint(),
-                              impl_->remote_address_,
-                              ngtcp2_conn_get_max_tx_udp_payload_size(*this),
-                              "datagram");
+      packet = endpoint().CreatePacket(
+          impl_->remote_address_,
+          ngtcp2_conn_get_max_tx_udp_payload_size(*this),
+          "datagram");
       // Typically sending datagrams is best effort, but if we cannot create
       // the packet, then we handle it as a fatal error as that indicates
       // something else is likely very wrong.
@@ -1789,7 +1877,7 @@ datagram_id Session::SendDatagram(Store&& data) {
         Close(CloseMethod::SILENT);
         return 0;
       }
-      pos = ngtcp2_vec(*packet).base;
+      pos = packet->data();
     }
 
     ssize_t nwrite = ngtcp2_conn_writev_datagram(*this,
@@ -1812,7 +1900,6 @@ datagram_id Session::SendDatagram(Store&& data) {
           // not fit. Since datagrams are best effort, we are going to abandon
           // the attempt and just return.
           DCHECK_EQ(accepted, 0);
-          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -1825,14 +1912,12 @@ datagram_id Session::SendDatagram(Store&& data) {
           // The remote endpoint does not want to accept datagrams. That's ok,
           // just return 0.
           DCHECK_EQ(accepted, 0);
-          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_INVALID_ARGUMENT: {
           // The datagram is too large. That should have been caught above but
           // that's ok. We'll just abandon the attempt and return.
           DCHECK_EQ(accepted, 0);
-          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_PKT_NUM_EXHAUSTED: {
@@ -1868,7 +1953,6 @@ datagram_id Session::SendDatagram(Store&& data) {
           break;
         }
       }
-      packet->CancelPacket();
       SetLastError(QuicError::ForTransport(nwrite));
       Close(CloseMethod::SILENT);
       return 0;
@@ -1878,8 +1962,8 @@ datagram_id Session::SendDatagram(Store&& data) {
     // Note that this doesn't mean that the packet actually contains the
     // datagram! We'll check that next by checking the accepted value.
     packet->Truncate(nwrite);
-    Send(packet);
-    packet.reset();
+    Send(std::move(packet));
+    // packet is now empty; next loop iteration creates a new one.
 
     if (accepted) {
       // Yay! The datagram was accepted into the packet we just sent and we can
@@ -2264,12 +2348,9 @@ void Session::SendConnectionClose() {
 
   if (is_server()) {
     if (auto packet = Packet::CreateConnectionClosePacket(
-            env(),
-            endpoint(),
-            impl_->remote_address_,
-            *this,
-            impl_->last_error_)) [[likely]] {
-      return Send(packet);
+            endpoint(), impl_->remote_address_, *this, impl_->last_error_))
+        [[likely]] {
+      return Send(std::move(packet));
     }
 
     // If we are unable to create a connection close packet then
@@ -2281,11 +2362,9 @@ void Session::SendConnectionClose() {
     return ErrorAndSilentClose();
   }
 
-  auto packet = Packet::Create(env(),
-                               endpoint(),
-                               impl_->remote_address_,
-                               kDefaultMaxPacketLength,
-                               "immediate connection close (client)");
+  auto packet = endpoint().CreatePacket(impl_->remote_address_,
+                                        kDefaultMaxPacketLength,
+                                        "immediate connection close (client)");
   if (!packet) [[unlikely]] {
     return ErrorAndSilentClose();
   }
@@ -2301,12 +2380,11 @@ void Session::SendConnectionClose() {
                                                       uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
-    packet->CancelPacket();
     return ErrorAndSilentClose();
   }
 
   packet->Truncate(nwrite);
-  return Send(packet);
+  return Send(std::move(packet));
 }
 
 void Session::OnTimeout() {
@@ -2400,9 +2478,12 @@ bool Session::HandshakeCompleted() {
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
   SetStreamOpenAllowed();
 
-  // TODO(@jasnel): Not yet supporting early data...
-  // if (!tls_session().early_data_was_accepted())
-  //   ngtcp2_conn_tls_early_data_rejected(*this);
+  // If early data was attempted but rejected by the server,
+  // tell ngtcp2 so it can retransmit the data as 1-RTT.
+  // The status of early data will only be rejected if an
+  // attempt was actually made to send early data.
+  if (!is_server() && tls_session().early_data_was_rejected())
+    ngtcp2_conn_tls_early_data_rejected(*this);
 
   // When in a server session, handshake completed == handshake confirmed.
   if (is_server()) {
@@ -2448,11 +2529,9 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       Debug(this, "Selecting preferred address for AF_INET");
       auto ipv4 = preferredAddress->ipv4();
       if (ipv4.has_value()) {
-        if (ipv4->address.empty() || ipv4->port == 0) return;
-        CHECK(SocketAddress::New(AF_INET,
-                                 std::string(ipv4->address).c_str(),
-                                 ipv4->port,
-                                 &impl_->remote_address_));
+        if (ipv4->host[0] == '\0' || ipv4->port == 0) return;
+        CHECK(SocketAddress::New(
+            AF_INET, ipv4->host, ipv4->port, &impl_->remote_address_));
         preferredAddress->Use(ipv4.value());
       }
       break;
@@ -2461,11 +2540,9 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       Debug(this, "Selecting preferred address for AF_INET6");
       auto ipv6 = preferredAddress->ipv6();
       if (ipv6.has_value()) {
-        if (ipv6->address.empty() || ipv6->port == 0) return;
-        CHECK(SocketAddress::New(AF_INET,
-                                 std::string(ipv6->address).c_str(),
-                                 ipv6->port,
-                                 &impl_->remote_address_));
+        if (ipv6->host[0] == '\0' || ipv6->port == 0) return;
+        CHECK(SocketAddress::New(
+            AF_INET6, ipv6->host, ipv6->port, &impl_->remote_address_));
         preferredAddress->Use(ipv6.value());
       }
       break;
@@ -2528,8 +2605,8 @@ void Session::ProcessPendingUniStreams() {
       }
       case NGTCP2_ERR_STREAM_ID_BLOCKED: {
         // This case really should not happen since we've checked the number
-        // of bidi streams left above. However, if it does happen we'll treat
-        // it the same as if the get_streams_bidi_left call returned zero.
+        // of uni streams left above. However, if it does happen we'll treat
+        // it the same as if the get_streams_uni_left call returned zero.
         return;
       }
       default: {
@@ -2634,6 +2711,7 @@ void Session::EmitHandshakeComplete() {
       Undefined(isolate),  // Cipher version
       Undefined(isolate),  // Validation error reason
       Undefined(isolate),  // Validation error code
+      Boolean::New(isolate, tls_session().early_data_was_attempted()),
       Boolean::New(isolate, tls_session().early_data_was_accepted())};
 
   auto& tls = tls_session();
@@ -2730,6 +2808,23 @@ void Session::EmitSessionTicket(Store&& ticket) {
       }
     }
   }
+}
+
+void Session::EmitNewToken(const uint8_t* token, size_t len) {
+  DCHECK(!is_destroyed());
+  if (!env()->can_call_into_js()) return;
+
+  CallbackScope<Session> cb_scope(this);
+
+  Local<Value> argv[2];
+  auto buf = Buffer::Copy(env(), reinterpret_cast<const char*>(token), len);
+  if (!buf.ToLocal(&argv[0])) return;
+  argv[1] = SocketAddressBase::Create(
+                env(), std::make_shared<SocketAddress>(remote_address()))
+                ->object();
+  MakeCallback(BindingData::Get(env()).session_new_token_callback(),
+               arraysize(argv),
+               argv);
 }
 
 void Session::EmitStream(const BaseObjectWeakPtr<Stream>& stream) {

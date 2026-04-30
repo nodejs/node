@@ -55,7 +55,11 @@ namespace v8::internal::compiler::turboshaft {
   V(F32x4UConvertI32x4, F32x8UConvertI32x8)                \
   V(F32x4SConvertI32x4, F32x8SConvertI32x8)                \
   V(I32x4RelaxedTruncF32x4S, I32x8RelaxedTruncF32x8S)      \
-  V(I32x4RelaxedTruncF32x4U, I32x8RelaxedTruncF32x8U)
+  V(I32x4RelaxedTruncF32x4U, I32x8RelaxedTruncF32x8U)      \
+  V(F32x4Ceil, F32x8Ceil)                                  \
+  V(F32x4Floor, F32x8Floor)                                \
+  V(F32x4Trunc, F32x8Trunc)                                \
+  V(F32x4NearestInt, F32x8NearestInt)
 
 #define SIMD256_UNARY_SIGN_EXTENSION_OP(V)                              \
   V(I64x2SConvertI32x4Low, I64x4SConvertI32x4, I64x2SConvertI32x4High)  \
@@ -237,6 +241,14 @@ class NodeGroup {
  private:
   OpIndex indexes_[kSize];
 };
+
+// Returns true if all of the nodes in node_group are identical.
+// Splat opcode in WASM SIMD is used to create a vector with identical lanes.
+template <typename T>
+bool IsSplat(const T& node_group) {
+  DCHECK_EQ(node_group.size(), 2);
+  return node_group[1] == node_group[0];
+}
 
 class ForcePackNode;
 class ShufflePackNode;
@@ -737,10 +749,37 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     V<Simd256> og_index = pnode->RevectorizedNode();
     // Skip revectorized node.
     if (!og_index.valid()) {
-      V<WordPtr> base = __ MapToNewGraph(load_transform.base());
+      OpIndex base = __ MapToNewGraph(load_transform.base());
       V<WordPtr> index = __ MapToNewGraph(load_transform.index());
       int offset = load_transform.offset;
       DCHECK_EQ(load_transform.offset, 0);
+
+      if (!IsSplat(pnode->nodes()) && pnode->nodes()[0] != ig_index) {
+        // Needs to update offset and base to align with node0.
+        const Simd128LoadTransformOp& op0 =
+            __ input_graph()
+                .Get(pnode -> nodes()[0])
+                .template Cast<Simd128LoadTransformOp>();
+        const WordBinopOp& add_op0 =
+            __ input_graph().Get(op0.base()).template Cast<WordBinopOp>();
+        DCHECK(add_op0.kind == WordBinopOp::Kind::kAdd &&
+               add_op0.rep == WordRepresentation::Word64());
+        const ConstantOp& offset0 =
+            __ input_graph().Get(add_op0.right()).template Cast<ConstantOp>();
+        const WordBinopOp& add_op =
+            __ output_graph().Get(base).template Cast<WordBinopOp>();
+        DCHECK(add_op.kind == WordBinopOp::Kind::kAdd &&
+               add_op.rep == WordRepresentation::Word64());
+        const ConstantOp& offset1 =
+            __ output_graph().Get(add_op.right()).template Cast<ConstantOp>();
+
+        if (offset0 != offset1) {
+          V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
+          base =
+              __ WordBinop(add_op.left(), og_offset0, WordBinopOp::Kind::kAdd,
+                           WordRepresentation::Word64());
+        }
+      }
 
       og_index = __ Simd256LoadTransform(
           base, index, load_transform.load_kind,
@@ -1148,37 +1187,31 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   void ReduceInputsOfOp(OpIndex start_marker, OpIndex op_index) {
     // Reduce all the operations of op_index's input tree which are
-    // bigger than the start_marker. The traversal is done in a DFS manner
-    // to make sure all inputs are emitted before the use.
+    // bigger than the start_marker. The traversal is done in BFS to ensure all
+    // inputs are visited. Inputs will be sorted to keep the original order.
     const Block* current_input_block = __ current_input_block();
-    std::stack<OpIndex, base::SmallVector<OpIndex, 8>> inputs;
+    ZoneDeque<OpIndex>& inputs = analyzer_.GetSharedOpIndexDeque();
     ZoneUnorderedSet<OpIndex>& visited = analyzer_.GetSharedOpIndexSet();
-    DCHECK(visited.empty());
+    DCHECK(visited.empty() && inputs.empty());
 
-    inputs.push(op_index);
+    inputs.push_back(op_index);
     while (!inputs.empty()) {
-      OpIndex idx = inputs.top();
-      if (visited.contains(idx)) {
-        inputs.pop();
-        continue;
-      }
+      OpIndex idx = inputs.front();
+      inputs.pop_front();
+      visited.insert(idx);
 
       const Operation& op = __ input_graph().Get(idx);
-      bool has_unvisited_inputs = false;
       for (OpIndex input : op.inputs()) {
         if (input > start_marker && !visited.contains(input)) {
-          inputs.push(input);
-          has_unvisited_inputs = true;
+          inputs.push_back(input);
         }
       }
+    }
 
-      if (!has_unvisited_inputs) {
-        inputs.pop();
-        visited.insert(idx);
-
-        // op_index will be reduced later.
-        if (idx == op_index) continue;
-
+    // Reduce inputs in original order.
+    for (OpIndex idx = __ input_graph().NextIndex(start_marker); idx < op_index;
+         idx = __ input_graph().NextIndex(idx)) {
+      if (visited.contains(idx)) {
         DCHECK(!__ input_graph().Get(idx).template Is<PhiOp>());
         __ template VisitOpAndUpdateMapping<false>(idx, current_input_block);
       }

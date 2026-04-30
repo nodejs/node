@@ -122,6 +122,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/inspector/network", "internal/inspector/network_http",
         "internal/inspector/network_http2", "internal/inspector/network_undici",
         "internal/inspector_async_hook", "internal/inspector_network_tracking",
+        "internal/inspector/webstorage",
 #endif  // !HAVE_INSPECTOR
 
 #if !NODE_USE_V8_PLATFORM || !defined(NODE_HAVE_I18N_SUPPORT)
@@ -134,17 +135,24 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/tls/wrap", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
-#endif           // !HAVE_OPENSSL
+#endif  // !HAVE_OPENSSL
 #ifndef OPENSSL_NO_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
-#endif             // !OPENSSL_NO_QUIC
-        "quic",    // Experimental.
-        "sqlite",  // Experimental.
-        "sys",     // Deprecated.
-        "wasi",    // Experimental.
+#endif  // !OPENSSL_NO_QUIC
+#if !HAVE_FFI
+        "internal/ffi-shared-buffer",
+#endif                  // !HAVE_FFI
+        "ffi",          // Experimental.
+        "quic",         // Experimental.
+        "sqlite",       // Experimental.
+        "stream/iter",  // Experimental.
+        "sys",          // Deprecated.
+        "wasi",         // Experimental.
+        "zlib/iter",    // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
+        "internal/inspector/webstorage",
 #endif
         "internal/test/binding", "internal/v8_prof_polyfill",
   };
@@ -742,7 +750,7 @@ MaybeLocal<Module> BuiltinLoader::LoadBuiltinSourceTextModule(Realm* realm,
   // Pre-fetch all dependencies.
   if (requests->Length() > 0) {
     for (int i = 0; i < requests->Length(); i++) {
-      Local<ModuleRequest> req = requests->Get(context, i).As<ModuleRequest>();
+      Local<ModuleRequest> req = requests->Get(i).As<ModuleRequest>();
       std::string specifier =
           Utf8Value(isolate, req->GetSpecifier()).ToString();
       std::string resolved_id = ResolveRequestForBuiltin(specifier);

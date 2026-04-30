@@ -25,6 +25,18 @@ const { SendQueue } = require('./sender')
 const { WebsocketFrameSend } = require('./frame')
 const { channels } = require('../../core/diagnostics')
 
+function getSocketAddress (socket) {
+  if (typeof socket?.address === 'function') {
+    return socket.address()
+  }
+
+  if (typeof socket?.session?.socket?.address === 'function') {
+    return socket.session.socket.address()
+  }
+
+  return null
+}
+
 /**
  * @typedef {object} Handler
  * @property {(response: any, extensions?: string[]) => void} onConnectionEstablished
@@ -456,7 +468,12 @@ class WebSocket extends EventTarget {
     // once this happens, the connection is open
     this.#handler.socket = response.socket
 
-    const parser = new ByteParser(this.#handler, parsedExtensions)
+    // Get maxPayloadSize from dispatcher options
+    const maxPayloadSize = this.#handler.controller.dispatcher?.webSocketOptions?.maxPayloadSize
+
+    const parser = new ByteParser(this.#handler, parsedExtensions, {
+      maxPayloadSize
+    })
     parser.on('drain', () => this.#handler.onParserDrain())
     parser.on('error', (err) => this.#handler.onParserError(err))
 
@@ -491,7 +508,7 @@ class WebSocket extends EventTarget {
       // Convert headers to a plain object for the event
       const headers = response.headersList.entries
       channels.open.publish({
-        address: response.socket.address(),
+        address: getSocketAddress(response.socket),
         protocol: this.#protocol,
         extensions: this.#extensions,
         websocket: this,

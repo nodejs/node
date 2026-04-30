@@ -1,6 +1,9 @@
 #include "dom_storage_agent.h"
+#include <optional>
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
+#include "util.h"
+#include "v8-exception.h"
 #include "v8-isolate.h"
 
 namespace node {
@@ -14,11 +17,18 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
+static void ThrowEventError(v8::Isolate* isolate, const std::string& message) {
+  isolate->ThrowException(v8::Exception::TypeError(
+      v8::String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked()));
+}
+
 std::unique_ptr<protocol::DOMStorage::StorageId> createStorageIdFromObject(
     Local<Context> context, Local<Object> storage_id_obj) {
   protocol::String security_origin;
+  Isolate* isolate = Isolate::GetCurrent();
   if (!ObjectGetProtocolString(context, storage_id_obj, "securityOrigin")
            .To(&security_origin)) {
+    ThrowEventError(isolate, "Missing securityOrigin in storageId");
     return {};
   }
   bool is_local_storage =
@@ -26,6 +36,7 @@ std::unique_ptr<protocol::DOMStorage::StorageId> createStorageIdFromObject(
   protocol::String storageKey;
   if (!ObjectGetProtocolString(context, storage_id_obj, "storageKey")
            .To(&storageKey)) {
+    ThrowEventError(isolate, "Missing storageKey in storageId");
     return {};
   }
 
@@ -85,14 +96,27 @@ protocol::DispatchResponse DOMStorageAgent::getDOMStorageItems(
         "DOMStorage domain is not enabled");
   }
   bool is_local_storage = storageId->getIsLocalStorage();
-  const std::unordered_map<std::string, std::string>& storage_map =
-      is_local_storage ? local_storage_map_ : session_storage_map_;
+  const StorageMap* storage_map =
+      is_local_storage ? &local_storage_map_ : &session_storage_map_;
+  std::optional<StorageMap> storage_map_fallback;
+  if (storage_map->empty()) {
+    auto web_storage_obj = getWebStorage(is_local_storage);
+    if (web_storage_obj) {
+      storage_map_fallback = web_storage_obj.value()->GetAll();
+      storage_map = &storage_map_fallback.value();
+    }
+  }
+
   auto result =
       std::make_unique<protocol::Array<protocol::Array<protocol::String>>>();
-  for (const auto& pair : storage_map) {
+  for (const auto& pair : *storage_map) {
     auto item = std::make_unique<protocol::Array<protocol::String>>();
-    item->push_back(pair.first);
-    item->push_back(pair.second);
+    item->push_back(protocol::StringUtil::fromUTF16(
+        reinterpret_cast<const uint16_t*>(pair.first.data()),
+        pair.first.size()));
+    item->push_back(protocol::StringUtil::fromUTF16(
+        reinterpret_cast<const uint16_t*>(pair.second.data()),
+        pair.second.size()));
     result->push_back(std::move(item));
   }
   *items = std::move(result);
@@ -119,8 +143,10 @@ protocol::DispatchResponse DOMStorageAgent::clear(
 
 void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
                                           Local<Object> params) {
+  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
+    ThrowEventError(isolate, "Missing storageId in event");
     return;
   }
 
@@ -132,10 +158,12 @@ void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
 
   protocol::String key;
   if (!ObjectGetProtocolString(context, params, "key").To(&key)) {
+    ThrowEventError(isolate, "Missing key in event");
     return;
   }
   protocol::String new_value;
   if (!ObjectGetProtocolString(context, params, "newValue").To(&new_value)) {
+    ThrowEventError(isolate, "Missing newValue in event");
     return;
   }
   frontend_->domStorageItemAdded(std::move(storage_id), key, new_value);
@@ -143,8 +171,10 @@ void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
 
 void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
                                             Local<Object> params) {
+  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
+    ThrowEventError(isolate, "Missing storageId in event");
     return;
   }
   std::unique_ptr<protocol::DOMStorage::StorageId> storage_id =
@@ -156,6 +186,7 @@ void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
 
   protocol::String key;
   if (!ObjectGetProtocolString(context, params, "key").To(&key)) {
+    ThrowEventError(isolate, "Missing key in event");
     return;
   }
   frontend_->domStorageItemRemoved(std::move(storage_id), key);
@@ -163,8 +194,10 @@ void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
 
 void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
                                             Local<Object> params) {
+  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
+    ThrowEventError(isolate, "Missing storageId in event");
     return;
   }
 
@@ -177,14 +210,17 @@ void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
 
   protocol::String key;
   if (!ObjectGetProtocolString(context, params, "key").To(&key)) {
+    ThrowEventError(isolate, "Missing key in event");
     return;
   }
   protocol::String old_value;
   if (!ObjectGetProtocolString(context, params, "oldValue").To(&old_value)) {
+    ThrowEventError(isolate, "Missing oldValue in event");
     return;
   }
   protocol::String new_value;
   if (!ObjectGetProtocolString(context, params, "newValue").To(&new_value)) {
+    ThrowEventError(isolate, "Missing newValue in event");
     return;
   }
   frontend_->domStorageItemUpdated(
@@ -193,8 +229,10 @@ void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
 
 void DOMStorageAgent::domStorageItemsCleared(Local<Context> context,
                                              Local<Object> params) {
+  Isolate* isolate = env_->isolate();
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
+    ThrowEventError(isolate, "Missing storageId in event");
     return;
   }
   std::unique_ptr<protocol::DOMStorage::StorageId> storage_id =
@@ -212,32 +250,60 @@ void DOMStorageAgent::registerStorage(Local<Context> context,
   HandleScope handle_scope(isolate);
   bool is_local_storage;
   if (!ObjectGetBool(context, params, "isLocalStorage").To(&is_local_storage)) {
+    ThrowEventError(isolate, "Missing isLocalStorage in event");
     return;
   }
   Local<Object> storage_map_obj;
   if (!ObjectGetObject(context, params, "storageMap")
            .ToLocal(&storage_map_obj)) {
+    ThrowEventError(isolate, "Missing storageMap in event");
     return;
   }
-  std::unordered_map<std::string, std::string>& storage_map =
+  StorageMap& storage_map =
       is_local_storage ? local_storage_map_ : session_storage_map_;
   Local<Array> property_names;
   if (!storage_map_obj->GetOwnPropertyNames(context).ToLocal(&property_names)) {
+    ThrowEventError(isolate, "Failed to get property names from storageMap");
     return;
   }
   uint32_t length = property_names->Length();
   for (uint32_t i = 0; i < length; ++i) {
     Local<Value> key_value;
     if (!property_names->Get(context, i).ToLocal(&key_value)) {
+      ThrowEventError(isolate, "Failed to get key from storageMap");
       return;
     }
     Local<Value> value_value;
     if (!storage_map_obj->Get(context, key_value).ToLocal(&value_value)) {
+      ThrowEventError(isolate, "Failed to get value from storageMap");
       return;
     }
-    node::Utf8Value key_utf8(isolate, key_value);
-    node::Utf8Value value_utf8(isolate, value_value);
-    storage_map[*key_utf8] = *value_utf8;
+    node::TwoByteValue key_utf16(isolate, key_value);
+    node::TwoByteValue value_utf16(isolate, value_value);
+    storage_map[key_utf16.ToU16String()] = value_utf16.ToU16String();
+  }
+}
+
+std::optional<node::webstorage::Storage*> DOMStorageAgent::getWebStorage(
+    bool is_local_storage) {
+  v8::Isolate* isolate = env_->isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Object> global = env_->context()->Global();
+  v8::Local<v8::Value> web_storage_val;
+  v8::TryCatch try_catch(isolate);
+  if (!global
+           ->Get(env_->context(),
+                 is_local_storage
+                     ? FIXED_ONE_BYTE_STRING(isolate, "localStorage")
+                     : FIXED_ONE_BYTE_STRING(isolate, "sessionStorage"))
+           .ToLocal(&web_storage_val) ||
+      !web_storage_val->IsObject() || try_catch.HasCaught()) {
+    return std::nullopt;
+  } else {
+    node::webstorage::Storage* storage;
+    ASSIGN_OR_RETURN_UNWRAP(
+        &storage, web_storage_val.As<v8::Object>(), std::nullopt);
+    return storage;
   }
 }
 

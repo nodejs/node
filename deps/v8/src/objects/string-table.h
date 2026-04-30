@@ -88,6 +88,7 @@ class V8_EXPORT_PRIVATE StringTable {
   // The following methods must be called either while holding the write lock,
   // or while in a Heap safepoint.
   void IterateElements(RootVisitor* visitor);
+  void IterateElementsRange(RootVisitor* visitor, int start, int end);
   void DropOldData();
   void NotifyElementsRemoved(int count);
 

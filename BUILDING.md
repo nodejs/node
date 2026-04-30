@@ -104,26 +104,26 @@ Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
 platforms. This is true regardless of entries in the table below.
 
-| Operating System | Architectures    | Versions                          | Support Type | Notes                                |
-| ---------------- | ---------------- | --------------------------------- | ------------ | ------------------------------------ |
-| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                      |
-| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10          |
-| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24          |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12          |
-| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
-| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
-| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
-| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
-| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
-| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
-| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4] |
-| macOS            | arm64            | >= 13.5                           | Tier 1       |                                      |
-| SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
-| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                      |
-| FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
-| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                      |
+| Operating System | Architectures    | Versions                          | Support Type | Notes                                          |
+| ---------------- | ---------------- | --------------------------------- | ------------ | ---------------------------------------------- |
+| GNU/Linux        | x64              | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
+| GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                                |
+| GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                    |
+| GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                    |
+| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12                    |
+| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                      |
+| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                    |
+| GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
+| GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7] |
+| Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
+| Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
+| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4]           |
+| macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
+| SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
+| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                |
+| FreeBSD          | x64              | >= 13.2                           | Experimental |                                                |
+| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                                |
 
 <!--lint disable final-definition-->
 
@@ -148,6 +148,13 @@ platforms. This is true regardless of entries in the table below.
 [^4]: Our macOS Binaries are compiled with 13.5 as a target. Xcode 16 is
     required to compile.
 
+[^7]: Native riscv64 builds need GCC >= 14 or Clang >= 19 because V8
+    includes `<riscv_vector.h>` and uses `target("arch=+v")` in
+    `deps/v8/src/base/cpu.cc`. GCC 13's `riscv_vector.h` errors out without
+    `-march=rv64gcv` and doesn't support the `target` attribute at all.
+    Cross-compilation from x64 is unaffected (the code is behind
+    `V8_HOST_ARCH_RISCV64`).
+
 <!--lint enable final-definition-->
 
 ### Supported toolchains
@@ -156,7 +163,7 @@ Depending on the host platform, the selection of toolchains may vary.
 
 | Operating System | Compiler Versions                                                   |
 | ---------------- | ------------------------------------------------------------------- |
-| Linux            | GCC >= 12.2 or Clang >= 19.1                                        |
+| Linux            | GCC >= 13.2 or Clang >= 19.1                                        |
 | Windows          | Visual Studio 2022 or 2026 with the Windows 11 SDK on a 64-bit host |
 | macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                                    |
 
@@ -238,7 +245,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 #### Unix prerequisites
 
-* `gcc` and `g++` >= 12.2 or `clang` and `clang++` >= 19.1
+* `gcc` and `g++` >= 13.2 or `clang` and `clang++` >= 19.1
 * GNU Make 3.81 or newer
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
@@ -404,11 +411,9 @@ If you are running tests before submitting a pull request, use:
 make -j4 test
 ```
 
-`make -j4 test` does a full check on the codebase, including running linters and
-documentation tests.
+`make -j4 test` does a full check on the codebase, including documentation tests.
 
-To run the linter without running tests, use
-`make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
+To run the linter, use `make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
 
 To fix auto fixable JavaScript linting errors, use `make lint-js-fix`.
 

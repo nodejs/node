@@ -513,7 +513,7 @@ parent or child of the current thread.
 If the two threads are parent-children, use the [`require('node:worker_threads').parentPort.postMessage()`][]
 and the [`worker.postMessage()`][] to let the threads communicate.
 
-The example below shows the use of of `postMessageToThread`: it creates 10 nested threads,
+The example below shows the use of `postMessageToThread`: it creates 10 nested threads,
 the last one will try to communicate with the main thread.
 
 ```mjs
@@ -1962,12 +1962,16 @@ this matches its values.
 
 If the worker has stopped, the return value is an empty object.
 
-### `worker.startCpuProfile()`
+### `worker.startCpuProfile([options])`
 
 <!-- YAML
 added: v24.8.0
 -->
 
+* `options` {Object}
+  * `sampleInterval` {number} Requested sampling interval in milliseconds. **Default:** `0`.
+  * `maxBufferSize` {integer} Maximum number of samples to retain.
+    **Default:** `4294967295`.
 * Returns: {Promise}
 
 Starting a CPU profile then return a Promise that fulfills with an error
@@ -1982,7 +1986,7 @@ const worker = new Worker(`
   `, { eval: true });
 
 worker.on('online', async () => {
-  const handle = await worker.startCpuProfile();
+  const handle = await worker.startCpuProfile({ sampleInterval: 1 });
   const profile = await handle.stop();
   console.log(profile);
   worker.terminate();
@@ -2005,7 +2009,7 @@ w.on('online', async () => {
 });
 ```
 
-### `worker.startHeapProfile()`
+### `worker.startHeapProfile([options])`
 
 <!-- YAML
 added:
@@ -2013,6 +2017,17 @@ added:
   - v22.20.0
 -->
 
+* `options` {Object}
+  * `sampleInterval` {number} The average sampling interval in bytes.
+    **Default:** `524288` (512 KiB).
+  * `stackDepth` {integer} The maximum stack depth for samples.
+    **Default:** `16`.
+  * `forceGC` {boolean} Force garbage collection before taking the profile.
+    **Default:** `false`.
+  * `includeObjectsCollectedByMajorGC` {boolean} Include objects collected
+    by major GC. **Default:** `false`.
+  * `includeObjectsCollectedByMinorGC` {boolean} Include objects collected
+    by minor GC. **Default:** `false`.
 * Returns: {Promise}
 
 Starting a Heap profile then return a Promise that fulfills with an error
@@ -2034,10 +2049,40 @@ worker.on('online', async () => {
 });
 ```
 
+```mjs
+import { Worker } from 'node:worker_threads';
+
+const worker = new Worker(`
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+worker.on('online', async () => {
+  const handle = await worker.startHeapProfile();
+  const profile = await handle.stop();
+  console.log(profile);
+  worker.terminate();
+});
+```
+
 `await using` example.
 
 ```cjs
 const { Worker } = require('node:worker_threads');
+
+const w = new Worker(`
+  const { parentPort } = require('node:worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+w.on('online', async () => {
+  // Stop profile automatically when return and profile will be discarded
+  await using handle = await w.startHeapProfile();
+});
+```
+
+```mjs
+import { Worker } from 'node:worker_threads';
 
 const w = new Worker(`
   const { parentPort } = require('node:worker_threads');

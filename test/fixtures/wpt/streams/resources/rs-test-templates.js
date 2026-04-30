@@ -200,7 +200,7 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   test(() => {
 
-    const stream = factory().stream;
+    const { stream } = factory();
 
     assert_true(stream.locked, 'locked getter should return true');
 
@@ -208,9 +208,9 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   promise_test(t => {
 
-    const reader = factory().reader;
+    const { read } = factory();
 
-    reader.read().then(
+    read().then(
       t.unreached_func('read() should not fulfill'),
       t.unreached_func('read() should not reject')
     );
@@ -221,14 +221,14 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   promise_test(t => {
 
-    const reader = factory().reader;
+    const { read } = factory();
 
-    reader.read().then(
+    read().then(
       t.unreached_func('read() should not fulfill'),
       t.unreached_func('read() should not reject')
     );
 
-    reader.read().then(
+    read().then(
       t.unreached_func('read() should not fulfill'),
       t.unreached_func('read() should not reject')
     );
@@ -239,26 +239,24 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   test(() => {
 
-    const reader = factory().reader;
-    assert_not_equals(reader.read(), reader.read(), 'the promises returned should be distinct');
+    const { read } = factory();
+    assert_not_equals(read(), read(), 'the promises returned should be distinct');
 
   }, label + ': read() should return distinct promises each time');
 
   test(() => {
 
-    const stream = factory().stream;
+    const { stream } = factory();
     assert_throws_js(TypeError, () => stream.getReader(), 'stream.getReader() should throw a TypeError');
 
   }, label + ': getReader() again on the stream should fail');
 
   promise_test(async t => {
 
-    const streamAndReader = factory();
-    const stream = streamAndReader.stream;
-    const reader = streamAndReader.reader;
+    const { stream, reader, read } = factory();
 
-    const read1 = reader.read();
-    const read2 = reader.read();
+    const read1 = read();
+    const read2 = read();
     const closed = reader.closed;
 
     reader.releaseLock();
@@ -275,19 +273,19 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   promise_test(t => {
 
-    const reader = factory().reader;
+    const { reader, read } = factory();
     reader.releaseLock();
 
     return Promise.all([
-      promise_rejects_js(t, TypeError, reader.read()),
-      promise_rejects_js(t, TypeError, reader.read())
+      promise_rejects_js(t, TypeError, read()),
+      promise_rejects_js(t, TypeError, read())
     ]);
 
   }, label + ': releasing the lock should cause further read() calls to reject with a TypeError');
 
   promise_test(t => {
 
-    const reader = factory().reader;
+    const { reader } = factory();
 
     const closedBefore = reader.closed;
     reader.releaseLock();
@@ -301,9 +299,7 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   test(() => {
 
-    const streamAndReader = factory();
-    const stream = streamAndReader.stream;
-    const reader = streamAndReader.reader;
+    const { stream, reader } = factory();
 
     reader.releaseLock();
     assert_false(stream.locked, 'locked getter should return false');
@@ -312,10 +308,10 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   promise_test(() => {
 
-    const reader = factory().reader;
+    const { reader, read } = factory();
     reader.cancel();
 
-    return reader.read().then(r => {
+    return read().then(r => {
       assert_object_equals(r, { value: undefined, done: true }, 'read()ing from the reader should give a done result');
     });
 
@@ -323,7 +319,7 @@ self.templatedRSEmptyReader = (label, factory) => {
 
   promise_test(t => {
 
-    const stream = factory().stream;
+    const { stream } = factory();
     return promise_rejects_js(t, TypeError, stream.cancel());
 
   }, label + ': canceling via the stream should fail');
@@ -718,4 +714,63 @@ self.templatedRSTeeCancel = (label, factory) => {
 
   }, `${label}: erroring a teed stream should properly handle canceled branches`);
 
+};
+
+self.templatedRSThrowAfterCloseOrError = (label, factory) => {
+  test(() => {}, 'Running templatedRSThrowAfterCloseOrError with ' + label);
+
+  const theError = new Error('a unique string');
+
+  promise_test(async t => {
+    let controller;
+    const stream = factory({
+      start: t.step_func((c) => {
+        controller = c;
+      })
+    });
+
+    controller.close();
+
+    assert_throws_js(TypeError, () => controller.enqueue(new Uint8Array([1])));
+  }, `${label}: enqueue() throws after close()`);
+
+  promise_test(async t => {
+    let controller;
+    const stream = factory({
+      start: t.step_func((c) => {
+        controller = c;
+      })
+    });
+
+    controller.enqueue(new Uint8Array([1]));
+    controller.close();
+
+    assert_throws_js(TypeError, () => controller.enqueue(new Uint8Array([2])));
+  }, `${label}: enqueue() throws after enqueue() and close()`);
+
+  promise_test(async t => {
+    let controller;
+    const stream = factory({
+      start: t.step_func((c) => {
+        controller = c;
+      })
+    });
+
+    controller.error(theError);
+
+    assert_throws_js(TypeError, () => controller.enqueue(new Uint8Array([1])));
+  }, `${label}: enqueue() throws after error()`);
+
+  promise_test(async t => {
+    let controller;
+    const stream = factory({
+      start: t.step_func((c) => {
+        controller = c;
+      })
+    });
+
+    controller.error(theError);
+
+    assert_throws_js(TypeError, () => controller.close());
+  }, `${label}: close() throws after error()`);
 };

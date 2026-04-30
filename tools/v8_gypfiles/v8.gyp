@@ -285,48 +285,12 @@
         'v8_base_without_compiler',
         'v8_initializers',
         'v8_maybe_icu',
-        'fp16',
         'abseil.gyp:abseil',
       ],
       'sources': [
         '<(V8_ROOT)/src/init/setup-isolate-full.cc',
       ],
     },  # v8_init
-    {
-      # This target is used to work around a GCC issue that causes the
-      # compilation to take several minutes when using -O2 or -O3.
-      # This is fixed in GCC 13.
-      'target_name': 'v8_initializers_slow',
-      'type': 'static_library',
-      'toolsets': ['host', 'target'],
-      'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
-        'fp16',
-        'abseil.gyp:abseil',
-      ],
-      'cflags!': ['-O3'],
-      'cflags': ['-O1'],
-      'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
-        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
-      ],
-      'conditions': [
-        ['v8_enable_i18n_support==1', {
-          'dependencies': [
-            '<(icu_gyp_path):icui18n',
-            '<(icu_gyp_path):icuuc',
-          ],
-        }],
-        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
-          'dependencies': [
-            '../../deps/crates/crates.gyp:temporal_capi',
-          ],
-        }],
-      ],
-    },  # v8_initializers_slow
     {
       'target_name': 'v8_initializers',
       'type': 'static_library',
@@ -336,7 +300,6 @@
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
-        'fp16',
         'abseil.gyp:abseil',
       ],
       'include_dirs': [
@@ -348,16 +311,6 @@
       ],
       'conditions': [
         ['v8_enable_webassembly==1', {
-          'dependencies': [
-            'v8_initializers_slow',
-          ],
-          # Compiled by v8_initializers_slow target.
-          'sources!': [
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
-            '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
-          ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
           ],
@@ -443,7 +396,7 @@
           'variables': {
             'mksnapshot_flags': [
               '--turbo_instruction_scheduling',
-              '--stress-turbo-late-spilling',
+              '--turbo-always-optimize-spills',
               # In cross builds, the snapshot may be generated for both the host and
               # target toolchains.  The same host binary is used to generate both, so
               # mksnapshot needs to know which target OS to use at runtime.  It's weird,
@@ -535,7 +488,6 @@
             'v8_initializers',
             'v8_libplatform',
             'abseil.gyp:abseil',
-            'fp16',
           ]
         }, {
           'dependencies': [
@@ -549,7 +501,6 @@
             'v8_initializers',
             'v8_libplatform',
             'abseil.gyp:abseil',
-            'fp16',
           ]
         }],
         ['OS=="win" and clang==1', {
@@ -664,6 +615,7 @@
         'run_torque',
         'v8_libbase',
         'fp16',
+        'highway',
         'abseil.gyp:abseil',
       ],
       'direct_dependent_settings': {
@@ -997,7 +949,6 @@
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_pch',
-        'fp16',
         'abseil.gyp:abseil',
       ],
       'conditions': [
@@ -1113,8 +1064,6 @@
         'v8_maybe_icu',
         'v8_zlib',
         'v8_pch',
-        'fp16',
-        'highway',
         'simdutf',
         'abseil.gyp:abseil',
       ],
@@ -1791,6 +1740,16 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
+        }],
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
@@ -1821,7 +1780,6 @@
         'v8_libplatform',
         'v8_maybe_icu',
         'v8_pch',
-        'fp16',
         'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
@@ -1854,6 +1812,16 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
+        }],
       ],
     },  # mksnapshot
     {
@@ -1871,6 +1839,16 @@
         # Avoid excessive LTO
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
+        }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
         }],
       ],
       'defines!': [
@@ -1911,6 +1889,16 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
+        }],
       ],
       'dependencies': [
         'torque_base',
@@ -1949,6 +1937,16 @@
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
         }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
+        }],
       ],
       'sources': [
         "<(V8_ROOT)/src/regexp/gen-regexp-special-case.cc",
@@ -1968,6 +1966,16 @@
         # Avoid excessive LTO
         ['enable_lto=="true"', {
           'ldflags': [ '-fno-lto' ],
+        }],
+        ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+            'VCLinkerTool': {
+              'AdditionalOptions': ['-fno-lto'],
+            },
+          },
         }],
       ],
       'actions': [
@@ -2036,6 +2044,13 @@
         'conditions': [
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
+          }],
+          ['node_with_ltcg=="true" or enable_lto=="true" or enable_thin_lto=="true"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'AdditionalOptions': ['-fno-lto'],
+              },
+            },
           }],
           # Changes in push_registers_asm.cc in V8 v12.8 requires using
           # push_registers_masm on Windows even with ClangCL on x64
@@ -2355,7 +2370,7 @@
       'variables': {
         'FP16_ROOT': '../../deps/v8/third_party/fp16',
       },
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
           '<(FP16_ROOT)/src/include',
         ],
@@ -2368,7 +2383,7 @@
       'variables': {
         'HIGHWAY_ROOT': '../../deps/v8/third_party/highway',
       },
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
           '<(HIGHWAY_ROOT)/src',
         ],

@@ -37,11 +37,12 @@ using namespace ngtcp2;
 
 extern Config config;
 
-int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
+std::expected<void, Error> TLSServerSession::init(TLSServerContext &tls_ctx,
+                                                  HandlerBase *handler) {
   cptls_.ptls = ptls_server_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
-    std::cerr << "ptls_server_new failed" << std::endl;
-    return -1;
+    std::println(stderr, "ptls_server_new failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   *ptls_get_data_ptr(cptls_.ptls) = handler->conn_ref();
@@ -57,10 +58,10 @@ int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
     };
 
   if (ngtcp2_crypto_picotls_configure_server_session(&cptls_) != 0) {
-    std::cerr << "ngtcp2_crypto_picotls_configure_server_session failed"
-              << std::endl;
-    return -1;
+    std::println(stderr,
+                 "ngtcp2_crypto_picotls_configure_server_session failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
-  return 0;
+  return {};
 }

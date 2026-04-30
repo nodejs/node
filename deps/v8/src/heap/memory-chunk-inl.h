@@ -9,26 +9,26 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/execution/isolate-inl.h"
-#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/base-page.h"
 #include "src/sandbox/check.h"
 
 namespace v8::internal {
 
 template <bool check_isolate>
-MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
+BasePage* MemoryChunk::MetadataImpl(const Isolate* isolate) {
   // If this changes, we also need to update
-  // CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk
+  // `CodeStubAssembler::BasePageFromMemoryChunk()`
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_LT(metadata_index_,
             MemoryChunkConstants::kMetadataPointerTableSizeMask);
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
+  IsolateGroup::BasePageTableEntry* metadata_pointer_table =
       IsolateGroup::current()->metadata_pointer_table();
   auto metadata_entry = metadata_pointer_table
       [metadata_index_ & MemoryChunkConstants::kMetadataPointerTableSizeMask];
   if constexpr (check_isolate) {
     metadata_entry.CheckIfMetadataAccessibleFromIsolate(isolate);
   }
-  MemoryChunkMetadata* metadata = metadata_entry.metadata();
+  BasePage* metadata = metadata_entry.metadata();
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index. This should be a
   // `SBXCHECK_EQ()` which doesn't currently work as we don't allow nesting of
@@ -42,32 +42,31 @@ MemoryChunkMetadata* MemoryChunk::MetadataImpl(const Isolate* isolate) {
 }
 
 template <bool check_isolate>
-const MemoryChunkMetadata* MemoryChunk::MetadataImpl(
-    const Isolate* isolate) const {
+const BasePage* MemoryChunk::MetadataImpl(const Isolate* isolate) const {
   return const_cast<MemoryChunk*>(this)->MetadataImpl<check_isolate>(isolate);
 }
 
-MemoryChunkMetadata* MemoryChunk::Metadata(const Isolate* isolate) {
+BasePage* MemoryChunk::Metadata(const Isolate* isolate) {
   return MetadataImpl<true>(isolate);
 }
 
-const MemoryChunkMetadata* MemoryChunk::Metadata(const Isolate* isolate) const {
+const BasePage* MemoryChunk::Metadata(const Isolate* isolate) const {
   return const_cast<MemoryChunk*>(this)->Metadata(isolate);
 }
 
-MemoryChunkMetadata* MemoryChunk::Metadata() {
+BasePage* MemoryChunk::Metadata() {
   return const_cast<MemoryChunk*>(this)->MetadataImpl<true>(Isolate::Current());
 }
 
-const MemoryChunkMetadata* MemoryChunk::Metadata() const {
+const BasePage* MemoryChunk::Metadata() const {
   return const_cast<MemoryChunk*>(this)->Metadata();
 }
 
-MemoryChunkMetadata* MemoryChunk::MetadataNoIsolateCheck() {
+BasePage* MemoryChunk::MetadataNoIsolateCheck() {
   return MetadataImpl<false>(nullptr);
 }
 
-const MemoryChunkMetadata* MemoryChunk::MetadataNoIsolateCheck() const {
+const BasePage* MemoryChunk::MetadataNoIsolateCheck() const {
   return const_cast<MemoryChunk*>(this)->MetadataImpl<false>(nullptr);
 }
 
@@ -79,6 +78,20 @@ bool MemoryChunk::IsEvacuationCandidate() const {
             IsFlagSet(EVACUATION_CANDIDATE));
 #endif  // DEBUG
   return IsFlagSet(EVACUATION_CANDIDATE);
+}
+
+V8_INLINE bool MemoryChunk::InReadOnlySpace() const {
+  // This is needed because TSAN does not process the memory fence
+  // emitted after page initialization.
+  SynchronizedLoad();
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  const bool ro_via_address =
+      (reinterpret_cast<uintptr_t>(this) & kContiguousReadOnlySpaceMask) == 0;
+  DCHECK_IMPLIES(ro_via_address, Metadata()->IsReadOnlyPage());
+  return ro_via_address;
+#else  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  return IsFlagSet(READ_ONLY_HEAP);
+#endif
 }
 
 }  // namespace v8::internal

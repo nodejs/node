@@ -10,10 +10,10 @@
 
 #include "src/common/globals.h"
 #include "src/execution/isolate-inl.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-layout.h"
 #include "src/heap/marking-inl.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged.h"
@@ -78,7 +78,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   }
   // This code can run from the shared heap isolate and the slot may point
   // into a client heap isolate, so ignore the isolate check.
-  const MemoryChunkMetadata* chunk_metadata = chunk->MetadataNoIsolateCheck();
+  const BasePage* chunk_metadata = chunk->MetadataNoIsolateCheck();
   DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
 
   if (!ConcreteVisitor::FilterPage(chunk)) {
@@ -90,7 +90,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
     // This could be simplified if we could guarantee that there are no free
     // space or filler objects in large pages. A few cctests violate this now.
     Tagged<HeapObject> obj(
-        static_cast<const LargePageMetadata*>(chunk_metadata)->GetObject());
+        static_cast<const LargePage*>(chunk_metadata)->GetObject());
     MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
     return (!ConcreteVisitor::FilterLargeObject(obj, map_word) ||
             InstanceTypeChecker::IsFreeSpaceOrFiller(map_word.ToMap()))
@@ -99,7 +99,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   }
 
   // Otherwise, we have a pointer inside a normal page.
-  const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
+  const NormalPage* page = static_cast<const NormalPage*>(chunk_metadata);
   // Try to find the address of a previous valid object on this page.
   Address base_ptr =
       MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);

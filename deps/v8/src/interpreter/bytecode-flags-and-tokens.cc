@@ -86,6 +86,10 @@ const char* TestTypeOfFlags::ToString(LiteralFlag literal_flag) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, TestTypeOfFlags::LiteralFlag type) {
+  return os << TestTypeOfFlags::ToString(type);
+}
+
 // static
 uint8_t StoreLookupSlotFlags::Encode(LanguageMode language_mode,
                                      LookupHoistingMode lookup_hoisting_mode) {

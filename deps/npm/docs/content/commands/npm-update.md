@@ -9,7 +9,7 @@ description: Update packages
 ```bash
 npm update [<pkg>...]
 
-aliases: up, upgrade, udpate
+aliases: u, up, upgrade, udpate
 ```
 
 ### Description
@@ -346,6 +346,8 @@ This flag is a complement to `before`, which accepts an exact date instead
 of a relative number of days.
 
 This config cannot be used with: `before`
+
+This value is not exported to the environment for child processes.
 
 #### `bin-links`
 

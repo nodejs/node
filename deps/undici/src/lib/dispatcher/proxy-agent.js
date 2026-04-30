@@ -16,6 +16,7 @@ const kProxyHeaders = Symbol('proxy headers')
 const kRequestTls = Symbol('request tls settings')
 const kProxyTls = Symbol('proxy tls settings')
 const kConnectEndpoint = Symbol('connect endpoint function')
+const kConnectEndpointHTTP1 = Symbol('connect endpoint function (http/1.1 only)')
 const kTunnelProxy = Symbol('tunnel proxy')
 
 function defaultProtocolPort (protocol) {
@@ -54,15 +55,15 @@ class Http1ProxyWrapper extends DispatcherBase {
   }
 
   [kDispatch] (opts, handler) {
-    const onHeaders = handler.onHeaders
-    handler.onHeaders = function (statusCode, data, resume) {
+    const onResponseStart = handler.onResponseStart
+    handler.onResponseStart = function (controller, statusCode, data, statusMessage) {
       if (statusCode === 407) {
-        if (typeof handler.onError === 'function') {
-          handler.onError(new InvalidArgumentError('Proxy Authentication Required (407)'))
+        if (typeof handler.onResponseError === 'function') {
+          handler.onResponseError(controller, new InvalidArgumentError('Proxy Authentication Required (407)'))
         }
         return
       }
-      if (onHeaders) onHeaders.call(this, statusCode, data, resume)
+      if (onResponseStart) onResponseStart.call(this, controller, statusCode, data, statusMessage)
     }
 
     // Rewrite request as an HTTP1 Proxy request, without tunneling.
@@ -103,7 +104,7 @@ class ProxyAgent extends DispatcherBase {
       throw new InvalidArgumentError('Proxy opts.clientFactory must be a function.')
     }
 
-    const { proxyTunnel = true } = opts
+    const { proxyTunnel = true, connectTimeout } = opts
 
     super()
 
@@ -127,8 +128,9 @@ class ProxyAgent extends DispatcherBase {
       this[kProxyHeaders]['proxy-authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString('base64')}`
     }
 
-    const connect = buildConnector({ ...opts.proxyTls })
-    this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
+    const connect = buildConnector({ timeout: connectTimeout, ...opts.proxyTls })
+    this[kConnectEndpoint] = buildConnector({ timeout: connectTimeout, ...opts.requestTls })
+    this[kConnectEndpointHTTP1] = buildConnector({ timeout: connectTimeout, ...opts.requestTls, allowH2: false })
 
     const agentFactory = opts.factory || defaultAgentFactory
     const factory = (origin, options) => {
@@ -216,7 +218,11 @@ class ProxyAgent extends DispatcherBase {
           } else {
             servername = opts.servername
           }
-          this[kConnectEndpoint]({ ...opts, servername, httpSocket: socket }, callback)
+          const connectEndpoint = opts.allowH2 === false
+            ? this[kConnectEndpointHTTP1]
+            : this[kConnectEndpoint]
+
+          connectEndpoint({ ...opts, servername, httpSocket: socket }, callback)
         } catch (err) {
           if (err.code === 'ERR_TLS_CERT_ALTNAME_INVALID') {
             // Throw a custom error to avoid loop in client.js#connect

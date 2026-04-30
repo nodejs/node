@@ -608,6 +608,7 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   // Calls `mu->lock()` and returns when that call returns. That is, `*mu` is
   // guaranteed to be locked when this object is constructed. Requires that
   // `mu` be dereferenceable.
+  ABSL_REFACTOR_INLINE
   explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : MutexLock(*mu) {}
 
@@ -620,6 +621,7 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
     this->mu_.LockWhen(cond);
   }
 
+  ABSL_REFACTOR_INLINE
   explicit MutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : MutexLock(*mu, cond) {}
@@ -647,6 +649,7 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
     mu.lock_shared();
   }
 
+  ABSL_REFACTOR_INLINE
   explicit ReaderMutexLock(Mutex* absl_nonnull mu) ABSL_SHARED_LOCK_FUNCTION(mu)
       : ReaderMutexLock(*mu) {}
 
@@ -656,6 +659,7 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
     mu.ReaderLockWhen(cond);
   }
 
+  ABSL_REFACTOR_INLINE
   explicit ReaderMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_SHARED_LOCK_FUNCTION(mu)
       : ReaderMutexLock(*mu, cond) {}
@@ -683,6 +687,7 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
     mu.lock();
   }
 
+  ABSL_REFACTOR_INLINE
   explicit WriterMutexLock(Mutex* absl_nonnull mu)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : WriterMutexLock(*mu) {}
@@ -694,6 +699,7 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
     mu.WriterLockWhen(cond);
   }
 
+  ABSL_REFACTOR_INLINE
   explicit WriterMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : WriterMutexLock(*mu, cond) {}
@@ -1097,6 +1103,7 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
     this->mu_->lock();
   }
 
+  ABSL_REFACTOR_INLINE
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : ReleasableMutexLock(*mu) {}
@@ -1108,6 +1115,7 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
     this->mu_->LockWhen(cond);
   }
 
+  ABSL_REFACTOR_INLINE
   explicit ReleasableMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : ReleasableMutexLock(*mu, cond) {}
@@ -1139,12 +1147,13 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE
 inline Mutex::~Mutex() { Dtor(); }
 #endif
 
-#if defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
-// Use default (empty) destructor in release build for performance reasons.
-// We need to mark both Dtor and ~Mutex as always inline for inconsistent
-// builds that use both NDEBUG and !NDEBUG with dynamic libraries. In these
-// cases we want the empty functions to dissolve entirely rather than being
-// exported from dynamic libraries and potentially override the non-empty ones.
+#if defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER) && \
+    !defined(ABSL_BUILD_DLL)
+// Under NDEBUG and without TSAN, Dtor is normally fully inlined for
+// performance. However, when building Abseil as a shared library
+// (ABSL_BUILD_DLL), we must provide an out-of-line definition. This ensures the
+// Mutex::Dtor symbol is exported from the DLL, maintaining ABI compatibility
+// with clients that might be built in debug mode and thus expect the symbol.
 ABSL_ATTRIBUTE_ALWAYS_INLINE
 inline void Mutex::Dtor() {}
 #endif

@@ -7,6 +7,7 @@
 #include "inspector/node_json.h"
 #include "inspector/node_string.h"
 #include "inspector/target_agent.h"
+#include "inspector/target_manager.h"
 #include "inspector_socket_server.h"
 #include "ncrypto.h"
 #include "node.h"
@@ -380,8 +381,7 @@ void InspectorIoDelegate::MessageReceived(int session_id,
                                  ::isdigit);
     if (is_number) {
       int target_session_id = std::stoi(*target_session_id_str);
-      worker = protocol::TargetAgent::target_session_id_worker_map_
-          [target_session_id];
+      worker = TargetManager::WorkerForSession(target_session_id);
       if (worker) {
         merged_session_id += target_session_id << 16;
       }

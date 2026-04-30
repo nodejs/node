@@ -27,6 +27,13 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
+
+  // This function may be called while a DisallowSandboxAccess scope is active
+  // when comparing pointers to in-sandbox objects (which is allowed even when
+  // sandbox access is forbidden). As it ends up reading in-sandbox data, we
+  // need to temporarily allow sandbox access here.
+  AllowSandboxAccess sandbox_access("Access for object comparison check");
+
   Tagged<HeapObject> obj_a = UncheckedCast<HeapObject>(Tagged<Object>(a));
   Tagged<HeapObject> obj_b = UncheckedCast<HeapObject>(Tagged<Object>(b));
   // This check might fail when we try to compare objects in different pointer
@@ -41,7 +48,7 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
            TrustedHeapLayout::InTrustedSpace(obj_b));
 #endif
   return true;
-  // LINT.ThenChange(src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
+  // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 

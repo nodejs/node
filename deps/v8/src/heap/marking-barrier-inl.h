@@ -47,21 +47,22 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
   // local marking barrier. Also from the point-of-view of the shared space
   // isolate (= main isolate) also shared objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
+    auto* host_chunk = MemoryChunk::FromHeapObject(host);
     // Check whether incremental marking is enabled for that object's space.
-    if (!MemoryChunk::FromHeapObject(host)->IsMarking()) {
+    if (!host_chunk->IsMarking()) {
       return;
     }
 
-    if (v8_flags.black_allocated_pages &&
-        HeapLayout::InBlackAllocatedPage(value)) {
+    auto* value_chunk = MemoryChunk::FromHeapObject(value);
+    if (value_chunk->IsBlackAllocated()) {
       return;
     }
 
-    if (HeapLayout::InWritableSharedSpace(host)) {
+    if (host_chunk->InWritableSharedSpace()) {
       // Invoking shared marking barrier when storing into shared objects.
       MarkValueShared(value);
       return;
-    } else if (HeapLayout::InWritableSharedSpace(value)) {
+    } else if (value_chunk->InWritableSharedSpace()) {
       // No marking needed when storing shared objects in local objects.
       return;
     }

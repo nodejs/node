@@ -75,8 +75,7 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
     break;
   default:
     if (!config.quiet) {
-      std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
-                << version << std::dec << std::endl;
+      std::println(stderr, "Unexpected quic protocol version: {:#x}", version);
     }
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
@@ -91,7 +90,8 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &H3_ALPN_V1[1] << std::endl;
+    std::println(stderr, "Client did not present ALPN {}",
+                 as_string_view(H3_ALPN_V1.subspan(1)));
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;
@@ -114,8 +114,7 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
     break;
   default:
     if (!config.quiet) {
-      std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
-                << version << std::dec << std::endl;
+      std::println(stderr, "Unexpected quic protocol version: {:#x}", version);
     }
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
@@ -130,7 +129,8 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &HQ_ALPN_V1[1] << std::endl;
+    std::println(stderr, "Client did not present ALPN {}",
+                 as_string_view(HQ_ALPN_V1.subspan(1)));
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;
@@ -212,15 +212,16 @@ SSL_TICKET_RETURN decrypt_ticket_cb(SSL *ssl, SSL_SESSION *session,
 }
 } // namespace
 
-int TLSServerContext::init(const char *private_key_file, const char *cert_file,
-                           AppProtocol app_proto) {
+std::expected<void, Error> TLSServerContext::init(const char *private_key_file,
+                                                  const char *cert_file,
+                                                  AppProtocol app_proto) {
   constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
 
   ssl_ctx_ = SSL_CTX_new(TLS_server_method());
   if (!ssl_ctx_) {
-    std::cerr << "SSL_CTX_new: " << ERR_error_string(ERR_get_error(), nullptr)
-              << std::endl;
-    return -1;
+    std::println(stderr, "SSL_CTX_new: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_CTX_set_max_early_data(ssl_ctx_, UINT32_MAX);
@@ -233,14 +234,14 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   SSL_CTX_set_options(ssl_ctx_, ssl_opts);
 
   if (SSL_CTX_set_ciphersuites(ssl_ctx_, config.ciphers) != 1) {
-    std::cerr << "SSL_CTX_set_ciphersuites: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    std::println(stderr, "SSL_CTX_set_ciphersuites: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (SSL_CTX_set1_groups_list(ssl_ctx_, config.groups) != 1) {
-    std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
-    return -1;
+    std::println(stderr, "SSL_CTX_set1_groups_list failed");
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_CTX_set_mode(ssl_ctx_, SSL_MODE_RELEASE_BUFFERS);
@@ -258,21 +259,21 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
 
   if (SSL_CTX_use_PrivateKey_file(ssl_ctx_, private_key_file,
                                   SSL_FILETYPE_PEM) != 1) {
-    std::cerr << "SSL_CTX_use_PrivateKey_file: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    std::println(stderr, "SSL_CTX_use_PrivateKey_file: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (SSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != 1) {
-    std::cerr << "SSL_CTX_use_certificate_chain_file: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    std::println(stderr, "SSL_CTX_use_certificate_chain_file: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   if (SSL_CTX_check_private_key(ssl_ctx_) != 1) {
-    std::cerr << "SSL_CTX_check_private_key: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
+    std::println(stderr, "SSL_CTX_check_private_key: {}",
+                 ERR_error_string(ERR_get_error(), nullptr));
+    return std::unexpected{Error::CRYPTO};
   }
 
   SSL_CTX_set_session_id_context(ssl_ctx_, sid_ctx, sizeof(sid_ctx) - 1);
@@ -287,7 +288,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   SSL_CTX_set_session_ticket_cb(ssl_ctx_, gen_ticket_cb, decrypt_ticket_cb,
                                 nullptr);
 
-  return 0;
+  return {};
 }
 
 extern std::ofstream keylog_file;

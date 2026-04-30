@@ -259,7 +259,7 @@ changes:
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
-  * `order` {string} When `verbatim`, the resolved addresses are return
+  * `order` {string} When `verbatim`, the resolved addresses are returned
     unsorted. When `ipv4first`, the resolved addresses are sorted by placing
     IPv4 addresses before IPv6 addresses. When `ipv6first`, the resolved
     addresses are sorted by placing IPv6 addresses before IPv4 addresses.
@@ -277,9 +277,15 @@ changes:
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.
+    Not provided when `options.all` is `true`.
   * `family` {integer} `4` or `6`, denoting the family of `address`, or `0` if
     the address is not an IPv4 or IPv6 address. `0` is a likely indicator of a
     bug in the name resolution service used by the operating system.
+    Not provided when `options.all` is `true`.
+  * `addresses` {Object\[]} An array of address objects when `options.all` is
+    `true`. Each object has the following properties:
+    * `address` {string} A string representation of an IPv4 or IPv6 address.
+    * `family` {integer} `4` or `6`, denoting the family of `address`.
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an

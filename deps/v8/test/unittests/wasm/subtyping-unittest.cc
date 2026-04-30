@@ -47,9 +47,9 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
                   ModuleTypeIndex supertype = kNoSuperType,
                   bool is_final = false, bool is_shared = false,
                   bool in_singleton_rec_group = true) {
-  StructType::Builder builder(&module->signature_zone,
-                              static_cast<uint32_t>(fields.size()), false,
-                              false);
+  StructType::Builder<WasmModuleSignatureStorage> builder(
+      &module->signature_storage, static_cast<uint32_t>(fields.size()), false,
+      false);
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
@@ -64,7 +64,7 @@ void DefineArray(WasmModule* module, FieldInit element_type,
                  ModuleTypeIndex supertype = kNoSuperType,
                  bool is_final = false, bool is_shared = false,
                  bool in_singleton_rec_group = true) {
-  module->AddArrayTypeForTesting(module->signature_zone.New<ArrayType>(
+  module->AddArrayTypeForTesting(module->signature_storage.New<ArrayType>(
                                      element_type.first, element_type.second),
                                  supertype, is_final, is_shared);
   if (in_singleton_rec_group) {
@@ -79,8 +79,8 @@ void DefineSignature(WasmModule* module,
                      bool is_final = false, bool is_shared = false,
                      bool in_singleton_rec_group = true) {
   module->AddSignatureForTesting(
-      FunctionSig::Build(&module->signature_zone, returns, params), supertype,
-      is_final, is_shared);
+      FunctionSig::Build(&module->signature_storage, returns, params),
+      supertype, is_final, is_shared);
   if (in_singleton_rec_group) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 1);
   }
@@ -89,7 +89,7 @@ void DefineSignature(WasmModule* module,
 void DefineCont(WasmModule* module, ModuleTypeIndex cont,
                 ModuleTypeIndex supertype = kNoSuperType, bool is_final = false,
                 bool is_shared = false) {
-  module->AddContTypeForTesting(module->signature_zone.New<ContType>(cont),
+  module->AddContTypeForTesting(module->signature_storage.New<ContType>(cont),
                                 supertype, is_final, is_shared);
 }
 

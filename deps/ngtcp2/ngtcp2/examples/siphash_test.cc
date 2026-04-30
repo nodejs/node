@@ -62,7 +62,7 @@ void test_siphash(void) {
   std::array<uint8_t, 15> input;
   std::iota(std::ranges::begin(input), std::ranges::end(input), 0);
 
-  assert_uint64(0xa129ca6149be45e5ull, ==, siphash24(key, input));
+  assert_uint64(0xA129CA6149BE45E5ULL, ==, siphash24(key, input));
 }
 
 void test_siphash_vector(void) {

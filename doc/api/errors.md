@@ -1332,6 +1332,24 @@ added: v14.0.0
 Used when a feature that is not available
 to the current platform which is running Node.js is used.
 
+<a id="ERR_FFI_CALL_FAILED"></a>
+
+### `ERR_FFI_CALL_FAILED`
+
+A low-level FFI call failed.
+
+<a id="ERR_FFI_INVALID_POINTER"></a>
+
+### `ERR_FFI_INVALID_POINTER`
+
+An invalid pointer was passed to an FFI operation.
+
+<a id="ERR_FFI_LIBRARY_CLOSED"></a>
+
+### `ERR_FFI_LIBRARY_CLOSED`
+
+An operation was attempted on an FFI dynamic library after it was closed.
+
 <a id="ERR_FS_CP_DIR_TO_NON_DIR"></a>
 
 ### `ERR_FS_CP_DIR_TO_NON_DIR`
@@ -2707,6 +2725,19 @@ This error has been deprecated since `require()` now supports loading synchronou
 ES modules. When `require()` encounters an ES module that contains top-level
 `await`, it will throw [`ERR_REQUIRE_ASYNC_MODULE`][] instead.
 
+<a id="ERR_REQUIRE_ESM_RACE_CONDITION"></a>
+
+### `ERR_REQUIRE_ESM_RACE_CONDITION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+An attempt was made to `require()` an [ES Module][] while another `import()` call
+was already in progress to load it asynchronously.
+
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
 ### `ERR_SCRIPT_EXECUTION_INTERRUPTED`
@@ -2881,6 +2912,13 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
+
+<a id="ERR_STREAM_ITER_MISSING_FLAG"></a>
+
+### `ERR_STREAM_ITER_MISSING_FLAG`
+
+A stream/iter API was used without the `--experimental-stream-iter` CLI flag
+enabled.
 
 <a id="ERR_STREAM_NULL_VALUES"></a>
 

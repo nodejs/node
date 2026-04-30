@@ -32,7 +32,8 @@ class PointerAuthentication : public AllStatic {
   // between {pc_address} and the pointer used as a context for signing.
   // When CFI is not enabled, store {new_pc} to {pc_address} without signing.
   V8_INLINE static void ReplacePC(Address* pc_address, Address new_pc,
-                                  int offset_from_sp);
+                                  int offset_from_sp,
+                                  int num_frames_above = -1);
 
   // When CFI is enabled, sign {pc} using {sp}, check the address and return the
   // signed value. When CFI is not enabled, return {pc} unmodified. This method
@@ -57,6 +58,10 @@ class PointerAuthentication : public AllStatic {
 #error "V8_ENABLE_CONTROL_FLOW_INTEGRITY should imply V8_TARGET_ARCH_ARM64"
 #endif
 #include "src/execution/arm64/pointer-authentication-arm64.h"
+
+#elif (defined(V8_TARGET_ARCH_RISCV64) && defined(V8_ENABLE_RISCV_SHADOW_STACK))
+
+#include "src/execution/riscv/shadow-stack-riscv.h"
 
 #else
 
