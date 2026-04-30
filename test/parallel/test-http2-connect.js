@@ -67,10 +67,15 @@ const { connect: tlsConnect } = require('tls');
 
 // Check for https as protocol
 {
-  const authority = 'https://localhost';
+  // Use a port that should be closed so this test does not depend on whether
+  // localhost:443 is occupied on the host running the test.
+  const authority = 'https://localhost:1';
   // A socket error may or may not be reported, keep this as a non-op
-  // instead of a mustCall or mustNotCall
-  connect(authority).on('error', () => {});
+  // instead of a mustCall or mustNotCall.
+  // If the connection unexpectedly succeeds, close it so the test cannot hang.
+  const client = connect(authority);
+  client.on('error', () => {});
+  client.on('connect', mustCall(() => client.close(), 0));
 }
 
 // Check for session connect callback on already connected TLS socket

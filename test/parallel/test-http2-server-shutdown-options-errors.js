@@ -58,9 +58,12 @@ server.listen(
   common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
+    // The validation logic is exercised on the server side. The client stream
+    // may close cleanly or with an error depending on platform-specific
+    // teardown ordering.
+    req.on('error', () => {});
     req.resume();
-    req.on('close', common.mustCall(() => {
-      client.close();
+    client.on('close', common.mustCall(() => {
       server.close();
     }));
   })

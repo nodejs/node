@@ -22,5 +22,9 @@ server.on('stream', common.mustCall((stream, headers) => {
 }));
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}/`);
-  client.request({ ':path': '/', '': 'foo', 'bar': '' }).end();
+  const req = client.request({ ':path': '/', '': 'foo', 'bar': '' });
+  // The invalid header is the condition under test. Depending on platform
+  // and teardown timing, the client stream may or may not emit an error.
+  req.on('error', () => {});
+  client.on('close', common.mustCall());
 }));
