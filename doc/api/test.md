@@ -1638,6 +1638,9 @@ changes:
   * `setup` {Function} A function that accepts the `TestsStream` instance
     and can be used to setup listeners before any tests are run.
     **Default:** `undefined`.
+  * `env` {Object} Environment variables to pass to test child processes.
+    This option has no effect when `isolation` is `'none'`.
+    **Default:** `process.env`.
   * `execArgv` {Array} An array of CLI flags to pass to the `node` executable when
     spawning the subprocesses. This option has no effect when `isolation` is `'none`'.
     **Default:** `[]`
