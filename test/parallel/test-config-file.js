@@ -55,6 +55,233 @@ test('should handle empty object json', async () => {
   assert.strictEqual(result.code, 0);
 });
 
+describe('runtime version checks', () => {
+  const currentMajor = Number(process.versions.node.split('.')[0]);
+
+  async function runConfig(config, filename = 'version-config.json') {
+    tmpdir.refresh();
+    const configPath = join(tmpdir.path, filename);
+    writeFileSync(configPath, JSON.stringify(config));
+
+    return spawnPromisified(process.execPath, [
+      '--no-warnings',
+      `--experimental-config-file=${configPath}`,
+      '-p', 'http.maxHeaderSize',
+    ]);
+  }
+
+  it('should accept a top-level config without nodeVersion', async () => {
+    const result = await runConfig({
+      nodeOptions: { 'max-http-header-size': 10 },
+    }, 'top-level-without-version.json');
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '10\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should accept a config file matching the current Node.js version', async () => {
+    const result = await runConfig({
+      nodeVersion: currentMajor,
+      nodeOptions: { 'max-http-header-size': 10 },
+    }, 'matching-version.json');
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '10\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should reject a config file targeting another Node.js version', async () => {
+    const result = await runConfig({
+      nodeVersion: currentMajor + 1,
+      nodeOptions: { 'max-http-header-size': 10 },
+    }, 'mismatching-version.json');
+    assert.match(result.stderr, /"nodeVersion" \d+ does not match current Node\.js version \d+/);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
+  });
+
+  it('should select a matching config from configs', async () => {
+    const result = await runConfig({
+      configs: [
+        {
+          nodeVersion: currentMajor + 1,
+          config: {
+            nodeOptions: { 'max-http-header-size': 20 },
+          },
+        },
+        {
+          nodeVersion: currentMajor,
+          config: {
+            nodeOptions: { 'max-http-header-size': 10 },
+          },
+        },
+      ],
+    }, 'versioned-configs.json');
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '10\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should reject configs without an entry for the current version', async () => {
+    const result = await runConfig({
+      configs: [
+        {
+          nodeVersion: currentMajor + 1,
+          config: {
+            nodeOptions: { 'max-http-header-size': 10 },
+          },
+        },
+      ],
+    }, 'missing-versioned-config.json');
+    assert.match(result.stderr, /No config found for current Node\.js version \d+ in "configs"/);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
+  });
+
+  it('should ignore invalid config payloads for non-matching versions', async () => {
+    const result = await runConfig({
+      configs: [
+        {
+          nodeVersion: currentMajor + 1,
+          config: false,
+        },
+        {
+          nodeVersion: currentMajor,
+          config: {
+            nodeOptions: { 'max-http-header-size': 10 },
+          },
+        },
+      ],
+    }, 'ignored-non-matching-config.json');
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '10\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should use the first matching config from configs', async () => {
+    const result = await runConfig({
+      configs: [
+        {
+          nodeVersion: currentMajor,
+          config: {
+            nodeOptions: { 'max-http-header-size': 10 },
+          },
+        },
+        {
+          nodeVersion: currentMajor,
+          config: {
+            nodeOptions: { 'max-http-header-size': 20 },
+          },
+        },
+      ],
+    }, 'first-matching-versioned-config.json');
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '10\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should allow $schema with configs', async () => {
+    const result = await runConfig({
+      $schema: 'https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json',
+      configs: [
+        {
+          nodeVersion: currentMajor,
+          config: {
+            $schema: 'https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json',
+            nodeOptions: { 'max-http-header-size': 10 },
+          },
+        },
+      ],
+    }, 'schema-with-versioned-config.json');
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, '10\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  for (const { name, config, error } of [
+    {
+      name: 'configs is empty',
+      config: { configs: [] },
+      error: /No config found for current Node\.js version \d+ in "configs"/,
+    },
+    {
+      name: 'configs is not an array',
+      config: { configs: {} },
+      error: /"configs" value unexpected .* \(should be an array\)/,
+    },
+    {
+      name: 'configs contains a non-object entry',
+      config: { configs: [false] },
+      error: /"configs\[0\]" value unexpected .* \(should be an object\)/,
+    },
+    {
+      name: 'configs entry is missing nodeVersion',
+      config: { configs: [{ config: {} }] },
+      error: /"configs\[0\]\.nodeVersion" is required/,
+    },
+    {
+      name: 'configs entry has a non-integer nodeVersion',
+      config: { configs: [{ nodeVersion: `${currentMajor}`, config: {} }] },
+      error: /"configs\[0\]\.nodeVersion" value unexpected .* \(should be an integer\)/,
+    },
+    {
+      name: 'matching configs entry is missing config',
+      config: { configs: [{ nodeVersion: currentMajor }] },
+      error: /"configs\[0\]\.config" is required/,
+    },
+    {
+      name: 'matching configs entry has a non-object config',
+      config: { configs: [{ nodeVersion: currentMajor, config: false }] },
+      error: /"configs\[0\]\.config" value unexpected .* \(should be an object\)/,
+    },
+    {
+      name: 'configs is mixed with preceding config fields',
+      config: {
+        nodeOptions: { 'max-http-header-size': 10 },
+        configs: [{ nodeVersion: currentMajor, config: {} }],
+      },
+      error: /"configs" cannot be mixed with other configuration fields/,
+    },
+    {
+      name: 'configs is mixed with following config fields',
+      config: {
+        configs: [{ nodeVersion: currentMajor, config: {} }],
+        nodeOptions: { 'max-http-header-size': 10 },
+      },
+      error: /"configs" cannot be mixed with other configuration fields/,
+    },
+    {
+      name: 'configs is nested inside a selected config',
+      config: {
+        configs: [{
+          nodeVersion: currentMajor,
+          config: { configs: [] },
+        }],
+      },
+      error: /"configs" is not allowed inside a versioned config/,
+    },
+    {
+      name: 'selected config targets another version',
+      config: {
+        configs: [{
+          nodeVersion: currentMajor,
+          config: {
+            nodeVersion: currentMajor + 1,
+            nodeOptions: { 'max-http-header-size': 10 },
+          },
+        }],
+      },
+      error: /"nodeVersion" \d+ does not match current Node\.js version \d+/,
+    },
+  ]) {
+    it(`should reject when ${name}`, async () => {
+      const result = await runConfig(config);
+      assert.match(result.stderr, error);
+      assert.strictEqual(result.stdout, '');
+      assert.strictEqual(result.code, 9);
+    });
+  }
+});
+
 test('should parse boolean flag', onlyWithAmaroAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     `--experimental-config-file=${fixtures.path('rc/strip-types.json')}`,
