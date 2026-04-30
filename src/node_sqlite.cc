@@ -170,59 +170,49 @@ static constexpr const LimitInfo* GetLimitInfoFromName(std::string_view name) {
   return nullptr;
 }
 
-inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
-                                            const char* message) {
+namespace {
+MaybeLocal<Object> CreateSQLiteErrorImpl(Isolate* isolate,
+                                         const char* message,
+                                         const char* errstr,
+                                         int errcode) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
   Local<String> js_msg;
   Local<Object> e;
-  Environment* env = Environment::GetCurrent(isolate);
   if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
-      !Exception::Error(js_msg)
-           ->ToObject(isolate->GetCurrentContext())
-           .ToLocal(&e) ||
-      e->Set(isolate->GetCurrentContext(),
-             env->code_string(),
-             env->err_sqlite_error_string())
+      !Exception::Error(js_msg)->ToObject(context).ToLocal(&e) ||
+      e->Set(context, env->code_string(), env->err_sqlite_error_string())
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
+
+  if (errstr != nullptr) {
+    Local<String> js_errstr;
+    if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errstr) ||
+        e->Set(context, env->errcode_string(), Integer::New(isolate, errcode))
+            .IsNothing() ||
+        e->Set(context, env->errstr_string(), js_errstr).IsNothing()) {
+      return MaybeLocal<Object>();
+    }
+  }
   return e;
+}
+}  // namespace
+
+inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
+                                            const char* message) {
+  return CreateSQLiteErrorImpl(isolate, message, nullptr, 0);
 }
 
 inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, int errcode) {
   const char* errstr = sqlite3_errstr(errcode);
-  Local<String> js_errmsg;
-  Local<Object> e;
-  Environment* env = Environment::GetCurrent(isolate);
-  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
-      !CreateSQLiteError(isolate, errstr).ToLocal(&e) ||
-      e->Set(env->context(),
-             env->errcode_string(),
-             Integer::New(isolate, errcode))
-          .IsNothing() ||
-      e->Set(env->context(), env->errstr_string(), js_errmsg).IsNothing()) {
-    return MaybeLocal<Object>();
-  }
-  return e;
+  return CreateSQLiteErrorImpl(isolate, errstr, errstr, errcode);
 }
 
 inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   int errcode = sqlite3_extended_errcode(db);
-  const char* errstr = sqlite3_errstr(errcode);
-  const char* errmsg = sqlite3_errmsg(db);
-  Local<String> js_errmsg;
-  Local<Object> e;
-  Environment* env = Environment::GetCurrent(isolate);
-  if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
-      !CreateSQLiteError(isolate, errmsg).ToLocal(&e) ||
-      e->Set(isolate->GetCurrentContext(),
-             env->errcode_string(),
-             Integer::New(isolate, errcode))
-          .IsNothing() ||
-      e->Set(isolate->GetCurrentContext(), env->errstr_string(), js_errmsg)
-          .IsNothing()) {
-    return MaybeLocal<Object>();
-  }
-  return e;
+  return CreateSQLiteErrorImpl(
+      isolate, sqlite3_errmsg(db), sqlite3_errstr(errcode), errcode);
 }
 
 void JSValueToSQLiteResult(Isolate* isolate,
@@ -306,14 +296,14 @@ inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
 class CustomAggregate {
  public:
   explicit CustomAggregate(Environment* env,
-                           DatabaseSync* db,
+                           BaseObjectWeakPtr<DatabaseSync> db,
                            bool use_bigint_args,
                            Local<Value> start,
                            Local<Function> step_fn,
                            Local<Function> inverse_fn,
                            Local<Function> result_fn)
       : env_(env),
-        db_(db),
+        db_(std::move(db)),
         use_bigint_args_(use_bigint_args),
         start_(env->isolate(), start),
         step_fn_(env->isolate(), step_fn),
@@ -472,7 +462,7 @@ class CustomAggregate {
   }
 
   Environment* env_;
-  DatabaseSync* db_;
+  BaseObjectWeakPtr<DatabaseSync> db_;
   bool use_bigint_args_;
   Global<Value> start_;
   Global<Function> step_fn_;
@@ -645,11 +635,11 @@ class BackupJob : public ThreadPoolWork {
 
 UserDefinedFunction::UserDefinedFunction(Environment* env,
                                          Local<Function> fn,
-                                         DatabaseSync* db,
+                                         BaseObjectWeakPtr<DatabaseSync> db,
                                          bool use_bigint_args)
     : env_(env),
       fn_(env->isolate(), fn),
-      db_(db),
+      db_(std::move(db)),
       use_bigint_args_(use_bigint_args) {}
 
 UserDefinedFunction::~UserDefinedFunction() {}
@@ -1684,8 +1674,8 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
     argc = js_len.As<Int32>()->Value();
   }
 
-  UserDefinedFunction* user_data =
-      new UserDefinedFunction(env, fn, db, use_bigint_args);
+  UserDefinedFunction* user_data = new UserDefinedFunction(
+      env, fn, BaseObjectWeakPtr<DatabaseSync>(db), use_bigint_args);
   int text_rep = SQLITE_UTF8;
 
   if (deterministic) {
@@ -2006,22 +1996,23 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
 
   auto xInverse = !inverseFunc.IsEmpty() ? CustomAggregate::xInverse : nullptr;
   auto xValue = xInverse ? CustomAggregate::xValue : nullptr;
-  int r = sqlite3_create_window_function(db->connection_,
-                                         *name,
-                                         argc,
-                                         text_rep,
-                                         new CustomAggregate(env,
-                                                             db,
-                                                             use_bigint_args,
-                                                             start_v,
-                                                             stepFunction,
-                                                             inverseFunc,
-                                                             resultFunction),
-                                         CustomAggregate::xStep,
-                                         CustomAggregate::xFinal,
-                                         xValue,
-                                         xInverse,
-                                         CustomAggregate::xDestroy);
+  int r = sqlite3_create_window_function(
+      db->connection_,
+      *name,
+      argc,
+      text_rep,
+      new CustomAggregate(env,
+                          BaseObjectWeakPtr<DatabaseSync>(db),
+                          use_bigint_args,
+                          start_v,
+                          stepFunction,
+                          inverseFunc,
+                          resultFunction),
+      CustomAggregate::xStep,
+      CustomAggregate::xFinal,
+      xValue,
+      xInverse,
+      CustomAggregate::xDestroy);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
