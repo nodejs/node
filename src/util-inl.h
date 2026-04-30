@@ -811,7 +811,7 @@ inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
     if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
   }
   v8::Local<v8::Object> obj = tmpl->NewInstance(context, property_values);
-  if (obj->SetPrototypeV2(context, v8::Null(v8::Isolate::GetCurrent()))
+  if (obj->SetPrototype(context, v8::Null(v8::Isolate::GetCurrent()))
           .IsNothing()) {
     return v8::MaybeLocal<v8::Object>();
   }
