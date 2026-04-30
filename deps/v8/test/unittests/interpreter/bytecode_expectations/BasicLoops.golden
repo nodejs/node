@@ -59,7 +59,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 52
+bytecode array length: 49
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -67,7 +67,7 @@ bytecodes: [
                 B(Star1),
   /*   65 S> */ B(LdaSmi), I8(10),
   /*   65 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
-                B(JumpIfFalse), U8(38),
+                B(JumpIfFalse), U8(36),
   /*   75 S> */ B(Ldar), R(1),
   /*   81 E> */ B(MulSmi), I8(12), FBV(0),
                 B(Star1),
@@ -77,12 +77,12 @@ bytecodes: [
   /*  102 S> */ B(LdaSmi), I8(3),
   /*  108 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*  114 S> */ B(Jump), U8(12),
+  /*  114 S> */ B(Jump), U8(11),
   /*  126 S> */ B(LdaSmi), I8(4),
   /*  132 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
   /*  138 S> */ B(Jump), U8(6),
-  /*   56 E> */ B(JumpLoop), U8(40), I8(0), FBV(2),
+  /*   56 E> */ B(JumpLoop), U8(37), I8(0), FBV(2),
   /*  147 S> */ B(Ldar), R(1),
   /*  156 S> */ B(Return),
 ]
@@ -106,26 +106,26 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 64
+bytecode array length: 59
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
   /*   62 S> */ B(LdaZero),
   /*   68 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   73 S> */ B(Jump), U8(48),
+  /*   73 S> */ B(Jump), U8(44),
   /*   85 S> */ B(LdaSmi), I8(3),
   /*   91 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   97 S> */ B(Jump), U8(42),
+  /*   97 S> */ B(Jump), U8(39),
   /*  106 S> */ B(LdaSmi), I8(4),
   /*  112 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*  118 S> */ B(Jump), U8(32),
+  /*  118 S> */ B(Jump), U8(30),
   /*  127 S> */ B(LdaSmi), I8(10),
   /*  133 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*  140 S> */ B(Jump), U8(18),
+  /*  140 S> */ B(Jump), U8(17),
   /*  152 S> */ B(LdaSmi), I8(5),
   /*  158 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -133,7 +133,7 @@ bytecodes: [
   /*  173 S> */ B(Ldar), R(0),
   /*  179 E> */ B(AddSmi), I8(1), FBV(0),
                 B(Star0),
-  /*   45 E> */ B(JumpLoop), U8(55), I8(0), FBV(1),
+  /*   45 E> */ B(JumpLoop), U8(50), I8(0), FBV(1),
   /*  186 S> */ B(Ldar), R(0),
   /*  195 S> */ B(Return),
 ]
@@ -157,13 +157,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 43
+bytecode array length: 41
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
   /*   71 S> */ B(LdaSmi), I8(3),
   /*   71 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
-                B(JumpIfFalse), U8(20),
+                B(JumpIfFalse), U8(19),
   /*   82 S> */ B(LdaSmi), I8(2),
   /*   88 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -176,7 +176,7 @@ bytecodes: [
   /*  128 E> */ B(AddSmi), I8(1), FBV(1),
                 B(Star0),
   /*  135 S> */ B(Jump), U8(6),
-  /*   45 E> */ B(JumpLoop), U8(34), I8(0), FBV(2),
+  /*   45 E> */ B(JumpLoop), U8(32), I8(0), FBV(2),
   /*  144 S> */ B(Ldar), R(0),
   /*  153 S> */ B(Return),
 ]
@@ -233,7 +233,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 52
+bytecode array length: 49
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -245,7 +245,7 @@ bytecodes: [
   /*   77 S> */ B(LdaSmi), I8(5),
   /*   83 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   89 S> */ B(Jump), U8(30),
+  /*   89 S> */ B(Jump), U8(28),
   /*   98 S> */ B(LdaSmi), I8(6),
   /*  104 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -256,7 +256,7 @@ bytecodes: [
   /*  144 S> */ B(LdaSmi), I8(10),
   /*  144 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(6),
-  /*   56 E> */ B(JumpLoop), U8(40), I8(0), FBV(2),
+  /*   56 E> */ B(JumpLoop), U8(37), I8(0), FBV(2),
   /*  151 S> */ B(Ldar), R(1),
   /*  160 S> */ B(Return),
 ]
@@ -312,7 +312,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 36
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -323,7 +323,7 @@ bytecodes: [
   /*   77 S> */ B(LdaSmi), I8(5),
   /*   83 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   89 S> */ B(Jump), U8(18),
+  /*   89 S> */ B(Jump), U8(17),
   /*   98 S> */ B(Ldar), R(0),
   /*  104 E> */ B(AddSmi), I8(1), FBV(1),
                 B(Star0),
@@ -352,7 +352,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 42
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -364,7 +364,7 @@ bytecodes: [
   /*   77 S> */ B(LdaSmi), I8(5),
   /*   83 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   89 S> */ B(Jump), U8(22),
+  /*   89 S> */ B(Jump), U8(21),
   /*   98 S> */ B(Ldar), R(0),
   /*  104 E> */ B(AddSmi), I8(1), FBV(1),
                 B(Star0),
@@ -372,7 +372,7 @@ bytecodes: [
   /*  117 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
   /*  123 S> */ B(Jump), U8(2),
-  /*   56 E> */ B(JumpLoop), U8(32), I8(0), FBV(2),
+  /*   56 E> */ B(JumpLoop), U8(30), I8(0), FBV(2),
   /*  149 S> */ B(Ldar), R(1),
   /*  158 S> */ B(Return),
 ]
@@ -392,14 +392,14 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 32
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
   /*   58 S> */ B(LdaSmi), I8(1),
   /*   64 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   70 S> */ B(Jump), U8(22),
+  /*   70 S> */ B(Jump), U8(21),
   /*   79 S> */ B(LdaSmi), I8(2),
   /*   85 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -407,7 +407,7 @@ bytecodes: [
   /*  103 S> */ B(Ldar), R(0),
   /*  109 E> */ B(AddSmi), I8(1), FBV(0),
                 B(Star0),
-  /*   45 E> */ B(JumpLoop), U8(26), I8(0), FBV(1),
+  /*   45 E> */ B(JumpLoop), U8(24), I8(0), FBV(1),
                 B(LdaUndefined),
   /*  116 S> */ B(Return),
 ]
@@ -426,14 +426,14 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 32
 bytecodes: [
   /*   47 S> */ B(LdaZero),
                 B(Star0),
   /*   56 S> */ B(LdaSmi), I8(1),
   /*   62 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   68 S> */ B(Jump), U8(22),
+  /*   68 S> */ B(Jump), U8(21),
   /*   77 S> */ B(LdaSmi), I8(2),
   /*   83 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -441,7 +441,7 @@ bytecodes: [
   /*  101 S> */ B(Ldar), R(0),
   /*  107 E> */ B(AddSmi), I8(1), FBV(0),
                 B(Star0),
-  /*   34 E> */ B(JumpLoop), U8(26), I8(0), FBV(1),
+  /*   34 E> */ B(JumpLoop), U8(24), I8(0), FBV(1),
                 B(LdaUndefined),
   /*  114 S> */ B(Return),
 ]
@@ -460,14 +460,14 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 32
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
   /*   68 S> */ B(LdaSmi), I8(1),
   /*   74 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   80 S> */ B(Jump), U8(22),
+  /*   80 S> */ B(Jump), U8(21),
   /*   89 S> */ B(LdaSmi), I8(2),
   /*   95 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -475,7 +475,7 @@ bytecodes: [
   /*   55 S> */ B(Ldar), R(0),
   /*   59 E> */ B(AddSmi), I8(1), FBV(0),
                 B(Star0),
-  /*   45 E> */ B(JumpLoop), U8(26), I8(0), FBV(1),
+  /*   45 E> */ B(JumpLoop), U8(24), I8(0), FBV(1),
                 B(LdaUndefined),
   /*  113 S> */ B(Return),
 ]
@@ -493,14 +493,14 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 32
 bytecodes: [
   /*   47 S> */ B(LdaZero),
                 B(Star0),
   /*   66 S> */ B(LdaSmi), I8(1),
   /*   72 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*   78 S> */ B(Jump), U8(22),
+  /*   78 S> */ B(Jump), U8(21),
   /*   87 S> */ B(LdaSmi), I8(2),
   /*   93 E> */ B(TestEqual), R(0), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
@@ -508,7 +508,7 @@ bytecodes: [
   /*   53 S> */ B(Ldar), R(0),
   /*   57 E> */ B(AddSmi), I8(1), FBV(0),
                 B(Star0),
-  /*   34 E> */ B(JumpLoop), U8(26), I8(0), FBV(1),
+  /*   34 E> */ B(JumpLoop), U8(24), I8(0), FBV(1),
                 B(LdaUndefined),
   /*  111 S> */ B(Return),
 ]
@@ -527,7 +527,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -543,7 +543,7 @@ bytecodes: [
   /*   72 S> */ B(Ldar), R(1),
   /*   76 E> */ B(AddSmi), I8(1), FBV(1),
                 B(Star1),
-  /*   45 E> */ B(JumpLoop), U8(22), I8(0), FBV(2),
+  /*   45 E> */ B(JumpLoop), U8(21), I8(0), FBV(2),
                 B(LdaUndefined),
   /*  110 S> */ B(Return),
 ]
@@ -620,7 +620,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
@@ -636,7 +636,7 @@ bytecodes: [
   /*   69 S> */ B(Ldar), R(1),
                 B(Inc), FBV(1),
                 B(Star1),
-  /*   45 E> */ B(JumpLoop), U8(21), I8(0), FBV(2),
+  /*   45 E> */ B(JumpLoop), U8(20), I8(0), FBV(2),
   /*  112 S> */ B(Ldar), R(0),
   /*  121 S> */ B(Return),
 ]

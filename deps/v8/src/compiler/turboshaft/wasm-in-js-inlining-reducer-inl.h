@@ -15,16 +15,13 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
-#include "src/heap/factory-inl.h"
-#include "src/objects/instance-type-inl.h"
+#include "src/compiler/turboshaft/wasm-wrappers-inl.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
-#include "src/wasm/wasm-subtyping.h"
-#include "src/wasm/wrappers-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -41,124 +38,180 @@ template <class Next>
 class WasmInJSInliningReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmInJSInlining)
-  const bool has_wasm_in_js_inlining_reducer = true;
 
-  V<Any> REDUCE(Call)(V<CallTarget> callee,
-                      OptionalV<turboshaft::FrameState> frame_state,
+  // Strip ProcessWasmArgumentOp, returning just the unwrapped value so the op
+  // never survives to the instruction selector. The eager frame state is
+  // recovered by REDUCE_INPUT_GRAPH(Call) which has direct access to the input
+  // graph CallOp and its arguments.
+  V<Object> REDUCE(ProcessWasmArgument)(V<Object> value,
+                                        V<FrameState> frame_state) {
+    // TODO(493307329): It would be cleaner to let the ProcessWasmArgument
+    // actually perform the argument conversion, and get rid of the weird logic
+    // in REDUCE_INPUT_GRAPH(Call). The ProcessWasmArgument should lower to the
+    // actual argument conversion (the FromJS() logic) and then the reducer for
+    // the call wouldn't do the argument conversion, but only the result
+    // conversion.
+    return value;
+  }
+
+  // Intercept the input-graph CallOp to find ProcessWasmArgumentOp arguments
+  // and extract the caller frame state (crbug.com/493307329). This runs before
+  // inputs are mapped, so we can inspect the input graph directly.
+  // The stash is consumed by REDUCE(Call) within the same invocation chain,
+  // so no interleaving or multi-call confusion is possible.
+  OpIndex REDUCE_INPUT_GRAPH(Call)(OpIndex ig_index, const CallOp& op) {
+    DCHECK(!pending_caller_frame_state_.has_value());
+    if (op.descriptor->js_wasm_call_parameters) {
+      for (OpIndex arg : op.arguments()) {
+        if (__ input_graph().Get(arg).template Is<ProcessWasmArgumentOp>()) {
+          pending_caller_frame_state_ =
+              __ MapToNewGraph(__ input_graph()
+                                   .Get(arg)
+                                   .template Cast<ProcessWasmArgumentOp>()
+                                   .frame_state());
+          break;
+        }
+      }
+    }
+    return Next::ReduceInputGraphCall(ig_index, op);
+  }
+
+  V<Any> REDUCE(Call)(V<CallTarget> callee, OptionalV<FrameState> frame_state,
                       base::Vector<const OpIndex> arguments,
                       const TSCallDescriptor* descriptor, OpEffects effects) {
-    LABEL_BLOCK(non_inlined_call) {
-      return Next::ReduceCall(callee, frame_state, arguments, descriptor,
-                              effects);
-    }
+    // Consume the caller frame state stashed by REDUCE_INPUT_GRAPH(Call).
+    OptionalV<FrameState> caller_frame_state = pending_caller_frame_state_;
+    pending_caller_frame_state_ = {};
 
-    if (!descriptor->js_wasm_call_parameters) {
-      // Regular call, nothing to do with Wasm or inlining. Proceed untouched...
-      goto non_inlined_call;
-    }
-
-    wasm::NativeModule* native_module =
-        descriptor->js_wasm_call_parameters->native_module();
-    uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
-
-    if (v8_flags.turbolev_inline_js_wasm_wrappers && frame_state.has_value()) {
-      // TODO(353475584): Wrapper inlining in Turboshaft is only implemented for
-      // the Turbolev frontend right now.
+    if (descriptor->js_wasm_call_parameters) {
+      // TODO(353475584): Wrapper and body inlining in Turboshaft is only
+      // implemented for the Turbolev frontend right now.
       CHECK(v8_flags.turbolev);
+      CHECK(v8_flags.turbolev_inline_js_wasm_wrappers);
+
+      // We need a `FrameState` for building correct stack traces when inlining
+      // potentially trapping Wasm operations.
+      CHECK(frame_state.has_value());
+
+      wasm::NativeModule* native_module =
+          descriptor->js_wasm_call_parameters->native_module();
+      const wasm::WasmModule* module = native_module->module();
+
+      // The `WasmModule` on the `PipelineData` (set by the Turbolev frontend)
+      // and the one from the `NativeModule` should be the same.
+      CHECK_EQ(__ data()->wasm_module(), module);
+
+      uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
+
       V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
-      // Wrapper inlining can return an `V<Any>::Invalid()`, e.g., when the Wasm
-      // function signature unconditionally causes a type error to be thrown at
-      // runtime (see `IsJSCompatibleSignature` and `BuildJSToWasmWrapperImpl`).
-      // We conservatively still emit the non-inlined call in those cases,
-      // even though that may be dead code / superfluous.
-      // TODO(dlehmann,paolosev@microsoft.com): Change to a stronger return
-      // type for `TryInlineJSWasmCallWrapperAndBody` (something like
-      // `WasmBodyInliningResult`) and enforce the invariant that an invalid
-      // wrapper inlining result always means we do NOT need the code for the
-      // non-inlined call (i.e., wrapper inlining never "fails" at this point.)
-      V<Any> result = TryInlineJSWasmCallWrapperAndBody(
-          native_module, func_idx, arguments, js_closure, js_context,
-          descriptor->js_wasm_call_parameters->receiver_is_first_param(),
-          frame_state.value(), descriptor->lazy_deopt_on_throw);
-      if (result.valid()) {
-        return result;
-      } else {
-        goto non_inlined_call;
+      // Prepare data for the Wasm-in-JS body inlining, if enabled.
+      std::optional<WasmInlinedFunctionData> inlined_function_data;
+      if (v8_flags.turboshaft_wasm_in_js_inlining) {
+        V<AnyOrNone> origin = __ current_operation_origin();
+        CHECK(origin.valid());
+        SourcePosition call_pos = __ input_graph().source_positions()[origin];
+        CHECK(call_pos.IsKnown());
+        int inlining_id = __ data() -> info()->AddInlinedFunction(
+            descriptor->js_wasm_call_parameters->shared_fct_info().object(),
+            Handle<BytecodeArray>(), call_pos);
+        V<FrameState> wasm_inlined_frame_state =
+            CreateWasmInlinedIntoJSFrameState(
+                js_context, frame_state.value(),
+                descriptor->js_wasm_call_parameters->shared_fct_info());
+        inlined_function_data = {native_module, func_idx,
+                                 wasm_inlined_frame_state, inlining_id};
       }
-    } else if (descriptor->lazy_deopt_on_throw != LazyDeoptOnThrow::kYes) {
-      // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
-      // inlining calls that have LazyDeoptOnThrow::kYes.
 
-      // TODO(dlehmann): Investigate if we need to prevent inlining into
-      // try-blocks (due to wasm traps ignoring catch handlers in the inlined JS
-      // frame).
-
-      // We shouldn't have attached `JSWasmCallParameters` at this call in the
-      // Turbofan frontend, unless we have TS Wasm-in-JS inlining enabled.
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-
-      WasmBodyInliningResult inlining_result =
-          TryInlineWasmCall(native_module, func_idx, arguments);
-
-      switch (inlining_result.type) {
-        case WasmBodyInliningResult::Type::kSuccessWithValue:
-          return inlining_result.value.value();
-        case WasmBodyInliningResult::Type::kSuccessVoid:
-          // Inlining succeeded for a void function. The original call had no
-          // outputs, so the result is an invalid value (but unlike in the next
-          // case, the original call is reduced away).
-          return V<Any>::Invalid();
-        case WasmBodyInliningResult::Type::kFailed:
-          // Inlining failed. Simply generate the unmodified Wasm call.
-          goto non_inlined_call;
-      }
+      // The JS-to-Wasm wrapper is always inlined at this point, because the
+      // bailouts for that have already happened in `turbolev-graph-builder.cc`.
+      // The Wasm-in-JS body inlining may still bailout in `TryInlineWasmBody`.
+      const wasm::WasmFunction& func = module->functions[func_idx];
+      wasm::CanonicalTypeIndex sig_id =
+          module->canonical_sig_id(func.sig_index);
+      const wasm::CanonicalSig* sig =
+          wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
+      constexpr bool kInliningIntoJs = true;
+      using GraphBuilder = WasmWrapperTSGraphBuilder<assembler_t>;
+      GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
+                           inlined_function_data);
+      V<FrameState> continuation_frame_state =
+          CreateJSWasmCallBuiltinContinuationFrameState(
+              js_context, frame_state.value(), sig);
+      // When inlining into JS, pass the caller frame state (a pre-call Maglev
+      // checkpoint) so that we can deopt if a parameter conversion fails
+      // (crbug.com/493307329). For numeric types, this enables eager deopt
+      // guards that eagerly deopt if we fall off the conversion fastpath, e.g.,
+      // not Smi or HeapNumber. In particular, we do not call builtins that
+      // could transitively cause a lazy deopt via valueOf/Symbol.toPrimitive.
+      V<Any> result = builder.BuildJSToWasmWrapper(
+          js_closure, js_context, arguments, continuation_frame_state,
+          descriptor->lazy_deopt_on_throw, caller_frame_state);
+      // The wrapper inlining will always succeed and produce a JS value, except
+      // if the wrapper or body inlining _unconditionally_ produced a trap /
+      // type error and we are thus in unreachable code.
+      CHECK_EQ(!result.valid(), __ generating_unreachable_operations());
+      return result;
     }
 
-    // Inlining not supported for this particular call (e.g., because of lazy
-    // deopts or else, see above).
-    goto non_inlined_call;
+    // Do not inline this particular call (because of a bailout or because it
+    // is not a Wasm call to begin with.)
+    return Next::ReduceCall(callee, frame_state, arguments, descriptor,
+                            effects);
   }
 
-  WasmBodyInliningResult TryInlineWasmCall(
-      wasm::NativeModule* native_module, uint32_t func_idx,
-      base::Vector<const OpIndex> arguments);
+  WasmBodyInliningResult TryInlineWasmBody(
+      const WasmInlinedFunctionData& inlined_data,
+      base::Vector<const OpIndex> arguments,
+      LazyDeoptOnThrow lazy_deopt_on_throw);
+
+  void set_current_wasm_source_position(SourcePosition pos) {
+    current_wasm_source_position_ = pos;
+  }
+
+  SourcePosition GetSourcePositionFor(OpIndex index) {
+    if (current_wasm_source_position_.IsKnown()) {
+      return current_wasm_source_position_;
+    }
+    return Next::GetSourcePositionFor(index);
+  }
 
  private:
-  V<Any> TryInlineJSWasmCallWrapperAndBody(
-      wasm::NativeModule* native_module, uint32_t func_idx,
-      base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
-      V<Context> js_context, bool receiver_is_first_param,
-      V<turboshaft::FrameState> frame_state,
-      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
-
-  V<turboshaft::FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
-      V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+  V<FrameState> CreateWasmInlinedIntoJSFrameState(
+      V<Context> js_context, V<FrameState> outer_frame_state,
+      SharedFunctionInfoRef shared_function_info);
+  V<FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
+      V<Context> js_context, V<FrameState> outer_frame_state,
       const wasm::CanonicalSig* signature);
+
+  // Caller frame state set by REDUCE_INPUT_GRAPH(Call), consumed by the
+  // immediately following REDUCE(Call) within the same ReduceInputGraphCall
+  // invocation (crbug.com/493307329).
+  OptionalV<FrameState> pending_caller_frame_state_;
+
+  SourcePosition current_wasm_source_position_ = SourcePosition::Unknown();
 };
 
-using wasm::ArrayIndexImmediate;
-using wasm::BranchTableImmediate;
-using wasm::CallFunctionImmediate;
-using wasm::CallIndirectImmediate;
-using wasm::FieldImmediate;
-using wasm::GlobalIndexImmediate;
-using wasm::IndexImmediate;
-using wasm::MemoryAccessImmediate;
-using wasm::MemoryCopyImmediate;
-using wasm::MemoryIndexImmediate;
-using wasm::MemoryInitImmediate;
-using wasm::Simd128Immediate;
-using wasm::SimdLaneImmediate;
-using wasm::StringConstImmediate;
-using wasm::StructIndexImmediate;
-using wasm::TableCopyImmediate;
-using wasm::TableIndexImmediate;
-using wasm::TableInitImmediate;
-using wasm::TagIndexImmediate;
 using wasm::ValueType;
 using wasm::WasmOpcode;
+
+namespace detail {
+
+struct Value : public wasm::ValueBase<wasm::Decoder::NoValidationTag> {
+  V<Any> op = V<Any>::Invalid();
+
+  template <typename T>
+  V<T> get() const {
+    return V<T>::Cast(op);
+  }
+
+  template <typename... Args>
+  explicit Value(Args&&... args) V8_NOEXCEPT
+      : ValueBase(std::forward<Args>(args)...) {}
+};
+
+}  // namespace detail
 
 template <class Assembler>
 class WasmInJsInliningInterface {
@@ -166,12 +219,7 @@ class WasmInJsInliningInterface {
   using ValidationTag = wasm::Decoder::NoValidationTag;
   using FullDecoder =
       wasm::WasmFullDecoder<ValidationTag, WasmInJsInliningInterface>;
-  struct Value : public wasm::ValueBase<ValidationTag> {
-    V<Any> op = V<Any>::Invalid();
-    template <typename... Args>
-    explicit Value(Args&&... args) V8_NOEXCEPT
-        : ValueBase(std::forward<Args>(args)...) {}
-  };
+  using Value = detail::Value;
   // TODO(dlehmann,353475584): Introduce a proper `Control` struct/class, once
   // we want to support control-flow in the inlinee.
   using Control = wasm::ControlBase<Value, ValidationTag>;
@@ -179,13 +227,21 @@ class WasmInJsInliningInterface {
 
   WasmInJsInliningInterface(Assembler& assembler,
                             base::Vector<const OpIndex> arguments,
-                            V<WasmTrustedInstanceData> trusted_instance_data)
+                            V<WasmTrustedInstanceData> trusted_instance_data,
+                            V<FrameState> frame_state, int inlining_id)
       : asm_(assembler),
         locals_(assembler.phase_zone()),
         arguments_(arguments),
-        trusted_instance_data_(trusted_instance_data) {}
+        trusted_instance_data_(trusted_instance_data),
+        frame_state_(frame_state),
+        inlining_id_(inlining_id) {}
 
-  WasmBodyInliningResult Result() { return result_; }
+  ~WasmInJsInliningInterface() {
+    // End of inlining the Wasm function, so unset the Wasm source position.
+    __ set_current_wasm_source_position(SourcePosition::Unknown());
+  }
+
+  WasmBodyInliningResult result() const { return result_; }
 
   void OnFirstError(FullDecoder*) {}
 
@@ -194,7 +250,17 @@ class WasmInJsInliningInterface {
                     decoder->SafeOpcodeNameAt(decoder->pc()));
   }
 
+#define BAILOUT_WASM_OP(name)                  \
+  template <typename... Args>                  \
+  void name(FullDecoder* decoder, Args&&...) { \
+    Bailout(decoder);                          \
+  }
+
   void StartFunction(FullDecoder* decoder) {
+    // Make sure we have a source positions for generated code before the first
+    // Wasm opcode, e.g., initializing locals.
+    set_current_wasm_source_position(decoder);
+
     locals_.resize(decoder->num_locals());
 
     // Initialize the function parameters, which are part of the local space.
@@ -211,7 +277,7 @@ class WasmInJsInliningInterface {
         DCHECK(type.is_ref());
         op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
-        op = DefaultValue(type);
+        op = __ WasmDefaultValue(type);
       }
       while (index < decoder->num_locals() &&
              decoder->local_type(index) == type) {
@@ -223,18 +289,11 @@ class WasmInJsInliningInterface {
   void FinishFunction(FullDecoder* decoder) {}
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode) {
-    // TODO(dlehmann,353475584): Copied from Turboshaft graph builder, still
-    // need to understand what the inlining ID is / where to get it.
-    // __ SetCurrentOrigin(
-    //     WasmPositionToOpIndex(decoder->position(), inlining_id_));
+    set_current_wasm_source_position(decoder);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
     // This is just for testing bailouts in Liftoff, here it's just a nop.
-  }
-
-  void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
-    Bailout(decoder);
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -292,6 +351,11 @@ class WasmInJsInliningInterface {
         // not otherwise used in this switch) as a sentinel for the negation of
         // ref.is_null. See `function-body-decoder-impl.h`
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
+      case wasm::kExprAnyConvertExtern:
+        return __ AnyConvertExtern(arg, input_type.is_shared(),
+                                   input_type.is_nullable());
+      case wasm::kExprExternConvertAny:
+        return __ ExternConvertAny(arg, input_type.is_nullable());
 
       // We currently don't support operations that:
       // - could trap,
@@ -342,11 +406,8 @@ class WasmInJsInliningInterface {
       case wasm::kExprF32UConvertI64:
       case wasm::kExprF64SConvertI64:
       case wasm::kExprF64UConvertI64:
-
-      // TODO(dlehmann): Fix arm64 no-ptr-compression builds, see relevant
-      // earlier CL https://crrev.com/c/4311941/1..4.
-      case wasm::kExprAnyConvertExtern:
-      case wasm::kExprExternConvertAny:
+        // Not supported, but we are aware of it. Bailout below.
+        break;
 
       // asm.js:
       case wasm::kExprF64Acos:
@@ -368,8 +429,9 @@ class WasmInJsInliningInterface {
       case wasm::kExprI32AsmjsUConvertF32:
       case wasm::kExprI32AsmjsSConvertF64:
       case wasm::kExprI32AsmjsUConvertF64:
-        // Not supported, but we are aware of it. Bailout below.
-        break;
+        // We already bailout for asm.js modules earlier, so we should never
+        // see these operations.
+        UNREACHABLE();
 
       default:
         // Fuzzers should alert us when we forget ops, but it's not security
@@ -532,6 +594,8 @@ class WasmInJsInliningInterface {
       case wasm::kExprI64DivU:
       case wasm::kExprI64RemS:
       case wasm::kExprI64RemU:
+        // Not supported, but we are aware of it. Bailout below.
+        break;
 
       // asm.js:
       case wasm::kExprF64Atan2:
@@ -546,8 +610,9 @@ class WasmInJsInliningInterface {
       case wasm::kExprI32AsmjsStoreMem:
       case wasm::kExprF32AsmjsStoreMem:
       case wasm::kExprF64AsmjsStoreMem:
-        // Not supported, but we are aware of it. Bailout below.
-        break;
+        // We already bailout for asm.js modules earlier, so we should never
+        // see these operations.
+        UNREACHABLE();
 
       default:
         // Fuzzers should alert us when we forget ops, but it's not security
@@ -563,11 +628,6 @@ class WasmInJsInliningInterface {
     result->op = __ Word32Constant(value);
   }
 
-  void I64Const(FullDecoder* decoder, Value* result, int64_t value) {
-    // TODO(dlehmann,353475584): Support i64 ops.
-    Bailout(decoder);
-  }
-
   void F32Const(FullDecoder* decoder, Value* result, float value) {
     result->op = __ Float32Constant(value);
   }
@@ -576,726 +636,363 @@ class WasmInJsInliningInterface {
     result->op = __ Float64Constant(value);
   }
 
-  void S128Const(FullDecoder* decoder, const Simd128Immediate& imm,
-                 Value* result) {
-    Bailout(decoder);
-  }
-
-  void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
-    Bailout(decoder);
-  }
-
-  void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    Bailout(decoder);
-  }
-
-  void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    Bailout(decoder);
-  }
+  // TODO(dlehmann,353475584): Support more of these simple constants.
+  BAILOUT_WASM_OP(I64Const)
+  BAILOUT_WASM_OP(RefNull)
+  BAILOUT_WASM_OP(RefFunc)
+  BAILOUT_WASM_OP(RefAsNonNull)
 
   void Drop(FullDecoder* decoder) {}
 
   void LocalGet(FullDecoder* decoder, Value* result,
-                const IndexImmediate& imm) {
+                const wasm::IndexImmediate& imm) {
     result->op = locals_[imm.index];
   }
 
   void LocalSet(FullDecoder* decoder, const Value& value,
-                const IndexImmediate& imm) {
+                const wasm::IndexImmediate& imm) {
     locals_[imm.index] = value.op;
   }
 
   void LocalTee(FullDecoder* decoder, const Value& value, Value* result,
-                const IndexImmediate& imm) {
+                const wasm::IndexImmediate& imm) {
     locals_[imm.index] = result->op = value.op;
   }
 
   void GlobalGet(FullDecoder* decoder, Value* result,
-                 const GlobalIndexImmediate& imm) {
-    bool shared = decoder->module_->globals[imm.index].shared;
-    if (shared) {
+                 const wasm::GlobalIndexImmediate& imm) {
+    SharedFlag shared = decoder->module_->globals[imm.index].shared;
+    if (shared == SharedFlag::kYes) {
       return Bailout(decoder);
     }
     result->op = __ GlobalGet(trusted_instance_data_, imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
-                 const GlobalIndexImmediate& imm) {
-    bool shared = decoder->module_->globals[imm.index].shared;
-    if (shared) {
+                 const wasm::GlobalIndexImmediate& imm) {
+    SharedFlag shared = decoder->module_->globals[imm.index].shared;
+    if (shared == SharedFlag::kYes) {
       return Bailout(decoder);
     }
     __ GlobalSet(trusted_instance_data_, value.op, imm.global);
   }
 
-  // TODO(dlehmann,353475584): Support control-flow in the inlinee.
-
-  void Block(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void Loop(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
-    Bailout(decoder);
-  }
-  void Else(FullDecoder* decoder, Control* if_block) { Bailout(decoder); }
-  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values = 0) {
-    Bailout(decoder);
-  }
-  void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
-    Bailout(decoder);
-  }
-  void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
-               const Value& key) {
-    Bailout(decoder);
+  void Forward(FullDecoder* decoder, const Value& from, Value* to) {
+    to->op = from.op;
   }
 
-  void FallThruTo(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void PopControl(FullDecoder* decoder, Control* block) { Bailout(decoder); }
   void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
     size_t return_count = decoder->sig_->return_count();
 
     if (return_count == 1) {
-      V<Any> return_value =
+      result_.result =
           decoder
               ->stack_value(static_cast<uint32_t>(return_count + drop_values))
               ->op;
-      result_ = WasmBodyInliningResult::SuccessWithValue(return_value);
     } else if (return_count == 0) {
-      // A void function doesn't produce a result. The operation that replaces
-      // the call will have no outputs. The surrounding JS-to-Wasm wrapper
-      // (outside this inlined Wasm body) is responsible for producing the
-      // JavaScript `undefined` value if the caller expects one.
-      result_ = WasmBodyInliningResult::SuccessVoid();
+      // A void function doesn't produce a result. The surrounding JS-to-Wasm
+      // wrapper (outside this inlined Wasm body) is responsible for producing
+      // the JavaScript `undefined` value.
     } else {
       // We currently don't support wrapper inlining with multi-value returns,
       // so this should never be hit.
       UNREACHABLE();
     }
-  }
-  void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
-              const Value& tval, Value* result) {
-    Bailout(decoder);
+    result_.success = true;
   }
 
-  // TODO(dlehmann,353475584): Support exceptions in the inlinee.
+  void Trap(FullDecoder* decoder, wasm::TrapReason reason) {
+    __ WasmTrap(frame_state_, GetTrapIdForTrap(reason));
 
-  void Try(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
-             const Value arg_values[]) {
-    Bailout(decoder);
+    // Once we support control-flow in the inlinee, we can't just set the
+    // result here, since other blocks / instructions could follow.
+    // TODO(dlehmann,353475584): Handle it similar to the
+    // `TurboshaftGraphBuildingInterface` for Wasm-in-Wasm inlining. That is,
+    // have a `return_block_` and `return_phis_` passed in by the caller
+    // and terminator instructions adding phi values and jumping to said block.
+    result_.success = true;
   }
-  void Rethrow(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
-                      Control* block, base::Vector<Value> values) {
-    Bailout(decoder);
-  }
-  void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
-    Bailout(decoder);
-  }
-
-  void CatchAll(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void TryTable(FullDecoder* decoder, Control* block) { Bailout(decoder); }
-  void CatchCase(FullDecoder* decoder, Control* block,
-                 const wasm::CatchCase& catch_case,
-                 base::Vector<Value> values) {
-    Bailout(decoder);
-  }
-  void ThrowRef(FullDecoder* decoder, Value* value) { Bailout(decoder); }
-
-  void ContNew(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
-               const Value& func_ref, Value* result) {
-    Bailout(decoder);
-  }
-
-  void ContBind(FullDecoder* decoder, const wasm::ContIndexImmediate& orig_imm,
-                Value input_cont, const Value args[],
-                const wasm::ContIndexImmediate& new_imm, Value* result) {
-    Bailout(decoder);
-  }
-
-  void Resume(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
-              base::Vector<wasm::HandlerCase> handlers, const Value& cont_ref,
-              const Value args[], const Value returns[]) {
-    Bailout(decoder);
-  }
-
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const wasm::HandlerCase> handlers,
-                     size_t handler_index, Value* cont_val, Value* tag_params) {
-    Bailout(decoder);
-  }
-
-  void ResumeThrow(FullDecoder* decoder,
-                   const wasm::ContIndexImmediate& cont_imm,
-                   const TagIndexImmediate& exc_imm,
-                   base::Vector<wasm::HandlerCase> handlers, const Value& cont,
-                   const Value args[], const Value returns[]) {
-    Bailout(decoder);
-  }
-
-  void ResumeThrowRef(FullDecoder* decoder,
-                      const wasm::ContIndexImmediate& cont_imm,
-                      base::Vector<wasm::HandlerCase> handlers,
-                      const Value& cont, const Value& exn,
-                      const Value returns[]) {
-    Bailout(decoder);
-  }
-
-  void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
-              const wasm::ContIndexImmediate& con_imm, const Value& cont_ref,
-              const Value args[], Value returns[]) {
-    Bailout(decoder);
-  }
-
-  void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
-               const Value args[], const Value returns[]) {
-    Bailout(decoder);
-  }
-
-  void EffectHandlerTable(FullDecoder* decoder, Control* block) {
-    Bailout(decoder);
-  }
-
-  // TODO(dlehmann,353475584): Support traps in the inlinee.
-
-  void Trap(FullDecoder* decoder, wasm::TrapReason reason) { Bailout(decoder); }
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
-    Bailout(decoder);
+    __ TrapIfNot(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
+                 TrapId::kTrapIllegalCast);
+    Forward(decoder, obj, result);
   }
-
   void AssertNotNullTypecheck(FullDecoder* decoder, const Value& obj,
                               Value* result) {
-    Bailout(decoder);
-  }
-  void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
-                    OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
-    Bailout(decoder);
-  }
-  void AtomicWait(FullDecoder* decoder, WasmOpcode opcode,
-                  const MemoryAccessImmediate& imm, OpIndex index,
-                  OpIndex expected, V<Word64> timeout, Value* result) {
-    Bailout(decoder);
-  }
-  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
-                const size_t argc, const MemoryAccessImmediate& imm,
-                Value* result) {
-    Bailout(decoder);
-  }
-  void AtomicFence(FullDecoder* decoder) { Bailout(decoder); }
-
-  void Pause(FullDecoder* decoder) { Bailout(decoder); }
-
-  void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
-                       const Value& struct_object, const FieldImmediate& field,
-                       const Value& field_value, AtomicMemoryOrder order,
-                       Value* result) {
-    Bailout(decoder);
+    __ TrapIf(__ IsNull(obj.get<Object>(), obj.type), frame_state_,
+              TrapId::kTrapIllegalCast);
+    Forward(decoder, obj, result);
   }
 
-  void StructAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
-                                   const Value& struct_object,
-                                   const FieldImmediate& field,
-                                   const Value& expected_value,
-                                   const Value& new_value,
-                                   AtomicMemoryOrder order, Value* result) {
-    Bailout(decoder);
-  }
-
-  void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
-                      const Value& array_obj, const ArrayIndexImmediate& imm,
-                      const Value& index, const Value& value,
-                      AtomicMemoryOrder order, Value* result) {
-    Bailout(decoder);
-  }
-
-  void ArrayAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
-                                  const Value& array_obj,
-                                  const ArrayIndexImmediate& imm,
-                                  const Value& index,
-                                  const Value& expected_value,
-                                  const Value& new_value,
-                                  AtomicMemoryOrder order, Value* result) {
-    Bailout(decoder);
-  }
-
-  void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
-                  const Value& dst, const Value& src, const Value& size) {
-    Bailout(decoder);
-  }
-  void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
-                  const Value& dst, const Value& src, const Value& size) {
-    Bailout(decoder);
-  }
-  void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
-                  const Value& dst, const Value& value, const Value& size) {
-    Bailout(decoder);
-  }
-  void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    Bailout(decoder);
-  }
-
-  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
-                const TableIndexImmediate& imm) {
-    Bailout(decoder);
-  }
-  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
-                const TableIndexImmediate& imm) {
-    Bailout(decoder);
-  }
-  void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
-                 const Value& dst_val, const Value& src_val,
-                 const Value& size_val) {
-    Bailout(decoder);
-  }
-  void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
-                 const Value& dst_val, const Value& src_val,
-                 const Value& size_val) {
-    Bailout(decoder);
-  }
-  void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
-                 const Value& value, const Value& delta, Value* result) {
-    Bailout(decoder);
-  }
-  void TableFill(FullDecoder* decoder, const TableIndexImmediate& imm,
-                 const Value& start, const Value& value, const Value& count) {
-    Bailout(decoder);
-  }
-  void TableSize(FullDecoder* decoder, const TableIndexImmediate& imm,
-                 Value* result) {
-    Bailout(decoder);
-  }
-
-  void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    Bailout(decoder);
-  }
-
-  void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value& descriptor, const Value args[], Value* result) {
-    Bailout(decoder);
-  }
-  void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        const Value& descriptor, Value* result) {
-    Bailout(decoder);
-  }
   void StructGet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldImmediate& field, bool is_signed, Value* result) {
-    Bailout(decoder);
+                 const wasm::FieldImmediate& field, bool is_signed,
+                 Value* result) {
+    result->op = __ StructGet(
+        struct_object.get<WasmStructNullable>(), frame_state_,
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index, is_signed,
+        struct_object.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        {});
   }
+
   void StructSet(FullDecoder* decoder, const Value& struct_object,
-                 const FieldImmediate& field, const Value& field_value) {
-    Bailout(decoder);
+                 const wasm::FieldImmediate& field, const Value& field_value) {
+    __ StructSet(
+        struct_object.get<WasmStructNullable>(), frame_state_, field_value.op,
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index,
+        struct_object.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
+        {}, wasm::FieldImmediateToWriteBarrier(field));
   }
-  void StructAtomicGet(FullDecoder* decoder, const Value& struct_obj,
-                       const FieldImmediate& field, bool is_signed,
-                       AtomicMemoryOrder memory_order, Value* result) {
-    Bailout(decoder);
-  }
-  void StructAtomicSet(FullDecoder* decoder, const Value& struct_object,
-                       const FieldImmediate& field, const Value& field_value,
-                       AtomicMemoryOrder memory_order) {
-    Bailout(decoder);
-  }
-  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                const Value& length, const Value& initial_value,
-                Value* result) {
-    Bailout(decoder);
-  }
-  void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                       const Value& length, Value* result) {
-    // TODO(dlehmann): This will pull in/cause a lot of code duplication wrt.
-    // the Wasm pipeline / `TurboshaftGraphBuildingInterface`.
-    // How to reduce duplication best? Common superclass? But both will have
-    // different Assemblers (reducer stacks), so I will have to templatize that.
-    Bailout(decoder);
-  }
+
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
-                const ArrayIndexImmediate& imm, const Value& index,
+                const wasm::ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
-    Bailout(decoder);
+    auto array_value = array_obj.get<WasmArrayNullable>();
+    __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
+                            frame_state_);
+    result->op = __ ArrayGet(array_value, index.get<Word32>(), imm.array_type,
+                             is_signed, {});
   }
-  void ArrayAtomicGet(FullDecoder* decoder, const Value& array_obj,
-                      const ArrayIndexImmediate& imm, const Value& index,
-                      bool is_signed, AtomicMemoryOrder memory_order,
-                      Value* result) {
-    Bailout(decoder);
-  }
+
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
-                const ArrayIndexImmediate& imm, const Value& index,
+                const wasm::ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {
-    Bailout(decoder);
+    auto array_value = array_obj.get<WasmArrayNullable>();
+    __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type,
+                            frame_state_);
+    __ ArraySet(array_value, index.get<Word32>(), value.op,
+                imm.array_type->element_type(), {},
+                wasm::ArrayIndexImmediateToWriteBarrier(imm));
   }
-  void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
-                      const ArrayIndexImmediate& imm, const Value& index_val,
-                      const Value& value_val, AtomicMemoryOrder order) {
-    Bailout(decoder);
-  }
+
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    Bailout(decoder);
-  }
-  void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
-                 const Value& src, const Value& src_index,
-                 const ArrayIndexImmediate& src_imm, const Value& length) {
-    Bailout(decoder);
-  }
-  void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
-                 const Value& array, const Value& index, const Value& value,
-                 const Value& length) {
-    Bailout(decoder);
-  }
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
-                     const IndexImmediate& length_imm, const Value elements[],
-                     Value* result) {
-    Bailout(decoder);
-  }
-  void ArrayNewSegment(FullDecoder* decoder,
-                       const ArrayIndexImmediate& array_imm,
-                       const IndexImmediate& segment_imm, const Value& offset,
-                       const Value& length, Value* result) {
-    Bailout(decoder);
-  }
-  void ArrayInitSegment(FullDecoder* decoder,
-                        const ArrayIndexImmediate& array_imm,
-                        const IndexImmediate& segment_imm, const Value& array,
-                        const Value& array_index, const Value& segment_offset,
-                        const Value& length) {
-    Bailout(decoder);
+    result->op = __ ArrayLength(
+        array_obj.get<WasmArrayNullable>(), frame_state_,
+        array_obj.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck);
   }
 
-  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
-    Bailout(decoder);
-  }
-  void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    Bailout(decoder);
-  }
-
-  void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    Bailout(decoder);
+  V<FixedArray> managed_object_maps() {
+    // TODO(dlehmann): Optimize this by baking in the Map into the generated
+    // code as a HeapConstant (which we can do in JS, but not in Wasm).
+    return LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data_,
+                                         ManagedObjectMaps,
+                                         MemoryRepresentation::TaggedPointer());
   }
 
-  void RefGetDesc(FullDecoder* decoder, wasm::ModuleTypeIndex struct_index,
-                  const Value& ref, Value* desc) {
-    Bailout(decoder);
-  }
-
-  void RefTest(FullDecoder* decoder, wasm::HeapType target_type,
-               const Value& object, Value* result, bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void RefTestAbstract(FullDecoder* decoder, const Value& object,
-                       wasm::HeapType type, Value* result, bool null_succeeds) {
-    Bailout(decoder);
-  }
+  // TODO(dlehmann): This and other decoder interface method implementations
+  // share a lot of code with the regular Wasm pipeline in
+  // `turboshaft-graph-interface.cc`. Think of a way to DRY, e.g., by moving
+  // functionality into Turboshaft `Assembler::Wasm*()` methods or introducing a
+  // new, common reducer.
   void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
-    Bailout(decoder);
+    ValueType target = result->type;
+    if (target.is_shared() == SharedFlag::kYes) {
+      return Bailout(decoder);
+    }
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    V<Map> rtt = __ RttCanon(managed_object_maps(), target.ref_index());
+    compiler::WasmTypeCheckConfig config{
+        object.type, target,
+        compiler::GetExactness(decoder->module_, target.heap_type())};
+    result->op =
+        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
   }
-  void RefCastDescEq(FullDecoder* decoder, const Value& object,
-                     const Value& descriptor, Value* result) {
-    Bailout(decoder);
-  }
+
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void LoadMem(FullDecoder* decoder, wasm::LoadType type,
-               const MemoryAccessImmediate& imm, const Value& index,
-               Value* result) {
-    Bailout(decoder);
-  }
-  void LoadTransform(FullDecoder* decoder, wasm::LoadType type,
-                     wasm::LoadTransformationKind transform,
-                     const MemoryAccessImmediate& imm, const Value& index,
-                     Value* result) {
-    Bailout(decoder);
-  }
-  void LoadLane(FullDecoder* decoder, wasm::LoadType type, const Value& value,
-                const Value& index, const MemoryAccessImmediate& imm,
-                const uint8_t laneidx, Value* result) {
-    Bailout(decoder);
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    // TODO(jkummerow): {type} is redundant.
+    DCHECK_IMPLIES(null_succeeds, result->type.is_nullable());
+    DCHECK_EQ(type, result->type.heap_type());
+    compiler::WasmTypeCheckConfig config{
+        object.type,
+        ValueType::RefMaybeNull(
+            type, null_succeeds ? wasm::kNullable : wasm::kNonNullable)};
+    V<Map> rtt = OpIndex::Invalid();
+    result->op =
+        __ WasmTypeCast(object.get<Object>(), rtt, config, frame_state_);
   }
 
-  void StoreMem(FullDecoder* decoder, wasm::StoreType type,
-                const MemoryAccessImmediate& imm, const Value& index,
-                const Value& value) {
-    Bailout(decoder);
-  }
+  // TODO(dlehmann,353475584): Support linear memory in the inlinee.
+  BAILOUT_WASM_OP(LoadMem)
+  BAILOUT_WASM_OP(StoreMem)
+  BAILOUT_WASM_OP(CurrentMemoryPages)
+  BAILOUT_WASM_OP(MemoryGrow)
 
-  void StoreLane(FullDecoder* decoder, wasm::StoreType type,
-                 const MemoryAccessImmediate& imm, const Value& index,
-                 const Value& value, const uint8_t laneidx) {
-    Bailout(decoder);
-  }
+  // TODO(dlehmann,353475584): Support control-flow in the inlinee.
+  BAILOUT_WASM_OP(Block)
+  BAILOUT_WASM_OP(Loop)
+  BAILOUT_WASM_OP(If)
+  BAILOUT_WASM_OP(Else)
+  BAILOUT_WASM_OP(BrOrRet)
+  BAILOUT_WASM_OP(BrIf)
+  BAILOUT_WASM_OP(BrTable)
+  BAILOUT_WASM_OP(FallThruTo)
+  BAILOUT_WASM_OP(PopControl)
+  BAILOUT_WASM_OP(Select)
 
-  void CurrentMemoryPages(FullDecoder* decoder, const MemoryIndexImmediate& imm,
-                          Value* result) {
-    Bailout(decoder);
-  }
-
-  void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
-                  const Value& value, Value* result) {
-    Bailout(decoder);
-  }
+  // TODO(dlehmann,353475584): Support exceptions in the inlinee.
+  BAILOUT_WASM_OP(Try)
+  BAILOUT_WASM_OP(Throw)
+  BAILOUT_WASM_OP(Rethrow)
+  BAILOUT_WASM_OP(CatchException)
+  BAILOUT_WASM_OP(Delegate)
+  BAILOUT_WASM_OP(CatchAll)
+  BAILOUT_WASM_OP(TryTable)
+  BAILOUT_WASM_OP(CatchCase)
+  BAILOUT_WASM_OP(ThrowRef)
 
   // TODO(dlehmann,353475584): Support non-leaf functions as the inlinee (i.e.,
   // calls).
+  BAILOUT_WASM_OP(CallDirect)
+  BAILOUT_WASM_OP(ReturnCall)
+  BAILOUT_WASM_OP(CallIndirect)
+  BAILOUT_WASM_OP(ReturnCallIndirect)
+  BAILOUT_WASM_OP(CallRef)
+  BAILOUT_WASM_OP(ReturnCallRef)
 
-  void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
-                  const Value args[], Value returns[]) {
-    Bailout(decoder);
-  }
-  void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
-                  const Value args[]) {
-    Bailout(decoder);
-  }
-  void CallIndirect(FullDecoder* decoder, const Value& index,
-                    const CallIndirectImmediate& imm, const Value args[],
-                    Value returns[]) {
-    Bailout(decoder);
-  }
-  void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
-                          const CallIndirectImmediate& imm,
-                          const Value args[]) {
-    Bailout(decoder);
-  }
-  void CallRef(FullDecoder* decoder, const Value& func_ref,
-               const wasm::FunctionSig* sig, const Value args[],
-               Value returns[]) {
-    Bailout(decoder);
-  }
+  // Continuations / stack switching:
+  BAILOUT_WASM_OP(ContNew)
+  BAILOUT_WASM_OP(ContBind)
+  BAILOUT_WASM_OP(Resume)
+  BAILOUT_WASM_OP(BeginEffectHandlers)
+  BAILOUT_WASM_OP(EndEffectHandlers)
+  BAILOUT_WASM_OP(ResumeHandler)
+  BAILOUT_WASM_OP(ResumeThrow)
+  BAILOUT_WASM_OP(ResumeThrowRef)
+  BAILOUT_WASM_OP(Switch)
+  BAILOUT_WASM_OP(Suspend)
+  BAILOUT_WASM_OP(EffectHandlerTable)
 
-  void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
-                     const wasm::FunctionSig* sig, const Value args[]) {
-    Bailout(decoder);
-  }
+  // Atomics:
+  BAILOUT_WASM_OP(AtomicNotify)
+  BAILOUT_WASM_OP(AtomicWait)
+  BAILOUT_WASM_OP(AtomicOp)
+  BAILOUT_WASM_OP(AtomicFence)
+  BAILOUT_WASM_OP(Pause)
 
-  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
-                bool pass_null_along_branch, Value* result_on_fallthrough) {
-    Bailout(decoder);
-  }
+  BAILOUT_WASM_OP(StructAtomicRMW)
+  BAILOUT_WASM_OP(StructAtomicCompareExchange)
+  BAILOUT_WASM_OP(StructWait)
+  BAILOUT_WASM_OP(WaitqueueNotify)
+  BAILOUT_WASM_OP(WaitqueueNew)
 
-  void BrOnNonNull(FullDecoder* decoder, const Value& ref_object, Value* result,
-                   uint32_t depth, bool /* drop_null_on_fallthrough */) {
-    Bailout(decoder);
-  }
+  BAILOUT_WASM_OP(ArrayAtomicRMW)
+  BAILOUT_WASM_OP(ArrayAtomicCompareExchange)
 
-  void BrOnCast(FullDecoder* decoder, wasm::HeapType target_type,
-                const Value& object, Value* value_on_branch, uint32_t br_depth,
-                bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void BrOnCastDescEq(FullDecoder* decoder, wasm::HeapType target_type,
-                      const Value& object, const Value& descriptor,
-                      Value* value_on_branch, uint32_t br_depth,
-                      bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
-                        wasm::HeapType type, Value* value_on_branch,
-                        uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void BrOnCastFail(FullDecoder* decoder, wasm::HeapType target_type,
-                    const Value& object, Value* value_on_fallthrough,
-                    uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void BrOnCastDescEqFail(FullDecoder* decoder, wasm::HeapType target_type,
-                          const Value& object, const Value& descriptor,
-                          Value* value_on_fallthrough, uint32_t br_depth,
-                          bool null_succeeds) {
-    Bailout(decoder);
-  }
-  void BrOnCastFailAbstract(FullDecoder* decoder, const Value& object,
-                            wasm::HeapType type, Value* value_on_fallthrough,
-                            uint32_t br_depth, bool null_succeeds) {
-    Bailout(decoder);
-  }
+  // Bulk memory:
+  BAILOUT_WASM_OP(MemoryInit)
+  BAILOUT_WASM_OP(MemoryCopy)
+  BAILOUT_WASM_OP(MemoryFill)
+  BAILOUT_WASM_OP(DataDrop)
+
+  // Tables:
+  BAILOUT_WASM_OP(TableGet)
+  BAILOUT_WASM_OP(TableSet)
+  BAILOUT_WASM_OP(TableInit)
+  BAILOUT_WASM_OP(TableCopy)
+  BAILOUT_WASM_OP(TableGrow)
+  BAILOUT_WASM_OP(TableFill)
+  BAILOUT_WASM_OP(TableSize)
+  BAILOUT_WASM_OP(ElemDrop)
+
+  // Wasm GC / structs and arrays:
+  BAILOUT_WASM_OP(StructNew)
+  BAILOUT_WASM_OP(StructNewDefault)
+
+  BAILOUT_WASM_OP(ArrayNew)
+  BAILOUT_WASM_OP(ArrayNewDefault)
+
+  BAILOUT_WASM_OP(StructAtomicGet)
+  BAILOUT_WASM_OP(StructAtomicSet)
+
+  BAILOUT_WASM_OP(ArrayAtomicGet)
+  BAILOUT_WASM_OP(ArrayAtomicSet)
+
+  BAILOUT_WASM_OP(ArrayCopy)
+  BAILOUT_WASM_OP(ArrayFill)
+  BAILOUT_WASM_OP(ArrayNewFixed)
+  BAILOUT_WASM_OP(ArrayNewSegment)
+  BAILOUT_WASM_OP(ArrayInitSegment)
+
+  BAILOUT_WASM_OP(RefI31)
+  BAILOUT_WASM_OP(I31GetS)
+  BAILOUT_WASM_OP(I31GetU)
+  BAILOUT_WASM_OP(RefGetDesc)
+  BAILOUT_WASM_OP(RefTest)
+  BAILOUT_WASM_OP(RefTestAbstract)
+
+  BAILOUT_WASM_OP(RefCastDescEq)
+
+  BAILOUT_WASM_OP(BrOnNull)
+  BAILOUT_WASM_OP(BrOnNonNull)
+  BAILOUT_WASM_OP(BrOnCast)
+  BAILOUT_WASM_OP(BrOnCastDescEq)
+  BAILOUT_WASM_OP(BrOnCastAbstract)
+  BAILOUT_WASM_OP(BrOnCastFail)
+  BAILOUT_WASM_OP(BrOnCastDescEqFail)
+  BAILOUT_WASM_OP(BrOnCastFailAbstract)
 
   // SIMD:
+  BAILOUT_WASM_OP(S128Const)
+  BAILOUT_WASM_OP(SimdOp)
+  BAILOUT_WASM_OP(SimdLaneOp)
+  BAILOUT_WASM_OP(Simd8x16ShuffleOp)
+  BAILOUT_WASM_OP(LoadTransform)
+  BAILOUT_WASM_OP(LoadLane)
+  BAILOUT_WASM_OP(StoreLane)
 
-  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
-              Value* result) {
-    Bailout(decoder);
-  }
-  void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,
-                  const SimdLaneImmediate& imm,
-                  base::Vector<const Value> inputs, Value* result) {
-    Bailout(decoder);
-  }
-  void Simd8x16ShuffleOp(FullDecoder* decoder, const Simd128Immediate& imm,
-                         const Value& input0, const Value& input1,
-                         Value* result) {
-    Bailout(decoder);
-  }
+  // Strings:
+  BAILOUT_WASM_OP(StringNewWtf8)
+  BAILOUT_WASM_OP(StringNewWtf8Array)
+  BAILOUT_WASM_OP(StringNewWtf16)
+  BAILOUT_WASM_OP(StringNewWtf16Array)
+  BAILOUT_WASM_OP(StringConst)
+  BAILOUT_WASM_OP(StringMeasureWtf8)
+  BAILOUT_WASM_OP(StringMeasureWtf16)
+  BAILOUT_WASM_OP(StringEncodeWtf8)
+  BAILOUT_WASM_OP(StringEncodeWtf8Array)
+  BAILOUT_WASM_OP(StringEncodeWtf16)
+  BAILOUT_WASM_OP(StringEncodeWtf16Array)
+  BAILOUT_WASM_OP(StringConcat)
+  BAILOUT_WASM_OP(StringEq)
+  BAILOUT_WASM_OP(StringIsUSVSequence)
+  BAILOUT_WASM_OP(StringAsWtf8)
+  BAILOUT_WASM_OP(StringViewWtf8Advance)
+  BAILOUT_WASM_OP(StringViewWtf8Encode)
+  BAILOUT_WASM_OP(StringViewWtf8Slice)
+  BAILOUT_WASM_OP(StringAsWtf16)
+  BAILOUT_WASM_OP(StringViewWtf16GetCodeUnit)
+  BAILOUT_WASM_OP(StringViewWtf16Encode)
+  BAILOUT_WASM_OP(StringViewWtf16Slice)
+  BAILOUT_WASM_OP(StringAsIter)
+  BAILOUT_WASM_OP(StringViewIterNext)
+  BAILOUT_WASM_OP(StringViewIterAdvance)
+  BAILOUT_WASM_OP(StringViewIterRewind)
+  BAILOUT_WASM_OP(StringViewIterSlice)
+  BAILOUT_WASM_OP(StringCompare)
+  BAILOUT_WASM_OP(StringFromCodePoint)
+  BAILOUT_WASM_OP(StringHash)
 
-  // String stuff:
-
-  void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,
-                     const unibrow::Utf8Variant variant, const Value& offset,
-                     const Value& size, Value* result) {
-    Bailout(decoder);
-  }
-  void StringNewWtf8Array(FullDecoder* decoder,
-                          const unibrow::Utf8Variant variant,
-                          const Value& array, const Value& start,
-                          const Value& end, Value* result) {
-    Bailout(decoder);
-  }
-  void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
-                      const Value& offset, const Value& size, Value* result) {
-    Bailout(decoder);
-  }
-  void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
-                           const Value& start, const Value& end,
-                           Value* result) {
-    Bailout(decoder);
-  }
-  void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
-                   Value* result) {
-    Bailout(decoder);
-  }
-  void StringMeasureWtf8(FullDecoder* decoder,
-                         const unibrow::Utf8Variant variant, const Value& str,
-                         Value* result) {
-    Bailout(decoder);
-  }
-  void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
-                          Value* result) {
-    Bailout(decoder);
-  }
-  void StringEncodeWtf8(FullDecoder* decoder,
-                        const MemoryIndexImmediate& memory,
-                        const unibrow::Utf8Variant variant, const Value& str,
-                        const Value& offset, Value* result) {
-    Bailout(decoder);
-  }
-  void StringEncodeWtf8Array(FullDecoder* decoder,
-                             const unibrow::Utf8Variant variant,
-                             const Value& str, const Value& array,
-                             const Value& start, Value* result) {
-    Bailout(decoder);
-  }
-  void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
-                         const Value& str, const Value& offset, Value* result) {
-    Bailout(decoder);
-  }
-  void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
-                              const Value& array, const Value& start,
-                              Value* result) {
-    Bailout(decoder);
-  }
-  void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
-                    Value* result) {
-    Bailout(decoder);
-  }
-  void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
-                Value* result) {
-    Bailout(decoder);
-  }
-  void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
-                           Value* result) {
-    Bailout(decoder);
-  }
-  void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
-                             const Value& pos, const Value& bytes,
-                             Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewWtf8Encode(FullDecoder* decoder,
-                            const MemoryIndexImmediate& memory,
-                            const unibrow::Utf8Variant variant,
-                            const Value& view, const Value& addr,
-                            const Value& pos, const Value& bytes,
-                            Value* next_pos, Value* bytes_written) {
-    Bailout(decoder);
-  }
-  void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
-                           const Value& start, const Value& end,
-                           Value* result) {
-    Bailout(decoder);
-  }
-  void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
-                                  const Value& pos, Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewWtf16Encode(FullDecoder* decoder,
-                             const MemoryIndexImmediate& imm, const Value& view,
-                             const Value& offset, const Value& pos,
-                             const Value& codeunits, Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
-                            const Value& start, const Value& end,
-                            Value* result) {
-    Bailout(decoder);
-  }
-  void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
-    Bailout(decoder);
-  }
-
-  void StringViewIterNext(FullDecoder* decoder, const Value& view,
-                          Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
-                             const Value& codepoints, Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewIterRewind(FullDecoder* decoder, const Value& view,
-                            const Value& codepoints, Value* result) {
-    Bailout(decoder);
-  }
-  void StringViewIterSlice(FullDecoder* decoder, const Value& view,
-                           const Value& codepoints, Value* result) {
-    Bailout(decoder);
-  }
-  void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
-                     Value* result) {
-    Bailout(decoder);
-  }
-  void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
-                           Value* result) {
-    Bailout(decoder);
-  }
-  void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
-    Bailout(decoder);
-  }
-
-  void Forward(FullDecoder* decoder, const Value& from, Value* to) {
-    Bailout(decoder);
-  }
+  // Misc. proposals:
+  BAILOUT_WASM_OP(TraceInstruction)
+  BAILOUT_WASM_OP(WideOp2)
+  BAILOUT_WASM_OP(WideOp4)
 
  private:
-  // TODO(dlehmann): copied from `TurboshaftGraphBuildingInterface`, DRY.
-  V<Any> DefaultValue(ValueType type) {
-    switch (type.kind()) {
-      case wasm::kI8:
-      case wasm::kI16:
-      case wasm::kI32:
-        return __ Word32Constant(int32_t{0});
-      case wasm::kI64:
-        return __ Word64Constant(int64_t{0});
-      case wasm::kF16:
-      case wasm::kF32:
-        return __ Float32Constant(0.0f);
-      case wasm::kF64:
-        return __ Float64Constant(0.0);
-      case wasm::kRefNull:
-        return __ Null(type);
-      case wasm::kS128: {
-        uint8_t value[kSimd128Size] = {};
-        return __ Simd128Constant(value);
-      }
-      case wasm::kVoid:
-      case wasm::kRef:
-      case wasm::kBottom:
-      case wasm::kTop:
-        UNREACHABLE();
-    }
+  void set_current_wasm_source_position(FullDecoder* decoder) {
+    __ set_current_wasm_source_position(
+        SourcePosition(decoder->position(), inlining_id_));
   }
 
   Assembler& Asm() { return asm_; }
@@ -1311,55 +1008,28 @@ class WasmInJsInliningInterface {
   base::Vector<const OpIndex> arguments_;
   V<WasmTrustedInstanceData> trusted_instance_data_;
 
+  V<turboshaft::FrameState> frame_state_;
+  int inlining_id_;
+
   // Populated only after decoding finished successfully, i.e., didn't bail out.
   WasmBodyInliningResult result_ = WasmBodyInliningResult::Failed();
 };
 
+#undef BAILOUT_WASM_OP
+
 template <class Next>
-V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
-    wasm::NativeModule* native_module, uint32_t func_idx,
-    base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
-    V<Context> js_context, bool receiver_is_first_param,
-    V<turboshaft::FrameState> outer_frame_state,
+WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
+    const WasmInlinedFunctionData& inlined_data,
+    base::Vector<const OpIndex> arguments,
     compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
-  const wasm::WasmModule* module = native_module->module();
-  DCHECK_LT(func_idx, module->functions.size());
-  const wasm::WasmFunction& func = module->functions[func_idx];
-  wasm::CanonicalTypeIndex sig_id = module->canonical_sig_id(func.sig_index);
-  const wasm::CanonicalSig* sig =
-      wasm::GetTypeCanonicalizer()->LookupFunctionSignature(sig_id);
-
-  V<turboshaft::FrameState> frame_state =
-      CreateJSWasmCallBuiltinContinuationFrameState(js_context,
-                                                    outer_frame_state, sig);
-  using GraphBuilder = wasm::WasmWrapperTSGraphBuilder<assembler_t>;
-  std::optional<typename GraphBuilder::InlinedFunctionData>
-      inlined_function_data;
-  if (v8_flags.turboshaft_wasm_in_js_inlining) {
-    inlined_function_data = {native_module, func_idx};
-  }
-
-  TRACE("Inlining JS-to-Wasm wrapper for Wasm function ["
-        << func_idx << "] "
-        << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
-        << " of module " << module);
-
-  constexpr bool kInliningIntoJs = true;
-  GraphBuilder builder(Asm().phase_zone(), Asm(), sig, kInliningIntoJs,
-                       inlined_function_data);
-  return builder.BuildJSToWasmWrapperImpl(receiver_is_first_param, js_closure,
-                                          js_context, arguments, frame_state,
-                                          lazy_deopt_on_throw);
-}
-
-template <class Next>
-WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
-    wasm::NativeModule* native_module, uint32_t func_idx,
-    base::Vector<const OpIndex> arguments) {
+  wasm::NativeModule* native_module = inlined_data.native_module;
+  uint32_t func_idx = inlined_data.function_index;
+  V<turboshaft::FrameState> frame_state = inlined_data.js_caller_frame_state;
+  int inlining_id = inlined_data.inlining_id;
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_idx];
 
-  TRACE("Considering wasm function ["
+  TRACE("Considering Wasm function ["
         << func_idx << "] "
         << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
         << " of module " << module << " for inlining");
@@ -1385,9 +1055,29 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
 
   // TODO(42204563): Support shared-everything proposal (at some point, or
   // possibly never).
-  bool is_shared = module->type(func.sig_index).is_shared;
-  if (is_shared) {
+  SharedFlag is_shared = module->type(func.sig_index).is_shared;
+  if (is_shared == SharedFlag::kYes) {
     TRACE("- not inlining: shared everything is not supported");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  const bool has_current_catch_block = __ current_catch_block();
+  if (lazy_deopt_on_throw == LazyDeoptOnThrow::kYes) {
+    // Maglev either emits a catch block or uses lazy deopt on throw, but never
+    // both.
+    DCHECK(!has_current_catch_block);
+    // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
+    // inlining calls that have LazyDeoptOnThrow::kYes.
+    TRACE("- not inlining: call marked with LazyDeoptOnThrow::kYes");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  if (has_current_catch_block) {
+    // TODO(dlehmann): Currently, we never inline into try-blocks due to Wasm
+    // traps ignoring catch handlers in the inlined JS frame.
+    // Relax this in the future (but this would be an extension over the old
+    // Turbofan inlining, so it's not in the MVP.)
+    TRACE("- not inlining: a current catch block is set");
     return WasmBodyInliningResult::Failed();
   }
 
@@ -1433,31 +1123,75 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   using Interface = WasmInJsInliningInterface<assembler_t>;
   using Decoder =
       wasm::WasmFullDecoder<typename Interface::ValidationTag, Interface>;
-  Decoder can_inline_decoder(Asm().phase_zone(), env.module,
-                             env.enabled_features, &detected, func_body, Asm(),
-                             arguments_without_instance, trusted_instance_data);
-  can_inline_decoder.Decode();
+  {
+    Decoder can_inline_decoder(Asm().phase_zone(), env.module,
+                               env.enabled_features, &detected, func_body,
+                               Asm(), arguments_without_instance,
+                               trusted_instance_data, frame_state, inlining_id);
+    can_inline_decoder.Decode();
 
-  // The function was already validated, so decoding can only fail if we bailed
-  // out due to an unsupported instruction.
-  DCHECK_EQ(can_inline_decoder.ok(),
-            can_inline_decoder.interface().Result().IsSuccess());
-  if (!can_inline_decoder.ok()) {
-    TRACE("- not inlining: " << can_inline_decoder.error().message());
-    __ Bind(inlinee_body_and_rest);
-    return WasmBodyInliningResult::Failed();
+    // The function was already validated, so decoding can only fail if we
+    // bailed out due to an unsupported instruction.
+    if (!can_inline_decoder.ok()) {
+      TRACE("- not inlining: " << can_inline_decoder.error().message());
+      __ Bind(inlinee_body_and_rest);
+      return WasmBodyInliningResult::Failed();
+    }
+    DCHECK(can_inline_decoder.interface().result().success);
   }
 
   // Second pass: Actually emit the inlinee instructions now.
   __ Bind(inlinee_body_and_rest);
   Decoder emitting_decoder(Asm().phase_zone(), env.module, env.enabled_features,
                            &detected, func_body, Asm(),
-                           arguments_without_instance, trusted_instance_data);
+                           arguments_without_instance, trusted_instance_data,
+                           frame_state, inlining_id);
   emitting_decoder.Decode();
   DCHECK(emitting_decoder.ok());
-  DCHECK(emitting_decoder.interface().Result().IsSuccess());
-  TRACE("- inlining");
-  return emitting_decoder.interface().Result();
+  DCHECK(emitting_decoder.interface().result().success);
+  TRACE("- inlining Wasm function");
+  return emitting_decoder.interface().result();
+}
+
+template <class Next>
+V<turboshaft::FrameState>
+WasmInJSInliningReducer<Next>::CreateWasmInlinedIntoJSFrameState(
+    V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
+    SharedFunctionInfoRef shared_function_info) {
+  // Wasm functions don't have JavaScript parameters or locals.
+  // The only important part of the `FrameState` is the `SharedFunctionInfo`
+  // and `FrameStateType`.
+  constexpr uint16_t kParameterCount = 0;
+  constexpr uint16_t kMaxArguments = 0;
+  constexpr int kLocalCount = 0;
+  const FrameStateType frame_type = FrameStateType::kWasmInlinedIntoJS;
+  IndirectHandle<BytecodeArray> bytecode_array_handle = {};
+  Zone* zone = __ data() -> compilation_zone();
+
+  const FrameStateFunctionInfo* frame_state_function_info =
+      zone->template New<compiler::FrameStateFunctionInfo>(
+          frame_type, kParameterCount, kMaxArguments, kLocalCount,
+          shared_function_info.object(), bytecode_array_handle);
+  const FrameStateInfo* frame_state_info = zone->template New<FrameStateInfo>(
+      BytecodeOffset::None(), OutputFrameStateCombine::Ignore(),
+      frame_state_function_info);
+
+  // We are adding several dummy inputs to the `FrameState` here to satisfy
+  // invariants in, e.g. the `InstructionSelector`, even though we never
+  // actually deopt to an inlined Wasm function.
+  // This `FrameState` is just required for accurate stack traces.
+  FrameStateData::Builder builder;
+  builder.AddParentFrameState(outer_frame_state);
+  // Closure.
+  builder.AddInput(MachineType::AnyTagged(),
+                   __ template LoadRoot<RootIndex::kUndefinedValue>());
+  builder.AddInput(MachineType::AnyTagged(), js_context);
+  // Dummy param, probably for accumulator in Ignition.
+  builder.AddUnusedRegister();
+
+  constexpr bool kInlined = true;
+  return __ FrameState(builder.Inputs(), kInlined,
+                       builder.AllocateFrameStateData(*frame_state_info, zone));
 }
 
 template <class Next>
@@ -1482,10 +1216,9 @@ WasmInJSInliningReducer<Next>::CreateJSWasmCallBuiltinContinuationFrameState(
 
   FrameStateData::Builder builder;
   builder.AddParentFrameState(outer_frame_state);
-  builder.AddInput(
-      MachineType::AnyTagged(),
-      __ HeapConstant(
-          __ data()->isolate()->factory()->undefined_value()));  // Closure.
+  // Closure
+  builder.AddInput(MachineType::AnyTagged(),
+                   __ template LoadRoot<RootIndex::kUndefinedValue>());
   builder.AddInput(MachineType::AnyTagged(), js_context);
 
   constexpr bool kInlined = true;

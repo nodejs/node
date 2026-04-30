@@ -1047,7 +1047,7 @@ code-creation,Builtin,2,15614,0x557426407200,328,Copy
 code-creation,Builtin,2,15622,0x557426407360,6072,MergeAt
 code-creation,Builtin,2,15631,0x557426408b20,824,GallopLeft
 code-creation,Builtin,2,15639,0x557426408e60,828,GallopRight
-code-creation,Builtin,2,15648,0x5574264091a0,3880,ArrayTimSort
+code-creation,Builtin,2,15648,0x5574264091a0,3880,ArrayPowerSort
 code-creation,Builtin,2,15656,0x55742640a0e0,2128,ArrayPrototypeSort
 code-creation,Builtin,2,15665,0x55742640a940,100,WasmInt32ToHeapNumber
 code-creation,Builtin,2,15674,0x55742640a9c0,120,WasmTaggedNonSmiToInt32

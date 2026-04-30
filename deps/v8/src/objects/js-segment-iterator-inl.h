@@ -20,18 +20,54 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-segment-iterator-tq-inl.inc"
+Tagged<Managed<IcuBreakIteratorWithText>>
+JSSegmentIterator::icu_iterator_with_text() const {
+  return Cast<Managed<IcuBreakIteratorWithText>>(
+      icu_iterator_with_text_.load());
+}
+void JSSegmentIterator::set_icu_iterator_with_text(
+    Tagged<Managed<IcuBreakIteratorWithText>> value, WriteBarrierMode mode) {
+  icu_iterator_with_text_.store(this, value, mode);
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentIterator)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentDataObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmentDataObjectWithIsWordLike)
+Tagged<String> JSSegmentIterator::raw_string() const {
+  return raw_string_.load();
+}
+void JSSegmentIterator::set_raw_string(Tagged<String> value,
+                                       WriteBarrierMode mode) {
+  raw_string_.store(this, value, mode);
+}
 
-// Base segment iterator accessors.
-ACCESSORS(JSSegmentIterator, icu_break_iterator,
-          Tagged<Managed<icu::BreakIterator>>, kIcuBreakIteratorOffset)
-ACCESSORS(JSSegmentIterator, raw_string, Tagged<String>, kRawStringOffset)
-ACCESSORS(JSSegmentIterator, unicode_string,
-          Tagged<Managed<icu::UnicodeString>>, kUnicodeStringOffset)
+int JSSegmentIterator::flags() const { return flags_.load().value(); }
+void JSSegmentIterator::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
+
+Tagged<String> JSSegmentDataObject::segment() const { return segment_.load(); }
+void JSSegmentDataObject::set_segment(Tagged<String> value,
+                                      WriteBarrierMode mode) {
+  segment_.store(this, value, mode);
+}
+
+Tagged<Number> JSSegmentDataObject::index() const { return index_.load(); }
+void JSSegmentDataObject::set_index(Tagged<Number> value,
+                                    WriteBarrierMode mode) {
+  index_.store(this, value, mode);
+}
+
+Tagged<String> JSSegmentDataObject::input() const { return input_.load(); }
+void JSSegmentDataObject::set_input(Tagged<String> value,
+                                    WriteBarrierMode mode) {
+  input_.store(this, value, mode);
+}
+
+Tagged<Boolean> JSSegmentDataObjectWithIsWordLike::is_word_like() const {
+  return is_word_like_.load();
+}
+void JSSegmentDataObjectWithIsWordLike::set_is_word_like(
+    Tagged<Boolean> value, WriteBarrierMode mode) {
+  is_word_like_.store(this, value, mode);
+}
 
 inline void JSSegmentIterator::set_granularity(
     JSSegmenter::Granularity granularity) {

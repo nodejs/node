@@ -103,13 +103,6 @@ void LiftoffAssembler::PopToFixedRegister(LiftoffRegister reg) {
   LoadToFixedRegister(slot, reg);
 }
 
-void LiftoffAssembler::LoadFixedArrayLengthAsInt32(LiftoffRegister dst,
-                                                   Register array,
-                                                   LiftoffRegList pinned) {
-  int offset = offsetof(FixedArray, length_) - kHeapObjectTag;
-  LoadSmiAsInt32(dst, array, offset);
-}
-
 void LiftoffAssembler::LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
                                       int32_t offset) {
   if constexpr (SmiValuesAre32Bits()) {
@@ -126,9 +119,9 @@ void LiftoffAssembler::LoadSmiAsInt32(LiftoffRegister dst, Register src_addr,
 }
 
 void LiftoffAssembler::LoadCodePointer(Register dst, Register src_addr,
-                                       int32_t offset_imm) {
-    return Load(LiftoffRegister(dst), src_addr, no_reg, offset_imm,
-                LoadType::kI32Load);
+                                       int32_t field_offset) {
+  Load(LiftoffRegister(dst), src_addr, no_reg, field_offset - kHeapObjectTag,
+       LoadType::kI32Load);
 }
 
 void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,

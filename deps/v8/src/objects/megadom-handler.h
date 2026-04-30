@@ -15,15 +15,37 @@ namespace internal {
 
 #include "torque-generated/src/objects/megadom-handler-tq.inc"
 
-class MegaDomHandler
-    : public TorqueGeneratedMegaDomHandler<MegaDomHandler, HeapObject> {
+V8_OBJECT class MegaDomHandler : public HeapObjectLayout {
  public:
+  inline Tagged<MaybeObject> accessor() const;
+  inline Tagged<MaybeObject> accessor(AcquireLoadTag) const;
+  inline void set_accessor(
+      Tagged<MaybeObject> value,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void set_accessor(
+      Tagged<MaybeObject> value, ReleaseStoreTag,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
+  inline Tagged<MaybeObject> context() const;
+  inline void set_context(
+      Tagged<MaybeObject> value,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+
   void BriefPrintDetails(std::ostream& os);
-  class BodyDescriptor;
 
-  DECL_RELEASE_ACQUIRE_ACCESSORS(accessor, Tagged<MaybeObject>)
+  DECL_PRINTER(MegaDomHandler)
+  DECL_VERIFIER(MegaDomHandler)
 
-  TQ_OBJECT_CONSTRUCTORS(MegaDomHandler)
+ public:
+  TaggedMember<MaybeObject> accessor_;
+  TaggedMember<MaybeObject> context_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<MegaDomHandler> {
+  using BodyDescriptor =
+      FixedWeakBodyDescriptor<offsetof(MegaDomHandler, accessor_),
+                              sizeof(MegaDomHandler), sizeof(MegaDomHandler)>;
 };
 
 }  // namespace internal

@@ -14,6 +14,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/heap/factory.h"
+#include "src/ic/handler-configuration.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/contexts.h"
@@ -67,7 +68,8 @@ static V8_INLINE bool CheckForName(Isolate* isolate, DirectHandle<Name> name,
 // If true, *object_offset contains offset of object field.
 bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
                                         DirectHandle<Name> name,
-                                        FieldIndex* index) {
+                                        FieldIndex* index,
+                                        InternalIndex* fake_descriptor_index) {
   if (map->is_dictionary_map()) {
     // There are not descriptors in a dictionary mode map.
     return false;
@@ -75,15 +77,15 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, DirectHandle<Map> map,
 
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
+      if (fake_descriptor_index)
+        *fake_descriptor_index =
+            InternalIndex(LoadHandler::kArrayLengthFieldDescriptorIndex);
       return CheckForName(isolate, name, isolate->factory()->length_string(),
                           JSArray::kLengthOffset, FieldIndex::kTagged, index);
     default:
-      if (map->instance_type() < FIRST_NONSTRING_TYPE) {
-        return CheckForName(isolate, name, isolate->factory()->length_string(),
-                            offsetof(String, length_), FieldIndex::kWord32,
-                            index);
-      }
-
+      DCHECK_IMPLIES(
+          InstanceTypeChecker::IsString(map->instance_type()),
+          !Name::Equals(isolate, name, isolate->factory()->length_string()));
       return false;
   }
 }
@@ -119,7 +121,7 @@ void Accessors::ReconfigureToDataProperty(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kReconfigureToDataProperty);
   HandleScope scope(isolate);
   DirectHandle<JSObject> holder =
-      Cast<JSObject>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSObject>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Name> name = Utils::OpenDirectHandle(*key);
   DirectHandle<Object> value = Utils::OpenDirectHandle(*val);
   MaybeDirectHandle<Object> result =
@@ -160,7 +162,7 @@ void Accessors::ArrayLengthGetter(
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   Tagged<JSArray> holder =
-      Cast<JSArray>(*Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSArray>(*Utils::OpenDirectHandle(*info.Holder()));
   Tagged<Object> result = holder->length();
   info.GetReturnValue().Set(
       Utils::ToLocal(DirectHandle<Object>(result, isolate)));
@@ -176,7 +178,7 @@ void Accessors::ArrayLengthSetter(
   DCHECK(Object::SameValue(*Utils::OpenDirectHandle(*name),
                            ReadOnlyRoots(isolate).length_string()));
 
-  DirectHandle<JSReceiver> object = Utils::OpenDirectHandle(*info.HolderV2());
+  DirectHandle<JSReceiver> object = Utils::OpenDirectHandle(*info.Holder());
   DirectHandle<JSArray> array = Cast<JSArray>(object);
   DirectHandle<Object> length_obj = Utils::OpenDirectHandle(*val);
 
@@ -244,7 +246,7 @@ void Accessors::ModuleNamespaceEntryGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Tagged<JSModuleNamespace> holder =
-      Cast<JSModuleNamespace>(*Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSModuleNamespace>(*Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result;
   if (holder->GetExport(isolate, Cast<String>(Utils::OpenDirectHandle(*name)))
           .ToHandle(&result)) {
@@ -259,7 +261,7 @@ void Accessors::ModuleNamespaceEntrySetter(
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
   DirectHandle<JSModuleNamespace> holder =
-      Cast<JSModuleNamespace>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSModuleNamespace>(Utils::OpenDirectHandle(*info.Holder()));
 
   if (info.ShouldThrowOnError()) {
     isolate->Throw(
@@ -289,7 +291,7 @@ void Accessors::StringLengthGetter(
   DisallowGarbageCollection no_gc;
 
   Tagged<Object> value =
-      Cast<JSPrimitiveWrapper>(*Utils::OpenDirectHandle(*info.HolderV2()))
+      Cast<JSPrimitiveWrapper>(*Utils::OpenDirectHandle(*info.Holder()))
           ->value();
   int length = Cast<String>(value)->length();
   info.GetReturnValue().Set(length);
@@ -310,7 +312,7 @@ void Accessors::FunctionPrototypeGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionPrototypeGetter);
   HandleScope scope(isolate);
   DirectHandle<JSFunction> function =
-      Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DCHECK(function->has_prototype_property());
   DirectHandle<Object> result =
       JSFunction::GetFunctionPrototype(isolate, function);
@@ -325,7 +327,7 @@ void Accessors::FunctionPrototypeSetter(
   HandleScope scope(isolate);
   DirectHandle<Object> value = Utils::OpenDirectHandle(*val);
   DirectHandle<JSFunction> object =
-      Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DCHECK(object->has_prototype_property());
   JSFunction::SetPrototype(isolate, object, value);
   info.GetReturnValue().Set(true);
@@ -346,8 +348,8 @@ void Accessors::FunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionLengthGetter);
   USE(isolate);
-  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
-  int length = function->length();
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
+  const uint32_t length = function->length();
   info.GetReturnValue().Set(length);
 }
 
@@ -364,7 +366,7 @@ void Accessors::FunctionNameGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result = JSFunction::GetName(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -450,15 +452,15 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
 
   // Construct an arguments object mirror for the right frame and the underlying
   // function.
-  const int length = frame->GetActualArgumentCount();
+  const uint32_t length = frame->GetActualArgumentCount();
   DirectHandle<JSFunction> function(frame->function(), isolate);
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
   DirectHandle<FixedArray> array = isolate->factory()->NewFixedArray(length);
 
   // Copy the parameters to the arguments object.
-  DCHECK(array->length() == length);
-  for (int i = 0; i < length; i++) {
+  DCHECK_EQ(array->ulength().value(), length);
+  for (uint32_t i = 0; i < length; i++) {
     Tagged<Object> value = frame->GetParameter(i);
     if (IsTheHole(value, isolate)) {
       // Generators currently use holes as dummy arguments when resuming.  We
@@ -478,8 +480,9 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
         ArgumentsFromDeoptInfo(frame, function_index);
     DirectHandle<FixedArray> elements_from_deopt_info(
         Cast<FixedArray>(arguments_from_deopt_info->elements()), isolate);
-    int common_length = std::min(length, elements_from_deopt_info->length());
-    for (int i = 0; i < common_length; i++) {
+    uint32_t common_length =
+        std::min(length, elements_from_deopt_info->ulength().value());
+    for (uint32_t i = 0; i < common_length; i++) {
       array->set(i, elements_from_deopt_info->get(i));
     }
   }
@@ -529,7 +532,7 @@ void Accessors::FunctionArgumentsGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionArgumentsGetter);
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
   HandleScope scope(isolate);
-  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result = GetLegacyFunctionArguments(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -707,7 +710,7 @@ void Accessors::FunctionCallerGetter(
   isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
   HandleScope scope(isolate);
   DirectHandle<JSFunction> function =
-      Cast<JSFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result = GetLegacyFunctionCaller(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -728,9 +731,9 @@ void Accessors::BoundFunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
   DirectHandle<JSBoundFunction> function =
-      Cast<JSBoundFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSBoundFunction>(Utils::OpenDirectHandle(*info.Holder()));
 
-  int length = 0;
+  uint32_t length = 0;
   if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
     return;
   }
@@ -753,7 +756,7 @@ void Accessors::BoundFunctionNameGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionNameGetter);
   HandleScope scope(isolate);
   DirectHandle<JSBoundFunction> function =
-      Cast<JSBoundFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSBoundFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result;
   if (!JSBoundFunction::GetName(isolate, function).ToHandle(&result)) {
     return;
@@ -776,9 +779,9 @@ void Accessors::WrappedFunctionLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kBoundFunctionLengthGetter);
   auto function =
-      Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.Holder()));
 
-  int length = 0;
+  uint32_t length = 0;
   if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
     return;
   }
@@ -799,7 +802,7 @@ void Accessors::InstantiateLazyClosureGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  DirectHandle<JSReceiver> holder = Utils::OpenDirectHandle(*info.HolderV2());
+  DirectHandle<JSReceiver> holder = Utils::OpenDirectHandle(*info.Holder());
   DirectHandle<Name> property_name = Utils::OpenDirectHandle(*name);
 
   DCHECK(holder->map()->is_prototype_map());
@@ -878,7 +881,7 @@ void Accessors::WrappedFunctionNameGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kWrappedFunctionNameGetter);
   HandleScope scope(isolate);
   auto function =
-      Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.HolderV2()));
+      Cast<JSWrappedFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DirectHandle<Object> result;
   if (!JSWrappedFunction::GetName(isolate, function).ToHandle(&result)) {
     return;
@@ -924,7 +927,7 @@ void Accessors::ErrorStackSetter(
   if (IsJSObject(*maybe_error_object)) {
     v8::Local<v8::Value> value = info[0];
     ErrorUtils::SetFormattedStack(isolate, Cast<JSObject>(maybe_error_object),
-                                  Utils::OpenDirectHandle(*value));
+                                  Cast<JSAny>(Utils::OpenDirectHandle(*value)));
   }
 }
 

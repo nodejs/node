@@ -361,6 +361,14 @@ void AsyncStreamingDecoder::Finish(
   CHECK_EQ(StreamState::kReceivingBytes, stream_state_);
   CHECK_EQ(processor_ == nullptr, failed_processor_ != nullptr);
 
+  // If we just finished actual decoding and the byte stream ended too early,
+  // the rest of this function should not see "ok()", so mark the failure now.
+  // If we have cached compiled bytes, then actual decoding was skipped before,
+  // so in that case we shouldn't report an error yet.
+  if (!has_compiled_module_bytes_ && ok() && !state_->is_finishing_allowed()) {
+    Fail();
+  }
+
   // Create a final copy of the overall wire bytes; this will finally be
   // transferred and stored in the NativeModule.
   base::OwnedVector<const uint8_t> bytes_copy;

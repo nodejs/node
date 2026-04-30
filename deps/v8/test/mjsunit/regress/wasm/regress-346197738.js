@@ -6,7 +6,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 d8.file.execute('test/mjsunit/mjsunit.js');
 
 let b1 = new WasmModuleBuilder();
-let $a8 = b1.addArray(kWasmI8, true, kNoSuperType, true);
+let $a8 = b1.addArray(kWasmI8, {final: true});
 let a8ref = wasmRefType($a8);
 b1.addFunction("make_array", makeSig([], [a8ref])).exportFunc()
   .addBody([

@@ -450,11 +450,9 @@ class ImplementationVisitor {
  public:
   void GenerateBuiltinDefinitionsAndInterfaceDescriptors(
       const std::string& output_directory);
-  void GenerateVisitorLists(const std::string& output_directory);
   void GenerateBitFields(const std::string& output_directory);
   void GeneratePrintDefinitions(const std::string& output_directory);
   void GenerateClassDefinitions(const std::string& output_directory);
-  void GenerateBodyDescriptors(const std::string& output_directory);
   void GenerateInstanceTypes(const std::string& output_directory);
   void GenerateClassVerifiers(const std::string& output_directory);
   void GenerateEnumVerifiers(const std::string& output_directory);

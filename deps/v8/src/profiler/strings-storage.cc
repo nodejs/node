@@ -19,7 +19,8 @@ bool StringsStorage::StringsMatch(void* key1, void* key2) {
          0;
 }
 
-StringsStorage::StringsStorage() : names_(StringsMatch) {}
+StringsStorage::StringsStorage(uint32_t string_limit)
+    : names_(StringsMatch), string_limit_(string_limit) {}
 
 StringsStorage::~StringsStorage() {
   for (base::HashMap::Entry* p = names_.Start(); p != nullptr;
@@ -82,8 +83,7 @@ const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
     return "<symbol>";
   }
   Tagged<String> description = Cast<String>(sym->description());
-  uint32_t length = std::min(v8_flags.heap_snapshot_string_limit.value(),
-                             description->length());
+  uint32_t length = GetTrimmedLength(description->length());
   size_t data_length = 0;
   auto data = description->ToCString(0, length, &data_length);
   if (sym->is_any_private_name()) {
@@ -98,8 +98,7 @@ const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
 const char* StringsStorage::GetName(Tagged<Name> name) {
   if (IsString(name)) {
     Tagged<String> str = Cast<String>(name);
-    uint32_t length =
-        std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
+    uint32_t length = GetTrimmedLength(str->length());
     size_t data_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(0, length, &data_length);
     return AddOrDisposeString(data.release(), data_length);
@@ -116,8 +115,7 @@ const char* StringsStorage::GetName(int index) {
 const char* StringsStorage::GetConsName(const char* prefix, Tagged<Name> name) {
   if (IsString(name)) {
     Tagged<String> str = Cast<String>(name);
-    uint32_t length =
-        std::min(v8_flags.heap_snapshot_string_limit.value(), str->length());
+    uint32_t length = GetTrimmedLength(str->length());
     size_t data_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(0, length, &data_length);
 
@@ -130,6 +128,15 @@ const char* StringsStorage::GetConsName(const char* prefix, Tagged<Name> name) {
     return GetSymbol(Cast<Symbol>(name));
   }
   return "";
+}
+
+bool StringsStorage::NeedsTruncation(uint32_t length) const {
+  return length > GetTrimmedLength(length);
+}
+
+uint32_t StringsStorage::GetTrimmedLength(uint32_t length) const {
+  if (string_limit_ == 0) return length;
+  return std::min(string_limit_, length);
 }
 
 namespace {

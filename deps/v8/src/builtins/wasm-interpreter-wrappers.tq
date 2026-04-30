@@ -1,0 +1,424 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/wasm/wasm-linkage.h'
+
+namespace wasm {
+extern builtin JSToWasmInterpreterWrapperAsm(
+    RawPtr<intptr>, WasmExportedFunctionData, JSAny): JSAny;
+const kWasmS128Type:
+    constexpr uint32 generates 'wasm::kWasmS128.raw_bit_field()';
+
+
+macro NewInterpreterReturnSlotAllocator(): ReturnSlotAllocator {
+  let result: ReturnSlotAllocator;
+  result.remainingGPRegs = 0;
+  result.remainingFPRegs = 0;
+  result.stackSlots = 0;
+  result.hasSmallSlot = false;
+  result.smallSlotLast = false;
+  return result;
+}
+
+macro LocationAllocatorForInterpreterParams(
+    paramBuffer: &intptr, paramBufferSize: intptr): LocationAllocator {
+  let result: LocationAllocator;
+  result.object = paramBuffer.object;
+  result.remainingGPRegs = 0;
+  result.remainingFPRegs = 0;
+  result.nextGPReg = paramBuffer.offset;
+  result.nextFPReg = result.remainingGPRegs * torque_internal::SizeOf<intptr>();
+  if constexpr (!Is64()) {
+    // Add padding to provide 8-byte alignment for float64 values.
+    result.nextFPReg += (result.nextFPReg & torque_internal::SizeOf<intptr>());
+  }
+  dcheck(result.nextFPReg % 8 == 0);
+  result.nextFPReg += paramBuffer.offset;
+  result.nextStack = result.nextFPReg +
+      result.remainingFPRegs * torque_internal::SizeOf<float64>();
+  result.stackStart = result.nextStack;
+  result.smallSlot = 0;
+  result.smallSlotLast = false;
+  if (paramBufferSize > 0) {
+    result.paramBufferEnd = paramBuffer.offset + paramBufferSize;
+  } else {
+    result.paramBufferEnd = 0;
+  }
+  return result;
+}
+
+macro LocationAllocatorForWasmInterpreterReturns(stack: RawPtr):
+    LocationAllocator {
+  let result: LocationAllocator;
+  result.object = kZeroBitPattern;
+  result.remainingGPRegs = 0;
+  result.remainingFPRegs = 0;
+  result.nextGPReg = 0;
+  result.nextFPReg = 0;
+  result.nextStack = Convert<intptr>(stack) + kHeapObjectTag;
+  result.stackStart = result.nextStack;
+  result.smallSlot = 0;
+  result.smallSlotLast = false;
+  // We don't know the size of the paramBuffer.
+  result.paramBufferEnd = 0;
+  return result;
+}
+
+
+transitioning javascript builtin JSToWasmInterpreterWrapper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+  const functionData = target.shared_function_info.wasm_exported_function_data;
+
+  const internalFunction = functionData.internal;
+  const sig = internalFunction.sig;
+
+  const paramCount = *GetRefAt<intptr>(sig, kWasmParameterCountOffset);
+
+  const returnCount = *GetRefAt<intptr>(sig, kWasmReturnCountOffset);
+
+  const reps = *GetRefAt<RawPtr>(sig, kWasmSigTypesOffset);
+
+  const sigTypes = torque_internal::unsafe::NewOffHeapConstSlice(
+      %RawDownCast<RawPtr<uint32>>(reps), paramCount + returnCount);
+
+  // If the return count is greater than 1, then the return values are returned
+  // as a JSArray. After returning from the call to wasm, the return values are
+  // stored on an area of the stack the GC does not know about. To avoid a GC
+  // while references are still stored in this area of the stack, we allocate
+  // the result JSArray already now before the call to wasm.
+  let resultArray: JSAny = Undefined;
+  let returnSize: intptr = 0;
+  let hasRefReturns: bool = false;
+  if (returnCount > 1) {
+    resultArray = WasmAllocateJSArray(SmiFromIntPtr(returnCount));
+
+    // We have to calculate the size of the stack area where the wasm function
+    // will store the return values for multi-return.
+    const returnTypes = Subslice(sigTypes, Convert<intptr>(0), returnCount)
+        otherwise unreachable;
+    let allocator = NewInterpreterReturnSlotAllocator();
+
+    let retIt = returnTypes.Iterator();
+    while (!retIt.Empty()) {
+      const retType = retIt.NextNotEmpty();
+      if (retType == kWasmI32Type || retType == kWasmI64Type ||
+          retType == kWasmF32Type || retType == kWasmF64Type) {
+        allocator.AllocStack();
+      } else {
+        check((retType & kValueTypeIsRefBit) != 0);
+        // Reference return values will be processed later.
+        hasRefReturns = true;
+        allocator.AllocStack();
+      }
+    }
+    returnSize = allocator.GetSize();
+  }
+  const paramTypes = Subslice(sigTypes, returnCount, paramCount)
+      otherwise unreachable;
+
+  // The `paramBuffer` is a byte array that stores parameters that have already
+  // been converted to WebAssembly types. The js-to-wasm wrapper iterates over
+  // incoming parameters, converts them according to the signature, and stores
+  // the converted parameters in the `paramBuffer`. The `paramBuffer` is then
+  // passed to an assembly builtin, where the parameters get loaded from the
+  // `paramBuffer` into registers and stack slots. The `paramBuffer` is not
+  // GC-safe, which means that references stored in the `paramBuffer` don't get
+  // updated by the GC. Therefore references are not allowed to be stored in the
+  // `paramBuffer` when a GC may get triggered. This requirement is satisfied by
+  // storing converted reference parameters not immediately in the `paramBuffer`
+  // but in `convertedTagged`. Only when the last parameter has been converted
+  // an no GC can be triggered anymore do reference parameters get copied from
+  // `convertedTagged` into `paramBuffer.
+  let paramBuffer: &intptr;
+  let paramBufferSize: intptr;
+
+  // 10 here is an arbitrary number. The analysis of signatures of exported
+  // functions of big modules showed that most signatures have a low number of
+  // parameters. We pick a cutoff point where for most signatures the
+  // pre-allocated stack slots are sufficient without making these stack slots
+  // overly big. This mirrors the optimization in the compiler's
+  // JSToWasmWrapper, and is especially important under
+  // `--stress-incremental-marking`, where every cppgc allocation triggers an
+  // incremental marking step.
+  const kMaxOnStackParamCount = 10;
+  if (paramCount <= kMaxOnStackParamCount) {
+    // Performance optimization: pre-allocate a stack area with memory
+    // sufficient for up to `kMaxOnStackParamCount` parameters. The parameters
+    // for the interpreter get passed on the stack (see
+    // Runtime_WasmRunInterpreter), so the memory we have to reserve is the
+    // memory for `kMaxOnStackParamCount` 64-bit parameters.
+    const kSlotSize = torque_internal::SizeOf<float64>();
+    const bufferSize = kMaxOnStackParamCount * kSlotSize;
+    const stackSlots =
+        %RawDownCast<RawPtr<intptr>>(StackSlotPtr(bufferSize, kSlotSize));
+    paramBufferSize = Convert<intptr>(bufferSize);
+    paramBuffer = torque_internal::unsafe::NewOffHeapReference(stackSlots);
+  } else {
+    // Fallback: allocate a byte array on the managed heap. The size is the
+    // memory needed for all parameters (param_count * sizeof(float64)).
+    const kSlotSize: intptr = torque_internal::SizeOf<float64>();
+    paramBufferSize = paramCount * kSlotSize;
+    const bufferOnCHeap = AllocateBuffer(paramBufferSize);
+    paramBuffer = torque_internal::unsafe::NewOffHeapReference(bufferOnCHeap);
+  }
+
+  let locationAllocator =
+      LocationAllocatorForInterpreterParams(paramBuffer, paramBufferSize);
+  let hasRefParam: bool = false;
+  // A storage for converted reference parameters, so that they don't get
+  // garbage collected if the conversion of primitive parameters causes a GC.
+  // The storage gets allocated lazily when the first reference parameter gets
+  // converted to avoid performance regressions for signatures without tagged
+  // parameters. An old implementation used the `arguments` array as the
+  // storage for converted reference parameters, but this does not work
+  // because then converted reference parameters can be accessed from
+  // JavaScript using `Function.prototype.arguments`.
+  let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
+
+  for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
+    const param = arguments[paramIndex];
+    const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
+    if (paramType == kWasmI32Type) {
+      let toRef = locationAllocator.GetStackSlot();
+      typeswitch (param) {
+        case (smiParam: Smi): {
+          *toRef = Convert<intptr>(SmiToInt32(smiParam));
+        }
+        case (heapParam: JSAnyNotSmi): {
+          *toRef = Convert<intptr>(WasmTaggedNonSmiToInt32(heapParam));
+        }
+      }
+    } else if (paramType == kWasmF32Type) {
+      let toRef = locationAllocator.GetStackSlot();
+      if constexpr (kIsFpAlwaysDouble || kIsBigEndian || kIsBigEndianOnSim) {
+        HandleF32Params(context, locationAllocator, toRef, param);
+      } else {
+        *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(param)));
+        // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every
+        // single bit can be observable when the float64 is reinterpret casted
+        // to an integral type. Hence, differences in NaN bit patterns are
+        // detected by differential fuzzing, in particular the difference
+        // between the shipped NaN pattern produced from undefined and the new
+        // pattern used for the undefined double experiment. In order to silence
+        // these false positives, we temporarily fall back to the old pattern.
+        // This should be removed when the feature is shipped.
+        @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+          if (param == Undefined) {
+            *RefCast<float32>(toRef) = kCppQuietNaN32;
+          }
+        }
+      }
+    } else if (paramType == kWasmF64Type) {
+      let toRef = locationAllocator.GetStackSlot();
+      *RefCast<float64>(toRef) = ChangeTaggedToFloat64(param);
+      // TODO(nicohartmann,385155404): When passing a NaN to Wasm, every single
+      // bit can be observable when the float64 is reinterpret casted to an
+      // integral type. Hence, differences in NaN bit patterns are detected by
+      // differential fuzzing, in particular the difference between the shipped
+      // NaN pattern produced from undefined and the new pattern used for the
+      // undefined double experiment. In order to silence these false positives,
+      // we temporarily fall back to the old pattern. This should be removed
+      // when the feature is shipped.
+      @if(V8_ENABLE_UNDEFINED_DOUBLE) {
+        if (param == Undefined) {
+          *RefCast<float64>(toRef) = kCppQuietNaN64;
+        }
+      }
+    } else if (paramType == kWasmI64Type) {
+      let toRef = locationAllocator.GetStackSlot();
+      const v = TruncateBigIntToI64(context, param);
+      *toRef = v;
+    } else if (paramType == kWasmS128Type) {
+      tail runtime::WasmThrowJSTypeError(LoadContextFromWasmOrJsFrame());
+    } else {
+      check((paramType & kValueTypeIsRefBit) != 0);
+      // The byte array where we store converted parameters is not GC-safe.
+      // Therefore we can only copy references into this array once no GC can
+      // happen anymore. Any conversion of a primitive type can execute
+      // arbitrary JavaScript code and therefore also trigger GC. Therefore
+      // references get copied into the array only after all parameters of
+      // primitive types are finished. For now we write the converted
+      // parameter into a temporary FixedArray, which gets allocated here
+      // lazily.
+      hasRefParam = true;
+      if (TaggedIsSmi(convertedTagged)) {
+        convertedTagged = WasmAllocateZeroedFixedArray(paramCount);
+      }
+      UnsafeCast<FixedArray>(convertedTagged).objects[paramIndex] =
+          JSToWasmObject(context, paramType, param);
+    }
+  }
+  // TODO(ahaas): Ideally we would enter a `DisallowGarbageCollection` scope
+  // here and leave it in the assembly builtin just before we call to wasm.
+  if (hasRefParam) {
+    // Iterate over all parameters again and handle all those with ref types.
+    for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
+      const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
+      if ((paramType & kValueTypeIsRefBit) != 0) {
+        const param =
+            UnsafeCast<FixedArray>(convertedTagged).objects[paramIndex];
+        let toRef = locationAllocator.GetStackSlot();
+        *toRef = BitcastTaggedToWord(param);
+      }
+    }
+  }
+  const paramStart = paramBuffer.GCUnsafeRawPtr();
+  const paramEnd = locationAllocator.GetStackEnd();
+  locationAllocator.CheckBufferOverflow();
+
+  const index = functionData.function_index;
+
+  // We construct a state that will be passed to `JSToWasmWrapperAsm`
+  // and `JSToWasmHandleReturns`. There are too many parameters to pass
+  // everything through registers. The stack area also contains slots for
+  // values that get passed from `JSToWasmWrapperAsm` and
+  // `WasmReturnPromiseOnSuspendAsm` to `JSToWasmHandleReturns`.
+  const wrapperBuffer = %RawDownCast<RawPtr<intptr>>(
+      StackSlotPtr(kWrapperBufferSize, torque_internal::SizeOf<intptr>()));
+  *GetRefAt<int32>(wrapperBuffer, kWrapperBufferReturnCount) =
+      TruncateIntPtrToInt32(returnCount);
+  *GetRefAt<bool>(wrapperBuffer, kWrapperBufferRefReturnCount) = hasRefReturns;
+  *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferSigRepresentationArray) = reps;
+  *GetRefAt<intptr>(wrapperBuffer, kWrapperBufferStackReturnBufferSize) =
+      returnSize;
+  *GetRefAt<int32>(wrapperBuffer, kWrapperBufferCallTarget) =
+      Convert<int32>(index);
+  *GetRefAt<RawPtr<intptr>>(wrapperBuffer, kWrapperBufferParamStart) =
+      paramStart;
+  *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferParamEnd) = paramEnd;
+
+  // `resultArray` gets passed separately as parameter to make it GC-safe. It
+  // gets passed over the stack so that it gets scanned by the GC as part of
+  // the outgoing parameters of this Torque builtin.
+  let result: JSAny;
+
+  result =
+      JSToWasmInterpreterWrapperAsm(wrapperBuffer, functionData, resultArray);
+  return result;
+}
+
+
+builtin JSToWasmInterpreterHandleReturns(
+    resultArray: JSArray, wrapperBuffer: RawPtr<intptr>): JSAny {
+  const returnCount = *GetRefAt<int32>(
+      wrapperBuffer, kWrapperBufferReturnCount);
+  if (returnCount == 0) {
+    return Undefined;
+  }
+  const returnBuffer = *GetRefAt<RawPtr>(
+      wrapperBuffer, kWrapperBufferStackReturnBufferStart);
+  let locationAllocator =
+      LocationAllocatorForWasmInterpreterReturns(returnBuffer);
+  if (returnCount == 1) {
+    const reps = *GetRefAt<RawPtr>(
+        wrapperBuffer, kWrapperBufferSigRepresentationArray);
+    const retType = *GetRefAt<uint32>(reps, 0);
+    if (retType == kWasmI32Type) {
+      let ret: int32;
+      const slot = locationAllocator.GetGPSlot();
+      ret = *RefCast<int32>(slot);
+      const result = Convert<Number>(ret);
+      return result;
+    } else if (retType == kWasmF32Type) {
+      const slot = locationAllocator.GetFP32Slot();
+      if constexpr (kIsFpAlwaysDouble) {
+        return Convert<Number>(
+            TruncateFloat64ToFloat32(*RefCast<float64>(slot)));
+      } else if constexpr (kIsBigEndianOnSim) {
+        return Convert<Number>(BitcastInt32ToFloat32(
+            TruncateInt64ToInt32(*RefCast<int64>(slot) >> 32)));
+      } else {
+        const resultRef = RefCast<float32>(slot);
+        return Convert<Number>(*resultRef);
+      }
+    } else if (retType == kWasmF64Type) {
+      const slot = locationAllocator.GetFP64Slot();
+      const val = *RefCast<float64>(slot);
+      return Convert<Number>(val);
+    } else if (retType == kWasmI64Type) {
+      if constexpr (Is64()) {
+        const slot = locationAllocator.GetGPSlot();
+        const val = *slot;
+        return I64ToBigInt(val);
+      } else {
+        const lowWordSlot = locationAllocator.GetGPSlot();
+        const highWordSlot = locationAllocator.GetGPSlot();
+        const lowWord = *lowWordSlot;
+        const highWord = *highWordSlot;
+        return I32PairToBigInt(lowWord, highWord);
+      }
+    } else {
+      check((retType & kValueTypeIsRefBit) != 0);
+      const slot = locationAllocator.GetGPSlot();
+      const rawRef = *slot;
+      const value: Object = BitcastWordToTagged(rawRef);
+      return UnsafeCast<JSAny>(value);
+    }
+  }
+  // Multi return.
+  const fixedArray: FixedArray = UnsafeCast<FixedArray>(resultArray.elements);
+  const reps = *GetRefAt<RawPtr>(
+      wrapperBuffer, kWrapperBufferSigRepresentationArray);
+
+  const retTypes = torque_internal::unsafe::NewOffHeapConstSlice(
+      %RawDownCast<RawPtr<uint32>>(reps), Convert<intptr>(returnCount));
+  const hasRefReturns = *GetRefAt<bool>(
+      wrapperBuffer, kWrapperBufferRefReturnCount);
+
+  if (hasRefReturns) {
+    // We first process all references and copy them in the the result array to
+    // put them into a location that is known to the GC. The processing of
+    // references does not trigger a GC, but the allocation of HeapNumbers and
+    // BigInts for primitive types may trigger a GC.
+
+    // First skip over the locations of non-ref return values:
+    for (let k: intptr = 0; k < Convert<intptr>(returnCount); k++) {
+      const retType = *retTypes.UncheckedAtIndex(k);
+      const slot = locationAllocator.GetStackSlot();
+      if ((retType & kValueTypeIsRefBit) != 0) {
+        dcheck((retType & kValueTypeIsRefBit) != 0);
+        const rawRef = *slot;
+        const value: Object = BitcastWordToTagged(rawRef);
+        // Store the wasm object in the JSArray to make it GC safe. The
+        // transformation will happen later in a second loop.
+        fixedArray.objects[k] = value;
+      }
+    }
+  }
+  locationAllocator.CheckBufferOverflow();
+  locationAllocator = LocationAllocatorForWasmInterpreterReturns(returnBuffer);
+  for (let k: intptr = 0; k < Convert<intptr>(returnCount); k++) {
+    const retType = *retTypes.UncheckedAtIndex(k);
+    const slot = locationAllocator.GetStackSlot();
+    if (retType == kWasmI32Type) {
+      let val: int32;
+      if constexpr (kIsBigEndian) {
+        val = TruncateInt64ToInt32(*RefCast<int64>(slot));
+      } else {
+        val = *RefCast<int32>(slot);
+      }
+      fixedArray.objects[k] = Convert<Number>(val);
+    } else if (retType == kWasmF32Type) {
+      let val: float32;
+      val = *RefCast<float32>(slot);
+      fixedArray.objects[k] = Convert<Number>(val);
+    } else if (retType == kWasmI64Type) {
+      const val = *slot;
+      fixedArray.objects[k] = I64ToBigInt(val);
+    } else if (retType == kWasmF64Type) {
+      const val = *RefCast<float64>(slot);
+      fixedArray.objects[k] = Convert<Number>(val);
+    } else {
+      check((retType & kValueTypeIsRefBit) != 0);
+    }
+  }
+  locationAllocator.CheckBufferOverflow();
+
+  return resultArray;
+}
+}  // namespace wasm

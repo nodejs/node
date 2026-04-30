@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-known-node-aspects.h"
 
+#include <iostream>
+
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/handles/handles-inl.h"
@@ -11,6 +13,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-ir-inl.h"
+#include "src/maglev/maglev-tracer.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -19,15 +22,58 @@ namespace maglev {
 
 namespace {
 
+const char* kRed = "\033[31m";
+const char* kGreen = "\033[32m";
+const char* kYellow = "\033[33m";
+const char* kReset = "\033[0m";
+
+void PrintPossibleMaps(std::ostream& os, const PossibleMaps& maps) {
+  os << "{ ";
+  bool first = true;
+  for (compiler::MapRef map : maps) {
+    if (!first) os << ", ";
+    first = false;
+    os << Brief(*map.object());
+  }
+  os << " }";
+}
+
+void TraceMerge(ValueNode* node, NodeInfo& lhs, const NodeInfo& rhs) {
+  // Only print if there is something interesting to merge.
+  if (!lhs.possible_maps_are_known() && !rhs.possible_maps_are_known()) {
+    return;
+  }
+  std::cout << kYellow << "[KNA] Merge: " << PrintNodeLabel(node) << " "
+            << kReset;
+  if (lhs.possible_maps_are_known()) {
+    PrintPossibleMaps(std::cout, lhs.possible_maps());
+  } else {
+    std::cout << "<unknown>";
+  }
+  std::cout << " (stale=" << lhs.maps_are_stale() << ") U ";
+  if (rhs.possible_maps_are_known()) {
+    PrintPossibleMaps(std::cout, rhs.possible_maps());
+  } else {
+    std::cout << "<unknown>";
+  }
+  std::cout << " (stale=" << rhs.maps_are_stale() << ")" << std::endl;
+}
+
+struct DefaultMergeFunc {
+  template <typename Key, typename Value>
+  bool operator()(const Key&, const Value& lhs, const Value& rhs) {
+    return lhs == rhs;
+  }
+};
+
 // Destructively intersects the right map into the left map, such that the
 // left map is mutated to become the result of the intersection. Values that
 // are in both maps are passed to the merging function to be merged with each
 // other -- again, the LHS here is expected to be mutated.
-template <typename Key, typename Value,
-          typename MergeFunc = std::equal_to<Value>>
+template <typename Key, typename Value, typename MergeFunc = DefaultMergeFunc>
 void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
                             const ZoneMap<Key, Value>& rhs_map,
-                            MergeFunc&& func = MergeFunc()) {
+                            MergeFunc&& func = DefaultMergeFunc()) {
   // Walk the two maps in lock step. This relies on the fact that ZoneMaps are
   // sorted.
   typename ZoneMap<Key, Value>::iterator lhs_it = lhs_map.begin();
@@ -42,7 +88,17 @@ void DestructivelyIntersect(ZoneMap<Key, Value>& lhs_map,
     } else {
       // Apply the merge function to the values of the two iterators. If the
       // function returns false, remove the value.
-      bool keep_value = func(lhs_it->second, rhs_it->second);
+      bool keep_value = func(lhs_it->first, lhs_it->second, rhs_it->second);
+      if constexpr (std::is_same_v<decltype(lhs_it->second), ValueNode*>) {
+        if (!keep_value && lhs_it->second && rhs_it->second) {
+          auto l = lhs_it->second->UnwrapIdentities();
+          auto r = rhs_it->second->UnwrapIdentities();
+          if (l != lhs_it->second || r != rhs_it->second) {
+            lhs_it->second = l;
+            keep_value = func(lhs_it->first, l, r);
+          }
+        }
+      }
       if (keep_value) {
         ++lhs_it;
       } else {
@@ -115,16 +171,22 @@ bool MaybeNullAspectIncludes(const As& as, const Bs& bs,
                                           [](auto x) { return x == nullptr; });
 }
 
-bool NodeInfoIncludes(const NodeInfo& before, const NodeInfo& after) {
+bool LoopHeaderCompatibleWithBackEdge(const NodeInfo& loop_header,
+                                      const NodeInfo& backedge) {
   // TODO(428667907): Ideally we should bail out early for the kNone type.
-  if (!NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone)) {
+  if (!NodeTypeIs(backedge.type(), loop_header.type(),
+                  NodeTypeIsVariant::kAllowNone)) {
     return false;
   }
-  if (before.possible_maps_are_known() && before.any_map_is_unstable()) {
-    if (!after.possible_maps_are_known()) {
+  if (loop_header.possible_maps_are_known() &&
+      loop_header.any_map_or_node_type_is_unstable()) {
+    if (!backedge.possible_maps_are_known()) {
       return false;
     }
-    if (!before.possible_maps().contains(after.possible_maps())) {
+    if (!loop_header.maps_are_stale() && backedge.maps_are_stale()) {
+      return false;
+    }
+    if (!loop_header.possible_maps().contains(backedge.possible_maps())) {
       return false;
     }
   }
@@ -140,24 +202,46 @@ bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
   return NodeTypeIs(after.type(), before.type(), NodeTypeIsVariant::kAllowNone);
 }
 
-bool SameValue(ValueNode* before, ValueNode* after) { return before == after; }
+bool SameValue(ValueNode* before, ValueNode* after) {
+  // Nodes from loop headers can contain identities since the KnownNodeAspects
+  // constructor used in CloneForLoopHeader does not unwrap them.
+  return before == after || (before && before->UnwrapIdentities() == after);
+}
 
 }  // namespace
 
+// static
+void NodeInfo::TraceSetPossibleMaps(const KnownNodeAspects& known_node_aspects,
+                                    const NodeInfo* node_info,
+                                    const PossibleMaps& possible_maps) {
+  CHECK(v8_flags.trace_maglev_kna);
+  ValueNode* node = known_node_aspects.FindNode(node_info);
+  CHECK_NOT_NULL(node);
+  std::cout << kGreen << "[KNA] Set maps: " << PrintNodeLabel(node) << " "
+            << kReset;
+  PrintPossibleMaps(std::cout, possible_maps);
+  std::cout << std::endl;
+}
+
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
-  bool any_merged_map_is_unstable = false;
-  DestructivelyIntersect(node_infos_, other.node_infos_,
-                         [&](NodeInfo& lhs, const NodeInfo& rhs) {
-                           lhs.MergeWith(rhs, zone, any_merged_map_is_unstable);
-                           return !lhs.no_info_available();
-                         });
+  bool side_effects_require_invalidation = false;
+  DestructivelyIntersect(
+      node_infos_, other.node_infos_,
+      [&](ValueNode* node, NodeInfo& lhs, const NodeInfo& rhs) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+          TraceMerge(node, lhs, rhs);
+        }
+        lhs.MergeWith(rhs, zone, side_effects_require_invalidation);
+        return !lhs.no_info_available();
+      });
 
   if (effect_epoch_ != other.effect_epoch_) {
     effect_epoch_ = std::max(effect_epoch_, other.effect_epoch_) + 1;
   }
   DestructivelyIntersect(
       available_expressions_, other.available_expressions_,
-      [&](const AvailableExpression& lhs, const AvailableExpression& rhs) {
+      [&](uint32_t hash, const AvailableExpression& lhs,
+          const AvailableExpression& rhs) {
         DCHECK_IMPLIES(lhs.node == rhs.node,
                        lhs.effect_epoch == rhs.effect_epoch);
         DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
@@ -169,10 +253,10 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                lhs.effect_epoch >= effect_epoch_;
       });
 
-  this->any_map_for_any_node_is_unstable_ = any_merged_map_is_unstable;
+  side_effects_require_invalidation_ = side_effects_require_invalidation;
 
   auto merge_loaded_properties =
-      [](ZoneMap<ValueNode*, ValueNode*>& lhs,
+      [](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
         // Loaded properties are maps of maps, so just do the destructive
         // intersection recursively.
@@ -230,7 +314,7 @@ void KnownNodeAspects::UpdateMayHaveAliasingContexts(
       // JSFunction or JSGeneratorObject.
       USE(load);
       DCHECK(load->offset() == JSFunction::kContextOffset ||
-             load->offset() == JSGeneratorObject::kContextOffset);
+             load->offset() == offsetof(JSGeneratorObject, context_));
       may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kYes;
       DCHECK(NodeTypeIs(GetTypeUnchecked(broker, context), NodeType::kContext));
       break;
@@ -266,28 +350,31 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
       auto MaybeAliases = [&](compiler::MapRef map) -> bool {
         return map.equals(old_map);
       };
-      ClearUnstableMapsIfAny(MaybeAliases);
-      if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                      is_tracing_enabled)) {
-        std::cout << "  ! StoreMap: Clearing unstable map "
-                  << Brief(*old_map.object()) << std::endl;
+      // Mark aliasing maps as stale.
+      if (MarkMapsStaleIfAny(MaybeAliases)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+          std::cout << kRed << "[KNA] StoreMap: Invalidate alias "
+                    << Brief(*old_map.object()) << kReset << std::endl;
+        }
       }
       return;
     }
   }
 
   // TODO(olivf): Only invalidate nodes with the same type.
-  ClearUnstableMaps();
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && is_tracing_enabled)) {
-    std::cout << "  ! StoreMap: Clearing unstable maps" << std::endl;
+  OnSideEffect();
+  if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+    std::cout << kRed << "[KNA] StoreMap: Invalidate all unstable maps"
+              << kReset << std::endl;
   }
 }
 
 void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
-  if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building && is_tracing_enabled)) {
-    std::cout << "  ! Clearing unstable node aspects" << std::endl;
+  if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+    std::cout << kRed << "[KNA] Invalidate: all unstable aspects" << kReset
+              << std::endl;
   }
-  ClearUnstableMaps();
+  OnSideEffect();
   // Side-effects can change object contents, so we have to clear
   // our known loaded properties -- however, constant properties are known
   // to not change (and we added a dependency on this), so we don't have to
@@ -310,23 +397,25 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       loaded_context_constants_(other.loaded_context_constants_),
       loaded_context_slots_(zone),
       available_expressions_(zone),
-      any_map_for_any_node_is_unstable_(false),
+      side_effects_require_invalidation_(false),
       may_have_aliasing_contexts_(
           KnownNodeAspects::ContextSlotLoadsAlias::kNone),
       effect_epoch_(other.effect_epoch_),
       node_infos_(zone),
       virtual_objects_(other.virtual_objects_) {
-  if (!other.any_map_for_any_node_is_unstable_) {
+  if (!other.side_effects_require_invalidation_) {
     node_infos_ = other.node_infos_;
 #ifdef DEBUG
     for (const auto& it : node_infos_) {
-      DCHECK(!it.second.any_map_is_unstable());
+      DCHECK(!it.second.any_map_or_node_type_is_unstable() ||
+             it.second.maps_are_stale());
     }
 #endif
   } else if (optimistic_initial_state &&
              !loop_effects->unstable_aspects_cleared) {
     node_infos_ = other.node_infos_;
-    any_map_for_any_node_is_unstable_ = other.any_map_for_any_node_is_unstable_;
+    side_effects_require_invalidation_ =
+        other.side_effects_require_invalidation_;
   } else {
     for (const auto& it : other.node_infos_) {
       node_infos_.emplace(it.first,
@@ -365,6 +454,8 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       auto slot_written = loop_effects->context_slot_written.begin();
       auto slot_written_end = loop_effects->context_slot_written.end();
       for (auto loaded : other.loaded_context_slots_) {
+        if (!loaded.second) continue;
+        loaded.second = loaded.second->UnwrapIdentities();
         if (!NextInIgnoreList(slot_written, slot_written_end, loaded.first)) {
           loaded_context_slots_.emplace(loaded);
         }
@@ -427,12 +518,44 @@ bool KnownNodeAspects::IsCompatibleWithLoopHeader(
 #endif
   }
 
-  if (!AspectIncludes(loop_header.node_infos_, node_infos_, NodeInfoIncludes,
-                      NodeInfoIsEmpty)) {
+  if (!AspectIncludes(loop_header.node_infos_, node_infos_,
+                      LoopHeaderCompatibleWithBackEdge, NodeInfoIsEmpty)) {
     if (V8_UNLIKELY(v8_flags.trace_maglev_loop_speeling)) {
       std::cout << "KNA after loop has incompatible node_infos\n";
     }
-    DCHECK(had_effects);
+    // When `!had_effects`, LoopHeaderCompatibleWithBackEdge only runs as
+    // debug-mode verification of effect_epoch_ maintenance. However, there are
+    // semantic differences between the epoch and NodeInfo, which means that the
+    // two can occasionally disagree and *both are correct*.
+    //
+    // * The maps in NodeInfo are collected by lower tiers and reflect all
+    // knowledge for a bytecode position.
+    // * The epoch is maintained by maglev compilation; in particular, this
+    // means that due to things like loop peeling and deopts, semantics may
+    // differ from NodeInfo.
+    //   * Loop peeling: the peeled iteration may generate specialized code and
+    //   thus contain no side effects whereas the actual loop code does.
+    //   * Deopts: Maglev may emit unconditional deopts, marking all successors
+    //   of the deopts dead from the Maglev perspective while they are not
+    //   actually dead in lower tiers. Side effects in such zombie blocks will
+    //   not be considered in the epoch, but are considered in NodeInfo.
+    //
+    // That means the following check, which we originally had here, does not
+    // hold in general wrt the expectation that `!had_effects ->
+    // LoopHeaderCompatibleWithBackEdge`. It *is* possible for the latter to be
+    // `false`, while the epoch says "no side effects occurred".
+    //
+    // Disable this check for now, BUT come back soon and find a better
+    // solution.
+    //
+    // Note that when `had_effects == true`, LoopHeaderCompatibleWithBackEdge
+    // is NOT just for verification. Instead, it detects when node_infos_
+    // indicate relevant side effects.
+    //
+    // TODO(jgruber,olivf): Investigate further what an appropriate check could
+    // look like here.
+    //
+    // DCHECK(had_effects);
     return false;
   }
 
@@ -467,19 +590,17 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
                                   graph->broker()->local_isolate(), context);
   }
   if (may_have_aliasing_contexts() == ContextSlotLoadsAlias::kYes) {
-    compiler::OptionalScopeInfoRef scope_info = graph->TryGetScopeInfo(context);
     for (auto& cache : loaded_context_slots_) {
       int cached_offset = std::get<int>(cache.first);
       ValueNode* cached_context = std::get<ValueNode*>(cache.first);
       if (cached_offset == offset && cached_context != context) {
-        if (graph->ContextMayAlias(cached_context, scope_info) &&
+        if (graph->ContextMayAlias(cached_context, {}) &&
             cache.second != value) {
-          if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                          graph->is_tracing_enabled())) {
-            std::cout << "  * Clearing probably aliasing value "
+          if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+            std::cout << kRed << "[KNA] Clear context slot: "
                       << PrintNodeLabel(std::get<ValueNode*>(cache.first))
-                      << "[" << offset << "]: " << PrintNode(value)
-                      << std::endl;
+                      << "[" << offset << "] alias " << PrintNode(value)
+                      << kReset << std::endl;
           }
           cache.second = nullptr;
           aliased_slots_.push_back(cache.first);
@@ -490,29 +611,77 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
   return aliased_slots_;
 }
 
-void KnownNodeAspects::PrintLoadedProperties() {
-  std::cout << "Constant properties:\n";
-  for (auto [key, map] : loaded_constant_properties_) {
-    std::cout << "  - " << key << ": { ";
-    bool is_first = true;
-    for (auto [object, value] : map) {
-      if (!is_first) std::cout << ", ";
-      is_first = false;
-      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
-    }
-    std::cout << " }\n";
+bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
+                                             ValueNode* value,
+                                             MaybeAssignedFlag assigned) {
+  value = value->UnwrapIdentities();
+  auto& target_map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                                  : loaded_context_constants_;
+
+  auto [it, inserted] = target_map.insert({{context, offset}, value});
+
+  if (!inserted) {
+    it->second = value;
+    return false;
   }
 
-  std::cout << "Non-constant properties:\n";
-  for (auto [key, map] : loaded_properties_) {
-    std::cout << "  - " << key << ": { ";
+  return true;
+}
+
+KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
+    Graph* graph, ValueNode* context, int offset, ValueNode* value,
+    MaybeAssignedFlag assigned) {
+  SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots =
+      ClearAliasedContextSlotsFor(graph, context, offset, value);
+
+  bool inserted_or_updated =
+      SetContextCachedValue(context, offset, value, assigned);
+
+  if (!inserted_or_updated) {
+    return {ContextStoreResult::kNone, std::move(aliased_slots)};
+  }
+  return {ContextStoreResult::kSetNewValue, std::move(aliased_slots)};
+}
+
+void KnownNodeAspects::TraceLoadedProperties(TraceLogger* logger) const {
+  *logger << "  Constant properties:" << TraceNewline{};
+  for (auto [key, map] : loaded_constant_properties_) {
+    *logger << "    - " << key << ": { ";
     bool is_first = true;
     for (auto [object, value] : map) {
-      if (!is_first) std::cout << ", ";
+      if (!is_first) *logger << ", ";
       is_first = false;
-      std::cout << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+      *logger << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
     }
-    std::cout << " }\n";
+    *logger << " }" << TraceNewline{};
+  }
+
+  *logger << "  Non-constant properties:" << TraceNewline{};
+  for (auto [key, map] : loaded_properties_) {
+    *logger << "    - " << key << ": { ";
+    bool is_first = true;
+    for (auto [object, value] : map) {
+      if (!is_first) *logger << ", ";
+      is_first = false;
+      *logger << PrintNodeLabel(object) << "=>" << PrintNodeLabel(value);
+    }
+    *logger << " }" << TraceNewline{};
+  }
+  *logger << "  Constant context slots:" << TraceNewline{};
+  for (auto [key, object] : loaded_context_constants_) {
+    *logger << "    - ";
+    PrintNodeLabel(std::get<ValueNode*>(key));
+    *logger << "@" << std::get<int>(key) << ": ";
+    *logger << PrintNodeLabel(object);
+    *logger << TraceNewline{};
+  }
+  *logger << "  Non-constant context slots:" << TraceNewline{};
+  for (auto [key, object] : loaded_context_slots_) {
+    *logger << "    - ";
+    PrintNodeLabel(std::get<ValueNode*>(key));
+    *logger << "@" << std::get<int>(key) << ": ";
+    *logger << PrintNodeLabel(object);
+    *logger << TraceNewline{};
   }
 }
 

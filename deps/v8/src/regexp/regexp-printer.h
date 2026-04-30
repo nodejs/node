@@ -16,16 +16,19 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class RegExpNodePrinter;
-class RegExpGraphPrinter;
-class RegExpNode;
-class RegExpTree;
-class TraceRegExpTreeScope;
 class Zone;
 
+namespace regexp {
+
+class GraphPrinter;
+class Node;
 template <typename T>
-class RegExpGraphLabeller {
+class NodePrinter;
+class TraceTreeScope;
+class Tree;
+
+template <typename T>
+class GraphLabeller {
  public:
   auto RegisterNode(const T* node) {
     auto result = nodes_.emplace(node, next_node_label_);
@@ -57,7 +60,7 @@ class RegExpGraphLabeller {
   int next_node_label_ = 1;
 };
 
-class RegExpPrinterBase {
+class PrinterBase {
  public:
   enum class Color : int {
     kDefault = 0,
@@ -70,8 +73,8 @@ class RegExpPrinterBase {
     kWhite = 37
   };
 
-  RegExpPrinterBase(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
-  RegExpPrinterBase(const RegExpPrinterBase& other) V8_NOEXCEPT = default;
+  PrinterBase(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
+  PrinterBase(const PrinterBase& other) V8_NOEXCEPT = default;
   int color() const { return color_; }
   void set_color(Color color) {
     if (!v8_flags.log_colour) return;
@@ -92,17 +95,17 @@ class RegExpPrinterBase {
 };
 
 template <typename T>
-class RegExpNodePrinterBase : public RegExpPrinterBase {
+class NodePrinterBase : public PrinterBase {
  public:
-  RegExpNodePrinterBase(std::ostream& os, RegExpGraphLabeller<T>* labeller,
-                        Zone* zone, char prefix)
-      : RegExpPrinterBase(os, zone), labeller_(labeller), prefix_(prefix) {}
-  RegExpNodePrinterBase(const RegExpPrinterBase& other,
-                        RegExpGraphLabeller<T>* labeller, char prefix)
-      : RegExpPrinterBase(other), labeller_(labeller), prefix_(prefix) {}
+  NodePrinterBase(std::ostream& os, GraphLabeller<T>* labeller, Zone* zone,
+                  char prefix)
+      : PrinterBase(os, zone), labeller_(labeller), prefix_(prefix) {}
+  NodePrinterBase(const PrinterBase& other, GraphLabeller<T>* labeller,
+                  char prefix)
+      : PrinterBase(other), labeller_(labeller), prefix_(prefix) {}
 
-  RegExpGraphLabeller<T>* labeller() { return labeller_; }
-  const RegExpGraphLabeller<T>* labeller() const { return labeller_; }
+  GraphLabeller<T>* labeller() { return labeller_; }
+  const GraphLabeller<T>* labeller() const { return labeller_; }
 
   void PrintNodeLabel(const T* node) {
     if (!labeller_) return;
@@ -118,64 +121,62 @@ class RegExpNodePrinterBase : public RegExpPrinterBase {
   }
 
  protected:
-  RegExpGraphLabeller<T>* labeller_;
+  GraphLabeller<T>* labeller_;
   const char prefix_;
 };
 
-class RegExpDiagnostics {
+class Diagnostics {
  public:
-  RegExpDiagnostics(std::ostream& os, Zone* zone);
-  ~RegExpDiagnostics();
+  Diagnostics(std::ostream& os, Zone* zone);
+  ~Diagnostics();
 
   std::ostream& os() const { return os_; }
   Zone* zone() const { return zone_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
-  RegExpGraphLabeller<RegExpNode>* graph_labeller() const {
+  GraphLabeller<Node>* graph_labeller() const {
     DCHECK(has_graph_labeller());
     return graph_labeller_.get();
   }
-  void set_graph_labeller(
-      std::unique_ptr<RegExpGraphLabeller<RegExpNode>> graph_labeller);
+  void set_graph_labeller(std::unique_ptr<GraphLabeller<Node>> graph_labeller);
 
   bool has_tree_labeller() const { return !!tree_labeller_; }
-  RegExpGraphLabeller<RegExpTree>* tree_labeller() const {
+  GraphLabeller<Tree>* tree_labeller() const {
     DCHECK(has_tree_labeller());
     return tree_labeller_.get();
   }
-  void set_tree_labeller(
-      std::unique_ptr<RegExpGraphLabeller<RegExpTree>> tree_labeller);
+  void set_tree_labeller(std::unique_ptr<GraphLabeller<Tree>> tree_labeller);
 
   bool has_graph_printer() const { return !!graph_printer_; }
-  RegExpGraphPrinter* graph_printer() const {
+  GraphPrinter* graph_printer() const {
     DCHECK(has_graph_printer());
     return graph_printer_.get();
   }
-  void set_graph_printer(std::unique_ptr<RegExpGraphPrinter> graph_printer);
+  void set_graph_printer(std::unique_ptr<GraphPrinter> graph_printer);
 
   bool has_ast_printer() const { return !!ast_printer_; }
-  RegExpNodePrinter<RegExpTree>* ast_printer() const {
+  NodePrinter<Tree>* ast_printer() const {
     DCHECK(has_ast_printer());
     return ast_printer_.get();
   }
-  void set_ast_printer(
-      std::unique_ptr<RegExpNodePrinter<RegExpTree>> ast_printer);
+  void set_ast_printer(std::unique_ptr<NodePrinter<Tree>> ast_printer);
 
-  TraceRegExpTreeScope* trace_tree_scope() { return trace_tree_scope_; }
-  void set_trace_tree_scope(TraceRegExpTreeScope* scope) {
+  TraceTreeScope* trace_tree_scope() { return trace_tree_scope_; }
+  void set_trace_tree_scope(TraceTreeScope* scope) {
     trace_tree_scope_ = scope;
   }
 
  private:
-  std::unique_ptr<RegExpGraphLabeller<RegExpNode>> graph_labeller_;
-  std::unique_ptr<RegExpGraphLabeller<RegExpTree>> tree_labeller_;
-  std::unique_ptr<RegExpGraphPrinter> graph_printer_;
-  std::unique_ptr<RegExpNodePrinter<RegExpTree>> ast_printer_;
-  TraceRegExpTreeScope* trace_tree_scope_ = nullptr;
+  std::unique_ptr<GraphLabeller<Node>> graph_labeller_;
+  std::unique_ptr<GraphLabeller<Tree>> tree_labeller_;
+  std::unique_ptr<GraphPrinter> graph_printer_;
+  std::unique_ptr<NodePrinter<Tree>> ast_printer_;
+  TraceTreeScope* trace_tree_scope_ = nullptr;
   std::ostream& os_;
   Zone* zone_;
 };
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS

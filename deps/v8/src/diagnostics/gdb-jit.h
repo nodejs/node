@@ -5,6 +5,8 @@
 #ifndef V8_DIAGNOSTICS_GDB_JIT_H_
 #define V8_DIAGNOSTICS_GDB_JIT_H_
 
+#include <string>
+
 #include "src/base/address-region.h"
 
 //
@@ -29,6 +31,11 @@ namespace v8 {
 struct JitCodeEvent;
 
 namespace internal {
+
+inline std::string GetMaglevGraphFilename(const std::string& func_name,
+                                          int opt_id) {
+  return "maglev-" + func_name + "-" + std::to_string(opt_id) + ".mgl";
+}
 namespace GDBJITInterface {
 #ifdef ENABLE_GDB_JIT_INTERFACE
 

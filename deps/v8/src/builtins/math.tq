@@ -24,7 +24,7 @@ transitioning macro ReduceToSmiOrFloat64(implicit context: Context)(
   VerifiedUnreachable();
 }
 
-// ES6 #sec-math.abs
+// https://tc39.es/ecma262/#sec-math.abs
 extern macro IsIntPtrAbsWithOverflowSupported(): constexpr bool;
 extern macro TrySmiAdd(Smi, Smi): Smi labels Overflow;
 extern macro TrySmiSub(Smi, Smi): Smi labels Overflow;
@@ -58,7 +58,7 @@ transitioning javascript builtin MathAbs(
   }
 }
 
-// ES6 #sec-math.ceil
+// https://tc39.es/ecma262/#sec-math.ceil
 extern macro Float64Ceil(float64): float64;
 transitioning javascript builtin MathCeil(
     js-implicit context: NativeContext)(x: JSAny): Number {
@@ -71,7 +71,7 @@ transitioning javascript builtin MathCeil(
   }
 }
 
-// ES6 #sec-math.floor
+// https://tc39.es/ecma262/#sec-math.floor
 extern macro Float64Floor(float64): float64;
 transitioning javascript builtin MathFloor(
     js-implicit context: NativeContext)(x: JSAny): Number {
@@ -84,7 +84,7 @@ transitioning javascript builtin MathFloor(
   }
 }
 
-// ES6 #sec-math.round
+// https://tc39.es/ecma262/#sec-math.round
 extern macro Float64Round(float64): float64;
 transitioning javascript builtin MathRound(
     js-implicit context: NativeContext)(x: JSAny): Number {
@@ -97,7 +97,7 @@ transitioning javascript builtin MathRound(
   }
 }
 
-// ES6 #sec-math.trunc
+// https://tc39.es/ecma262/#sec-math.trunc
 extern macro Float64Trunc(float64): float64;
 transitioning javascript builtin MathTrunc(
     js-implicit context: NativeContext)(x: JSAny): Number {
@@ -110,7 +110,7 @@ transitioning javascript builtin MathTrunc(
   }
 }
 
-// ES6 #sec-math.pow
+// https://tc39.es/ecma262/#sec-math.pow
 extern macro Float64Pow(float64, float64): float64;
 extern macro TruncateTaggedToFloat64(implicit context: Context)(
                                       JSAny): float64;
@@ -129,7 +129,7 @@ transitioning javascript builtin MathPow(
   return MathPowImpl(base, exponent);
 }
 
-// ES6 #sec-math.max
+// https://tc39.es/ecma262/#sec-math.max
 extern macro Float64Max(float64, float64): float64;
 transitioning javascript builtin MathMax(
     js-implicit context: NativeContext)(...arguments): Number {
@@ -142,7 +142,7 @@ transitioning javascript builtin MathMax(
   return Convert<Number>(result);
 }
 
-// ES6 #sec-math.min
+// https://tc39.es/ecma262/#sec-math.min
 extern macro Float64Min(float64, float64): float64;
 transitioning javascript builtin MathMin(
     js-implicit context: NativeContext)(...arguments): Number {
@@ -155,7 +155,7 @@ transitioning javascript builtin MathMin(
   return Convert<Number>(result);
 }
 
-// ES6 #sec-math.acos
+// https://tc39.es/ecma262/#sec-math.acos
 extern macro Float64Acos(float64): float64;
 
 transitioning javascript builtin MathAcos(
@@ -164,7 +164,7 @@ transitioning javascript builtin MathAcos(
   return Convert<Number>(Float64Acos(value));
 }
 
-// ES6 #sec-math.acosh
+// https://tc39.es/ecma262/#sec-math.acosh
 extern macro Float64Acosh(float64): float64;
 
 transitioning javascript builtin MathAcosh(
@@ -173,7 +173,7 @@ transitioning javascript builtin MathAcosh(
   return Convert<Number>(Float64Acosh(value));
 }
 
-// ES6 #sec-math.asin
+// https://tc39.es/ecma262/#sec-math.asin
 extern macro Float64Asin(float64): float64;
 
 transitioning javascript builtin MathAsin(
@@ -182,7 +182,7 @@ transitioning javascript builtin MathAsin(
   return Convert<Number>(Float64Asin(value));
 }
 
-// ES6 #sec-math.asinh
+// https://tc39.es/ecma262/#sec-math.asinh
 extern macro Float64Asinh(float64): float64;
 
 transitioning javascript builtin MathAsinh(
@@ -191,7 +191,7 @@ transitioning javascript builtin MathAsinh(
   return Convert<Number>(Float64Asinh(value));
 }
 
-// ES6 #sec-math.atan
+// https://tc39.es/ecma262/#sec-math.atan
 extern macro Float64Atan(float64): float64;
 
 transitioning javascript builtin MathAtan(
@@ -200,7 +200,7 @@ transitioning javascript builtin MathAtan(
   return Convert<Number>(Float64Atan(value));
 }
 
-// ES6 #sec-math.atan2
+// https://tc39.es/ecma262/#sec-math.atan2
 extern macro Float64Atan2(float64, float64): float64;
 
 transitioning javascript builtin MathAtan2(
@@ -210,7 +210,7 @@ transitioning javascript builtin MathAtan2(
   return Convert<Number>(Float64Atan2(yValue, xValue));
 }
 
-// ES6 #sec-math.atanh
+// https://tc39.es/ecma262/#sec-math.atanh
 extern macro Float64Atanh(float64): float64;
 
 transitioning javascript builtin MathAtanh(
@@ -219,7 +219,7 @@ transitioning javascript builtin MathAtanh(
   return Convert<Number>(Float64Atanh(value));
 }
 
-// ES6 #sec-math.cbrt
+// https://tc39.es/ecma262/#sec-math.cbrt
 extern macro Float64Cbrt(float64): float64;
 
 transitioning javascript builtin MathCbrt(
@@ -228,7 +228,7 @@ transitioning javascript builtin MathCbrt(
   return Convert<Number>(Float64Cbrt(value));
 }
 
-// ES6 #sec-math.clz32
+// https://tc39.es/ecma262/#sec-math.clz32
 extern macro Word32Clz(int32): int32;
 
 transitioning javascript builtin MathClz32(
@@ -237,7 +237,7 @@ transitioning javascript builtin MathClz32(
   return Convert<Number>(Word32Clz(value));
 }
 
-// ES6 #sec-math.cos
+// https://tc39.es/ecma262/#sec-math.cos
 extern macro Float64Cos(float64): float64;
 
 transitioning javascript builtin MathCos(
@@ -246,7 +246,7 @@ transitioning javascript builtin MathCos(
   return Convert<Number>(Float64Cos(value));
 }
 
-// ES6 #sec-math.cosh
+// https://tc39.es/ecma262/#sec-math.cosh
 extern macro Float64Cosh(float64): float64;
 
 transitioning javascript builtin MathCosh(
@@ -255,7 +255,7 @@ transitioning javascript builtin MathCosh(
   return Convert<Number>(Float64Cosh(value));
 }
 
-// ES6 #sec-math.exp
+// https://tc39.es/ecma262/#sec-math.exp
 extern macro Float64Exp(float64): float64;
 
 transitioning javascript builtin MathExp(
@@ -264,7 +264,7 @@ transitioning javascript builtin MathExp(
   return Convert<Number>(Float64Exp(value));
 }
 
-// ES6 #sec-math.expm1
+// https://tc39.es/ecma262/#sec-math.expm1
 extern macro Float64Expm1(float64): float64;
 
 transitioning javascript builtin MathExpm1(
@@ -273,7 +273,7 @@ transitioning javascript builtin MathExpm1(
   return Convert<Number>(Float64Expm1(value));
 }
 
-// ES6 #sec-math.fround
+// https://tc39.es/ecma262/#sec-math.fround
 transitioning javascript builtin MathFround(
     js-implicit context: NativeContext)(x: JSAny): Number {
   const x32 = Convert<float32>(ToNumber_Inline(x));
@@ -281,7 +281,7 @@ transitioning javascript builtin MathFround(
   return Convert<Number>(x64);
 }
 
-// ES6 #sec-math.f16round
+// https://tc39.es/ecma262/#sec-math.f16round
 @incrementUseCounter('v8::Isolate::kFloat16Array')
 transitioning javascript builtin MathF16round(
     js-implicit context: NativeContext)(x: JSAny): Number {
@@ -290,7 +290,7 @@ transitioning javascript builtin MathF16round(
   return Convert<Number>(x64);
 }
 
-// ES6 #sec-math.imul
+// https://tc39.es/ecma262/#sec-math.imul
 transitioning javascript builtin MathImul(
     js-implicit context: NativeContext)(x: JSAny, y: JSAny): Number {
   const x = Convert<int32>(ToNumber_Inline(x));
@@ -298,7 +298,7 @@ transitioning javascript builtin MathImul(
   return Convert<Number>(x * y);
 }
 
-// ES6 #sec-math.log
+// https://tc39.es/ecma262/#sec-math.log
 extern macro Float64Log(float64): float64;
 
 transitioning javascript builtin MathLog(
@@ -307,7 +307,7 @@ transitioning javascript builtin MathLog(
   return Convert<Number>(Float64Log(value));
 }
 
-// ES6 #sec-math.log1p
+// https://tc39.es/ecma262/#sec-math.log1p
 extern macro Float64Log1p(float64): float64;
 
 transitioning javascript builtin MathLog1p(
@@ -316,7 +316,7 @@ transitioning javascript builtin MathLog1p(
   return Convert<Number>(Float64Log1p(value));
 }
 
-// ES6 #sec-math.log10
+// https://tc39.es/ecma262/#sec-math.log10
 extern macro Float64Log10(float64): float64;
 
 transitioning javascript builtin MathLog10(
@@ -325,7 +325,7 @@ transitioning javascript builtin MathLog10(
   return Convert<Number>(Float64Log10(value));
 }
 
-// ES6 #sec-math.log2
+// https://tc39.es/ecma262/#sec-math.log2
 extern macro Float64Log2(float64): float64;
 
 transitioning javascript builtin MathLog2(
@@ -334,7 +334,7 @@ transitioning javascript builtin MathLog2(
   return Convert<Number>(Float64Log2(value));
 }
 
-// ES6 #sec-math.sin
+// https://tc39.es/ecma262/#sec-math.sin
 extern macro Float64Sin(float64): float64;
 
 transitioning javascript builtin MathSin(
@@ -343,7 +343,7 @@ transitioning javascript builtin MathSin(
   return Convert<Number>(Float64Sin(value));
 }
 
-// ES6 #sec-math.sign
+// https://tc39.es/ecma262/#sec-math.sign
 transitioning javascript builtin MathSign(
     js-implicit context: NativeContext)(x: JSAny): Number {
   const num = ToNumber_Inline(x);
@@ -358,7 +358,7 @@ transitioning javascript builtin MathSign(
   }
 }
 
-// ES6 #sec-math.sinh
+// https://tc39.es/ecma262/#sec-math.sinh
 extern macro Float64Sinh(float64): float64;
 
 transitioning javascript builtin MathSinh(
@@ -367,7 +367,7 @@ transitioning javascript builtin MathSinh(
   return Convert<Number>(Float64Sinh(value));
 }
 
-// ES6 #sec-math.sqrt
+// https://tc39.es/ecma262/#sec-math.sqrt
 extern macro Float64Sqrt(float64): float64;
 
 transitioning javascript builtin MathSqrt(
@@ -376,7 +376,7 @@ transitioning javascript builtin MathSqrt(
   return Convert<Number>(Float64Sqrt(value));
 }
 
-// ES6 #sec-math.tan
+// https://tc39.es/ecma262/#sec-math.tan
 extern macro Float64Tan(float64): float64;
 
 transitioning javascript builtin MathTan(
@@ -385,7 +385,7 @@ transitioning javascript builtin MathTan(
   return Convert<Number>(Float64Tan(value));
 }
 
-// ES6 #sec-math.tanh
+// https://tc39.es/ecma262/#sec-math.tanh
 extern macro Float64Tanh(float64): float64;
 
 transitioning javascript builtin MathTanh(
@@ -461,7 +461,7 @@ transitioning macro FastMathHypot(
   unreachable;
 }
 
-// ES6 #sec-math.hypot
+// https://tc39.es/ecma262/#sec-math.hypot
 transitioning javascript builtin MathHypot(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Number {
@@ -508,7 +508,7 @@ transitioning javascript builtin MathHypot(
   }
 }
 
-// ES6 #sec-math.random
+// https://tc39.es/ecma262/#sec-math.random
 extern macro RefillMathRandom(NativeContext): Smi;
 
 transitioning javascript builtin MathRandom(

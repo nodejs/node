@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAP_H_
 #define V8_OBJECTS_MAP_H_
 
+#include <atomic>
 #include <optional>
 
 #include "include/v8-memory-span.h"
@@ -20,7 +21,6 @@
 #include "src/objects/prototype-info.h"
 #include "src/roots/roots.h"
 #include "torque-generated/bit-fields.h"
-#include "torque-generated/visitor-lists.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -40,6 +40,15 @@ enum InstanceType : uint16_t;
   V(Hole)                            \
   V(SeqOneByteString)                \
   V(SeqTwoByteString)                \
+  V(TurbofanBitsetType)              \
+  V(TurbofanOtherNumberConstantType) \
+  V(TurbofanRangeType)               \
+  V(TurboshaftFloat64RangeType)      \
+  V(TurboshaftFloat64SetType)        \
+  V(TurboshaftWord32RangeType)       \
+  V(TurboshaftWord32SetType)         \
+  V(TurboshaftWord64RangeType)       \
+  V(TurboshaftWord64SetType)         \
   IF_WASM(V, WasmNull)
 
 #define POINTER_VISITOR_ID_LIST(V)    \
@@ -50,15 +59,19 @@ enum InstanceType : uint16_t;
   V(Cell)                             \
   V(CodeWrapper)                      \
   V(ConsString)                       \
+  V(Context)                          \
   V(ContextCell)                      \
   V(CppHeapExternalObject)            \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DescriptorArray)                  \
+  V(StrongDescriptorArray)            \
   V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
   V(FeedbackCell)                     \
+  V(FeedbackVector)                   \
   V(Foreign)                          \
   V(FreeSpace)                        \
   V(FunctionTemplateInfo)             \
@@ -72,14 +85,17 @@ enum InstanceType : uint16_t;
   V(JSFunction)                       \
   V(JSObject)                         \
   V(JSObjectFast)                     \
+  V(JSProxy)                          \
   V(JSRegExp)                         \
   V(JSSynchronizationPrimitive)       \
   V(JSTypedArray)                     \
   V(JSWeakCollection)                 \
   V(JSWeakRef)                        \
   V(Map)                              \
+  V(MegaDomHandler)                   \
   V(NativeContext)                    \
   V(Oddball)                          \
+  V(OnHeapBasicBlockProfilerData)     \
   V(PreparseData)                     \
   V(PropertyArray)                    \
   V(PropertyCell)                     \
@@ -87,17 +103,20 @@ enum InstanceType : uint16_t;
   V(PrototypeSharedClosureInfo)       \
   V(RegExpBoilerplateDescription)     \
   V(RegExpDataWrapper)                \
+  V(ScopeInfo)                        \
   V(SharedFunctionInfo)               \
   V(ShortcutCandidate)                \
   V(SlicedString)                     \
-  V(SloppyArgumentsElements)          \
   V(SmallOrderedHashMap)              \
   V(SmallOrderedHashSet)              \
   V(SmallOrderedNameDictionary)       \
+  V(SortState)                        \
   V(SourceTextModule)                 \
   V(Struct)                           \
   V(SwissNameDictionary)              \
   V(Symbol)                           \
+  V(TurbofanHeapConstantType)         \
+  V(TurbofanUnionType)                \
   V(SyntheticModule)                  \
   V(ThinString)                       \
   V(TransitionArray)                  \
@@ -111,15 +130,14 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmStruct)              \
   IF_WASM(V, WasmSuspendingObject)    \
   IF_WASM(V, WasmContinuationObject)  \
+  IF_WASM(V, WasmFastApiCallData)     \
+  IF_WASM(V, WasmStackObject)         \
+  IF_WASM(V, WasmStringViewIter)      \
   IF_WASM(V, WasmTableObject)         \
   IF_WASM(V, WasmTagObject)           \
   IF_WASM(V, WasmTypeInfo)            \
   V(WeakCell)                         \
   SIMPLE_HEAP_OBJECT_LIST1(V)
-
-#define TORQUE_VISITOR_ID_LIST(V)     \
-  TORQUE_DATA_ONLY_VISITOR_ID_LIST(V) \
-  TORQUE_POINTER_VISITOR_ID_LIST(V)
 
 #define TRUSTED_VISITOR_ID_LIST(V) CONCRETE_TRUSTED_OBJECT_TYPE_LIST1(V)
 
@@ -131,15 +149,15 @@ enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
   // clang-format off
   DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-  TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
   kDataOnlyVisitorIdCount,
   POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
-  TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
   TRUSTED_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
   kVisitorIdCount
 // clang-format on
 #undef VISITOR_ID_ENUM_DECL
 };
+
+V8_EXPORT_PRIVATE const char* ToString(VisitorId visitor_id);
 
 enum class ObjectFields {
   kDataOnly,
@@ -192,7 +210,7 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 //      |          |   - is_undetectable (bit 4)                     |
 //      |          |   - is_access_check_needed (bit 5)              |
 //      |          |   - is_constructor (bit 6)                      |
-//      |          |   - has_prototype_slot (bit 7)                  |
+//      |          |   - is_extended_map (bit 7)                     |
 //      +----------+-------------------------------------------------+
 //      | Byte     | [bit_field2]                                    |
 //      |          |   - new_target_is_base (bit 0)                  |
@@ -237,7 +255,7 @@ using MapHandlesSpan = v8::MemorySpan<DirectHandle<Map>>;
 // |               |   [raw_transitions]                             |
 // +---------------+-------------------------------------------------+
 
-class Map : public TorqueGeneratedMap<Map, HeapObject> {
+V8_OBJECT class Map : public HeapObjectLayout {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -250,13 +268,15 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [inobject_properties_start_or_constructor_function_index]:
   // Provides access to the inobject properties start offset in words in case of
   // JSObject maps, or the constructor function index in case of primitive maps.
-  DECL_INT_ACCESSORS(inobject_properties_start_or_constructor_function_index)
+  DECL_UINT8_ACCESSORS(inobject_properties_start_or_constructor_function_index)
 
   // Get/set the in-object property area start offset in words in the object.
-  inline int GetInObjectPropertiesStartInWords() const;
+  inline uint8_t GetInObjectPropertiesStartInWords() const;
+  inline void SetInObjectPropertiesStartInWords(uint8_t value);
   inline void SetInObjectPropertiesStartInWords(int value);
   // Count of properties allocated in the object (JSObject only).
   inline int GetInObjectProperties() const;
+  inline bool IsFieldInObject(int field_index) const;
   // Index of the constructor function in the native context (primitives only),
   // or the special sentinel value to indicate that there is no object wrapper
   // for the primitive (i.e. in case of null or undefined).
@@ -267,8 +287,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Tagged<Map> map, Tagged<Context> native_context);
 
   // Retrieve interceptors.
-  DECL_GETTER(GetNamedInterceptor, Tagged<InterceptorInfo>)
-  DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
+  inline Tagged<InterceptorInfo> GetNamedInterceptor() const;
+  inline Tagged<InterceptorInfo> GetIndexedInterceptor() const;
 
   // Instance type.
   // Inline definition here to avoid a circular dependency in map-inl.h
@@ -277,9 +297,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
     // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
     // non-atomic when TSAN sees the map's store synchronization.
     return static_cast<InstanceType>(
-        RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+        instance_type_.load(std::memory_order_relaxed));
   }
   inline void set_instance_type(InstanceType value);
+
+  // Size of this map object.
+  inline int AllocatedSize() const;
 
   // Returns the size of the used in-object area including object header
   // (only used for JSObject in fast mode, for the other kinds of objects it
@@ -411,6 +434,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   int ComputeMinObjectSlack(Isolate* isolate);
   inline int InstanceSizeFromSlack(int slack) const;
 
+  // Tells whether the Map represents a meta Map or extended Map (which
+  // has more fields than a normal Map) as opposed to regular Map.
+  DECL_BOOLEAN_ACCESSORS(is_extended_map)
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -427,8 +454,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // An "interesting symbol" is one for which Name::IsInteresting()
   // returns true, i.e. a well-known symbol like @@toStringTag.
   DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
-
-  DECL_BOOLEAN_ACCESSORS(has_prototype_slot)
 
   // Records and queries whether the instance has a named interceptor.
   DECL_BOOLEAN_ACCESSORS(has_named_interceptor)
@@ -503,12 +528,16 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   inline Tagged<FixedArrayBase> GetInitialElements() const;
 
   // [raw_transitions]: Provides access to the transitions storage field.
+  // This is a reinterpret-load of the shared transitions_or_prototype_info_
+  // slot; the returned value may be any member of the full union, and
+  // consumers (primarily TransitionsAccessor::GetEncoding) dispatch on the
+  // runtime type.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS(raw_transitions,
-                 Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(
-      raw_transitions, Tagged<UnionOf<Smi, MaybeWeak<Map>, TransitionArray>>)
+  using RawTransitionsT = UnionOf<Smi, MaybeWeak<Map>, TransitionArray,
+                                  PrototypeInfo, PrototypeSharedClosureInfo>;
+  DECL_ACCESSORS(raw_transitions, Tagged<RawTransitionsT>)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_transitions, Tagged<RawTransitionsT>)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_GETTER(prototype_info,
@@ -661,9 +690,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       DirectHandle<JSPrototype> prototype,
       bool enable_prototype_setup_mode = true);
 
-  // Sets prototype and constructor fields to null. Can be called during
-  // bootstrapping.
+  // Sets prototype and constructor fields to null.
   inline void init_prototype_and_constructor_or_back_pointer(
+      ReadOnlyRoots roots);
+  // As above, but safe to call during early RO-heap bootstrapping
+  // where GetReadOnlyRoots (used by Cast's IsNull) is not yet usable.
+  inline void init_prototype_and_constructor_or_back_pointer_during_bootstrap(
       ReadOnlyRoots roots);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
@@ -685,13 +717,13 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Gets |constructor_or_back_pointer| field value from the root map.
   // The result might be null, JSFunction, FunctionTemplateInfo or a Tuple2
   // for JSFunctions with non-instance prototypes.
-  DECL_GETTER(GetConstructorRaw, Tagged<Object>)
+  inline Tagged<Object> GetConstructorRaw() const;
 
   // Gets constructor value from the root map. Unwraps Tuple2 in case of
   // JSFunction map with non-instance prototype.
   // The result returned might be null, JSFunction or FunctionTemplateInfo.
-  DECL_GETTER(GetConstructor, Tagged<Object>)
-  DECL_GETTER(GetFunctionTemplateInfo, Tagged<FunctionTemplateInfo>)
+  inline Tagged<Object> GetConstructor() const;
+  inline Tagged<FunctionTemplateInfo> GetFunctionTemplateInfo() const;
   inline void SetConstructor(Tagged<Object> constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Constructor getter that performs at most the given number of steps
@@ -702,11 +734,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Gets non-instance prototype value which is stored in Tuple2 in a
   // root map's |constructor_or_back_pointer| field.
-  DECL_GETTER(GetNonInstancePrototype, Tagged<Object>)
+  inline Tagged<Object> GetNonInstancePrototype() const;
 
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  DECL_GETTER(GetBackPointer, Tagged<HeapObject>)
+  inline Tagged<HeapObject> GetBackPointer() const;
   inline void SetBackPointer(Tagged<HeapObject> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool TryGetBackPointer(PtrComprCageBase cage_base,
@@ -722,7 +754,12 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
 #if V8_ENABLE_WEBASSEMBLY
   // Only for WasmStructs: custom descriptor instead of instance_descriptors.
-  DECL_ACCESSORS(custom_descriptor, Tagged<WasmStruct>)
+  // The getter widens to the full field union since callers may speculatively
+  // inspect the slot before confirming it actually holds a WasmStruct (e.g.
+  // MapVerify, where a canonical-RTT wasm struct map may still hold a
+  // DescriptorArray).
+  DECL_GETTER(custom_descriptor, Tagged<UnionOf<DescriptorArray, WasmStruct>>)
+  DECL_SETTER(custom_descriptor, Tagged<WasmStruct>)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   inline void UpdateDescriptors(Isolate* isolate,
@@ -739,7 +776,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // (i.e. the canonical RTT for their static type) here, for fast access
   // from type checks in generated code.
   DECL_ACCESSORS(immediate_supertype_map, Tagged<Map>)
-  static constexpr int kImmediateSupertypeOffset = kDependentCodeOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
@@ -913,8 +949,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static Handle<Map> Create(Isolate* isolate,
                                               int inobject_properties);
 
-  // Returns the next free property index (only valid for FAST MODE).
-  int NextFreePropertyIndex() const;
+  // Returns the next free property offset (only valid for FAST MODE).
+  FieldStorageLocation NextFreeFieldStorageLocation() const;
 
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties() const;
@@ -974,6 +1010,13 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 #ifdef VERIFY_HEAP
   void DictionaryMapVerify(Isolate* isolate);
 #endif
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  V8_EXPORT_PRIVATE void VerifyDescriptorInObjectBits(
+      Isolate* isolate, Tagged<DescriptorArray> descriptors,
+      int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE void VerifyPropertyDetailsInObjectBits(
+      PropertyDetails details);
+#endif
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
 
@@ -992,8 +1035,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   static DirectHandle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                       DirectHandle<Map> map);
-
-  static_assert(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   class BodyDescriptor;
 
@@ -1141,8 +1182,158 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   template <typename ConcreteVisitor>
   friend class MarkingVisitorBase;
 
-  TQ_OBJECT_CONSTRUCTORS(Map)
-};
+ public:
+  // Backwards-compatible offset constants. Defined out-of-line below
+  // because offsetof / sizeof on Map cannot appear inside Map's own body.
+  static const int kInstanceSizeInWordsOffset;
+  static const int kInobjectPropertiesStartOrConstructorFunctionIndexOffset;
+  static const int kUsedOrUnusedInstanceSizeInWordsOffset;
+  static const int kVisitorIdOffset;
+  static const int kInstanceTypeOffset;
+  static const int kBitFieldOffset;
+  static const int kBitFieldOffsetEnd;
+  static const int kBitField2Offset;
+  static const int kBitField3Offset;
+  static const int kPrototypeOffset;
+  static const int kConstructorOrBackPointerOrNativeContextOffset;
+  static const int kInstanceDescriptorsOffset;
+  static const int kDependentCodeOffset;
+#if V8_ENABLE_WEBASSEMBLY
+  static const int kImmediateSupertypeOffset;
+#endif
+  static const int kPrototypeValidityCellOffset;
+  static const int kTransitionsOrPrototypeInfoOffset;
+  static const int kStartOfStrongFieldsOffset;
+  static const int kEndOfStrongFieldsOffset;
+  static const int kEndOfWeakFieldsOffset;
+  static const int kHeaderSize;
+  static const int kSize;
+
+  std::atomic<uint8_t> instance_size_in_words_;
+  std::atomic<uint8_t> inobject_properties_start_or_constructor_function_index_;
+  std::atomic<uint8_t> used_or_unused_instance_size_in_words_;
+  std::atomic<uint8_t> visitor_id_;
+  std::atomic<uint16_t> instance_type_;
+  std::atomic<uint8_t> bit_field_;
+  uint8_t bit_field2_;
+  std::atomic<uint32_t> bit_field3_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif
+  TaggedMember<UnionOf<JSReceiver, Null>> prototype_;
+  TaggedMember<Object> constructor_or_back_pointer_or_native_context_;
+#if V8_ENABLE_WEBASSEMBLY
+  TaggedMember<UnionOf<DescriptorArray, WasmStruct>> instance_descriptors_;
+  TaggedMember<UnionOf<DependentCode, Map>> dependent_code_;
+#else
+  TaggedMember<DescriptorArray> instance_descriptors_;
+  TaggedMember<DependentCode> dependent_code_;
+#endif
+  TaggedMember<UnionOf<Smi, Cell>> prototype_validity_cell_;
+  TaggedMember<UnionOf<Smi, MaybeWeak<Map>, TransitionArray, PrototypeInfo,
+                       PrototypeSharedClosureInfo>>
+      transitions_or_prototype_info_;
+} V8_OBJECT_END;
+
+// Backwards-compatible Map offset constants. Defined out-of-line because
+// offsetof / sizeof on Map cannot appear inside Map's own class body.
+inline constexpr int Map::kInstanceSizeInWordsOffset =
+    offsetof(Map, instance_size_in_words_);
+inline constexpr int
+    Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset =
+        offsetof(Map, inobject_properties_start_or_constructor_function_index_);
+inline constexpr int Map::kUsedOrUnusedInstanceSizeInWordsOffset =
+    offsetof(Map, used_or_unused_instance_size_in_words_);
+inline constexpr int Map::kVisitorIdOffset = offsetof(Map, visitor_id_);
+inline constexpr int Map::kInstanceTypeOffset = offsetof(Map, instance_type_);
+inline constexpr int Map::kBitFieldOffset = offsetof(Map, bit_field_);
+inline constexpr int Map::kBitFieldOffsetEnd =
+    offsetof(Map, bit_field_) + sizeof(uint8_t) - 1;
+inline constexpr int Map::kBitField2Offset = offsetof(Map, bit_field2_);
+inline constexpr int Map::kBitField3Offset = offsetof(Map, bit_field3_);
+inline constexpr int Map::kPrototypeOffset = offsetof(Map, prototype_);
+inline constexpr int Map::kConstructorOrBackPointerOrNativeContextOffset =
+    offsetof(Map, constructor_or_back_pointer_or_native_context_);
+inline constexpr int Map::kInstanceDescriptorsOffset =
+    offsetof(Map, instance_descriptors_);
+inline constexpr int Map::kDependentCodeOffset = offsetof(Map, dependent_code_);
+#if V8_ENABLE_WEBASSEMBLY
+inline constexpr int Map::kImmediateSupertypeOffset =
+    offsetof(Map, dependent_code_);
+#endif
+inline constexpr int Map::kPrototypeValidityCellOffset =
+    offsetof(Map, prototype_validity_cell_);
+inline constexpr int Map::kTransitionsOrPrototypeInfoOffset =
+    offsetof(Map, transitions_or_prototype_info_);
+inline constexpr int Map::kStartOfStrongFieldsOffset =
+    offsetof(Map, prototype_);
+inline constexpr int Map::kEndOfStrongFieldsOffset =
+    offsetof(Map, transitions_or_prototype_info_);
+inline constexpr int Map::kEndOfWeakFieldsOffset = sizeof(Map);
+inline constexpr int Map::kHeaderSize = sizeof(Map);
+inline constexpr int Map::kSize = sizeof(Map);
+
+static_assert(Map::kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+
+// Base class for Maps with extra fields. Subclasses must be defined with
+// @hasSameInstanceTypeAsParent and define padding fields up to kTaggedSize.
+V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
+ public:
+  // Bit positions for |bit_field_ex|.
+  struct BitsEx {
+    DEFINE_TORQUE_GENERATED_EXTENDED_MAP_BIT_FIELDS()
+  };
+
+  inline uint8_t bit_field_ex() const;
+  inline void set_bit_field_ex(uint8_t value);
+
+  inline uint8_t relaxed_bit_field_ex() const;
+  inline void set_relaxed_bit_field_ex(uint8_t value);
+
+  inline ExtendedMapKind map_kind() const;
+  inline uint8_t map_size_in_words() const;
+  inline int map_size() const;
+
+  inline void set_map_kind_and_size(ExtendedMapKind kind, int size_in_bytes);
+
+ public:
+  static const int kMinimumSize;
+  static const int kStartOfStrongExtendedFieldsOffset;
+
+  std::atomic<uint8_t> bit_field_ex_;
+  // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
+} V8_OBJECT_END;
+
+constexpr int ExtendedMapSizeForKind(ExtendedMapKind kind);
+
+// Defined out-of-line because offsetof / sizeof on ExtendedMap cannot appear
+// inside ExtendedMap's own class body.
+inline constexpr int ExtendedMap::kMinimumSize =
+    RoundUp(sizeof(ExtendedMap), kTaggedSize);
+inline constexpr int ExtendedMap::kStartOfStrongExtendedFieldsOffset =
+    kMinimumSize;
+
+// Extended map for interceptor objects, it caches named and indexed
+// InterceptorInfo objects in the Map for faster access.
+V8_OBJECT class JSInterceptorMap : public ExtendedMap {
+ public:
+  inline Tagged<InterceptorInfo> named_interceptor() const;
+  inline void set_named_interceptor(
+      Tagged<InterceptorInfo> interceptor_info,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<InterceptorInfo> indexed_interceptor() const;
+  inline void set_indexed_interceptor(
+      Tagged<InterceptorInfo> interceptor_info,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline void clear_extended_padding();
+
+ public:
+  uint8_t extended_padding_[kTaggedSize - 1];
+  TaggedMember<InterceptorInfo> named_interceptor_;
+  TaggedMember<InterceptorInfo> indexed_interceptor_;
+} V8_OBJECT_END;
 
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
@@ -1165,7 +1356,7 @@ class NormalizedMapCache : public WeakFixedArray {
   friend bool IsNormalizedMapCache(Tagged<HeapObject> obj,
                                    PtrComprCageBase cage_base);
 
-  static const int kEntries = 64;
+  static const uint32_t kEntries = 64;
 
   static inline int GetIndex(Isolate* isolate, Tagged<Map> map,
                              Tagged<HeapObject> prototype);
@@ -1178,6 +1369,9 @@ class NormalizedMapCache : public WeakFixedArray {
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);
 INSTANCE_TYPE_CHECKERS(DECL_TESTER)
 #undef DECL_TESTER
+inline bool IsMetaMap(Tagged<Map> map);
+inline bool IsExtendedMap(Tagged<Map> map);
+inline bool IsJSInterceptorMap(Tagged<Map> map);
 inline bool IsNullMap(Tagged<Map> map);
 inline bool IsUndefinedMap(Tagged<Map> map);
 inline bool IsBooleanMap(Tagged<Map> map);

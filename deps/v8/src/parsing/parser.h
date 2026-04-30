@@ -160,8 +160,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeserializeScopeChain(
       IsolateT* isolate, ParseInfo* info,
       MaybeDirectHandle<ScopeInfo> maybe_outer_scope_info,
-      Scope::DeserializationMode mode =
-          Scope::DeserializationMode::kScopesOnly);
+      Scope::DeserializationMode mode = Scope::DeserializationMode::kScopesOnly,
+      DirectHandle<Script> script = DirectHandle<Script>());
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, DirectHandle<Script> script);
@@ -232,7 +232,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int initializer_end_pos, const AstRawString* class_name);
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info,
+                                  int eval_from_position);
 
   // Parse with the script as if the source is implicitly wrapped in a function.
   // We manually construct the AST and scopes for a top-level function and the

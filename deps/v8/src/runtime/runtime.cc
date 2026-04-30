@@ -308,6 +308,9 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
       //   only been checked for sandbox safety, not general correctness.
       return v8_flags.sandbox_testing || v8_flags.sandbox_fuzzing;
 
+    case Runtime::kIsSmi:
+      return true;  // Enabled when not performing differential fuzzing.
+
     default:
       break;
   }

@@ -15,14 +15,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 30
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(1),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(7),
@@ -49,14 +49,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 34
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(1),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(9),
@@ -85,14 +85,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 32
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(1),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(7),
@@ -121,14 +121,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 35
+bytecode array length: 33
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   45 S> */ B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(1),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(3),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(6),
@@ -157,7 +157,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 41
+bytecode array length: 39
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
@@ -165,7 +165,7 @@ bytecodes: [
                 B(Star1),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(3),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(9),
@@ -197,7 +197,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 27
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
@@ -297,14 +297,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 225
+bytecode array length: 223
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(1),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
                 B(JumpIfTrue), U8(198),
@@ -463,18 +463,18 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 55
+bytecode array length: 52
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(0), EmbeddedFeedback(),
                 B(Mov), R(0), R(1),
-                B(JumpIfTrue), U8(12),
+                B(JumpIfTrue), U8(11),
                 B(LdaSmi), I8(2),
                 B(TestEqualStrict), R(1), EmbeddedFeedback(),
-                B(JumpIfTrue), U8(30),
-                B(Jump), U8(31),
+                B(JumpIfTrue), U8(29),
+                B(Jump), U8(30),
   /*   70 S> */ B(Ldar), R(0),
   /*   79 E> */ B(AddSmi), I8(1), FBV(0),
                 B(Star1),

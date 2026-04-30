@@ -354,15 +354,19 @@ class ContextAccess final {
  public:
   ContextAccess(size_t depth, size_t index, bool immutable);
 
-  size_t depth() const { return depth_; }
+  size_t depth() const { return DepthField::decode(immutable_and_depth_); }
   size_t index() const { return index_; }
-  bool immutable() const { return immutable_; }
+  bool immutable() const {
+    return ImmutableField::decode(immutable_and_depth_);
+  }
 
  private:
+  using ImmutableField = base::BitField<bool, 0, 1>;
+  using DepthField = ImmutableField::Next<uint32_t, 31>;
+
   // For space reasons, we keep this tightly packed, otherwise we could just use
   // a simple int/int/bool POD.
-  const bool immutable_;
-  const uint16_t depth_;
+  uint32_t immutable_and_depth_;
   const uint32_t index_;
 };
 
@@ -956,8 +960,7 @@ class JSWasmCallParameters {
   explicit JSWasmCallParameters(wasm::NativeModule* native_module,
                                 int function_index,
                                 SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback,
-                                bool receiver_is_first_param = false);
+                                FeedbackSource const& feedback);
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
@@ -965,14 +968,12 @@ class JSWasmCallParameters {
   FeedbackSource const& feedback() const { return feedback_; }
   int input_count() const;
   int arity_without_implicit_args() const;
-  bool receiver_is_first_param() const { return receiver_is_first_param_; }
 
  private:
   wasm::NativeModule* native_module_;
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
-  bool receiver_is_first_param_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
@@ -1177,6 +1178,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* InstanceOf(const FeedbackSource& feedback);
   const Operator* OrdinaryHasInstance();
 
+  const Operator* AsyncFunctionAwait();
   const Operator* AsyncFunctionEnter();
   const Operator* AsyncFunctionReject();
   const Operator* AsyncFunctionResolve();

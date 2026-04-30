@@ -9,6 +9,7 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/objects/tagged-field.h"
+#include "src/sandbox/cppheap-pointer.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/sandbox/indirect-pointer-tag.h"
@@ -18,6 +19,8 @@ namespace v8::internal {
 
 class Object;
 class ExposedTrustedObject;
+template <typename T, IndirectPointerTagRange kTagRange>
+class TrustedPointerMember;
 using TaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 
 template <typename Subclass, typename Data,
@@ -317,9 +320,16 @@ class ExternalPointerSlot
   ExternalPointerSlot(Address ptr, ExternalPointerTagRange tag_range)
       : SlotBase(ptr), tag_range_(tag_range) {}
 
-  template <ExternalPointerTag tag>
-  explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
-      : SlotBase(member->storage_address()), tag_range_(tag) {}
+  template <ExternalPointerTagRange kTagRange>
+  explicit ExternalPointerSlot(ExternalPointerMember<kTagRange>* member)
+      : SlotBase(member->storage_address()), tag_range_(kTagRange) {}
+
+  template <ExternalPointerTagRange kTagRange>
+  ExternalPointerSlot(ExternalPointerMember<kTagRange>* member,
+                      ExternalPointerTagRange tag_range)
+      : SlotBase(member->storage_address()), tag_range_(tag_range) {
+    DCHECK(kTagRange.Contains(tag_range));
+  }
 
   inline void init_lazily_initialized();
 
@@ -401,6 +411,9 @@ class CppHeapPointerSlot
  public:
   explicit CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
 
+  explicit CppHeapPointerSlot(CppHeapPointerMember* member)
+      : SlotBase(member->storage_address()) {}
+
   inline void init() const;
 
 #ifdef V8_COMPRESS_POINTERS
@@ -445,6 +458,17 @@ class IndirectPointerSlot
 #ifdef V8_ENABLE_SANDBOX
         ,
         tag_range_(tag_range)
+#endif
+  {
+  }
+
+  template <typename T, IndirectPointerTagRange kTagRange>
+  explicit IndirectPointerSlot(TrustedPointerMember<T, kTagRange>* member)
+#ifdef V8_ENABLE_SANDBOX
+      : SlotBase(member->storage_address()),
+        tag_range_(kTagRange)
+#else
+      : SlotBase(member->ptr_location())
 #endif
   {
   }

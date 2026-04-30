@@ -14,6 +14,9 @@ assertEquals(6, Math.sumPrecise([1, 2, 3]));
 assertEquals(-0, Math.sumPrecise([-0, -0]));
 assertSum(6.6, [1.1, 2.2, 3.3]);
 
+
+assertThrows(() => Math.sumPrecise([undefined]), TypeError);
+
 // Abusing an existing iterator (Array iterator on plain object)
 (function TestAbusedArrayIterator() {
   var x = {};

@@ -29,7 +29,7 @@ TEST_F(CircularQueueTest, SamplingCircularQueue) {
   // The queue is full, enqueue is not allowed.
   CHECK(!scq.StartEnqueue());
 
-  // Try to enqueue when the the queue is full. Consumption must be available.
+  // Try to enqueue when the queue is full. Consumption must be available.
   CHECK(scq.Peek());
   for (int i = 0; i < 10; ++i) {
     Record* rec = reinterpret_cast<Record*>(scq.StartEnqueue());

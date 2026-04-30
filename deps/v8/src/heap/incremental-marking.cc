@@ -423,11 +423,18 @@ void IncrementalMarking::StartPointerTableBlackAllocation() {
 #ifdef V8_ENABLE_SANDBOX
   heap()->code_pointer_space()->set_allocate_black(true);
   heap()->trusted_pointer_space()->set_allocate_black(true);
-  if (isolate()->is_shared_space_isolate()) {
-    isolate()->shared_trusted_pointer_space()->set_allocate_black(true);
-  }
 #endif  // V8_ENABLE_SANDBOX
   heap()->js_dispatch_table_space()->set_allocate_black(true);
+
+  // Enable black allocation for shared spaces we own.
+  if (isolate()->owns_shareable_data()) {
+#ifdef V8_COMPRESS_POINTERS
+    isolate()->shared_external_pointer_space()->set_allocate_black(true);
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+    isolate()->shared_trusted_pointer_space()->set_allocate_black(true);
+#endif  // V8_ENABLE_SANDBOX
+  }
 }
 
 void IncrementalMarking::StopPointerTableBlackAllocation() {
@@ -438,12 +445,18 @@ void IncrementalMarking::StopPointerTableBlackAllocation() {
 #ifdef V8_ENABLE_SANDBOX
   heap()->code_pointer_space()->set_allocate_black(false);
   heap()->trusted_pointer_space()->set_allocate_black(false);
-  if (isolate()->is_shared_space_isolate()) {
-    heap()->isolate()->shared_trusted_pointer_space()->set_allocate_black(
-        false);
-  }
 #endif  // V8_ENABLE_SANDBOX
   heap()->js_dispatch_table_space()->set_allocate_black(false);
+
+  // Disable black allocation for shared spaces we own.
+  if (isolate()->owns_shareable_data()) {
+#ifdef V8_COMPRESS_POINTERS
+    isolate()->shared_external_pointer_space()->set_allocate_black(false);
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+    isolate()->shared_trusted_pointer_space()->set_allocate_black(false);
+#endif  // V8_ENABLE_SANDBOX
+  }
 }
 
 std::pair<v8::base::TimeDelta, size_t> IncrementalMarking::CppHeapStep(
@@ -570,6 +583,16 @@ bool IncrementalMarking::ShouldWaitForTask() {
         wait_for_task ? "Delaying" : "Not delaying",
         (completion_task_timeout_ - now).InMillisecondsF());
   }
+  if (V8_UNLIKELY(heap_->is_gc_tracing_category_enabled())) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCShouldWaitForTask", "value",
+        [this, wait_for_task, now](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("wait_for_task", wait_for_task);
+          dict.Add("remaining",
+                   (completion_task_timeout_ - now).InMillisecondsF());
+        });
+  }
   return wait_for_task;
 }
 
@@ -621,6 +644,32 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
             ? optional_time_to_current_task->InMillisecondsF()
             : NAN,
         allowed_overshoot.InMillisecondsF());
+  }
+  if (V8_UNLIKELY(heap_->is_gc_tracing_category_enabled())) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTryInitializeTaskTimeout",
+        "value",
+        [this, allowed_overshoot, delaying, now, kMinAllowedOvershoot,
+         kAllowedOvershootPercentBasedOnWalltime,
+         optional_avg_time_to_marking_task,
+         optional_time_to_current_task](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("delaying", delaying);
+          dict.Add("allowed_overshoot", allowed_overshoot.InMillisecondsF());
+          dict.Add("min_allowed_overshoot",
+                   kMinAllowedOvershoot.InMillisecondsF());
+          dict.Add("walltime", (now - start_time_).InMillisecondsF());
+          dict.Add("allowed_overshoot_based_on_walltime",
+                   kAllowedOvershootPercentBasedOnWalltime);
+          if (optional_avg_time_to_marking_task.has_value()) {
+            dict.Add("avg_time_to_marking_task",
+                     optional_avg_time_to_marking_task->InMillisecondsF());
+          }
+          if (optional_time_to_current_task.has_value()) {
+            dict.Add("time_to_current_task",
+                     optional_time_to_current_task->InMillisecondsF());
+          }
+        });
   }
   return delaying;
 }
@@ -731,8 +780,8 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
                               StepOrigin step_origin) {
   NestedTimedHistogramScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
-               heap_->tracer()->CurrentEpoch());
+  TRACE_EVENT("v8", "V8.GCIncrementalMarking", "epoch",
+              heap_->tracer()->CurrentEpoch());
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL, ThreadKind::kMain,
       current_trace_id_.value(),

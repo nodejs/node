@@ -40,7 +40,7 @@ transitioning builtin ToNumeric(implicit context: Context)(
   }
 }
 
-// ES section #sec-tostring-applied-to-the-number-type
+// https://tc39.es/ecma262/#sec-tostring-applied-to-the-number-type
 builtin NumberToString(input: Number): String {
   return ::NumberToString(input);
 }

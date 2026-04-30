@@ -1729,7 +1729,6 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
     if (!output->IsUnallocated()) continue;
     UnallocatedOperand* second_output = UnallocatedOperand::cast(output);
     if (!second_output->HasSameAsInputPolicy()) continue;
-    DCHECK_EQ(0, i);  // Only valid for first output.
     UnallocatedOperand* cur_input =
         UnallocatedOperand::cast(second->InputAt(second_output->input_index()));
     int output_vreg = second_output->virtual_register();

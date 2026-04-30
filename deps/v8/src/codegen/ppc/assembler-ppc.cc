@@ -43,7 +43,7 @@
 #if V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/ppc/assembler-ppc-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -1111,6 +1111,16 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
 }
 
+void Assembler::addpcis(Register dst, const Operand& val) {
+  intptr_t imm16 = val.immediate();
+  DCHECK(is_int16(imm16));
+  imm16 &= kImm16Mask;
+  int d0 = (imm16 & 0xFFC0) >> 6;
+  int d1 = (imm16 & 0x3E) >> 1;
+  int d2 = imm16 & 0x1;
+  emit(ADDPCIS | dst.code() * B21 | d1 * B16 | d0 * B6 | d2);
+}
+
 // Prefixed instructions.
 #define GENERATE_PREFIX_SUFFIX_BITS(immediate, prefix, suffix)      \
   CHECK(is_int34(immediate));                                       \
@@ -2058,12 +2068,9 @@ void Assembler::GrowBuffer(int needed) {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
   int space = buffer_space() + (new_size - old_size);
   new_size += (space < needed) ? needed - space : 0;
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
   if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }

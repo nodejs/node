@@ -8,7 +8,7 @@
 #include "src/sandbox/isolate.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/sandbox/external-pointer-table-inl.h"
@@ -57,8 +57,11 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
 
 ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
     Tagged<HeapObject> witness, ExternalPointerHandle handle) {
-  DCHECK(!HeapLayout::InWritableSharedSpace(witness));
-  return isolate_->external_pointer_table().GetTag(handle);
+  if (HeapLayout::InWritableSharedSpace(witness)) {
+    return isolate_->shared_external_pointer_table().GetTag(handle);
+  } else {
+    return isolate_->external_pointer_table().GetTag(handle);
+  }
 }
 
 bool IsolateForSandbox::SharesPointerTablesWith(IsolateForSandbox other) const {

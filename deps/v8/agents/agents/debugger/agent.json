@@ -1,0 +1,5 @@
+{
+  "name": "debugger",
+  "description": "Specializes in interactive debugging and crash analysis.",
+  "config_path": "config.yaml"
+}

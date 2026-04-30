@@ -79,6 +79,11 @@ namespace internal {
 //             unknown tags)
 // Version 14: flags for JSArrayBufferViews
 // Version 15: support for shared objects with an explicit tag
+// Version 16: don't truncate JSArrayBuffer's and JSArrayBufferView's lengths
+//             and offsets to 32-bit values and write full size_t's instead,
+//             make sure deserializer is ready to handle 64-bit values even on
+//             32-bit architectures. Allow serialization of resizable
+//             ArrayBuffers with maxByteLength larger than 4GB.
 //
 // WARNING: Increasing this value is a change which cannot safely be rolled
 // back without breaking compatibility with data stored on disk. It is
@@ -87,7 +92,7 @@ namespace internal {
 //
 // Recent changes are routinely reverted in preparation for branch, and this
 // has been the cause of at least one bug in the past.
-static const uint32_t kLatestVersion = 15;
+static const uint32_t kLatestVersion = 16;
 static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
               "Exported format version must match latest version.");
 
@@ -288,8 +293,7 @@ enum class ErrorTag : uint8_t {
 
 enum class WasmMemoryArrayBufferTag : uint8_t {
   kFixedLength = 'f',
-  kResizableNotFollowedByWasmMemory = 'r',
-  kResizableFollowedByWasmMemory = 'w'
+  kResizable = 'r'
 };
 
 }  // namespace
@@ -698,8 +702,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
 
 Maybe<bool> ValueSerializer::WriteJSObject(DirectHandle<JSObject> object) {
   DCHECK(!IsCustomElementsReceiverMap(object->map()));
-  const bool can_serialize_fast =
-      object->HasFastProperties(isolate_) && object->elements()->length() == 0;
+  const bool can_serialize_fast = object->HasFastProperties(isolate_) &&
+                                  object->elements()->ulength().value() == 0;
   if (!can_serialize_fast) return WriteJSObjectSlow(object);
 
   DirectHandle<Map> map(object->map(), isolate_);
@@ -773,17 +777,17 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
   // existed (as only indices which were enumerable own properties at this point
   // should be serialized).
   const bool should_serialize_densely =
-      array->HasFastElements(cage_base) && !array->HasHoleyElements(cage_base);
+      array->HasFastElements() && !array->HasHoleyElements();
 
   if (should_serialize_densely) {
-    DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));
+    DCHECK_LE(length, FixedArray::kMaxLength);
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
     uint32_t i = 0;
 
     // Fast paths. Note that PACKED_ELEMENTS in particular can bail due to the
     // structure of the elements changing.
-    switch (array->GetElementsKind(cage_base)) {
+    switch (array->GetElementsKind()) {
       case PACKED_SMI_ELEMENTS: {
         DisallowGarbageCollection no_gc;
         Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
@@ -806,10 +810,10 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
         break;
       }
       case PACKED_ELEMENTS: {
-        DirectHandle<Object> old_length(array->length(cage_base), isolate_);
+        DirectHandle<Object> old_length(array->length(), isolate_);
         for (; i < length; i++) {
-          if (array->length(cage_base) != *old_length ||
-              array->GetElementsKind(cage_base) != PACKED_ELEMENTS) {
+          if (array->length() != *old_length ||
+              array->GetElementsKind() != PACKED_ELEMENTS) {
             // Fall back to slow path.
             break;
           }
@@ -911,7 +915,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
 
 void ValueSerializer::WriteJSRegExp(DirectHandle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(direct_handle(regexp->source(), isolate_));
+  WriteString(direct_handle(regexp->source(isolate_), isolate_));
   WriteVarint(static_cast<uint32_t>(regexp->flags()));
 }
 
@@ -1021,18 +1025,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
                 isolate_->factory()->array_buffer_wasm_memory_symbol())
                 .ToHandleChecked();
         CHECK(IsWasmMemoryObject(*memory));
-        // WebAssembly.Memory and its buffer exist in a reference cycle.
-        // Manually break the cycle, otherwise deserialization will attempt to
-        // read the same ArrayBuffer/WebAssembly.Memory recursively and fail.
-        if (!id_map_.Find(memory)) {
-          WriteVarint(static_cast<uint8_t>(
-              WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory));
-          if (!WriteJSReceiver(Cast<JSReceiver>(memory)).FromMaybe(false)) {
-            return Nothing<bool>();
-          }
-        } else {
-          WriteVarint(static_cast<uint8_t>(
-              WasmMemoryArrayBufferTag::kResizableNotFollowedByWasmMemory));
+        WriteVarint(static_cast<uint8_t>(WasmMemoryArrayBufferTag::kResizable));
+        if (!WriteJSReceiver(Cast<JSReceiver>(memory)).FromMaybe(false)) {
+          return Nothing<bool>();
         }
       } else {
         WriteVarint(
@@ -1058,20 +1053,12 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
-  size_t max_byte_length = 0;
+
   bool is_resizable = array_buffer->is_resizable_by_js();
   if (is_resizable) {
-    max_byte_length = array_buffer->max_byte_length();
-    if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
-      return ThrowDataCloneError(MessageTemplate::kDataCloneError,
-                                 array_buffer);
-    }
-  }
-
-  if (is_resizable) {
     WriteTag(SerializationTag::kResizableArrayBuffer);
-    WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
-    WriteVarint<uint32_t>(static_cast<uint32_t>(max_byte_length));
+    WriteVarint<size_t>(byte_length);
+    WriteVarint<size_t>(array_buffer->max_byte_length());
     WriteRawBytes(array_buffer->backing_store(), byte_length);
     return ThrowIfOutOfMemory();
   }
@@ -1084,7 +1071,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   } else {
     WriteTag(SerializationTag::kArrayBuffer);
   }
-  WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
+  WriteVarint<size_t>(byte_length);
   WriteRawBytes(array_buffer->backing_store(), byte_length);
   return ThrowIfOutOfMemory();
 }
@@ -1120,8 +1107,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
-  WriteVarint(static_cast<uint32_t>(view->byte_offset()));
-  WriteVarint(static_cast<uint32_t>(view->byte_length()));
+  WriteVarint<size_t>(view->byte_offset());
+  WriteVarint<size_t>(view->byte_length());
   uint32_t flags =
       JSArrayBufferViewIsLengthTracking::encode(view->is_length_tracking()) |
       JSArrayBufferViewIsBackedByRab::encode(view->is_backed_by_rab());
@@ -1142,7 +1129,8 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
   WriteTag(SerializationTag::kError);
 
   DirectHandle<Object> name_object;
-  if (!JSObject::GetProperty(isolate_, error, "name").ToHandle(&name_object)) {
+  if (!JSReceiver::GetProperty(isolate_, error, "name")
+           .ToHandle(&name_object)) {
     return Nothing<bool>();
   }
   DirectHandle<String> name;
@@ -1298,8 +1286,8 @@ Maybe<bool> ValueSerializer::WriteHostObject(DirectHandle<JSObject> object) {
 Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
     DirectHandle<JSObject> object, DirectHandle<FixedArray> keys) {
   uint32_t properties_written = 0;
-  int length = keys->length();
-  for (int i = 0; i < length; i++) {
+  const uint32_t length = keys->ulength().value();
+  for (uint32_t i = 0; i < length; i++) {
     DirectHandle<Object> key(keys->get(i), isolate_);
 
     PropertyKey lookup_key(isolate_, key);
@@ -1580,6 +1568,16 @@ bool ValueDeserializer::ReadUint32(uint32_t* value) {
 
 bool ValueDeserializer::ReadUint64(uint64_t* value) {
   return ReadVarint<uint64_t>().To(value);
+}
+
+bool ValueDeserializer::ReadSizeT(size_t* value) {
+  uint64_t value64;
+  if (!ReadVarint<uint64_t>().To(&value64) ||
+      value64 > std::numeric_limits<size_t>::max()) {
+    return false;
+  }
+  *value = static_cast<size_t>(value64);
+  return true;
 }
 
 bool ValueDeserializer::ReadDouble(double* value) {
@@ -1916,8 +1914,7 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
   // V8. As an additional sanity check, since each entry will take at least one
   // byte to encode, if there are fewer bytes than that we can also fail fast.
   uint32_t length;
-  if (!ReadVarint<uint32_t>().To(&length) ||
-      length > static_cast<uint32_t>(FixedArray::kMaxLength) ||
+  if (!ReadVarint<uint32_t>().To(&length) || length > FixedArray::kMaxLength ||
       length > static_cast<size_t>(end_ - position_)) {
     return MaybeDirectHandle<JSArray>();
   }
@@ -1931,7 +1928,7 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
 
   DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
                                     isolate_);
-  auto elements_length = static_cast<uint32_t>(elements->length());
+  const uint32_t elements_length = elements->ulength().value();
   for (uint32_t i = 0; i < length; i++) {
     SerializationTag tag;
     if (PeekTag().To(&tag) && tag == SerializationTag::kTheHole) {
@@ -2050,7 +2047,7 @@ MaybeDirectHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
     bad_flags_mask |= JSRegExp::kLinear;
   }
   if ((raw_flags & bad_flags_mask) ||
-      !RegExp::VerifyFlags(static_cast<RegExpFlags>(raw_flags)) ||
+      !RegExp::VerifyFlags(static_cast<regexp::Flags>(raw_flags)) ||
       !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
     return MaybeDirectHandle<JSRegExp>();
@@ -2161,53 +2158,43 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
 #if V8_ENABLE_WEBASSEMBLY
     auto backing_store = array_buffer->GetBackingStore();
     if (backing_store && backing_store->is_wasm_memory()) {
+      JSReceiver::SetIntegrityLevel(isolate_, array_buffer, FROZEN, kDontThrow)
+          .Check();
       uint8_t resizable_subtag;
-      if (!ReadVarint<uint8_t>().To(&resizable_subtag)) {
-        return MaybeDirectHandle<JSArrayBuffer>();
-      }
-      switch (static_cast<WasmMemoryArrayBufferTag>(resizable_subtag)) {
-        case WasmMemoryArrayBufferTag::kFixedLength:
-          // Nothing to do.
-          break;
-        case WasmMemoryArrayBufferTag::kResizableNotFollowedByWasmMemory:
-          // In this case we are in the middle of constructing the
-          // WebAssembly.Memory.
-          array_buffer->set_is_resizable_by_js(true);
-          break;
-        case WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory: {
-          array_buffer->set_is_resizable_by_js(true);
-          // Update the byte_length at the same time as the flag to keep
-          // consistent state. The ByteLength is also post-processed after
-          // the creation of the memory object, which should take care of the
-          // most common case. Updating the flag, but not the byte_length is
-          // inconsistent for the buffer object and causes DCHECKS fails.
-          uint32_t byte_length;
-          if (!ReadVarint<uint32_t>().To(&byte_length)) {
-            return MaybeDirectHandle<JSArrayBuffer>();
-          }
-          array_buffer->set_byte_length(byte_length);
-          DirectHandle<Object> wasm_memory_obj;
-          if (!ReadObject().ToHandle(&wasm_memory_obj) ||
-              !IsWasmMemoryObject(*wasm_memory_obj, isolate_)) {
-            return MaybeDirectHandle<JSArrayBuffer>();
-          }
-          break;
-        }
-        default:
-          return MaybeDirectHandle<JSArrayBuffer>();
+      if (!ReadVarint<uint8_t>().To(&resizable_subtag)) return {};
+      if (resizable_subtag ==
+          static_cast<uint8_t>(WasmMemoryArrayBufferTag::kResizable)) {
+        array_buffer->set_is_resizable_by_js(true);
+        // GSABs don't use byte_length getter; avoid DCHECK from firing.
+        array_buffer->set_byte_length(0);
+        DirectHandle<Object> wasm_memory_obj;
+        if (!ReadObject().ToHandle(&wasm_memory_obj)) return {};
+        if (!IsWasmMemoryObject(*wasm_memory_obj, isolate_)) return {};
+        // If the WasmMemoryObject was deserialized just now, it will have set
+        // up the link from the ArrayBuffer already. If it was reused
+        // (deserialized earlier), then we need to establish a link from this
+        // second AB.
+        Object::SetProperty(
+            isolate_, array_buffer,
+            isolate_->factory()->array_buffer_wasm_memory_symbol(),
+            wasm_memory_obj)
+            .Check();
+      } else if (resizable_subtag !=
+                 static_cast<uint8_t>(WasmMemoryArrayBufferTag::kFixedLength)) {
+        return {};
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     return array_buffer;
   }
-  uint32_t byte_length;
-  if (!ReadVarint<uint32_t>().To(&byte_length)) {
+  size_t byte_length;
+  if (!ReadSizeT(&byte_length)) {
     return MaybeDirectHandle<JSArrayBuffer>();
   }
-  uint32_t max_byte_length = byte_length;
+  size_t max_byte_length = byte_length;
   if (is_resizable) {
-    if (!ReadVarint<uint32_t>().To(&max_byte_length)) {
+    if (!ReadSizeT(&max_byte_length)) {
       return MaybeDirectHandle<JSArrayBuffer>();
     }
     if (byte_length > max_byte_length) {
@@ -2226,7 +2213,7 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   if (!result.ToHandle(&array_buffer)) return result;
 
   if (is_immutable) {
-    array_buffer->set_is_immutable(true);
+    array_buffer->MakeImmutable(isolate_);
   }
 
   if (byte_length > 0) {
@@ -2258,15 +2245,13 @@ ValueDeserializer::ReadTransferredJSArrayBuffer() {
 
 MaybeDirectHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
     DirectHandle<JSArrayBuffer> buffer) {
-  uint32_t buffer_byte_length = static_cast<uint32_t>(buffer->GetByteLength());
+  size_t buffer_byte_length = buffer->GetByteLength();
   uint8_t tag = 0;
-  uint32_t byte_offset = 0;
-  uint32_t byte_length = 0;
+  size_t byte_offset = 0;
+  size_t byte_length = 0;
   uint32_t flags = 0;
-  if (!ReadVarint<uint8_t>().To(&tag) ||
-      !ReadVarint<uint32_t>().To(&byte_offset) ||
-      !ReadVarint<uint32_t>().To(&byte_length) ||
-      byte_offset > buffer_byte_length ||
+  if (!ReadVarint<uint8_t>().To(&tag) || !ReadSizeT(&byte_offset) ||
+      !ReadSizeT(&byte_length) || byte_offset > buffer_byte_length ||
       byte_length > buffer_byte_length - byte_offset) {
     return MaybeDirectHandle<JSArrayBufferView>();
   }
@@ -2414,7 +2399,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadJSError() {
   }
 
   // Check for stack property.
-  DirectHandle<Object> stack = isolate_->factory()->undefined_value();
+  DirectHandle<UnionOf<Undefined, String>> stack =
+      isolate_->factory()->undefined_value();
   if (static_cast<ErrorTag>(tag) == ErrorTag::kStack) {
     DirectHandle<String> stack_string;
     if (!ReadString().ToHandle(&stack_string)) {
@@ -2485,23 +2471,44 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   int32_t maximum_pages;
   if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
+
   uint8_t memory64_byte;
   if (!ReadByte(&memory64_byte)) return {};
   if (memory64_byte > 1) return {};
   wasm::AddressType address_type =
       memory64_byte ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
 
+  // Validate maximum_pages.
+  size_t max_supported_pages = address_type == wasm::AddressType::kI64
+                                   ? wasm::kSpecMaxMemory64Pages
+                                   : wasm::kSpecMaxMemory32Pages;
+  if (maximum_pages != WasmMemoryObject::kNoMaximum &&
+      (maximum_pages < 0 ||
+       static_cast<size_t>(maximum_pages) > max_supported_pages)) {
+    return {};
+  }
+
+  // To break a cycle on deserialization, we first allocate the
+  // `WasmMemoryObject`, then read the `JSArrayBuffer`, then link the two.
+  DirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
+      isolate_, MaybeDirectHandle<JSArrayBuffer>{}, nullptr /* backing store */,
+      maximum_pages, address_type);
+
+  AddObjectWithID(id, result);
+
+  // Now read the AB.
   DirectHandle<Object> buffer_object;
-  if (!ReadObject().ToHandle(&buffer_object)) return {};
+  if (!ReadObjectInternal().ToHandle(&buffer_object)) return {};
   if (!IsJSArrayBuffer(*buffer_object)) return {};
 
   DirectHandle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  DirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
-      isolate_, buffer, buffer->GetBackingStore(), maximum_pages, address_type);
+  // Link the two.
+  WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
+  result->managed_backing_store()->SetManagedObject(
+      buffer->GetBackingStore(), isolate_, buffer->GetByteLength());
 
-  AddObjectWithID(id, result);
   return result;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -2768,12 +2775,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
 }
 
 bool ValueDeserializer::HasObjectWithID(uint32_t id) {
-  return id < static_cast<unsigned>(id_map_->length()) &&
+  return id < id_map_->ulength().value() &&
          !IsTheHole(id_map_->get(id), isolate_);
 }
 
 MaybeDirectHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
-  if (id >= static_cast<unsigned>(id_map_->length())) {
+  if (id >= id_map_->ulength().value()) {
     return MaybeDirectHandle<JSReceiver>();
   }
   Tagged<Object> value = id_map_->get(id);

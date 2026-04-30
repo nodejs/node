@@ -21,92 +21,187 @@ class TurboshaftFloatSpecialValues {
   DEFINE_TORQUE_GENERATED_TURBOSHAFT_FLOAT_SPECIAL_VALUES()
 };
 
-class TurboshaftType
-    : public TorqueGeneratedTurboshaftType<TurboshaftType, HeapObject> {
- public:
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftType)
-};
+V8_OBJECT class TurboshaftType : public HeapObjectLayout {
+} V8_OBJECT_END;
 
-class TurboshaftWord32Type
-    : public TorqueGeneratedTurboshaftWord32Type<TurboshaftWord32Type,
-                                                 TurboshaftType> {
+V8_OBJECT class TurboshaftWord32Type : public TurboshaftType {
  public:
+  DECL_VERIFIER(TurboshaftWord32Type)
+} V8_OBJECT_END;
+
+V8_OBJECT class TurboshaftWord32RangeType : public TurboshaftWord32Type {
+ public:
+  inline uint32_t from() const;
+  inline void set_from(uint32_t value);
+  inline uint32_t to() const;
+  inline void set_to(uint32_t value);
+
+  static constexpr int SizeFor() { return sizeof(TurboshaftWord32RangeType); }
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftWord32Type)
-};
+  DECL_PRINTER(TurboshaftWord32RangeType)
+  DECL_VERIFIER(TurboshaftWord32RangeType)
 
-class TurboshaftWord32RangeType
-    : public TorqueGeneratedTurboshaftWord32RangeType<TurboshaftWord32RangeType,
-                                                      TurboshaftWord32Type> {
+ private:
+  friend class TorqueGeneratedTurboshaftWord32RangeTypeAsserts;
+
+  uint32_t from_;
+  uint32_t to_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurboshaftWord32SetType : public TurboshaftWord32Type {
  public:
+  inline uint32_t set_size() const;
+  inline void set_set_size(uint32_t value);
+  inline uint32_t elements(int i) const;
+  inline void set_elements(int i, uint32_t value);
+
+  static constexpr int SizeFor(int set_size);
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftWord32RangeType)
-};
+  DECL_PRINTER(TurboshaftWord32SetType)
+  DECL_VERIFIER(TurboshaftWord32SetType)
 
-class TurboshaftWord32SetType
-    : public TorqueGeneratedTurboshaftWord32SetType<TurboshaftWord32SetType,
-                                                    TurboshaftWord32Type> {
+ private:
+  friend class TorqueGeneratedTurboshaftWord32SetTypeAsserts;
+
+  uint32_t set_size_;
+  FLEXIBLE_ARRAY_MEMBER(uint32_t, elements);
+} V8_OBJECT_END;
+
+constexpr int TurboshaftWord32SetType::SizeFor(int set_size) {
+  return OBJECT_POINTER_ALIGN(OFFSET_OF_DATA_START(TurboshaftWord32SetType) +
+                              set_size * sizeof(uint32_t));
+}
+
+V8_OBJECT class TurboshaftWord64Type : public TurboshaftType {
  public:
+  DECL_VERIFIER(TurboshaftWord64Type)
+} V8_OBJECT_END;
+
+V8_OBJECT class TurboshaftWord64RangeType : public TurboshaftWord64Type {
+ public:
+  inline uint32_t from_high() const;
+  inline void set_from_high(uint32_t value);
+  inline uint32_t from_low() const;
+  inline void set_from_low(uint32_t value);
+  inline uint32_t to_high() const;
+  inline void set_to_high(uint32_t value);
+  inline uint32_t to_low() const;
+  inline void set_to_low(uint32_t value);
+
+  static constexpr int SizeFor() { return sizeof(TurboshaftWord64RangeType); }
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftWord32SetType)
-};
+  DECL_PRINTER(TurboshaftWord64RangeType)
+  DECL_VERIFIER(TurboshaftWord64RangeType)
 
-class TurboshaftWord64Type
-    : public TorqueGeneratedTurboshaftWord64Type<TurboshaftWord64Type,
-                                                 TurboshaftType> {
+ private:
+  friend class TorqueGeneratedTurboshaftWord64RangeTypeAsserts;
+
+  uint32_t from_high_;
+  uint32_t from_low_;
+  uint32_t to_high_;
+  uint32_t to_low_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurboshaftWord64SetType : public TurboshaftWord64Type {
  public:
+  inline uint32_t set_size() const;
+  inline void set_set_size(uint32_t value);
+  inline uint32_t elements_high(int i) const;
+  inline void set_elements_high(int i, uint32_t value);
+  inline uint32_t elements_low(int i) const;
+  inline void set_elements_low(int i, uint32_t value);
+
+  static constexpr int SizeFor(int set_size);
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftWord64Type)
-};
+  DECL_PRINTER(TurboshaftWord64SetType)
+  DECL_VERIFIER(TurboshaftWord64SetType)
 
-class TurboshaftWord64RangeType
-    : public TorqueGeneratedTurboshaftWord64RangeType<TurboshaftWord64RangeType,
-                                                      TurboshaftWord64Type> {
+ private:
+  friend class TorqueGeneratedTurboshaftWord64SetTypeAsserts;
+
+  uint32_t set_size_;
+  // Layout: elements_[0..set_size) is the high-32-bit array; the following
+  // set_size slots hold the low-32-bit array.
+  FLEXIBLE_ARRAY_MEMBER(uint32_t, elements);
+} V8_OBJECT_END;
+
+constexpr int TurboshaftWord64SetType::SizeFor(int set_size) {
+  return OBJECT_POINTER_ALIGN(OFFSET_OF_DATA_START(TurboshaftWord64SetType) +
+                              2 * set_size * sizeof(uint32_t));
+}
+
+V8_OBJECT class TurboshaftFloat64Type : public TurboshaftType {
  public:
+  inline uint32_t special_values() const;
+  inline void set_special_values(uint32_t value);
+
+  DECL_VERIFIER(TurboshaftFloat64Type)
+
+ private:
+  friend class TorqueGeneratedTurboshaftFloat64TypeAsserts;
+
+  uint32_t special_values_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurboshaftFloat64RangeType : public TurboshaftFloat64Type {
+ public:
+  inline double min() const;
+  inline void set_min(double value);
+  inline double max() const;
+  inline void set_max(double value);
+
+  static constexpr int SizeFor() { return sizeof(TurboshaftFloat64RangeType); }
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftWord64RangeType)
-};
+  DECL_PRINTER(TurboshaftFloat64RangeType)
+  DECL_VERIFIER(TurboshaftFloat64RangeType)
 
-class TurboshaftWord64SetType
-    : public TorqueGeneratedTurboshaftWord64SetType<TurboshaftWord64SetType,
-                                                    TurboshaftWord64Type> {
+ private:
+  friend class TorqueGeneratedTurboshaftFloat64RangeTypeAsserts;
+
+  // Explicit padding to align `min_` / `max_` to an 8-byte boundary,
+  // matching the previous Torque-generated layout. The leading underscore
+  // mirrors the `_padding` field name in the .tq source, which is what
+  // the Torque-generated offset assertion compares against.
+  uint32_t _padding_;
+  UnalignedDoubleMember min_;
+  UnalignedDoubleMember max_;
+} V8_OBJECT_END;
+
+V8_OBJECT class TurboshaftFloat64SetType : public TurboshaftFloat64Type {
  public:
+  inline uint32_t set_size() const;
+  inline void set_set_size(uint32_t value);
+  inline double elements(int i) const;
+  inline void set_elements(int i, double value);
+
+  static constexpr int SizeFor(int set_size);
+
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftWord64SetType)
-};
+  DECL_PRINTER(TurboshaftFloat64SetType)
+  DECL_VERIFIER(TurboshaftFloat64SetType)
 
-class TurboshaftFloat64Type
-    : public TorqueGeneratedTurboshaftFloat64Type<TurboshaftFloat64Type,
-                                                  TurboshaftType> {
- public:
-  class BodyDescriptor;
+ private:
+  friend class TorqueGeneratedTurboshaftFloat64SetTypeAsserts;
 
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftFloat64Type)
-};
+  uint32_t set_size_;
+  FLEXIBLE_ARRAY_MEMBER(UnalignedDoubleMember, elements);
+} V8_OBJECT_END;
 
-class TurboshaftFloat64RangeType
-    : public TorqueGeneratedTurboshaftFloat64RangeType<
-          TurboshaftFloat64RangeType, TurboshaftFloat64Type> {
- public:
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftFloat64RangeType)
-};
-
-class TurboshaftFloat64SetType
-    : public TorqueGeneratedTurboshaftFloat64SetType<TurboshaftFloat64SetType,
-                                                     TurboshaftFloat64Type> {
- public:
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(TurboshaftFloat64SetType)
-};
+constexpr int TurboshaftFloat64SetType::SizeFor(int set_size) {
+  return OFFSET_OF_DATA_START(TurboshaftFloat64SetType) +
+         set_size * sizeof(double);
+}
 
 }  // namespace v8::internal
 

@@ -6,7 +6,7 @@
 
 namespace regexp {
 
-// ES#sec-regexp.prototype.test
+// https://tc39.es/ecma262/#sec-regexp.prototype.test
 // RegExp.prototype.test ( S )
 transitioning javascript builtin RegExpPrototypeTest(
     js-implicit context: NativeContext, receiver: JSAny)(

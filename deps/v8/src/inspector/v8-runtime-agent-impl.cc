@@ -364,8 +364,7 @@ void V8RuntimeAgentImpl::evaluate(
     std::unique_ptr<protocol::Runtime::SerializationOptions>
         serializationOptions,
     std::unique_ptr<EvaluateCallback> callback) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
-               "EvaluateScript");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "EvaluateScript");
   int contextId = 0;
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
                                     std::move(executionContextId),
@@ -661,10 +660,10 @@ Response V8RuntimeAgentImpl::setMaxCallStackSizeToCapture(int size) {
     return Response::ServerError(
         "maxCallStackSizeToCapture should be non-negative");
   }
-  TRACE_EVENT_WITH_FLOW1(
-      TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-      "V8RuntimeAgentImpl::setMaxCallStackSizeToCapture", this,
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "size", size);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+              "V8RuntimeAgentImpl::setMaxCallStackSizeToCapture",
+              perfetto::Flow::ProcessScoped(reinterpret_cast<uintptr_t>(this)),
+              "size", size);
   if (!m_enabled) return Response::ServerError("Runtime agent is not enabled");
   m_state->setInteger(V8RuntimeAgentImplState::maxCallStackSizeToCapture, size);
   m_inspector->debugger()->setMaxCallStackSizeToCapture(this, size);
@@ -900,13 +899,13 @@ Response V8RuntimeAgentImpl::addBinding(
   }
   if (executionContextId.has_value()) {
     int contextId = executionContextId.value();
-    InspectedContext* context =
+    std::shared_ptr<InspectedContext> context =
         m_inspector->getContext(m_session->contextGroupId(), contextId);
     if (!context) {
       return Response::InvalidParams(
           "Cannot find execution context with given executionContextId");
     }
-    addBinding(context, name);
+    addBinding(context.get(), name);
     return Response::Success();
   }
 
@@ -1100,9 +1099,9 @@ void V8RuntimeAgentImpl::restore() {
 
 Response V8RuntimeAgentImpl::enable() {
   if (m_enabled) return Response::Success();
-  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                         "V8RuntimeAgentImpl::enable", this,
-                         TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+              "V8RuntimeAgentImpl::enable",
+              perfetto::Flow::ProcessScoped(reinterpret_cast<uintptr_t>(this)));
   m_inspector->client()->beginEnsureAllContextsInGroup(
       m_session->contextGroupId());
   m_enabled = true;
@@ -1128,9 +1127,10 @@ Response V8RuntimeAgentImpl::enable() {
 
 Response V8RuntimeAgentImpl::disable() {
   if (!m_enabled) return Response::Success();
-  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
-                         "V8RuntimeAgentImpl::disable", this,
-                         TRACE_EVENT_FLAG_FLOW_IN);
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.inspector"),
+              "V8RuntimeAgentImpl::disable",
+              perfetto::TerminatingFlow::ProcessScoped(
+                  reinterpret_cast<uintptr_t>(this)));
   m_enabled = false;
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_state->remove(V8RuntimeAgentImplState::contextBindings);

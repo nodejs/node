@@ -40,14 +40,14 @@ index a39e1752f6d2e..2c8a73e87e011 100644
 +    /* If bytes are pre-pended to the archive, relativeOffset must be advanced
 +       by that many bytes. The central dir must exist between the specified
 +       relativeOffset and uPosFound. */
++    if (relativeOffset > uPosFound)
++        return CENTRALDIRINVALID;
 +    const int BUFSIZE = 1024 * 4;
 +    buf = (unsigned char*)ALLOC(BUFSIZE);
 +    if (buf==NULL)
 +        return CENTRALDIRINVALID;
-+    if (relativeOffset > uPosFound)
-+        return CENTRALDIRINVALID;
 +    // Zip64 EOCDR is at least 48 bytes long.
-+    while (relativeOffset + 48 <= uPosFound) {
++    while (uPosFound - relativeOffset >= 48) {
 +        int found = 0;
 +        uLong uReadSize = uPosFound - relativeOffset;
 +        if (uReadSize > BUFSIZE) {

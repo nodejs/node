@@ -110,13 +110,16 @@ int MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
 }
 
 void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+
   // This should be just a
   //    add(dest, pc, branch_offset(target));
   // but current implementation of Assembler::bind_to()/target_at_put() add
   // (InstructionStream::kHeaderSize - kHeapObjectTag) to a position of a label
   // in a "linked" state and thus making it usable only for mov_label_offset().
   // TODO(ishell): fix branch_offset() and re-implement
-  // RegExpMacroAssemblerARM::PushBacktrack() without mov_label_offset().
+  // regexp::RegExpMacroAssemblerARM::PushBacktrack() without
+  // mov_label_offset().
   mov_label_offset(dest, target);
   // mov_label_offset computes offset of the |target| relative to the "current
   // InstructionStream object pointer" which is essentially pc_offset() of the
@@ -127,10 +130,6 @@ void MacroAssembler::GetLabelAddress(Register dest, Label* target) {
       pc_offset() + kPcLoadDelta +
       (InstructionStream::kHeaderSize - kHeapObjectTag);
   LoadPC(r0);
-  // LoadPC emits 2 instructions, pc_offset() is pointing to it's first
-  // instruction but real pc will be pointing to it's second instruction, make
-  // an adjustment so they both point to the same offset.
-  current_instr_code_object_relative_offset -= kInstrSize;
   AddS64(dest, r0, dest);
   SubS64(dest, dest, Operand(current_instr_code_object_relative_offset));
 }
@@ -1182,16 +1181,12 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
 }
 
 void MacroAssembler::LoadPC(Register dst) {
-  b(4, SetLK);
-  mflr(dst);
-  // dst points to address of mflr
+  addpcis(dst, Operand(0));
 }
 
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
-  mflr(r0);
   LoadPC(dst);
-  subi(dst, dst, Operand(pc_offset() - kInstrSize));
-  mtlr(r0);
+  subi(dst, dst, Operand(pc_offset()));
 }
 
 void MacroAssembler::LoadConstantPoolPointerRegister() {
@@ -1200,7 +1195,7 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
 
   LoadPC(kConstantPoolRegister);
-  int32_t delta = -pc_offset() + 4;
+  int32_t delta = -pc_offset();
   add_label_offset(kConstantPoolRegister, kConstantPoolRegister,
                    ConstantPoolPosition(), delta);
 }
@@ -1695,93 +1690,6 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   CompareTaggedRoot(obj, index);
 }
 
-void MacroAssembler::AddAndCheckForOverflow(Register dst, Register left,
-                                            Register right,
-                                            Register overflow_dst,
-                                            Register scratch) {
-  DCHECK(dst != overflow_dst);
-  DCHECK(dst != scratch);
-  DCHECK(overflow_dst != scratch);
-  DCHECK(overflow_dst != left);
-  DCHECK(overflow_dst != right);
-
-  bool left_is_right = left == right;
-  RCBit xorRC = left_is_right ? SetRC : LeaveRC;
-
-  // C = A+B; C overflows if A/B have same sign and C has diff sign than A
-  if (dst == left) {
-    mr(scratch, left);                        // Preserve left.
-    add(dst, left, right);                    // Left is overwritten.
-    xor_(overflow_dst, dst, scratch, xorRC);  // Original left.
-    if (!left_is_right) xor_(scratch, dst, right);
-  } else if (dst == right) {
-    mr(scratch, right);     // Preserve right.
-    add(dst, left, right);  // Right is overwritten.
-    xor_(overflow_dst, dst, left, xorRC);
-    if (!left_is_right) xor_(scratch, dst, scratch);  // Original right.
-  } else {
-    add(dst, left, right);
-    xor_(overflow_dst, dst, left, xorRC);
-    if (!left_is_right) xor_(scratch, dst, right);
-  }
-  if (!left_is_right) and_(overflow_dst, scratch, overflow_dst, SetRC);
-}
-
-void MacroAssembler::AddAndCheckForOverflow(Register dst, Register left,
-                                            intptr_t right,
-                                            Register overflow_dst,
-                                            Register scratch) {
-  Register original_left = left;
-  DCHECK(dst != overflow_dst);
-  DCHECK(dst != scratch);
-  DCHECK(overflow_dst != scratch);
-  DCHECK(overflow_dst != left);
-
-  // C = A+B; C overflows if A/B have same sign and C has diff sign than A
-  if (dst == left) {
-    // Preserve left.
-    original_left = overflow_dst;
-    mr(original_left, left);
-  }
-  AddS64(dst, left, Operand(right), scratch);
-  xor_(overflow_dst, dst, original_left);
-  if (right >= 0) {
-    and_(overflow_dst, overflow_dst, dst, SetRC);
-  } else {
-    andc(overflow_dst, overflow_dst, dst, SetRC);
-  }
-}
-
-void MacroAssembler::SubAndCheckForOverflow(Register dst, Register left,
-                                            Register right,
-                                            Register overflow_dst,
-                                            Register scratch) {
-  DCHECK(dst != overflow_dst);
-  DCHECK(dst != scratch);
-  DCHECK(overflow_dst != scratch);
-  DCHECK(overflow_dst != left);
-  DCHECK(overflow_dst != right);
-
-  // C = A-B; C overflows if A/B have diff signs and C has diff sign than A
-  if (dst == left) {
-    mr(scratch, left);      // Preserve left.
-    sub(dst, left, right);  // Left is overwritten.
-    xor_(overflow_dst, dst, scratch);
-    xor_(scratch, scratch, right);
-    and_(overflow_dst, overflow_dst, scratch, SetRC);
-  } else if (dst == right) {
-    mr(scratch, right);     // Preserve right.
-    sub(dst, left, right);  // Right is overwritten.
-    xor_(overflow_dst, dst, left);
-    xor_(scratch, left, scratch);
-    and_(overflow_dst, overflow_dst, scratch, SetRC);
-  } else {
-    sub(dst, left, right);
-    xor_(overflow_dst, dst, left);
-    xor_(scratch, left, right);
-    and_(overflow_dst, scratch, overflow_dst, SetRC);
-  }
-}
 
 void MacroAssembler::MinF64(DoubleRegister dst, DoubleRegister lhs,
                             DoubleRegister rhs, DoubleRegister scratch) {
@@ -2042,14 +1950,18 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
                   r0);
 }
 
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Register scratch, Label* fbv_undef) {
-  Label done;
-
-  // Load the feedback vector from the closure.
+void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
   LoadTaggedField(
       dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset), r0);
-  LoadTaggedField(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset), r0);
+}
+
+void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
+                                                Register feedback_cell,
+                                                Register scratch,
+                                                Label* fbv_undef) {
+  Label done;
+  LoadTaggedField(
+      dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)), r0);
 
   // Check if feedback vector is valid.
   LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset), r0);
@@ -2062,6 +1974,12 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   b(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
+  LoadFeedbackCell(dst, closure);
+  LoadFeedbackVectorFromCell(dst, dst, scratch, fbv_undef);
 }
 
 void MacroAssembler::LoadInterpreterDataBytecodeArray(
@@ -2410,9 +2328,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     int offset_since_start_call = SizeOfCodeGeneratedSince(&start_call);
     // Here we are going to patch the `addi` instruction above to use the
     // correct offset.
-    // LoadPC emits two instructions and pc is the address of its second emitted
-    // instruction. Add one more to the offset to point to after the Call.
-    offset_since_start_call += kInstrSize;
     patch_pc_address(pc_scratch, start_pc_offset, offset_since_start_call);
 
     int before_offset = pc_offset();
@@ -4942,7 +4857,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   // currently being generated) is immovable or that the callee function cannot
   // trigger GC, since the callee function will return to it.
 
-  static constexpr int after_call_offset = 5 * kInstrSize;
+  static constexpr int after_call_offset = 4 * kInstrSize;
   Label start_call;
   Register dest = target;
 
@@ -4964,8 +4879,7 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   StoreU64(r7, MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
   Call(dest);
 
-  DCHECK_EQ(after_call_offset - kInstrSize,
-            SizeOfCodeGeneratedSince(&start_call));
+  DCHECK_EQ(after_call_offset, SizeOfCodeGeneratedSince(&start_call));
 }
 
 void MacroAssembler::AssertNotDeoptimized(Register scratch) {
@@ -5107,7 +5021,7 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     // The entry references a CodeWrapper object. Unwrap it now.
     LoadTaggedField(
         scratch_and_result,
-        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
+        FieldMemOperand(scratch_and_result, offsetof(CodeWrapper, code_)));
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.Acquire();
@@ -5342,8 +5256,8 @@ void MacroAssembler::Switch(Register scratch, Register value,
   ShiftLeftU32(value, value, Operand(entry_size_log2));
 
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(this);
-  // offset = size of (mflr, addi, add, mtctr, bctr)
-  constexpr int offset = 20;
+  // offset = size of (addi, add, mtctr, bctr)
+  constexpr int offset = 16;
   LoadPC(scratch);
   addi(scratch, scratch, Operand(offset));
   add(scratch, scratch, value);

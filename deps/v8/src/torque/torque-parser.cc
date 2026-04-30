@@ -1038,10 +1038,10 @@ std::optional<ParseResult> MakeClassDeclaration(
       child_results,
       {ANNOTATION_ABSTRACT, ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT,
        ANNOTATION_DO_NOT_GENERATE_CPP_CLASS, ANNOTATION_CUSTOM_CPP_CLASS,
-       ANNOTATION_CUSTOM_MAP, ANNOTATION_GENERATE_BODY_DESCRIPTOR,
-       ANNOTATION_EXPORT, ANNOTATION_DO_NOT_GENERATE_CAST,
+       ANNOTATION_CUSTOM_MAP, ANNOTATION_EXPORT,
+       ANNOTATION_DO_NOT_GENERATE_CAST,
        ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK,
-       ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
+       ANNOTATION_GENERATE_UNIQUE_MAP,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_CPP_OBJECT_DEFINITION,
@@ -1063,9 +1063,9 @@ std::optional<ParseResult> MakeClassDeclaration(
   if (annotations.Contains(ANNOTATION_CUSTOM_CPP_CLASS)) {
     Error(
         "@customCppClass is deprecated. Use 'extern' instead. "
-        "@generateBodyDescriptor, @generateUniqueMap, and "
-        "@generateFactoryFunction accomplish most of what '@export "
-        "@customCppClass' used to.");
+        "@generateUniqueMap accomplishes most of what '@export "
+        "@customCppClass' "
+        "used to.");
   }
   if (annotations.Contains(ANNOTATION_CUSTOM_MAP)) {
     Error(
@@ -1075,14 +1075,8 @@ std::optional<ParseResult> MakeClassDeclaration(
   if (annotations.Contains(ANNOTATION_DO_NOT_GENERATE_CAST)) {
     flags |= ClassFlag::kDoNotGenerateCast;
   }
-  if (annotations.Contains(ANNOTATION_GENERATE_BODY_DESCRIPTOR)) {
-    flags |= ClassFlag::kGenerateBodyDescriptor;
-  }
   if (annotations.Contains(ANNOTATION_GENERATE_UNIQUE_MAP)) {
     flags |= ClassFlag::kGenerateUniqueMap;
-  }
-  if (annotations.Contains(ANNOTATION_GENERATE_FACTORY_FUNCTION)) {
-    flags |= ClassFlag::kGenerateFactoryFunction;
   }
   if (annotations.Contains(ANNOTATION_EXPORT)) {
     flags |= ClassFlag::kExport;
@@ -1132,7 +1126,8 @@ std::optional<ParseResult> MakeClassDeclaration(
     flags |= ClassFlag::kUndefinedLayout;
   }
 
-  if (is_extern && body.has_value()) {
+  const bool is_shape = (flags & ClassFlag::kIsShape) != 0;
+  if (is_extern && body.has_value() && !is_shape) {
     if (!do_not_generate_cpp_class) {
       flags |= ClassFlag::kGenerateCppClassDefinitions;
     }

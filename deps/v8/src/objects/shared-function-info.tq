@@ -41,6 +41,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   is_top_level: bool: 1 bit;
   properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
+  is_hoisted_in_context: bool: 1 bit;
 
   // TODO(crbug.com/401059828): remove once crashes are gone.
   live_edited: bool: 1 bit;
@@ -59,6 +60,7 @@ bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   function_context_independent_compiled: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class SharedFunctionInfo extends HeapObject {
   // For the sandbox, the SFI's function data is split into a trusted and an
   // untrusted part.
@@ -126,7 +128,7 @@ extern class SharedFunctionInfo extends HeapObject {
 // Can be useful in cases where a protected pointer reference to a
 // SharedFunctionInfo is required, for example because it is stored inside an
 // ProtectedFixedArray.
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class SharedFunctionInfoWrapper extends TrustedObject {
   shared_info: SharedFunctionInfo;
 }
@@ -195,8 +197,9 @@ type FixedInt32Array extends ByteArray constexpr 'FixedInt32Array';
 @useParentTypeChecker
 type FixedUInt32Array extends ByteArray constexpr 'FixedUInt32Array';
 
-@export
-class OnHeapBasicBlockProfilerData extends HeapObject {
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class OnHeapBasicBlockProfilerData extends HeapObject {
   block_ids: FixedInt32Array;
   counts: FixedUInt32Array;
   branches: PodArrayOfIntegerPairs;

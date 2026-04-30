@@ -79,7 +79,6 @@ namespace compiler {
   V(RiscvCvtSUl)                                     \
   V(RiscvCvtDL)                                      \
   V(RiscvCvtDUl)                                     \
-  V(RiscvUsd)                                        \
   V(RiscvBitcastDL)                                  \
   V(RiscvBitcastLD)                                  \
   V(RiscvByteSwap64)                                 \
@@ -94,7 +93,7 @@ namespace compiler {
   V(RiscvStoreIndirectPointer)                       \
   V(RiscvAtomicLoadDecompressTaggedSigned)           \
   V(RiscvAtomicLoadDecompressTagged)                 \
-  V(RiscvLoadDecompressProtected)                    \
+  V(RiscvLoadDecompressTrapping)                     \
   V(RiscvAtomicStoreCompressTagged)                  \
   V(RiscvWord64AtomicCompareExchangeUint64)          \
   V(RiscvCmp32)                                      \
@@ -204,16 +203,6 @@ namespace compiler {
   V(RiscvCvtSW)                           \
   V(RiscvCvtSUw)                          \
   V(RiscvCvtDUw)                          \
-  V(RiscvUlh)                             \
-  V(RiscvUlhu)                            \
-  V(RiscvUsh)                             \
-  V(RiscvUld)                             \
-  V(RiscvUlw)                             \
-  V(RiscvUsw)                             \
-  V(RiscvUStoreFloat)                     \
-  V(RiscvULoadFloat)                      \
-  V(RiscvULoadDouble)                     \
-  V(RiscvUStoreDouble)                    \
   V(RiscvEnableDebugTrace)                \
   V(RiscvDisableDebugTrace)               \
   V(RiscvBitcastInt32ToFloat32)           \

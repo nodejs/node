@@ -73,7 +73,8 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   // the global scope.
   if (flags().is_module()) scope = NewModuleScope(scope);
 
-  FunctionState top_scope(&function_state_, &scope_, scope);
+  FunctionState top_scope(&function_state_, &scope_, scope,
+                          &has_generator_in_scope_chain_);
   original_scope_ = scope_;
   int start_position = peek_position();
   PreParserScopedStatementList body(pointer_buffer());
@@ -115,7 +116,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   // PreParser.
   DCHECK_NULL(function_state_);
   DCHECK_NULL(scope_);
-  FunctionState function_state(&function_state_, &scope_, function_scope);
+  FunctionState function_state(&function_state_, &scope_, function_scope,
+                               &has_generator_in_scope_chain_);
 
   // Start collecting data for a new function which might contain skippable
   // functions.
@@ -272,6 +274,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
+  if (function_syntax_kind == FunctionSyntaxKind::kDeclaration) {
+    function_scope->set_is_hoisted_in_context(true);
+  }
   int function_literal_id = GetNextInfoId();
   bool skippable_function = false;
 
@@ -285,7 +290,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       preparse_data_builder_scope.Start(function_scope);
     }
 
-    FunctionState function_state(&function_state_, &scope_, function_scope);
+    FunctionState function_state(&function_state_, &scope_, function_scope,
+                                 &has_generator_in_scope_chain_);
 
     Expect(Token::kLeftParen);
     int start_position = position();

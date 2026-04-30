@@ -35,15 +35,22 @@ from ..local import utils
 
 class Output(object):
 
-  def __init__(self, exit_code=0, timed_out=False, stdout=None, stderr=None,
-               pid=None, start_time=0, end_time=0, stats=None):
+  def __init__(self,
+               exit_code=0,
+               timed_out=False,
+               stdout=None,
+               stderr=None,
+               pid=None,
+               start_time: int | float = 0,
+               end_time: int | float = 0,
+               stats=None):
     self.exit_code = exit_code
     self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
     self.pid = pid
-    self.start_time = start_time
-    self.end_time = end_time
+    self.start_time: int | float = start_time
+    self.end_time: int | float = end_time
     self.stats = stats or ProcessStats()
 
   @property

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "include/v8-profiler.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
@@ -26,7 +27,6 @@
 #include "src/objects/visitors.h"
 #include "src/profiler/heap-snapshot-common.h"
 #include "src/profiler/strings-storage.h"
-#include "src/strings/string-hasher.h"
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
 #include "src/heap/reference-summarizer.h"
@@ -49,11 +49,17 @@ class JSPromise;
 class JSWeakCollection;
 
 struct EntrySourceLocation {
-  EntrySourceLocation(int entry_index, int scriptId, int line, int col)
-      : entry_index(entry_index), scriptId(scriptId), line(line), col(col) {}
+  EntrySourceLocation(int entry_index, int script_entry_index, int script_id,
+                      int line, int col)
+      : entry_index(entry_index),
+        script_entry_index(script_entry_index),
+        script_id(script_id),
+        line(line),
+        col(col) {}
 
   const int entry_index;
-  const int scriptId;
+  const int script_entry_index;
+  const int script_id;
   const int line;
   const int col;
 };
@@ -83,13 +89,13 @@ class HeapGraphEdge {
            type() == kInternal || type() == kShortcut || type() == kWeak);
     return name_;
   }
-  V8_INLINE HeapEntry* from() const;
+  HeapEntry* from() const;
   HeapEntry* to() const { return to_entry_; }
 
-  V8_INLINE Isolate* isolate() const;
+  Isolate* isolate() const;
 
  private:
-  V8_INLINE HeapSnapshot* snapshot() const;
+  HeapSnapshot* snapshot() const;
   int from_index() const { return FromIndexField::decode(bit_field_); }
 
   using TypeField = base::BitField<Type, 0, 3>;
@@ -139,11 +145,12 @@ class HeapEntry {
   void add_self_size(size_t size) { self_size_ += size; }
   unsigned trace_node_id() const { return trace_node_id_; }
   int index() const { return index_; }
-  V8_INLINE int children_count() const;
-  V8_INLINE int set_children_index(int index);
-  V8_INLINE void add_child(HeapGraphEdge* edge);
-  V8_INLINE HeapGraphEdge* child(int i);
-  V8_INLINE Isolate* isolate() const;
+  V8_EXPORT_PRIVATE int children_count() const;
+  int set_children_index(int index);
+  void add_child(HeapGraphEdge* edge);
+  V8_EXPORT_PRIVATE HeapGraphEdge* child(int i);
+  V8_EXPORT_PRIVATE const HeapGraphEdge* child(int i) const;
+  Isolate* isolate() const;
 
   void set_detachedness(v8::EmbedderGraph::Node::Detachedness value) {
     detachedness_ = static_cast<uint8_t>(value);
@@ -189,8 +196,8 @@ class HeapEntry {
                                int max_depth, int indent) const;
 
  private:
-  V8_INLINE std::vector<HeapGraphEdge*>::iterator children_begin() const;
-  V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
+  std::vector<HeapGraphEdge*>::iterator children_begin() const;
+  std::vector<HeapGraphEdge*>::iterator children_end() const;
   const char* TypeAsString() const;
 
   static_assert(kNumTypes <= 1 << 4);
@@ -259,14 +266,16 @@ class HeapSnapshot {
   size_t extra_native_bytes() const { return extra_native_bytes_; }
   void set_extra_native_bytes(size_t bytes) { extra_native_bytes_ = bytes; }
 
-  void AddLocation(HeapEntry* entry, int scriptId, int line, int col);
+  void AddLocation(HeapEntry* entry, HeapEntry* script_entry, int script_id,
+                   int line, int col);
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       SnapshotObjectId id,
                       size_t size,
                       unsigned trace_node_id);
   void AddSyntheticRootEntries();
-  HeapEntry* GetEntryById(SnapshotObjectId id);
+  V8_EXPORT_PRIVATE const HeapEntry* GetEntryById(SnapshotObjectId id) const;
+  V8_EXPORT_PRIVATE HeapEntry* GetEntryById(SnapshotObjectId id);
   void FillChildren();
 
   void AddScriptLineEnds(int script_id, String::LineEndsVector&& line_ends);
@@ -289,7 +298,9 @@ class HeapSnapshot {
   std::deque<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
   std::vector<HeapGraphEdge*> children_;
-  std::unordered_map<SnapshotObjectId, HeapEntry*> entries_by_id_cache_;
+  // Lookup cache that is lazily initialized on first use.
+  mutable absl::flat_hash_map<SnapshotObjectId, HeapEntry*>
+      entries_by_id_cache_;
   std::vector<EntrySourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
@@ -331,13 +342,16 @@ class HeapObjectsMap {
 
   Heap* heap() const { return heap_; }
 
-  SnapshotObjectId FindEntry(Address addr);
+  V8_EXPORT_PRIVATE SnapshotObjectId FindEntry(Address addr);
   SnapshotObjectId FindOrAddEntry(
       Address addr, unsigned int size,
       MarkEntryAccessed accessed = MarkEntryAccessed::kYes,
       IsNativeObject is_native_object = IsNativeObject::kNo);
   SnapshotObjectId FindMergedNativeEntry(NativeObject addr);
   void AddMergedNativeEntry(NativeObject addr, Address canonical_addr);
+  V8_EXPORT_PRIVATE bool ContainsEntryWithIdForTesting(
+      SnapshotObjectId id) const;
+
   bool MoveObject(Address from, Address to, int size);
   void UpdateObjectSize(Address addr, int size);
   SnapshotObjectId last_assigned_id() const {
@@ -366,6 +380,10 @@ class HeapObjectsMap {
 
   void UpdateHeapObjectsMap();
   void RemoveDeadEntries();
+#ifdef DEBUG
+  // Verifies that no entries have their accessed flag set.
+  void CheckEntriesNotAccessed();
+#endif
 
  private:
   struct EntryInfo {
@@ -413,8 +431,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
  public:
   V8HeapExplorer(HeapSnapshot* snapshot,
                  SnapshottingProgressReportingInterface* progress,
-                 v8::HeapProfiler::ObjectNameResolver* resolver,
-                 v8::HeapProfiler::ContextNameResolver* context_resolver);
+                 v8::HeapProfiler::ContextNameResolver* resolver);
   ~V8HeapExplorer() override = default;
   V8HeapExplorer(const V8HeapExplorer&) = delete;
   V8HeapExplorer& operator=(const V8HeapExplorer&) = delete;
@@ -563,6 +580,12 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                             Tagged<Object> child);
   void SetElementReference(HeapEntry* parent_entry, int index,
                            Tagged<Object> child);
+  void AddIntEdge(HeapEntry* parent_entry, HeapGraphEdge::Type type,
+                  const char* reference_name, int value);
+  void AddBoolEdge(HeapEntry* parent_entry, HeapGraphEdge::Type type,
+                   const char* reference_name, bool value);
+  void AddStringEdge(HeapEntry* parent_entry, HeapGraphEdge::Type type,
+                     const char* reference_name, const char* value);
   void SetInternalReference(HeapEntry* parent_entry, const char* reference_name,
                             Tagged<Object> child, int field_offset = -1);
   void SetInternalReference(HeapEntry* parent_entry, int index,
@@ -610,7 +633,6 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
       native_context_tag_map_;
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
   std::unordered_set<Tagged<NativeContext>, Object::Hasher> user_roots_;
-  v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
   v8::HeapProfiler::ContextNameResolver* native_context_name_resolver_;
 
   std::vector<bool> visited_fields_;
@@ -658,13 +680,11 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   using HeapEntriesMap = base::HashMap;
   // The SmiEntriesMap instance is used to track a mapping between smi and
   // their representations in heap snapshots.
-  using SmiEntriesMap = std::unordered_map<int, HeapEntry*>;
+  using SmiEntriesMap = absl::flat_hash_map<int, HeapEntry*>;
 
-  HeapSnapshotGenerator(
-      HeapSnapshot* snapshot, v8::ActivityControl* control,
-      v8::HeapProfiler::ObjectNameResolver* resolver,
-      v8::HeapProfiler::ContextNameResolver* context_name_resolver, Heap* heap,
-      cppgc::EmbedderStackState stack_state);
+  HeapSnapshotGenerator(HeapSnapshot* snapshot, v8::ActivityControl* control,
+                        v8::HeapProfiler::ContextNameResolver* resolver,
+                        Heap* heap, cppgc::EmbedderStackState stack_state);
   HeapSnapshotGenerator(const HeapSnapshotGenerator&) = delete;
   HeapSnapshotGenerator& operator=(const HeapSnapshotGenerator&) = delete;
   bool GenerateSnapshot();
@@ -680,6 +700,10 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
     auto it = smis_map_.find(smi.value());
     return it != smis_map_.end() ? it->second : nullptr;
   }
+
+  HeapEntry* FindOrCreateIntEntry(int value);
+  HeapEntry* FindOrCreateBoolEntry(bool value);
+  HeapEntry* FindOrCreateStringEntry(const char* string);
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
   HeapThing FindHeapThingForHeapEntry(HeapEntry* entry) {
@@ -726,12 +750,10 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
 
   Heap* heap() const { return heap_; }
 
-  UnorderedCppHeapExternalObjectSet& GetCppHeapExternalObjects() {
-    return cpp_heap_external_objects_;
-  }
+  CppHeapWrapperSet& GetCppHeapWrappers() { return cpp_heap_wrappers_; }
 
-  UnorderedCppHeapExternalObjectSet TakeCppHeapExternalObjects() {
-    return std::move(cpp_heap_external_objects_);
+  CppHeapWrapperSet TakeCppHeapWrappers() {
+    return std::move(cpp_heap_wrappers_);
   }
 
  private:
@@ -741,18 +763,24 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   void InitProgressCounter();
 
   HeapSnapshot* snapshot_;
+  HeapObjectsMap* heap_object_map_;
+  StringsStorage* names_;
+
   v8::ActivityControl* control_;
   V8HeapExplorer v8_heap_explorer_;
   NativeObjectsExplorer dom_explorer_;
   // Mapping from HeapThing pointers to HeapEntry indices.
   HeapEntriesMap entries_map_;
   SmiEntriesMap smis_map_;
+  absl::flat_hash_map<int, HeapEntry*> int_entries_;
+  HeapEntry* bool_entries_[2] = {nullptr, nullptr};
+  absl::flat_hash_map<std::string, HeapEntry*> string_entries_;
   // Used during snapshot generation.
   uint32_t progress_counter_;
   uint32_t progress_total_;
   Heap* heap_;
   cppgc::EmbedderStackState stack_state_;
-  UnorderedCppHeapExternalObjectSet cpp_heap_external_objects_;
+  CppHeapWrapperSet cpp_heap_wrappers_;
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
   std::unordered_map<HeapEntry*, HeapThing> reverse_entries_map_;
@@ -781,11 +809,11 @@ class HeapSnapshotJSONSerializer {
                   reinterpret_cast<char*>(key2)) == 0;
   }
 
-  V8_INLINE static uint32_t StringHash(const void* string);
+  static uint32_t StringHash(const void* string);
 
   int GetStringId(const char* s);
-  V8_INLINE int to_node_index(const HeapEntry* e);
-  V8_INLINE int to_node_index(int entry_index);
+  int to_node_index(const HeapEntry* e);
+  int to_node_index(int entry_index);
   void SerializeEdge(HeapGraphEdge* edge, bool first_edge);
   void SerializeEdges();
   void SerializeImpl();
@@ -796,7 +824,6 @@ class HeapSnapshotJSONSerializer {
   void SerializeTraceNode(AllocationTraceNode* node);
   void SerializeTraceNodeInfos();
   void SerializeSamples();
-  void SerializeString(const unsigned char* s);
   void SerializeStrings();
   void SerializeLocation(const EntrySourceLocation& location);
   void SerializeLocations();

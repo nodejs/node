@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-wrapper-tiering-budget=1
-// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
@@ -11,7 +10,7 @@ const _type = builder.addType(kSig_v_v);
 const _import = builder.addImport('m', 'foo', _type);
 builder.addExportOfKind(_type, builder, _import);
 builder.addFunction('main', _type).addBody([]).exportFunc();
-const func = new WebAssembly.Function(
+const func = new WebAssemblyFunction(
   { parameters: [], results: [] },
   () => {});
 const instance = builder.instantiate({ 'm': { 'foo': func } });

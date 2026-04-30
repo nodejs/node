@@ -22,6 +22,7 @@
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/vector.h"
 #include "src/d8/async-hooks-wrapper.h"
 // For V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT.
 #include "src/d8/hardware-watchpoints.h"
@@ -444,6 +445,8 @@ class ShellOptions {
   };
   DisallowReassignment<bool> can_block = {"can_block", true};
   DisallowReassignment<const char*> d8_path = {"d8-path", ""};
+  DisallowReassignment<std::string> cwd = {"C", ""};
+  int post_filtering_cwd_index = -1;
   DisallowReassignment<bool> fuzzilli_coverage_statistics = {
       "fuzzilli-coverage-statistics", false};
   DisallowReassignment<bool> fuzzilli_enable_builtins_coverage = {
@@ -473,6 +476,9 @@ class ShellOptions {
       "mock-arraybuffer-allocator-limit", 0};
   DisallowReassignment<bool> multi_mapped_mock_allocator = {
       "multi-mapped-mock-allocator", false};
+  // This flag enables a bare-bones InspectorClient implementation in the shell.
+  // It is only a harness for basic tests in `test/debugger`, and not shipped
+  // in production. `test/inspector` uses the `inspector-test` binary instead.
   DisallowReassignment<bool> enable_inspector = {"enable-inspector", false};
   int num_isolates = 1;
   DisallowReassignment<v8::ScriptCompiler::CompileOptions, true>
@@ -532,6 +538,7 @@ class ShellOptions {
   DisallowReassignment<bool> flush_denormals = {"flush-denormals", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
+  DisallowReassignment<bool> bundle = {"bundle", false};
 };
 
 class Shell : public i::AllStatic {
@@ -620,7 +627,7 @@ class Shell : public i::AllStatic {
   static void RealmSharedGet(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info);
   static void RealmSharedSet(Local<Name> property, Local<Value> value,
-                             const PropertyCallbackInfo<void>& info);
+                             const PropertyCallbackInfo<Boolean>& info);
 
   static void LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void TestVerifySourcePositions(
@@ -682,7 +689,7 @@ class Shell : public i::AllStatic {
   static void ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void CreateWasmMemoryMapDescriptor(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-  static char* ReadChars(const char* name, int* size_out);
+  static base::OwnedVector<char> ReadChars(const char* name);
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
                                               const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -690,6 +697,11 @@ class Shell : public i::AllStatic {
   static void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WriteChars(const char* name, uint8_t* buffer, size_t buffer_size);
   static void ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void FileExists(const v8::FunctionCallbackInfo<v8::Value>& info);
+#if defined(V8_OS_WIN)
+  static void PreProcessUnicodeFilenameArg(char* argv[], int i);
+  static void FreeUnicodeFilenameArgs();
+#endif
   static void SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void ReadCodeTypeAndArguments(
       const v8::FunctionCallbackInfo<v8::Value>& info, int index,
@@ -729,7 +741,8 @@ class Shell : public i::AllStatic {
 
   // os.chdir(dir) changes directory to the given directory.  Throws an
   // exception/ on error.
-  static void ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void ChangeDirectoryCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
 
   // os.setenv(variable, value) sets an environment variable.  Repeated calls to
   // this method leak memory due to the API of setenv in the standard C library.
@@ -790,9 +803,11 @@ class Shell : public i::AllStatic {
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
 
-  static char* ReadCharsFromTcpPort(const char* name, int* size_out);
+  static base::OwnedVector<char> ReadCharsFromTcpPort(const char* name);
 
   static void set_script_executed() { script_executed_.store(true); }
+  static bool ChangeWorkingDirectory(const std::string& path,
+                                     bool print_error = true);
   static bool use_interactive_shell() {
     return (options.interactive_shell || !script_executed_.load()) &&
            !options.test_shell;
@@ -845,7 +860,6 @@ class Shell : public i::AllStatic {
   static std::atomic<bool> script_executed_;
   static std::atomic<bool> valid_fuzz_script_;
 
-  static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.
   static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);

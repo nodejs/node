@@ -5,6 +5,7 @@
 #ifndef V8_BUILTINS_BUILTINS_H_
 #define V8_BUILTINS_BUILTINS_H_
 
+#include "src/base/bounds.h"
 #include "src/base/flags.h"
 #include "src/base/vector.h"
 #include "src/builtins/builtins-definitions.h"
@@ -689,6 +690,25 @@ V8_INLINE constexpr bool IsBaselineTrampolineBuiltin(Builtin builtin_id) {
          (builtin_id == Builtin::kBaselineOutOfLinePrologue ||
           builtin_id == Builtin::kBaselineOutOfLinePrologueDeopt);
 }
+
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define DEFINE_TYPED_OP_CHECKER(Name, LowerBound, UpperBound)           \
+  V8_INLINE constexpr bool IsTyped##Name##Builtin(Builtin builtin_id) { \
+    return base::IsInRange(builtin_id,                                  \
+                           Builtin::k##Name##_##LowerBound##_Baseline,  \
+                           Builtin::k##Name##_##UpperBound##_Baseline); \
+  }
+
+// The Lower/Upper bound macro arguments should match the definition order in
+// builtins-definitions.h.
+DEFINE_TYPED_OP_CHECKER(Equal, Any, None)
+DEFINE_TYPED_OP_CHECKER(StrictEqual, Any, None)
+DEFINE_TYPED_OP_CHECKER(LessThan, Number, None)
+DEFINE_TYPED_OP_CHECKER(GreaterThan, Number, None)
+DEFINE_TYPED_OP_CHECKER(LessThanOrEqual, Number, None)
+DEFINE_TYPED_OP_CHECKER(GreaterThanOrEqual, Number, None)
+#undef DEFINE_TYPED_OP_CHECKER
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id);

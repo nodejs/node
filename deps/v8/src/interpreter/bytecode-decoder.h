@@ -42,7 +42,7 @@ class V8_EXPORT_PRIVATE BytecodeDecoder final {
   // Separate function for racy embedded feedback value read, so that we can
   // explicitly suppress TSAN check. Concurrent compilers promise that
   // this race is benign (as the worst-case outcome is a deoptimization).
-  static uint32_t RacyDecodeEmbeddedFeedback(Address operand_start);
+  static uint8_t RacyDecodeEmbeddedFeedback(Address operand_start);
 
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,

@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-// We normally don't generate a BodyDescriptor for an abstact class, but here we
-// do since all context classes share the same BodyDescriptor.
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class Context extends HeapObject {
   macro GetScopeInfo(): ScopeInfo {
     return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
@@ -16,8 +14,8 @@ extern class Context extends HeapObject {
 
 @cppObjectLayoutDefinition
 extern class ScriptContextTable extends HeapObject {
-  const capacity: Smi;
-  length: Smi;
+  const capacity: uint32;
+  length: uint32;
   names_to_context_index: NameToIndexHashTable;
   objects[capacity]: Context;
 }
@@ -146,6 +144,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FLAT_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_CONCAT_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_ZIP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,

@@ -712,15 +712,22 @@ struct FloatOperationTyper {
         // -0 / r (r > 0)
         (l.has_minus_zero() && r_max > 0)
         // 0 / r (r < 0)
-        || (l.Contains(0) && r_min < 0)
-        // -0.0..01 / r (r > 1)
-        || (l.Contains(0) && l_min < 0 && r_max > 1)
-        // 0.0..01 / r (r < -1)
-        || (l.Contains(0) && l_max >= 0 && r_min < -1)
-        // l / large (l < 0)
-        || (l_max < 0 && detail::is_minus_zero(l_max / r_max))
-        // l / -large (l > 0)
-        || (l_min > 0 && detail::is_minus_zero(l_min / r_min));
+        || (l.Contains(0) && r_min < 0);
+
+    // if l can be negative and r can be positive, check if it can happen that
+    // the division can produce a minus zero. by dividing a small negative
+    // number by a large positive number.
+    if (!maybe_minuszero && l_min < 0 && r_max > 0) {
+      float_t closest_neg =
+          l_max < 0 ? l_max : -std::numeric_limits<float_t>::denorm_min();
+      maybe_minuszero = detail::is_minus_zero(closest_neg / r_max);
+    }
+    // Repeat the same for a small positive number and a large negative number.
+    if (!maybe_minuszero && l_max > 0 && r_min < 0) {
+      float_t closest_pos =
+          l_min > 0 ? l_min : std::numeric_limits<float_t>::denorm_min();
+      maybe_minuszero = detail::is_minus_zero(closest_pos / r_min);
+    }
 
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minuszero ? type_t::kMinusZero : 0);

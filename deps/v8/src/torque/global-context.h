@@ -82,6 +82,7 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
     return Get().force_assert_statements_;
   }
   static void SetAnnotateIR() { Get().annotate_ir_ = true; }
+  static void SetTorqueDwarf() { Get().torque_dwarf_ = true; }
   static bool annotate_ir() { return Get().annotate_ir_; }
   static Ast* ast() { return &Get().ast_; }
   static std::string MakeUniqueName(const std::string& base) {
@@ -130,6 +131,7 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   static bool IsInstanceTypesInitialized() {
     return Get().instance_types_initialized_;
   }
+  static bool torque_dwarf() { return Get().torque_dwarf_; }
   static void EnsureInCCOutputList(TorqueMacro* macro, SourceId source) {
     GlobalContext& c = Get();
     auto item = std::make_pair(macro, source);
@@ -159,6 +161,7 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   bool collect_kythe_data_;
   bool force_assert_statements_;
   bool annotate_ir_;
+  bool torque_dwarf_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;

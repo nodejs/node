@@ -17,6 +17,7 @@
 #include "src/codegen/signature.h"
 #include "src/wasm/signature-hashing.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/zone/zone.h"
 
@@ -31,6 +32,7 @@ struct ModuleWireBytes;
 
 namespace compiler {
 class CallDescriptor;
+enum class TrapId : int32_t;
 
 enum SubtypeCheckExactness : uint8_t {
   kMayBeSubtype,
@@ -109,6 +111,8 @@ enum class BoundsCheckResult {
 // a null check.
 enum CheckForNull : bool { kWithoutNullCheck, kWithNullCheck };
 std::ostream& operator<<(std::ostream& os, CheckForNull null_check);
+
+V8_EXPORT_PRIVATE TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 
 base::Vector<const char> GetDebugName(Zone* zone,
                                       const wasm::WasmModule* module,

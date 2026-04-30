@@ -5,6 +5,8 @@
 #include "src/objects/string.h"
 
 #include "absl/functional/overload.h"
+#include "hwy/highway.h"
+#include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -87,7 +89,7 @@ template <class StringClass>
 void MigrateExternalStringResource(Isolate* isolate,
                                    Tagged<ExternalString> from,
                                    Tagged<StringClass> to) {
-  Address to_resource_address = to->resource_as_address();
+  Address to_resource_address = to->resource_as_address(isolate);
   if (to_resource_address == kNullAddress) {
     Tagged<StringClass> cast_from = Cast<StringClass>(from);
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
@@ -97,7 +99,7 @@ void MigrateExternalStringResource(Isolate* isolate,
     isolate->heap()->UpdateExternalString(
         from, Cast<ExternalString>(from)->ExternalPayloadSize(), 0);
     cast_from->SetResource(isolate, nullptr);
-  } else if (to_resource_address != from->resource_as_address()) {
+  } else if (to_resource_address != from->resource_as_address(isolate)) {
     // |to| already existed and has its own resource. Finalize |from|.
     isolate->heap()->FinalizeExternalString(from);
   }
@@ -132,10 +134,10 @@ void ExternalString::InitExternalPointerFieldsDuringExternalization(
 }
 
 template <typename IsolateT>
-void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
+void String::MakeThin(IsolateT* isolate,
+                      Tagged<InternalizedString> internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(this, internalized);
-  DCHECK(IsInternalizedString(internalized));
 
   Tagged<Map> initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
@@ -201,9 +203,9 @@ void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    Isolate* isolate, Tagged<String> internalized);
+    Isolate* isolate, Tagged<InternalizedString> internalized);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    LocalIsolate* isolate, Tagged<String> internalized);
+    LocalIsolate* isolate, Tagged<InternalizedString> internalized);
 
 template <typename T>
 bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
@@ -358,7 +360,8 @@ bool String::MakeExternal(Isolate* isolate,
     // Assert that the resource and the string are equivalent.
     uint32_t str_length = this->length();
     DCHECK(static_cast<size_t>(str_length) == resource->length());
-    base::ScopedVector<base::uc16> smart_chars(str_length);
+    auto smart_chars =
+        base::OwnedVector<base::uc16>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -449,11 +452,12 @@ bool String::MakeExternal(Isolate* isolate,
     uint32_t str_length = this->length();
     DCHECK(static_cast<size_t>(str_length) == resource->length());
     if (this->IsTwoByteRepresentation()) {
-      base::ScopedVector<uint16_t> smart_chars(str_length);
+      auto smart_chars =
+          base::OwnedVector<uint16_t>::NewForOverwrite(str_length);
       String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
       DCHECK(String::IsOneByte(smart_chars.begin(), str_length));
     }
-    base::ScopedVector<char> smart_chars(str_length);
+    auto smart_chars = base::OwnedVector<char>::NewForOverwrite(str_length);
     String::WriteToFlat(this, smart_chars.begin(), 0, str_length);
     DCHECK_EQ(0, memcmp(smart_chars.begin(), resource->data(),
                         resource->length() * sizeof(smart_chars[0])));
@@ -682,7 +686,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
                                             IndirectHandle<String> subject);
 
 String::FlatContent String::SlowGetFlatContent(
-    const DisallowGarbageCollection& no_gc,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   USE(no_gc);
   Tagged<String> string = this;
@@ -1151,15 +1155,71 @@ static void CalculateLineEndsImpl(String::LineEndsVector* line_ends,
                                   base::Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
-  for (int i = 0; i < src_len - 1; i++) {
-    SourceChar current = src[i];
-    SourceChar next = src[i + 1];
-    if (IsLineTerminatorSequence(current, next)) line_ends->push_back(i);
+
+  if constexpr (sizeof(SourceChar) == 1) {
+    // SIMD fast path for one-byte (Latin-1/ASCII) strings: scan for \n and \r
+    // in 16-byte chunks using Highway.  U+2028/U+2029 cannot occur in
+    // one-byte encoding so only \n and \r need to be checked.
+    namespace hw = hwy::HWY_NAMESPACE;
+    if (src_len == 0) {
+      if (include_ending_line) line_ends->push_back(0);
+      return;
+    }
+
+    const uint8_t* data = src.begin();
+    hw::FixedTag<uint8_t, 16> tag;
+    const size_t stride = hw::Lanes(tag);
+    const auto v_lf = hw::Set(tag, 0x0A);
+    const auto v_cr = hw::Set(tag, 0x0D);
+
+    int i = 0;
+    // Ensure every SIMD load is in-bounds AND that the scalar fallback can
+    // always peek one character ahead for \r\n detection.
+    const int simd_end = src_len - 1 - static_cast<int>(stride);
+
+    while (i <= simd_end) {
+      const auto chunk = hw::LoadU(tag, data + i);
+      const auto is_line_end = hw::Or(hw::Eq(chunk, v_lf), hw::Eq(chunk, v_cr));
+
+      if (V8_LIKELY(hw::AllFalse(tag, is_line_end))) {
+        i += stride;
+        continue;
+      }
+
+      // At least one line terminator in this chunk — process scalar.
+      for (size_t j = 0; j < stride; j++, i++) {
+        DCHECK_LT(i, src_len - 1);
+        if (IsLineTerminatorSequence(data[i], data[i + 1])) {
+          line_ends->push_back(i);
+        }
+      }
+    }
+
+    // Scalar tail for remaining characters before the last one.
+    for (; i < src_len - 1; i++) {
+      if (IsLineTerminatorSequence(data[i], data[i + 1])) {
+        line_ends->push_back(i);
+      }
+    }
+
+    // Handle the very last character (the loops above stop one short).
+    if (IsLineTerminatorSequence(data[src_len - 1], SourceChar{0})) {
+      line_ends->push_back(src_len - 1);
+    }
+  } else {
+    // UC16 scalar path — must also handle U+2028 and U+2029.
+    for (int i = 0; i < src_len - 1; i++) {
+      if (IsLineTerminatorSequence(src[i], src[i + 1])) {
+        line_ends->push_back(i);
+      }
+    }
+
+    if (src_len > 0 &&
+        IsLineTerminatorSequence(src[src_len - 1], SourceChar{0})) {
+      line_ends->push_back(src_len - 1);
+    }
   }
 
-  if (src_len > 0 && IsLineTerminatorSequence(src[src_len - 1], 0)) {
-    line_ends->push_back(src_len - 1);
-  }
   if (include_ending_line) {
     // Include one character beyond the end of script. The rewriter uses that
     // position for the implicit return statement.
@@ -1645,7 +1705,7 @@ MaybeDirectHandle<String> String::GetSubstitution(
         break;
     }
 
-    // Go the the next $ in the replacement.
+    // Go the next $ in the replacement.
     // TODO(jgruber): Single-char lookups could be much more efficient.
     DCHECK_NE(continue_from_ix, -1);
     next_dollar_ix =
@@ -2251,7 +2311,8 @@ Tagged<String> ConsStringIterator::NextLeaf(bool* blew_stack) {
 }
 
 const uint8_t* String::AddressOfCharacterAt(
-    uint32_t start_index, const DisallowGarbageCollection& no_gc) {
+    uint32_t start_index,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   DCHECK(IsFlat());
   Tagged<String> subject = this;
   StringShape shape(subject);

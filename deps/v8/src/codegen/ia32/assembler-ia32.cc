@@ -48,7 +48,7 @@
 #endif
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -3309,13 +3309,7 @@ void Assembler::GrowBuffer() {
 
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = 2 * old_size;
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
-  if (new_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
-  }
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDouble);
 
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);

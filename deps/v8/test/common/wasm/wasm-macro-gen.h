@@ -1175,14 +1175,16 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_SIMD_LOAD_OP_ALIGNMENT(opcode, index, alignment) \
   index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
 
-// Load a Simd lane from a numeric pointer. We need this because lanes are
-// reversed in big endian. Note: a Simd value has {kSimd128Size / sizeof(*ptr)}
-// lanes.
+// Load a Simd lane from a numeric pointer or array. We need this because lanes
+// are reversed in big endian. Note: a Simd value has
+// {kSimd128Size / sizeof(ptr[0])} lanes.
 #ifdef V8_TARGET_BIG_ENDIAN
-#define LANE(ptr, index) ptr[kSimd128Size / sizeof(*ptr) - (index)-1]
+#define LANE(ptr, index) ptr[kSimd128Size / sizeof(ptr[0]) - (index) - 1]
 #else
 #define LANE(ptr, index) ptr[index]
 #endif
+
+#define ULANE(ptr, index) base::bits::Unsigned(LANE(ptr, index))
 
 // WasmGC type definitions.
 #define FIELD_COUNT(count) U32V_1(count)
@@ -1200,5 +1202,17 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_FINAL(...) kWasmSubtypeFinalCode, 0, __VA_ARGS__
 #define WASM_FINAL_WITH_SUPERTYPE(supertype, ...) \
   kWasmSubtypeFinalCode, 1, supertype, __VA_ARGS__
+
+// Shared-everything definitions.
+#define WASM_SHARED_REF_NULL(type_encoding) \
+  kExprRefNull, kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_CAST(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefCast), kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_CAST_NULL(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefCastNull), kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_TEST(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefTest), kSharedFlagCode, ToByte(type_encoding)
+#define WASM_SHARED_REF_TEST_NULL(ref, type_encoding) \
+  ref, WASM_GC_OP(kExprRefTestNull), kSharedFlagCode, ToByte(type_encoding)
 
 #endif  // V8_WASM_MACRO_GEN_H_

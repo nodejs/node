@@ -110,6 +110,9 @@
     'trap-handler': {
       'filepath': 'src/trap-handler/',
     },
+    'agents': {
+      'filepath': 'agents/',
+    },
   },
 
   'WATCHLISTS': {
@@ -188,6 +191,9 @@
       'clemensb@chromium.org',
       'mark@chromium.org',
       'mseaborn@chromium.org',
+    ],
+    'agents': [
+      'mrcvtl@chromium.org',
     ],
   },
 }

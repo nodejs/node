@@ -158,9 +158,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            Label* target,
                                            Label::Distance distance) {
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(map);
-    __ CmpObjectType(map, MAP_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
+    __ AssertMap(map);
   }
   __ CmpInstanceType(map, instance_type);
   __ j(cc, target, distance);
@@ -439,8 +437,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFeedbackCell(feedback_cell);
-  __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(weight));
+  __ addl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      Immediate(weight));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
     __ j(greater_equal, skip_interrupt_label);
@@ -453,21 +452,22 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   LoadFeedbackCell(feedback_cell);
-  __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          weight);
+  __ addl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
 
 void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
                                              uint32_t depth,
-                                             CompressionMode compression_mode) {
+                                             CompressionMode compression_mode,
+                                             Register output) {
   // [context] is coming from interpreter frame so it is already decompressed
   // when pointer compression is enabled. In order to make use of complex
   // addressing mode, any intermediate context pointer is loaded in compressed
   // form.
   if (depth == 0) {
-    LoadTaggedField(kInterpreterAccumulatorRegister, context,
-                    Context::OffsetOfElementAt(index));
+    LoadTaggedField(output, context, Context::OffsetOfElementAt(index));
   } else {
     TaggedRegister tagged(context);
     LoadTaggedField(tagged, context, Context::kPreviousOffset);
@@ -475,8 +475,8 @@ void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
     for (; depth > 0; --depth) {
       LoadTaggedField(tagged, tagged, Context::kPreviousOffset);
     }
-    LoadTaggedField(kInterpreterAccumulatorRegister, tagged,
-                    Context::OffsetOfElementAt(index));
+    LoadTaggedField(output, tagged, Context::OffsetOfElementAt(index));
+
     if (COMPRESS_POINTERS_BOOL &&
         compression_mode == CompressionMode::kForceDecompression) {
       __ addq(tagged.reg(), kPtrComprCageBaseRegister);
@@ -523,16 +523,19 @@ void BaselineAssembler::LdaModuleVariable(Register context, int cell_index,
     LoadTaggedField(tagged, tagged, Context::kExtensionOffset);
   }
   if (cell_index > 0) {
-    LoadTaggedField(tagged, tagged, SourceTextModule::kRegularExportsOffset);
+    LoadTaggedField(tagged, tagged,
+                    offsetof(SourceTextModule, regular_exports_));
     // The actual array index is (cell_index - 1).
     cell_index -= 1;
   } else {
-    LoadTaggedField(tagged, tagged, SourceTextModule::kRegularImportsOffset);
+    LoadTaggedField(tagged, tagged,
+                    offsetof(SourceTextModule, regular_imports_));
     // The actual array index is (-cell_index - 1).
     cell_index = -cell_index - 1;
   }
   LoadFixedArrayElement(tagged, tagged, cell_index);
-  LoadTaggedField(kInterpreterAccumulatorRegister, tagged, Cell::kValueOffset);
+  LoadTaggedField(kInterpreterAccumulatorRegister, tagged,
+                  offsetof(Cell, maybe_value_));
 }
 
 void BaselineAssembler::StaModuleVariable(Register context, Register value,
@@ -551,12 +554,13 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
     }
     LoadTaggedField(tagged, tagged, Context::kExtensionOffset);
   }
-  LoadTaggedField(tagged, tagged, SourceTextModule::kRegularExportsOffset);
+  LoadTaggedField(tagged, tagged, offsetof(SourceTextModule, regular_exports_));
 
   // The actual array index is (cell_index - 1).
   cell_index -= 1;
   LoadFixedArrayElement(context, tagged, cell_index);
-  StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
+  StoreTaggedFieldWithWriteBarrier(context, offsetof(Cell, maybe_value_),
+                                   value);
 }
 
 void BaselineAssembler::IncrementSmi(MemOperand lhs) {

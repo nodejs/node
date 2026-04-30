@@ -22,13 +22,19 @@ enum class JSIteratorHelperState {
   kCompleted
 };
 
+enum class JSIteratorZipHelperMode { kShortest, kLongest, kStrict };
+
 V8_EXPORT_PRIVATE const char* JSIteratorHelperStateToString(
     JSIteratorHelperState state);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            JSIteratorHelperState state);
 
-#include "torque-generated/src/objects/js-iterator-helpers-tq.inc"
+V8_EXPORT_PRIVATE const char* JSIteratorZipHelperModeToString(
+    JSIteratorZipHelperMode mode);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           JSIteratorZipHelperMode mode);
 
 // Iterator helpers are iterators that transform an underlying iterator in some
 // way. They are specified as spec generators. That is, the spec defines the
@@ -63,89 +69,177 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 // [1] https://tc39.es/ecma262/#sec-generatorresume
 
 // The superclass of all iterator helpers.
-class JSIteratorHelper
-    : public TorqueGeneratedJSIteratorHelper<JSIteratorHelper, JSObject> {
+V8_OBJECT class JSIteratorHelper : public JSObject {
  public:
+  inline JSIteratorHelperState state() const;
+  inline void set_state(JSIteratorHelperState value);
+
   void JSIteratorHelperPrintHeader(std::ostream& os, const char* helper_name);
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorHelper)
-};
+ public:
+  // SmiTagged<JSIteratorHelperState>.
+  TaggedMember<Smi> state_;
+} V8_OBJECT_END;
 
 // The superclass of iterator helpers that have a single underlying iterator.
-class JSIteratorHelperSimple
-    : public TorqueGeneratedJSIteratorHelperSimple<JSIteratorHelperSimple,
-                                                   JSIteratorHelper> {
+V8_OBJECT class JSIteratorHelperSimple : public JSIteratorHelper {
  public:
+  inline Tagged<JSReceiver> underlying_iterator_object() const;
+  inline void set_underlying_iterator_object(
+      Tagged<JSReceiver> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> underlying_iterator_next() const;
+  inline void set_underlying_iterator_next(
+      Tagged<JSAny> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   void JSIteratorHelperSimplePrintHeader(std::ostream& os,
                                          const char* helper_name);
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorHelperSimple)
-};
+
+ public:
+  TaggedMember<JSReceiver> underlying_iterator_object_;
+  TaggedMember<JSAny> underlying_iterator_next_;
+} V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.map.
-class JSIteratorMapHelper
-    : public TorqueGeneratedJSIteratorMapHelper<JSIteratorMapHelper,
-                                                JSIteratorHelperSimple> {
+V8_OBJECT class JSIteratorMapHelper final : public JSIteratorHelperSimple {
  public:
+  inline Tagged<JSReceiver> mapper() const;
+  inline void set_mapper(Tagged<JSReceiver> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Number> counter() const;
+  inline void set_counter(Tagged<Number> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSIteratorMapHelper)
   DECL_VERIFIER(JSIteratorMapHelper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorMapHelper)
-};
+ public:
+  TaggedMember<JSReceiver> mapper_;
+  TaggedMember<Number> counter_;
+} V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.filter.
-class JSIteratorFilterHelper
-    : public TorqueGeneratedJSIteratorFilterHelper<JSIteratorFilterHelper,
-                                                   JSIteratorHelperSimple> {
+V8_OBJECT class JSIteratorFilterHelper final : public JSIteratorHelperSimple {
  public:
+  inline Tagged<JSReceiver> predicate() const;
+  inline void set_predicate(Tagged<JSReceiver> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Number> counter() const;
+  inline void set_counter(Tagged<Number> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSIteratorFilterHelper)
   DECL_VERIFIER(JSIteratorFilterHelper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorFilterHelper)
-};
+ public:
+  TaggedMember<JSReceiver> predicate_;
+  TaggedMember<Number> counter_;
+} V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.take.
-class JSIteratorTakeHelper
-    : public TorqueGeneratedJSIteratorTakeHelper<JSIteratorTakeHelper,
-                                                 JSIteratorHelperSimple> {
+V8_OBJECT class JSIteratorTakeHelper final : public JSIteratorHelperSimple {
  public:
+  inline Tagged<Number> remaining() const;
+  inline void set_remaining(Tagged<Number> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSIteratorTakeHelper)
   DECL_VERIFIER(JSIteratorTakeHelper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorTakeHelper)
-};
+ public:
+  TaggedMember<Number> remaining_;
+} V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.drop.
-class JSIteratorDropHelper
-    : public TorqueGeneratedJSIteratorDropHelper<JSIteratorDropHelper,
-                                                 JSIteratorHelperSimple> {
+V8_OBJECT class JSIteratorDropHelper final : public JSIteratorHelperSimple {
  public:
+  inline Tagged<Number> remaining() const;
+  inline void set_remaining(Tagged<Number> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSIteratorDropHelper)
   DECL_VERIFIER(JSIteratorDropHelper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorDropHelper)
-};
+ public:
+  TaggedMember<Number> remaining_;
+} V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.prototype.flatMap.
-class JSIteratorFlatMapHelper
-    : public TorqueGeneratedJSIteratorFlatMapHelper<JSIteratorFlatMapHelper,
-                                                    JSIteratorHelperSimple> {
+V8_OBJECT class JSIteratorFlatMapHelper final : public JSIteratorHelperSimple {
  public:
+  inline Tagged<JSReceiver> mapper() const;
+  inline void set_mapper(Tagged<JSReceiver> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Number> counter() const;
+  inline void set_counter(Tagged<Number> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSReceiver> inner_iterator_object() const;
+  inline void set_inner_iterator_object(
+      Tagged<JSReceiver> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> inner_iterator_next() const;
+  inline void set_inner_iterator_next(
+      Tagged<JSAny> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSIteratorFlatMapHelper)
   DECL_VERIFIER(JSIteratorFlatMapHelper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorFlatMapHelper)
-};
+ public:
+  TaggedMember<JSReceiver> mapper_;
+  TaggedMember<Number> counter_;
+  TaggedMember<JSReceiver> inner_iterator_object_;
+  TaggedMember<JSAny> inner_iterator_next_;
+} V8_OBJECT_END;
 
 // The iterator helper returned by Iterator.concat.
-class JSIteratorConcatHelper
-    : public TorqueGeneratedJSIteratorConcatHelper<JSIteratorConcatHelper,
-                                                   JSIteratorHelperSimple> {
+V8_OBJECT class JSIteratorConcatHelper final : public JSIteratorHelperSimple {
  public:
+  inline Tagged<FixedArray> iterables() const;
+  inline void set_iterables(Tagged<FixedArray> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Smi> current() const;
+  inline void set_current(Tagged<Smi> value);
+
   DECL_PRINTER(JSIteratorConcatHelper)
   DECL_VERIFIER(JSIteratorConcatHelper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSIteratorConcatHelper)
-};
+ public:
+  TaggedMember<FixedArray> iterables_;
+  TaggedMember<Smi> current_;
+} V8_OBJECT_END;
+
+// The iterator helper returned by Iterator.zip and Iterator.zipKeyed.
+V8_OBJECT class JSIteratorZipHelper final : public JSIteratorHelper {
+ public:
+  inline Tagged<FixedArray> underlying_iterators() const;
+  inline void set_underlying_iterators(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline JSIteratorZipHelperMode mode() const;
+  inline void set_mode(JSIteratorZipHelperMode value);
+
+  inline Tagged<Smi> active_count() const;
+  inline void set_active_count(Tagged<Smi> value);
+
+  inline Tagged<FixedArray> padding() const;
+  inline void set_padding(Tagged<FixedArray> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(JSIteratorZipHelper)
+  DECL_VERIFIER(JSIteratorZipHelper)
+
+ public:
+  TaggedMember<FixedArray> underlying_iterators_;
+  // SmiTagged<JSIteratorZipHelperMode>.
+  TaggedMember<Smi> mode_;
+  TaggedMember<Smi> active_count_;
+  TaggedMember<FixedArray> padding_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

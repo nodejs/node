@@ -981,14 +981,14 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
     Handle<FixedArray> data =
         isolate->factory()->NewFixedArray(entry_slots_, AllocationType::kOld);
 
-    int array_index = 0;
+    uint32_t array_index = 0;
     if (info->scope()->is_module_scope()) {
       for (Declaration* decl : *info->scope()->declarations()) {
         Variable* var = decl->var();
         if (!var->is_used()) continue;
         if (var->location() != VariableLocation::MODULE) continue;
 #ifdef DEBUG
-        int start = array_index;
+        uint32_t start = array_index;
 #endif
         if (decl->IsFunctionDeclaration()) {
           FunctionLiteral* f = static_cast<FunctionDeclaration*>(decl)->fun();
@@ -1014,7 +1014,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
         if (!var->is_used()) continue;
         if (var->location() != VariableLocation::UNALLOCATED) continue;
 #ifdef DEBUG
-        int start = array_index;
+        uint32_t start = array_index;
 #endif
         if (decl->IsVariableDeclaration()) {
           data->set(array_index++, *var->raw_name()->string());
@@ -1033,7 +1033,7 @@ class BytecodeGenerator::TopLevelDeclarationsBuilder final : public ZoneObject {
         }
       }
     }
-    DCHECK_EQ(array_index, data->length());
+    DCHECK_EQ(array_index, data->ulength().value());
     return data;
   }
 
@@ -2230,11 +2230,12 @@ void BytecodeGenerator::VisitModuleNamespaceImports() {
   SourceTextModuleDescriptor* descriptor =
       closure_scope()->AsModuleScope()->module();
   for (auto entry : descriptor->namespace_imports()) {
+    Variable* var = closure_scope()->LookupInModule(entry.first);
+    if (!var->is_used()) continue;
     builder()
         ->LoadLiteral(Smi::FromInt(entry.second->module_request))
         .StoreAccumulatorInRegister(module_request)
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
-    Variable* var = closure_scope()->LookupInModule(entry.first);
     BuildVariableAssignment(var, Token::kInit, HoleCheckMode::kElided);
   }
 }
@@ -2580,29 +2581,17 @@ void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
 
 namespace {
 
-bool IsSmiLiteralSwitchCaseValue(Expression* expr) {
-  if (expr->IsSmiLiteral() ||
-      (expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
-       expr->AsLiteral()->AsNumber() == 0.0)) {
-    return true;
-#ifdef DEBUG
-  } else if (expr->IsLiteral() && expr->AsLiteral()->IsNumber()) {
-    DCHECK(!IsSmiDouble(expr->AsLiteral()->AsNumber()));
-#endif
-  }
-  return false;
-}
-
-// Precondition: we called IsSmiLiteral to check this.
-inline int ReduceToSmiSwitchCaseValue(Expression* expr) {
-  if (V8_LIKELY(expr->IsSmiLiteral())) {
+inline std::optional<int> TryReduceToSmiSwitchCaseValue(Expression* expr) {
+  if (expr->IsSmiLiteral()) {
     return expr->AsLiteral()->AsSmiLiteral().value();
-  } else {
-    // Only the zero case is possible otherwise.
-    DCHECK(expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
-           expr->AsLiteral()->AsNumber() == -0.0);
+  }
+  if (expr->IsLiteral() && expr->AsLiteral()->IsNumber() &&
+      expr->AsLiteral()->AsNumber() == 0.0) {
     return 0;
   }
+  DCHECK_IMPLIES(expr->IsLiteral() && expr->AsLiteral()->IsNumber(),
+                 !IsSmiDouble(expr->AsLiteral()->AsNumber()));
+  return {};
 }
 
 // Is the range of Smi's small enough relative to number of cases?
@@ -2619,28 +2608,35 @@ struct SwitchInfo {
   SwitchInfo() { default_case = kDefaultNotFound; }
 
   bool DefaultExists() { return default_case != kDefaultNotFound; }
-  bool CaseExists(int j) {
+  bool CaseExists(int j) const {
     return covered_cases.find(j) != covered_cases.end();
   }
-  bool CaseExists(Expression* expr) {
-    return IsSmiLiteralSwitchCaseValue(expr)
-               ? CaseExists(ReduceToSmiSwitchCaseValue(expr))
-               : false;
+  bool CaseExists(Expression* expr) const {
+    std::optional<int> j = TryReduceToSmiSwitchCaseValue(expr);
+    if (!j) return false;
+    return CaseExists(*j);
   }
-  CaseClause* GetClause(int j) { return covered_cases[j]; }
 
-  bool IsDuplicate(CaseClause* clause) {
-    return IsSmiLiteralSwitchCaseValue(clause->label()) &&
-           CaseExists(clause->label()) &&
-           clause != GetClause(ReduceToSmiSwitchCaseValue(clause->label()));
+  // Returns true if this clause represents a case value, but there already
+  // exists another clause with the same case value.
+  bool IsDuplicate(CaseClause* clause) const {
+    std::optional<int> j = TryReduceToSmiSwitchCaseValue(clause->label());
+    if (!j) return false;
+    auto it = covered_cases.find(*j);
+    if (it == covered_cases.end()) return false;
+    return it->second != clause;
   }
-  int MinCase() {
-    return covered_cases.empty() ? INT_MAX : covered_cases.begin()->first;
+
+  int MinCase() const {
+    DCHECK(!covered_cases.empty());
+    return covered_cases.begin()->first;
   }
-  int MaxCase() {
-    return covered_cases.empty() ? INT_MIN : covered_cases.rbegin()->first;
+  int MaxCase() const {
+    DCHECK(!covered_cases.empty());
+    return covered_cases.rbegin()->first;
   }
-  void Print() {
+
+  void Print() const {
     std::cout << "Covered_cases: " << '\n';
     for (auto iter = covered_cases.begin(); iter != covered_cases.end();
          ++iter) {
@@ -2662,11 +2658,14 @@ bool IsSwitchOptimizable(SwitchStatement* stmt, SwitchInfo* info) {
       // Don't consider Smi cases after a non-literal, because we
       // need to evaluate the non-literal.
       break;
-    } else if (IsSmiLiteralSwitchCaseValue(clause->label())) {
-      int value = ReduceToSmiSwitchCaseValue(clause->label());
-      info->covered_cases.insert({value, clause});
+    } else if (auto maybe_value =
+                   TryReduceToSmiSwitchCaseValue(clause->label())) {
+      info->covered_cases.insert({*maybe_value, clause});
     }
   }
+
+  // This flag is not allowed to be <= 0.
+  DCHECK_GT(v8_flags.switch_table_min_cases, 0);
 
   // GCC also jump-table optimizes switch statements with 6 cases or more.
   if (static_cast<int>(info->covered_cases.size()) >=
@@ -2909,7 +2908,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
         } else {
           // Use jump table if this is not a duplicate label.
           switch_builder.BindCaseTargetForJumpTable(
-              ReduceToSmiSwitchCaseValue(clause->label()), clause);
+              *TryReduceToSmiSwitchCaseValue(clause->label()), clause);
         }
       }
     } else {
@@ -4754,21 +4753,17 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         context_reg = execution_context()->reg();
       }
 
-      BytecodeArrayBuilder::ContextSlotMutability immutable =
-          (variable->maybe_assigned() == kNotAssigned)
-              ? BytecodeArrayBuilder::kImmutableSlot
-              : BytecodeArrayBuilder::kMutableSlot;
+      bool is_immutable = variable->maybe_assigned() == kNotAssigned;
       Register acc = Register::virtual_accumulator();
-      if (immutable == BytecodeArrayBuilder::kImmutableSlot &&
-          IsVariableInRegister(variable, acc)) {
+      if (is_immutable && IsVariableInRegister(variable, acc)) {
         return;
       }
 
-      builder()->LoadContextSlot(context_reg, variable, depth, immutable);
+      builder()->LoadContextSlot(context_reg, variable, depth);
       if (VariableNeedsHoleCheckInCurrentBlock(variable, hole_check_mode)) {
         BuildThrowIfHole(variable);
       }
-      if (immutable == BytecodeArrayBuilder::kImmutableSlot) {
+      if (is_immutable) {
         SetVariableInRegister(variable, acc);
       }
       break;
@@ -5037,8 +5032,7 @@ void BytecodeGenerator::BuildVariableAssignment(
         Register value_temp = register_allocator()->NewRegister();
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable, depth,
-                             BytecodeArrayBuilder::kMutableSlot);
+            .LoadContextSlot(context_reg, variable, depth);
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
@@ -5057,7 +5051,13 @@ void BytecodeGenerator::BuildVariableAssignment(
         }
         builder()->StoreContextSlot(context_reg, variable, depth);
       } else if (variable->throw_on_const_assignment(language_mode())) {
-        builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        if (mode == VariableMode::kUsing) {
+          builder()->CallRuntime(Runtime::kThrowUsingAssignError);
+        } else if (mode == VariableMode::kAwaitUsing) {
+          builder()->CallRuntime(Runtime::kThrowAwaitUsingAssignError);
+        } else {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        }
       }
       break;
     }
@@ -5069,8 +5069,14 @@ void BytecodeGenerator::BuildVariableAssignment(
     case VariableLocation::MODULE: {
       DCHECK(IsDeclaredVariableMode(mode));
 
-      if (mode == VariableMode::kConst && op != Token::kInit) {
-        builder()->CallRuntime(Runtime::kThrowConstAssignError);
+      if (IsImmutableLexicalVariableMode(mode) && op != Token::kInit) {
+        if (mode == VariableMode::kUsing) {
+          builder()->CallRuntime(Runtime::kThrowUsingAssignError);
+        } else if (mode == VariableMode::kAwaitUsing) {
+          builder()->CallRuntime(Runtime::kThrowAwaitUsingAssignError);
+        } else {
+          builder()->CallRuntime(Runtime::kThrowConstAssignError);
+        }
         break;
       }
 
@@ -5234,6 +5240,14 @@ BytecodeGenerator::AssignmentLhsData::KeyedSuperProperty(
   return AssignmentLhsData(KEYED_SUPER_PROPERTY, nullptr, super_property_args,
                            Register(), Register(), nullptr, nullptr);
 }
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::PrivateField(
+    Register object, int slot_index, int depth) {  // Changed from AstRawString*
+  return AssignmentLhsData(KEYED_PROPERTY, nullptr, RegisterList(), object,
+                           Register(), nullptr, nullptr, true, slot_index,
+                           depth);
+}
 
 BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
     Expression* lhs, AccumulatorPreservingMode accumulator_preserving_mode) {
@@ -5255,6 +5269,12 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
     case KEYED_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
       Register object = VisitForRegisterValue(property->obj());
+
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        return AssignmentLhsData::PrivateField(object, var->index(), depth);
+      }
       Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::KeyedProperty(object, key);
     }
@@ -5807,8 +5827,22 @@ void BytecodeGenerator::BuildAssignment(
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->SetKeyedProperty(lhs_data.object(), lhs_data.key(),
-                                  feedback_index(slot), language_mode());
+      if (v8_flags.private_field_bytecodes && lhs_data.is_private_field()) {
+        int depth = lhs_data.depth();
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->SetPrivateField(context_reg, lhs_data.slot_index(), depth,
+                                   lhs_data.object(), feedback_index(slot));
+      } else {
+        builder()->SetKeyedProperty(lhs_data.object(), lhs_data.key(),
+                                    feedback_index(slot), language_mode());
+      }
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -5893,6 +5927,20 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     }
     case KEYED_PROPERTY: {
       FeedbackSlot slot = feedback_spec()->AddKeyedLoadICSlot();
+      if (v8_flags.private_field_bytecodes && lhs_data.is_private_field()) {
+        int depth = lhs_data.depth();
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->GetPrivateField(context_reg, lhs_data.slot_index(), depth,
+                                   lhs_data.object(), feedback_index(slot));
+        break;
+      }
       builder()->LoadAccumulatorWithRegister(lhs_data.key());
       BuildLoadKeyedProperty(lhs_data.object(), slot);
       break;
@@ -6425,6 +6473,24 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       break;
     }
     case KEYED_PROPERTY: {
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        builder()->SetExpressionPosition(property);
+        DCHECK(property->key()->IsVariableProxy());
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->GetPrivateField(
+            context_reg, var->index(), depth, obj,
+            feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+        break;
+      }
       VisitForAccumulatorValueAsPropertyKey(property->key());
       builder()->SetExpressionPosition(property);
       BuildLoadKeyedProperty(obj, feedback_spec()->AddKeyedLoadICSlot());
@@ -7425,6 +7491,22 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
     case KEYED_PROPERTY: {
       object = VisitForRegisterValue(property->obj());
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->GetPrivateField(
+            context_reg, var->index(), depth, object,
+            feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+        break;
+      }
       // Use visit for accumulator here since we need the key in the accumulator
       // for the LoadKeyedProperty.
       key = register_allocator()->NewRegister();
@@ -7541,8 +7623,24 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->SetKeyedProperty(object, key, feedback_index(slot),
-                                  language_mode());
+      if (v8_flags.private_field_bytecodes && property->IsPrivateReference()) {
+        Variable* var = property->key()->AsVariableProxy()->var();
+        int depth = execution_context()->ContextChainDepth(var->scope());
+        ContextScope* context = execution_context()->Previous(depth);
+        Register context_reg;
+        if (context) {
+          context_reg = context->reg();
+          depth = 0;
+        } else {
+          context_reg = execution_context()->reg();
+        }
+        builder()->SetPrivateField(context_reg, var->index(), depth, object,
+                                   feedback_index(slot));
+        break;
+      } else {
+        builder()->SetKeyedProperty(object, key, feedback_index(slot),
+                                    language_mode());
+      }
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }

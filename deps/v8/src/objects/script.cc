@@ -13,6 +13,24 @@
 
 namespace v8::internal {
 
+const char* ToString(Script::Type type) {
+  switch (type) {
+    case Script::Type::kNative:
+      return "native";
+    case Script::Type::kExtension:
+      return "extension";
+    case Script::Type::kNormal:
+      return "normal";
+#if V8_ENABLE_WEBASSEMBLY
+    case Script::Type::kWasm:
+      return "wasm";
+#endif  // V8_ENABLE_WEBASSEMBLY
+    case Script::Type::kInspector:
+      return "inspector";
+  }
+  UNREACHABLE();
+}
+
 template <typename IsolateT>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     DirectHandle<Script> script, IsolateT* isolate,
@@ -24,7 +42,8 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
-  CHECK_LT(function_literal_id, script->infos()->length());
+  CHECK_LT(static_cast<uint32_t>(function_literal_id),
+           script->infos()->ulength().value());
   Tagged<MaybeObject> shared = script->infos()->get(function_literal_id);
   Tagged<HeapObject> heap_object;
   if (!shared.GetHeapObject(&heap_object) ||
@@ -57,7 +76,7 @@ Tagged<Script> Script::Iterator::Next() {
   if (o != Tagged<Object>()) {
     return Cast<Script>(o);
   }
-  return Script();
+  return Tagged<Script>();
 }
 
 // static
@@ -142,7 +161,7 @@ bool Script::GetPositionInfo(DirectHandle<Script> script, int position,
 #ifdef DEBUG
   if (script->type() == Type::kWasm) {
     DCHECK(script->has_line_ends());
-    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->length(), 0);
+    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->ulength().value(), 0);
   }
 #endif  // DEBUG
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -172,7 +191,7 @@ bool Script::IsUserJavaScript() const {
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::ContainsAsmModule() {
   DisallowGarbageCollection no_gc;
-  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), *this);
+  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), this);
   for (Tagged<SharedFunctionInfo> sfi = iter.Next(); !sfi.is_null();
        sfi = iter.Next()) {
     if (sfi->HasAsmWasmData()) return true;
@@ -215,8 +234,8 @@ void Script::TraceScriptRundown() {
   if (IsString(this->name())) {
     value->SetString("url", Cast<String>(this->name())->ToCString().get());
   }
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
-               "ScriptCatchup", "data", std::move(value));
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+              "ScriptCatchup", "data", std::move(value));
 }
 
 void Script::TraceScriptRundownSources() {
@@ -235,18 +254,16 @@ void Script::TraceScriptRundownSources() {
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetInteger("limit", kSourceMaxLength);
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "TooLargeScriptCatchup", "data", std::move(value));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+                "TooLargeScriptCatchup", "data", std::move(value));
   } else if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
     value->SetString("isolate", std::to_string(isolate->debug()->IsolateId()));
     value->SetInteger("scriptId", script_id);
     value->SetInteger("length", source_length);
     value->SetString("sourceText", source->ToCString().get());
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "ScriptCatchup", "data", std::move(value));
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+                "ScriptCatchup", "data", std::move(value));
   } else {
     int32_t split_count = source_length / kSplitMaxLength + 1;
     std::unique_ptr<char[]> source_ptr = source->ToCString();
@@ -261,7 +278,7 @@ void Script::TraceScriptRundownSources() {
       split_trace_value->SetInteger("scriptId", script_id);
       split_trace_value->SetString(
           "sourceText", std::string(source_ptr.get() + begin, end - begin));
-      TRACE_EVENT1(
+      TRACE_EVENT(
           TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
           "LargeScriptCatchup", "data", std::move(split_trace_value));
     }
@@ -328,24 +345,26 @@ int GetLineEnd(const Tagged<FixedArray>& array, int line) {
   return Smi::ToInt(array->get(line));
 }
 
-int GetLength(const String::LineEndsVector& vector) {
-  return static_cast<int>(vector.size());
+uint32_t GetLength(const String::LineEndsVector& vector) {
+  return static_cast<uint32_t>(vector.size());
 }
 
-int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
+uint32_t GetLength(const Tagged<FixedArray>& array) {
+  return array->ulength().value();
+}
 
 template <typename LineEndsContainer>
 bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
                                       int position, Script::PositionInfo* info,
                                       const DisallowGarbageCollection& no_gc) {
-  const int ends_len = GetLength(ends);
+  const uint32_t ends_len = GetLength(ends);
   if (ends_len == 0) return false;
 
   // Return early on invalid positions. Negative positions behave as if 0 was
   // passed, and positions beyond the end of the script return as failure.
   if (position < 0) {
     position = 0;
-  } else if (position > GetLineEnd(ends, ends_len - 1)) {
+  } else if (position > GetLineEnd(ends, static_cast<int>(ends_len - 1))) {
     return false;
   }
 
@@ -356,7 +375,7 @@ bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
     info->column = position;
   } else {
     int left = 0;
-    int right = ends_len - 1;
+    int right = static_cast<int>(ends_len - 1);
 
     while (right > 0) {
       DCHECK_LE(left, right);
@@ -417,7 +436,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
   // For wasm, we use the byte offset as the column.
   if (type() == Script::Type::kWasm) {
     DCHECK_LE(0, position);
-    wasm::NativeModule* native_module = wasm_native_module();
+    Managed<wasm::NativeModule>::Ptr native_module = wasm_native_module();
     const wasm::WasmModule* module = native_module->module();
     if (module->functions.empty()) return false;
     info->line = 0;
@@ -430,7 +449,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
 
   if (!has_line_ends()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(*this, position, no_gc, info)) {
+    if (!GetPositionInfoSlow(this, position, no_gc, info)) {
       return false;
     }
   } else {
@@ -513,7 +532,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
 
   PtrComprCageBase cage_base(isolate);
   {
-    Tagged<Object> maybe_source_hash = script->source_hash(cage_base);
+    Tagged<Object> maybe_source_hash = script->source_hash();
     if (IsString(maybe_source_hash, cage_base)) {
       DirectHandle<String> precomputed(Cast<String>(maybe_source_hash),
                                        isolate);
@@ -525,7 +544,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
 
   DirectHandle<String> src_text;
   {
-    Tagged<Object> maybe_script_source = script->source(cage_base);
+    Tagged<Object> maybe_script_source = script->source();
 
     if (!IsString(maybe_script_source, cage_base)) {
       return isolate->factory()->empty_string();

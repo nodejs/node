@@ -9,9 +9,9 @@ const kMaxIntPtr: constexpr IntegerLiteral
 const kMinIntPtr: constexpr IntegerLiteral
     generates 'IntegerLiteral(ca_.Is64() ? 0x8000000000000000 : 0x80000000)';
 
-@export
 @abstract
-class TurbofanType extends HeapObject {}
+@cppObjectLayoutDefinition
+extern class TurbofanType extends HeapObject {}
 
 // TurbofanBitsetType is 64 bit.
 // We use two separate 32 bit bitsets in Torque, due to limited support
@@ -58,31 +58,36 @@ bitfield struct TurbofanTypeHighBits extends uint32 {
   typed_array: bool: 1 bit;
 }
 
-@export
-class TurbofanBitsetType extends TurbofanType {
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class TurbofanBitsetType extends TurbofanType {
   bitset_low: TurbofanTypeLowBits;
   bitset_high: TurbofanTypeHighBits;
 }
 
-@export
-class TurbofanUnionType extends TurbofanType {
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class TurbofanUnionType extends TurbofanType {
   type1: TurbofanType;
   type2: TurbofanType;
 }
 
-@export
-class TurbofanRangeType extends TurbofanType {
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class TurbofanRangeType extends TurbofanType {
   min: float64;
   max: float64;
 }
 
-@export
-class TurbofanHeapConstantType extends TurbofanType {
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class TurbofanHeapConstantType extends TurbofanType {
   constant: HeapObject;
 }
 
-@export
-class TurbofanOtherNumberConstantType extends TurbofanType {
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class TurbofanOtherNumberConstantType extends TurbofanType {
   constant: float64;
 }
 

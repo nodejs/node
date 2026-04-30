@@ -15,6 +15,7 @@
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
+#include "src/base/bits.h"
 #include "src/base/build_config.h"
 #include "src/base/enum-set.h"
 #include "src/base/flags.h"
@@ -453,15 +454,23 @@ constexpr int kElidedFrameSlots = 0;
 #endif
 
 constexpr int kDoubleSizeLog2 = 3;
-// The maximal length of the string representation for a double value
-// (e.g. "-2.2250738585072020E-308"). It is composed as follows:
+// The maximal length of the string representation for a double value.
+// 1) The max length for values in the scientific notation (e.g.
+// "-2.2250738585072020E-308"). is 24:
 // - 17 decimal digits, see base::kBase10MaximalLength (dtoa.h)
 // - 1 sign
 // - 1 decimal point
 // - 1 E or e
 // - 1 exponent sign
 // - 3 exponent
-constexpr int kMaxDoubleStringLength = 24;
+// 2) The max length for values in the decimal notation (e.g.,
+// "-0.0000012345678901234567") is 25:
+// - 1 sign
+// - 1 digit
+// - 1 decimal point
+// - 5 zeros
+// - 17 decimal digits
+constexpr int kMaxDoubleStringLength = 25;
 
 // Total wasm code space per engine (i.e. per process) is limited to make
 // certain attacks that rely on heap spraying harder.
@@ -934,6 +943,22 @@ constexpr size_t kInterceptedSize = 4;
 // CallNamedInterceptorXXXX/CallIndexedInterceptorXXX builtins to caller.
 constexpr uint32_t kNotInterceptedSentinel = kHeapObjectTag;
 
+// ExtendedMap kinds.
+enum class ExtendedMapKind : uint8_t {
+  kJSInterceptorMap,
+};
+constexpr const char* ExtendedMapKindToString(ExtendedMapKind kind) {
+  switch (kind) {
+    case ExtendedMapKind::kJSInterceptorMap:
+      return "JSInterceptorMap";
+  }
+  return "<corrupt>";
+}
+
+inline std::ostream& operator<<(std::ostream& os, ExtendedMapKind kind) {
+  return os << ExtendedMapKindToString(kind);
+}
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 
@@ -1154,6 +1179,7 @@ class Debug;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
+class StrongDescriptorArray;
 template <typename T>
 class DirectHandle;
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -1206,8 +1232,6 @@ using MaybeIndirectHandle = MaybeHandle<T>;
 class MaybeObjectHandle;
 class MaybeObjectDirectHandle;
 using MaybeObjectIndirectHandle = MaybeObjectHandle;
-template <typename T>
-class MaybeWeak;
 class MutablePage;
 class MessageLocation;
 class ModuleScope;
@@ -1235,8 +1259,10 @@ using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
 class TrustedCage;
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
 #else
-// The trusted cage does not exist in this case.
-using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
+// The trusted cage does not exist in this case; a distinct struct type (not
+// an alias of V8HeapCompressionScheme) keeps type-based dispatch working
+// identically across sandbox configs.
+struct TrustedSpaceCompressionScheme;
 #endif
 class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
@@ -1267,12 +1293,22 @@ class TheHole;
 template <typename... Ts>
 class Union;
 class Variable;
+template <typename T>
+class Weak;
 namespace maglev {
 class MaglevAssembler;
 }
 namespace compiler {
 class AccessBuilder;
 }
+
+// MaybeWeak<T> represents a reference to T that may be either a strong or weak.
+template <typename T>
+using MaybeWeak = Union<T, Weak<T>>;
+
+// Zero is a special Smi value.
+// TODO(leszeks): Add a proper Zero type.
+using Zero = Smi;
 
 // Number is either a Smi or a HeapNumber.
 using Number = Union<Smi, HeapNumber>;
@@ -1301,7 +1337,7 @@ using JSAnyOrSharedFunctionInfo =
 // be any other primitive value.
 using JSPrototype = Union<JSReceiver, Null>;
 
-using MaybeObject = MaybeWeak<Object>;
+using MaybeObject = Union<Smi, HeapObject, Weak<HeapObject>>;
 using HeapObjectReference = MaybeWeak<HeapObject>;
 
 using JSObjectOrUndefined = Union<JSObject, Undefined>;
@@ -1671,7 +1707,8 @@ inline size_t hash_value(AllocationType kind) {
 
 inline constexpr bool IsSharedAllocationType(AllocationType kind) {
   return kind == AllocationType::kSharedOld ||
-         kind == AllocationType::kSharedMap;
+         kind == AllocationType::kSharedMap ||
+         kind == AllocationType::kSharedTrusted;
 }
 
 enum class RecordYoungSlot : bool {
@@ -1827,6 +1864,8 @@ enum class InlineCacheState {
   POLYMORPHIC,
   // Many DOM receiver types have been seen for the same accessor.
   MEGADOM,
+  // Many receiver types have been seen with the same handler.
+  HOMOMORPHIC,
   // Many receiver types have been seen.
   MEGAMORPHIC,
   // A generic handler is installed and no extra typefeedback is recorded.
@@ -1850,6 +1889,8 @@ inline const char* InlineCacheState2String(InlineCacheState state) {
       return "RECOMPUTE_HANDLER";
     case InlineCacheState::POLYMORPHIC:
       return "POLYMORPHIC";
+    case InlineCacheState::HOMOMORPHIC:
+      return "HOMOMORPHIC";
     case InlineCacheState::MEGAMORPHIC:
       return "MEGAMORPHIC";
     case InlineCacheState::MEGADOM:
@@ -1868,6 +1909,8 @@ enum ShouldThrow {
   kDontThrow = Internals::kDontThrow,
   kThrowOnError = Internals::kThrowOnError,
 };
+
+enum class InterceptorKind { kNamed, kIndexed };
 
 // The result that might be returned by Setter/Definer/Deleter interceptor
 // callback when it doesn't throw an exception.
@@ -2047,44 +2090,21 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
 // https://chromium-review.googlesource.com/c/v8/v8/+/3429210
 constexpr int kScopeInfoMaxInlinedLocalNamesSize = 75;
 
+// The first 4 scopes are top-level scopes. The order is used for range checks.
 enum ScopeType : uint8_t {
-  SCRIPT_SCOPE,        // The top-level scope for a script or a top-level eval.
-  REPL_MODE_SCOPE,     // The top-level scope for a repl-mode script.
+  // Start of top-level scopes.
+  SCRIPT_SCOPE,     // The top-level scope for a script or a top-level eval.
+  REPL_MODE_SCOPE,  // The top-level scope for a repl-mode script.
+  EVAL_SCOPE,       // The top-level scope for an eval source.
+  MODULE_SCOPE,     // The scope introduced by a module literal
+  // End of top-level scopes.
   CLASS_SCOPE,         // The scope introduced by a class.
-  EVAL_SCOPE,          // The top-level scope for an eval source.
   FUNCTION_SCOPE,      // The top-level scope for a function.
-  MODULE_SCOPE,        // The scope introduced by a module literal
   CATCH_SCOPE,         // The scope introduced by catch.
   BLOCK_SCOPE,         // The scope introduced by a new block.
   WITH_SCOPE,          // The scope introduced by with.
   SHADOW_REALM_SCOPE,  // Synthetic scope for ShadowRealm NativeContexts.
 };
-
-inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
-  switch (type) {
-    case ScopeType::EVAL_SCOPE:
-      return os << "EVAL_SCOPE";
-    case ScopeType::FUNCTION_SCOPE:
-      return os << "FUNCTION_SCOPE";
-    case ScopeType::MODULE_SCOPE:
-      return os << "MODULE_SCOPE";
-    case ScopeType::SCRIPT_SCOPE:
-      return os << "SCRIPT_SCOPE";
-    case ScopeType::CATCH_SCOPE:
-      return os << "CATCH_SCOPE";
-    case ScopeType::BLOCK_SCOPE:
-      return os << "BLOCK_SCOPE";
-    case ScopeType::CLASS_SCOPE:
-      return os << "CLASS_SCOPE";
-    case ScopeType::WITH_SCOPE:
-      return os << "WITH_SCOPE";
-    case ScopeType::SHADOW_REALM_SCOPE:
-      return os << "SHADOW_REALM_SCOPE";
-    case ScopeType::REPL_MODE_SCOPE:
-      return os << "REPL_MODE_SCOPE";
-  }
-  UNREACHABLE();
-}
 
 // AllocationSiteMode controls whether allocations are tracked by an allocation
 // site.
@@ -2133,28 +2153,29 @@ inline constexpr double HoleNan() {
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
 
 // ES6 section 20.1.2.6 Number.MAX_SAFE_INTEGER
-constexpr uint64_t kMaxSafeIntegerUint64 = 9007199254740991;  // 2^53-1
-static_assert(kMaxSafeIntegerUint64 == (uint64_t{1} << 53) - 1);
+constexpr uint64_t kMaxSafeIntegerUint64 = (uint64_t{1} << 53) - 1;  // 2^53-1
 constexpr double kMaxSafeInteger = static_cast<double>(kMaxSafeIntegerUint64);
 // ES6 section 21.1.2.8 Number.MIN_SAFE_INTEGER
 constexpr double kMinSafeInteger = -kMaxSafeInteger;
 
 constexpr double kMaxUInt32Double = double{kMaxUInt32};
 
-constexpr int64_t kMaxAdditiveSafeInteger = 4503599627370495;  // 2^52 - 1
-static_assert(kMaxAdditiveSafeInteger == (int64_t{1} << 52) - 1);
-constexpr int64_t kMinAdditiveSafeInteger = -4503599627370496;  // - 2^52
-static_assert(kMinAdditiveSafeInteger == -(int64_t{1} << 52));
-constexpr int kAdditiveSafeIntegerBitLength = 53;
-// Number of bits to shift left before addition to detect potential overflow.
-constexpr int kAdditiveSafeIntegerShift = 64 - kAdditiveSafeIntegerBitLength;
-
+constexpr int64_t kMaxAdditiveSafeInteger = (int64_t{1} << 52) - 1;  // 2^52 - 1
+constexpr int64_t kMinAdditiveSafeInteger =
+    -(int64_t{1} << 52) + 1;  // - (2^52 - 1)
 static_assert(kMaxAdditiveSafeInteger + kMaxAdditiveSafeInteger <=
               kMaxSafeInteger);
-// kMinAdditiveSafeInteger + kMinAdditiveSafeInteger would overflow the integer
-// safe addition.
-static_assert(kMinAdditiveSafeInteger + (kMinAdditiveSafeInteger + 1) >=
+static_assert(kMinAdditiveSafeInteger + kMinAdditiveSafeInteger >=
               kMinSafeInteger);
+
+constexpr int64_t kMaxAdditiveSafeIntegerFeedback =
+    (int64_t{1} << 51) - 1;  // 2^51 - 1
+constexpr int64_t kMinAdditiveSafeIntegerFeedback =
+    -(int64_t{1} << 51);  // - 2^51
+constexpr int kAdditiveSafeIntegerFeedbackBitLength = 52;
+// Number of bits to shift left before addition to detect potential overflow.
+constexpr int kAdditiveSafeIntegerFeedbackShift =
+    64 - kAdditiveSafeIntegerFeedbackBitLength;
 
 // The order of this enum has to be kept in sync with the predicates below.
 enum class VariableMode : uint8_t {
@@ -2311,6 +2332,10 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
   return mode <= VariableMode::kLastLexicalVariableMode;
 }
 
+inline bool IsResourceManagedVariableMode(VariableMode mode) {
+  return mode == VariableMode::kUsing || mode == VariableMode::kAwaitUsing;
+}
+
 enum VariableLocation : uint8_t {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a
@@ -2449,7 +2474,26 @@ class BinaryOperationFeedback {
 // at different points by performing an 'OR' operation.
 // This is distinct from BinaryOperationFeedback on purpose, because the
 // feedback that matters differs greatly as well as the way it is consumed.
-class CompareOperationFeedback {
+#define COMPARE_OPERATION_FEEDBACK_TYPES(V) \
+  V(None)                                   \
+  V(Boolean)                                \
+  V(NullOrUndefined)                        \
+  V(Oddball)                                \
+  V(SignedSmall)                            \
+  V(Number)                                 \
+  V(NumberOrBoolean)                        \
+  V(NumberOrOddball)                        \
+  V(InternalizedString)                     \
+  V(String)                                 \
+  V(StringOrOddball)                        \
+  V(Receiver)                               \
+  V(ReceiverOrNullOrUndefined)              \
+  V(BigInt64)                               \
+  V(BigInt)                                 \
+  V(Symbol)                                 \
+  V(Any)
+
+class CompareOperationFeedback : public AllStatic {
   enum {
     kSignedSmallFlag = 1 << 0,
     kOtherNumberFlag = 1 << 1,
@@ -2490,6 +2534,85 @@ class CompareOperationFeedback {
 
     kAny = kAnyMask,
   };
+
+  enum class TypeIndex : uint8_t {
+#define DEF_TYPE_INDEX(name) k##name,
+    COMPARE_OPERATION_FEEDBACK_TYPES(DEF_TYPE_INDEX)
+#undef DEF_TYPE_INDEX
+        kFirstTypeIndex = kNone,
+    kLastTypeIndex = kAny
+  };
+
+  static V8_EXPORT_PRIVATE Address GetTransitionMapAddress();
+  static V8_EXPORT_PRIVATE Address GetFeedbackEncodeTableAddress();
+
+  // round up to 2^x for better memory access
+  static constexpr uint32_t kTransitionMapSize =
+      base::bits::RoundUpToPowerOfTwo32(
+          static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1);
+
+  static constexpr Type DecodeTypeIndex(TypeIndex index) {
+    switch (index) {
+#define CASE_TYPE(name)    \
+  case TypeIndex::k##name: \
+    return Type::k##name;
+      COMPARE_OPERATION_FEEDBACK_TYPES(CASE_TYPE)
+#undef CASE_TYPE
+    }
+    return Type::kAny;
+  }
+
+ private:
+  static constexpr TypeIndex CalculateTypeIndex(uint32_t feedback_value) {
+#define CALCULATE_TYPE_INDEX(name)                               \
+  if ((static_cast<uint32_t>(Type::k##name) & feedback_value) == \
+      feedback_value) {                                          \
+    return TypeIndex::k##name;                                   \
+  }
+    COMPARE_OPERATION_FEEDBACK_TYPES(CALCULATE_TYPE_INDEX)
+#undef CALCULATE_TYPE_INDEX
+    return TypeIndex::kAny;
+  }
+
+  static constexpr TypeIndex CombineTypeIndex(TypeIndex a, TypeIndex b) {
+    Type type_a = DecodeTypeIndex(a);
+    Type type_b = DecodeTypeIndex(b);
+    uint32_t combined_feedback_value =
+        static_cast<uint32_t>(type_a) | static_cast<uint32_t>(type_b);
+    return CalculateTypeIndex(combined_feedback_value);
+  }
+
+  struct TransitionMap {
+    uint8_t map[kTransitionMapSize][kTransitionMapSize]{};
+  };
+
+  struct FeedbackEncodeTable {
+    uint8_t lut[static_cast<uint32_t>(Type::kAny) + 1]{};
+  };
+
+  static constexpr TransitionMap BuildTransitionMap() {
+    TransitionMap trans_map{};
+    uint32_t type_index_count =
+        static_cast<uint32_t>(TypeIndex::kLastTypeIndex) + 1;
+    for (uint32_t i = 0; i < type_index_count; i++) {
+      for (uint32_t j = 0; j < type_index_count; j++) {
+        trans_map.map[i][j] = static_cast<uint8_t>(CombineTypeIndex(
+            static_cast<TypeIndex>(i), static_cast<TypeIndex>(j)));
+      }
+    }
+    return trans_map;
+  }
+
+  static constexpr FeedbackEncodeTable BuildFeedbackEncodeTable() {
+    FeedbackEncodeTable lut{};
+    for (uint32_t i = 0; i < static_cast<uint32_t>(Type::kAny) + 1; i++) {
+      lut.lut[i] = static_cast<uint8_t>(CalculateTypeIndex(i));
+    }
+    return lut;
+  }
+
+  static const TransitionMap kTransitionMap;
+  static const FeedbackEncodeTable kFeedbackEncodeTable;
 };
 
 class TypeOfFeedback {
@@ -2676,19 +2799,29 @@ enum class CachedTieringDecision : int32_t {
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
 #define IF_SPARKPLUG_PLUS(V, ...) EXPAND(V(__VA_ARGS__))
 
-#define TYPED_STRICTEQUAL_STUB_LIST(V) \
-  V(None)                              \
-  V(SignedSmall)                       \
-  V(Number)                            \
-  V(InternalizedString)                \
-  V(String)                            \
-  V(Symbol)                            \
-  V(Receiver)                          \
+#define TYPED_EQUAL_STUB_LIST(V) \
+  V(None)                        \
+  V(SignedSmall)                 \
+  V(Number)                      \
+  V(InternalizedString)          \
+  V(String)                      \
+  V(Receiver)                    \
   V(Any)
+
+#define TYPED_STRICTEQUAL_STUB_LIST(V) \
+  TYPED_EQUAL_STUB_LIST(V)             \
+  V(Symbol)
+
+#define TYPED_RELATIONAL_COMPARE_STUB_LIST(V) \
+  V(None)                                     \
+  V(SignedSmall)                              \
+  V(Number)
 #else
 #define IF_SPARKPLUG_PLUS(V, ...)
 
 #define TYPED_STRICTEQUAL_STUB_LIST(V)
+#define TYPED_EQUAL_STUB_LIST(V)
+#define TYPED_RELATIONAL_COMPARE_STUB_LIST(V)
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 enum class SpeculationMode {
@@ -2733,6 +2866,12 @@ inline std::ostream& operator<<(std::ostream& os, ConcurrencyMode mode) {
   return os << ToString(mode);
 }
 
+enum class SharedFlag : bool { kNo = false, kYes = true };
+
+inline std::ostream& operator<<(std::ostream& os, SharedFlag shared) {
+  return os << (shared == SharedFlag::kYes ? "shared" : "not shared");
+}
+
 // An architecture independent representation of the sets of registers available
 // for instruction creation.
 enum class AliasingKind {
@@ -2764,6 +2903,8 @@ enum class AliasingKind {
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)             \
   V(TrapResume)                    \
+  V(TrapSuspend)                   \
+  V(TrapSwitch)                    \
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode : uint8_t {
@@ -2955,7 +3096,7 @@ class int31_t {
 
 enum PropertiesEnumerationMode {
   // String and then Symbol properties according to the spec
-  // ES#sec-object.assign
+  // https://tc39.es/ecma262/#sec-object.assign
   kEnumerationOrder,
   // Order of property addition
   kPropertyAdditionOrder,
@@ -3018,7 +3159,9 @@ constexpr uint64_t kInvalidWasmSignatureHash = ~uint64_t{0};
 
 enum class CallJumpMode { kCall, kTailCall };
 
-constexpr int kPreallocatedNumberStringTableSize = 100;
+constexpr uint32_t kPreallocatedNumberStringTableSize = 100;
+
+enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
 enum class SilenceNanMode {
   kSilenceUndefined,

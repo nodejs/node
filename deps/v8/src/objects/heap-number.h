@@ -33,6 +33,9 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
 
+  // Returns true if the heap number contains the hole NaN bit pattern.
+  inline bool is_the_hole() const;
+
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;

@@ -180,6 +180,7 @@
 // `absl_nonnull` is *not guaranteed* to be non-null, and the compiler won't
 // alert or prevent assignment of a `T* absl_nullable` to a `T* absl_nonnull`.
 // ===========================================================================
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
 #ifndef ABSL_BASE_NULLABILITY_H_
 #define ABSL_BASE_NULLABILITY_H_
 

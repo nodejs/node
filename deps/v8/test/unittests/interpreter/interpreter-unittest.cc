@@ -1749,7 +1749,7 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
 
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         CHECK(CompareOperationFeedback::kSignedSmall == embedded_feedback);
@@ -1795,7 +1795,7 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         CHECK(CompareOperationFeedback::kNumber == embedded_feedback);
@@ -1835,7 +1835,7 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBoolean(*return_value));
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         CHECK(CompareOperationFeedback::kBigInt == embedded_feedback ||
@@ -1878,7 +1878,7 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         auto embedded_feedback =
-            tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+            tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                 comparison, comparison_bytecode_offset,
                 /*feedback_value_offset=*/2);
         int const expected_feedback =
@@ -1988,20 +1988,11 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
             CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                      CompareC(comparison, lhs, rhs, true));
             auto embedded_feedback =
-                tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                tester.GetEmbeddedFeedback<CompareOperationFeedback>(
                     comparison, comparison_bytecode_offset,
                     /*feedback_value_offset=*/2);
-            if (kComparisonTypes[c] == Token::kEq) {
-              // For sloppy equality, we have more precise feedback.
-              CHECK_EQ(CompareOperationFeedback::kNumber |
-                           (string_type == kInternalizedStringConstant
-                                ? CompareOperationFeedback::kInternalizedString
-                                : CompareOperationFeedback::kString),
-                       embedded_feedback);
-            } else {
-              // Comparison with a number and string collects kAny feedback.
-              CHECK_EQ(CompareOperationFeedback::kAny, embedded_feedback);
-            }
+            // Comparison with a number and string collects kAny feedback.
+            CHECK_EQ(CompareOperationFeedback::kAny, embedded_feedback);
           }
         }
       }
@@ -4818,7 +4809,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
   Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK(bytecode_array->HasSourcePositionTable());
-  CHECK_GT(source_position_table->length(), 0);
+  CHECK_GT(source_position_table->length().value(), 0u);
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
@@ -4848,14 +4839,14 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
   Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
   CHECK(!bytecode_array->HasSourcePositionTable());
-  CHECK_EQ(source_position_table->length(), 0);
+  CHECK_EQ(source_position_table->length().value(), 0u);
 
   // Reset the stack limit and try again.
   i_isolate()->stack_guard()->SetStackLimit(previous_limit);
   Compiler::CollectSourcePositions(i_isolate(), sfi);
   source_position_table = bytecode_array->SourcePositionTable();
   CHECK(bytecode_array->HasSourcePositionTable());
-  CHECK_GT(source_position_table->length(), 0);
+  CHECK_GT(source_position_table->length().value(), 0u);
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
@@ -4979,7 +4970,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   CHECK(bytecode_array->HasSourcePositionTable());
   Tagged<TrustedByteArray> source_position_table =
       bytecode_array->SourcePositionTable();
-  CHECK_GT(source_position_table->length(), 0);
+  CHECK_GT(source_position_table->length().value(), 0u);
 }
 
 TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {

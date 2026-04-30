@@ -50,6 +50,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+//<cfenv> is banned in Google style due to inconsistent compiler
+// support and potential interference with floating-point optimizations.
+// However, RISC-V only uses fenv.h in simulator on x64.
+#include <cfenv>  // NOLINT(build/c++11)
+
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/vector.h"
@@ -1299,7 +1304,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
              "    (%" PRId64 ")    vlen:%" PRId64 " <-- [addr: %" REGIx_FORMAT \
              "]",                                                              \
              icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
@@ -1326,7 +1331,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
-    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.length()),          \
+    SNPrintF(trace_buf_.SubVector(trace_offset, trace_buf_.size()),            \
              "    (%" PRId64 ")    vlen:%" PRId64 " --> [addr: %" REGIx_FORMAT \
              "]",                                                              \
              icount_, rvv_vlen(), (sreg_t)(get_register(rs1_reg())));          \
@@ -1562,6 +1567,82 @@ inline Dst unsigned_saturation(Src v, uint n) {
 
 namespace v8 {
 namespace internal {
+
+// FLI.S immediate values lookup table (Zfa extension).
+// Each entry is a 32-bit IEEE 754 single-precision representation.
+// Index corresponds to imm5 value (0-31).
+static constexpr uint32_t kFLISImm[32] = {
+    0xbf800000,  /* -1.0 */
+    0x00800000,  /* minimum positive normal */
+    0x37800000,  /* 1.0 * 2^-16 */
+    0x38000000,  /* 1.0 * 2^-15 */
+    0x3b800000,  /* 1.0 * 2^-8  */
+    0x3c000000,  /* 1.0 * 2^-7  */
+    0x3d800000,  /* 1.0 * 2^-4  */
+    0x3e000000,  /* 1.0 * 2^-3  */
+    0x3e800000,  /* 0.25 */
+    0x3ea00000,  /* 0.3125 */
+    0x3ec00000,  /* 0.375 */
+    0x3ee00000,  /* 0.4375 */
+    0x3f000000,  /* 0.5 */
+    0x3f200000,  /* 0.625 */
+    0x3f400000,  /* 0.75 */
+    0x3f600000,  /* 0.875 */
+    0x3f800000,  /* 1.0 */
+    0x3fa00000,  /* 1.25 */
+    0x3fc00000,  /* 1.5 */
+    0x3fe00000,  /* 1.75 */
+    0x40000000,  /* 2.0 */
+    0x40200000,  /* 2.5 */
+    0x40400000,  /* 3 */
+    0x40800000,  /* 4 */
+    0x41000000,  /* 8 */
+    0x41800000,  /* 16 */
+    0x43000000,  /* 2^7 */
+    0x43800000,  /* 2^8 */
+    0x47000000,  /* 2^15 */
+    0x47800000,  /* 2^16 */
+    0x7f800000,  /* +inf */
+    0x7fc00000,  // imm5=31: Canonical NaN
+};
+
+// FLI.D immediate values lookup table (Zfa extension).
+// Each entry is a 64-bit IEEE 754 double-precision representation.
+// Index corresponds to imm5 value (0-31).
+static constexpr uint64_t kFLIDImm[32] = {
+    0xbff0000000000000ull,  /* -1.0 */
+    0x0010000000000000ull,  /* minimum positive normal */
+    0x3ef0000000000000ull,  /* 1.0 * 2^-16 */
+    0x3f00000000000000ull,  /* 1.0 * 2^-15 */
+    0x3f70000000000000ull,  /* 1.0 * 2^-8  */
+    0x3f80000000000000ull,  /* 1.0 * 2^-7  */
+    0x3fb0000000000000ull,  /* 1.0 * 2^-4  */
+    0x3fc0000000000000ull,  /* 1.0 * 2^-3  */
+    0x3fd0000000000000ull,  /* 0.25 */
+    0x3fd4000000000000ull,  /* 0.3125 */
+    0x3fd8000000000000ull,  /* 0.375 */
+    0x3fdc000000000000ull,  /* 0.4375 */
+    0x3fe0000000000000ull,  /* 0.5 */
+    0x3fe4000000000000ull,  /* 0.625 */
+    0x3fe8000000000000ull,  /* 0.75 */
+    0x3fec000000000000ull,  /* 0.875 */
+    0x3ff0000000000000ull,  /* 1.0 */
+    0x3ff4000000000000ull,  /* 1.25 */
+    0x3ff8000000000000ull,  /* 1.5 */
+    0x3ffc000000000000ull,  /* 1.75 */
+    0x4000000000000000ull,  /* 2.0 */
+    0x4004000000000000ull,  /* 2.5 */
+    0x4008000000000000ull,  /* 3 */
+    0x4010000000000000ull,  /* 4 */
+    0x4020000000000000ull,  /* 8 */
+    0x4030000000000000ull,  /* 16 */
+    0x4060000000000000ull,  /* 2^7 */
+    0x4070000000000000ull,  /* 2^8 */
+    0x40e0000000000000ull,  /* 2^15 */
+    0x40f0000000000000ull,  /* 2^16 */
+    0x7ff0000000000000ull,  /* +inf */
+    0x7ff8000000000000ULL,  // imm5=31: Canonical NaN
+};
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
                                 Simulator::GlobalMonitor::Get)
@@ -2735,6 +2816,30 @@ T Simulator::FMaxMinHelper(T a, T b, MaxMinKind kind) {
   return result;
 }
 
+// IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
+// Like Fmax/Fmin except that if either input is NaN, the result
+// is the canonical NaN.
+template <typename T>
+T Simulator::FMaxMinMHelper(T a, T b, MaxMinKind kind) {
+  // IEEE 754-2019: if either operand is NaN, return canonical NaN
+  if (std::isnan(a) || std::isnan(b)) {
+    return std::numeric_limits<T>::quiet_NaN();
+  }
+
+  // Handle -0.0 vs +0.0 case
+  if (a == b) {
+    // For min: return -0.0 (the one with sign bit set)
+    // For max: return +0.0 (the one without sign bit set)
+    if (kind == MaxMinKind::kMax) {
+      return std::signbit(b) ? a : b;
+    } else {
+      return std::signbit(b) ? b : a;
+    }
+  }
+
+  return (kind == MaxMinKind::kMax) ? fmax(a, b) : fmin(a, b);
+}
+
 // Raw access to the PC register.
 void Simulator::set_pc(sreg_t value) {
   pc_modified_ = true;
@@ -2986,6 +3091,7 @@ void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
 
 bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  DCHECK_GT(access_size, 0);
   uintptr_t last_accessed_byte = address + access_size - 1;
   uintptr_t current_pc = registers_[pc];
   uintptr_t landing_pad =
@@ -4037,6 +4143,33 @@ void Simulator::DecodeRVRType() {
   }
 }
 
+#pragma STDC FENV_ACCESS ON
+
+struct ScopedRoundingMode {
+  int old_mode;
+  int get_cfp_roud_mode(uint32_t frm) {
+    switch (frm) {
+      case RNE:
+        return FE_TONEAREST;
+      case RTZ:
+        return FE_TOWARDZERO;
+      case RDN:
+        return FE_UPWARD;
+      case RUP:
+        return FE_DOWNWARD;
+      case RMM:
+        return FE_TONEAREST;
+      default:
+        UNREACHABLE();
+    }
+  }
+  explicit ScopedRoundingMode(uint32_t new_mode) {
+    old_mode = std::fegetround();
+    std::fesetround(get_cfp_roud_mode(new_mode));
+  }
+  ~ScopedRoundingMode() { std::fesetround(old_mode); }
+};
+
 float Simulator::RoundF2FHelper(float input_val, int rmode) {
   if (rmode == DYN) rmode = get_dynamic_rounding_mode();
 
@@ -4075,6 +4208,9 @@ float Simulator::RoundF2FHelper(float input_val, int rmode) {
       UNREACHABLE();
   }
 
+  if (std::isnan(input_val) || std::isnan(rounded)) {
+    return std::numeric_limits<float>::quiet_NaN();
+  }
   return rounded;
 }
 
@@ -4114,6 +4250,9 @@ double Simulator::RoundF2FHelper(double input_val, int rmode) {
       break;
     default:
       UNREACHABLE();
+  }
+  if (std::isnan(input_val) || std::isnan(rounded)) {
+    return std::numeric_limits<double>::quiet_NaN();
   }
   return rounded;
 }
@@ -4636,7 +4775,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    case RO_FMIN_S: {  // RO_FMAX_S
+    case RO_FMIN_S: {  // RO_FMAX_S, RO_FMINM_S, RO_FMAXM_S
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FMIN_S
           set_frd(FMaxMinHelper(frs1(), frs2(), MaxMinKind::kMin));
@@ -4644,6 +4783,14 @@ void Simulator::DecodeRVRFPType() {
         }
         case 0b001: {  // RO_FMAX_S
           set_frd(FMaxMinHelper(frs1(), frs2(), MaxMinKind::kMax));
+          break;
+        }
+        case 0b010: {  // RO_FMINM_S (Zfa extension)
+          set_frd(FMaxMinMHelper(frs1(), frs2(), MaxMinKind::kMin));
+          break;
+        }
+        case 0b011: {  // RO_FMAXM_S (Zfa extension)
+          set_frd(FMaxMinMHelper(frs1(), frs2(), MaxMinKind::kMax));
           break;
         }
         default: {
@@ -4719,7 +4866,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S
+    case RO_FLE_S: {  // RO_FEQ_S RO_FLT_S RO_FLE_S RO_FLEQ_S RO_FLTQ_S
       switch (instr_.Funct3Value()) {
         case 0b010: {  // RO_FEQ_S
           set_rd(CompareFHelper(frs1(), frs2(), EQ));
@@ -4731,6 +4878,28 @@ void Simulator::DecodeRVRFPType() {
         }
         case 0b000: {  // RO_FLE_S
           set_rd(CompareFHelper(frs1(), frs2(), LE));
+          break;
+        }
+        case 0b100: {  // RO_FLEQ_S (Zfa extension) - quiet LE comparison
+          // fleq.s: Quiet less-than-or-equal comparison
+          // Does NOT raise invalid exception for NaN (unlike fle.s)
+          // Returns false if either operand is NaN
+          if (std::isnan(frs1()) || std::isnan(frs2())) {
+            set_rd(0);
+          } else {
+            set_rd(frs1() <= frs2() ? 1 : 0);
+          }
+          break;
+        }
+        case 0b101: {  // RO_FLTQ_S (Zfa extension) - quiet LT comparison
+          // fltq.s: Quiet less-than comparison
+          // Does NOT raise invalid exception for NaN (unlike flt.s)
+          // Returns false if either operand is NaN
+          if (std::isnan(frs1()) || std::isnan(frs2())) {
+            set_rd(0);
+          } else {
+            set_rd(frs1() < frs2() ? 1 : 0);
+          }
           break;
         }
         default: {
@@ -4777,9 +4946,17 @@ void Simulator::DecodeRVRFPType() {
     }
     case RO_FMV_W_X: {
       if (instr_.Funct3Value() == 0b000) {
-        // since FMV preserves source bit-pattern, no need to canonize
-        Float32 result = Float32::FromBits((uint32_t)rs1());
-        set_frd(result);
+        if (instr_.Rs2Value() == 0b00000) {
+          // fmv.w.x: since FMV preserves source bit-pattern, no need to
+          // canonize
+          Float32 result = Float32::FromBits((uint32_t)rs1());
+          set_frd(result);
+        } else if (instr_.Rs2Value() == 0b00001) {
+          // fli.s: Load floating-point immediate (Zfa extension)
+          set_frd(Float32::FromBits(kFLISImm[instr_.Rs1Value()]));
+        } else {
+          UNSUPPORTED();
+        }
       } else {
         UNSUPPORTED();
       }
@@ -4880,7 +5057,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    case RO_FMIN_D: {  // RO_FMAX_D
+    case RO_FMIN_D: {  // RO_FMAX_D, RO_FMINM_D, RO_FMAXM_D
       switch (instr_.Funct3Value()) {
         case 0b000: {  // RO_FMIN_D
           set_drd(FMaxMinHelper(drs1(), drs2(), MaxMinKind::kMin));
@@ -4888,6 +5065,14 @@ void Simulator::DecodeRVRFPType() {
         }
         case 0b001: {  // RO_FMAX_D
           set_drd(FMaxMinHelper(drs1(), drs2(), MaxMinKind::kMax));
+          break;
+        }
+        case 0b010: {  // RO_FMINM_D (Zfa extension)
+          set_drd(FMaxMinMHelper(drs1(), drs2(), MaxMinKind::kMin));
+          break;
+        }
+        case 0b011: {  // RO_FMAXM_D (Zfa extension)
+          set_drd(FMaxMinMHelper(drs1(), drs2(), MaxMinKind::kMax));
           break;
         }
         default: {
@@ -4900,6 +5085,17 @@ void Simulator::DecodeRVRFPType() {
       if (instr_.Rs2Value() == 0b00001) {
         auto fn = [](double drs) { return static_cast<float>(drs); };
         set_frd(CanonicalizeDoubleToFloatOperation(fn));
+      } else if (instr_.Rs2Value() == 0b00100) {
+        // fround.s: Round single-precision to integer (Zfa extension)
+        set_frd(RoundF2FHelper(frs1(), instr_.RoundMode()));
+      } else if (instr_.Rs2Value() == 0b00101) {
+        // froundnx.s: Round single-precision to integer with inexact (Zfa
+        // extension)
+        float result = RoundF2FHelper(frs1(), instr_.RoundMode());
+        if (frs1() != result) {
+          set_fflags(kInexact);
+        }
+        set_frd(result);
       } else {
         UNSUPPORTED();
       }
@@ -4913,14 +5109,25 @@ void Simulator::DecodeRVRFPType() {
         auto fn = [](float frs) { return static_cast<double>(frs); };
         Float16 src = Float16::FromBits(get_fpu_register_Float16(rs1_reg()));
         set_drd(CanonicalizeFloatToDoubleOperation(fn, src.ToFloat32()));
+      } else if (instr_.Rs2Value() == 0b00100) {
+        // fround.d: Round double-precision to integer (Zfa extension)
+        set_drd(RoundF2FHelper(drs1(), instr_.RoundMode()));
+      } else if (instr_.Rs2Value() == 0b00101) {
+        // froundnx.d: Round double-precision to integer with inexact (Zfa
+        // extension)
+        double result = RoundF2FHelper(drs1(), instr_.RoundMode());
+        if (drs1() != result) {
+          set_fflags(kInexact);
+        }
+        set_drd(result);
       } else {
         UNSUPPORTED();
       }
       break;
     }
-    case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D
+    case RO_FLE_D: {  // RO_FEQ_D RO_FLT_D RO_FLE_D RO_FLEQ_D RO_FLTQ_D
       switch (instr_.Funct3Value()) {
-        case 0b010: {  // RO_FEQ_S
+        case 0b010: {  // RO_FEQ_D
           set_rd(CompareFHelper(drs1(), drs2(), EQ));
           break;
         }
@@ -4930,6 +5137,28 @@ void Simulator::DecodeRVRFPType() {
         }
         case 0b000: {  // RO_FLE_D
           set_rd(CompareFHelper(drs1(), drs2(), LE));
+          break;
+        }
+        case 0b100: {  // RO_FLEQ_D (Zfa extension) - quiet LE comparison
+          // fleq.d: Quiet less-than-or-equal comparison
+          // Does NOT raise invalid exception for NaN (unlike fle.d)
+          // Returns false if either operand is NaN
+          if (std::isnan(drs1()) || std::isnan(drs2())) {
+            set_rd(0);
+          } else {
+            set_rd(drs1() <= drs2() ? 1 : 0);
+          }
+          break;
+        }
+        case 0b101: {  // RO_FLTQ_D (Zfa extension) - quiet LT comparison
+          // fltq.d: Quiet less-than comparison
+          // Does NOT raise invalid exception for NaN (unlike flt.d)
+          // Returns false if either operand is NaN
+          if (std::isnan(drs1()) || std::isnan(drs2())) {
+            set_rd(0);
+          } else {
+            set_rd(drs1() < drs2() ? 1 : 0);
+          }
           break;
         }
         default: {
@@ -4981,6 +5210,78 @@ void Simulator::DecodeRVRFPType() {
           break;
         }
 #endif /* V8_TARGET_ARCH_RISCV64 */
+        case 0b01000: {  // RO_FCVTMOD_W_D (Zfa extension)
+          // FCVTMOD.W.D converts double to signed 32-bit integer modulo 2^32.
+          // Key differences from FCVT.W.D:
+          // 1. Always rounds towards zero (RTZ)
+          // 2. Bits 31:0 are taken from the rounded result (modulo 2^32)
+          // 3. Result is sign-extended to XLEN
+          // 4. NaN and infinity are converted to zero with invalid exception
+          // 5. Overflow raises invalid exception (but result is still modulo
+          // 2^32)
+
+          uint64_t a = base::bit_cast<uint64_t>(original_val);
+          uint32_t sign = (a >> 63) & 1;
+          uint32_t exp = (a >> 52) & 0x7FF;
+          uint64_t frac = a & ((1ULL << 52) - 1);
+
+          bool inexact = false;
+          bool invalid = false;
+
+          if (exp == 0) {
+            // Zero or subnormal
+            inexact = (frac != 0);
+            frac = 0;
+          } else if (exp == 0x7FF) {
+            // Infinity or NaN
+            invalid = true;
+            frac = 0;
+          } else {
+            int true_exp = exp - 1023;
+            int shift = true_exp - 52;
+
+            // Restore implicit bit
+            frac |= (1ULL << 52);
+
+            // Shift the fraction into place
+            if (shift >= 64) {
+              // The fraction is shifted out entirely
+              frac = 0;
+            } else if (shift >= 0) {
+              // Shift left
+              frac <<= shift;
+            } else if (shift > -64) {
+              // Normal case -- shift right and notice if bits shift out
+              inexact = (frac << (64 + shift)) != 0;
+              frac >>= -shift;
+            } else {
+              // The fraction is shifted out entirely
+              frac = 0;
+              inexact = true;
+            }
+
+            // Handle overflow: check if result exceeds 32-bit signed range
+            if (true_exp > 31 ||
+                frac > (sign ? 0x80000000ULL : 0x7FFFFFFFULL)) {
+              invalid = true;
+              inexact = false;  // invalid takes precedence
+            }
+
+            // Honor the sign
+            if (sign) {
+              frac = -static_cast<int64_t>(frac);
+            }
+          }
+
+          // Take bits 31:0 and sign-extend
+          uint32_t result = static_cast<uint32_t>(frac & 0xFFFFFFFFULL);
+          set_rd(sext32(result));
+
+          // Raise exceptions
+          if (inexact) set_fflags(kInexact);
+          if (invalid) set_fflags(kInvalidOperation);
+          break;
+        }
         default: {
           UNSUPPORTED();
         }
@@ -5015,9 +5316,17 @@ void Simulator::DecodeRVRFPType() {
     }
 #ifdef V8_TARGET_ARCH_RISCV64
     case RO_FMV_D_X: {
-      if (instr_.Funct3Value() == 0b000 && instr_.Rs2Value() == 0b00000) {
-        // Since FMV preserves source bit-pattern, no need to canonize
-        set_drd(base::bit_cast<double>(rs1()));
+      if (instr_.Funct3Value() == 0b000) {
+        if (instr_.Rs2Value() == 0b00000) {
+          // fmv.d.x: Since FMV preserves source bit-pattern, no need to
+          // canonize
+          set_drd(base::bit_cast<double>(rs1()));
+        } else if (instr_.Rs2Value() == 0b00001) {
+          // fli.d: Load floating-point immediate (Zfa extension)
+          set_drd(base::bit_cast<double>(kFLIDImm[instr_.Rs1Value()]));
+        } else {
+          UNSUPPORTED();
+        }
       } else {
         UNSUPPORTED();
       }
@@ -7532,12 +7841,16 @@ void Simulator::DecodeRvvFVV() {
               { UNIMPLEMENTED(); },
               {
                 auto vs2_i = Rvvelt<uint32_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<float>(vs2_i);
                 USE(vs2);
                 USE(fs1);
               },
               {
                 auto vs2_i = Rvvelt<uint64_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<double>(vs2_i);
                 USE(vs2);
                 USE(fs1);
@@ -7548,12 +7861,16 @@ void Simulator::DecodeRvvFVV() {
               { UNIMPLEMENTED(); },
               {
                 auto vs2_i = Rvvelt<int32_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<float>(vs2_i);
                 USE(vs2);
                 USE(fs1);
               },
               {
                 auto vs2_i = Rvvelt<int64_t>(rvv_vs2_reg(), i);
+                ScopedRoundingMode rounding_mode_setter(
+                    get_dynamic_rounding_mode());
                 vd = static_cast<double>(vs2_i);
                 USE(vs2);
                 USE(fs1);
@@ -8744,15 +9061,14 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  int64_t stack_args_size =
-      stack_args.size() * sizeof(stack_args[0]) + kCArgsSlotsSize;
+  int64_t stack_args_size = stack_args.size() * sizeof(stack_args[0]);
   int64_t entry_stack = original_stack - stack_args_size;
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
   char* stack_argument = reinterpret_cast<char*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, stack_args.data(),
+  memcpy(stack_argument, stack_args.data(),
          stack_args.size() * sizeof(int64_t));
   set_register(sp, entry_stack);
   CallInternal(entry);
@@ -8789,14 +9105,14 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   sreg_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
   int stack_args_count = argument_count - reg_arg_count;
-  int stack_args_size = stack_args_count * sizeof(*arguments) + kCArgsSlotsSize;
+  int stack_args_size = stack_args_count * sizeof(*arguments);
   sreg_t entry_stack = original_stack - stack_args_size;
   if (base::OS::ActivationFrameAlignment() != 0) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+  memcpy(stack_argument, arguments + reg_arg_count,
          stack_args_count * sizeof(*arguments));
   set_register(sp, entry_stack);
   CallInternal(entry);
@@ -9007,6 +9323,7 @@ void Simulator::DoSwitchStackLimit(Instruction* instr) {
 }
 
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
+#ifdef V8_COMPRESS_POINTERS
   if ((address >= stack_limit_) && (address < stack)) {
     PrintF("ACCESS BELOW STACK POINTER:\n");
     PrintF("  sp is here:          0x%016" PRIx64 "\n",
@@ -9017,6 +9334,7 @@ void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
            static_cast<uint64_t>(stack_limit_));
     FATAL("ACCESS BELOW STACK POINTER");
   }
+#endif
 }
 
 }  // namespace internal

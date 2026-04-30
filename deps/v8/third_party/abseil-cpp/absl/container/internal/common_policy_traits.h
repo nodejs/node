@@ -81,7 +81,7 @@ struct common_policy_traits {
   // Note: we use remove_const_t so that the two overloads have different args
   // in the case of sets with explicitly const value_types.
   template <class P = Policy>
-  static auto element(absl::remove_const_t<slot_type>* slot)
+  static auto element(std::remove_const_t<slot_type>* slot)
       -> decltype(P::element(slot)) {
     return P::element(slot);
   }

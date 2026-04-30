@@ -329,7 +329,7 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   // users should not define their own HashState types.
   template <
       typename T,
-      absl::enable_if_t<
+      std::enable_if_t<
           std::is_base_of<hash_internal::HashStateBase<T>, T>::value, int> = 0>
   static HashState Create(T* state) {
     HashState s;

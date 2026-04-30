@@ -298,7 +298,7 @@ class Serializer : public SerializerDeserializer {
     deferred_objects_.Push(obj);
   }
 
-  // Register that the the given object shouldn't be immediately serialized, but
+  // Register that the given object shouldn't be immediately serialized, but
   // will be serialized later and any references to it should be pending forward
   // references.
   void RegisterObjectIsPending(Tagged<HeapObject> obj);

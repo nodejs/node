@@ -231,6 +231,7 @@ struct Field {
 
   bool custom_weak_marking;
   bool const_qualified;
+  bool index_is_constant;
   FieldSynchronization synchronization;
 };
 
@@ -690,12 +691,6 @@ class ClassType final : public AggregateType {
     if (!ShouldGenerateCppClassDefinitions()) return false;
     return !HasUndefinedLayout() && !IsShape();
   }
-  bool ShouldGenerateBodyDescriptor() const {
-    if (flags_ & ClassFlag::kCppObjectDefinition) return false;
-    if (flags_ & ClassFlag::kCppObjectLayoutDefinition) return false;
-    if (flags_ & ClassFlag::kGenerateBodyDescriptor) return true;
-    return !IsAbstract() && !IsExtern();
-  }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;
   }
@@ -728,8 +723,7 @@ class ClassType final : public AggregateType {
            (!IsExtern() && !IsAbstract());
   }
   bool ShouldGenerateFactoryFunction() const {
-    return (flags_ & ClassFlag::kGenerateFactoryFunction) ||
-           (ShouldExport() && !IsAbstract());
+    return ShouldExport() && !IsAbstract();
   }
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
@@ -762,7 +756,7 @@ class ClassType final : public AggregateType {
   std::vector<ObjectSlotKind> ComputeHeaderSlotKinds() const;
   std::optional<ObjectSlotKind> ComputeArraySlotKind() const;
   bool HasNoPointerSlotsExceptMap() const;
-  bool HasIndexedFieldsIncludingInParents() const;
+  bool HasDynamicIndexedFieldsIncludingInParents() const;
   const Field* GetFieldPreceding(size_t field_index) const;
 
   // Given that the field exists in this class or a superclass, returns the

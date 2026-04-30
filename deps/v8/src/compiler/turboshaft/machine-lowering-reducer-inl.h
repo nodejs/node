@@ -29,6 +29,7 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/frame-constants.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/bigint.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
@@ -36,6 +37,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/oddball.h"
+#include "src/objects/property-details.h"
 #include "src/objects/string-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/utils/utils.h"
@@ -91,13 +93,13 @@ class MachineLoweringReducer : public Next {
       }
       case ChangeOrDeoptOp::Kind::kInt64ToAdditiveSafeInteger: {
         V<Word64> i64_input = V<Word64>::Cast(input);
-        // Check the value actually fits in AdditiveSafeInteger.
-        // (value - kMinAdditiveSafeInteger) >> 52 == 0.
-        V<Word32> check_is_zero =
-            __ Word64Equal(__ Word64ShiftRightArithmetic(
-                               __ Word64Sub(i64_input, kMinAdditiveSafeInteger),
-                               kAdditiveSafeIntegerBitLength),
-                           0);
+        // Check the value actually fits in AdditiveSafeIntegerFeedback.
+        // (value - kMinAdditiveSafeIntegerFeedback) >> 51 == 0.
+        V<Word32> check_is_zero = __ Word64Equal(
+            __ Word64ShiftRightArithmetic(
+                __ Word64Sub(i64_input, kMinAdditiveSafeIntegerFeedback),
+                kAdditiveSafeIntegerFeedbackBitLength),
+            0);
         __ DeoptimizeIfNot(check_is_zero, frame_state,
                            DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
         return i64_input;
@@ -177,13 +179,13 @@ class MachineLoweringReducer : public Next {
           }
         }
 
-        // Check the value actually fits in AdditiveSafeInteger.
-        // (value - kMinAdditiveSafeInteger) >> 52 == 0.
-        V<Word32> check_is_zero =
-            __ Word64Equal(__ Word64ShiftRightArithmetic(
-                               __ Word64Sub(i64, kMinAdditiveSafeInteger),
-                               kAdditiveSafeIntegerBitLength),
-                           0);
+        // Check the value actually fits in AdditiveSafeIntegerFeedback.
+        // (value - kMinAdditiveSafeIntegerFeedback) >> 51 == 0.
+        V<Word32> check_is_zero = __ Word64Equal(
+            __ Word64ShiftRightArithmetic(
+                __ Word64Sub(i64, kMinAdditiveSafeIntegerFeedback),
+                kAdditiveSafeIntegerFeedbackBitLength),
+            0);
         __ DeoptimizeIfNot(check_is_zero, frame_state,
                            DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
 
@@ -209,6 +211,33 @@ class MachineLoweringReducer : public Next {
         }
 
         return i64;
+      }
+      case ChangeOrDeoptOp::Kind::kFloat64ToUint64: {
+        V<Float64> f64_input = V<Float64>::Cast(input);
+        V<Word64> ui64 = __ TruncateFloat64ToUint64OverflowToMin(f64_input);
+        __ DeoptimizeIfNot(
+            __ Float64Equal(__ ChangeUint64ToFloat64(ui64), f64_input),
+            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
+
+        if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
+          // Check if {value} is -0.
+          IF (UNLIKELY(__ Word64Equal(ui64, 0))) {
+            // In case of 0, we need to check the high bits for the IEEE -0
+            // pattern.
+            V<Word32> check_negative =
+                __ Int32LessThan(__ Float64ExtractHighWord32(f64_input), 0);
+            __ DeoptimizeIf(check_negative, frame_state,
+                            DeoptimizeReason::kMinusZero, feedback);
+          }
+        }
+
+        return ui64;
+      }
+      case ChangeOrDeoptOp::Kind::kInt32ToUint64: {
+        V<Word32> v32 = V<Word32>::Cast(input);
+        __ DeoptimizeIf(__ Int32LessThan(v32, 0), frame_state,
+                        DeoptimizeReason::kOutOfBounds, feedback);
+        return __ ChangeUint32ToUint64(v32);
       }
       case ChangeOrDeoptOp::Kind::kFloat64NotHole: {
         V<Float64> f64_input = V<Float64>::Cast(input);
@@ -1010,10 +1039,20 @@ class MachineLoweringReducer : public Next {
         break;
       }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber: {
-        DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
-        DCHECK_EQ(input_interpretation,
-                  ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble);
-        return AllocateHeapNumber(V<Float64>::Cast(input));
+        V<Float64> f64_input;
+        if (input_rep == RegisterRepresentation::Word32()) {
+          DCHECK_EQ(
+              input_interpretation,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned);
+          f64_input = __ ChangeInt32ToFloat64(V<Word32>::Cast(input));
+        } else {
+          DCHECK_EQ(input_rep, RegisterRepresentation::Float64());
+          DCHECK_EQ(
+              input_interpretation,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble);
+          f64_input = V<Float64>::Cast(input);
+        }
+        return AllocateHeapNumber(f64_input);
       }
       case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
           kHeapNumberOrUndefined: {
@@ -1276,6 +1315,15 @@ class MachineLoweringReducer : public Next {
           BIND(done, result);
           return result;
         } else if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
+                                            InputAssumptions::kSmiOrHole) {
+          ScopedVar<Float64> result(this);
+          IF (LIKELY(__ ObjectIsSmi(object))) {
+            result = __ ChangeInt32ToFloat64(__ UntagSmi(V<Smi>::Cast(object)));
+          } ELSE {
+            result = __ Float64Constant(i::Float64::FromBits(kHoleNanInt64));
+          }
+          return result;
+        } else if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
                                             InputAssumptions::kNumberOrHole) {
           Label<Float64> done(this);
           GOTO_IF(__ ObjectIsSmi(object), done,
@@ -1426,6 +1474,32 @@ class MachineLoweringReducer : public Next {
         BIND(done, result);
         return result;
       }
+      case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kUint64: {
+        DCHECK_EQ(
+            from_kind,
+            ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber);
+        Label<Word64> done(this);
+
+        IF (LIKELY(__ ObjectIsSmi(object))) {
+          V<Word32> untagged = __ UntagSmi(V<Smi>::Cast(object));
+          __ DeoptimizeIf(__ Int32LessThan(untagged, 0), frame_state,
+                          DeoptimizeReason::kLostPrecision, feedback);
+          GOTO(done, __ ChangeUint32ToUint64(untagged));
+        } ELSE {
+          V<Map> map = __ LoadMapField(object);
+          __ DeoptimizeIfNot(
+              __ TaggedEqual(map, __ HeapConstant(factory_->heap_number_map())),
+              frame_state, DeoptimizeReason::kNotAHeapNumber, feedback);
+          V<Float64> heap_number_value =
+              __ LoadHeapNumberValue(V<HeapNumber>::Cast(object));
+          GOTO(done,
+               __ ChangeFloat64ToUint64OrDeopt(heap_number_value, frame_state,
+                                               minus_zero_mode, feedback));
+        }
+
+        BIND(done, result);
+        return result;
+      }
       case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64: {
         Label<Float64> done(this);
 
@@ -1571,6 +1645,18 @@ class MachineLoweringReducer : public Next {
       TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     switch (kind) {
       case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32: {
+        if (input_assumptions ==
+            TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole) {
+          ScopedVar<Word32> result(this);
+          IF (LIKELY(__ ObjectIsSmi(object))) {
+            result = __ UntagSmi(V<Smi>::Cast(object));
+          } ELSE {
+            // Hole -> undefined -> NaN -> truncates to zero.
+            result = __ Word32Constant(0);
+          }
+          return result;
+        }
+
         DCHECK_EQ(input_assumptions,
                   any_of(TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
                              kNumberOrOddball,
@@ -1937,9 +2023,14 @@ class MachineLoweringReducer : public Next {
         size, allocation_type, kTaggedAligned);
     __ InitializeField(uninitialized_array, AccessBuilder::ForMap(),
                        __ HeapConstant(array_map));
+#if TAGGED_SIZE_8_BYTES && !V8_TARGET_BIG_ENDIAN
+    __ InitializeField(uninitialized_array,
+                       AccessBuilder::ForFixedArrayLength(), length);
+#else
     __ InitializeField(uninitialized_array,
                        AccessBuilder::ForFixedArrayLength(),
-                       __ TagSmi(__ TruncateWordPtrToWord32(length)));
+                       __ TruncateWordPtrToWord32(length));
+#endif  // TAGGED_SIZE_8_BYTES && !V8_TARGET_BIG_ENDIAN
     // TODO(nicohartmann@): Should finish initialization only after all elements
     // have been initialized.
     auto array = __ FinishInitialization(std::move(uninitialized_array));
@@ -3252,6 +3343,121 @@ class MachineLoweringReducer : public Next {
     // Inserting a AssumeMap so that subsequent optimizations know the map of
     // this object.
     __ AssumeMap(heap_object, maps);
+    return {};
+  }
+
+  V<None> REDUCE(CheckHomomorphic)(
+      V<Object> heap_object, V<FrameState> frame_state, NameRef name,
+      WeakHomomorphicFixedArrayRef homomorphic_array, int handler_value,
+      bool check_heap_object, const FeedbackSource& feedback) {
+    Label<Map> done(this);
+    if (check_heap_object) {
+      IF_NOT (__ IsSmi(heap_object)) {
+        GOTO(done, __ LoadMapField(heap_object));
+      } ELSE {
+        GOTO(done, __ HeapConstant(factory_->heap_number_map()));
+      }
+    } else {
+      // TODO(leszeks): Assert that the object is not a Smi.
+      GOTO(done, __ LoadMapField(heap_object));
+    }
+    BIND(done, map);
+
+    int handler = handler_value;
+    int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
+    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
+    V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
+        __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
+        __ WordPtrConstant(
+            static_cast<uint32_t>(v8_flags.homomorphic_ic_count) - 1));
+    V<HeapObject> array =
+        __ HeapConstant(homomorphic_array.HeapObjectRef::object());
+    V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
+
+    V<Object> array_entry =
+        __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+
+    IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
+      // 1. Check descriptor count.
+      V<Word32> bitfield3 =
+          __ template LoadField<Word32>(map, AccessBuilder::ForMapBitField3());
+      V<Word32> nof_desc = __ Word32BitwiseAnd(
+          bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
+      uint32_t encoded_descriptor_index =
+          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index);
+      __ DeoptimizeIf(
+          __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
+          frame_state, DeoptimizeReason::kWrongMap, feedback);
+
+      // 2. Load descriptor array.
+      V<DescriptorArray> descriptors = __ template LoadField<DescriptorArray>(
+          map, AccessBuilder::ForMapDescriptors());
+
+      // 3. Check key.
+      int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+                       DescriptorArray::kEntryKeyOffset;
+      V<Object> key = __ LoadTaggedField(descriptors, key_offset);
+      V<Object> name_node = __ HeapConstant(name.object());
+      __ DeoptimizeIfNot(__ TaggedEqual(key, name_node), frame_state,
+                         DeoptimizeReason::kWrongMap, feedback);
+
+      // 4. Check details.
+      int details_offset =
+          DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+          DescriptorArray::kEntryDetailsOffset;
+      V<Smi> details_smi =
+          __ Load(descriptors, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedSigned(), details_offset);
+      V<Word32> details = __ UntagSmi(details_smi);
+
+      // 4a. Check kind, location, and in-object.
+      uint16_t storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
+      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
+      uint32_t expected_details_mask =
+          PropertyDetails::KindField::kMask |
+          PropertyDetails::LocationField::kMask |
+          PropertyDetails::OffsetInWordsField::kMask |
+          PropertyDetails::InObjectField::kMask;
+      uint32_t expected_details =
+          PropertyDetails::KindField::encode(PropertyKind::kData) |
+          PropertyDetails::LocationField::encode(PropertyLocation::kField) |
+          PropertyDetails::OffsetInWordsField::encode(storage_offset) |
+          PropertyDetails::InObjectField::encode(is_inobject);
+      if (is_double) {
+        // 4b. Check Representation is exactly double, if needed.
+        expected_details_mask |= PropertyDetails::RepresentationField::kMask;
+        expected_details |= PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
+      }
+
+      V<Word32> masked_details =
+          __ Word32BitwiseAnd(details, expected_details_mask);
+      __ DeoptimizeIfNot(__ Word32Equal(masked_details, expected_details),
+                         frame_state, DeoptimizeReason::kWrongMap, feedback);
+
+      if (!is_double) {
+        // 4b. Check Representation is NOT double. If we wanted a double
+        // representation, we would have checked it already as part of the
+        // expected details check.
+        uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+        uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+            PropertyDetails::EncodeRepresentation(Representation::Double()));
+
+        V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
+        __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
+                        DeoptimizeReason::kWrongMap, feedback);
+      }
+
+      __ Store(array, cache_index, __ BitcastWordPtrToTagged(weak_map),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kFullWriteBarrier,
+               FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+    }
+
     return {};
   }
 

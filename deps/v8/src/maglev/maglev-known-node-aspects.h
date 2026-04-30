@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "src/base/logging.h"
+#include "src/common/globals.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
 #include "src/objects/contexts.h"
@@ -18,10 +19,10 @@ namespace maglev {
 
 class Graph;
 struct LoopEffects;
+class KnownNodeAspects;
+class TraceLogger;
 
 using PossibleMaps = compiler::ZoneRefSet<Map>;
-
-enum ContextSlotMutability { kImmutable, kMutable };
 
 class NodeInfo {
  public:
@@ -33,9 +34,12 @@ class NodeInfo {
   explicit NodeInfo(ClearUnstableMapsOnCopy other) V8_NOEXCEPT {
     type_ = other.val.type_;
     alternative_ = other.val.alternative_;
-    if (other.val.possible_maps_are_known_ && !other.val.any_map_is_unstable_) {
+    if (other.val.possible_maps_are_known_) {
       possible_maps_ = other.val.possible_maps_;
       possible_maps_are_known_ = true;
+      any_map_or_node_type_is_unstable_ =
+          other.val.any_map_or_node_type_is_unstable_;
+      OnSideEffect();
     }
   }
 
@@ -158,46 +162,52 @@ class NodeInfo {
   // Mutate this node info by merging in another node info, with the result
   // being a node info that is the subset of information valid in both inputs.
   void MergeWith(const NodeInfo& other, Zone* zone,
-                 bool& any_merged_map_is_unstable) {
+                 bool& side_effects_require_invalidation) {
     UnionType(other.type_);
     alternative_.MergeWith(other.alternative_);
     if (possible_maps_are_known_) {
       if (other.possible_maps_are_known_) {
         // Map sets are the set of _possible_ maps, so on a merge we need to
         // _union_ them together (i.e. intersect the set of impossible maps).
-        // Remember whether _any_ of these merges observed unstable maps.
         possible_maps_.Union(other.possible_maps_, zone);
+        // If either path is stale, the result is stale.
+        maps_are_stale_ = maps_are_stale_ || other.maps_are_stale_;
       } else {
         possible_maps_.clear();
         possible_maps_are_known_ = false;
+        maps_are_stale_ = false;
       }
     }
 
-    any_map_is_unstable_ = possible_maps_are_known_ &&
-                           (any_map_is_unstable_ || other.any_map_is_unstable_);
-    any_merged_map_is_unstable =
-        any_merged_map_is_unstable || any_map_is_unstable_;
+    any_map_or_node_type_is_unstable_ =
+        possible_maps_are_known_ && (any_map_or_node_type_is_unstable_ ||
+                                     other.any_map_or_node_type_is_unstable_);
+
+    if (NodeTypeIsUnstable(type_) ||
+        (any_map_or_node_type_is_unstable_ && !maps_are_stale_)) {
+      side_effects_require_invalidation = true;
+    }
   }
 
-  bool possible_maps_are_unstable() const { return any_map_is_unstable_; }
+  bool possible_maps_are_unstable() const {
+    return any_map_or_node_type_is_unstable_;
+  }
 
-  void ClearUnstableMaps() {
-    if (!any_map_is_unstable_) return;
-    possible_maps_.clear();
-    possible_maps_are_known_ = false;
+  void OnSideEffect() {
+    if (any_map_or_node_type_is_unstable_) maps_are_stale_ = true;
     type_ = MakeTypeStable(type_);
-    any_map_is_unstable_ = false;
   }
 
   template <typename Function>
-  void ClearUnstableMapsIfAny(const Function& condition) {
-    if (!any_map_is_unstable_) return;
+  bool MarkMapsStaleIfAny(const Function& condition) {
+    if (!any_map_or_node_type_is_unstable_) return false;
     for (auto map : possible_maps_) {
       if (condition(map)) {
-        ClearUnstableMaps();
-        return;
+        maps_are_stale_ = true;
+        return true;
       }
     }
+    return false;
   }
 
   bool possible_maps_are_known() const { return possible_maps_are_known_; }
@@ -209,12 +219,22 @@ class NodeInfo {
     return possible_maps_;
   }
 
+  static void TraceSetPossibleMaps(const KnownNodeAspects& known_node_aspects,
+                                   const NodeInfo* node_info,
+                                   const PossibleMaps& possible_maps);
+
   void SetPossibleMaps(const PossibleMaps& possible_maps,
-                       bool any_map_is_unstable, NodeType possible_type,
-                       compiler::JSHeapBroker* broker) {
+                       bool any_map_or_node_type_is_unstable,
+                       NodeType possible_type, compiler::JSHeapBroker* broker,
+                       const KnownNodeAspects& known_node_aspects) {
+    if (V8_UNLIKELY(v8_flags.trace_maglev_kna)) {
+      TraceSetPossibleMaps(known_node_aspects, this, possible_maps);
+    }
+
     possible_maps_ = possible_maps;
     possible_maps_are_known_ = true;
-    any_map_is_unstable_ = any_map_is_unstable;
+    any_map_or_node_type_is_unstable_ = any_map_or_node_type_is_unstable;
+    maps_are_stale_ = false;
 #ifdef DEBUG
     if (possible_maps.size()) {
       NodeType expected = StaticTypeForMap(*possible_maps.begin(), broker);
@@ -231,17 +251,33 @@ class NodeInfo {
     IntersectType(possible_type);
   }
 
-  bool any_map_is_unstable() const { return any_map_is_unstable_; }
+  // "Stale" means that 1. we've seen unstable maps, and 2. a side effect may
+  // have occurred in the meantime.
+  void MarkFresh() { maps_are_stale_ = false; }
+  bool maps_are_stale() const { return maps_are_stale_; }
 
+  // Objects with "unstable" maps may transition and thus need protection with
+  // map checks. (Objects with "stable" maps invalidate compilation
+  // dependencies when transitioning.)
+  // Note this may also be true if a NodeType is unstable, see below.
+  bool any_map_or_node_type_is_unstable() const {
+    return any_map_or_node_type_is_unstable_;
+  }
+
+  // Unstable NodeTypes: this is a different concept than unstable maps. These
+  // are simply NodeTypes that may change. Currently only String types can do
+  // so.
   void set_node_type_is_unstable() {
-    // Reuse any_map_is_unstable to signal that the node type is unstable.
-    any_map_is_unstable_ = true;
+    // Reuse any_map_or_node_type_is_unstable to signal that the node type is
+    // unstable.
+    any_map_or_node_type_is_unstable_ = true;
   }
 
  private:
   NodeType type_ = NodeType::kUnknown;
 
-  bool any_map_is_unstable_ = false;
+  bool any_map_or_node_type_is_unstable_ = false;
+  bool maps_are_stale_ = false;
 
   // Maps for a node. Sets of maps that only contain stable maps are valid
   // across side-effecting calls, as long as we install a dependency, otherwise
@@ -280,26 +316,28 @@ class KnownNodeAspects {
                                            bool is_tracing_enabled);
   void ClearUnstableNodeAspects(bool is_tracing_enabled);
 
-  void ClearUnstableMaps() {
+  void OnSideEffect() {
     // A side effect could change existing objects' maps. For stable maps we
     // know this hasn't happened (because we added a dependency on the maps
     // staying stable and therefore not possible to transition away from), but
     // we can no longer assume that objects with unstable maps still have the
     // same map. Unstable maps can also transition to stable ones, so we have to
     // clear _all_ maps for a node if it had _any_ unstable map.
-    if (!any_map_for_any_node_is_unstable_) return;
+    if (!side_effects_require_invalidation_) return;
     for (auto& it : node_infos_) {
-      it.second.ClearUnstableMaps();
+      it.second.OnSideEffect();
     }
-    any_map_for_any_node_is_unstable_ = false;
+    side_effects_require_invalidation_ = false;
   }
 
   template <typename Function>
-  void ClearUnstableMapsIfAny(const Function& condition) {
-    if (!any_map_for_any_node_is_unstable_) return;
+  bool MarkMapsStaleIfAny(const Function& condition) {
+    if (!side_effects_require_invalidation_) return false;
+    bool any_stale = false;
     for (auto& it : node_infos_) {
-      it.second.ClearUnstableMapsIfAny(condition);
+      any_stale |= it.second.MarkMapsStaleIfAny(condition);
     }
+    return any_stale;
   }
 
   void ClearAvailableExpressions() { available_expressions_.clear(); }
@@ -310,7 +348,7 @@ class KnownNodeAspects {
     loaded_context_constants_.clear();
     loaded_context_slots_.clear();
     available_expressions_.clear();
-    any_map_for_any_node_is_unstable_ = false;
+    side_effects_require_invalidation_ = false;
     may_have_aliasing_contexts_ = ContextSlotLoadsAlias::kNone;
     node_infos_.clear();
     virtual_objects_ = {};
@@ -326,6 +364,14 @@ class KnownNodeAspects {
     auto info_it = FindInfo(node);
     if (!IsValid(info_it)) return nullptr;
     return &info_it->second;
+  }
+
+  // Slow linear lookup, for debug code only.
+  ValueNode* FindNode(const NodeInfo* info) const {
+    for (const auto& pair : node_infos_) {
+      if (&pair.second == info) return pair.first;
+    }
+    return nullptr;
   }
 
   NodeInfo* GetOrCreateInfoFor(compiler::JSHeapBroker* broker,
@@ -408,7 +454,7 @@ class KnownNodeAspects {
     }
     if (NodeTypeIsUnstable(type)) {
       known_info->set_node_type_is_unstable();
-      any_map_for_any_node_is_unstable_ = true;
+      side_effects_require_invalidation_ = true;
     }
     return false;
   }
@@ -423,7 +469,7 @@ class KnownNodeAspects {
     known_info->IntersectType(type);
     if (NodeTypeIsUnstable(type)) {
       known_info->set_node_type_is_unstable();
-      any_map_for_any_node_is_unstable_ = true;
+      side_effects_require_invalidation_ = true;
     }
     return false;
   }
@@ -434,12 +480,10 @@ class KnownNodeAspects {
   // Merge(other) would not remove any information from `this`.
   bool IsCompatibleWithLoopHeader(const KnownNodeAspects& other) const;
 
-  // TODO(leszeks): Store these more efficiently than with std::map -- in
-  // particular, clear out entries that are no longer reachable, perhaps also
-  // allow lookup by interpreter register rather than by node pointer.
-
-  void MarkAnyMapForAnyNodeIsUnstable() {
-    any_map_for_any_node_is_unstable_ = true;
+  // Side effects can require invalidation e.g. if unstable maps or node types
+  // (which are two different conceps) have been recorded.
+  void MarkSideEffectsRequireInvalidation() {
+    side_effects_require_invalidation_ = true;
   }
 
   VirtualObjectList& virtual_objects() { return virtual_objects_; }
@@ -566,17 +610,28 @@ class KnownNodeAspects {
     if (m2 == ContextSlotLoadsAlias::kNone) return m1;
     return ContextSlotLoadsAlias::kYes;
   }
+  struct ContextStoreResult {
+    enum Type {
+      kNone,
+      kUpdatedValue,
+      kSetNewValue,
+    } type;
+    SmallZoneVector<LoadedContextSlotsKey, 8> aliased_slots;
+  };
+
   void UpdateMayHaveAliasingContexts(compiler::JSHeapBroker* broker,
                                      LocalIsolate* local_isolate,
                                      ValueNode* context);
-  SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
-      Graph* graph, ValueNode* context, int offset, ValueNode* value);
+
+  ContextStoreResult RecordContextSlotStore(Graph* graph, ValueNode* context,
+                                            int offset, ValueNode* value,
+                                            MaybeAssignedFlag assigned);
 
   // Returns the value in the cache if exists without adding a new cache entry.
   ValueNode* TryGetContextCachedValue(ValueNode* context, int offset,
-                                      ContextSlotMutability slot_mutability) {
-    auto map = slot_mutability == kMutable ? loaded_context_slots_
-                                           : loaded_context_constants_;
+                                      MaybeAssignedFlag assigned) {
+    auto map = (assigned == kMaybeAssigned) ? loaded_context_slots_
+                                            : loaded_context_constants_;
     auto it = map.find({context, offset});
     if (it == map.end()) return nullptr;
     if (it->second) {
@@ -586,9 +641,9 @@ class KnownNodeAspects {
   }
   // Returns the value in the cache and add a new entry.
   ValueNode*& GetContextCachedValue(ValueNode* context, int offset,
-                                    ContextSlotMutability slot_mutability) {
+                                    MaybeAssignedFlag assigned) {
     ValueNode*& cached_value =
-        slot_mutability == kMutable
+        (assigned == kMaybeAssigned)
             ? loaded_context_slots_[{context, offset}]
             : loaded_context_constants_[{context, offset}];
     if (cached_value) {
@@ -596,32 +651,15 @@ class KnownNodeAspects {
     }
     return cached_value;
   }
-  // Returns true if value was added to the cache, or false if the value updated
-  // the cache.
-  bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value) {
-    auto& target_map =
-        (offset == Context::OffsetOfElementAt(Context::PREVIOUS_INDEX))
-            ? loaded_context_constants_
-            : loaded_context_slots_;
-
-    auto [it, inserted] = target_map.insert({{context, offset}, value});
-
-    if (!inserted) {
-      it->second = value;
-      return false;
-    }
-
-    return true;
-  }
   bool HasContextCacheValue(ValueNode* context, int offset,
-                            ContextSlotMutability slot_mutability) {
-    return slot_mutability == kMutable
+                            MaybeAssignedFlag assigned) {
+    return (assigned == kMaybeAssigned)
                ? loaded_context_slots_.contains({context, offset})
                : loaded_context_constants_.contains({context, offset});
   }
-  bool IsContextCacheEmpty(ContextSlotMutability slot_mutability) {
-    return slot_mutability == kMutable ? loaded_context_slots_.empty()
-                                       : loaded_context_constants_.empty();
+  bool IsContextCacheEmpty(MaybeAssignedFlag assigned) {
+    return (assigned == kMaybeAssigned) ? loaded_context_slots_.empty()
+                                        : loaded_context_constants_.empty();
   }
 
   template <typename NodeT>
@@ -634,8 +672,7 @@ class KnownNodeAspects {
 
     if constexpr (Node::opcode_of<NodeT> == Opcode::kMaybeGrowFastElements) {
       if (ClearLoadedPropertiesForKey(broker->length_string())) {
-        if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                        is_tracing_enabled)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
           std::cout << "  * Removing non-constant cached \"length\" property";
         }
       }
@@ -643,8 +680,7 @@ class KnownNodeAspects {
 
     if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
       if (ClearLoadedPropertiesForKey(PropertyKey::Elements())) {
-        if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
-                        is_tracing_enabled)) {
+        if (V8_UNLIKELY(v8_flags.trace_maglev_kna && is_tracing_enabled)) {
           std::cout << "  * Removing non-constant cached [Elements]";
         }
       }
@@ -664,7 +700,7 @@ class KnownNodeAspects {
     }
   }
 
-  void PrintLoadedProperties();
+  void TraceLoadedProperties(TraceLogger* logger) const;
 
   explicit KnownNodeAspects(Zone* zone)
       : loaded_constant_properties_(zone),
@@ -672,13 +708,19 @@ class KnownNodeAspects {
         loaded_context_constants_(zone),
         loaded_context_slots_(zone),
         available_expressions_(zone),
-        any_map_for_any_node_is_unstable_(false),
+        side_effects_require_invalidation_(false),
         may_have_aliasing_contexts_(ContextSlotLoadsAlias::kNone),
         effect_epoch_(0),
         node_infos_(zone),
         virtual_objects_() {}
 
  private:
+  bool SetContextCachedValue(ValueNode* context, int offset, ValueNode* value,
+                             MaybeAssignedFlag assigned);
+
+  SmallZoneVector<LoadedContextSlotsKey, 8> ClearAliasedContextSlotsFor(
+      Graph* graph, ValueNode* context, int offset, ValueNode* value);
+
   static constexpr uint32_t kEffectEpochForPureInstructions =
       std::numeric_limits<uint32_t>::max();
   static constexpr uint32_t kEffectEpochOverflow =
@@ -741,12 +783,17 @@ class KnownNodeAspects {
   LoadedContextSlots loaded_context_slots_;
   // For CSE.
   ZoneMap<uint32_t, AvailableExpression> available_expressions_;
-  bool any_map_for_any_node_is_unstable_;
+  // This is an optimization. We track whether any NodeInfos require work on
+  // side effects. If not, we don't even iterate over NodeInfos.
+  bool side_effects_require_invalidation_;
   // This field indicates if the current state of loaded_context_slots might
   // contain contexts aliases. If that is the case, then we need to be more
   // conservative about updating the state on stores.
   ContextSlotLoadsAlias may_have_aliasing_contexts_;
   uint32_t effect_epoch_;
+  // TODO(leszeks): Store these more efficiently than with std::map -- in
+  // particular, clear out entries that are no longer reachable, perhaps also
+  // allow lookup by interpreter register rather than by node pointer.
   NodeInfos node_infos_;
   VirtualObjectList virtual_objects_;
 
@@ -797,7 +844,10 @@ class KnownMapsMerger {
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
     const NodeInfo* node_info = known_node_aspects.TryGetInfoFor(object);
     NodeType type = node_info ? node_info->type() : NodeType::kUnknown;
-    if (node_info && node_info->possible_maps_are_known()) {
+    // KnownMapsMerger is for avoiding map checks that we've already done, so
+    // only consider non-stale maps here.
+    if (node_info && node_info->possible_maps_are_known() &&
+        !node_info->maps_are_stale()) {
       // TODO(v8:7700): Make intersection non-quadratic.
       for (compiler::MapRef possible_map : node_info->possible_maps()) {
         if (std::find(requested_maps_.begin(), requested_maps_.end(),
@@ -836,24 +886,24 @@ class KnownMapsMerger {
                               KnownNodeAspects& known_node_aspects) {
     // Update known maps.
     auto node_info = known_node_aspects.GetOrCreateInfoFor(broker_, object);
-    node_info->SetPossibleMaps(intersect_set_, any_map_is_unstable_, node_type_,
-                               broker_);
-    // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
-    // in case any_map_is_unstable changed to true for this object -- this can
-    // happen if this was an intersection with the universal set which added new
-    // possible unstable maps.
-    if (any_map_is_unstable_) {
-      known_node_aspects.MarkAnyMapForAnyNodeIsUnstable();
+    node_info->SetPossibleMaps(intersect_set_,
+                               any_map_or_node_type_is_unstable_, node_type_,
+                               broker_, known_node_aspects);
+    // Make sure known_node_aspects.side_effects_require_invalidation is updated
+    // in case any_map_or_node_type_is_unstable changed to true for this object
+    // -- this can happen if this was an intersection with the universal set
+    // which added new possible unstable maps.
+    if (any_map_or_node_type_is_unstable_) {
+      known_node_aspects.MarkSideEffectsRequireInvalidation();
     }
-    // At this point, known_node_aspects.any_map_for_any_node_is_unstable may be
-    // true despite there no longer being any unstable maps for any nodes (if
+    // At this point, known_node_aspects.side_effects_require_invalidation may
+    // be true despite there no longer being any unstable maps for any nodes (if
     // this was the only node with unstable maps and this intersection removed
     // those). This is ok, because that's at worst just an overestimate -- we
-    // could track whether this node's any_map_is_unstable flipped from true to
-    // false, but this is likely overkill.
-    // Insert stable map dependencies which weren't inserted yet. This is only
-    // needed if our set of known maps was empty and we created it anew based on
-    // maps we checked.
+    // could track whether this node's any_map_or_node_type_is_unstable flipped
+    // from true to false, but this is likely overkill. Insert stable map
+    // dependencies which weren't inserted yet. This is only needed if our set
+    // of known maps was empty and we created it anew based on maps we checked.
     if (!existing_known_maps_found_) {
       for (compiler::MapRef map : intersect_set_) {
         if (map.is_stable()) {
@@ -885,7 +935,7 @@ class KnownMapsMerger {
   bool known_maps_are_subset_of_requested_maps_ = true;
   bool existing_known_maps_found_ = true;
   bool emit_check_with_migration_ = false;
-  bool any_map_is_unstable_ = false;
+  bool any_map_or_node_type_is_unstable_ = false;
   NodeType node_type_ = EmptyNodeType();
 
   Zone* zone() const { return zone_; }
@@ -900,7 +950,7 @@ class KnownMapsMerger {
     }
     node_type_ = UnionType(node_type_, new_type);
     if (!map.is_stable()) {
-      any_map_is_unstable_ = true;
+      any_map_or_node_type_is_unstable_ = true;
     }
     intersect_set_.insert(map, zone());
   }

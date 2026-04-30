@@ -669,6 +669,26 @@ class SystemTest(unittest.TestCase):
     stdout = run_foozzie('baseline', '--skip-suppressions')
     self.assertNotIn('v8_suppressions.js', stdout)
 
+  def testOptionalRandomSeed(self):
+    cmd = [
+        sys.executable,
+        FOOZZIE,
+        '--first-d8',
+        TEST_DATA / 'baseline' / 'd8.py',
+        '--second-d8',
+        TEST_DATA / 'baseline' / 'd8.py',
+        '--first-config',
+        'ignition',
+        '--second-config',
+        'ignition_turbo',
+        TEST_DATA / 'fuzz-123.js',
+    ]
+    stdout = subprocess.check_output(list(map(str, cmd)), text=True)
+    self.assertIn('--random-seed ', stdout)
+    # Check that it's NOT the default 12345 from create_test_cmd_line.
+    self.assertNotIn('--random-seed 12345', stdout)
+
+
 
 if __name__ == '__main__':
   unittest.main()

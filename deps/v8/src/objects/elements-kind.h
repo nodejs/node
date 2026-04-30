@@ -200,6 +200,14 @@ static_assert((1 << (kFastElementsKindBits - 1)) <= LAST_FAST_ELEMENTS_KIND);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, ElementsKind kind);
 
+constexpr size_t TypedArrayAndRabGsabTypedArrayElementsKindTableSize() {
+  size_t ta_count = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                    FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
+  size_t rab_gsab_count = LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                          FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1;
+  return base::bits::RoundUpToPowerOfTwo(ta_count + rab_gsab_count);
+}
+
 const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindShifts();
 const uint8_t* TypedArrayAndRabGsabTypedArrayElementsKindSizes();
 inline constexpr int ElementsKindToShiftSize(ElementsKind elements_kind) {

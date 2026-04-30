@@ -135,20 +135,20 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 76
+bytecode array length: 74
 bytecodes: [
   /*   42 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
   /*   77 S> */ B(CreateArrayLiteral), U8(1:ARRAY_BOILERPLATE_DESCRIPTION_TYPE), FBV(2), Flag8(0x25),
-                B(JumpIfUndefinedOrNull), U8(65),
+                B(JumpIfUndefinedOrNull), U8(63),
                 B(ToObject), R(1),
                 B(ForInEnumerate), R(1),
                 B(ForInPrepare), R(2), FBV(1),
                 B(LdaZero),
                 B(Star5),
-  /*   68 s> */ B(JumpIfForInDone), U8(54), R(5), R(4),
+  /*   68 s> */ B(JumpIfForInDone), U8(52), R(5), R(4),
                 B(ForInNext), R(1), R(5), R(2), FBV(1),
-                B(JumpIfUndefined), U8(39),
+                B(JumpIfUndefined), U8(37),
   /*   68 S> */ B(Star6),
                 B(Ldar), R(6),
   /*   68 E> */ B(SetNamedProperty), R(0), U8(2:"a"), FBV(3),
@@ -157,7 +157,7 @@ bytecodes: [
                 B(LdaSmi), I8(10),
   /*  106 E> */ B(TestEqual), R(6), EmbeddedFeedback(),
                 B(JumpIfFalse), U8(4),
-  /*  113 S> */ B(Jump), U8(17),
+  /*  113 S> */ B(Jump), U8(16),
   /*  130 S> */ B(GetNamedProperty), R(0), U8(2:"a"), FBV(5),
                 B(Star6),
                 B(LdaSmi), I8(20),
@@ -165,7 +165,7 @@ bytecodes: [
                 B(JumpIfFalse), U8(4),
   /*  143 S> */ B(Jump), U8(8),
                 B(ForInStep), R(5),
-  /*   62 E> */ B(JumpLoop), U8(50), I8(0), FBV(7),
+  /*   62 E> */ B(JumpLoop), U8(48), I8(0), FBV(7),
                 B(LdaUndefined),
   /*  152 S> */ B(Return),
 ]

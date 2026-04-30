@@ -520,7 +520,7 @@ void InstructionSelector::VisitStoreLane(OpIndex node) {
   InstructionCode opcode = kRiscvS128StoreLane;
   opcode |= EncodeElementWidth(ByteSizeToSew(store.lane_size()));
   if (store.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
 
   RiscvOperandGenerator g(this);
@@ -552,7 +552,7 @@ void InstructionSelector::VisitLoadLane(OpIndex node) {
   InstructionCode opcode = kRiscvS128LoadLane;
   opcode |= EncodeElementWidth(ByteSizeToSew(load.lane_size()));
   if (load.kind.with_trap_handler) {
-    opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
 
   RiscvOperandGenerator g(this);
@@ -639,7 +639,7 @@ ArchOpcode GetLoadOpcode(MemoryRepresentation loaded_rep,
       return kRiscvLd;
     case MemoryRepresentation::ProtectedPointer():
       CHECK(V8_ENABLE_SANDBOX_BOOL);
-      return kRiscvLoadDecompressProtected;
+      return kRiscvLoadDecompressTrapping;
     case MemoryRepresentation::IndirectPointer():
       UNREACHABLE();
     case MemoryRepresentation::SandboxedPointer():
@@ -699,11 +699,11 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   InstructionCode opcode = kArchNop;
   opcode = GetLoadOpcode(load.ts_loaded_rep(), load.ts_result_rep());
   bool traps_on_null;
-  if (load.is_protected(&traps_on_null)) {
+  if (load.is_trapping(&traps_on_null)) {
     if (traps_on_null) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+      opcode |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
     } else {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      opcode |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
     }
   }
   EmitLoad(this, node, opcode);
@@ -711,7 +711,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
 
 void InstructionSelector::VisitStorePair(OpIndex node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) { VisitLoad(node); }
+void InstructionSelector::VisitTrappingLoad(OpIndex node) { VisitLoad(node); }
 
 void InstructionSelector::VisitStore(OpIndex node) {
   RiscvOperandGenerator g(this);
@@ -763,7 +763,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
       code |= RecordWriteModeField::encode(record_write_mode);
     }
     if (store_view.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
     }
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
     return;
@@ -787,10 +787,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
   }
 
   if (store_view.is_store_trap_on_null()) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-  } else if (store_view.access_kind() ==
-             MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+    code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+  } else if (store_view.access_kind() == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
 
   if (TryFoldStore(this, node, code, base, index, g.NoOutput(), value)) {
@@ -811,9 +810,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   }
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
-  VisitStore(node);
-}
+void InstructionSelector::VisitTrappingStore(OpIndex node) { VisitStore(node); }
 
 void InstructionSelector::VisitWord32And(OpIndex node) {
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvAnd32, true, kRiscvAnd32);
@@ -1083,6 +1080,8 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   VisitRRR(this, kRiscvMul32, node);
 }
 
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   VisitRRR(this, kRiscvMulHigh32, node);
 }
@@ -1101,6 +1100,30 @@ void InstructionSelector::VisitUint64MulHigh(OpIndex node) {
 
 void InstructionSelector::VisitInt64Mul(OpIndex node) {
   VisitRRR(this, kRiscvMul64, node);
+}
+
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  RiscvOperandGenerator g(this);
+
+  const turboshaft::Word64MulWideOp& op =
+      this->Get(node).Cast<turboshaft::Word64MulWideOp>();
+  OpIndex lhs = op.left();
+  OpIndex rhs = op.right();
+
+  InstructionOperand left = g.UseUniqueRegister(lhs);
+  InstructionOperand right = g.UseUniqueRegister(rhs);
+
+  OptionalOpIndex out_low = FindProjection(node, 0);
+  Emit(kRiscvMul64,
+       g.DefineAsRegister(out_low.valid() ? out_low.value() : node), left,
+       right);
+
+  OptionalOpIndex out_high = FindProjection(node, 1);
+  if (out_high.valid() && IsUsed(out_high.value())) {
+    InstructionCode high_opcode =
+        is_signed ? kRiscvMulHigh64 : kRiscvMulHighU64;
+    Emit(high_opcode, g.DefineAsRegister(out_high.value()), left, right);
+  }
 }
 
 void InstructionSelector::VisitInt32Div(OpIndex node) {
@@ -1298,7 +1321,12 @@ void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
-  VisitRR(this, kRiscvTruncUlD, node);
+  InstructionCode opcode = kRiscvTruncUlD;
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+  VisitRR(this, opcode, node);
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {
@@ -1667,12 +1695,12 @@ void InstructionSelector::EmitPrepareArguments(
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
     int fp_param_count = static_cast<int>(call_descriptor->FPParameterCount());
-    Emit(kArchPrepareCallCFunction | ParamField::encode(gp_param_count) |
-             FPParamField::encode(fp_param_count),
-         0, nullptr, 0, nullptr);
-
+    uint32_t param_counts = ParamField::encode(gp_param_count) |
+                            FPParamField::encode(fp_param_count);
+    Emit(kArchPrepareCallCFunction, g.NoOutput(),
+         g.TempImmediate(param_counts));
     // Poke any stack arguments.
-    int slot = kCArgSlotCount;
+    int slot = 0;
     for (PushParameter input : (*arguments)) {
       Emit(kRiscvStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
            g.TempImmediate(slot << kSystemPointerSizeLog2));
@@ -1701,183 +1729,11 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
-void InstructionSelector::VisitUnalignedLoad(OpIndex node) {
-  auto load = this->load_view(node);
-  LoadRepresentation load_rep = load.loaded_rep();
-  RiscvOperandGenerator g(this);
-  OpIndex base = load.base();
-  OpIndex index = load.index();
+void InstructionSelector::VisitUnalignedLoad(OpIndex node) { UNIMPLEMENTED(); }
 
-  InstructionCode opcode = kArchNop;
-  switch (load_rep.representation()) {
-    case MachineRepresentation::kFloat32:
-      opcode = kRiscvULoadFloat;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kRiscvULoadDouble;
-      break;
-    case MachineRepresentation::kWord8:
-      opcode = load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = load_rep.IsUnsigned() ? kRiscvUlhu : kRiscvUlh;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kRiscvUlw;
-      break;
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-    case MachineRepresentation::kWord64:
-      opcode = kRiscvUld;
-      break;
-    case MachineRepresentation::kSimd128:
-      opcode = kRiscvRvvLd;
-      break;
-    case MachineRepresentation::kSimd256:            // Fall through.
-    case MachineRepresentation::kBit:                // Fall through.
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSandboxedPointer:   // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
-    case MachineRepresentation::kProtectedPointer:   // Fall through.
-    case MachineRepresentation::kFloat16:            // Fall through.
-    case MachineRepresentation::kFloat16RawBits:     // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-  }
-  bool traps_on_null;
-  if (load.is_protected(&traps_on_null)) {
-    if (traps_on_null) {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    } else {
-      opcode |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
-    }
-  }
-  if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
-  } else {
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd64 | AddressingModeField::encode(kMode_None), addr_reg,
-         g.UseRegister(index), g.UseRegister(base));
-    // Emit desired load opcode, using temp addr_reg.
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
-  }
-}
-
-void InstructionSelector::VisitUnalignedStore(OpIndex node) {
-  RiscvOperandGenerator g(this);
-  auto store_view = this->store_view(node);
-  DCHECK_EQ(store_view.displacement(), 0);
-  OpIndex base = store_view.base();
-  OpIndex index = store_view.index().value();
-  OpIndex value = store_view.value();
-
-  MachineRepresentation rep = store_view.stored_rep().representation();
-
-  ArchOpcode opcode;
-  switch (rep) {
-    case MachineRepresentation::kFloat32:
-      opcode = kRiscvUStoreFloat;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kRiscvUStoreDouble;
-      break;
-    case MachineRepresentation::kWord8:
-      opcode = kRiscvSb;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kRiscvUsh;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kRiscvUsw;
-      break;
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-    case MachineRepresentation::kWord64:
-      opcode = kRiscvUsd;
-      break;
-    case MachineRepresentation::kSimd128:
-      opcode = kRiscvRvvSt;
-      break;
-    case MachineRepresentation::kSimd256:            // Fall through.
-    case MachineRepresentation::kBit:                // Fall through.
-    case MachineRepresentation::kCompressedPointer:  // Fall through.
-    case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSandboxedPointer:   // Fall through.
-    case MachineRepresentation::kMapWord:            // Fall through.
-    case MachineRepresentation::kIndirectPointer:    // Fall through.
-    case MachineRepresentation::kProtectedPointer:   // Fall through.
-    case MachineRepresentation::kFloat16:            // Fall through.
-    case MachineRepresentation::kFloat16RawBits:     // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-  }
-
-  if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-         g.UseRegister(base), g.UseImmediate(index),
-         g.UseRegisterOrImmediateZero(value));
-  } else {
-    InstructionOperand addr_reg = g.TempRegister();
-    Emit(kRiscvAdd64 | AddressingModeField::encode(kMode_None), addr_reg,
-         g.UseRegister(index), g.UseRegister(base));
-    // Emit desired store opcode, using temp addr_reg.
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-         addr_reg, g.TempImmediate(0), g.UseRegisterOrImmediateZero(value));
-  }
-}
+void InstructionSelector::VisitUnalignedStore(OpIndex node) { UNIMPLEMENTED(); }
 
 namespace {
-
-bool IsNodeUnsigned(InstructionSelector* selector, OpIndex n) {
-  const Operation& op = selector->Get(n);
-  if (op.Is<LoadOp>()) {
-    const LoadOp& load = op.Cast<LoadOp>();
-    return load.machine_type().IsUnsigned() ||
-           load.machine_type().IsCompressed();
-  } else if (op.Is<WordBinopOp>()) {
-    const WordBinopOp& binop = op.Cast<WordBinopOp>();
-    switch (binop.kind) {
-      case WordBinopOp::Kind::kUnsignedDiv:
-      case WordBinopOp::Kind::kUnsignedMod:
-      case WordBinopOp::Kind::kUnsignedMulOverflownBits:
-        return true;
-      default:
-        return false;
-    }
-  } else if (op.Is<ChangeOrDeoptOp>()) {
-    const ChangeOrDeoptOp& change = op.Cast<ChangeOrDeoptOp>();
-    return change.kind == ChangeOrDeoptOp::Kind::kFloat64ToUint32;
-  } else if (op.Is<ConvertJSPrimitiveToUntaggedOp>()) {
-    const ConvertJSPrimitiveToUntaggedOp& convert =
-        op.Cast<ConvertJSPrimitiveToUntaggedOp>();
-    return convert.kind ==
-           ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kUint32;
-  } else if (op.Is<ConstantOp>()) {
-    const ConstantOp& constant = op.Cast<ConstantOp>();
-    return constant.kind == ConstantOp::Kind::kCompressedHeapObject;
-  } else {
-    return false;
-  }
-}
-
-bool CanUseOptimizedWord32Compare(InstructionSelector* selector, OpIndex node) {
-  if (COMPRESS_POINTERS_BOOL) {
-    return false;
-  }
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  if (IsNodeUnsigned(selector, op.input(0)) ==
-      IsNodeUnsigned(selector, op.input(1))) {
-    return true;
-  }
-  return false;
-}
 
 // Shared routine for multiple word compare operations.
 
@@ -1897,56 +1753,9 @@ void VisitFullWord32Compare(InstructionSelector* selector, OpIndex node,
   selector->UpdateSourcePosition(instr, node);
 }
 
-void VisitOptimizedWord32Compare(InstructionSelector* selector, OpIndex node,
-                                 InstructionCode opcode,
-                                 FlagsContinuation* cont) {
-  if (v8_flags.debug_code) {
-    RiscvOperandGenerator g(selector);
-    InstructionOperand leftOp = g.TempRegister();
-    InstructionOperand rightOp = g.TempRegister();
-    InstructionOperand optimizedResult = g.TempRegister();
-    InstructionOperand fullResult = g.TempRegister();
-    FlagsCondition condition = cont->condition();
-    InstructionCode testOpcode = opcode |
-                                 FlagsConditionField::encode(condition) |
-                                 FlagsModeField::encode(kFlags_set);
-
-    const Operation& op = selector->Get(node);
-    DCHECK_EQ(op.input_count, 2);
-    selector->Emit(testOpcode, optimizedResult, g.UseRegister(op.input(0)),
-                   g.UseRegister(op.input(1)));
-    selector->Emit(kRiscvShl64, leftOp, g.UseRegister(op.input(0)),
-                   g.TempImmediate(32));
-    selector->Emit(kRiscvShl64, rightOp, g.UseRegister(op.input(1)),
-                   g.TempImmediate(32));
-    selector->Emit(testOpcode, fullResult, leftOp, rightOp);
-
-    selector->Emit(kRiscvAssertEqual, g.NoOutput(), optimizedResult, fullResult,
-                   g.TempImmediate(static_cast<int>(
-                       AbortReason::kUnsupportedNonPrimitiveCompare)));
-  }
-
-  Instruction* instr = VisitWordCompare(selector, node, opcode, cont, false);
-  selector->UpdateSourcePosition(instr, node);
-}
-
 void VisitWord32Compare(InstructionSelector* selector, OpIndex node,
                         FlagsContinuation* cont) {
-#ifdef USE_SIMULATOR
-  const Operation& op = selector->Get(node);
-  DCHECK_EQ(op.input_count, 2);
-  const Operation& lhs = selector->Get(op.input(0));
-  const Operation& rhs = selector->Get(op.input(1));
-  if (lhs.Is<DidntThrowOp>() || rhs.Is<DidntThrowOp>()) {
-    VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else if (!CanUseOptimizedWord32Compare(selector, node)) {
-#else
-  if (!CanUseOptimizedWord32Compare(selector, node)) {
-#endif
-    VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
-  } else {
-    VisitOptimizedWord32Compare(selector, node, kRiscvCmp, cont);
-  }
+  VisitFullWord32Compare(selector, node, kRiscvCmp, cont);
 }
 
 void VisitWord64Compare(InstructionSelector* selector, OpIndex node,
@@ -2011,10 +1820,10 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
   }
 
   bool traps_on_null;
-  if (load.is_protected(&traps_on_null)) {
+  if (load.is_trapping(&traps_on_null)) {
     code |= AccessModeField::encode(traps_on_null
-                                        ? kMemoryAccessProtectedNullDereference
-                                        : kMemoryAccessProtectedMemOutOfBounds);
+                                        ? kMemoryAccessTrappingNullDereference
+                                        : kMemoryAccessTrappingMemOutOfBounds);
   }
 
   if (g.CanBeImmediate(index, code)) {
@@ -2096,10 +1905,9 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     }
 
     if (store.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    } else if (store_params.kind() ==
-               MemoryAccessKind::kProtectedByTrapHandler) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+    } else if (store_params.kind() == MemoryAccessKind::kTrapping) {
+      code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
     }
 
     code |= AddressingModeField::encode(addressing_mode);
@@ -2131,10 +1939,9 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     code |= AtomicWidthField::encode(width);
 
     if (store.is_store_trap_on_null()) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
-    } else if (store_params.kind() ==
-               MemoryAccessKind::kProtectedByTrapHandler) {
-      code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+      code |= AccessModeField::encode(kMemoryAccessTrappingNullDereference);
+    } else if (store_params.kind() == MemoryAccessKind::kTrapping) {
+      code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
     }
     if (g.CanBeImmediate(index, code)) {
       selector->Emit(code | AddressingModeField::encode(kMode_MRI) |
@@ -2185,8 +1992,8 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   temps[3] = g.TempRegister();
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (access_kind == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 4, temps);
 }
@@ -2614,8 +2421,8 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
 
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (access_kind == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   selector->Emit(code, 1, outputs, input_count, inputs, 3, temp);
 }
@@ -2655,8 +2462,8 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
 
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
-  if (access_kind == MemoryAccessKind::kProtectedByTrapHandler) {
-    code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
+  if (access_kind == MemoryAccessKind::kTrapping) {
+    code |= AccessModeField::encode(kMemoryAccessTrappingMemOutOfBounds);
   }
   selector->Emit(code, arraysize(outputs), outputs, input_count, inputs,
                  arraysize(temps), temps);
@@ -2888,7 +2695,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
            MachineOperatorBuilder::kFloat64RoundTruncate |
            MachineOperatorBuilder::kFloat32RoundTruncate |
            MachineOperatorBuilder::kFloat64RoundTiesEven |
-           MachineOperatorBuilder::kFloat32RoundTiesEven;
+           MachineOperatorBuilder::kFloat32RoundTiesEven |
+           MachineOperatorBuilder::kWord64Select;
   if (CpuFeatures::IsSupported(ZBB)) {
     flags |= MachineOperatorBuilder::kWord32Ctz |
              MachineOperatorBuilder::kWord64Ctz |

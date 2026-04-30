@@ -231,7 +231,7 @@ struct key_compare_adapter {
     explicit operator Compare() const { return comp(); }
 
     template <typename T, typename U,
-              absl::enable_if_t<
+              std::enable_if_t<
                   std::is_same<bool, compare_result_t<Compare, T, U>>::value,
                   int> = 0>
     bool operator()(const T &lhs, const U &rhs) const {
@@ -247,7 +247,7 @@ struct key_compare_adapter {
 
     template <
         typename T, typename U,
-        absl::enable_if_t<std::is_convertible<compare_result_t<Compare, T, U>,
+        std::enable_if_t<std::is_convertible<compare_result_t<Compare, T, U>,
                                               absl::weak_ordering>::value,
                           int> = 0>
     absl::weak_ordering operator()(const T &lhs, const U &rhs) const {
@@ -270,7 +270,7 @@ struct key_compare_adapter {
       return lhs_comp_rhs;
     }
   };
-  using type = absl::conditional_t<
+  using type = std::conditional_t<
       std::is_base_of<BtreeTestOnlyCheckedCompareOptOutBase, Compare>::value,
       Compare, checked_compare>;
 };
@@ -330,11 +330,11 @@ template <typename T, typename = void>
 struct prefers_linear_node_search : std::false_type {};
 template <typename T>
 struct has_linear_node_search_preference<
-    T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
+    T, std::void_t<typename T::absl_btree_prefer_linear_node_search>>
     : std::true_type {};
 template <typename T>
 struct prefers_linear_node_search<
-    T, absl::void_t<typename T::absl_btree_prefer_linear_node_search>>
+    T, std::void_t<typename T::absl_btree_prefer_linear_node_search>>
     : T::absl_btree_prefer_linear_node_search {};
 
 template <typename Compare, typename Key>
@@ -377,7 +377,7 @@ struct common_params : common_policy_traits<SlotPolicy> {
   // this, then there will be cascading compilation failures that are confusing
   // for users.
   using key_compare =
-      absl::conditional_t<!compare_has_valid_result_type<Compare, Key>(),
+      std::conditional_t<!compare_has_valid_result_type<Compare, Key>(),
                           Compare,
                           typename key_compare_adapter<Compare, Key>::type>;
 
@@ -406,7 +406,7 @@ struct common_params : common_policy_traits<SlotPolicy> {
   using const_reference = const value_type &;
 
   using value_compare =
-      absl::conditional_t<IsMap,
+      std::conditional_t<IsMap,
                           map_value_compare<original_key_compare, value_type>,
                           original_key_compare>;
   using is_map_container = std::integral_constant<bool, IsMap>;
@@ -438,7 +438,7 @@ struct common_params : common_policy_traits<SlotPolicy> {
   // This is an integral type large enough to hold as many slots as will fit a
   // node of TargetNodeSize bytes.
   using node_count_type =
-      absl::conditional_t<(kNodeSlotSpace / sizeof(slot_type) >
+      std::conditional_t<(kNodeSlotSpace / sizeof(slot_type) >
                            (std::numeric_limits<uint8_t>::max)()),
                           uint16_t, uint8_t>;  // NOLINT
 };
@@ -1119,7 +1119,7 @@ class btree_iterator : private btree_iterator_generation_info {
   using slot_type = typename params_type::slot_type;
 
   // In sets, all iterators are const.
-  using iterator = absl::conditional_t<
+  using iterator = std::conditional_t<
       is_map_container::value,
       btree_iterator<normal_node, normal_reference, normal_pointer>,
       btree_iterator<normal_node, const_reference, const_pointer>>;
@@ -1146,7 +1146,7 @@ class btree_iterator : private btree_iterator_generation_info {
   // const_iterator, but it specifically avoids hiding the copy constructor so
   // that the trivial one will be used when possible.
   template <typename N, typename R, typename P,
-            absl::enable_if_t<
+            std::enable_if_t<
                 std::is_same<btree_iterator<N, R, P>, iterator>::value &&
                     std::is_same<btree_iterator, const_iterator>::value,
                 int> = 0>
@@ -1252,7 +1252,7 @@ class btree_iterator : private btree_iterator_generation_info {
   // NOTE: the const_cast is safe because this constructor is only called by
   // non-const methods and the container owns the nodes.
   template <typename N, typename R, typename P,
-            absl::enable_if_t<
+            std::enable_if_t<
                 std::is_same<btree_iterator<N, R, P>, const_iterator>::value &&
                     std::is_same<btree_iterator, iterator>::value,
                 int> = 0>

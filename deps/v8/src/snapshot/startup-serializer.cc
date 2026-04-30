@@ -227,8 +227,8 @@ void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
 }
 
 void SerializedHandleChecker::AddToSet(Tagged<FixedArray> serialized) {
-  int length = serialized->length();
-  for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
+  uint32_t length = serialized->ulength().value();
+  for (uint32_t i = 0; i < length; i++) serialized_.insert(serialized->get(i));
 }
 
 void SerializedHandleChecker::VisitRootPointers(Root root,
@@ -237,8 +237,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
                                                 FullObjectSlot end) {
   for (FullObjectSlot p = start; p < end; ++p) {
     if (serialized_.find(*p) != serialized_.end()) continue;
-    PrintF("%s handle not serialized: ",
-           root == Root::kGlobalHandles ? "global" : "eternal");
+    PrintF("%s handle not serialized: ", RootVisitor::RootName(root));
     Print(*p);
     PrintF("\n");
     ok_ = false;

@@ -136,8 +136,9 @@ Tagged<Object> JSSynchronizationPrimitive::NumWaitersForTesting(
 
     // Release the queue lock and reinstall the same queue head by creating a
     // new state.
-    DCHECK_EQ(state->load(),
-              IsWaiterQueueLockedField::update(current_state, true));
+    DCHECK_EQ(state->load() & kWaiterQueueMask,
+              IsWaiterQueueLockedField::update(current_state, true) &
+                  kWaiterQueueMask);
     StateT new_state = SetWaiterQueueHead(requester, waiter_head, kEmptyState);
     new_state = IsWaiterQueueLockedField::update(new_state, false);
     SetWaiterQueueStateOnly(state, new_state);
@@ -270,8 +271,9 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
       [&](WaiterQueueNode* node) { return node == timed_out_waiter; });
 
   // Release the queue lock and install the new waiter queue head.
-  DCHECK_EQ(state->load(),
-            IsWaiterQueueLockedField::update(current_state, true));
+  DCHECK_EQ(
+      state->load() & kWaiterQueueMask,
+      IsWaiterQueueLockedField::update(current_state, true) & kWaiterQueueMask);
   StateT new_state = kUnlockedUncontended;
   new_state = SetWaiterQueueHead(requester, waiter_head, new_state);
 
@@ -287,9 +289,12 @@ bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
     // held by either this thread or another thread that can't go through the
     // unlock fast path because this thread is holding the waiter queue lock.
     // Hence, it is safe to always set the "is locked" bit in new_state.
-    new_state = IsLockedField::update(new_state, true);
-    DCHECK(!IsWaiterQueueLockedField::decode(new_state));
     current_state = IsLockedField::update(current_state, false);
+    new_state = IsLockedField::update(new_state, true);
+
+    // We also need to unlock the waiter queue lock.
+    current_state = IsWaiterQueueLockedField::update(current_state, true);
+    DCHECK(!IsWaiterQueueLockedField::decode(new_state));
     if (state->compare_exchange_strong(current_state, new_state,
                                        std::memory_order_acq_rel,
                                        std::memory_order_relaxed)) {

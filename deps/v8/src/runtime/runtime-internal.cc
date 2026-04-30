@@ -6,7 +6,9 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
+#include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/superspread.h"
 #include "src/common/message-template.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -78,6 +80,37 @@ RUNTIME_FUNCTION(Runtime_ReThrowWithMessage) {
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
+  return isolate->StackOverflow();
+}
+
+RUNTIME_FUNCTION(Runtime_VarargStackOverflow) {
+  HandleScope scope(isolate);
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    return isolate->StackOverflow();
+  }
+
+  int nargs = args.length();
+  if (nargs >= SuperSpreadArgs::kNumExtraArgs) {
+    auto maybe_receiver =
+        args.at<JSAny>(nargs - SuperSpreadArgs::kReceiverOffsetFromEnd);
+    auto maybe_target =
+        args.at<JSAny>(nargs - SuperSpreadArgs::kTargetOffsetFromEnd);
+
+    if (v8_flags.superspreading) {
+      if (Handle<JSFunction> target; TryCast(maybe_target, &target)) {
+        if (Handle<JSReceiver> receiver; TryCast(maybe_receiver, &receiver)) {
+#define CASE(Name, Handler)                                      \
+  if (target->code(isolate)->builtin_id() == Builtin::k##Name) { \
+    return Handler(isolate, args);                               \
+  }
+      SUPERSPREAD_BUILTINS(CASE)
+#undef CASE
+        }
+      }
+    }
+  }
   return isolate->StackOverflow();
 }
 
@@ -498,8 +531,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInSharedHeap) {
 RUNTIME_FUNCTION(Runtime_AllocateByteArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  int length = args.smi_value_at(0);
-  DCHECK_LT(0, length);
+  uint32_t length = args.positive_smi_value_at(0);
+  DCHECK_LT(0u, length);
   return *isolate->factory()->NewByteArray(length);
 }
 
@@ -722,8 +755,7 @@ RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  // Valid context is required for calling Object::ToString as a part of
-  // rendering of an unhandled exception report.
+  // Valid context is required for reporting an unhandled exception.
   DCHECK(!isolate->context().is_null());
 
   DirectHandle<Object> exception = args.at(0);

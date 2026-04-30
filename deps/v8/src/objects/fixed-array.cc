@@ -21,31 +21,59 @@ bool FixedArrayBase::IsCowArray() const {
 template <template <typename> typename HandleType>
   requires(
       std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
-HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
-                                              HandleType<FixedArray> array,
-                                              int index,
-                                              DirectHandle<Object> value) {
-  int len = array->length();
+HandleType<FixedArray> FixedArray::Grow(Isolate* isolate,
+                                        HandleType<FixedArray> array,
+                                        uint32_t index) {
+  const uint32_t len = array->ulength().value();
   if (index >= len) {
-    int new_capacity = FixedArray::NewCapacityForIndex(index, len);
+    const uint32_t new_capacity = FixedArray::NewCapacityForIndex(index, len);
     array = Cast<FixedArray>(FixedArray::Resize(isolate, array, new_capacity));
     // TODO(jgruber): This is somewhat subtle - other FixedArray methods
     // use `undefined` as a filler. Make this more explicit.
     array->FillWithHoles(len, new_capacity);
   }
+  return array;
+}
 
+template <template <typename> typename HandleType>
+  requires(
+      std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
+                                              HandleType<FixedArray> array,
+                                              uint32_t index,
+                                              DirectHandle<Object> value) {
+  array = Grow(isolate, array, index);
   array->set(index, *value);
   return array;
 }
 
 template DirectHandle<FixedArray> FixedArray::SetAndGrow(
-    Isolate* isolate, DirectHandle<FixedArray> array, int index,
+    Isolate* isolate, DirectHandle<FixedArray> array, uint32_t index,
     DirectHandle<Object> value);
 template IndirectHandle<FixedArray> FixedArray::SetAndGrow(
-    Isolate* isolate, IndirectHandle<FixedArray> array, int index,
+    Isolate* isolate, IndirectHandle<FixedArray> array, uint32_t index,
     DirectHandle<Object> value);
 
-void FixedArray::RightTrim(Isolate* isolate, int new_capacity) {
+template <template <typename> typename HandleType>
+  requires(
+      std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
+HandleType<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
+                                              HandleType<FixedArray> array,
+                                              uint32_t index,
+                                              Tagged<Smi> value) {
+  array = Grow(isolate, array, index);
+  array->set(index, value);
+  return array;
+}
+
+template DirectHandle<FixedArray> FixedArray::SetAndGrow(
+    Isolate* isolate, DirectHandle<FixedArray> array, uint32_t index,
+    Tagged<Smi> value);
+template IndirectHandle<FixedArray> FixedArray::SetAndGrow(
+    Isolate* isolate, IndirectHandle<FixedArray> array, uint32_t index,
+    Tagged<Smi> value);
+
+void FixedArray::RightTrim(Isolate* isolate, uint32_t new_capacity) {
   DCHECK_NE(map(), ReadOnlyRoots{isolate}.fixed_cow_array_map());
   Super::RightTrim(isolate, new_capacity);
 }
@@ -75,10 +103,10 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
                                        DirectHandle<ArrayList> array,
                                        Tagged<Smi> obj,
                                        AllocationType allocation) {
-  int length = array->length();
-  int new_length = length + 1;
+  const uint32_t length = array->ulength().value();
+  const uint32_t new_length = length + 1;
   array = EnsureSpace(isolate, array, new_length, allocation);
-  DCHECK_EQ(array->length(), length);
+  DCHECK_EQ(array->ulength().value(), length);
 
   DisallowGarbageCollection no_gc;
   array->set(length, obj, SKIP_WRITE_BARRIER);
@@ -91,10 +119,10 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
                                        DirectHandle<ArrayList> array,
                                        DirectHandle<Object> obj,
                                        AllocationType allocation) {
-  int length = array->length();
-  int new_length = length + 1;
+  const uint32_t length = array->ulength().value();
+  const uint32_t new_length = length + 1;
   array = EnsureSpace(isolate, array, new_length, allocation);
-  DCHECK_EQ(array->length(), length);
+  DCHECK_EQ(array->ulength().value(), length);
 
   DisallowGarbageCollection no_gc;
   array->set(length, *obj);
@@ -108,10 +136,10 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
                                        DirectHandle<Object> obj0,
                                        DirectHandle<Object> obj1,
                                        AllocationType allocation) {
-  int length = array->length();
-  int new_length = length + 2;
+  const uint32_t length = array->ulength().value();
+  const uint32_t new_length = length + 2;
   array = EnsureSpace(isolate, array, new_length, allocation);
-  DCHECK_EQ(array->length(), length);
+  DCHECK_EQ(array->ulength().value(), length);
 
   DisallowGarbageCollection no_gc;
   array->set(length + 0, *obj0);
@@ -124,7 +152,7 @@ DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,
 DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
                                                  DirectHandle<ArrayList> array,
                                                  AllocationType allocation) {
-  int length = array->length();
+  const uint32_t length = array->ulength().value();
   if (length == 0) return isolate->factory()->empty_fixed_array();
 
   DirectHandle<FixedArray> result =
@@ -137,23 +165,23 @@ DirectHandle<FixedArray> ArrayList::ToFixedArray(Isolate* isolate,
   return result;
 }
 
-void ArrayList::RightTrim(Isolate* isolate, int new_capacity) {
+void ArrayList::RightTrim(Isolate* isolate, uint32_t new_capacity) {
   Super::RightTrim(isolate, new_capacity);
-  if (new_capacity < length()) set_length(new_capacity);
+  if (new_capacity < ulength().value()) set_length(new_capacity);
 }
 
 // static
 DirectHandle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
                                                DirectHandle<ArrayList> array,
-                                               int length,
+                                               uint32_t length,
                                                AllocationType allocation) {
   DCHECK_LT(0, length);
-  int old_capacity = array->capacity();
+  const uint32_t old_capacity = array->capacity().value();
   if (old_capacity >= length) return array;
 
-  int old_length = array->length();
+  const uint32_t old_length = array->ulength().value();
   // Ensure calculation matches CodeStubAssembler::ArrayListEnsureSpace.
-  int new_capacity = length + std::max(length / 2, 2);
+  uint32_t new_capacity = length + std::max(length / 2, 2u);
   DirectHandle<ArrayList> new_array =
       ArrayList::New(isolate, new_capacity, allocation);
   DisallowGarbageCollection no_gc;
@@ -167,13 +195,13 @@ DirectHandle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
                                               MaybeObjectDirectHandle value) {
-  int length = array->length();
+  uint32_t length = array->length().value();
   array = EnsureSpace(isolate, array, length + 1);
   {
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw = *array;
     // Reload length; GC might have removed elements from the array.
-    length = raw->length();
+    length = raw->length().value();
     raw->Set(length, *value);
     raw->set_length(length + 1);
   }
@@ -184,13 +212,13 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
                                               MaybeObjectDirectHandle value1,
                                               Tagged<Smi> value2) {
-  int length = array->length();
+  uint32_t length = array->length().value();
   array = EnsureSpace(isolate, array, length + 2);
   {
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw = *array;
     // Reload length; GC might have removed elements from the array.
-    length = array->length();
+    length = array->length().value();
     raw->Set(length, *value1);
     raw->Set(length + 1, value2);
     raw->set_length(length + 2);
@@ -202,14 +230,14 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 DirectHandle<WeakArrayList> WeakArrayList::Append(
     Isolate* isolate, DirectHandle<WeakArrayList> array,
     MaybeObjectDirectHandle value, AllocationType allocation) {
-  int length = 0;
-  int new_length = 0;
+  uint32_t length = 0;
+  uint32_t new_length = 0;
   {
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw = *array;
-    length = raw->length();
+    length = raw->length().value();
 
-    if (length < raw->capacity()) {
+    if (length < raw->capacity().value()) {
       raw->Set(length, *value);
       raw->set_length(length + 1);
       return array;
@@ -225,7 +253,7 @@ DirectHandle<WeakArrayList> WeakArrayList::Append(
 
   if (shrink || grow) {
     // Grow or shrink array and compact out-of-place.
-    int new_capacity = CapacityForLength(new_length);
+    uint32_t new_capacity = CapacityForLength(new_length);
     array = isolate->factory()->CompactWeakArrayList(array, new_capacity,
                                                      allocation);
 
@@ -241,7 +269,7 @@ DirectHandle<WeakArrayList> WeakArrayList::Append(
     DisallowGarbageCollection no_gc;
     Tagged<WeakArrayList> raw = *array;
     // Reload length, allocation might have killed some weak refs.
-    int index = raw->length();
+    uint32_t index = raw->length().value();
     raw->Set(index, *value);
     raw->set_length(index + 1);
   }
@@ -250,11 +278,11 @@ DirectHandle<WeakArrayList> WeakArrayList::Append(
 
 void WeakArrayList::Compact(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  int length = this->length();
-  int new_length = 0;
+  const uint32_t length = this->length().value();
+  uint32_t new_length = 0;
 
-  for (int i = 0; i < length; i++) {
-    Tagged<MaybeObject> value = Get(isolate, i);
+  for (uint32_t i = 0; i < length; i++) {
+    Tagged<MaybeObject> value = Get(i);
 
     if (!value.IsCleared()) {
       if (new_length != i) {
@@ -272,20 +300,21 @@ bool WeakArrayList::IsFull() const { return length() == capacity(); }
 // static
 Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
                                                  Handle<WeakArrayList> array,
-                                                 int length,
+                                                 uint32_t length,
                                                  AllocationType allocation) {
-  int capacity = array->capacity();
+  uint32_t capacity = array->capacity().value();
   if (capacity < length) {
-    int grow_by = CapacityForLength(length) - capacity;
+    uint32_t grow_by = CapacityForLength(length) - capacity;
     array = isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by,
                                                          allocation);
   }
   return array;
 }
 
-int WeakArrayList::CountLiveWeakReferences() const {
-  int live_weak_references = 0;
-  for (int i = 0; i < length(); i++) {
+uint32_t WeakArrayList::CountLiveWeakReferences() const {
+  uint32_t live_weak_references = 0;
+  const uint32_t len = length().value();
+  for (uint32_t i = 0; i < len; i++) {
     if (Get(i).IsWeak()) {
       ++live_weak_references;
     }
@@ -293,9 +322,10 @@ int WeakArrayList::CountLiveWeakReferences() const {
   return live_weak_references;
 }
 
-int WeakArrayList::CountLiveElements() const {
-  int non_cleared_objects = 0;
-  for (int i = 0; i < length(); i++) {
+uint32_t WeakArrayList::CountLiveElements() const {
+  uint32_t non_cleared_objects = 0;
+  const uint32_t len = length().value();
+  for (uint32_t i = 0; i < len; i++) {
     if (!Get(i).IsCleared()) {
       ++non_cleared_objects;
     }
@@ -304,7 +334,9 @@ int WeakArrayList::CountLiveElements() const {
 }
 
 bool WeakArrayList::RemoveOne(MaybeObjectDirectHandle value) {
-  int last_index = length() - 1;
+  const uint32_t len = length().value();
+  DCHECK_LE(len, kMaxInt);
+  int last_index = static_cast<int>(len) - 1;
   // Optimize for the most recently added element to be removed again.
   Tagged<ClearedWeakValue> cleared_value = ClearedValue();
   for (int i = last_index; i >= 0; --i) {
@@ -320,7 +352,8 @@ bool WeakArrayList::RemoveOne(MaybeObjectDirectHandle value) {
 }
 
 bool WeakArrayList::Contains(Tagged<MaybeObject> value) {
-  for (int i = 0; i < length(); ++i) {
+  const uint32_t len = length().value();
+  for (uint32_t i = 0; i < len; ++i) {
     if (Get(i) == value) return true;
   }
   return false;

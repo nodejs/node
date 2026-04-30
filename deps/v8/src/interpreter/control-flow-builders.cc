@@ -127,10 +127,13 @@ void SwitchBuilder::EmitJumpTableIfExists(
   builder()->SwitchOnSmiNoFeedback(jump_table_);
   fall_through_.Bind(builder());
   // Bind any uncovered cases.
-  for (int j = min_case; j <= max_case; ++j) {
+  for (int j = min_case;; ++j) {
     if (!covered_cases.contains(j)) {
       this->BindCaseTargetForJumpTable(j, nullptr);
     }
+    // Check for the exit condition here rather than the for in case
+    // `max_case == INT_MAX` and we can't go above it.
+    if (j >= max_case) break;
   }
 }
 

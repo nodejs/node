@@ -168,8 +168,8 @@ TEST(PageBackendPoolTest, AddTake) {
 
   backend.FreeNormalPageMemory(writable_base1);
   EXPECT_FALSE(raw_pool.empty());
-  EXPECT_TRUE(raw_pool[0].region);
-  EXPECT_EQ(raw_pool[0].region->region().base(), writable_base1);
+  EXPECT_TRUE(raw_pool[0]);
+  EXPECT_EQ(raw_pool[0]->region().base(), writable_base1);
 
   auto* writable_base2 = backend.TryAllocateNormalPageMemory();
   EXPECT_TRUE(raw_pool.empty());
@@ -189,21 +189,23 @@ TEST(PageBackendPoolTest, AddTakeWithReleasePooledPagesInBetween) {
 
   backend.FreeNormalPageMemory(writable_base1);
   EXPECT_FALSE(raw_pool.empty());
-  EXPECT_TRUE(raw_pool[0].region);
-  EXPECT_EQ(raw_pool[0].region->region().base(), writable_base1);
-  size_t size = raw_pool[0].region->region().size();
+  EXPECT_TRUE(raw_pool[0]);
+  EXPECT_EQ(raw_pool[0]->region().base(), writable_base1);
+  size_t size = raw_pool[0]->region().size();
   EXPECT_EQ(size, pool.PooledMemory());
 
   backend.ReleasePooledPages();
-  // Not couting discarded memory.
   EXPECT_EQ(0u, pool.PooledMemory());
+  EXPECT_TRUE(raw_pool.empty());
 
   auto* writable_base2 = backend.TryAllocateNormalPageMemory();
   EXPECT_TRUE(raw_pool.empty());
   EXPECT_EQ(0u, pool.PooledMemory());
-  EXPECT_EQ(writable_base1, writable_base2);
+  // After ReleasePooledPages() the memory is returned to the OS.
+  EXPECT_NE(nullptr, writable_base2);
   // Should not die: memory is writable.
   memset(writable_base2, 12, size);
+  backend.FreeNormalPageMemory(writable_base2);
 }
 
 TEST(PageBackendPoolTest, PoolMemoryAccounting) {
@@ -215,8 +217,7 @@ TEST(PageBackendPoolTest, PoolMemoryAccounting) {
   auto* writable_base2 = backend.TryAllocateNormalPageMemory();
   backend.FreeNormalPageMemory(writable_base1);
   backend.FreeNormalPageMemory(writable_base2);
-  size_t normal_page_size =
-      pool.get_raw_pool_for_testing()[0].region->region().size();
+  size_t normal_page_size = pool.get_raw_pool_for_testing()[0]->region().size();
 
   EXPECT_EQ(2 * normal_page_size, pool.PooledMemory());
   backend.ReleasePooledPages();
@@ -224,7 +225,6 @@ TEST(PageBackendPoolTest, PoolMemoryAccounting) {
 
   auto* writable_base3 = backend.TryAllocateNormalPageMemory();
   backend.FreeNormalPageMemory(writable_base3);
-  // One discarded, one not discarded.
   EXPECT_EQ(normal_page_size, pool.PooledMemory());
   backend.ReleasePooledPages();
   EXPECT_EQ(0u, pool.PooledMemory());

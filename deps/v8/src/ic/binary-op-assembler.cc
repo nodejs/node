@@ -254,7 +254,7 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
         TNode<PropertyCell> to_primitive_protector =
             StringWrapperToPrimitiveProtectorConstant();
         GotoIf(TaggedEqual(LoadObjectField(to_primitive_protector,
-                                           PropertyCell::kValueOffset),
+                                           offsetof(PropertyCell, value_)),
                            SmiConstant(Protectors::kProtectorInvalid)),
                &call_with_any_feedback);
 

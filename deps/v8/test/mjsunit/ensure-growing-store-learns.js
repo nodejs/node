@@ -4,11 +4,10 @@
 
 // Overwrite the value for --noverify-heap and
 // --noenable-slow-asserts, which the test runner already set to true before.
-//  Due to flag contradiction checking, this requires
-// --allow-overwriting-for-next-flag to avoid an error.
-// Flags: --allow-overwriting-for-next-flag --noverify-heap
-// Flags: --allow-overwriting-for-next-flag --noenable-slow-asserts
+// Due to flag contradiction checking, this requires
+// --flag-processing-mode=ignore-contradictions to avoid an error.
 // Flags: --allow-natives-syntax --turbofan
+// Flags: --flag-processing-mode=ignore-contradictions --noverify-heap --noenable-slow-asserts
 
 // --noverify-heap and --noenable-slow-asserts are set because the test is too
 // slow with it on.

@@ -8,11 +8,14 @@
 #include "src/heap/paged-spaces.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
-#include "src/heap/heap-inl.h"
+#include "src/common/ptr-compr-inl.h"
+#include "src/heap/base-page-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/objects/heap-object.h"
-#include "src/objects/objects-inl.h"
+#include "src/heap/normal-page-inl.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +23,7 @@ namespace internal {
 HeapObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
 
 HeapObjectRange::iterator::iterator(const NormalPage* page)
-    : cage_base_(page->heap()->isolate()),
+    : cage_base_(Isolate::FromHeap(page->heap())),
       cur_addr_(page->area_start()),
       cur_end_(page->area_end()) {
   AdvanceToNextObject();
@@ -78,12 +81,14 @@ Tagged<HeapObject> PagedSpaceObjectIterator::Next() {
 }
 
 bool PagedSpaceBase::Contains(Address addr) const {
-  return BasePage::FromAddress(heap()->isolate(), addr)->owner() == this;
+  return BasePage::FromAddress(Isolate::FromHeap(heap()), addr)->owner() ==
+         this;
 }
 
 bool PagedSpaceBase::Contains(Tagged<Object> o) const {
   if (!IsHeapObject(o)) return false;
-  return BasePage::FromAddress(heap()->isolate(), o.ptr())->owner() == this;
+  return BasePage::FromAddress(Isolate::FromHeap(heap()), o.ptr())->owner() ==
+         this;
 }
 
 template <bool during_sweep>
@@ -95,14 +100,14 @@ size_t PagedSpaceBase::FreeInternal(Address start, size_t size_in_bytes) {
     WritableFreeSpace free_space = jit_page.FreeRange(start, size_in_bytes);
     heap()->CreateFillerObjectAtBackground(free_space);
     wasted =
-        free_list_->Free(heap()->isolate(), free_space,
+        free_list_->Free(Isolate::FromHeap(heap()), free_space,
                          during_sweep ? kDoNotLinkCategory : kLinkCategory);
   } else {
     WritableFreeSpace free_space =
         WritableFreeSpace::ForNonExecutableMemory(start, size_in_bytes);
     heap()->CreateFillerObjectAtBackground(free_space);
     wasted =
-        free_list_->Free(heap()->isolate(), free_space,
+        free_list_->Free(Isolate::FromHeap(heap()), free_space,
                          during_sweep ? kDoNotLinkCategory : kLinkCategory);
   }
 

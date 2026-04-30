@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/export-template.h"
 #include "src/base/small-vector.h"
@@ -182,10 +183,13 @@ V8_OBJECT class String : public Name {
 
     // Constructors only used by String::GetFlatContent().
     inline FlatContent(const uint8_t* start, uint32_t length,
-                       const DisallowGarbageCollection& no_gc);
+                       const DisallowGarbageCollection& no_gc
+                           V8_LIFETIME_BOUND);
     inline FlatContent(const base::uc16* start, uint32_t length,
-                       const DisallowGarbageCollection& no_gc);
-    explicit FlatContent(const DisallowGarbageCollection& no_gc)
+                       const DisallowGarbageCollection& no_gc
+                           V8_LIFETIME_BOUND);
+    explicit FlatContent(
+        const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
         : onebyte_start(nullptr), length_(0), state_(NON_FLAT), no_gc_(no_gc) {}
 
     union {
@@ -210,29 +214,30 @@ V8_OBJECT class String : public Name {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, Tagged<String> canonical);
+  void MakeThin(IsolateT* isolate, Tagged<InternalizedString> canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
-      const DisallowGarbageCollection& no_gc);
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
   // Get chars from sequential or external strings. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
   template <typename Char>
   inline const Char* GetDirectStringChars(
-      const DisallowGarbageCollection& no_gc) const;
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) const;
 
   // Get chars from sequential or external strings.
   template <typename Char>
   inline const Char* GetDirectStringChars(
-      const DisallowGarbageCollection& no_gc,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
   const uint8_t* AddressOfCharacterAt(uint32_t start_index,
-                                      const DisallowGarbageCollection& no_gc);
+                                      const DisallowGarbageCollection& no_gc
+                                          V8_LIFETIME_BOUND);
 
   inline uint32_t length() const;
   inline uint32_t length(AcquireLoadTag) const;
@@ -311,9 +316,9 @@ V8_OBJECT class String : public Name {
   // When using a SharedStringAccessGuard, the guard's must outlive the
   // returned FlatContent.
   V8_EXPORT_PRIVATE V8_INLINE FlatContent
-  GetFlatContent(const DisallowGarbageCollection& no_gc);
+  GetFlatContent(const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
   V8_EXPORT_PRIVATE V8_INLINE FlatContent
-  GetFlatContent(const DisallowGarbageCollection& no_gc,
+  GetFlatContent(const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
                  const SharedStringAccessGuardIfNeeded&);
 
   // Returns the parent of a sliced string or first part of a flat cons string.
@@ -327,6 +332,13 @@ V8_OBJECT class String : public Name {
     requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
   static inline HandleType<String> Share(Isolate* isolate,
                                          HandleType<T> string);
+
+  // Creates an unshared copy of the string. Assumes the string is allocated in
+  // shared space.
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
+  static inline HandleType<String> Unshare(Isolate* isolate,
+                                           HandleType<T> string);
 
   // String relational comparison, implemented according to ES6 section 7.2.11
   // Abstract Relational Comparison (step 5): The comparison of Strings uses a
@@ -380,7 +392,7 @@ V8_OBJECT class String : public Name {
     virtual ~Match() = default;
   };
 
-  // ES#sec-getsubstitution
+  // https://tc39.es/ecma262/#sec-getsubstitution
   // GetSubstitution(matched, str, position, captures, replacement)
   // Expand the $-expressions in the string and return a new string with
   // the result.
@@ -737,12 +749,12 @@ V8_OBJECT class String : public Name {
       Isolate* isolate, HandleType<ConsString> cons, AllocationType allocation);
 
   V8_EXPORT_PRIVATE V8_INLINE static std::optional<FlatContent>
-  TryGetFlatContentFromDirectString(const DisallowGarbageCollection& no_gc,
-                                    Tagged<String> string, uint32_t offset,
-                                    uint32_t length,
-                                    const SharedStringAccessGuardIfNeeded&);
+  TryGetFlatContentFromDirectString(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
+      Tagged<String> string, uint32_t offset, uint32_t length,
+      const SharedStringAccessGuardIfNeeded&);
   V8_EXPORT_PRIVATE FlatContent
-  SlowGetFlatContent(const DisallowGarbageCollection& no_gc,
+  SlowGetFlatContent(const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
                      const SharedStringAccessGuardIfNeeded&);
 
   template <template <typename> typename HandleType>
@@ -824,8 +836,9 @@ extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class SubStringRange {
  public:
   inline SubStringRange(Tagged<String> string,
-                        const DisallowGarbageCollection& no_gc, int first = 0,
-                        int length = -1);
+                        const DisallowGarbageCollection& no_gc
+                            V8_LIFETIME_BOUND,
+                        int first = 0, int length = -1);
   class iterator;
   inline iterator begin();
   inline iterator end();
@@ -892,11 +905,12 @@ V8_OBJECT class SeqOneByteString : public SeqString {
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  V8_INLINE uint8_t* GetChars(const DisallowGarbageCollection& no_gc);
+  V8_INLINE uint8_t* GetChars(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
   // Get a pointer to the characters of the string.
   V8_INLINE uint8_t* GetChars(
-      const DisallowGarbageCollection& no_gc,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
@@ -964,11 +978,12 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   // Get a pointer to the characters of the string. May only be called when a
   // SharedStringAccessGuard is not needed (i.e. on the main thread or on
   // read-only strings).
-  inline base::uc16* GetChars(const DisallowGarbageCollection& no_gc);
+  inline base::uc16* GetChars(
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
 
   // Get a pointer to the characters of the string.
   inline base::uc16* GetChars(
-      const DisallowGarbageCollection& no_gc,
+      const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
@@ -1099,8 +1114,8 @@ struct ObjectTraits<ConsString> {
 // ThinStrings can be thought of as "one-part cons strings".
 V8_OBJECT class ThinString : public String {
  public:
-  inline Tagged<String> actual() const;
-  inline void set_actual(Tagged<String> value,
+  inline Tagged<InternalizedString> actual() const;
+  inline void set_actual(Tagged<InternalizedString> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<HeapObject> unchecked_actual() const;
@@ -1127,7 +1142,7 @@ V8_OBJECT class ThinString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
-  TaggedMember<String> actual_;
+  TaggedMember<InternalizedString> actual_;
 } V8_OBJECT_END;
 
 template <>
@@ -1219,6 +1234,10 @@ V8_OBJECT class ExternalString : public UncachedExternalString {
   int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
+  // TODO(pthier): Change to const Isolate*, this currently doesn't work for
+  // the implicit IsolateForSandbox conversion.
+  inline Address resource_as_address(Isolate* isolate) const;
+  // TODO(pthier): Pass isolate from all callers and remove this overload.
   inline Address resource_as_address() const;
   inline void set_address_as_resource(Isolate* isolate, Address address);
   inline uint32_t GetResourceRefForDeserialization();
@@ -1272,17 +1291,13 @@ V8_OBJECT class ExternalOneByteString : public ExternalString {
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache(Isolate* isolate);
+  inline void update_data_cache(Isolate* isolate, Resource* resource);
 
   inline const uint8_t* GetChars() const;
 
   // Dispatched behavior.
   inline uint8_t Get(uint32_t index,
                      const SharedStringAccessGuardIfNeeded& access_guard) const;
-
- private:
-  // The underlying resource as a non-const pointer.
-  inline Resource* mutable_resource();
 } V8_OBJECT_END;
 
 static_assert(sizeof(ExternalOneByteString) == sizeof(ExternalString));
@@ -1310,7 +1325,7 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache(Isolate* isolate);
+  inline void update_data_cache(Isolate* isolate, Resource* resource);
 
   inline const uint16_t* GetChars() const;
 
@@ -1321,10 +1336,6 @@ V8_OBJECT class ExternalTwoByteString : public ExternalString {
 
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(uint32_t start);
-
- private:
-  // The underlying resource as a non-const pointer.
-  inline Resource* mutable_resource();
 } V8_OBJECT_END;
 
 static_assert(sizeof(ExternalTwoByteString) == sizeof(ExternalString));

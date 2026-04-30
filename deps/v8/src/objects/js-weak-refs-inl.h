@@ -21,11 +21,74 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-weak-refs-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry)
+Tagged<NativeContext> JSFinalizationRegistry::native_context() const {
+  return native_context_.load();
+}
+void JSFinalizationRegistry::set_native_context(Tagged<NativeContext> value,
+                                                WriteBarrierMode mode) {
+  native_context_.store(this, value, mode);
+}
+
+Tagged<JSReceiver> JSFinalizationRegistry::cleanup() const {
+  return cleanup_.load();
+}
+void JSFinalizationRegistry::set_cleanup(Tagged<JSReceiver> value,
+                                         WriteBarrierMode mode) {
+  cleanup_.store(this, value, mode);
+}
+
+Tagged<UnionOf<WeakCell, Undefined>> JSFinalizationRegistry::active_cells()
+    const {
+  return active_cells_.load();
+}
+void JSFinalizationRegistry::set_active_cells(
+    Tagged<UnionOf<WeakCell, Undefined>> value, WriteBarrierMode mode) {
+  active_cells_.store(this, value, mode);
+}
+
+Tagged<UnionOf<WeakCell, Undefined>> JSFinalizationRegistry::cleared_cells()
+    const {
+  return cleared_cells_.load();
+}
+void JSFinalizationRegistry::set_cleared_cells(
+    Tagged<UnionOf<WeakCell, Undefined>> value, WriteBarrierMode mode) {
+  cleared_cells_.store(this, value, mode);
+}
+
+Tagged<Object> JSFinalizationRegistry::key_map() const {
+  return key_map_.load();
+}
+void JSFinalizationRegistry::set_key_map(Tagged<Object> value,
+                                         WriteBarrierMode mode) {
+  key_map_.store(this, value, mode);
+}
+
+Tagged<UnionOf<JSFinalizationRegistry, Undefined>>
+JSFinalizationRegistry::next_dirty() const {
+  return next_dirty_.load();
+}
+void JSFinalizationRegistry::set_next_dirty(
+    Tagged<UnionOf<JSFinalizationRegistry, Undefined>> value,
+    WriteBarrierMode mode) {
+  next_dirty_.store(this, value, mode);
+}
+
+int JSFinalizationRegistry::flags() const { return flags_.load().value(); }
+void JSFinalizationRegistry::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
                     JSFinalizationRegistry::ScheduledForCleanupBit)
+
+Tagged<UnionOf<Symbol, JSReceiver, Undefined>> JSWeakRef::target() const {
+  return target_.load();
+}
+
+void JSWeakRef::set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                           WriteBarrierMode mode) {
+  target_.store(this, value, mode);
+}
 
 void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
     DirectHandle<JSFinalizationRegistry> finalization_registry,

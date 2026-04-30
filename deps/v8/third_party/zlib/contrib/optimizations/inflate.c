@@ -935,7 +935,7 @@ int ZEXPORT inflate(z_streamp strm, int flush) {
             while (state->have < 19)
                 state->lens[order[state->have++]] = 0;
             state->next = state->codes;
-            state->lencode = (const code FAR *)(state->next);
+            state->lencode = state->distcode = (const code FAR *)(state->next);
             state->lenbits = 7;
             ret = inflate_table(CODES, state->lens, 19, &(state->next),
                                 &(state->lenbits), state->work);

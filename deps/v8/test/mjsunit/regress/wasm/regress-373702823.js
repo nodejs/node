@@ -7,7 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-let $array1 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+let $array1 = builder.addArray(kWasmI16, {final: true});
 let $sig4 = builder.addType(kSig_i_i);
 let main19 = builder.addFunction(undefined, $sig4);
 

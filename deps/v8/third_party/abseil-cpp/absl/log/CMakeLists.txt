@@ -215,6 +215,7 @@ absl_cc_library(
     absl::memory
     absl::nullability
     absl::raw_logging_internal
+    absl::source_location
     absl::span
     absl::strerror
     absl::strings
@@ -632,6 +633,7 @@ absl_cc_library(
     absl::absl_log
     absl::log_severity
     absl::optional
+    absl::source_location
     absl::strings
     absl::strings_internal
     absl::utility
@@ -757,7 +759,6 @@ absl_cc_library(
     absl::nullability
     absl::strings
     absl::synchronization
-    absl::optional
 )
 
 absl_cc_library(
@@ -806,7 +807,6 @@ absl_cc_test(
     absl::vlog_is_on
     absl::log_severity
     absl::flags
-    absl::optional
     GTest::gmock_main
 )
 
@@ -1016,7 +1016,6 @@ absl_cc_test(
     absl::config
     absl::log
     absl::log_internal_test_matchers
-    absl::optional
     absl::scoped_mock_log
     absl::str_format
     absl::strings
@@ -1082,6 +1081,7 @@ absl_cc_test(
     absl::log_streamer
     absl::log_severity
     absl::scoped_mock_log
+    absl::source_location
     absl::strings
     GTest::gmock_main
 )
@@ -1102,6 +1102,7 @@ absl_cc_test(
     absl::log_internal_test_matchers
     absl::log_sink
     absl::scoped_mock_log
+    absl::source_location
     absl::strings
     absl::time
     GTest::gmock_main

@@ -26,11 +26,13 @@ bitfield struct OsrState extends uint8 {
 
 @cppObjectLayoutDefinition
 extern class ClosureFeedbackCellArray extends HeapObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   objects[length]: FeedbackCell;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
@@ -44,4 +46,8 @@ extern class FeedbackVector extends HeapObject {
   @cppRelaxedLoad @cppRelaxedStore raw_feedback_slots[length]: MaybeObject;
 }
 
-extern class FeedbackMetadata extends HeapObject;
+@cppObjectLayoutDefinition
+extern class FeedbackMetadata extends HeapObject {
+  slot_count: int32;
+  create_closure_slot_count: int32;
+}

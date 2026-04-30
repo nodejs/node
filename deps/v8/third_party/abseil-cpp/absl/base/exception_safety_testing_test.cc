@@ -518,7 +518,7 @@ struct NullaryTestValidator : public std::false_type {};
 template <typename TesterInstance>
 struct NullaryTestValidator<
     TesterInstance,
-    absl::void_t<decltype(std::declval<TesterInstance>().Test())>>
+    std::void_t<decltype(std::declval<TesterInstance>().Test())>>
     : public std::true_type {};
 
 template <typename TesterInstance>
@@ -534,7 +534,7 @@ struct UnaryTestValidator : public std::false_type {};
 template <typename TesterInstance>
 struct UnaryTestValidator<
     TesterInstance,
-    absl::void_t<decltype(std::declval<TesterInstance>().Test(DummyOp))>>
+    std::void_t<decltype(std::declval<TesterInstance>().Test(DummyOp))>>
     : public std::true_type {};
 
 template <typename TesterInstance>
@@ -945,8 +945,8 @@ TEST(ThrowingValueTraitsTest, RelationalOperators) {
 }
 
 TEST(ThrowingAllocatorTraitsTest, Assignablility) {
-  EXPECT_TRUE(absl::is_move_assignable<ThrowingAllocator<int>>::value);
-  EXPECT_TRUE(absl::is_copy_assignable<ThrowingAllocator<int>>::value);
+  EXPECT_TRUE(std::is_move_assignable<ThrowingAllocator<int>>::value);
+  EXPECT_TRUE(std::is_copy_assignable<ThrowingAllocator<int>>::value);
   EXPECT_TRUE(std::is_nothrow_move_assignable<ThrowingAllocator<int>>::value);
   EXPECT_TRUE(std::is_nothrow_copy_assignable<ThrowingAllocator<int>>::value);
 }

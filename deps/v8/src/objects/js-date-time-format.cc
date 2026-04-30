@@ -123,11 +123,12 @@ Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(
 
 class PatternMap {
  public:
-  PatternMap(std::string pattern, std::string value)
-      : pattern(std::move(pattern)), value(std::move(value)) {}
+  template <size_t N, size_t M>
+  constexpr PatternMap(const char (&pattern)[N], const char (&value)[M])
+      : pattern(pattern), value(value) {}
   virtual ~PatternMap() = default;
-  std::string pattern;
-  std::string value;
+  const char* pattern;
+  const char* value;
 };
 
 #define BIT_FIELDS(V, _)      \
@@ -329,8 +330,9 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
   return build;
 }
 
-const std::vector<PatternData> CreateData(const char* digit2,
-                                          const char* numeric) {
+template <size_t N, size_t M>
+const std::vector<PatternData> CreateData(const char (&digit2)[N],
+                                          const char (&numeric)[M]) {
   return CreateCommonData(
       PatternData(Hour::kShift, DateTimeProperty::kHour,
                   {{digit2, "2-digit"}, {numeric, "numeric"}}, k2DigitNumeric));
@@ -350,7 +352,9 @@ const std::vector<PatternData> CreateData(const char* digit2,
 
 class Pattern {
  public:
-  Pattern(const char* d1, const char* d2) : data(CreateData(d1, d2)) {}
+  template <size_t N, size_t M>
+  Pattern(const char (&d1)[N], const char (&d2)[M])
+      : data(CreateData(d1, d2)) {}
   virtual ~Pattern() = default;
   virtual const std::vector<PatternData>& Get() const { return data; }
 
@@ -651,16 +655,16 @@ DirectHandle<Object> GetTimeZone(
 DirectHandle<String> JSDateTimeFormat::Calendar(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
   return GetCalendar(isolate,
-                     *(date_time_format->icu_simple_date_format()->raw()));
+                     *(date_time_format->icu_simple_date_format()->ptr()));
 }
 
 DirectHandle<Object> JSDateTimeFormat::TimeZone(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
   return GetTimeZone(isolate,
-                     *(date_time_format->icu_simple_date_format()->raw()));
+                     *(date_time_format->icu_simple_date_format()->ptr()));
 }
 
-// ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
+// https://tc39.es/ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
 MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format) {
   Factory* factory = isolate->factory();
@@ -672,11 +676,11 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   DirectHandle<String> locale(date_time_format->locale(), isolate);
   DCHECK(!date_time_format->icu_locale().is_null());
-  DCHECK_NOT_NULL(date_time_format->icu_locale()->raw());
-  icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
+  Managed<icu::Locale>::Ptr icu_locale = date_time_format->icu_locale()->ptr();
+  DCHECK_NOT_NULL(icu_locale);
 
-  icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format()->raw();
+  Managed<icu::SimpleDateFormat>::Ptr icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->ptr();
   DirectHandle<Object> timezone =
       JSDateTimeFormat::TimeZone(isolate, date_time_format);
 
@@ -791,8 +795,7 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
         if (pattern.find(pair.pattern) != std::string::npos) {
           Maybe<bool> maybe_create_property = JSReceiver::CreateDataProperty(
               isolate, options, GetPropertyString(*factory, item.property),
-              factory->NewStringFromAsciiChecked(pair.value.c_str()),
-              Just(kDontThrow));
+              factory->NewStringFromAsciiChecked(pair.value), Just(kDontThrow));
           DCHECK(maybe_create_property.FromJust());
           USE(maybe_create_property);
           break;
@@ -825,7 +828,7 @@ MaybeDirectHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
 namespace {
 
-// #sec-temporal-istemporalobject
+// https://tc39.es/ecma262/#sec-temporal-istemporalobject
 bool IsTemporalObject(DirectHandle<Object> value) {
 #ifdef V8_TEMPORAL_SUPPORT
   // 1. If Type(value) is not Object, then
@@ -853,7 +856,7 @@ bool IsTemporalObject(DirectHandle<Object> value) {
 #endif  // V8_TEMPORAL_SUPPORT
 }
 
-// #sec-temporal-sametemporaltype
+// https://tc39.es/ecma262/#sec-temporal-sametemporaltype
 bool SameTemporalType(DirectHandle<Object> x, DirectHandle<Object> y) {
 #ifdef V8_TEMPORAL_SUPPORT
   // 1. If either of ! IsTemporalObject(x) or ! IsTemporalObject(y) is false,
@@ -908,6 +911,7 @@ enum class PatternKind {
 struct DateTimeValueRecord {
   double epoch_milliseconds;
   PatternKind kind;
+  bool is_plain;
 };
 
 #ifdef V8_TEMPORAL_SUPPORT
@@ -964,7 +968,7 @@ bool CalendarEquals(temporal_rs::AnyCalendarKind kind,
   UNREACHABLE();
 }
 
-// #sec-temporal-handledatetimetemporalinstant
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporalinstant
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalInstant(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalInstant> instant, const char* method_name) {
@@ -975,24 +979,28 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalInstant(
   // 4. Return the Record { [[pattern]]: pattern.[[pattern]], [[rangePatterns]]:
   // pattern.[[rangePatterns]], [[epochNanoseconds]]: instant.[[Nanoseconds]] }.
 
-  double milliseconds = instant->instant()->raw()->epoch_milliseconds();
-  return Just(DateTimeValueRecord{milliseconds, PatternKind::kInstant});
+  DisallowGarbageCollection no_gc;
+  double milliseconds = instant->instant()->raw(no_gc)->epoch_milliseconds();
+  return Just(DateTimeValueRecord{milliseconds, PatternKind::kInstant, false});
 }
 
-// #sec-temporal-handledatetimetemporalyearmonth
-// #sec-temporal-handledatetimetemporalmonthday
-// #sec-temporal-handledatetimetemporaldatetime
-// #sec-temporal-handledatetimetemporaldate
-// #sec-temporal-handledatetimetemporaltime
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporalyearmonth
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporalmonthday
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporaldatetime
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporaldate
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporaltime
 template <typename T>
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     PatternKind kind, DirectHandle<T> temporal) {
+  Managed<icu::SimpleDateFormat>::Ptr icu_date_format =
+      date_time_format->icu_simple_date_format()->ptr();
+
   // Onlt perform this check for calendared types (not Time)
   if constexpr (T::kTypeContainsCalendar) {
     auto calendar_kind = temporal->wrapped_rust()->calendar().kind();
-    bool throw_mismatch_calendar = !CalendarEquals(
-        calendar_kind, *(date_time_format->icu_simple_date_format()->raw()));
+    bool throw_mismatch_calendar =
+        !CalendarEquals(calendar_kind, *icu_date_format);
     if (std::is_same<T, JSTemporalPlainDateTime>::value ||
         std::is_same<T, JSTemporalPlainDate>::value) {
       throw_mismatch_calendar &=
@@ -1003,27 +1011,19 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalGeneric(
                       NewRangeError(MessageTemplate::kMismatchedCalendars));
     }
   }
-  // 2. Let epochNs be ? GetEpochNanosecondsFor(dateTimeFormat.[[TimeZone]],
-  // isoDateTime, compatible).
-  DirectHandle<Object> time_zone_obj = GetTimeZone(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()));
-  DirectHandle<String> time_zone_str;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone_str,
-                             Object::ToString(isolate, time_zone_obj));
 
   int64_t epoch_milliseconds = 0;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, epoch_milliseconds,
-      temporal->GetEpochMillisecondsFor(isolate, time_zone_str->ToStdString()));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, epoch_milliseconds,
+                             temporal->GetEpochMillisecondsForUtc(isolate));
 
   // 3. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
   // 4. Return Value Format Record { [[Format]]: format, [[EpochNanoseconds]]:
   // epochNs  }.
   return Just(
-      DateTimeValueRecord{static_cast<double>(epoch_milliseconds), kind});
+      DateTimeValueRecord{static_cast<double>(epoch_milliseconds), kind, true});
 }
 
-// #sec-temporal-handledatetimetemporalyearmonth
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporalyearmonth
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
@@ -1049,7 +1049,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
   return Just(res);
 }
 
-// #sec-temporal-handledatetimetemporalmonthday
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporalmonthday
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
@@ -1075,7 +1075,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
   return Just(res);
 }
 
-// #sec-temporal-handledatetimetemporaldatetime
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporaldatetime
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalDateTime(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainDateTime> date_time, const char* method_name) {
@@ -1083,7 +1083,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDateTime(
       isolate, date_time_format, PatternKind::kPlainDateTime, date_time);
 }
 
-// #sec-temporal-handledatetimetemporaldate
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporaldate
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainDate> temporal_date, const char* method_name) {
@@ -1107,7 +1107,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
   return Just(res);
 }
 
-// #sec-temporal-handledatetimetemporaltime
+// https://tc39.es/ecma262/#sec-temporal-handledatetimetemporaltime
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainTime> temporal_time, const char* method_name) {
@@ -1132,7 +1132,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
 }
 #endif  // V8_TEMPORAL_SUPPORT
 
-// #sec-temporal-handledatetimeothers
+// https://tc39.es/ecma262/#sec-temporal-handledatetimeothers
 Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x_obj, const char* method_name) {
@@ -1164,10 +1164,11 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
 
   // 9. Return the Record { [[pattern]]: pattern, [[rangePatterns]]:
   // rangePatterns, [[epochNanoseconds]]: epochNanoseconds }.
-  return Just(DateTimeValueRecord({x, PatternKind::kDate}));
+  return Just(DateTimeValueRecord({x, PatternKind::kDate, false}));
 }
 
-// #sec-temporal-handledatetimevalue
+// https://tc39.es/ecma262/#sec-temporal-handledatetimevalue
+// We further transform the returned value in HandleDateTimeValue
 Maybe<DateTimeValueRecord> HandleDateTimeValue(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x, const char* method_name) {
@@ -1696,19 +1697,24 @@ std::unique_ptr<icu::SimpleDateFormat> GetSimpleDateTimeForTemporal(
   return result;
 }
 
-icu::UnicodeString Replace202F(icu::UnicodeString& string) {
+icu::UnicodeString ReplaceUnicodeSpaces(icu::UnicodeString& string) {
   // Revert ICU 72 change that introduced U+202F instead of U+0020
   // to separate time from AM/PM. See https://crbug.com/1414292.
-  return string.findAndReplace(icu::UnicodeString(0x202f),
-                               icu::UnicodeString(0x20));
+  //
+  // Revert ICU 78 change that inroduced U+2009 instead of U+0020
+  // to separate date and time in "zh" locales.
+  return string
+      .findAndReplace(icu::UnicodeString(0x202f), icu::UnicodeString(0x20))
+      .findAndReplace(icu::UnicodeString(0x2009), icu::UnicodeString(0x20));
 }
 std::optional<icu::UnicodeString> CallICUFormat(
     const icu::SimpleDateFormat& date_format,
     int32_t explicit_components_in_options, PatternKind kind,
     JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style,
-    bool has_to_locale_string_time_zone, double time_in_milliseconds,
-    icu::FieldPositionIterator* fp_iter, UErrorCode& status) {
+    bool has_to_locale_string_time_zone, bool is_plain,
+    double time_in_milliseconds, icu::FieldPositionIterator* fp_iter,
+    UErrorCode& status) {
   if (U_FAILURE(status)) {
     return std::nullopt;
   }
@@ -1719,7 +1725,7 @@ std::optional<icu::UnicodeString> CallICUFormat(
     if (U_FAILURE(status)) {
       return std::nullopt;
     }
-    result = Replace202F(result);
+    result = ReplaceUnicodeSpaces(result);
     return result;
   }
   // For other Temporal objects, lazy generate a SimpleDateFormat for the kind.
@@ -1729,41 +1735,25 @@ std::optional<icu::UnicodeString> CallICUFormat(
   if (pattern == nullptr) {
     return std::nullopt;
   }
-  pattern->format(time_in_milliseconds, result, fp_iter, status);
+
+  std::unique_ptr<icu::Calendar> datetime(date_format.getCalendar()->clone());
+  datetime->setTime(time_in_milliseconds, status);
+  if (is_plain) {
+    // 12. If isPlain is true, let timeZone be "+00:00"; else let timeZone be
+    // dateTimeFormat.[[TimeZone]].
+
+    datetime->setTimeZone(*icu::TimeZone::getGMT());
+  }
+  pattern->format(*datetime, result, fp_iter, status);
+
   if (U_FAILURE(status)) {
     return std::nullopt;
   }
-  result = Replace202F(result);
+  result = ReplaceUnicodeSpaces(result);
   return result;
 }
 
-// Apply transformation requested by --icu-british-remove-full-weekday-comma
-void ApplyBritishRemoveFullWeekdayComma(
-    icu::UnicodeString& result, const icu::SimpleDateFormat& date_format) {
-  if (v8_flags.icu_british_remove_full_weekday_comma) {
-    // Revert ICU 76 adding a comma after a full weekday for en-AU/GB/IN.
-    int32_t found = result.indexOf(',');
-    if (found != -1) {
-      const icu::Locale& locale = date_format.getSmpFmtLocale();
-      if (strcmp(locale.getLanguage(), "en") == 0 &&
-          (strcmp(locale.getCountry(), "AU") == 0 ||
-           strcmp(locale.getCountry(), "GB") == 0 ||
-           strcmp(locale.getCountry(), "IN") == 0)) {
-        // https://github.com/unicode-org/cldr/pull/3879 changed formats like
-        // "EEEE d MMM y" to "EEEE, d MMM y", adding a comma. Check if the
-        // format begins with "EEEE," and if so remove the first comma. This is
-        // the last check because toPattern() allocates a new string.
-        icu::UnicodeString pattern;
-        date_format.toPattern(pattern);
-        if (pattern.startsWith("EEEE,")) {
-          result = result.remove(found, 1);
-        }
-      }
-    }
-  }
-}
-
-// ecma402/#sec-formatdatetime
+// https://tc39.es/ecma402/#sec-formatdatetime
 // FormatDateTime( dateTimeFormat, x )
 MaybeDirectHandle<String> FormatDateTime(
     Isolate* isolate, const icu::SimpleDateFormat& date_format, double x) {
@@ -1780,30 +1770,29 @@ MaybeDirectHandle<String> FormatDateTime(
              date_format.getSmpFmtLocale().getLanguage()) == 0) {
     // Revert ICU 72 change that introduced U+202F instead of U+0020
     // to separate time from AM/PM. See https://crbug.com/1414292.
-    result = Replace202F(result);
+    result = ReplaceUnicodeSpaces(result);
   }
-  ApplyBritishRemoveFullWeekdayComma(result, date_format);
 
   return Intl::ToString(isolate, result);
 }
 
 MaybeDirectHandle<String> FormatMillisecondsByKindToString(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
-    DirectHandle<Object> value, PatternKind kind, double x) {
+    DirectHandle<Object> value, PatternKind kind, bool is_plain, double x) {
+  Managed<icu::SimpleDateFormat>::Ptr icu_date_format =
+      date_time_format->icu_simple_date_format()->ptr();
   UErrorCode status = U_ZERO_ERROR;
   std::optional<icu::UnicodeString> result = CallICUFormat(
-      *(date_time_format->icu_simple_date_format()->raw()),
-      date_time_format->explicit_components_in_options(), kind,
-      date_time_format->date_style(), date_time_format->time_style(),
-      date_time_format->has_to_locale_string_time_zone(), x, nullptr, status);
+      *icu_date_format, date_time_format->explicit_components_in_options(),
+      kind, date_time_format->date_style(), date_time_format->time_style(),
+      date_time_format->has_to_locale_string_time_zone(), is_plain, x, nullptr,
+      status);
   if (U_FAILURE(status) || !result.has_value()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, value));
   }
   icu::UnicodeString result_unwrapped = std::move(result).value();
-  auto simple = date_time_format->icu_simple_date_format()->raw();
-  ApplyBritishRemoveFullWeekdayComma(result_unwrapped, *simple);
   return Intl::ToString(isolate, result_unwrapped);
 }
 
@@ -1814,13 +1803,14 @@ MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
       HandleDateTimeValue(isolate, date_time_format, x, method_name));
-  return FormatMillisecondsByKindToString(
-      isolate, date_time_format, x, record.kind, record.epoch_milliseconds);
+  return FormatMillisecondsByKindToString(isolate, date_time_format, x,
+                                          record.kind, record.is_plain,
+                                          record.epoch_milliseconds);
 }
 
 }  // namespace
 
-// ecma402/#sec-datetime-format-functions
+// https://tc39.es/ecma402/#sec-datetime-format-functions
 // DateTime Format Functions
 MaybeDirectHandle<String> JSDateTimeFormat::DateTimeFormat(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
@@ -1845,8 +1835,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::DateTimeFormat(
     x = Object::NumberValue(*date);
   }
   // 5. Return FormatDateTime(dtf, x).
-  icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
+  Managed<icu::SimpleDateFormat>::Ptr format =
+      date_time_format->icu_simple_date_format()->ptr();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1914,15 +1904,14 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       JSDateTimeFormat::CreateDateTimeFormat(
           isolate, map, locales, options, required, defaults, {}, method_name));
 
+  Managed<icu::SimpleDateFormat>::Ptr format =
+      date_time_format->icu_simple_date_format()->ptr();
   if (can_cache) {
-    isolate->set_icu_object_in_cache(
-        cache_type, locales,
-        std::static_pointer_cast<icu::UMemory>(
-            date_time_format->icu_simple_date_format()->get()));
+    isolate->set_icu_object_in_cache(cache_type, locales,
+                                     format.as_shared_ptr());
   }
+
   // 5. Return FormatDateTime(dateFormat, x).
-  icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format()->raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1985,12 +1974,19 @@ MaybeDirectHandle<String> JSDateTimeFormat::TemporalZonedDateTimeToLocaleString(
   // CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is
   // false, then
   auto calendar_kind = zdt->wrapped_rust()->calendar().kind();
-  if (calendar_kind != temporal_rs::AnyCalendarKind::Value::Iso &&
-      !CalendarEquals(calendar_kind,
-                      *(date_time_format->icu_simple_date_format()->raw()))) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kMismatchedCalendars));
+  if (calendar_kind != temporal_rs::AnyCalendarKind::Value::Iso) {
+    bool equals;
+    {
+      DisallowGarbageCollection no_gc;
+      equals = CalendarEquals(
+          calendar_kind,
+          *(date_time_format->icu_simple_date_format()->raw(no_gc)));
+    }
+    if (!equals) {
+      // a. Throw a RangeError exception.
+      THROW_NEW_ERROR(isolate,
+                      NewRangeError(MessageTemplate::kMismatchedCalendars));
+    }
   }
   // 5. Let instant be
   // ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
@@ -2308,15 +2304,16 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     PatternKind kind, JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style,
     bool has_to_locale_string_time_zone) {
-  Tagged<Managed<icu::DateIntervalFormat>> managed_format =
-      date_time_format->icu_date_interval_format();
-  if (kind == PatternKind::kDate && managed_format->get()) {
-    return std::unique_ptr<icu::DateIntervalFormat>(
-        managed_format->raw()->clone());
+  if (kind == PatternKind::kDate) {
+    DisallowGarbageCollection no_gc;
+    icu::DateIntervalFormat* icu_format =
+        date_time_format->icu_date_interval_format()->raw(no_gc);
+    if (icu_format)
+      return std::unique_ptr<icu::DateIntervalFormat>(icu_format->clone());
   }
   UErrorCode status = U_ZERO_ERROR;
 
-  icu::Locale loc = *(date_time_format->icu_locale()->raw());
+  icu::Locale loc = *(date_time_format->icu_locale()->ptr());
   // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
   // extension.
   std::string hcString = ToHourCycleString(date_time_format->hour_cycle());
@@ -2324,8 +2321,8 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     loc.setUnicodeKeywordValue("hc", hcString, status);
   }
 
-  icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format()->raw();
+  Managed<icu::SimpleDateFormat>::Ptr icu_simple_date_format =
+      date_time_format->icu_simple_date_format()->ptr();
 
   icu::UnicodeString skeleton = GetSkeletonForPatternKind(
       SkeletonFromDateFormat(*icu_simple_date_format),
@@ -2343,8 +2340,10 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
       Managed<icu::DateIntervalFormat>::From(isolate, 0,
                                              std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
+
+  DisallowGarbageCollection no_gc;
   return std::unique_ptr<icu::DateIntervalFormat>(
-      managed_interval_format->raw()->clone());
+      managed_interval_format->raw(no_gc)->clone());
 }
 
 JSDateTimeFormat::HourCycle HourCycleFromPattern(
@@ -2559,7 +2558,7 @@ class DateTimePatternGeneratorCache {
 
 enum FormatMatcherOption { kBestFit, kBasic };
 
-// ecma402/#sec-initializedatetimeformat
+// https://tc39.es/ecma402/#sec-initializedatetimeformat
 MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options, const char* service) {
@@ -2639,7 +2638,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   }
   // 9. Set opt.[[hc]] to hourCycle.
 
-  // ecma402/#sec-intl.datetimeformat-internal-slots
+  // https://tc39.es/ecma402/#sec-intl.datetimeformat-internal-slots
   // The value of the [[RelevantExtensionKeys]] internal slot is
   // « "ca", "nu", "hc" ».
 
@@ -3092,7 +3091,7 @@ namespace {
 
 // The list comes from third_party/icu/source/i18n/unicode/udat.h.
 // They're mapped to DateTimeFormat components listed at
-// https://tc39.github.io/ecma402/#sec-datetimeformat-abstracts .
+// https://tc39.es/ecma402/#sec-datetimeformat-abstracts .
 DirectHandle<String> IcuDateFieldIdToDateType(int32_t field_id,
                                               Isolate* isolate) {
   switch (field_id) {
@@ -3155,15 +3154,17 @@ MaybeDirectHandle<JSArray> FieldPositionIteratorToArray(
 
 MaybeDirectHandle<JSArray> FormatMillisecondsByKindToArray(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
-    DirectHandle<Object> value, PatternKind kind, double x,
+    DirectHandle<Object> value, PatternKind kind, bool is_plain, double x,
     bool output_source) {
   icu::FieldPositionIterator fp_iter;
   UErrorCode status = U_ZERO_ERROR;
+  Managed<icu::SimpleDateFormat>::Ptr icu_date_format =
+      date_time_format->icu_simple_date_format()->ptr();
   auto formatted = CallICUFormat(
-      *(date_time_format->icu_simple_date_format()->raw()),
-      date_time_format->explicit_components_in_options(), kind,
-      date_time_format->date_style(), date_time_format->time_style(),
-      date_time_format->has_to_locale_string_time_zone(), x, &fp_iter, status);
+      *icu_date_format, date_time_format->explicit_components_in_options(),
+      kind, date_time_format->date_style(), date_time_format->time_style(),
+      date_time_format->has_to_locale_string_time_zone(), is_plain, x, &fp_iter,
+      status);
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
@@ -3178,9 +3179,9 @@ MaybeDirectHandle<JSArray> FormatMillisecondsByKindToArray(
 
 MaybeDirectHandle<JSArray> FormatMillisecondsByKindToArrayOutputSource(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
-    DirectHandle<Object> value, PatternKind kind, double x) {
+    DirectHandle<Object> value, PatternKind kind, bool is_plain, double x) {
   return FormatMillisecondsByKindToArray(isolate, date_time_format, value, kind,
-                                         x, true);
+                                         is_plain, x, true);
 }
 
 MaybeDirectHandle<JSArray> FormatToPartsWithTemporalSupport(
@@ -3193,8 +3194,8 @@ MaybeDirectHandle<JSArray> FormatToPartsWithTemporalSupport(
       HandleDateTimeValue(isolate, date_time_format, x, method_name));
 
   return FormatMillisecondsByKindToArray(
-      isolate, date_time_format, x, x_record.kind, x_record.epoch_milliseconds,
-      output_source);
+      isolate, date_time_format, x, x_record.kind, x_record.is_plain,
+      x_record.epoch_milliseconds, output_source);
 }
 
 MaybeDirectHandle<JSArray> FormatMillisecondsToArray(
@@ -3237,7 +3238,7 @@ MaybeDirectHandle<JSArray> JSDateTimeFormat::FormatToParts(
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
   return FormatMillisecondsToArray(
-      isolate, *(date_time_format->icu_simple_date_format()->raw()), date_value,
+      isolate, *(date_time_format->icu_simple_date_format()->ptr()), date_value,
       output_source);
 }
 
@@ -3359,7 +3360,7 @@ std::optional<MaybeDirectHandle<String>> FormattedToString(
   icu::ConstrainedFieldPosition cfpos;
   while (formatted.nextPosition(cfpos, status)) {
     if (cfpos.getCategory() == UFIELD_CATEGORY_DATE_INTERVAL_SPAN) {
-      return Intl::ToString(isolate, Replace202F(result));
+      return Intl::ToString(isolate, ReplaceUnicodeSpaces(result));
     }
   }
   return std::nullopt;
@@ -3374,7 +3375,7 @@ std::optional<MaybeDirectHandle<JSArray>> FormattedDateIntervalToJSArray(
     Isolate* isolate, const icu::FormattedValue& formatted) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString result = formatted.toString(status);
-  result = Replace202F(result);
+  result = ReplaceUnicodeSpaces(result);
 
   Factory* factory = isolate->factory();
   DirectHandle<JSArray> array = factory->NewJSArray(0);
@@ -3435,9 +3436,9 @@ template <typename T, std::optional<MaybeDirectHandle<T>> (*Format)(
 std::optional<MaybeDirectHandle<T>> CallICUFormatRange(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     const icu::DateIntervalFormat* format, const icu::Calendar* calendar,
-    double x, double y);
+    bool is_plain, double x, double y);
 
-// #sec-partitiondatetimerangepattern
+// https://tc39.es/ecma262/#sec-partitiondatetimerangepattern
 template <typename T, std::optional<MaybeDirectHandle<T>> (*Format)(
                           Isolate*, const icu::FormattedValue&)>
 std::optional<MaybeDirectHandle<T>> PartitionDateTimeRangePattern(
@@ -3462,12 +3463,13 @@ std::optional<MaybeDirectHandle<T>> PartitionDateTimeRangePattern(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
-  icu::SimpleDateFormat* date_format =
-      date_time_format->icu_simple_date_format()->raw();
+  Managed<icu::SimpleDateFormat>::Ptr date_format =
+      date_time_format->icu_simple_date_format()->ptr();
   const icu::Calendar* calendar = date_format->getCalendar();
 
+  // is_plain is false since this is a non-Temporal codepath
   return CallICUFormatRange<T, Format>(isolate, date_time_format, format.get(),
-                                       calendar, x, y);
+                                       calendar, /*is_plain*/ false, x, y);
 }
 
 template <typename T, std::optional<MaybeDirectHandle<T>> (*Format)(
@@ -3475,13 +3477,20 @@ template <typename T, std::optional<MaybeDirectHandle<T>> (*Format)(
 std::optional<MaybeDirectHandle<T>> CallICUFormatRange(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_Format,
     const icu::DateIntervalFormat* format, const icu::Calendar* calendar,
-    double x, double y) {
+    bool is_plain, double x, double y) {
   UErrorCode status = U_ZERO_ERROR;
 
   std::unique_ptr<icu::Calendar> c1(calendar->clone());
   std::unique_ptr<icu::Calendar> c2(calendar->clone());
   c1->setTime(x, status);
   c2->setTime(y, status);
+  if (is_plain) {
+    // 12. If isPlain is true, let timeZone be "+00:00"; else let timeZone be
+    // dateTimeFormat.[[TimeZone]].
+
+    c1->setTimeZone(*icu::TimeZone::getGMT());
+    c2->setTimeZone(*icu::TimeZone::getGMT());
+  }
   // We need to format by Calendar because we need the Gregorian change
   // adjustment already in the SimpleDateFormat to set the correct value of date
   // older than Oct 15, 1582.
@@ -3493,12 +3502,12 @@ std::optional<MaybeDirectHandle<T>> CallICUFormatRange(
   return Format(isolate, formatted);
 }
 
-template <
-    typename T,
-    std::optional<MaybeDirectHandle<T>> (*Format)(Isolate*,
-                                                  const icu::FormattedValue&),
-    MaybeDirectHandle<T> (*Fallback)(Isolate*, DirectHandle<JSDateTimeFormat>,
-                                     DirectHandle<Object>, PatternKind, double)>
+template <typename T,
+          std::optional<MaybeDirectHandle<T>> (*Format)(
+              Isolate*, const icu::FormattedValue&),
+          MaybeDirectHandle<T> (*Fallback)(
+              Isolate*, DirectHandle<JSDateTimeFormat>, DirectHandle<Object>,
+              PatternKind, bool, double)>
 MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x_obj, DirectHandle<Object> y_obj,
@@ -3548,15 +3557,19 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
 
-  const icu::Calendar* calendar =
-      date_time_format->icu_simple_date_format()->raw()->getCalendar();
+  Managed<icu::SimpleDateFormat>::Ptr icu_date_format =
+      date_time_format->icu_simple_date_format()->ptr();
+
+  // 17. Assert: xFormatRecord.[[IsPlain]] = yFormatRecord.[[IsPlain]].
+  DCHECK(x_record.is_plain == y_record.is_plain);
 
   std::optional<MaybeDirectHandle<T>> result = CallICUFormatRange<T, Format>(
-      isolate, date_time_format, format.get(), calendar,
-      x_record.epoch_milliseconds, y_record.epoch_milliseconds);
+      isolate, date_time_format, format.get(), icu_date_format->getCalendar(),
+      x_record.is_plain, x_record.epoch_milliseconds,
+      y_record.epoch_milliseconds);
   if (result.has_value()) return *result;
   return Fallback(isolate, date_time_format, x_obj, x_record.kind,
-                  x_record.epoch_milliseconds);
+                  x_record.is_plain, x_record.epoch_milliseconds);
 }
 
 template <typename T,
@@ -3579,7 +3592,7 @@ MaybeDirectHandle<T> FormatRangeCommon(
       PartitionDateTimeRangePattern<T, Format>(isolate, date_time_format, x, y,
                                                method_name);
   if (result.has_value()) return *result;
-  return Fallback(isolate, *(date_time_format->icu_simple_date_format()->raw()),
+  return Fallback(isolate, *(date_time_format->icu_simple_date_format()->ptr()),
                   x);
 }
 

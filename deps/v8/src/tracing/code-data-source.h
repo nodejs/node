@@ -64,14 +64,14 @@ class CodeDataSourceIncrementalState {
   void FlushInternedData(
       CodeDataSource::TraceContext::TracePacketHandle& packet);
 
-  uint64_t InternIsolate(Isolate& isolate);
-  uint64_t InternJsScript(Isolate& isolate, Tagged<Script> script);
-  uint64_t InternJsFunction(Isolate& isolate,
+  uint64_t InternIsolate(Isolate* isolate);
+  uint64_t InternJsScript(Isolate* isolate, Tagged<Script> script);
+  uint64_t InternJsFunction(Isolate* isolate,
                             DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num);
 #if V8_ENABLE_WEBASSEMBLY
-  uint64_t InternWasmScript(Isolate& isolate, int script_id,
+  uint64_t InternWasmScript(Isolate* isolate, int script_id,
                             std::string_view url,
                             wasm::NativeModule* native_module);
 

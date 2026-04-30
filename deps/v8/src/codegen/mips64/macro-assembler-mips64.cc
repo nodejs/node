@@ -2218,9 +2218,13 @@ void MacroAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   Branch(&msb_clear, ge, rs, Operand(zero_reg));
 
   // Rs >= 2^63
-  andi(t9, rs, 1);
-  dsrl(rs, rs, 1);
-  or_(t9, t9, rs);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    andi(t9, rs, 1);
+    dsrl(scratch, rs, 1);
+    or_(t9, t9, scratch);
+  }
   dmtc1(t9, fd);
   cvt_d_l(fd, fd);
   Branch(USE_DELAY_SLOT, &conversion_done);
@@ -2272,9 +2276,13 @@ void MacroAssembler::Cvt_s_ul(FPURegister fd, Register rs) {
   Branch(&positive, ge, rs, Operand(zero_reg));
 
   // Rs >= 2^31.
-  andi(t9, rs, 1);
-  dsrl(rs, rs, 1);
-  or_(t9, t9, rs);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    andi(t9, rs, 1);
+    dsrl(scratch, rs, 1);
+    or_(t9, t9, scratch);
+  }
   dmtc1(t9, fd);
   cvt_s_l(fd, fd);
   Branch(USE_DELAY_SLOT, &conversion_done);
@@ -5511,12 +5519,16 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
   Ld(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Register scratch, Label* fbv_undef) {
-  Label done;
-  // Load the feedback vector from the closure.
+void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
   Ld(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  Ld(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset));
+}
+
+void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
+                                                Register feedback_cell,
+                                                Register scratch,
+                                                Label* fbv_undef) {
+  Label done;
+  Ld(dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
   Ld(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
@@ -5528,6 +5540,12 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   Branch(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
+  LoadFeedbackCell(dst, closure);
+  LoadFeedbackVectorFromCell(dst, dst, scratch, fbv_undef);
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
@@ -5751,6 +5769,19 @@ void MacroAssembler::AssertSmi(Register object) {
     Register scratch = temps.Acquire();
     andi(scratch, object, kSmiTagMask);
     Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
+  }
+}
+
+void MacroAssembler::AssertMap(Register object) {
+  if (v8_flags.debug_code) {
+    ASM_CODE_COMMENT(this);
+    AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+
+    GetObjectType(object, scratch, scratch);
+    Check(eq, AbortReason::kOperandIsNotAMap, scratch, Operand(MAP_TYPE));
   }
 }
 

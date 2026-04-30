@@ -16,9 +16,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-shared-array-tq.inc"
 
-class JSSharedArray
-    : public TorqueGeneratedJSSharedArray<JSSharedArray,
-                                          AlwaysSharedSpaceJSObject> {
+V8_OBJECT class JSSharedArray : public AlwaysSharedSpaceJSObject {
  public:
   DECL_PRINTER(JSSharedArray)
   EXPORT_DECL_VERIFIER(JSSharedArray)
@@ -32,13 +30,17 @@ class JSSharedArray
     kLengthFieldIndex = 0,
     kInObjectFieldCount,
   };
-  static constexpr int kSize =
-      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
 
-  class BodyDescriptor;
+  // Defined out-of-line below the class so `sizeof` on the still-incomplete
+  // type can appear in an initializer.
+  static const int kHeaderSize;
+  static const int kSize;
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSSharedArray)
-};
+inline constexpr int JSSharedArray::kHeaderSize = sizeof(JSSharedArray);
+inline constexpr int JSSharedArray::kSize =
+    JSSharedArray::kHeaderSize +
+    (kTaggedSize * JSSharedArray::kInObjectFieldCount);
 
 }  // namespace internal
 }  // namespace v8

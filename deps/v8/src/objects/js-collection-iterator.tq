@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSCollectionIterator extends JSObject {
   // The backing hash table mapping keys to values.
   table: Object;

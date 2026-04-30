@@ -16,7 +16,6 @@
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder-inl.h"
-#include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/fast-api-calls.h"
@@ -37,10 +36,17 @@
 #include "src/ic/call-optimization.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/utils/utils.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -123,6 +129,9 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                       TNode<Object> arg2, TNode<Object> arg3);
 
   // Javascript operators.
+  TNode<Object> JSCall2(TNode<Object> function, TNode<Object> this_arg,
+                        TNode<Object> arg0, TNode<Object> arg1,
+                        FrameState frame_state);
   TNode<Object> JSCall3(TNode<Object> function, TNode<Object> this_arg,
                         TNode<Object> arg0, TNode<Object> arg1,
                         TNode<Object> arg2, FrameState frame_state);
@@ -449,6 +458,10 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
                                             const bool has_stability_dependency,
                                             ElementsKind kind,
                                             SharedFunctionInfoRef shared);
+  TNode<Object> ReduceArrayPrototypeSort(MapInference* inference,
+                                         const bool has_stability_dependency,
+                                         ElementsKind kind,
+                                         SharedFunctionInfoRef shared);
   TNode<Object> ReduceArrayPrototypeReduce(MapInference* inference,
                                            const bool has_stability_dependency,
                                            ElementsKind kind,
@@ -712,13 +725,22 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
                                        CallDescriptor::kNeedsFrameState);
+    const ZoneVector<CFunctionInfoWithDetails> overloads =
+        function_template_info_.c_functions_with_signatures(broker());
+    const size_t overloads_count = overloads.size();
+    ZoneVector<Address> c_functions(overloads_count, graph()->zone());
+    ZoneVector<const CFunctionInfo*> c_signatures(overloads_count,
+                                                  graph()->zone());
+    for (size_t i = 0; i < overloads_count; ++i) {
+      c_functions[i] = overloads[i].address;
+      c_signatures[i] = overloads[i].signature;
+    }
+
     ApiFunction api_function(function_template_info_.callback(broker()));
     ExternalReference function_reference = ExternalReference::Create(
         isolate(), &api_function, ExternalReference::DIRECT_API_CALL,
-        function_template_info_.c_functions(broker()).data(),
-        function_template_info_.c_signatures(broker()).data(),
-        static_cast<unsigned>(
-            function_template_info_.c_functions(broker()).size()));
+        c_functions.data(), c_signatures.data(),
+        static_cast<unsigned>(overloads_count));
 
     // LINT.IfChange
     // TODO(crbug.com/418936518): Support deopt for functions with return value.
@@ -847,6 +869,24 @@ TNode<Object> JSCallReducerAssembler::Call4(
 
   return TNode<Object>::UncheckedCast(Call(desc, HeapConstant(callable.code()),
                                            arg0, arg1, arg2, arg3, context));
+}
+
+TNode<Object> JSCallReducerAssembler::JSCall2(TNode<Object> function,
+                                              TNode<Object> this_arg,
+                                              TNode<Object> arg0,
+                                              TNode<Object> arg1,
+                                              FrameState frame_state) {
+  JSCallNode n(node_ptr());
+  CallParameters const& p = n.Parameters();
+  return MayThrow(_ {
+    return AddNode<Object>(graph()->NewNode(
+        javascript()->Call(JSCallNode::ArityForArgc(2), p.frequency(),
+                           p.feedback(), ConvertReceiverMode::kAny,
+                           p.speculation_mode(),
+                           CallFeedbackRelation::kUnrelated),
+        function, this_arg, arg0, arg1, n.feedback_vector(), ContextInput(),
+        frame_state, effect(), control()));
+  });
 }
 
 TNode<Object> JSCallReducerAssembler::JSCall3(
@@ -1584,6 +1624,42 @@ TNode<Number> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypePush(
 
 namespace {
 
+// ---- Array.prototype.sort inline insertion sort
+// --------------------------------
+
+struct SortFrameStateParams {
+  JSGraph* jsgraph;
+  SharedFunctionInfoRef shared;
+  TNode<Context> context;
+  TNode<Object> target;
+  FrameState outer_frame_state;
+  TNode<Object> receiver;
+  TNode<Object> comparefn;
+};
+
+// Deopt frame states for the inlined sort.  The sort operates on a temp
+// array copy so the receiver is unmodified — just restart the generic sort.
+FrameState SortNoopEagerFrameState(const SortFrameStateParams& params) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn};
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtin::kArraySortNoopEagerDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::EAGER);
+}
+
+FrameState SortNoopLazyFrameState(const SortFrameStateParams& params) {
+  Node* checkpoint_params[] = {params.receiver, params.comparefn};
+  return CreateJavaScriptBuiltinContinuationFrameState(
+      params.jsgraph, params.shared,
+      Builtin::kArraySortNoopLazyDeoptContinuation, params.target,
+      params.context, checkpoint_params, arraysize(checkpoint_params),
+      params.outer_frame_state, ContinuationFrameStateMode::LAZY);
+}
+
+// ---- Array.prototype.forEach
+// --------------------------------------------------
+
 struct ForEachFrameStateParams {
   JSGraph* jsgraph;
   SharedFunctionInfoRef shared;
@@ -1661,6 +1737,239 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeForEach(
   });
 
   return UndefinedConstant();
+}
+
+TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeSort(
+    MapInference* inference, const bool has_stability_dependency,
+    ElementsKind kind, SharedFunctionInfoRef shared) {
+  // Inline a small insertion sort directly into the Turbofan graph.
+  //
+  // Fast path (length <= kMaxInlineSortLength):
+  //   1. Copy receiver's elements into a temporary FixedArray.
+  //   2. Insertion-sort the temp array, calling comparefn for each comparison.
+  //   3. Copy sorted elements back into the receiver.
+  //   Using a temp array matches the spec's SortIndexedProperties snapshot
+  //   semantics: comparefn side effects on the receiver do not affect the
+  //   sort order and are overwritten by the copy-back.
+  //
+  // Slow path (length > kMaxInlineSortLength):
+  //   Call Array.prototype.sort with kDisallowSpeculation to prevent
+  //   re-reduction.
+  //
+  // On any deopt the kArraySortNoopLazy/EagerDeoptContinuation builtins
+  // restart the generic sort (the receiver is unmodified since the sort
+  // operates on a temp copy).
+  static constexpr int32_t kMaxInlineSortSize = JSArray::kMaxInlineSortLength;
+
+  FrameState outer_frame_state = FrameStateInput();
+  TNode<Context> context = ContextInput();
+  TNode<Object> target = TargetInput();
+  TNode<JSArray> receiver = ReceiverInputAs<JSArray>();
+  TNode<Object> comparefn = ArgumentOrUndefined(0);
+
+  TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
+
+  SortFrameStateParams frame_state_params{
+      jsgraph(),         shared,   context,  target,
+      outer_frame_state, receiver, comparefn};
+
+  // Branch: fast path vs slow path.
+  auto slow_label = MakeDeferredLabel();
+  auto done_label = MakeLabel();
+
+  // length > kMaxInlineSortSize → slow path.
+  GotoIf(NumberLessThan(NumberConstant(kMaxInlineSortSize), original_length),
+         &slow_label);
+
+  // Fast path: inline insertion sort on a temporary FixedArray.
+  {
+    // Allocate a temporary FixedArray of kMaxInlineSortSize.  We always
+    // allocate the max size so that the allocation is constant-sized.
+    MapRef fixed_array_map = broker()->fixed_array_map();
+    AllocationBuilder ab(jsgraph(), broker(), effect(), control());
+    CHECK(ab.CanAllocateArray(kMaxInlineSortSize, fixed_array_map));
+    ab.AllocateArray(kMaxInlineSortSize, fixed_array_map);
+    for (int k = 0; k < kMaxInlineSortSize; k++) {
+      ab.Store(AccessBuilder::ForFixedArraySlot(k), jsgraph()->ZeroConstant());
+    }
+    TNode<FixedArray> temp_array =
+        TNode<FixedArray>::UncheckedCast(ab.Finish());
+    InitializeEffectControl(temp_array, control());
+
+    // Copy-in: temp_array[k] = elements[k] for k in [0, length).
+    // No CheckBounds needed: k in [0, length) and the receiver's length is
+    // original_length (no callbacks have run yet).
+    auto element_access = AccessBuilder::ForFixedArrayElement(kind);
+    TNode<FixedArrayBase> elements = LoadElements(receiver);
+    ForZeroUntil(original_length).Do([&](TNode<Number> k) {
+      if (!v8_flags.turbo_loop_variable) {
+        // Without loop variable analysis, Turbofan's typer is unable to
+        // derive a sufficiently precise type here. This is not a soundness
+        // problem, but triggers graph verification errors. So we only
+        // insert the TypeGuard if necessary.
+        k = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), k));
+      }
+      TNode<Object> element = LoadElement<Object>(element_access, elements, k);
+      StoreElement(element_access, temp_array, k, element);
+    });
+
+    // Outer loop: for (i = 1; i < length; i++).
+    auto outer_exit = MakeLabel();
+    {
+      GraphAssembler::LoopScope<MachineRepresentation::kTagged> outer_scope(
+          this);
+      auto* outer_header = outer_scope.loop_header_label();
+      auto outer_body = MakeLabel();
+
+      Goto(outer_header, OneConstant());
+      Bind(outer_header);
+      TNode<Number> i = outer_header->PhiAt<Number>(0);
+      if (!v8_flags.turbo_loop_variable) {
+        // Without loop variable analysis, Turbofan's typer is unable to
+        // derive a sufficiently precise type here. This is not a soundness
+        // problem, but triggers graph verification errors. So we only
+        // insert the TypeGuard if necessary.
+        i = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), i));
+      }
+
+      BranchWithHint(NumberLessThan(i, original_length), &outer_body,
+                     &outer_exit, BranchHint::kNone);
+      Bind(&outer_body);
+
+      // Load pivot = temp_array[i].
+      TNode<Object> pivot = LoadElement<Object>(element_access, temp_array, i);
+
+      // Inner loop: j = i-1 downto 0.
+      auto inner_exit = MakeDeferredLabel(MachineRepresentation::kTagged);
+      {
+        GraphAssembler::LoopScope<MachineRepresentation::kTagged> inner_scope(
+            this);
+        auto* inner_header = inner_scope.loop_header_label();
+
+        TNode<Number> j_init = NumberAdd(i, NumberConstant(-1));
+        Goto(inner_header, j_init);
+        Bind(inner_header);
+        TNode<Number> j = inner_header->PhiAt<Number>(0);
+        if (!v8_flags.turbo_loop_variable) {
+          // Without loop variable analysis, Turbofan's typer is unable to
+          // derive a sufficiently precise type here. This is not a
+          // soundness problem, but triggers graph verification errors. So
+          // we only insert the TypeGuard if necessary.  SignedSmall (not
+          // UnsignedSmall) because j can be -1 transiently before the
+          // j < 0 exit below.
+          j = TNode<Number>::UncheckedCast(TypeGuard(Type::SignedSmall(), j));
+        }
+
+        // Exit when j < 0 (pivot belongs at index 0).
+        GotoIf(NumberLessThan(j, ZeroConstant()), &inner_exit,
+               BranchHint::kNone, j);
+
+        // Load elem = temp_array[j].
+        TNode<Object> elem = LoadElement<Object>(element_access, temp_array, j);
+
+        TNode<Object> comparefn_this = UndefinedConstant();
+        TNode<Object> cmp_result =
+            JSCall2(comparefn, comparefn_this, pivot, elem,
+                    SortNoopLazyFrameState(frame_state_params));
+
+        // Re-establish dominating frame state after JSCall for
+        // SpeculativeToNumber below.  Hoisting this Checkpoint out of the
+        // loop is unsafe: the JSCall's effect chain wipes the dominating
+        // frame state, and Turboshaft's graph builder DCHECKs that a
+        // dominating frame state exists for SpeculativeToNumber.
+        Checkpoint(SortNoopEagerFrameState(frame_state_params));
+
+        // Convert comparefn result to a number.
+        TNode<Number> cmp_num = SpeculativeToNumber(cmp_result);
+
+        // If cmp >= 0: insertion point found; exit.
+        GotoIfNot(NumberLessThan(cmp_num, ZeroConstant()), &inner_exit, j);
+
+        // cmp < 0: shift elem right: temp_array[j+1] = elem.
+        TNode<Number> gap = NumberAdd(j, OneConstant());
+        StoreElement(element_access, temp_array, gap, elem);
+
+        // j--
+        Goto(inner_header, NumberAdd(j, NumberConstant(-1)));
+      }  // ~inner LoopScope
+
+      Bind(&inner_exit);
+      TNode<Number> final_j = inner_exit.PhiAt<Number>(0);
+      TNode<Number> insertion_point = NumberAdd(final_j, OneConstant());
+
+      // temp_array[insertion_point] = pivot.
+      StoreElement(element_access, temp_array, insertion_point, pivot);
+
+      // i++
+      Goto(outer_header, NumberAdd(i, OneConstant()));
+    }  // ~outer LoopScope
+
+    Bind(&outer_exit);
+
+    // Guard: comparefn side effects may have changed the receiver's map or
+    // length.  Check once here before the copy-back (the sort loop only
+    // touches the temp array, so in-loop checks are unnecessary).
+    Checkpoint(SortNoopEagerFrameState(frame_state_params));
+    MaybeInsertMapChecks(inference, has_stability_dependency);
+    TNode<Number> current_length = LoadJSArrayLength(receiver, kind);
+    CheckIf(NumberEqual(current_length, original_length),
+            DeoptimizeReason::kArrayLengthChanged);
+
+    // Re-load the elements pointer: comparefn may have grown/shrunk the
+    // backing store via push/pop, replacing receiver.elements.  The map and
+    // length checks above don't catch a same-length push-then-pop sequence.
+    TNode<FixedArrayBase> writable_elements = LoadElements(receiver);
+    // Ensure the elements backing store isn't COW before we write into it.
+    // Array literals share a COW FixedArray; writing back without copying it
+    // first would corrupt every other invocation of the literal site.
+    // FixedDoubleArray has no COW form, so PACKED_DOUBLE is exempt.
+    if (IsSmiOrObjectElementsKind(kind)) {
+      writable_elements = AddNode<FixedArrayBase>(
+          graph()->NewNode(simplified()->EnsureWritableFastElements(), receiver,
+                           writable_elements, effect(), control()));
+    }
+
+    // Copy-back: elements[k] = temp_array[k] for k in [0, length).
+    ForZeroUntil(original_length).Do([&](TNode<Number> k) {
+      if (!v8_flags.turbo_loop_variable) {
+        // Without loop variable analysis, Turbofan's typer is unable to
+        // derive a sufficiently precise type here. This is not a soundness
+        // problem, but triggers graph verification errors. So we only
+        // insert the TypeGuard if necessary.
+        k = TNode<Number>::UncheckedCast(TypeGuard(Type::UnsignedSmall(), k));
+      }
+      TNode<Object> val = LoadElement<Object>(element_access, temp_array, k);
+      StoreFixedArrayBaseElement(writable_elements, k, val, kind);
+    });
+
+    Goto(&done_label);
+  }
+
+  // Slow path: call the generic sort builtin.
+  Bind(&slow_label);
+  {
+    JSCallNode n(node_ptr());
+    CallParameters const& p = n.Parameters();
+
+    // Use kDisallowSpeculation so JSCallReducer does not re-reduce this
+    // call, avoiding infinite recursion.
+    const Operator* op = javascript()->Call(
+        JSCallNode::ArityForArgc(1), p.frequency(), p.feedback(),
+        ConvertReceiverMode::kNotNullOrUndefined,
+        SpeculationMode::kDisallowSpeculation, CallFeedbackRelation::kTarget);
+    Node* sort_builtin = node_ptr()->InputAt(0);
+
+    MayThrow(_ {
+      return AddNode<Object>(graph()->NewNode(
+          op, sort_builtin, receiver, comparefn, n.feedback_vector(),
+          ContextInput(), outer_frame_state, effect(), control()));
+    });
+
+    Goto(&done_label);
+  }
+
+  Bind(&done_label);
+  return receiver;
 }
 
 namespace {
@@ -2833,7 +3142,7 @@ Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-object-constructor
+// https://tc39.es/ecma262/#sec-object-constructor
 Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) return NoChange();
@@ -2987,7 +3296,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   return Replace(value);
 }
 
-// ES section #sec-function.prototype.bind
+// https://tc39.es/ecma262/#sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -3235,7 +3544,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, object);
 }
 
-// ES section #sec-object.is
+// https://tc39.es/ecma262/#sec-object.is
 Reduction JSCallReducer::ReduceObjectIs(Node* node) {
   JSCallNode n(node);
   Node* lhs = n.ArgumentOrUndefined(0, jsgraph());
@@ -3251,7 +3560,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   return ReduceObjectGetPrototype(node, n.receiver());
 }
 
-// ES #sec-object.prototype.hasownproperty
+// https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
 Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   JSCallNode call_node(node);
   Node* receiver = call_node.receiver();
@@ -3388,7 +3697,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   return NoChange();
 }
 
-// ES #sec-object.prototype.isprototypeof
+// https://tc39.es/ecma262/#sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -3479,7 +3788,8 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, target);
 }
 
-// ES6 section #sec-object.create Object.create(proto, properties)
+// ES6 section https://tc39.es/ecma262/#sec-object.create Object.create(proto,
+// properties)
 Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
   JSCallNode n(node);
   Node* properties = n.ArgumentOrUndefined(1, jsgraph());
@@ -3500,14 +3810,15 @@ Reduction JSCallReducer::ReduceObjectCreate(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-reflect.get
+// https://tc39.es/ecma262/#sec-reflect.get
 Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
-  if (arity != 2) return NoChange();
+  if (arity != 2 && arity != 3) return NoChange();
   Node* target = n.Argument(0);
   Node* key = n.Argument(1);
+  Node* receiver = arity == 3 ? n.Argument(2) : nullptr;
   Node* context = n.context();
   FrameState frame_state = n.frame_state();
   Effect effect = n.effect();
@@ -3530,20 +3841,35 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
         frame_state, efalse, if_false);
   }
 
-  // Otherwise just use the existing GetPropertyStub.
+  // Otherwise just use the existing GetPropertyStub or GetPropertyWithReceiver.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
   Node* vtrue;
   {
-    Callable callable = Builtins::CallableFor(isolate(), Builtin::kGetProperty);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        callable.descriptor().GetStackParameterCount(),
-        CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
-    vtrue = etrue = if_true =
-        graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
-                         key, context, frame_state, etrue, if_true);
+    if (arity == 3) {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetPropertyWithReceiver);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      Node* on_non_existent = jsgraph()->SmiConstant(1);  // kReturnUndefined
+      vtrue = etrue = if_true = graph()->NewNode(
+          common()->Call(call_descriptor), stub_code, target, key, receiver,
+          on_non_existent, context, frame_state, etrue, if_true);
+    } else {
+      Callable callable =
+          Builtins::CallableFor(isolate(), Builtin::kGetProperty);
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
+          graph()->zone(), callable.descriptor(),
+          callable.descriptor().GetStackParameterCount(),
+          CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
+      Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+      vtrue = etrue = if_true =
+          graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
+                           key, context, frame_state, etrue, if_true);
+    }
   }
 
   // Rewire potential exception edges.
@@ -3574,7 +3900,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   return Changed(vtrue);
 }
 
-// ES section #sec-reflect.has
+// https://tc39.es/ecma262/#sec-reflect.has
 Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   JSCallNode n(node);
   Node* target = n.ArgumentOrUndefined(0, jsgraph());
@@ -3748,6 +4074,36 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
+Reduction JSCallReducer::ReduceArraySort(Node* node,
+                                         SharedFunctionInfoRef shared) {
+  // Suppress for correctness fuzzing (different behavior vs. builtin).
+  if (V8_UNLIKELY(v8_flags.correctness_fuzzer_suppressions)) return NoChange();
+
+  JSCallNode n(node);
+  if (n.ArgumentCount() < 1) return NoChange();
+
+  // Only reduce when comparefn is statically known to be callable.
+  HeapObjectMatcher m(n.Argument(0));
+  bool comparefn_is_callable =
+      (m.HasResolvedValue() && m.Ref(broker()).map(broker()).is_callable()) ||
+      m.IsJSCreateClosure() || m.IsCheckClosure();
+  if (!comparefn_is_callable) return NoChange();
+
+  IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
+  if (!h.can_reduce()) return h.inference()->NoChange();
+
+  // Only non-holey, non-double PACKED kinds are supported.  Holey arrays need
+  // hole handling; double arrays need a FixedDoubleArray temp copy.
+  if (IsHoleyElementsKind(h.elements_kind())) return h.inference()->NoChange();
+  if (IsDoubleElementsKind(h.elements_kind())) return h.inference()->NoChange();
+
+  IteratingArrayBuiltinReducerAssembler a(this, node);
+  a.InitializeEffectControl(h.effect(), h.control());
+  TNode<Object> subgraph = a.ReduceArrayPrototypeSort(
+      h.inference(), h.has_stability_dependency(), h.elements_kind(), shared);
+  return ReplaceWithSubgraph(&a, subgraph);
+}
+
 Reduction JSCallReducer::ReduceArrayReduce(Node* node,
                                            SharedFunctionInfoRef shared) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
@@ -3863,7 +4219,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 }
 
 // ES7 Array.prototype.inludes(searchElement[, fromIndex])
-// #sec-array.prototype.includes
+// https://tc39.es/ecma262/#sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
@@ -3877,7 +4233,7 @@ Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
 }
 
 // ES6 Array.prototype.indexOf(searchElement[, fromIndex])
-// #sec-array.prototype.indexof
+// https://tc39.es/ecma262/#sec-array.prototype.indexof
 Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
@@ -3960,9 +4316,11 @@ bool CanInlineJSToWasmCall(const wasm::CanonicalSig* wasm_signature) {
   return true;
 }
 
-Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
-                                                SharedFunctionInfoRef shared) {
+Reduction JSCallReducer::ReduceCallWasmFunction(
+    Node* node, SharedFunctionInfoRef shared,
+    Tagged<WasmExportedFunctionData> function_data) {
   DCHECK(flags() & kInlineJSToWasmCalls);
+  DCHECK_EQ(function_data, shared.object()->GetTrustedData(isolate()));
 
   JSCallNode n(node);
   const CallParameters& p = n.Parameters();
@@ -3972,11 +4330,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
       p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
     return NoChange();
   }
-
-  // Read the trusted object only once to ensure a consistent view on it.
-  Tagged<Object> trusted_data = shared.object()->GetTrustedData(isolate());
-  Tagged<WasmExportedFunctionData> function_data;
-  if (!TryCast(trusted_data, &function_data)) return NoChange();
 
   if (function_data->is_promising()) return NoChange();
 
@@ -3989,7 +4342,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
 
   wasm::NativeModule* native_module = instance_data->native_module();
   int wasm_function_index = function_data->function_index();
-  bool receiver_is_first_param = function_data->receiver_is_first_param() != 0;
 
   if (wasm_native_module_for_inlining_ == nullptr) {
     wasm_native_module_for_inlining_ = native_module;
@@ -4007,13 +4359,6 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   DCHECK_EQ(actual_arity + JSWasmCallNode::kExtraInputCount - 1,
             n.FeedbackVectorIndex());
   size_t expected_arity = wasm_signature->parameter_count();
-
-  // Duplicate the receiver into the first argument slot if requested.
-  if (receiver_is_first_param) {
-    node->InsertInput(graph()->zone(), n.FirstArgumentIndex(),
-                      node->InputAt(n.ReceiverIndex()));
-    actual_arity++;
-  }
 
   // Remove additional inputs.
   while (actual_arity > expected_arity) {
@@ -4506,8 +4851,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     if (!dependencies()->DependOnArrayIteratorProtector()) return NoChange();
   }
 
-  // Remove the {arguments_list} input from the {node}.
-  node->RemoveInput(arraylike_or_spread_index);
+  // The {arguments_list} input will be removed later, after we are sure
+  // we won't return NoChange(), to avoid leaving the node in an invalid state.
 
   // The index of the first relevant parameter. Only non-zero when looking at
   // rest parameters, in which case it is set to the index of the first rest
@@ -4522,6 +4867,8 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
   // Check if are spreading to inlined arguments or to the arguments of
   // the outermost function.
   if (frame_state.outer_frame_state()->opcode() != IrOpcode::kFrameState) {
+    // Remove the {arguments_list} input from the {node}.
+    node->RemoveInput(arraylike_or_spread_index);
     Operator const* op;
     if (IsCallWithArrayLikeOrSpread(node)) {
       static constexpr int kTargetAndReceiver = 2;
@@ -4545,6 +4892,11 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     // Need to take the parameters from the inlined extra arguments frame state.
     frame_state = outer_state;
   }
+  if (frame_state.parameters()->opcode() == IrOpcode::kDeadValue) {
+    return NoChange();
+  }
+  // Remove the {arguments_list} input from the {node}.
+  node->RemoveInput(arraylike_or_spread_index);
   // Add the actual parameters to the {node}, skipping the receiver.
   StateValuesAccess parameters_access(frame_state.parameters());
   for (auto it = parameters_access.begin_without_receiver_and_skip(start_index);
@@ -5016,6 +5368,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceReflectHas(node);
     case Builtin::kArrayForEach:
       return ReduceArrayForEach(node, shared);
+    case Builtin::kArrayPrototypeSort:
+      return ReduceArraySort(node, shared);
     case Builtin::kArrayMap:
       return ReduceArrayMap(node, shared);
     case Builtin::kArrayFilter:
@@ -5061,6 +5415,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
                                  IterationKind::kValues);
     case Builtin::kArrayIteratorPrototypeNext:
       return ReduceArrayIteratorPrototypeNext(node);
+    case Builtin::kGeneratorPrototypeNext:
+      return ReduceGeneratorPrototypeNext(node);
     case Builtin::kArrayIsArray:
       return ReduceArrayIsArray(node);
     case Builtin::kArrayBufferIsView:
@@ -5367,11 +5723,14 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if ((flags() & kInlineJSToWasmCalls) &&
-      // Peek at the trusted object; ReduceCallWasmFunction will do that again
-      // and crash if this is not a WasmExportedFunctionData any more then.
-      IsWasmExportedFunctionData(shared.object()->GetTrustedData(isolate()))) {
-    return ReduceCallWasmFunction(node, shared);
+  if (flags() & kInlineJSToWasmCalls) {
+    // Read the trusted object only once and pass it into
+    // `ReduceCallWasmFunction` to ensure a consistent view on it.
+    auto trusted_data = shared.object()->GetTrustedData(isolate());
+    Tagged<WasmExportedFunctionData> function_data;
+    if (TryCast(trusted_data, &function_data)) {
+      return ReduceCallWasmFunction(node, shared, function_data);
+    }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -5764,8 +6123,8 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   return NoChange();
 }
 
-// ES #sec-string.prototype.indexof
-// ES #sec-string.prototype.includes
+// https://tc39.es/ecma262/#sec-string.prototype.indexof
+// https://tc39.es/ecma262/#sec-string.prototype.includes
 Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
     Node* node, StringIndexOfIncludesVariant variant) {
   JSCallNode n(node);
@@ -5823,7 +6182,7 @@ Reduction JSCallReducer::ReduceStringPrototypeIndexOfIncludes(
   return NoChange();
 }
 
-// ES #sec-string.prototype.substring
+// https://tc39.es/ecma262/#sec-string.prototype.substring
 Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5837,7 +6196,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES #sec-string.prototype.slice
+// https://tc39.es/ecma262/#sec-string.prototype.slice
 Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5851,7 +6210,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   return ReplaceWithSubgraph(&a, subgraph);
 }
 
-// ES #sec-string.prototype.substr
+// https://tc39.es/ecma262/#sec-string.prototype.substr
 Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5916,7 +6275,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
                        jsgraph()->ZeroConstant()),
       graph()->NewNode(simplified()->NumberSubtract(), length, initStart));
 
-  // The the select below uses {resultLength} only if {resultLength > 0},
+  // The select below uses {resultLength} only if {resultLength > 0},
   // but our typer can't figure that out yet.
   Node* to = effect = graph()->NewNode(
       common()->TypeGuard(Type::UnsignedSmall()),
@@ -6755,7 +7114,218 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
   return Changed(node);
 }
 
-// ES #sec-%arrayiteratorprototype%.next
+// https://tc39.es/ecma262/#sec-generator.prototype.next
+Reduction JSCallReducer::ReduceGeneratorPrototypeNext(Node* node) {
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  Node* receiver = n.receiver();
+  Node* value = n.ArgumentOrUndefined(0, jsgraph());
+  Node* context = n.context();
+  Effect effect = n.effect();
+  Control control = n.control();
+
+  if (p.speculation_mode() != SpeculationMode::kAllowSpeculation) {
+    return NoChange();
+  }
+
+  // We build a LAZY_WITH_CATCH continuation frame state for the inlined call
+  // so the deoptimizer treats the lazy-deopt continuation as a catch handler
+  // when a throw arrives at the inlined call PC after the optimized code is
+  // invalidated. That requires the surrounding function's SharedFunctionInfo,
+  // which lives in the outer frame state.
+  FrameState outer_frame_state{n.frame_state()};
+  Handle<SharedFunctionInfo> outer_shared;
+  if (!outer_frame_state.frame_state_info().shared_info().ToHandle(
+          &outer_shared)) {
+    return NoChange();
+  }
+
+  MapInference inference(broker(), receiver, effect);
+  if (inference.HaveMaps() &&
+      inference.AllOfInstanceTypesAre(JS_GENERATOR_OBJECT_TYPE)) {
+    inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
+                                        control, p.feedback());
+  } else {
+    // If we have no reliable map feedback (e.g. megamorphic next() calls),
+    // we can still inline the generator resume by emitting a dynamic
+    // instance type check, and deoptimizing if it's not a generator.
+
+    // 1. Check if receiver is a Smi.
+    Node* is_smi = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+    Node* is_not_smi = graph()->NewNode(simplified()->BooleanNot(), is_smi);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kSmi, p.feedback()), is_not_smi,
+        effect, control);
+
+    // 2. Check if receiver's InstanceType is JS_GENERATOR_OBJECT_TYPE.
+    Node* receiver_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, effect, control);
+    Node* receiver_instance_type = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+        receiver_map, effect, control);
+    Node* is_generator =
+        graph()->NewNode(simplified()->NumberEqual(), receiver_instance_type,
+                         jsgraph()->ConstantNoHole(JS_GENERATOR_OBJECT_TYPE));
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kWrongInstanceType,
+                              p.feedback()),
+        is_generator, effect, control);
+  }
+
+  // Check if the {receiver} is running or already closed.
+  Node* receiver_continuation = effect =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, effect, control);
+
+  Node* closed = jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorClosed);
+  Node* check_closed = graph()->NewNode(simplified()->NumberEqual(),
+                                        receiver_continuation, closed);
+
+  Node* branch_closed = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check_closed, control);
+  Node* if_receiverisclosed =
+      graph()->NewNode(common()->IfTrue(), branch_closed);
+  Node* if_receiverisrunning =
+      graph()->NewNode(common()->IfFalse(), branch_closed);
+
+  // If closed: return {value: undefined, done: true}
+  Node* e_receiverisclosed = effect;
+  Node* v_receiverisclosed = e_receiverisclosed = graph()->NewNode(
+      javascript()->CreateIterResultObject(), jsgraph()->UndefinedConstant(),
+      jsgraph()->TrueConstant(), context, e_receiverisclosed);
+
+  // If not closed, check if executing.
+  Node* executing =
+      jsgraph()->ConstantNoHole(JSGeneratorObject::kGeneratorExecuting);
+  Node* check_executing = graph()->NewNode(simplified()->NumberEqual(),
+                                           receiver_continuation, executing);
+
+  // A throwing/deopting check is better here, since executing generators are
+  // extremely rare. We can just deoptimize if it's executing.
+  Node* e_receiverisrunning = graph()->NewNode(
+      simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget, p.feedback()),
+      graph()->NewNode(simplified()->BooleanNot(), check_executing), effect,
+      if_receiverisrunning);
+
+  // Set resume_mode to kNext.
+  e_receiverisrunning = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSGeneratorObjectResumeMode()),
+      receiver, jsgraph()->ConstantNoHole(JSGeneratorObject::kNext),
+      e_receiverisrunning, if_receiverisrunning);
+
+  // Emit Call to ResumeGeneratorTrampoline
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtin::kResumeGeneratorTrampoline);
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(),
+      CallDescriptor::kNeedsFrameState);
+
+  // Use a GeneratorPrototypeNextLazyDeoptContinuation to wrap the yielded
+  // value correctly in case of a lazy deopt. LAZY_WITH_CATCH so the
+  // continuation also handles the deopt-on-throw case (close the generator
+  // and rethrow); see frame_state setup above.
+  Node* lazy_deopt_parameters[] = {
+      jsgraph()->UndefinedConstant(), /* receiver of the JS continuation */
+      receiver,                       /* generator argument */
+  };
+  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), MakeRef(broker(), outer_shared),
+      Builtin::kGeneratorPrototypeNextLazyDeoptContinuation, n.target(),
+      context, lazy_deopt_parameters, arraysize(lazy_deopt_parameters),
+      n.frame_state(), ContinuationFrameStateMode::LAZY_WITH_CATCH);
+
+  Node* result = e_receiverisrunning = if_receiverisrunning = graph()->NewNode(
+      common()->Call(descriptor),
+      jsgraph()->HeapConstantNoHole(callable.code()), value, receiver, context,
+      frame_state, e_receiverisrunning, if_receiverisrunning);
+
+  // Close the generator if there was an exception, then dispatch to the
+  // surrounding handler (if any) or physically rethrow. The
+  // LAZY_WITH_CATCH continuation above handles the same flow when the
+  // optimized code is invalidated mid-call.
+  Node* if_exception = graph()->NewNode(
+      common()->IfException(), e_receiverisrunning, if_receiverisrunning);
+  Node* e_exception = if_exception;
+  if_receiverisrunning =
+      graph()->NewNode(common()->IfSuccess(), if_receiverisrunning);
+
+  e_exception =
+      graph()->NewNode(simplified()->StoreField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, closed, e_exception, if_exception);
+
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    // Replace the original exception handler with our new exception path.
+    ReplaceWithValue(on_exception, if_exception, e_exception, if_exception);
+  } else {
+    // We must physically rethrow the exception.
+    Node* rethrow = e_exception = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kReThrow, 1), if_exception, context,
+        n.frame_state(), e_exception, if_exception);
+    Node* throw_node = graph()->NewNode(common()->Throw(), rethrow, rethrow);
+    MergeControlToEnd(graph(), common(), throw_node);
+  }
+
+  // The generator could have returned or yielded. JSResumeGenerator returns the
+  // yielded value. Check the generator's state again to see if it's executing
+  // (meaning it naturally returned).
+  Node* result_continuation = e_receiverisrunning =
+      graph()->NewNode(simplified()->LoadField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, e_receiverisrunning, if_receiverisrunning);
+
+  Node* check_returned = graph()->NewNode(simplified()->NumberEqual(),
+                                          result_continuation, executing);
+
+  Node* branch_returned =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check_returned,
+                       if_receiverisrunning);
+  Node* if_final_return = graph()->NewNode(common()->IfTrue(), branch_returned);
+  Node* if_yielded = graph()->NewNode(common()->IfFalse(), branch_returned);
+
+  // If it returned, close it.
+  Node* e_final_return =
+      graph()->NewNode(simplified()->StoreField(
+                           AccessBuilder::ForJSGeneratorObjectContinuation()),
+                       receiver, closed, e_receiverisrunning, if_final_return);
+
+  // Wrap the returned value in an IterResult object: {value: result, done:
+  // true}
+  Node* v_final_return = e_final_return =
+      graph()->NewNode(javascript()->CreateIterResultObject(), result,
+                       jsgraph()->TrueConstant(), context, e_final_return);
+
+  // If it yielded, the value is already wrapped by the generator.
+  Node* v_yielded = result;
+  Node* e_yielded = e_receiverisrunning;
+
+  // Merge the returned and yielded paths.
+  Node* control_after_resume =
+      graph()->NewNode(common()->Merge(2), if_final_return, if_yielded);
+  Node* e_after_resume = graph()->NewNode(
+      common()->EffectPhi(2), e_final_return, e_yielded, control_after_resume);
+  Node* v_after_resume =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       v_final_return, v_yielded, control_after_resume);
+
+  // Merge the originally closed path and the running path.
+  control = graph()->NewNode(common()->Merge(2), if_receiverisclosed,
+                             control_after_resume);
+  effect = graph()->NewNode(common()->EffectPhi(2), e_receiverisclosed,
+                            e_after_resume, control);
+  Node* final_value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       v_receiverisclosed, v_after_resume, control);
+
+  ReplaceWithValue(node, final_value, effect, control);
+  return Replace(final_value);
+}
+
+// https://tc39.es/ecma262/#sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7211,7 +7781,7 @@ Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
 
 #endif  // V8_INTL_SUPPORT
 
-// ES #sec-string.fromcharcode
+// https://tc39.es/ecma262/#sec-string.fromcharcode
 Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7236,7 +7806,7 @@ Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   return NoChange();
 }
 
-// ES #sec-string.fromcodepoint
+// https://tc39.es/ecma262/#sec-string.fromcodepoint
 Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7411,7 +7981,7 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-string.prototype.concat
+// https://tc39.es/ecma262/#sec-string.prototype.concat
 Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7562,7 +8132,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   return true;
 }
 
-// ES section #sec-promise.prototype.catch
+// https://tc39.es/ecma262/#sec-promise.prototype.catch
 Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7615,7 +8185,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
                           effect, control);
 }
 
-// ES section #sec-promise.prototype.finally
+// https://tc39.es/ecma262/#sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -7797,7 +8367,7 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   return Replace(promise);
 }
 
-// ES section #sec-promise.resolve
+// https://tc39.es/ecma262/#sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -7825,7 +8395,7 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
   return Changed(node);
 }
 
-// ES #sec-typedarray-constructors
+// https://tc39.es/ecma262/#sec-typedarray-constructors
 Reduction JSCallReducer::ReduceTypedArrayConstructor(
     Node* node, SharedFunctionInfoRef shared) {
   JSConstructNode n(node);
@@ -7857,7 +8427,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   return Replace(result);
 }
 
-// ES #sec-get-%typedarray%.prototype-@@tostringtag
+// https://tc39.es/ecma262/#sec-get-%typedarray%.prototype-@@tostringtag
 Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -8088,7 +8658,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeLength(Node* node) {
   return ReplaceWithSubgraph(&a, length);
 }
 
-// ES #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8102,7 +8672,7 @@ Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8116,7 +8686,7 @@ Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.issafeinteger
+// https://tc39.es/ecma262/#sec-number.issafeinteger
 Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8130,7 +8700,7 @@ Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-number.isnan
+// https://tc39.es/ecma262/#sec-number.isnan
 Reduction JSCallReducer::ReduceNumberIsNaN(Node* node) {
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -8771,7 +9341,14 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
   // if we anyways have to load it (to reduce register pressure).
   Node* buffer_or_receiver = receiver;
 
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  bool depend_on_detaching =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  bool depend_on_mutable =
+      access == DataViewAccess::kSet
+          ? dependencies()->DependOnArrayBufferMutableProtector()
+          : true;
+
+  if (!depend_on_detaching || !depend_on_mutable) {
     // Get the underlying buffer and check that it has not been detached.
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
@@ -9087,7 +9664,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-number-constructor
+// https://tc39.es/ecma262/#sec-number-constructor
 Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   JSCallNode n(node);
   Node* target = n.target();
@@ -9109,7 +9686,7 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
   return Changed(node);
 }
 
-// ES section #sec-bigint-constructor
+// https://tc39.es/ecma262/#sec-bigint-constructor
 Reduction JSCallReducer::ReduceBigIntConstructor(Node* node) {
   if (!jsgraph()->machine()->Is64()) return NoChange();
 

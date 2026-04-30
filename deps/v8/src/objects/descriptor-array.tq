@@ -23,7 +23,7 @@ bitfield struct DescriptorArrayFlags extends uint32 {
   fast_iterable: FastIterableState: 2 bit;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
 extern class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
@@ -34,11 +34,12 @@ extern class DescriptorArray extends HeapObject {
   flags: DescriptorArrayFlags;
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 
   enum_cache: EnumCache;
   descriptors[number_of_all_descriptors]: DescriptorEntry;
 }
 
 // A descriptor array where all values are held strongly.
-class StrongDescriptorArray extends DescriptorArray {}
+@cppObjectLayoutDefinition
+@generateUniqueMap
+extern class StrongDescriptorArray extends DescriptorArray {}

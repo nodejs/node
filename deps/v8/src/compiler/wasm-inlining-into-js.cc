@@ -21,8 +21,6 @@ namespace {
 using wasm::WasmOpcode;
 using wasm::WasmOpcodes;
 
-static constexpr bool kNotShared = false;
-
 class WasmIntoJSInlinerImpl : private wasm::Decoder {
   using ValidationTag = NoValidationTag;
 
@@ -190,7 +188,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     DCHECK(input.type.is_reference_to(wasm::GenericKind::kExtern) ||
            input.type.is_reference_to(wasm::GenericKind::kNoExtern));
     wasm::ValueType result_type = wasm::ValueType::Generic(
-        wasm::GenericKind::kAny, input.type.nullability(), kNotShared);
+        wasm::GenericKind::kAny, input.type.nullability(), SharedFlag::kNo);
     Node* internalized = gasm_.WasmAnyConvertExtern(input.node);
     return TypeNode(internalized, result_type);
   }
@@ -198,7 +196,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   Value ParseExternConvertAny(Value input) {
     DCHECK(input.type.is_ref());
     wasm::ValueType result_type = wasm::ValueType::Generic(
-        wasm::GenericKind::kExtern, input.type.nullability(), kNotShared);
+        wasm::GenericKind::kExtern, input.type.nullability(), SharedFlag::kNo);
     Node* internalized = gasm_.WasmExternConvertAny(input.node);
     return TypeNode(internalized, result_type);
   }
@@ -270,7 +268,8 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       TFGraph* graph = mcgraph_->graph();
       wasm::ValueType result_type = wasm::ValueType::Generic(
           wasm::GenericKind::kArray,
-          null_succeeds ? wasm::kNullable : wasm::kNonNullable, kNotShared);
+          null_succeeds ? wasm::kNullable : wasm::kNonNullable,
+          SharedFlag::kNo);
       Node* type_guard =
           graph->NewNode(mcgraph_->common()->TypeGuard(
                              Type::Wasm(result_type, module_, graph->zone())),

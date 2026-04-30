@@ -12,40 +12,62 @@ extern enum JSIteratorHelperState extends uint31 {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSIteratorHelper extends JSObject {
   state: SmiTagged<JSIteratorHelperState>;
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class JSIteratorHelperSimple extends JSIteratorHelper {
   underlying_iterator: iterator::IteratorRecord;
 }
 
+@cppObjectLayoutDefinition
 extern class JSIteratorMapHelper extends JSIteratorHelperSimple {
   mapper: Callable;
   counter: Number;
 }
 
+@cppObjectLayoutDefinition
 extern class JSIteratorFilterHelper extends JSIteratorHelperSimple {
   predicate: Callable;
   counter: Number;
 }
 
+@cppObjectLayoutDefinition
 extern class JSIteratorTakeHelper extends JSIteratorHelperSimple {
   remaining: Number;
 }
 
+@cppObjectLayoutDefinition
 extern class JSIteratorDropHelper extends JSIteratorHelperSimple {
   remaining: Number;
 }
 
+@cppObjectLayoutDefinition
 extern class JSIteratorFlatMapHelper extends JSIteratorHelperSimple {
   mapper: Callable;
   counter: Number;
   inner_iterator: iterator::IteratorRecord;
 }
 
+@cppObjectLayoutDefinition
 extern class JSIteratorConcatHelper extends JSIteratorHelperSimple {
   iterables: FixedArray;
   current: Smi;
+}
+
+extern enum JSIteratorZipHelperMode extends uint31 {
+  kShortest,
+  kLongest,
+  kStrict
+}
+
+@cppObjectLayoutDefinition
+extern class JSIteratorZipHelper extends JSIteratorHelper {
+  underlying_iterators: FixedArray;
+  mode: SmiTagged<JSIteratorZipHelperMode>;
+  active_count: Smi;
+  padding: FixedArray;
 }

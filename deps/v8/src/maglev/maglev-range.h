@@ -98,7 +98,7 @@ class Range {
 
   bool operator>=(const Range& other) const { return min_ >= other.max_; }
 
-  bool operator>(const Range& other) const { return min_ < other.max_; }
+  bool operator>(const Range& other) const { return min_ > other.max_; }
 
   static Range Union(Range r1, Range r2) {
     if (r1.is_empty()) return r2;

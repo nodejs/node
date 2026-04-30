@@ -4,7 +4,9 @@
 
 @cppObjectLayoutDefinition
 extern class ObjectBoilerplateDescription extends HeapObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   backing_store_size: Smi;
   flags: Smi;
   raw_entries[length]: Object;
@@ -19,7 +21,6 @@ extern class ArrayBoilerplateDescription extends Struct {
 @cppObjectLayoutDefinition
 extern class RegExpBoilerplateDescription extends Struct {
   data: TrustedPointer<RegExpData>;
-  source: String;
   flags: SmiTagged<JSRegExpFlags>;
 }
 
@@ -34,6 +35,7 @@ extern class ClassBoilerplate extends Struct {
   instance_computed_properties: FixedArray;
 }
 
+@cppObjectLayoutDefinition
 extern class PrototypeSharedClosureInfo extends Struct {
   boilerplate_description: ObjectBoilerplateDescription;
   closure_feedback_cell_array: ClosureFeedbackCellArray;

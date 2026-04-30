@@ -152,15 +152,13 @@ const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op) {
   return OpParameter<CallRuntimeParameters>(op);
 }
 
-
 ContextAccess::ContextAccess(size_t depth, size_t index, bool immutable)
-    : immutable_(immutable),
-      depth_(static_cast<uint16_t>(depth)),
+    : immutable_and_depth_(ImmutableField::encode(immutable) |
+                           DepthField::encode(static_cast<uint32_t>(depth))),
       index_(static_cast<uint32_t>(index)) {
-  DCHECK(depth <= std::numeric_limits<uint16_t>::max());
+  CHECK_EQ(depth, DepthField::decode(immutable_and_depth_));
   DCHECK(index <= std::numeric_limits<uint32_t>::max());
 }
-
 
 bool operator==(ContextAccess const& lhs, ContextAccess const& rhs) {
   return lhs.depth() == rhs.depth() && lhs.index() == rhs.index() &&
@@ -822,13 +820,11 @@ ForInParameters const& ForInParametersOf(const Operator* op) {
 #if V8_ENABLE_WEBASSEMBLY
 JSWasmCallParameters::JSWasmCallParameters(
     wasm::NativeModule* native_module, int function_index,
-    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
-    bool receiver_is_first_param)
+    SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback)
     : native_module_(native_module),
       function_index_(function_index),
       shared_fct_info_(shared_fct_info),
-      feedback_(feedback),
-      receiver_is_first_param_(receiver_is_first_param) {}
+      feedback_(feedback) {}
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kJSWasmCall, op->opcode());
@@ -903,6 +899,7 @@ Type JSWasmCallNode::TypeForWasmReturnKind(wasm::ValueKind kind) {
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)                  \
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)                  \
   V(ForInEnumerate, Operator::kNoProperties, 1, 1)                       \
+  V(AsyncFunctionAwait, Operator::kNoDeopt, 2, 1)                        \
   V(AsyncFunctionEnter, Operator::kNoProperties, 2, 1)                   \
   V(AsyncFunctionReject, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)  \
   V(AsyncFunctionResolve, Operator::kNoDeopt | Operator::kNoThrow, 2, 1) \

@@ -545,6 +545,22 @@ class MemoryContentTable
   }
 #endif
 
+  void InvalidatePotentialLoadedStringMaps() {
+    constexpr int kOffset = 0;
+    auto offset_keys = offset_keys_.find(kOffset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(kOffset, key.data().mem.offset);
+      // TODO(dmercadier): check known maps for key.data().mem.base and don't
+      // invalidate if maps cannot be string maps.
+      it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
+      Set(key, OpIndex::Invalid());
+    }
+  }
+
  private:
   // To avoid pathological execution times, we cap the maximum number of
   // keys we track. This is safe, because *not* tracking objects (even
@@ -778,6 +794,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
+  void WipeAllMaps();
+
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
   template <bool for_loop_revisit = false>
@@ -949,7 +967,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                 // NaN.
                 EmitReportLoadEliminationError();
               }
-            } else if (compare_rep == RegisterRepresentation::Tagged()) {
+            } else if (compare_rep == RegisterRepresentation::Tagged() &&
+                       !v8_flags.turbolev) {
               // We are trying to replace a Tagged value by a different Tagged
               // value. This is generally wrong, but there is one exception: we
               // are allowed to replace a string map by a different string map

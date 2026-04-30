@@ -15,6 +15,7 @@
 #include "src/objects/name.h"
 #include "src/objects/oddball.h"
 #include "src/objects/templates.h"
+#include "src/utils/memcopy.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -29,9 +30,6 @@ namespace internal {
 static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
 static_assert(Internals::kCallbackInfoDataOffset ==
               InterceptorInfo::kDataOffset);
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
 Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
   return callback_.load();
@@ -65,6 +63,29 @@ Tagged<Object> AccessCheckInfo::data() const { return data_.load(); }
 void AccessCheckInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
   data_.store(this, value, mode);
 }
+
+// AccessorInfo.
+Tagged<Object> AccessorInfo::data() const { return data_.load(); }
+void AccessorInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+Tagged<Name> AccessorInfo::name() const { return name_.load(); }
+void AccessorInfo::set_name(Tagged<Name> value, WriteBarrierMode mode) {
+  name_.store(this, value, mode);
+}
+
+uint32_t AccessorInfo::flags() const { return flags_; }
+void AccessorInfo::set_flags(uint32_t value) { flags_ = value; }
+
+// InterceptorInfo.
+Tagged<Object> InterceptorInfo::data() const { return data_.load(); }
+void InterceptorInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+uint32_t InterceptorInfo::flags() const { return flags_; }
+void InterceptorInfo::set_flags(uint32_t value) { flags_ = value; }
 
 REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
     AccessorInfo, getter, Address, kGetterOffset, kAccessorInfoGetterTag,
@@ -117,7 +138,7 @@ void AccessorInfo::RestoreCallbackRedirectionAfterDeserialization(
 
 void AccessorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+  Memset(reinterpret_cast<uint8_t*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 
@@ -133,6 +154,8 @@ INTERCEPTOR_INFO_HAS_GETTER(descriptor)
 INTERCEPTOR_INFO_HAS_GETTER(deleter)
 INTERCEPTOR_INFO_HAS_GETTER(definer)
 INTERCEPTOR_INFO_HAS_GETTER(enumerator)
+
+bool InterceptorInfo::has_index_of() const { return has_indexed_index_of(); }
 
 #undef INTERCEPTOR_INFO_HAS_GETTER
 
@@ -194,10 +217,15 @@ LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     kApiIndexedPropertyDefinerCallbackTag, !is_named(),
     !is_named() && (value != kNullAddress))
 
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_index_of, Address, kIndexOfOffset,
+    kApiIndexedPropertyIndexOfCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                CanInterceptSymbolsBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
-BOOL_ACCESSORS(InterceptorInfo, flags, is_named, NamedBit::kShift)
+BOOL_GETTER(InterceptorInfo, flags, is_named, NamedBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
                HasNoSideEffectBit::kShift)
 // TODO(ishell): remove once all the Api changes are done.
@@ -221,7 +249,7 @@ void InterceptorInfo::RestoreCallbackRedirectionAfterDeserialization(
 
 void InterceptorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+  Memset(reinterpret_cast<uint8_t*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
 }
 

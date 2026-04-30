@@ -16,9 +16,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-struct-tq.inc"
 
-class AlwaysSharedSpaceJSObject
-    : public TorqueGeneratedAlwaysSharedSpaceJSObject<AlwaysSharedSpaceJSObject,
-                                                      JSObject> {
+V8_OBJECT class AlwaysSharedSpaceJSObject : public JSObject {
  public:
   // Prepare a Map to be used as the instance map for shared JS objects.
   static void PrepareMapNoEnumerableProperties(Tagged<Map> map);
@@ -40,19 +38,23 @@ class AlwaysSharedSpaceJSObject
                                  DirectHandle<JSFunction> constructor,
                                  DirectHandle<Object> object);
 
-  static_assert(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(AlwaysSharedSpaceJSObject)
-};
+  // Defined out-of-line below the class so `sizeof` on the still-incomplete
+  // type can appear in an initializer.
+  static const int kHeaderSize;
+} V8_OBJECT_END;
 
-class JSSharedStruct
-    : public TorqueGeneratedJSSharedStruct<JSSharedStruct,
-                                           AlwaysSharedSpaceJSObject> {
+inline constexpr int AlwaysSharedSpaceJSObject::kHeaderSize =
+    sizeof(AlwaysSharedSpaceJSObject);
+static_assert(sizeof(AlwaysSharedSpaceJSObject) == sizeof(JSObject));
+
+V8_OBJECT class JSSharedStruct : public AlwaysSharedSpaceJSObject {
  public:
   static DirectHandle<Map> CreateInstanceMap(
       Isolate* isolate,
       const base::Vector<const DirectHandle<Name>> field_names,
       const std::set<uint32_t>& element_names,
-      MaybeDirectHandle<String> maybe_registry_key);
+      MaybeDirectHandle<String> maybe_registry_key,
+      bool has_interesting_properties);
 
   static MaybeHandle<String> GetRegistryKey(Isolate* isolate,
                                             Tagged<Map> instance_map);
@@ -71,10 +73,12 @@ class JSSharedStruct
   DECL_PRINTER(JSSharedStruct)
   EXPORT_DECL_VERIFIER(JSSharedStruct)
 
-  class BodyDescriptor;
+  // Defined out-of-line below the class so `sizeof` on the still-incomplete
+  // type can appear in an initializer.
+  static const int kHeaderSize;
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSSharedStruct)
-};
+inline constexpr int JSSharedStruct::kHeaderSize = sizeof(JSSharedStruct);
 
 class SharedStructTypeRegistry final {
  public:
@@ -86,7 +90,7 @@ class SharedStructTypeRegistry final {
   MaybeDirectHandle<Map> Register(
       Isolate* isolate, Handle<String> key,
       const base::Vector<const DirectHandle<Name>> field_names,
-      const std::set<uint32_t>& element_names);
+      const std::set<uint32_t>& element_names, bool has_interesting_properties);
 
   void IterateElements(Isolate* isolate, RootVisitor* visitor);
   void NotifyElementsRemoved(int count);
@@ -97,7 +101,7 @@ class SharedStructTypeRegistry final {
   MaybeDirectHandle<Map> RegisterNoThrow(
       Isolate* isolate, Handle<String> key,
       const base::Vector<const DirectHandle<Name>> field_names,
-      const std::set<uint32_t>& element_names);
+      const std::set<uint32_t>& element_names, bool has_interesting_properties);
 
   MaybeDirectHandle<Map> CheckIfEntryMatches(
       Isolate* isolate, InternalIndex entry, DirectHandle<String> key,

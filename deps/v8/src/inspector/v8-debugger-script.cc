@@ -4,6 +4,10 @@
 
 #include "src/inspector/v8-debugger-script.h"
 
+#include <stdint.h>
+
+#include <vector>
+
 #include "src/base/memory.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Debugger.h"
@@ -42,13 +46,15 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
 
 V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
                                    v8::Local<v8::debug::Script> script,
-                                   bool isLiveEdit, V8DebuggerAgentImpl* agent,
+                                   bool hadCompileError, bool isLiveEdit,
+                                   V8DebuggerAgentImpl* agent,
                                    V8InspectorClient* client)
     : m_id(String16::fromInteger(script->Id())),
       m_url(GetScriptURL(isolate, script, client)),
       m_isolate(isolate),
       m_embedderName(GetScriptName(isolate, script, client)),
       m_agent(agent),
+      m_hadCompileError(hadCompileError),
       m_isLiveEdit(isLiveEdit) {
   Initialize(script);
 }
@@ -70,14 +76,10 @@ String16 V8DebuggerScript::source(size_t pos, size_t len) const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-v8::Maybe<v8::MemorySpan<const uint8_t>> V8DebuggerScript::wasmBytecode()
-    const {
+v8::Maybe<std::vector<uint8_t>> V8DebuggerScript::getWasmBytecode(
+    size_t max_size) const {
   v8::HandleScope scope(m_isolate);
-  v8::MemorySpan<const uint8_t> bytecode;
-  if (m_scriptSource.Get(m_isolate)->WasmBytecode().To(&bytecode)) {
-    return v8::Just(bytecode);
-  }
-  return v8::Nothing<v8::MemorySpan<const uint8_t>>();
+  return m_scriptSource.Get(m_isolate)->GetWasmBytecode(max_size);
 }
 
 std::vector<v8::debug::WasmScript::DebugSymbols>

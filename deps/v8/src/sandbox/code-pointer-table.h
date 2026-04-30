@@ -31,22 +31,13 @@ struct CodePointerTableEntry {
   // forward-edge CFI.
   static constexpr bool IsWriteProtected = true;
 
-  // Make this entry a code pointer entry for the given code object and
-  // entrypoint.
-  inline void MakeCodePointerEntry(Address code, Address entrypoint,
-                                   CodeEntrypointTag tag, bool mark_as_alive);
+  // Make this entry a code pointer entry for the given code object.
+  inline void MakeCodePointerEntry(Address code, CodeEntrypointTag tag,
+                                   bool mark_as_alive);
 
   // Make this entry a freelist entry, containing the index of the next entry
   // on the freelist.
   inline void MakeFreelistEntry(uint32_t next_entry_index);
-
-  // Load code entrypoint pointer stored in this entry.
-  // This entry must be a code pointer entry.
-  inline Address GetEntrypoint(CodeEntrypointTag tag) const;
-
-  // Store the given code entrypoint pointer in this entry.
-  // This entry must be a code pointer entry.
-  inline void SetEntrypoint(Address value, CodeEntrypointTag tag);
 
   // Load the code object pointer stored in this entry.
   // This entry must be a code pointer entry.
@@ -58,6 +49,9 @@ struct CodePointerTableEntry {
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
+
+  // Invalidate the entry.
+  inline void MakeZappedEntry();
 
   // Get the index of the next entry on the freelist. This method may be
   // called even when the entry is not a freelist entry. However, the result
@@ -84,7 +78,6 @@ struct CodePointerTableEntry {
   // The marking bit is stored in the code_ field, see below.
   static constexpr Address kMarkingBit = 1;
 
-  std::atomic<Address> entrypoint_;
   // The pointer to the Code object also contains the marking bit: since this is
   // a tagged pointer to a V8 HeapObject, we know that it will be 4-byte aligned
   // and that the LSB should always be set. We therefore use the LSB as marking
@@ -100,6 +93,9 @@ static_assert(sizeof(CodePointerTableEntry) == kCodePointerTableEntrySize);
 
 /**
  * A table containing pointers to Code.
+ *
+ * TODO(498510170): Removing this table and replacing the usages with the TPT is
+ * work in progress.
  *
  * Essentially a specialized version of the trusted pointer table (TPT). A
  * code pointer table entry contains both a pointer to a Code object as well as
@@ -132,34 +128,24 @@ class V8_EXPORT_PRIVATE CodePointerTable
   // The Spaces used by a CodePointerTable.
   using Space = Base::Space;
 
-  // Retrieves the entrypoint of the entry referenced by the given handle.
-  //
-  // This method is atomic and can be called from background threads.
-  inline Address GetEntrypoint(CodePointerHandle handle,
-                               CodeEntrypointTag tag) const;
-
   // Retrieves the code object of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
   inline Address GetCodeObject(CodePointerHandle handle) const;
-
-  // Sets the entrypoint of the entry referenced by the given handle.
-  //
-  // This method is atomic and can be called from background threads.
-  inline void SetEntrypoint(CodePointerHandle handle, Address value,
-                            CodeEntrypointTag tag);
 
   // Sets the code object of the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
   inline void SetCodeObject(CodePointerHandle handle, Address value);
 
+  // Invalidates the entry referenced by the given handle.
+  inline void Zap(CodePointerHandle handle);
+
   // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
   inline CodePointerHandle AllocateAndInitializeEntry(Space* space,
                                                       Address code,
-                                                      Address entrypoint,
                                                       CodeEntrypointTag tag);
 
   // Marks the specified entry as alive.
@@ -185,6 +171,14 @@ class V8_EXPORT_PRIVATE CodePointerTable
 
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
+
+  // Verifies that all entries in the given space are valid.
+  //
+  // In practice, this means that every active entry must point to a valid
+  // (e.g. not freed or corrupted) object of the expected type. As a general
+  // rule, the table must be in a consistent state (and so pass verification)
+  // whenever we can execute JS or Wasm code.
+  void Verify(Isolate* isolate, Space* space);
 
  private:
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;

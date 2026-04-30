@@ -180,5 +180,23 @@ TEST_F(StringsStorageWithIsolate, CopyAndConsShareStorage) {
   CHECK_EQ(copy_str, cons_str);
 }
 
+TEST_F(StringsStorageWithIsolate, Truncation) {
+  {
+    StringsStorage storage(2);
+    DirectHandle<String> str =
+        isolate()->factory()->NewStringFromAsciiChecked("foobar");
+    const char* stored_str = storage.GetName(*str);
+    CHECK(StringEq("fo", stored_str));
+  }
+
+  {
+    StringsStorage storage(0);
+    DirectHandle<String> str =
+        isolate()->factory()->NewStringFromAsciiChecked("foobar");
+    const char* stored_str = storage.GetName(*str);
+    CHECK(StringEq("foobar", stored_str));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

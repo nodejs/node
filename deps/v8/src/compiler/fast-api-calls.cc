@@ -381,13 +381,13 @@ FastApiCallFunction GetFastApiCallTarget(
 
   static constexpr int kReceiver = 1;
 
-  const ZoneVector<const CFunctionInfo*>& signatures =
-      function_template_info.c_signatures(broker);
-  const size_t overloads_count = signatures.size();
+  const ZoneVector<CFunctionInfoWithDetails> overloads =
+      function_template_info.c_functions_with_signatures(broker);
+  const size_t overloads_count = overloads.size();
 
   // Only considers entries whose type list length matches arg_count.
   for (size_t i = 0; i < overloads_count; i++) {
-    const CFunctionInfo* c_signature = signatures[i];
+    const CFunctionInfo* c_signature = overloads[i].signature;
     const size_t len = c_signature->ArgumentCount() - kReceiver;
     bool optimize_to_fast_call =
         (len == arg_count) &&
@@ -407,7 +407,7 @@ FastApiCallFunction GetFastApiCallTarget(
         }
       }
 #endif
-      return {function_template_info.c_functions(broker)[i], c_signature};
+      return {overloads[i].address, c_signature};
     }
   }
 

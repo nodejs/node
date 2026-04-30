@@ -113,7 +113,7 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
   // must be either an Smi, or a PropertyArray.
   Comment("FastCloneJSObject: cloning properties");
   TNode<Object> source_properties =
-      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+      LoadObjectField(object, offsetof(JSObject, properties_or_hash_));
   {
     GotoIf(TaggedIsSmi(source_properties), &done_copy_properties);
     GotoIf(IsEmptyFixedArray(source_properties), &done_copy_properties);
@@ -242,6 +242,32 @@ TNode<Object> CodeStubAssembler::FastCloneJSObject(
 
   return target;
 }
+
+template <IndirectPointerTagRange tag_range>
+inline TNode<TrustedTypeFor<tag_range>>
+CodeStubAssembler::LoadTrustedPointerFromObject(TNode<HeapObject> object,
+                                                int field_offset) {
+  using T = TrustedTypeFor<tag_range>;
+#ifdef V8_ENABLE_SANDBOX
+  return TrustedCast<T>(
+      LoadIndirectPointerFromObject(object, field_offset, tag_range),
+      "type tagged handle");
+#else
+  return TrustedCast<T>(LoadObjectField<Object>(object, field_offset),
+                        "no sandbox");
+#endif  // V8_ENABLE_SANDBOX
+}
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+
+TNode<WasmInternalFunction>
+CodeStubAssembler::LoadWasmInternalFunctionFromFuncRef(
+    TNode<WasmFuncRef> func_ref) {
+  return LoadTrustedPointerFromObject<kWasmInternalFunctionIndirectPointerTag>(
+      func_ref, WasmFuncRef::kTrustedInternalOffset);
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 

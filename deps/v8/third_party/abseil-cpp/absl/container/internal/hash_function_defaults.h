@@ -199,14 +199,14 @@ template <typename T, typename E = void>
 struct HasAbslContainerHash : std::false_type {};
 
 template <typename T>
-struct HasAbslContainerHash<T, absl::void_t<typename T::absl_container_hash>>
+struct HasAbslContainerHash<T, std::void_t<typename T::absl_container_hash>>
     : std::true_type {};
 
 template <typename T, typename E = void>
 struct HasAbslContainerEq : std::false_type {};
 
 template <typename T>
-struct HasAbslContainerEq<T, absl::void_t<typename T::absl_container_eq>>
+struct HasAbslContainerEq<T, std::void_t<typename T::absl_container_eq>>
     : std::true_type {};
 
 template <typename T, typename E = void>

@@ -39,19 +39,12 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/internal/mock_helpers.h"
+#include "absl/random/mocking_access.h"
 #include "absl/random/random.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-class BitGenRef;
-
-namespace random_internal {
-template <typename>
-struct DistributionCaller;
-class MockHelpers;
-}  // namespace random_internal
 
 // MockingBitGen
 //
@@ -181,13 +174,13 @@ class MockingBitGen {
     using MockFnType = decltype(GetMockFnType(std::declval<ResultT>(),
                                               std::declval<ArgTupleT>()));
 
-    using WrappedFnType = absl::conditional_t<
+    using WrappedFnType = std::conditional_t<
         std::is_same<SelfT, ::testing::NiceMock<MockingBitGen>>::value,
         ::testing::NiceMock<MockFnType>,
-        absl::conditional_t<
+        std::conditional_t<
             std::is_same<SelfT, ::testing::NaggyMock<MockingBitGen>>::value,
             ::testing::NaggyMock<MockFnType>,
-            absl::conditional_t<
+            std::conditional_t<
                 std::is_same<SelfT,
                              ::testing::StrictMock<MockingBitGen>>::value,
                 ::testing::StrictMock<MockFnType>, MockFnType>>>;
@@ -224,11 +217,8 @@ class MockingBitGen {
   absl::flat_hash_map<FastTypeIdType, std::unique_ptr<FunctionHolder>> mocks_;
   absl::BitGen gen_;
 
-  template <typename>
-  friend struct ::absl::random_internal::DistributionCaller;  // for InvokeMock
-  friend class ::absl::BitGenRef;                             // for InvokeMock
-  friend class ::absl::random_internal::MockHelpers;  // for RegisterMock,
-                                                      // InvokeMock
+  friend class ::absl::RandomMockingAccess;           // for InvokeMock
+  friend class ::absl::random_internal::MockHelpers;  // for RegisterMock
 };
 
 ABSL_NAMESPACE_END

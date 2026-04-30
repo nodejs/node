@@ -1,0 +1,5 @@
+{
+  "name": "researcher",
+  "description": "Specializes in exploring the codebase and finding information.",
+  "config_path": "config.yaml"
+}

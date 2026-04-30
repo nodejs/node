@@ -199,6 +199,7 @@ namespace v8::internal::compiler::turboshaft {
   V(I16x8, I16x16)          \
   V(I32x4, I32x8)           \
   V(I64x2, I64x4)           \
+  V(F16x8, F16x16)          \
   V(F32x4, F32x8)           \
   V(F64x2, F64x4)
 
@@ -846,9 +847,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       OptionalOpIndex index = __ MapToNewGraph(store.index());
       V<Simd256> value = analyzer_.GetReducedInput(pnode);
       DCHECK(value.valid());
-
       __ Store(base, index, value, store.kind, MemoryRepresentation::Simd256(),
-               store.write_barrier, start.offset);
+               store.write_barrier, store.memory_order(), start.offset);
 
       // Set an arbitrary valid OpIndex here to skip reduce later.
       pnode->SetRevectorizedNode(ig_index);

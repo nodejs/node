@@ -222,7 +222,7 @@ class InstructionStatistics {
 class ExtendedFunctionDis : public FunctionBodyDisassembler {
  public:
   ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
-                      bool shared, WasmDetectedFeatures* detected,
+                      SharedFlag shared, WasmDetectedFeatures* detected,
                       const FunctionSig* sig, const uint8_t* start,
                       const uint8_t* end, uint32_t offset,
                       const ModuleWireBytes wire_bytes, NamesProvider* names)
@@ -385,17 +385,16 @@ class HexDumpModuleDis : public ITracer {
         module_(module),
         names_(names),
         wire_bytes_(wire_bytes),
-        zone_(allocator, "disassembler") {}
+        zone_(allocator, "disassembler"),
+        decoder_(wire_bytes, this) {}
 
   // Public entrypoint.
   void PrintModule() {
-    DumpingModuleDecoder decoder{wire_bytes_, this};
-    decoder_ = &decoder;
-
     // If the module failed validation, create fakes to allow us to print
     // what we can.
     std::unique_ptr<WasmModule> fake_module;
     std::unique_ptr<NamesProvider> names_provider;
+    NamesProvider* original_names = names_;
     if (!names_) {
       fake_module.reset(new WasmModule(kWasmOrigin));
       names_provider.reset(
@@ -406,7 +405,7 @@ class HexDumpModuleDis : public ITracer {
     out_ << "[";
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
-    decoder.DecodeModule(kNoVerifyFunctions);
+    decoder_.DecodeModule(kNoVerifyFunctions);
     NextLine();
     out_ << "]";
 
@@ -415,10 +414,8 @@ class HexDumpModuleDis : public ITracer {
                 << " out of " << wire_bytes_.length() << " bytes.\n";
     }
 
-    // For cleanliness, reset {names_} if it's pointing at a fake.
-    if (names_ == names_provider.get()) {
-      names_ = nullptr;
-    }
+    // Reset members that we set to point to locals above.
+    names_ = original_names;
   }
 
   // Tracer hooks.
@@ -585,11 +582,11 @@ class HexDumpModuleDis : public ITracer {
                              ValueType expected_type) override {
     WasmDetectedFeatures detected;
     auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
-    uint32_t offset = decoder_->pc_offset();
+    uint32_t offset = decoder_.pc_offset();
     const WasmModule* module = module_;
-    if (!module) module = decoder_->shared_module().get();
-    ExtendedFunctionDis d(&zone_, module, 0, false, &detected, &sig, start, end,
-                          offset, wire_bytes_, names_);
+    if (!module) module = decoder_.shared_module().get();
+    ExtendedFunctionDis d(&zone_, module, 0, SharedFlag::kNo, &detected, &sig,
+                          start, end, offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
     total_bytes_ += static_cast<size_t>(end - start);
   }
@@ -600,8 +597,8 @@ class HexDumpModuleDis : public ITracer {
     DCHECK_EQ(start - wire_bytes_.start(), pc_offset());
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
-    if (!module) module = decoder_->shared_module().get();
-    bool shared = module->type(func->sig_index).is_shared;
+    if (!module) module = decoder_.shared_module().get();
+    SharedFlag shared = module->type(func->sig_index).is_shared;
     ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
@@ -731,7 +728,7 @@ class HexDumpModuleDis : public ITracer {
   uint32_t queue_length_{0};
   uint32_t line_bytes_{0};
   size_t total_bytes_{0};
-  DumpingModuleDecoder* decoder_{nullptr};
+  DumpingModuleDecoder decoder_;
 
   uint32_t next_type_index_{0};
   uint32_t next_import_index_{0};
@@ -931,7 +928,7 @@ class FormatConverter {
     for (uint32_t i = module()->num_imported_functions;
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
-      bool shared = module()->type(func->sig_index).is_shared;
+      SharedFlag shared = module()->type(func->sig_index).is_shared;
       WasmDetectedFeatures detected;
       base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
       ExtendedFunctionDis d(&zone, module(), i, shared, &detected, func->sig,
@@ -979,7 +976,7 @@ class FormatConverter {
       if (type.has_descriptor()) num_has_descriptor++;
       if (type.is_descriptor()) num_is_descriptor++;
       if (type.is_final) num_final++;
-      if (type.is_shared) num_shared++;
+      if (type.is_shared == SharedFlag::kYes) num_shared++;
       Count(type.subtyping_depth, depths);
       switch (type.kind) {
         case TypeDefinition::kFunction:
@@ -1052,7 +1049,7 @@ class FormatConverter {
     }
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
-    bool shared = module()->type(func->sig_index).is_shared;
+    SharedFlag shared = module()->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 
@@ -1468,7 +1465,10 @@ int main(int argc, char** argv) {
   }
 
   // Bootstrap the basics.
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  if (!v8::V8::InitializeICUDefaultLocation(argv[0])) {
+    std::cerr << "Failed to initialize ICU" << std::endl;
+    return 1;
+  }
   v8::V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());

@@ -65,10 +65,10 @@ class ProfileDownloader:
             f'  0 - profiles successfully downloaded or validated',
             f'  1 - unexpected error, see stdout',
             f'  2 - invalid arguments specified, see {FILE.name} --help',
-            f'  3 - invalid path to depot_tools provided'
-            f'  4 - gsutil was unable to retrieve data from the bucket'
-            f'  5 - profiles have been generated for a different revision'
-            f'  6 - chromium DEPS file found without v8 revision'
+            f'  3 - invalid path to depot_tools provided',
+            f'  4 - gsutil was unable to retrieve data from the bucket',
+            f'  5 - profiles have been generated for a different revision',
+            f'  6 - chromium DEPS file found without v8 revision',
             f'  7 - no chromium DEPS file found'
         ]),
     )
@@ -187,7 +187,7 @@ class ProfileDownloader:
 
       # Download new profiles.
       path = self._remote_profile_path
-      cmd = ['cp', '-R', f'gs://{path}/*', str(PGO_PROFILE_DIR)]
+      cmd = ['-m', 'cp', '-R', f'gs://{path}/*', str(PGO_PROFILE_DIR)]
       failure_hint = f'https://storage.googleapis.com/{path} does not exist.'
       self._call_gsutil(cmd, failure_hint)
 
@@ -238,9 +238,14 @@ class ProfileDownloader:
     self._call_gsutil(cmd, failure_hint)
 
   def _call_gsutil(self, cmd, failure_hint):
-    # Load gsutil from depot tools, and execute command
+    # Load gsutil from depot tools, and execute command.
     gsutil = gcs_download.Gsutil(gcs_download.GSUTIL_DEFAULT_PATH)
-    returncode, stdout, stderr = gsutil.check_call(*cmd)
+    if self.args.quiet:
+      returncode, stdout, stderr = gsutil.check_call(*cmd)
+    else:
+      # Stream gsutil output for interactive runs.
+      returncode = gsutil.call(*cmd)
+      stdout, stderr = '', ''
     if returncode != 0:
       self._print_error(['gsutil', *cmd], returncode, stdout, stderr, failure_hint)
       sys.exit(4)

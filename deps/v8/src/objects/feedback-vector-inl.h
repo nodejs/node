@@ -29,14 +29,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-vector-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FeedbackVector)
-OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
-
-INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
-
-INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
-                kCreateClosureSlotCountOffset)
-
 #define ASSERT_BUILTIN_ID_CONSECUTIVE(V, Location, Representation, Kind, \
                                       Index)                             \
   static_assert(                                                         \
@@ -47,23 +39,25 @@ INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
           Builtin::kLoadIC##Location##Representation##Kind##Index##Baseline));
 
 int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
-  return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
+  return base::AsAtomic32::Acquire_Load(&slot_count_);
 }
 
 int32_t FeedbackMetadata::create_closure_slot_count(AcquireLoadTag) const {
-  return ACQUIRE_READ_INT32_FIELD(*this, kCreateClosureSlotCountOffset);
+  return base::AsAtomic32::Acquire_Load(&create_closure_slot_count_);
 }
 
 int32_t FeedbackMetadata::get(int index) const {
   CHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
-  return ReadField<int32_t>(offset);
+  return base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(this) +
+                                           offset);
 }
 
 void FeedbackMetadata::set(int index, int32_t value) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(word_count()));
   int offset = kHeaderSize + index * kInt32Size;
-  WriteField<int32_t>(offset, value);
+  base::WriteUnalignedValue<int32_t>(reinterpret_cast<Address>(this) + offset,
+                                     value);
 }
 
 bool FeedbackMetadata::is_empty() const {
@@ -132,15 +126,85 @@ DEF_ACQUIRE_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
                                                             kAcquireLoad);
 }
 
-RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
-                        kInvocationCountOffset)
+int FeedbackVector::length() const { return length_; }
+void FeedbackVector::set_length(int32_t value) { length_ = value; }
 
+int32_t FeedbackVector::invocation_count() const {
+  return invocation_count_.load(std::memory_order_relaxed);
+}
+int32_t FeedbackVector::invocation_count(RelaxedLoadTag) const {
+  return invocation_count_.load(std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count(int32_t value) {
+  invocation_count_.store(value, std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count(int32_t value, RelaxedStoreTag) {
+  invocation_count_.store(value, std::memory_order_relaxed);
+}
 void FeedbackVector::clear_invocation_count(RelaxedStoreTag tag) {
   set_invocation_count(0, tag);
 }
 
-RELAXED_UINT8_ACCESSORS(FeedbackVector, invocation_count_before_stable,
-                        kInvocationCountBeforeStableOffset)
+uint8_t FeedbackVector::invocation_count_before_stable() const {
+  return invocation_count_before_stable_.load(std::memory_order_relaxed);
+}
+uint8_t FeedbackVector::invocation_count_before_stable(RelaxedLoadTag) const {
+  return invocation_count_before_stable_.load(std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count_before_stable(uint8_t value) {
+  invocation_count_before_stable_.store(value, std::memory_order_relaxed);
+}
+void FeedbackVector::set_invocation_count_before_stable(uint8_t value,
+                                                        RelaxedStoreTag) {
+  invocation_count_before_stable_.store(value, std::memory_order_relaxed);
+}
+
+uint8_t FeedbackVector::osr_state() const { return osr_state_; }
+void FeedbackVector::set_osr_state(uint8_t value) { osr_state_ = value; }
+uint16_t FeedbackVector::flags() const { return flags_; }
+void FeedbackVector::set_flags(uint16_t value) { flags_ = value; }
+
+Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info() const {
+  return shared_function_info_.load();
+}
+Tagged<SharedFunctionInfo> FeedbackVector::shared_function_info(
+    PtrComprCageBase cage_base) const {
+  return shared_function_info();
+}
+void FeedbackVector::set_shared_function_info(Tagged<SharedFunctionInfo> value,
+                                              WriteBarrierMode mode) {
+  shared_function_info_.store(this, value, mode);
+}
+
+Tagged<ClosureFeedbackCellArray> FeedbackVector::closure_feedback_cell_array()
+    const {
+  return closure_feedback_cell_array_.load();
+}
+void FeedbackVector::set_closure_feedback_cell_array(
+    Tagged<ClosureFeedbackCellArray> value, WriteBarrierMode mode) {
+  closure_feedback_cell_array_.store(this, value, mode);
+}
+
+Tagged<FeedbackCell> FeedbackVector::parent_feedback_cell() const {
+  return parent_feedback_cell_.load();
+}
+void FeedbackVector::set_parent_feedback_cell(Tagged<FeedbackCell> value,
+                                              WriteBarrierMode mode) {
+  parent_feedback_cell_.store(this, value, mode);
+}
+
+Tagged<MaybeObject> FeedbackVector::raw_feedback_slots(int i,
+                                                       RelaxedLoadTag) const {
+  DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(length()));
+  return raw_feedback_slots()[i].Relaxed_Load();
+}
+
+void FeedbackVector::set_raw_feedback_slots(int i, Tagged<MaybeObject> value,
+                                            RelaxedStoreTag,
+                                            WriteBarrierMode mode) {
+  DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(length()));
+  raw_feedback_slots()[i].Relaxed_Store(this, value, mode);
+}
 
 int FeedbackVector::osr_urgency() const {
   return OsrUrgencyBits::decode(osr_state());
@@ -277,10 +341,7 @@ Tagged<MaybeObject> FeedbackVector::Get(FeedbackSlot slot) const {
 
 Tagged<MaybeObject> FeedbackVector::Get(PtrComprCageBase cage_base,
                                         FeedbackSlot slot) const {
-  Tagged<MaybeObject> value =
-      raw_feedback_slots(cage_base, GetIndex(slot), kRelaxedLoad);
-  DCHECK(!IsOfLegacyType(value));
-  return value;
+  return Get(slot);
 }
 
 DirectHandle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(
@@ -297,9 +358,7 @@ Tagged<FeedbackCell> FeedbackVector::closure_feedback_cell(int index) const {
 Tagged<MaybeObject> FeedbackVector::SynchronizedGet(FeedbackSlot slot) const {
   const int i = slot.ToInt();
   DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(this->length()));
-  const int offset = kRawFeedbackSlotsOffset + i * kTaggedSize;
-  Tagged<MaybeObject> value =
-      TaggedField<MaybeObject>::Acquire_Load(*this, offset);
+  Tagged<MaybeObject> value = raw_feedback_slots()[i].Acquire_Load();
   DCHECK(!IsOfLegacyType(value));
   return value;
 }
@@ -310,9 +369,7 @@ void FeedbackVector::SynchronizedSet(FeedbackSlot slot,
   DCHECK(!IsOfLegacyType(value));
   const int i = slot.ToInt();
   DCHECK_LT(static_cast<unsigned>(i), static_cast<unsigned>(this->length()));
-  const int offset = kRawFeedbackSlotsOffset + i * kTaggedSize;
-  TaggedField<MaybeObject>::Release_Store(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  raw_feedback_slots()[i].Release_Store(this, value, mode);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, Tagged<MaybeObject> value,
@@ -322,7 +379,7 @@ void FeedbackVector::Set(FeedbackSlot slot, Tagged<MaybeObject> value,
 }
 
 inline MaybeObjectSlot FeedbackVector::slots_start() {
-  return RawMaybeWeakField(OffsetOfElementAt(0));
+  return MaybeObjectSlot(reinterpret_cast<Address>(raw_feedback_slots()));
 }
 
 // Helper function to transform the feedback to BinaryOperationHint.
@@ -557,13 +614,13 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
   }
 }
 
-Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
-                                                     bool is_inobject,
-                                                     bool is_double) {
+Builtin FeedbackNexus::GetLoadICHandlerForStorageOffset(int storage_offset,
+                                                        bool is_inobject,
+                                                        bool is_double) {
   if (is_double) return Builtin::kLoadICDoubleFieldBaseline;
 
   if (is_inobject) {
-    int in_object_index = field_index - JSObject::kHeaderSize / kTaggedSize;
+    int in_object_index = storage_offset - JSObject::kHeaderSize / kTaggedSize;
     DCHECK_GE(in_object_index, 0);
     // Currently we have eight handlers that support loading in-object field
     // with fixed index 0~7.
@@ -579,7 +636,7 @@ Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
     return static_cast<Builtin>(builtin_id);
   } else {
     int out_of_object_index =
-        field_index - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+        storage_offset - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
     DCHECK_GE(out_of_object_index, 0);
     // Currently we have four handlers that support loading out-of-object
     // field with fixed index 0~3.

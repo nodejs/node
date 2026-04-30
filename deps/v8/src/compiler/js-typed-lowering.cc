@@ -38,6 +38,8 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/js-promise.h"
+#include "src/objects/microtask.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -2744,6 +2746,259 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSAsyncFunctionAwait(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSAsyncFunctionAwait, node->opcode());
+  Node* async_function_object = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Only optimize when the awaited value is known to be a receiver.
+  Type value_type = NodeProperties::GetType(value);
+  if (!value_type.Is(Type::Receiver())) return NoChange();
+
+  // We need promise-related protectors to be intact.
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
+  if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
+  if (!dependencies()->DependOnPromiseThenProtector()) return NoChange();
+
+  MapRef promise_map =
+      broker()->target_native_context().promise_function(broker()).initial_map(
+          broker());
+
+  // Load outer promise before branching — it's the same on both paths
+  // and the field never changes after AsyncFunctionEnter.
+  Node* outer_promise = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSAsyncFunctionObjectPromise()),
+      async_function_object, effect, control);
+
+  // Branch: is value's map the initial promise map?
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* map_effect = effect;
+  Node* is_promise =
+      graph()->NewNode(simplified()->ReferenceEqual(), value_map,
+                       jsgraph()->ConstantNoHole(promise_map, broker()));
+  Node* branch_map = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                      is_promise, control);
+  Node* if_promise = graph()->NewNode(common()->IfTrue(), branch_map);
+  Node* if_not_promise = graph()->NewNode(common()->IfFalse(), branch_map);
+
+  // Branch: is the promise fulfilled (flags == Smi(kFulfilled))?
+  // This is a strict check — if has_handler or other bits are set, we fall
+  // through to the slow path.  The builtin path uses a masked check.
+  Node* flags = graph()->NewNode(
+      simplified()->LoadField(
+          AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
+      value, map_effect, if_promise);
+  Node* is_fulfilled = graph()->NewNode(
+      simplified()->ReferenceEqual(), flags,
+      jsgraph()->SmiConstant(static_cast<int>(Promise::kFulfilled)));
+  Node* branch_fulfilled = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                            is_fulfilled, if_promise);
+  Node* if_fulfilled = graph()->NewNode(common()->IfTrue(), branch_fulfilled);
+  Node* if_not_fulfilled =
+      graph()->NewNode(common()->IfFalse(), branch_fulfilled);
+
+  // === Fast path: fulfilled promise with initial map ===
+  Node* fast_effect = flags;  // LoadField is both value and effect.
+  Node* fast_control = if_fulfilled;
+
+  // Extract the fulfilled value.
+  Node* fulfilled_value = fast_effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForJSObjectOffset(
+                           offsetof(JSPromise, reactions_or_result_))),
+                       value, fast_effect, fast_control);
+
+  // Mark as handled.
+  fast_effect = graph()->NewNode(
+      simplified()->StoreField(
+          AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
+      value,
+      jsgraph()->SmiConstant(v8::Promise::kFulfilled |
+                             JSPromise::HasHandlerBit::kMask),
+      fast_effect, fast_control);
+
+  // Note: resume_mode is NOT set here — the AsyncResumeTask handler in
+  // RunSingleMicrotask sets it to kNext before calling
+  // ResumeGeneratorTrampoline.
+
+  // Allocate AsyncResumeTask and enqueue.
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  Node* cped = fast_effect = graph()->NewNode(
+      simplified()->GetContinuationPreservedEmbedderData(), fast_effect);
+#endif
+  {
+    using Traits = ObjectTraits<AsyncResumeTask>;
+    AllocationBuilder ab(jsgraph(), broker(), fast_effect, fast_control);
+    ab.Allocate(static_cast<int>(sizeof(AsyncResumeTask)));
+    ab.Store(AccessBuilder::ForMap(), broker()->async_resume_task_map());
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    ab.Store(
+        AccessBuilder::ForJSObjectOffset(
+            ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset),
+        cped);
+#endif
+    ab.Store(AccessBuilder::ForJSObjectOffset(Traits::kGeneratorOffset),
+             async_function_object);
+    ab.Store(AccessBuilder::ForJSObjectOffset(Traits::kValueOffset),
+             fulfilled_value);
+    ab.Store(AccessBuilder::ForJSObjectOffset(Traits::kKindOffset),
+             jsgraph()->SmiConstant(AsyncResumeTask::kAsyncFunctionAwait));
+    Node* task = ab.Finish();
+    fast_effect = task;
+
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtin::kEnqueueMicrotask);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
+        CallDescriptor::kNoFlags);
+    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
+    fast_effect = graph()->NewNode(common()->Call(call_descriptor), stub_code,
+                                   task, context, fast_effect, fast_control);
+  }
+
+  // === Slow path: call the AsyncFunctionAwait builtin ===
+  // The builtin can call user-defined .then getters, which may throw or trigger
+  // lazy deoptimization. A frame state is required so the deoptimizer can
+  // reconstruct the frame at this call site.
+  Node* slow_control =
+      graph()->NewNode(common()->Merge(2), if_not_promise, if_not_fulfilled);
+  Node* slow_effect =
+      graph()->NewNode(common()->EffectPhi(2), map_effect, flags, slow_control);
+
+  Callable await_callable =
+      Builtins::CallableFor(isolate(), Builtin::kAsyncFunctionAwait);
+  auto await_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), await_callable.descriptor(),
+      await_callable.descriptor().GetStackParameterCount(),
+      CallDescriptor::kNeedsFrameState);
+  Node* await_code = jsgraph()->HeapConstantNoHole(await_callable.code());
+  Node* call = graph()->NewNode(common()->Call(await_descriptor), await_code,
+                                async_function_object, value, context,
+                                frame_state, slow_effect, slow_control);
+  slow_effect = call;
+  slow_control = call;
+
+  // The slow-path builtin can throw (e.g. via PromiseResolve's .constructor
+  // getter). Rewire any IfException user of {node} to the slow-path call.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, call);
+    NodeProperties::ReplaceEffectInput(on_exception, call);
+    slow_control = graph()->NewNode(common()->IfSuccess(), call);
+    Revisit(on_exception);
+  }
+
+  // === Merge ===
+  Node* merge =
+      graph()->NewNode(common()->Merge(2), fast_control, slow_control);
+  Node* effect_phi =
+      graph()->NewNode(common()->EffectPhi(2), fast_effect, slow_effect, merge);
+
+  ReplaceWithValue(node, outer_promise, effect_phi, merge);
+  return Replace(outer_promise);
+}
+
+Reduction JSTypedLowering::ReduceJSFulfillPromise(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSFulfillPromise, node->opcode());
+  Node* promise = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // We can only inline FulfillPromise when the promise is freshly allocated
+  // with no reactions attached.  This covers the inlined async-function
+  // pattern where a trivial async function (no awaits) is inlined:
+  //
+  //   JSCreatePromise → JSCreateAsyncFunctionObject(promise) →
+  //   ... body (no suspend) ... → LoadField[Promise] →
+  //   JSResolvePromise(promise, primitive) → JSFulfillPromise(promise, value)
+  //
+  // At TypedLowering time, the promise input is typically
+  // LoadField[Promise](JSCreateAsyncFunctionObject(_, _, JSCreatePromise)).
+  // Trace through the value chain to verify the promise is freshly allocated.
+  // If JSCreateLowering has already run, JSCreatePromise will have been
+  // lowered to Allocate+StoreField+FinishRegion.  The promise then arrives
+  // here as LoadField[Promise](FinishRegion(async_fn_object)), where the
+  // promise was stored by a StoreField[Promise] with a FinishRegion from
+  // the lowered JSCreatePromise.  We handle both the lowered and unlowered
+  // cases.
+  Node* promise_origin = promise;
+
+  // Look through LoadField[JSAsyncFunctionObjectPromise].
+  if (promise_origin->opcode() == IrOpcode::kLoadField) {
+    FieldAccess const& access = FieldAccessOf(promise_origin->op());
+    if (access.offset == offsetof(JSAsyncFunctionObject, promise_)) {
+      Node* async_fn = NodeProperties::GetValueInput(promise_origin, 0);
+      // The async function object is a FinishRegion wrapping its Allocate.
+      // Find the StoreField[Promise] that stored the promise into it.
+      if (async_fn->opcode() == IrOpcode::kFinishRegion) {
+        // Walk the effect chain of stores on the async function object to
+        // find the StoreField for the promise field.
+        Node* effect_scan = NodeProperties::GetEffectInput(async_fn);
+        while (effect_scan->opcode() == IrOpcode::kStoreField) {
+          FieldAccess const& store_access = FieldAccessOf(effect_scan->op());
+          if (store_access.offset ==
+              offsetof(JSAsyncFunctionObject, promise_)) {
+            promise_origin = NodeProperties::GetValueInput(effect_scan, 1);
+            break;
+          }
+          effect_scan = NodeProperties::GetEffectInput(effect_scan);
+        }
+      }
+    }
+  }
+
+  // After tracing, promise_origin should be a FinishRegion wrapping the
+  // Allocate from the lowered JSCreatePromise, or JSCreatePromise itself
+  // if it hasn't been lowered yet.
+  bool is_fresh_promise = false;
+  if (promise_origin->opcode() == IrOpcode::kJSCreatePromise) {
+    is_fresh_promise = true;
+  } else if (promise_origin->opcode() == IrOpcode::kFinishRegion) {
+    // Check that the FinishRegion wraps an Allocate (lowered JSCreatePromise).
+    Node* alloc = NodeProperties::GetValueInput(promise_origin, 0);
+    if (alloc->opcode() == IrOpcode::kAllocate) {
+      is_fresh_promise = true;
+    }
+  }
+  if (!is_fresh_promise) return NoChange();
+
+  // The promise was freshly created by JSCreatePromise in the same
+  // compilation unit.  A fresh promise has reactions_or_result = Zero and
+  // flags = 0 (pending, no handler).  Since it was created inside an
+  // inlined async function that completes synchronously (the resolution
+  // was typed as Primitive, which is why JSResolvePromise was already
+  // reduced to JSFulfillPromise), no user code could have called
+  // PerformPromiseThen on it.
+
+  // Replace JSFulfillPromise with inline field stores:
+  //   promise.reactions_or_result = value
+  //   promise.flags = Smi(kFulfilled)
+  //
+  // We skip RunContextPromiseHookResolve (promise hooks cause deopt before
+  // reaching here) and TriggerPromiseReactions (no reactions on fresh
+  // promise).
+
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSObjectOffset(
+          offsetof(JSPromise, reactions_or_result_))),
+      promise, value, effect, control);
+
+  effect = graph()->NewNode(
+      simplified()->StoreField(
+          AccessBuilder::ForJSObjectOffset(offsetof(JSPromise, flags_))),
+      promise, jsgraph()->SmiConstant(v8::Promise::kFulfilled), effect,
+      control);
+
+  ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect, control);
+  return Replace(jsgraph()->UndefinedConstant());
+}
+
 Reduction JSTypedLowering::ReduceJSResolvePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
   Node* resolution = NodeProperties::GetValueInput(node, 1);
@@ -2755,7 +3010,9 @@ Reduction JSTypedLowering::ReduceJSResolvePromise(Node* node) {
     // JSResolvePromise(p,v:primitive) -> JSFulfillPromise(p,v)
     node->RemoveInput(3);  // frame state
     NodeProperties::ChangeOp(node, javascript()->FulfillPromise());
-    return Changed(node);
+    // Try to further reduce the newly-created JSFulfillPromise.
+    Reduction r = ReduceJSFulfillPromise(node);
+    return r.Changed() ? r : Changed(node);
   }
   return NoChange();
 }
@@ -2863,6 +3120,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceObjectIsArray(node);
     case IrOpcode::kJSParseInt:
       return ReduceJSParseInt(node);
+    case IrOpcode::kJSAsyncFunctionAwait:
+      return ReduceJSAsyncFunctionAwait(node);
+    case IrOpcode::kJSFulfillPromise:
+      return ReduceJSFulfillPromise(node);
     case IrOpcode::kJSResolvePromise:
       return ReduceJSResolvePromise(node);
     default:

@@ -20,6 +20,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -71,7 +72,7 @@ class SaltedSeedSeq {
     // The common case is that generate is called with ContiguousIterators
     // to uint arrays. Such contiguous memory regions may be optimized,
     // which we detect here.
-    using TagType = absl::conditional_t<
+    using TagType = std::conditional_t<
         (std::is_same<U, uint32_t>::value &&
          (std::is_pointer<RandomAccessIterator>::value ||
           std::is_same<RandomAccessIterator,
@@ -141,14 +142,14 @@ struct is_salted_seed_seq<
 // non-salted seed parameters.
 template <
     typename SSeq,  //
-    typename EnableIf = absl::enable_if_t<is_salted_seed_seq<SSeq>::value>>
+    typename EnableIf = std::enable_if_t<is_salted_seed_seq<SSeq>::value>>
 SSeq MakeSaltedSeedSeq(SSeq&& seq) {
   return SSeq(std::forward<SSeq>(seq));
 }
 
 template <
     typename SSeq,  //
-    typename EnableIf = absl::enable_if_t<!is_salted_seed_seq<SSeq>::value>>
+    typename EnableIf = std::enable_if_t<!is_salted_seed_seq<SSeq>::value>>
 SaltedSeedSeq<typename std::decay<SSeq>::type> MakeSaltedSeedSeq(SSeq&& seq) {
   using sseq_type = typename std::decay<SSeq>::type;
   using result_type = typename sseq_type::result_type;

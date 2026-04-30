@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-// ES#sec-canonicalnumericindexstring
+// https://tc39.es/ecma262/#sec-canonicalnumericindexstring
 // Returns true if the lookup_key represents a valid index string.
 bool CanonicalNumericIndexString(Isolate* isolate,
                                  const PropertyKey& lookup_key,
@@ -51,7 +51,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     // Count usage may lead to a blink allocation, through the callback, which
     // may trigger a GC. It is important to delay this, until the array buffer
     // is properly initialized.
-    if (shared == SharedFlag::kShared) {
+    if (shared == SharedFlag::kYes) {
       isolate->CountUsage(
           v8::Isolate::UseCounterFeature::kSharedArrayBufferConstructed);
     }
@@ -60,11 +60,10 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   init_extension();
   set_views_or_detach_key(views);
   set_bit_field(0);
-  set_is_shared(shared == SharedFlag::kShared);
+  set_is_shared(shared == SharedFlag::kYes);
   set_is_resizable_by_js(resizable == ResizableFlag::kResizable);
-  set_is_detachable(shared != SharedFlag::kShared);
-  SetupLazilyInitializedCppHeapPointerField(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset);
+  set_is_detachable(shared == SharedFlag::kNo);
+  cpp_heap_wrappable_.SetupLazilyInitialized();
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     SetEmbedderField(i, Smi::zero());
   }
@@ -184,6 +183,7 @@ void JSTypedArray::MarkDetached(DirectHandle<JSTypedArray> typed_array,
       MapUpdater::InstanceTypeChange::kTypedArrayDetaching);
   JSObject::MigrateToMap(isolate, typed_array, new_map);
   typed_array->WriteBoundedSizeField(kRawLengthOffset, 0);
+  typed_array->WriteBoundedSizeField(kRawByteLengthOffset, 0);
   // TODO(olivf, 467645277): Set the buffer to a canonical detached ab value.
 }
 
@@ -225,7 +225,7 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
     CHECK_IMPLIES(force_for_wasm_memory, backing_store->is_wasm_memory());
   }
 
-  array_buffer->set_was_detached(true);
+  array_buffer->set_was_detached(true, kReleaseStore);
 
   if (Protectors::IsArrayBufferDetachingIntact(isolate) &&
       !TryDetachViews(array_buffer, isolate)) {
@@ -235,6 +235,18 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
   DCHECK(!array_buffer->is_shared());
   array_buffer->set_backing_store(isolate, EmptyBackingStoreBuffer());
   array_buffer->set_byte_length(0);
+}
+
+void JSArrayBuffer::MakeImmutable(Isolate* isolate) {
+  if (is_immutable()) return;
+  DCHECK(!was_detached());
+  set_is_immutable(true);
+  if (auto backing_store = GetBackingStore()) {
+    backing_store->set_is_immutable(true);
+  }
+  if (Protectors::IsArrayBufferMutableIntact(isolate)) {
+    Protectors::InvalidateArrayBufferMutable(isolate);
+  }
 }
 
 size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
@@ -307,10 +319,9 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension in this
   // case.
-  const auto age =
-      HeapLayout::InYoungGeneration(UncheckedCast<JSArrayBuffer>(*this))
-          ? ArrayBufferExtension::Age::kYoung
-          : ArrayBufferExtension::Age::kOld;
+  const auto age = HeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
+                       ? ArrayBufferExtension::Age::kYoung
+                       : ArrayBufferExtension::Age::kOld;
   ArrayBufferExtension* extension =
       new ArrayBufferExtension(std::move(backing_store), age);
   set_extension(extension);
@@ -344,9 +355,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
 
   // Allocate a new backing store and attach it to the existing array buffer.
   size_t byte_length = self->byte_length();
-  auto backing_store =
-      BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
-                             InitializedFlag::kUninitialized);
+  auto backing_store = BackingStore::Allocate(
+      isolate, byte_length, SharedFlag::kNo, InitializedFlag::kUninitialized);
 
   if (!backing_store) {
     isolate->heap()->FatalProcessOutOfMemory("JSTypedArray::GetBuffer");
@@ -363,7 +373,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
                  array_buffer->views().GetHeapObject() == *self);
 
   // Attach the backing store to the array buffer.
-  array_buffer->Setup(SharedFlag::kNotShared, ResizableFlag::kNotResizable,
+  array_buffer->Setup(SharedFlag::kNo, ResizableFlag::kNotResizable,
                       std::move(backing_store), isolate, array_buffer->views());
 
   // Clear the elements of the typed array.
@@ -374,7 +384,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   return array_buffer;
 }
 
-// ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+// https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                                             DirectHandle<JSTypedArray> o,
@@ -457,17 +467,18 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
         if (!desc->has_writable()) desc->set_writable(true);
         DirectHandle<Object> value = desc->value();
         LookupIterator it(isolate, o, index, LookupIterator::OWN);
-        RETURN_ON_EXCEPTION_VALUE(
-            isolate,
-            DefineOwnPropertyIgnoreAttributes(&it, value, desc->ToAttributes()),
-            Nothing<bool>());
+        RETURN_ON_EXCEPTION_VALUE(isolate,
+                                  JSObject::DefineOwnPropertyIgnoreAttributes(
+                                      &it, value, desc->ToAttributes()),
+                                  Nothing<bool>());
       }
       // 1b vii. Return true.
       return Just(true);
     }
   }
   // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-  return OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc, should_throw);
+  return JSReceiver::OrdinaryDefineOwnProperty(isolate, o, lookup_key, desc,
+                                               should_throw);
 }
 
 ExternalArrayType JSTypedArray::type() const {

@@ -45,13 +45,7 @@ static int SewToInt(VSew sew) {
 }
 
 static VSew DecodeElementWidth(int opcode) {
-#ifdef DEBUG
-  // Check that the lane-size field was populated.
-  DCHECK_NE((LaneSizeField::decode(opcode) & 0x4), 0);
-  return static_cast<VSew>(LaneSizeField::decode(opcode) & 0x3);
-#else
-  return static_cast<VSew>(LaneSizeField::decode(opcode));
-#endif
+  return static_cast<VSew>((LaneSizeField::decode(opcode)));
 }
 
 // Adds RISC-V-specific methods to convert InstructionOperands.
@@ -185,8 +179,8 @@ class RiscvOperandConverter final : public InstructionOperandConverter {
 static void CheckRegisterConstraints(int opcode, RiscvOperandConverter& i,
                                      RiscvRegisterConstraint constraint) {
 #ifdef DEBUG
-  auto decoded =
-      static_cast<RiscvRegisterConstraint>(LaneSizeField::decode(opcode) >> 3);
+  RiscvRegisterConstraint decoded =
+      RiscvRegisterConstraintField::decode(opcode);
   DCHECK_EQ(constraint, decoded);
 #endif
   switch (constraint) {
@@ -343,6 +337,36 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
   Zone* zone_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
+class OutOfLineTrap final : public OutOfLineCode {
+ public:
+  OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
+      : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
+  void Generate() override {
+    RiscvOperandConverter i(gen_, instr_);
+    TrapId trap_id =
+        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
+    GenerateCallToTrap(trap_id);
+  }
+
+ private:
+  void GenerateCallToTrap(TrapId trap_id) {
+    gen_->AssembleSourcePosition(instr_);
+    // A direct call to a wasm runtime stub defined in this module.
+    // Just encode the stub index. This will be patched when the code
+    // is added to the native module and copied into wasm code space.
+    __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
+    gen_->RecordSafepoint(reference_map);
+    if (v8_flags.debug_code) {
+      __ stop();
+    }
+  }
+  Instruction* instr_;
+  CodeGenerator* gen_;
+};
+#endif
+
 Condition FlagsConditionToConditionCmp(FlagsCondition condition) {
   switch (condition) {
     case kEqual:
@@ -487,9 +511,9 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if (access_mode == kMemoryAccessProtectedMemOutOfBounds ||
-      access_mode == kMemoryAccessProtectedNullDereference) {
-    codegen->RecordProtectedInstruction(pc);
+  if (access_mode == kMemoryAccessTrappingMemOutOfBounds ||
+      access_mode == kMemoryAccessTrappingNullDereference) {
+    codegen->RecordTrappingInstruction(pc);
   }
 }
 #else
@@ -770,6 +794,10 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 
 namespace {
 
+bool HasImmediateInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsImmediate();
+}
+
 void AdjustStackPointerForTailCall(MacroAssembler* masm,
                                    FrameAccessState* state,
                                    int new_slot_above_sp,
@@ -949,25 +977,58 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallJSFunction: {
-      Register func = i.InputOrZeroRegister(0);
-      if (v8_flags.debug_code) {
-        // Check the function's context matches the context argument.
-        __ LoadTaggedField(kScratchReg,
-                           FieldMemOperand(func, JSFunction::kContextOffset));
-        __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
-                  Operand(kScratchReg));
-      }
       uint32_t num_arguments =
           i.InputUint32(instr->JSCallArgumentCountInputIndex());
-      __ CallJSFunction(func, num_arguments);
+      if (HasImmediateInput(instr, 0)) {
+        Handle<HeapObject> constant =
+            i.ToConstant(instr->InputAt(0)).ToHeapObject();
+        __ li(kJavaScriptCallTargetRegister, constant);
+        if (Handle<JSFunction> function; TryCast(constant, &function)) {
+          if (function->shared()->HasBuiltinId()) {
+            Builtin builtin = function->shared()->builtin_id();
+            // Defer signature mismatch abort to run-time as optimized
+            // unreachable calls can have mismatched signatures.
+            if (Builtins::IsCompatibleJSBuiltin(builtin, num_arguments)) {
+              __ CallBuiltin(builtin);
+            } else {
+              __ Abort(AbortReason::kJSSignatureMismatch);
+            }
+          } else {
+            JSDispatchHandle dispatch_handle = function->dispatch_handle();
+            size_t expected = isolate()->js_dispatch_table().GetParameterCount(
+                dispatch_handle);
+            // Defer signature mismatch abort to run-time as optimized
+            // unreachable calls can have mismatched signatures.
+            if (num_arguments >= expected) {
+              __ RecordJSDispatchHandle(dispatch_handle, expected);
+              __ CallJSDispatchEntry(dispatch_handle, expected);
+            } else {
+              __ Abort(AbortReason::kJSSignatureMismatch);
+            }
+          }
+        } else {
+          __ CallJSFunction(kJavaScriptCallTargetRegister, num_arguments);
+        }
+      } else {
+        Register func = i.InputOrZeroRegister(0);
+        if (v8_flags.debug_code) {
+          // Check the function's context matches the context argument.
+          __ LoadTaggedField(kScratchReg,
+                             FieldMemOperand(func, JSFunction::kContextOffset));
+          __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
+                    Operand(kScratchReg));
+        }
+        __ CallJSFunction(func, num_arguments);
+      }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchPrepareCallCFunction: {
 #ifdef V8_TARGET_ARCH_RISCV64
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      uint32_t num_parameters = i.InputUint32(instr->InputCount() - 1);
+      int const num_gp_parameters = ParamField::decode(num_parameters);
+      int const num_fp_parameters = FPParamField::decode(num_parameters);
       __ PrepareCallCFunction(num_gp_parameters, num_fp_parameters,
                               kScratchReg);
 #else
@@ -1106,6 +1167,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       break;
 #if V8_ENABLE_WEBASSEMBLY
+    case kArchTrap:
+      __ b(zone()->New<OutOfLineTrap>(this, instr)->entry());
+      break;
     case kArchStackPointer:
       // The register allocator expects an allocatable register for the output,
       // we cannot use sp directly.
@@ -2047,6 +2111,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvTruncUlD: {
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
       __ Trunc_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), result);
+      bool set_overflow_to_min_u64 = MiscField::decode(instr->opcode());
+      if (set_overflow_to_min_u64) {
+        Label done;
+        __ AddWord(kScratchReg, i.OutputRegister(), 1);
+        __ Branch(&done, ult, i.OutputRegister(), Operand(kScratchReg));
+        __ Move(i.OutputRegister(), zero_reg);
+        __ bind(&done);
+      }
       break;
     }
     case kRiscvBitcastDL:
@@ -2094,26 +2166,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvLhu:
       __ Lhu(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvUlhu:
-      __ Ulhu(i.OutputRegister(), i.MemoryOperand());
-      break;
     case kRiscvLh:
       __ Lh(i.OutputRegister(), i.MemoryOperand(), trapper);
-      break;
-    case kRiscvUlh:
-      __ Ulh(i.OutputRegister(), i.MemoryOperand());
       break;
     case kRiscvSh:
       __ Sh(i.InputOrZeroRegister(0), i.MemoryOperand(1), trapper);
       break;
-    case kRiscvUsh:
-      __ Ush(i.InputOrZeroRegister(2), i.MemoryOperand());
-      break;
     case kRiscvLw:
       __ Lw(i.OutputRegister(), i.MemoryOperand(), trapper);
-      break;
-    case kRiscvUlw:
-      __ Ulw(i.OutputRegister(), i.MemoryOperand());
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvLwu:
@@ -2122,28 +2182,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvLd:
       __ Ld(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvUld:
-      __ Uld(i.OutputRegister(), i.MemoryOperand());
-      break;
     case kRiscvSd:
       __ Sd(i.InputOrZeroRegister(0), i.MemoryOperand(1), trapper);
-      break;
-    case kRiscvUsd:
-      __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
 #endif
     case kRiscvSw:
       __ Sw(i.InputOrZeroRegister(0), i.MemoryOperand(1), trapper);
       break;
-    case kRiscvUsw:
-      __ Usw(i.InputOrZeroRegister(2), i.MemoryOperand());
-      break;
     case kRiscvLoadFloat: {
       __ LoadFloat(i.OutputSingleRegister(), i.MemoryOperand(), trapper);
-      break;
-    }
-    case kRiscvULoadFloat: {
-      __ ULoadFloat(i.OutputSingleRegister(), i.MemoryOperand());
       break;
     }
     case kRiscvStoreFloat: {
@@ -2155,37 +2202,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ StoreFloat(ft, operand, trapper);
       break;
     }
-    case kRiscvUStoreFloat: {
-      size_t index = 0;
-      MemOperand operand = i.MemoryOperand(&index);
-      FPURegister ft = i.InputOrZeroSingleRegister(index);
-      if (ft == kSingleRegZero && !__ IsSingleZeroRegSet()) {
-        __ LoadFPRImmediate(kSingleRegZero, 0.0f);
-      }
-      __ UStoreFloat(ft, operand);
-      break;
-    }
     case kRiscvLoadDouble:
       __ LoadDouble(i.OutputDoubleRegister(), i.MemoryOperand(), trapper);
       break;
-    case kRiscvULoadDouble: {
-      __ ULoadDouble(i.OutputDoubleRegister(), i.MemoryOperand());
-      break;
-    }
     case kRiscvStoreDouble: {
       FPURegister ft = i.InputOrZeroDoubleRegister(0);
       if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
         __ LoadFPRImmediate(kDoubleRegZero, 0.0);
       }
       __ StoreDouble(ft, i.MemoryOperand(1), trapper);
-      break;
-    }
-    case kRiscvUStoreDouble: {
-      FPURegister ft = i.InputOrZeroDoubleRegister(2);
-      if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
-        __ LoadFPRImmediate(kDoubleRegZero, 0.0);
-      }
-      __ UStoreDouble(ft, i.MemoryOperand());
       break;
     }
     case kRiscvSync: {
@@ -2704,7 +2729,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem, trapper);
       break;
     }
-    case kRiscvLoadDecompressProtected: {
+    case kRiscvLoadDecompressTrapping: {
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
     }
@@ -3239,27 +3264,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI8x16Popcnt: {
-      VRegister dst = i.OutputSimd128Register(),
-                src = i.InputSimd128Register(0);
-      Label t;
+      // Implement vector popcnt refer dense_popcnt
+      //  int dense_popcnt(uint32_t n)
+      //  {
+      //      int count = 32;  // sizeof(uint32_t) * CHAR_BIT;
+      //      n ^= 0xFF'FF'FF'FF;
+      //      while(n)
+      //      {
+      //          --count;
+      //          n &= n - 1;
+      //      }
+      //      return count;
+      //  }
+      VRegister dst_v = i.OutputSimd128Register(),
+                src_v = i.InputSimd128Register(0);
 
+      Label t, done;
       __ VU.SetSimd128(E8);
-      // The output and input register might be the same.
-      // We could add a register constraint to avoid this, but in this
-      // case it's simpler to just copy the source into a scratch register.
-      __ vmv_vv(kSimd128ScratchReg, src);
-      auto zero_reg = kSimd128ScratchReg4;
-      __ vmv_vi(zero_reg, 0);
-      __ vmv_vv(dst, zero_reg);
-
+      __ vmv_vv(kSimd128ScratchReg, src_v);
+      __ li(kScratchReg, 0xFF);
+      __ vxor_vx(kSimd128ScratchReg, kSimd128ScratchReg, kScratchReg);
+      __ vmv_vi(dst_v, 8);
+      __ vmv_vi(kSimd128RegZero, 0);
       __ bind(&t);
-      __ vmsne_vv(v0, kSimd128ScratchReg, zero_reg);
-      __ vadd_vi(dst, dst, 1, Mask);
-      __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
-      __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
-      // kScratchReg = -1 if kSimd128ScratchReg == 0 i.e. no active element
-      __ vfirst_m(kScratchReg, kSimd128ScratchReg);
-      __ bgez(kScratchReg, &t);
+      __ vmsne_vi(v0, kSimd128ScratchReg, 0);
+      __ VU.SetSimd128(E16);
+      __ vmv_xs(kScratchReg, v0);
+      __ beqz(kScratchReg, &done);
+      __ VU.SetSimd128(E8);
+      __ vadd_vi(dst_v, dst_v, -1, MaskType::Mask);
+      __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, MaskType::Mask);
+      __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg2, kSimd128ScratchReg,
+                 MaskType::Mask);
+      __ Branch(&t);
+      __ bind(&done);
       break;
     }
     case kRiscvF64x2NearestInt: {
@@ -3362,7 +3400,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register result = kSimd128ScratchReg;
       if (sew == E32) {
         // Working on 32-bit floats.
-        __ li(kScratchReg, 0x7FC00000);
+        __ li(kScratchReg, kFP32DefaultNaN);
         __ vmv_vx(result, kScratchReg);
       } else {
 #ifdef V8_TARGET_ARCH_RISCV32
@@ -3401,7 +3439,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register result = kSimd128ScratchReg;
       if (sew == E32) {
         // Working on 32-bit floats.
-        __ li(kScratchReg, 0x7FC00000);
+        __ li(kScratchReg, kFP32DefaultNaN);
         __ vmv_vx(result, kScratchReg);
       } else {
 #ifdef V8_TARGET_ARCH_RISCV32
@@ -3543,16 +3581,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvF32x4UConvertI32x4: {
       __ VU.SetSimd128(E32);
-      __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_xu_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4SConvertI32x4: {
       __ VU.SetSimd128(E32);
-      __ VU.set(FPURoundingMode::RTZ);
       __ vfcvt_f_x_v(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ VU.set(FPURoundingMode::RNE);
       break;
     }
     case kRiscvF32x4ReplaceLane: {
@@ -4641,34 +4675,6 @@ void CodeGenerator::AssembleArchJumpRegardlessOfAssemblyOrder(
 #if V8_ENABLE_WEBASSEMBLY
 void CodeGenerator::AssembleArchTrap(Instruction* instr,
                                      FlagsCondition condition) {
-  class OutOfLineTrap final : public OutOfLineCode {
-   public:
-    OutOfLineTrap(CodeGenerator* gen, Instruction* instr)
-        : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
-    void Generate() override {
-      RiscvOperandConverter i(gen_, instr_);
-      TrapId trap_id =
-          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
-      GenerateCallToTrap(trap_id);
-    }
-
-   private:
-    void GenerateCallToTrap(TrapId trap_id) {
-      gen_->AssembleSourcePosition(instr_);
-      // A direct call to a wasm runtime stub defined in this module.
-      // Just encode the stub index. This will be patched when the code
-      // is added to the native module and copied into wasm code space.
-      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map =
-          gen_->zone()->New<ReferenceMap>(gen_->zone());
-      gen_->RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) {
-        __ stop();
-      }
-    }
-    Instruction* instr_;
-    CodeGenerator* gen_;
-  };
   auto ool = zone()->New<OutOfLineTrap>(this, instr);
   Label* tlabel = ool->entry();
   AssembleBranchToLabels(this, masm(), instr, condition, tlabel, nullptr, true);
@@ -5194,6 +5200,10 @@ void CodeGenerator::AssembleConstructFrame() {
         DoubleRegList fp_regs_to_save;
         for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
         __ MultiPushFPU(fp_regs_to_save);
+        Simd128RegList simd128_regs_to_save;
+        for (auto reg : wasm::kSimd128ParamRegisters)
+          simd128_regs_to_save.set(reg);
+        __ SaveVectorRegisters(simd128_regs_to_save);
         __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
               required_slots * kSystemPointerSize);
         __ AddWord(
@@ -5211,6 +5221,7 @@ void CodeGenerator::AssembleConstructFrame() {
         // safepoint here.
         ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
         RecordSafepoint(reference_map);
+        __ RestoreVectorRegisters(simd128_regs_to_save);
         __ MultiPopFPU(fp_regs_to_save);
         __ MultiPop(regs_to_save);
       } else {
@@ -5313,6 +5324,15 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     RegList regs_to_save;
     for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
     __ MultiPush(regs_to_save);
+
+    DoubleRegList fp_regs_to_save;
+    for (auto reg : wasm::kFpReturnRegisters) fp_regs_to_save.set(reg);
+    __ MultiPushFPU(fp_regs_to_save);
+    Simd128RegList simd128_regs_to_save;
+    for (auto reg : wasm::kSimd128ReturnRegisters)
+      simd128_regs_to_save.set(reg);
+    __ SaveVectorRegisters(simd128_regs_to_save);
+
     __ li(kCArgRegs[0], ExternalReference::isolate_address());
     {
       UseScratchRegisterScope temps{masm()};
@@ -5321,6 +5341,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
     __ mv(fp, kReturnRegister0);
+    __ RestoreVectorRegisters(simd128_regs_to_save);
+    __ MultiPopFPU(fp_regs_to_save);
     __ MultiPop(regs_to_save);
     if (masm()->options().enable_simulator_code) {
       UseScratchRegisterScope temps(masm());

@@ -21,6 +21,7 @@ bitfield struct DisposableStackStatus extends uint31 {
   length: int32: 27 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDisposableStackBase extends JSObject {
   // In the stack, [i] is the value that the initializer evaluates to, [i+1]
   // is dispose method, and [i+2] contains SmiTagged of an integer containing
@@ -33,6 +34,8 @@ extern class JSDisposableStackBase extends JSObject {
   error_message: Object|Hole;
 }
 
+@cppObjectLayoutDefinition
 extern class JSSyncDisposableStack extends JSDisposableStackBase {}
 
+@cppObjectLayoutDefinition
 extern class JSAsyncDisposableStack extends JSDisposableStackBase {}

@@ -306,8 +306,16 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (v8_flags.maglev_truncation && graph_->may_have_truncation()) {
     Run<TruncationPhase>();
     Run<PostOptimizerPhase>(nullptr);
+  } else if (graph_->compilation_info()->flags().enable_truncated_int32_phis) {
+    // This only needs to run unless we have accurate usage hints.
+    // TODO(turbolev): sort out perf problems blocking
+    // https://chromium-review.git.corp.google.com/c/v8/v8/+/7595239 from
+    // landing.
+    Run<PostOptimizerPhase>(nullptr);
   }
-  Run<PhiUntaggingPhase>();
+  if (v8_flags.turbolev_untagged_phis) {
+    Run<PhiUntaggingPhase>();
+  }
   if (v8_flags.maglev_range_analysis) {
     maglev::NodeRanges ranges(graph_);
     Run<RangeAnalysisPhase>(ranges);

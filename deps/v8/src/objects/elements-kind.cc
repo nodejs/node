@@ -29,15 +29,17 @@ constexpr size_t size_to_shift(size_t size) {
 }
 }  // namespace
 
-constexpr uint8_t kTypedArrayAndRabGsabTypedArrayElementsKindShifts[] = {
+constexpr uint8_t kTypedArrayAndRabGsabTypedArrayElementsKindShifts
+    [TypedArrayAndRabGsabTypedArrayElementsKindTableSize()] = {
 #define SHIFT(Type, type, TYPE, ctype) size_to_shift(sizeof(ctype)),
-    TYPED_ARRAYS(SHIFT) RAB_GSAB_TYPED_ARRAYS(SHIFT)
+        TYPED_ARRAYS(SHIFT) RAB_GSAB_TYPED_ARRAYS(SHIFT)
 #undef SHIFT
 };
 
-constexpr uint8_t kTypedArrayAndRabGsabTypedArrayElementsKindSizes[] = {
+constexpr uint8_t kTypedArrayAndRabGsabTypedArrayElementsKindSizes
+    [TypedArrayAndRabGsabTypedArrayElementsKindTableSize()] = {
 #define SIZE(Type, type, TYPE, ctype) sizeof(ctype),
-    TYPED_ARRAYS(SIZE) RAB_GSAB_TYPED_ARRAYS(SIZE)
+        TYPED_ARRAYS(SIZE) RAB_GSAB_TYPED_ARRAYS(SIZE)
 #undef SIZE
 };
 

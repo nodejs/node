@@ -28,7 +28,7 @@ function testOptimized(run, fctToOptimize) {
 (function TestUserSpaceArrayLoadElimination() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let backingStore = builder.addArray(kWasmI8, true);
+  let backingStore = builder.addArray(kWasmI8);
   let arrayStruct = builder.addStruct([
     makeField(kWasmI32 /*length*/, true),
     makeField(wasmRefType(backingStore), true)

@@ -5,8 +5,8 @@
 // Flags: --allow-natives-syntax --additive-safe-int-feedback
 // Flags: --turbofan
 
-const maxAdditiveSafeInteger = 4503599627370495; // 2^52 - 1
-const minAdditiveSafeInteger = - 4503599627370496; // - 2^52
+const maxAdditiveSafeInteger = 2251799813685247; // 2^52 - 1
+const minAdditiveSafeInteger = - 2251799813685248; // - 2^51
 
 // If one of the inputs is a constant in the additive safe range,
 // we can use AdditiveSafeInteger.
@@ -89,8 +89,15 @@ const minAdditiveSafeInteger = - 4503599627370496; // - 2^52
     assertEquals(1231234567891, foo(1231234567890, 1));
     assertOptimized(foo);
 
-    // We don't deopt in overflow.
+    // We deopt in overflow.
     assertEquals(maxAdditiveSafeInteger + 1, foo(maxAdditiveSafeInteger, 1));
+    assertUnoptimized(foo);
+
+    // Re-optimize to continue test.
+    %PrepareFunctionForOptimization(foo);
+    assertEquals(1231234567891, foo(1231234567890, 1));
+    %OptimizeFunctionOnNextCall(foo);
+    assertEquals(1231234567891, foo(1231234567890, 1));
     assertOptimized(foo);
 
     // Don't deopt with doubles.
@@ -300,6 +307,13 @@ const minAdditiveSafeInteger = - 4503599627370496; // - 2^52
 
     // And we cannot deopt by overflowing the first one.
     assertEquals(maxAdditiveSafeInteger + 2, foo(maxAdditiveSafeInteger, 1));
+    assertUnoptimized(foo);
+
+    // Re-optimize to continue test.
+    %PrepareFunctionForOptimization(foo);
+    assertEquals(1231234567892, foo(1231234567890, 1));
+    %OptimizeFunctionOnNextCall(foo);
+    assertEquals(1231234567892, foo(1231234567890, 1));
     assertOptimized(foo);
 
     // Don't deopt with doubles.

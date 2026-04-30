@@ -57,6 +57,31 @@ enum ContextLookupFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
+#ifdef V8_TEMPORAL_SUPPORT
+#define NATIVE_CONTEXT_FIELDS_TEMPORAL(V)                                      \
+  V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
+    temporal_duration_function)                                                \
+  V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
+  V(JS_TEMPORAL_PLAIN_DATE_FUNCTION_INDEX, JSFunction,                         \
+    temporal_plain_date_function)                                              \
+  V(JS_TEMPORAL_PLAIN_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
+    temporal_plain_date_time_function)                                         \
+  V(JS_TEMPORAL_PLAIN_MONTH_DAY_FUNCTION_INDEX, JSFunction,                    \
+    temporal_plain_month_day_function)                                         \
+  V(JS_TEMPORAL_PLAIN_TIME_FUNCTION_INDEX, JSFunction,                         \
+    temporal_plain_time_function)                                              \
+  V(JS_TEMPORAL_PLAIN_YEAR_MONTH_FUNCTION_INDEX, JSFunction,                   \
+    temporal_plain_year_month_function)                                        \
+  V(JS_TEMPORAL_TIME_ZONE_FUNCTION_INDEX, JSFunction,                          \
+    temporal_time_zone_function)                                               \
+  V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
+    temporal_zoned_date_time_function)                                         \
+  V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)
+
+#else
+#define NATIVE_CONTEXT_FIELDS_TEMPORAL(V)
+#endif  // V8_TEMPORAL_SUPPORT
+
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
   /* TODO(ishell): Actually we store exactly EmbedderDataArray here but */     \
@@ -209,6 +234,7 @@ enum ContextLookupFlags {
   V(ITERATOR_DROP_HELPER_MAP_INDEX, Map, iterator_drop_helper_map)             \
   V(ITERATOR_FLAT_MAP_HELPER_MAP_INDEX, Map, iterator_flatMap_helper_map)      \
   V(ITERATOR_CONCAT_HELPER_MAP_INDEX, Map, iterator_concat_helper_map)         \
+  V(ITERATOR_ZIP_HELPER_MAP_INDEX, Map, iterator_zip_helper_map)               \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
@@ -241,27 +267,9 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
     js_finalization_registry_fun)                                              \
-  V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
-    temporal_duration_function)                                                \
-  V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
-  V(JS_TEMPORAL_PLAIN_DATE_FUNCTION_INDEX, JSFunction,                         \
-    temporal_plain_date_function)                                              \
-  V(JS_TEMPORAL_PLAIN_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
-    temporal_plain_date_time_function)                                         \
-  V(JS_TEMPORAL_PLAIN_MONTH_DAY_FUNCTION_INDEX, JSFunction,                    \
-    temporal_plain_month_day_function)                                         \
-  V(JS_TEMPORAL_PLAIN_TIME_FUNCTION_INDEX, JSFunction,                         \
-    temporal_plain_time_function)                                              \
-  V(JS_TEMPORAL_PLAIN_YEAR_MONTH_FUNCTION_INDEX, JSFunction,                   \
-    temporal_plain_year_month_function)                                        \
-  V(JS_TEMPORAL_TIME_ZONE_FUNCTION_INDEX, JSFunction,                          \
-    temporal_time_zone_function)                                               \
-  V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
-    temporal_zoned_date_time_function)                                         \
   V(JSON_OBJECT, JSObject, json_object)                                        \
   V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
     promise_withresolvers_result_map)                                          \
-  V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)                        \
   /* Context maps */                                                           \
   V(META_MAP_INDEX, Map, meta_map)                                             \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -433,7 +441,8 @@ enum ContextLookupFlags {
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
   V(RETAINED_MAPS, Object, retained_maps)                                      \
   V(SHARED_SPACE_JS_OBJECT_HAS_INSTANCE_INDEX, JSFunction,                     \
-    shared_space_js_object_has_instance)
+    shared_space_js_object_has_instance)                                       \
+  NATIVE_CONTEXT_FIELDS_TEMPORAL(V)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 
@@ -483,11 +492,12 @@ enum ContextLookupFlags {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-class Context : public TorqueGeneratedContext<Context, HeapObject> {
+V8_OBJECT class Context : public HeapObjectLayout {
  public:
-  using TorqueGeneratedContext::length;      // Non-atomic.
-  using TorqueGeneratedContext::set_length;  // Non-atomic.
-  DECL_RELAXED_INT_ACCESSORS(length)
+  inline int length() const;
+  inline void set_length(int value);
+  inline int length(RelaxedLoadTag) const;
+  inline void set_length(int value, RelaxedStoreTag);
 
   V8_INLINE bool IsElementTheHole(int index);
 
@@ -507,34 +517,31 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
                                     DirectHandle<Object> new_value,
                                     Isolate* isolate);
 
-  static const int kScopeInfoOffset = kElementsOffset;
-  static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
-
-  /* Header size. */                                                  \
-  /* TODO(ishell): use this as header size once MIN_CONTEXT_SLOTS */  \
-  /* is removed in favour of offset-based access to common fields. */ \
-  static const int kTodoHeaderSize = kPreviousOffset + kTaggedSize;
-
+  // Back-compat offset constants. Defined out-of-line below the class so
+  // they can use `offsetof(Context, ...)` / `OFFSET_OF_DATA_START(Context)`
+  // (which require the type to be complete).
+  static const int kLengthOffset;
+  static const int kElementsOffset;
+  static const int kHeaderSize;
+  static const int kScopeInfoOffset;
+  static const int kPreviousOffset;
+  // TODO(ishell): use kTodoHeaderSize as header size once MIN_CONTEXT_SLOTS
+  // is removed in favour of offset-based access to common fields.
+  static const int kTodoHeaderSize;
   // If the extension slot exists, it is the first slot after the header.
-  static const int kExtensionOffset = kTodoHeaderSize;
+  static const int kExtensionOffset;
+  static const int kExtensionSize;
+  static const int kExtendedHeaderSize;
 
   // Garbage collection support.
-  V8_INLINE static constexpr int SizeFor(int length) {
-    // TODO(v8:9287): This is a workaround for GCMole build failures.
-    int result = kElementsOffset + length * kTaggedSize;
-    DCHECK_EQ(TorqueGeneratedContext::SizeFor(length), result);
-    return result;
-  }
+  static inline constexpr int SizeFor(int length);
+  inline int AllocatedSize() const;
 
   // Code Generation support.
   // Offset of the element from the beginning of object.
-  V8_INLINE static constexpr int OffsetOfElementAt(int index) {
-    return SizeFor(index);
-  }
+  static inline constexpr int OffsetOfElementAt(int index);
   // Offset of the element from the heap object pointer.
-  V8_INLINE static constexpr int SlotOffset(int index) {
-    return OffsetOfElementAt(index) - kHeapObjectTag;
-  }
+  static inline constexpr int SlotOffset(int index);
 
   // Initializes the variable slots of the context. Lexical variables that need
   // initialization are filled with the hole.
@@ -576,10 +583,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
   };
-
-  static const int kExtensionSize =
-      (MIN_CONTEXT_EXTENDED_SLOTS - MIN_CONTEXT_SLOTS) * kTaggedSize;
-  static const int kExtendedHeaderSize = kTodoHeaderSize + kExtensionSize;
 
   // A region of native context entries containing maps for functions created
   // by Builtin::kFastNewClosure.
@@ -710,20 +713,13 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 #endif
 
  protected:
-  // Setter and getter for elements.
-  template <typename MemoryTag>
-  Tagged<Object> get(int index, MemoryTag tag) const;
-
-  // Accessors use relaxed semantics.
-  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                               RelaxedLoadTag) const;
+  // Setter and getter for elements (relaxed / acquire-release variants).
+  V8_INLINE Tagged<Object> get(int index, RelaxedLoadTag) const;
+  V8_INLINE Tagged<Object> get(int index, AcquireLoadTag) const;
   V8_INLINE void set(int index, Tagged<Object> value,
                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
                      RelaxedStoreTag);
-  // Accessors with acquire-release semantics.
-  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                               AcquireLoadTag) const;
   V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
                      ReleaseStoreTag);
 
@@ -747,8 +743,38 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline void set_previous(Tagged<Context> context,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  TQ_OBJECT_CONSTRUCTORS(Context)
-};
+ public:
+  TaggedMember<Smi> length_;
+  FLEXIBLE_ARRAY_MEMBER(TaggedMember<Object>, elements);
+} V8_OBJECT_END;
+
+// Back-compat offset constants. Defined here because `offsetof` /
+// `OFFSET_OF_DATA_START` on a not-yet-complete class cannot appear inside
+// the class body.
+inline constexpr int Context::kLengthOffset = offsetof(Context, length_);
+inline constexpr int Context::kElementsOffset = OFFSET_OF_DATA_START(Context);
+inline constexpr int Context::kHeaderSize = Context::kElementsOffset;
+inline constexpr int Context::kScopeInfoOffset = Context::kElementsOffset;
+inline constexpr int Context::kPreviousOffset =
+    Context::kScopeInfoOffset + kTaggedSize;
+inline constexpr int Context::kTodoHeaderSize =
+    Context::kPreviousOffset + kTaggedSize;
+inline constexpr int Context::kExtensionOffset = Context::kTodoHeaderSize;
+inline constexpr int Context::kExtensionSize =
+    (Context::MIN_CONTEXT_EXTENDED_SLOTS - Context::MIN_CONTEXT_SLOTS) *
+    kTaggedSize;
+inline constexpr int Context::kExtendedHeaderSize =
+    Context::kTodoHeaderSize + Context::kExtensionSize;
+
+inline constexpr int Context::SizeFor(int length) {
+  return kElementsOffset + length * kTaggedSize;
+}
+inline constexpr int Context::OffsetOfElementAt(int index) {
+  return SizeFor(index);
+}
+inline constexpr int Context::SlotOffset(int index) {
+  return OffsetOfElementAt(index) - kHeapObjectTag;
+}
 
 class NativeContext : public Context {
  public:
@@ -834,8 +860,6 @@ class NativeContext : public Context {
  private:
   static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
                 Internals::kNativeContextEmbedderDataOffset);
-
-  OBJECT_CONSTRUCTORS(NativeContext, Context);
 };
 
 class ScriptContextTableShape final : public AllStatic {
@@ -846,7 +870,7 @@ class ScriptContextTableShape final : public AllStatic {
   static constexpr bool kLengthEqualsCapacity = false;
 
   V8_ARRAY_EXTRA_FIELDS({
-    TaggedMember<Smi> length_;
+    uint32_t length_;
     TaggedMember<NameToIndexHashTable> names_to_context_index_;
   });
 };
@@ -861,19 +885,19 @@ class ScriptContextTable
   using Shape = ScriptContextTableShape;
 
   static Handle<ScriptContextTable> New(
-      Isolate* isolate, int capacity,
+      Isolate* isolate, uint32_t capacity,
       AllocationType allocation = AllocationType::kYoung);
 
-  inline int length(AcquireLoadTag) const;
-  inline void set_length(int value, ReleaseStoreTag);
+  inline SafeHeapObjectSize length(AcquireLoadTag) const;
+  inline void set_length(uint32_t value, ReleaseStoreTag);
 
   inline Tagged<NameToIndexHashTable> names_to_context_index() const;
   inline void set_names_to_context_index(
       Tagged<NameToIndexHashTable> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline Tagged<Context> get(int index) const;
-  inline Tagged<Context> get(int index, AcquireLoadTag) const;
+  inline Tagged<Context> get(uint32_t index) const;
+  inline Tagged<Context> get(uint32_t index, AcquireLoadTag) const;
 
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
@@ -892,6 +916,10 @@ class ScriptContextTable
   DECL_VERIFIER(ScriptContextTable)
 
   class BodyDescriptor;
+
+  static constexpr uint32_t kCapacityOffset = HeapObject::kHeaderSize;
+  static constexpr uint32_t kLengthOffset = kCapacityOffset + kApiInt32Size;
+  static constexpr uint32_t kHeaderSize = kLengthOffset + kApiInt32Size;
 };
 
 using ContextField = Context::Field;

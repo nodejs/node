@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/objects/tagged-impl.h"
 #include "src/objects/union.h"
@@ -20,9 +21,7 @@ class HeapObject;
 class HeapNumber;
 class HeapObjectLayout;
 class TrustedObject;
-class TrustedObjectLayout;
 class ExposedTrustedObject;
-class ExposedTrustedObjectLayout;
 class Object;
 class TaggedIndex;
 class Smi;
@@ -64,82 +63,131 @@ class Smi;
 //                       Tagged<Smi> -> StrongTaggedBase
 //   Tagged<T> -> Tagged<HeapObject> -> StrongTaggedBase
 //
-// We also specialize it separately for MaybeWeak types, with a parallel
+// We also specialize it separately for Weak types, with a parallel
 // hierarchy:
 //
-//                               Tagged<MaybeWeak<Object>> -> WeakTaggedBase
-//                                  Tagged<MaybeWeak<Smi>> -> WeakTaggedBase
-//   Tagged<MaybeWeak<T>> -> Tagged<MaybeWeak<HeapObject>> -> WeakTaggedBase
+//                          Tagged<Weak<Object>> -> WeakTaggedBase
+//                             Tagged<Weak<Smi>> -> WeakTaggedBase
+//   Tagged<Weak<T>> -> Tagged<Weak<HeapObject>> -> WeakTaggedBase
+//   Tagged<Weak<T>> -> Tagged<Weak<HeapObject>> -> WeakTaggedBase
 template <typename T>
 class Tagged;
 
-// MaybeWeak<T> represents a reference to T that may be either a strong or weak.
+// Weak<T> represents a reference to T that is weak.
 //
-// MaybeWeak doesn't really exist by itself, but is rather a sentinel type for
+// Weak doesn't really exist by itself, but is rather a sentinel type for
 // templates on tagged interfaces (like Tagged). For example, where Tagged<T>
-// represents a strong reference to T, Tagged<MaybeWeak<T>> represents a
+// represents a strong reference to T, Tagged<Weak<T>> represents a
 // potentially weak reference to T, and it is the responsibility of the Tagged
 // interface to provide some mechanism (likely template specialization) to
 // distinguish between the two and provide accessors to the T reference itself
 // (which will always be strong).
 template <typename T>
-class MaybeWeak {};
+class Weak {
+ public:
+  // Smis can't be weak.
+  static_assert(!std::is_same_v<T, Smi>);
+  // Generic Objects can't be weak, use a Union with a Smi instead.
+  static_assert(!std::is_same_v<T, Object>);
+  // "Weak" should be inside unions, not outside of them.
+  static_assert(!is_union_v<T>);
+
+  using strong_type = T;
+};
+
+template <typename T>
+struct is_weak : public std::false_type {};
+template <typename T>
+struct is_weak<Weak<T>> : public std::true_type {};
+template <typename... T>
+struct is_weak<Union<T...>> : public std::conjunction<is_weak<T>...> {};
+template <typename T>
+static constexpr bool is_weak_v = is_weak<T>::value;
 
 template <typename T>
 struct is_maybe_weak : public std::false_type {};
 template <typename T>
-struct is_maybe_weak<MaybeWeak<T>> : public std::true_type {};
+struct is_maybe_weak<Weak<T>> : public std::true_type {};
 template <typename... T>
 struct is_maybe_weak<Union<T...>>
     : public std::disjunction<is_maybe_weak<T>...> {};
 template <typename T>
 static constexpr bool is_maybe_weak_v = is_maybe_weak<T>::value;
 
+namespace detail {
+template <typename T>
+struct weak_of_helper {
+  using type = Weak<T>;
+};
+template <>
+struct weak_of_helper<Smi> {
+  using type = Smi;
+};
+template <>
+struct weak_of_helper<Object> {
+  using type = UnionOf<Smi, HeapObject, Weak<HeapObject>>;
+};
+template <typename T>
+struct weak_of_helper<Weak<T>> {
+  using type = Weak<T>;
+};
+template <typename... Ts>
+struct weak_of_helper<Union<Ts...>> {
+  using type = UnionOf<typename weak_of_helper<Ts>::type...>;
+};
+}  // namespace detail
+template <typename T>
+using WeakOf = typename detail::weak_of_helper<T>::type;
+
+namespace detail {
+template <typename T>
+struct strong_of_helper {
+  using type = T;
+};
+template <>
+struct strong_of_helper<Smi> {
+  using type = Smi;
+};
+template <typename T>
+struct strong_of_helper<Weak<T>> {
+  using type = T;
+};
+template <>
+struct strong_of_helper<MaybeObject> {
+  using type = Object;
+};
+template <typename... Ts>
+struct strong_of_helper<Union<Ts...>> {
+  using type = UnionOf<typename strong_of_helper<Ts>::type...>;
+};
+}  // namespace detail
+template <typename T>
+using StrongOf = typename detail::strong_of_helper<T>::type;
+
 // ClearedWeakValue is a sentinel type for cleared weak values.
 class ClearedWeakValue {};
 
-// Convert a strong reference to T into a weak reference to T.
+// Convert a reference to T into a definitely weak reference to T.
 template <typename T>
-inline Tagged<MaybeWeak<T>> MakeWeak(Tagged<T> value);
-template <typename T>
-inline Tagged<MaybeWeak<T>> MakeWeak(Tagged<MaybeWeak<T>> value);
+inline Tagged<WeakOf<T>> MakeWeak(Tagged<T> value);
 
-// Convert a weak reference to T into a strong reference to T.
+// Convert a Smi or reference to T into a Smi or weak reference to T.
 template <typename T>
-inline Tagged<T> MakeStrong(Tagged<T> value);
+inline Tagged<WeakOf<T>> MakeWeakOrSmi(Tagged<T> value);
+
+// Convert a (maybe) weak reference to T into a strong reference to T.
 template <typename T>
-inline Tagged<T> MakeStrong(Tagged<MaybeWeak<T>> value);
+inline Tagged<StrongOf<T>> MakeStrong(Tagged<T> value);
 
 // Base class for all Tagged<T> classes.
 using StrongTaggedBase = TaggedImpl<HeapObjectReferenceType::STRONG, Address>;
 using WeakTaggedBase = TaggedImpl<HeapObjectReferenceType::WEAK, Address>;
 
-// `is_subtype<Derived, Base>::value` is true when Derived is a subtype of Base
-// according to our object hierarchy. In particular, Smi is considered a
-// subtype of Object.
-template <typename Derived, typename Base, typename Enabled = void>
-struct is_subtype;
-template <typename Derived, typename Base>
-static constexpr bool is_subtype_v = is_subtype<Derived, Base>::value;
+// Types which provide both a legacy Foo as well as a new-style FooLayout class.
+#define LAYOUT_TYPES(V) V(HeapObject)
 
-namespace detail {
-template <typename Derived, typename Base, typename Enabled = void>
-struct is_simple_subtype;
-template <typename Derived, typename Base, typename Enabled = void>
-struct is_complex_subtype;
-}  // namespace detail
-
-// `is_subtype<Derived, Base>` tries is_simple_subtype first, and if that fails,
-// is_complex_subtype. This is to prevent instantiating the is_complex_subtype
-// template when is_simple_subtype, to avoid trying std::is_base_of. This allows
-// subtype checks to pass, for simple subtypes, with forward declarations.
-template <typename Derived, typename Base, typename Enabled>
-struct is_subtype
-    : public std::disjunction<detail::is_simple_subtype<Derived, Base>,
-                              detail::is_complex_subtype<Derived, Base>> {};
-
-// Forward declarations for is_simple_subtype hack, remove once those
-// specializations are removed.
+// Forward declarations for is_subtype.
+class Struct;
 class FixedArrayBase;
 class FixedArray;
 class FixedDoubleArray;
@@ -154,174 +202,151 @@ class ArrayList;
 class SloppyArgumentsElements;
 
 namespace detail {
-// `is_simple_subtype<Derived, Base>::value` is true when Derived is a simple
-// subtype of Base according to our object hierarchy, in a way that doesn't
-// require object definitions (in particular, we don't need to known anything
-// about C++ base classes). False, in this case, doesn't mean "not a subtype",
-// it just means "not a _simple_ subtype".
-template <typename Derived, typename Base, typename Enabled>
-struct is_simple_subtype : public std::false_type {};
 template <typename Derived, typename Base>
-static constexpr bool is_simple_subtype_v =
-    is_simple_subtype<Derived, Base>::value;
+consteval bool is_subtype_helper();
+}
+
+// `is_subtype<Derived, Base>::value` is true when Derived is a subtype of Base
+// according to our object hierarchy. In particular, Smi is considered a
+// subtype of Object.
+template <typename Derived, typename Base>
+concept SubtypeOf = detail::is_subtype_helper<Derived, Base>();
+template <typename Derived, typename Base>
+static constexpr bool is_subtype_v = detail::is_subtype_helper<Derived, Base>();
+template <typename Derived, typename Base>
+struct is_subtype : public std::integral_constant<
+                        bool, detail::is_subtype_helper<Derived, Base>()> {};
+
+namespace detail {
 
 template <typename T>
-struct is_simple_subtype<T, T> : public std::true_type {};
-template <>
-struct is_simple_subtype<Object, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<Smi, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<TaggedIndex, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<FieldType, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<HeapObject, Object> : public std::true_type {};
-template <>
-struct is_simple_subtype<HeapObjectLayout, Object> : public std::true_type {};
-template <typename T>
-struct is_simple_subtype<T, MaybeWeak<T>> : public std::true_type {};
-template <typename T>
-struct is_simple_subtype<MaybeWeak<T>, MaybeWeak<T>> : public std::true_type {};
-template <typename T>
-struct is_simple_subtype<ClearedWeakValue, MaybeWeak<T>>
-    : public std::true_type {};
-template <>
-struct is_simple_subtype<Smi, MaybeWeak<Object>> : public std::true_type {};
-
-// Special case to match Torque's idea of Object/MaybeObject against the C++
-// one.
-// TODO(leszeks): Clean up what types torque and C++ consider to be unions of
-// other types.
-template <>
-struct is_simple_subtype<MaybeWeak<Object>,
-                         Union<HeapObject, MaybeWeak<HeapObject>, Smi>>
-    : public std::true_type {};
-template <>
-struct is_simple_subtype<Object, Union<HeapObject, Smi>>
-    : public std::true_type {};
-template <>
-struct is_simple_subtype<Object, Union<HeapObject, MaybeWeak<HeapObject>, Smi>>
-    : public std::true_type {};
-
-// Specializations of is_simple_subtype for Union, which allows for trivial
-// subtype checks of Unions without recursing into the full is_subtype trait,
-// which might require object definitions.
-//
-// A couple of redundant looking specializations are necessary to disambiguate
-// specializations when there are two Unions.
-template <typename Derived, typename... BaseTs>
-struct is_simple_subtype<Derived, Union<BaseTs...>>
-    : public std::disjunction<is_simple_subtype<Derived, BaseTs>...> {};
-template <typename... DerivedTs, typename Base>
-struct is_simple_subtype<Union<DerivedTs...>, Base>
-    : public std::conjunction<is_simple_subtype<DerivedTs, Base>...> {};
-template <typename... DerivedTs, typename... BaseTs>
-struct is_simple_subtype<Union<DerivedTs...>, Union<BaseTs...>>
-    : public std::conjunction<
-          is_simple_subtype<DerivedTs, Union<BaseTs...>>...> {};
-template <typename... Ts>
-struct is_simple_subtype<Union<Ts...>, Union<Ts...>> : public std::true_type {};
-
-// TODO(jgruber): Clean up this artificial FixedArrayBase hierarchy. Only types
-// that can be used as elements should be in it.
-// TODO(jgruber): Replace FixedArrayBase with a union type, once they exist.
-#define DEF_FIXED_ARRAY_SUBTYPE(Subtype)                                      \
-  template <>                                                                 \
-  struct is_simple_subtype<Subtype, FixedArrayBase> : public std::true_type { \
+struct layout_type {
+  using type = T;
+};
+#define SPECIALIZE_TO_LAYOUT_TYPE(Name) \
+  template <>                           \
+  struct layout_type<Name> {            \
+    using type = Name##Layout;          \
   };
-DEF_FIXED_ARRAY_SUBTYPE(FixedArray)
-DEF_FIXED_ARRAY_SUBTYPE(FixedDoubleArray)
-DEF_FIXED_ARRAY_SUBTYPE(ByteArray)
-DEF_FIXED_ARRAY_SUBTYPE(NameDictionary)
-DEF_FIXED_ARRAY_SUBTYPE(NumberDictionary)
-DEF_FIXED_ARRAY_SUBTYPE(OrderedHashMap)
-DEF_FIXED_ARRAY_SUBTYPE(OrderedHashSet)
-DEF_FIXED_ARRAY_SUBTYPE(OrderedNameDictionary)
-DEF_FIXED_ARRAY_SUBTYPE(ScriptContextTable)
-DEF_FIXED_ARRAY_SUBTYPE(ArrayList)
-DEF_FIXED_ARRAY_SUBTYPE(SloppyArgumentsElements)
-#undef DEF_FIXED_ARRAY_SUBTYPE
+LAYOUT_TYPES(SPECIALIZE_TO_LAYOUT_TYPE)
+#undef SPECIALIZE_TO_LAYOUT_TYPE
 
-// `is_complex_subtype<Derived, Base>::value` is true when Derived is a
-// non-simple subtype of Base according to our object hierarchy, in a way that
-// might require object definitions or recursion into is_subtype (in particular,
-// we do need to know about C++ base classes).
-//
-// This doesn't check the simple cases, so should not be used directly, but
-// only via is_subtype.
-template <typename Derived, typename Base, typename Enabled>
-struct is_complex_subtype : public std::is_base_of<Base, Derived> {};
-template <typename Derived, typename Base>
-static constexpr bool is_complex_subtype_v =
-    is_complex_subtype<Derived, Base>::value;
+template <typename T>
+struct normalize_type {
+  using type = T;
+};
+template <>
+struct normalize_type<Object> {
+  using type = Union<Smi, HeapObject>;
+};
+template <>
+struct normalize_type<FieldType> {
+  using type = Union<Smi, Map>;
+};
+#define SPECIALIZE_TO_LAYOUT_TYPE(Name) \
+  template <>                           \
+  struct normalize_type<Name##Layout> { \
+    using type = Name;                  \
+  };
+LAYOUT_TYPES(SPECIALIZE_TO_LAYOUT_TYPE)
+#undef SPECIALIZE_TO_LAYOUT_TYPE
 
-template <typename Derived>
-struct is_complex_subtype<
-    Derived, Object,
-    std::enable_if_t<std::conjunction_v<std::negation<is_union<Derived>>,
-                                        is_subtype<Derived, HeapObject>>>>
-    : public std::true_type {};
-template <typename Derived>
-struct is_complex_subtype<Derived, HeapObject,
-                          std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<HeapObject, Derived>,
-                              std::is_base_of<HeapObjectLayout, Derived>>>>
-    : public std::true_type {};
+template <typename D, typename B>
+consteval bool is_subtype_helper() {
+  using std::is_base_of_v;
+  using std::is_same_v;
 
-template <typename Derived>
-struct is_complex_subtype<Derived, TrustedObject,
-                          std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<TrustedObject, Derived>,
-                              std::is_base_of<TrustedObjectLayout, Derived>>>>
-    : public std::true_type {};
+  // Normalize Union-like types and layout types to a canonical representation.
+  using Derived = typename normalize_type<D>::type;
+  using Base = typename normalize_type<B>::type;
 
-template <typename Derived>
-struct is_complex_subtype<
-    Derived, ExposedTrustedObject,
-    std::enable_if_t<std::disjunction_v<
-        std::is_base_of<ExposedTrustedObject, Derived>,
-        std::is_base_of<ExposedTrustedObjectLayout, Derived>>>>
-    : public std::true_type {};
+  if constexpr (is_same_v<Derived, Base>) {
+    // Exact Identity Match
+    return true;
+  } else if constexpr (is_same_v<Derived, TaggedIndex> &&
+                       (is_same_v<Base,
+                                  typename normalize_type<Object>::type> ||
+                        is_same_v<Base, typename normalize_type<
+                                            MaybeObject>::type>)) {
+    // Extra special handling of TaggedIndex as a subclass of (normalized)
+    // Object and MaybeObject. Has to be checked before the unions are checked.
+    // TODO(leszeks): Make this either part of those unions, or fix the uses
+    // which try to cast this.
+    return true;
+  } else if constexpr (is_union_v<Derived>) {
+    // If Derived is a union, ALL of its members must be a subtype of Base.
+    // Unpack it by passing it to a templated lambda.
+    return []<typename... Ts>(std::type_identity<Union<Ts...>>) consteval {
+      return (... && is_subtype_helper<Ts, Base>());
+    }(std::type_identity<Derived>{});
+  } else if constexpr (is_union_v<Base>) {
+    // If Base is a union, Derived must be a subtype of AT LEAST ONE member.
+    return []<typename... Ts>(std::type_identity<Union<Ts...>>) consteval {
+      return (... || is_subtype_helper<Derived, Ts>());
+    }(std::type_identity<Base>{});
+  } else if constexpr (is_same_v<Derived, Smi> || is_same_v<Base, Smi> ||
+                       is_same_v<Derived, TaggedIndex> ||
+                       is_same_v<Base, TaggedIndex>) {
+    // Smi and TaggedIndex must match on exact identity or union.
+    return false;
+  } else if constexpr (is_weak_v<Base>) {
+    // Base = Weak<T>
 
-class StructLayout;
-template <typename Derived>
-struct is_complex_subtype<Derived, Struct,
-                          std::enable_if_t<std::disjunction_v<
-                              std::is_base_of<Struct, Derived>,
-                              std::is_base_of<StructLayout, Derived>>>>
-    : public std::true_type {};
-
-template <typename Derived, typename... BaseTs>
-struct is_complex_subtype<Derived, Union<BaseTs...>>
-    : public std::disjunction<is_subtype<Derived, BaseTs>...> {};
-template <typename... DerivedTs, typename Base>
-struct is_complex_subtype<Union<DerivedTs...>, Base>
-    : public std::conjunction<is_subtype<DerivedTs, Base>...> {};
-template <typename... DerivedTs, typename... BaseTs>
-struct is_complex_subtype<Union<DerivedTs...>, Union<BaseTs...>>
-    : public std::conjunction<is_subtype<DerivedTs, Union<BaseTs...>>...> {};
-template <typename Derived, typename Base>
-struct is_complex_subtype<
-    Derived, MaybeWeak<Base>,
-    std::enable_if_t<!is_union_v<Derived> && !is_maybe_weak_v<Derived>>>
-    : public is_subtype<Derived, Base> {};
-template <typename Derived, typename Base>
-struct is_complex_subtype<MaybeWeak<Derived>, MaybeWeak<Base>>
-    : public is_subtype<Derived, Base> {};
+    if constexpr (is_same_v<Derived, ClearedWeakValue>) {
+      // ClearedValue is always a subtype of Weak<T>
+      return true;
+    } else if constexpr (is_weak_v<Derived>) {
+      // Weak<T> < Weak<U> <=> T < U
+      return is_subtype_helper<typename Derived::strong_type,
+                               typename Base::strong_type>();
+    } else {
+      // non-weak < Weak<U> is always false.
+      return false;
+    }
+  } else if constexpr (is_weak_v<Derived>) {
+    // Weak<T> cannot be a subtype of a non-weak Base (unless
+    // matched exactly earlier by a union)
+    return false;
+  } else if constexpr (is_same_v<Base, FixedArrayBase>) {
+    // FixedArrayBase Hierarchy Collapse
+    return is_same_v<D, FixedArray> || is_same_v<D, FixedDoubleArray> ||
+           is_same_v<D, ByteArray> || is_same_v<D, NameDictionary> ||
+           is_same_v<D, NumberDictionary> || is_same_v<D, GlobalDictionary> ||
+           is_same_v<D, OrderedHashMap> || is_same_v<D, OrderedHashSet> ||
+           is_same_v<D, OrderedNameDictionary> ||
+           is_same_v<D, ScriptContextTable> || is_same_v<D, ArrayList> ||
+           is_same_v<D, SloppyArgumentsElements>;
+  } else if constexpr (!is_same_v<Base, typename layout_type<Base>::type>) {
+    // Handle layout types.
+    return is_base_of_v<Base, Derived> ||
+           is_base_of_v<typename layout_type<Base>::type, Derived>;
+  } else {
+    // Fallback to base_of.
+    return is_base_of_v<Base, Derived>;
+  }
+}
 }  // namespace detail
 
 static_assert(is_subtype_v<Smi, Object>);
 static_assert(is_subtype_v<HeapObject, Object>);
 static_assert(is_subtype_v<HeapObject, HeapObject>);
-static_assert(is_subtype_v<Smi, MaybeWeak<Object>>);
-static_assert(is_subtype_v<Union<HeapObject, MaybeWeak<HeapObject>, Smi>,
-                           MaybeWeak<Object>>);
+static_assert(is_subtype_v<Smi, MaybeObject>);
+static_assert(
+    is_subtype_v<Union<HeapObject, Weak<HeapObject>, Smi>, MaybeObject>);
+static_assert(!is_subtype_v<WeakOf<Object>, Object>);
+static_assert(is_subtype_v<
+              Object, Union<Smi, HeapObject, Weak<HeapObject>, TaggedIndex>>);
+static_assert(is_subtype_v<Object, MaybeObject>);
+static_assert(is_subtype_v<TaggedIndex, Object>);
+static_assert(is_subtype_v<Union<HeapObject, TaggedIndex>, Object>);
 
 // `is_taggable<T>::value` is true when T is a valid type for Tagged. This means
-// de-facto being a subtype of Object.
+// being a subtype of Smi, TaggedIndex, or a weak/strong HeapObject. Include
+// Object in the list because it's special.
 template <typename T>
-using is_taggable = is_subtype<T, MaybeWeak<Object>>;
+using is_taggable =
+    is_subtype<T,
+               Union<Smi, TaggedIndex, Object, HeapObject, Weak<HeapObject>>>;
 template <typename T>
 static constexpr bool is_taggable_v = is_taggable<T>::value;
 
@@ -349,7 +374,7 @@ namespace detail {
 template <typename T>
 class TaggedOperatorArrowRef {
  public:
-  V8_INLINE constexpr T* operator->() { return &object_; }
+  V8_INLINE constexpr T* operator->() V8_LIFETIME_BOUND { return &object_; }
 
  private:
   friend class Tagged<T>;
@@ -364,8 +389,8 @@ struct BaseForTagged {
 };
 
 template <typename T>
-struct BaseForTagged<MaybeWeak<T>> {
-  using type = Tagged<MaybeWeak<HeapObject>>;
+struct BaseForTagged<Weak<T>> {
+  using type = Tagged<Weak<HeapObject>>;
 };
 
 template <typename... T>
@@ -514,8 +539,17 @@ class Tagged<HeapObject> : public StrongTaggedBase {
            static_cast<Tagged_t>(kNullAddress);
   }
 
-  constexpr V8_INLINE bool IsHeapObject() const { return true; }
-  constexpr V8_INLINE bool IsSmi() const { return false; }
+  constexpr V8_INLINE bool IsHeapObject() const {
+    DCHECK_IMPLIES(!is_null(), TaggedImpl::IsHeapObject());
+    return !is_null();
+  }
+  constexpr V8_INLINE bool IsSmi() const {
+    // Null values overlap with Smi zero, so return "true" here for now.
+    // TODO(leszeks): Consider either making callers check for nullness instead
+    // of Sminess, or even introducing a "nullable" concept.
+    DCHECK_IMPLIES(!is_null(), !TaggedImpl::IsSmi());
+    return is_null();
+  }
 
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
@@ -546,58 +580,23 @@ class Tagged<HeapObject> : public StrongTaggedBase {
 #endif
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 
-  friend Tagged<HeapObject> MakeStrong<>(Tagged<HeapObject> value);
-  friend Tagged<HeapObject> MakeStrong<>(Tagged<MaybeWeak<HeapObject>> value);
+  template <typename U>
+  friend Tagged<StrongOf<U>> MakeStrong(Tagged<U> value);
 
   V8_INLINE constexpr HeapObject ToRawPtr() const;
 };
 
 static_assert(Tagged<HeapObject>().is_null());
 
-// Specialization for MaybeWeak<Object>, where it's unknown whether this is a
-// Smi, a strong HeapObject, or a weak HeapObject
-template <>
-class Tagged<MaybeWeak<Object>> : public WeakTaggedBase {
- public:
-  // Allow Tagged<MaybeWeak<Object>> to be created from any address.
-  V8_INLINE constexpr explicit Tagged(Address o) : WeakTaggedBase(o) {}
-
-  // Allow explicit uninitialized initialization.
-  // TODO(leszeks): Consider zapping this instead, since it's odd that
-  // Tagged<MaybeWeak<Object>> implicitly initialises to Smi::zero().
-  V8_INLINE constexpr Tagged() : WeakTaggedBase(kNullAddress) {}
-
-  // Allow implicit conversion from const HeapObjectLayout* to
-  // Tagged<MaybeWeak<Object>>.
-  // TODO(leszeks): Make this more const-correct.
-  // TODO(leszeks): Consider making this an explicit conversion.
-  // NOLINTNEXTLINE
-  V8_INLINE Tagged(const HeapObjectLayout* ptr)
-      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {}
-
-  // Implicit conversion for subclasses -- all classes are subclasses of Object,
-  // so allow all tagged pointers, both weak and strong.
-  // NOLINTNEXTLINE
-  V8_INLINE constexpr Tagged(WeakTaggedBase other)
-      : WeakTaggedBase(other.ptr()) {}
-  // NOLINTNEXTLINE
-  V8_INLINE constexpr Tagged(StrongTaggedBase other)
-      : WeakTaggedBase(other.ptr()) {}
-  V8_INLINE constexpr Tagged& operator=(WeakTaggedBase other) {
-    return *this = Tagged(other);
-  }
-  V8_INLINE constexpr Tagged& operator=(StrongTaggedBase other) {
-    return *this = Tagged(other);
-  }
-};
-
-// Specialization for MaybeWeak<HeapObject>, to group together functions shared
+// Specialization for Weak<HeapObject>, to group together functions shared
 // between all HeapObjects
 template <>
-class Tagged<MaybeWeak<HeapObject>> : public WeakTaggedBase {
+class Tagged<Weak<HeapObject>> : public WeakTaggedBase {
   using Base = WeakTaggedBase;
 
  public:
@@ -613,7 +612,7 @@ class Tagged<MaybeWeak<HeapObject>> : public WeakTaggedBase {
   // Implicit conversion for subclasses.
   template <typename U>
   V8_INLINE constexpr Tagged& operator=(Tagged<U> other)
-    requires(is_subtype_v<U, MaybeWeak<HeapObject>>)
+    requires(is_subtype_v<U, Weak<HeapObject>>)
   {
     return *this = Tagged(other);
   }
@@ -622,15 +621,8 @@ class Tagged<MaybeWeak<HeapObject>> : public WeakTaggedBase {
   template <typename U>
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(Tagged<U> other)
-    requires(is_subtype_v<U, MaybeWeak<HeapObject>>)
+    requires(is_subtype_v<U, Weak<HeapObject>>)
       : Base(other.ptr()) {}
-
-  template <typename U>
-  V8_INLINE explicit constexpr Tagged(Tagged<U> other,
-                                      HeapObjectReferenceType type)
-    requires(is_subtype_v<U, MaybeWeak<HeapObject>>)
-      : Base(type == HeapObjectReferenceType::WEAK ? MakeWeak(other)
-                                                   : MakeStrong(other)) {}
 
   V8_INLINE constexpr bool is_null() const {
     return static_cast<Tagged_t>(this->ptr()) ==
@@ -644,18 +636,21 @@ class Tagged<MaybeWeak<HeapObject>> : public WeakTaggedBase {
 
  private:
   // Handles of the same type are allowed to access the Address constructor.
-  friend class Handle<MaybeWeak<HeapObject>>;
+  friend class Handle<Weak<HeapObject>>;
 #ifdef V8_ENABLE_DIRECT_HANDLE
-  friend class DirectHandle<MaybeWeak<HeapObject>>;
+  friend class DirectHandle<Weak<HeapObject>>;
 #endif
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 
-  friend Tagged<MaybeWeak<HeapObject>> MakeWeak<>(Tagged<HeapObject> value);
-  friend Tagged<MaybeWeak<HeapObject>> MakeWeak<>(
-      Tagged<MaybeWeak<HeapObject>> value);
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeak(Tagged<U> value);
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeakOrSmi(Tagged<U> value);
 };
 
 // Generic Tagged<T> for Unions. This doesn't allow direct access to the object,
@@ -694,6 +689,18 @@ class Tagged<Union<Ts...>> : public detail::BaseForTagged<Union<Ts...>>::type {
     static_assert(kTaggedCanConvertToRawObjects);
   }
 
+  template <typename U>
+    requires(is_maybe_weak_v<This> && is_subtype_v<U, This>)
+  V8_INLINE explicit constexpr Tagged(Tagged<U> other,
+                                      HeapObjectReferenceType type)
+      : Base(type == HeapObjectReferenceType::WEAK ? MakeWeak(other).ptr()
+                                                   : MakeStrong(other).ptr()) {}
+
+  // For the very specific MaybeObject case, allow the public constructor.
+  V8_INLINE constexpr explicit Tagged(Address ptr)
+    requires std::is_same_v<This, MaybeObject>
+      : Base(ptr) {}
+
  private:
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<This>;
@@ -704,6 +711,23 @@ class Tagged<Union<Ts...>> : public detail::BaseForTagged<Union<Ts...>>::type {
   friend class TaggedField;
   template <typename TFieldType, typename CompressionScheme>
   friend class TaggedMember;
+  friend class CompressedHeapObjectSlot;
+  friend class CompressedMaybeObjectSlot;
+  friend class FullMaybeObjectSlot;
+  friend class FullHeapObjectSlot;
+  template <typename THeapObjectSlot>
+  friend void UpdateHeapObjectReferenceSlot(THeapObjectSlot slot,
+                                            Tagged<HeapObject> value);
+  friend V8_EXPORT_PRIVATE Address CheckObjectType(Address raw_value,
+                                                   Address raw_type,
+                                                   Address raw_location);
+
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeak(Tagged<U> value);
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeakOrSmi(Tagged<U> value);
+  template <typename U>
+  friend Tagged<StrongOf<U>> MakeStrong(Tagged<U> value);
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 
@@ -758,15 +782,30 @@ class Tagged : public detail::BaseForTagged<T>::type {
     return operator_arrow_impl();
   }
 
-  // Implicit conversions and explicit casts to/from raw pointers
+  // Implicit conversions and explicit casts to/from raw pointers.
   // TODO(leszeks): Remove once we're using Tagged everywhere.
+  //
+  // These come in two flavours keyed on U's base class. The canonical
+  // pass-by-value form is used for the legacy HeapObject hierarchy where
+  // `U` is a thin wrapper over a tagged address and both the copy
+  // constructor and `raw.ptr()` are available. For HeapObjectLayout-derived
+  // U the copy constructor is deleted (Tagged<T>::operator* yields U& for
+  // layout types, not U-by-value), so pass-by-value wouldn't even compile.
+  // The second overload accepts the layout object by const reference and
+  // reconstructs the tagged address from its untagged memory location
+  // (i.e. `&raw + kHeapObjectTag`).
   template <typename U>
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(U raw)
-    requires(is_subtype_v<U, T>)
+    requires(is_subtype_v<U, T> && !std::is_base_of_v<HeapObjectLayout, U>)
       : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
   }
+  template <typename U>
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const U& raw)
+    requires(is_subtype_v<U, T> && std::is_base_of_v<HeapObjectLayout, U>)
+      : Base(reinterpret_cast<Address>(&raw) + kHeapObjectTag) {}
   template <typename U>
   static constexpr Tagged<T> cast(U other) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -787,8 +826,8 @@ class Tagged : public detail::BaseForTagged<T>::type {
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 
-  friend Tagged<T> MakeStrong<>(Tagged<T> value);
-  friend Tagged<T> MakeStrong<>(Tagged<MaybeWeak<T>> value);
+  template <typename U>
+  friend Tagged<StrongOf<U>> MakeStrong(Tagged<U> value);
 
   V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
 
@@ -846,17 +885,16 @@ class Tagged<ClearedWeakValue> : public WeakTaggedBase {
   V8_INLINE constexpr explicit Tagged(Address ptr) : WeakTaggedBase(ptr) {}
 };
 
-// Generic Tagged<T> for any T that is a subclass of HeapObject. There are
-// separate Tagged<T> specializations for T==Smi and T==Object, so we know that
-// all other Tagged<T> are definitely pointers and not Smis.
+// Specialized Tagged<T> for weak references to T, which are known to be
+// subclasses of HeapObject (Smis can't be weak).
 template <typename T>
-class Tagged<MaybeWeak<T>> : public detail::BaseForTagged<MaybeWeak<T>>::type {
-  using Base = typename detail::BaseForTagged<MaybeWeak<T>>::type;
+class Tagged<Weak<T>> : public detail::BaseForTagged<Weak<T>>::type {
+  using Base = typename detail::BaseForTagged<Weak<T>>::type;
 
  public:
   V8_INLINE constexpr Tagged() = default;
   template <typename U = T>
-  // Allow implicit conversion from const T* to Tagged<MaybeWeak<T>>.
+  // Allow implicit conversion from const T* to Tagged<Weak<T>>.
   // TODO(leszeks): Make this more const-correct.
   // TODO(leszeks): Consider making this an explicit conversion.
   // NOLINTNEXTLINE
@@ -878,7 +916,7 @@ class Tagged<MaybeWeak<T>> : public detail::BaseForTagged<MaybeWeak<T>>::type {
   template <typename U>
   // NOLINTNEXTLINE
   V8_INLINE constexpr Tagged(Tagged<U> other)
-    requires(is_subtype_v<U, T>)
+    requires(is_subtype_v<U, Weak<T>>)
       : Base(other) {}
 
  private:
@@ -886,37 +924,37 @@ class Tagged<MaybeWeak<T>> : public detail::BaseForTagged<MaybeWeak<T>>::type {
 
   friend T;
   // Handles of the same type are allowed to access the Address constructor.
-  friend class Handle<MaybeWeak<T>>;
+  friend class Handle<Weak<T>>;
 #ifdef V8_ENABLE_DIRECT_HANDLE
-  friend class DirectHandle<MaybeWeak<T>>;
+  friend class DirectHandle<Weak<T>>;
 #endif
-  friend Tagged<MaybeWeak<T>> MakeWeak<>(Tagged<T> value);
-  friend Tagged<MaybeWeak<T>> MakeWeak<>(Tagged<MaybeWeak<T>> value);
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeak(Tagged<U> value);
+  template <typename U>
+  friend Tagged<WeakOf<U>> MakeWeakOrSmi(Tagged<U> value);
   template <typename To, typename From>
   friend inline Tagged<To> UncheckedCast(Tagged<From> value);
 };
 
-using MaybeObject = MaybeWeak<Object>;
-using HeapObjectReference = MaybeWeak<HeapObject>;
-
 template <typename T>
-inline Tagged<MaybeWeak<T>> MakeWeak(Tagged<T> value) {
-  return Tagged<MaybeWeak<T>>(value.ptr() | kWeakHeapObjectTag);
+inline Tagged<WeakOf<T>> MakeWeak(Tagged<T> value) {
+  static_assert(!is_subtype_v<Smi, T>, "Not allowed to make Smis weak.");
+  return Tagged<WeakOf<T>>(value.ptr() | kWeakHeapObjectTag);
 }
 
 template <typename T>
-inline Tagged<MaybeWeak<T>> MakeWeak(Tagged<MaybeWeak<T>> value) {
-  return Tagged<MaybeWeak<T>>(value.ptr() | kWeakHeapObjectTag);
+inline Tagged<WeakOf<T>> MakeWeakOrSmi(Tagged<T> value) {
+  static_assert(is_subtype_v<Smi, T>,
+                "Use MakeWeak if this is known to not be a Smi.");
+  if (value.IsSmi()) return Tagged<WeakOf<T>>(value.ptr());
+  return Tagged<WeakOf<T>>(value.ptr() | kWeakHeapObjectTag);
 }
 
 template <typename T>
-inline Tagged<T> MakeStrong(Tagged<T> value) {
-  return Tagged<T>(value.ptr() & (~kWeakHeapObjectTag | kHeapObjectTag));
-}
-
-template <typename T>
-inline Tagged<T> MakeStrong(Tagged<MaybeWeak<T>> value) {
-  return Tagged<T>(value.ptr() & (~kWeakHeapObjectTag | kHeapObjectTag));
+inline Tagged<StrongOf<T>> MakeStrong(Tagged<T> value) {
+  // This works with Smis.
+  return Tagged<StrongOf<T>>(value.ptr() &
+                             (~kWeakHeapObjectTag | kHeapObjectTag));
 }
 
 // Deduction guide to simplify Foo->Tagged<Foo> transition.

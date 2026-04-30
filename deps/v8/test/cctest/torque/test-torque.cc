@@ -461,23 +461,6 @@ TEST(TestStructConstructor) {
   ft.Call();
 }
 
-TEST(TestInternalClass) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  Handle<Context> context =
-      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
-  CodeAssemblerTester asm_tester(isolate);
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    m.TestInternalClass(
-        m.UncheckedCast<Context>(m.HeapConstantNoHole(context)));
-    m.Return(m.UndefinedConstant());
-  }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.Call();
-}
-
 TEST(TestNewFixedArrayFromSpread) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());
@@ -489,20 +472,6 @@ TEST(TestNewFixedArrayFromSpread) {
   {
     m.TestNewFixedArrayFromSpread(
         m.UncheckedCast<Context>(m.HeapConstantNoHole(context)));
-    m.Return(m.UndefinedConstant());
-  }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
-  ft.Call();
-}
-
-TEST(TestReferences) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  CodeAssemblerTester asm_tester(isolate);
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    m.TestReferences();
     m.Return(m.UndefinedConstant());
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
@@ -552,38 +521,6 @@ TEST(TestStaticAssert) {
   }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
   ft.Call();
-}
-
-TEST(TestLoadEliminationFixed) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  Handle<Context> context =
-      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
-  CodeAssemblerTester asm_tester(isolate);
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    m.TestLoadEliminationFixed(
-        m.UncheckedCast<Context>(m.HeapConstantNoHole(context)));
-    m.Return(m.UndefinedConstant());
-  }
-  asm_tester.GenerateCode();
-}
-
-TEST(TestLoadEliminationVariable) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  Handle<Context> context =
-      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
-  CodeAssemblerTester asm_tester(isolate);
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    m.TestLoadEliminationVariable(
-        m.UncheckedCast<Context>(m.HeapConstantNoHole(context)));
-    m.Return(m.UndefinedConstant());
-  }
-  asm_tester.GenerateCode();
 }
 
 TEST(TestRedundantArrayElementCheck) {
@@ -639,24 +576,6 @@ TEST(TestGenericStruct2) {
   { m.Return(m.TestGenericStruct2().snd.fst); }
   FunctionTester ft(asm_tester.GenerateCode(), 0);
   ft.Call();
-}
-
-TEST(TestBranchOnBoolOptimization) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  Handle<Context> context =
-      Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
-  const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    m.TestBranchOnBoolOptimization(
-        m.UncheckedCast<Context>(m.HeapConstantNoHole(context)),
-        m.UncheckedParameter<Smi>(0));
-    m.Return(m.UndefinedConstant());
-  }
-  asm_tester.GenerateCode();
 }
 
 TEST(TestBitFieldLoad) {
@@ -820,59 +739,6 @@ TEST(TestTestParentFrameArguments) {
     m.Return(m.UndefinedConstant());
   }
   asm_tester.GenerateCode();
-}
-
-TEST(TestFullyGeneratedClassFromCpp) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
-  TestTorqueAssembler m(asm_tester.state());
-  { m.Return(m.TestFullyGeneratedClassFromCpp()); }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  DirectHandle<ExportedSubClass> result =
-      Cast<ExportedSubClass>(ft.Call().ToHandleChecked());
-  CHECK_EQ(result->c_field(), 7);
-  CHECK_EQ(result->d_field(), 8);
-  CHECK_EQ(result->e_field(), 9);
-}
-
-TEST(TestGeneratedCastOperators) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    Handle<Context> context =
-        Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
-    m.TestGeneratedCastOperators(
-        m.UncheckedCast<Context>(m.HeapConstantNoHole(context)));
-    m.Return(m.UndefinedConstant());
-  }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  ft.Call();
-}
-
-TEST(TestNewPretenured) {
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    Handle<Context> context =
-        Utils::OpenHandle(*v8::Isolate::GetCurrent()->GetCurrentContext());
-    m.TestNewPretenured(
-        m.UncheckedCast<Context>(m.HeapConstantNoHole(context)));
-    m.Return(m.UndefinedConstant());
-  }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  ft.Call();
 }
 
 TEST(TestWord8Phi) {
@@ -1049,6 +915,44 @@ TEST(TestIncrementUseCounterInBuiltin) {
   CHECK_EQ(0, use_counts[v8::Isolate::kArraySpeciesModified]);
   ft.Call();
   CHECK_EQ(1, use_counts[v8::Isolate::kArraySpeciesModified]);
+
+  global_use_counts = nullptr;
+}
+
+TEST(TestNodePower) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 0;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    auto context = m.GetJSContextParameter();
+
+    // Fixed test cases
+    struct TestCase {
+      int s1, n1, n2, n;
+    } cases[] = {{0, 2, 2, 8},     {0, 1, 1, 4},    {2, 1, 1, 4},
+                 {0, 3, 3, 8},     {0, 1, 1, 2},    {0, 2, 2, 4},
+                 {0, 4, 4, 8},     {0, 1, 3, 4},    {0, 3, 1, 4},
+                 {1, 1, 1, 3},     {1, 1, 2, 4},    {0, 8, 8, 16},
+                 {0, 16, 16, 32},  {0, 32, 32, 64}, {0, 10, 20, 64},
+                 {10, 10, 10, 64}, {0, 31, 32, 64}};
+
+    for (const auto& c : cases) {
+      TNode<Smi> s1 = m.SmiConstant(c.s1);
+      TNode<Smi> n1 = m.SmiConstant(c.n1);
+      TNode<Smi> n2 = m.SmiConstant(c.n2);
+      TNode<Smi> n = m.SmiConstant(c.n);
+
+      TNode<Smi> p32 = m.NodePower32(context, s1, n1, n2, n);
+      TNode<Smi> p = m.NodePower(context, s1, n1, n2, n);
+
+      CSA_CHECK(&m, m.TaggedEqual(p32, p));
+    }
+
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  ft.Call();
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

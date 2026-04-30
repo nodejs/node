@@ -32,7 +32,6 @@ enum class IsolateFieldId : uint8_t;
     "Isolate::handle_scope_implementer_address")                               \
   V(address_of_interpreter_entry_trampoline_instruction_start,                 \
     "Address of the InterpreterEntryTrampoline instruction start")             \
-  V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
@@ -66,11 +65,11 @@ enum class IsolateFieldId : uint8_t;
     "Debug::step_suspended_generator_address()")                               \
   V(context_address, "Isolate::context_address()")                             \
   V(address_of_regexp_stack_limit_address,                                     \
-    "RegExpStack::limit_address_address()")                                    \
+    "regexp::Stack::limit_address_address()")                                  \
   V(address_of_regexp_stack_memory_top_address,                                \
-    "RegExpStack::memory_top_address_address()")                               \
+    "regexp::Stack::memory_top_address_address()")                             \
   V(address_of_regexp_stack_stack_pointer,                                     \
-    "RegExpStack::stack_pointer_address()")                                    \
+    "regexp::Stack::stack_pointer_address()")                                  \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)                              \
@@ -91,6 +90,15 @@ enum class IsolateFieldId : uint8_t;
 #else
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
+#define EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)             \
+  V(address_of_trace_regexp_exec, "v8_flags.trace_regexp_exec")   \
+  V(address_of_regexp_trace_begin, "RegExp::TraceExecutionBegin") \
+  V(address_of_regexp_trace_end, "RegExp::TraceExecutionEnd")
+#else
+#define EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)
+#endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
@@ -189,8 +197,6 @@ enum class IsolateFieldId : uint8_t;
   V(mod_two_doubles_operation, "mod_two_doubles")                              \
   V(mutable_big_int_absolute_add_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteAddAndCanonicalize")                                \
-  V(mutable_big_int_absolute_compare_function,                                 \
-    "MutableBigInt_AbsoluteCompare")                                           \
   V(mutable_big_int_absolute_sub_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteSubAndCanonicalize")                                \
   V(mutable_big_int_absolute_mul_and_canonicalize_function,                    \
@@ -271,6 +277,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_resume_jspi_stack, "wasm_resume_jspi_stack")                 \
   IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \
   IF_WASM(V, wasm_suspend_wasmfx_stack, "wasm_suspend_wasmfx_stack")           \
+  IF_WASM(V, wasm_switch_wasmfx_stack, "wasm_switch_wasmfx_stack")             \
   IF_WASM(V, wasm_return_jspi_stack, "wasm_return_jspi_stack")                 \
   IF_WASM(V, wasm_return_wasmfx_stack, "wasm_return_wasmfx_stack")             \
   IF_WASM(V, wasm_retire_stack, "wasm_retire_stack")                           \
@@ -321,6 +328,7 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_word32_ror, "wasm::word32_ror")                              \
   IF_WASM(V, wasm_word64_rol, "wasm::word64_rol")                              \
   IF_WASM(V, wasm_word64_ror, "wasm::word64_ror")                              \
+  IF_WASM(V, wasm_int128_add, "wasm::wasm_int128_add_wrapper")                 \
   IF_WASM(V, wasm_word64_ctz, "wasm::word64_ctz")                              \
   IF_WASM(V, wasm_word64_popcnt, "wasm::word64_popcnt")                        \
   IF_WASM(V, wasm_f64x2_ceil, "wasm::f64x2_ceil_wrapper")                      \
@@ -370,11 +378,14 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
   IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
   IF_WASM(V, wasm_atomic_notify, "wasm_atomic_notify")                         \
+  IF_WASM(V, wasm_waitqueue_notify, "wasm_waitqueue_notify")                   \
   IF_WASM(V, wasm_WebAssemblyCompile, "wasm::WebAssemblyCompile")              \
   IF_WASM(V, wasm_WebAssemblyException, "wasm::WebAssemblyException")          \
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \
           "wasm::WebAssemblyExceptionGetArg")                                  \
   IF_WASM(V, wasm_WebAssemblyExceptionIs, "wasm::WebAssemblyExceptionIs")      \
+  IF_WASM(V, wasm_WebAssemblyExceptionGetStack,                                \
+          "wasm::WebAssemblyExceptionGetStack")                                \
   IF_WASM(V, wasm_WebAssemblyGlobal, "wasm::WebAssemblyGlobal")                \
   IF_WASM(V, wasm_WebAssemblyGlobalGetValue,                                   \
           "wasm::WebAssemblyGlobalGetValue")                                   \
@@ -465,31 +476,44 @@ enum class IsolateFieldId : uint8_t;
           "tsan_seq_cst_store_function_32_bits")                               \
   IF_TSAN(V, tsan_seq_cst_store_function_64_bits,                              \
           "tsan_seq_cst_store_function_64_bits")                               \
+  IF_TSAN(V, tsan_release_store_function_8_bits,                               \
+          "tsan_release_store_function_8_bits")                                \
+  IF_TSAN(V, tsan_release_store_function_16_bits,                              \
+          "tsan_release_store_function_16_bits")                               \
+  IF_TSAN(V, tsan_release_store_function_32_bits,                              \
+          "tsan_release_store_function_32_bits")                               \
+  IF_TSAN(V, tsan_release_store_function_64_bits,                              \
+          "tsan_release_store_function_64_bits")                               \
   IF_TSAN(V, tsan_relaxed_load_function_32_bits,                               \
           "tsan_relaxed_load_function_32_bits")                                \
   IF_TSAN(V, tsan_relaxed_load_function_64_bits,                               \
           "tsan_relaxed_load_function_64_bits")                                \
   V(re_case_insensitive_compare_unicode,                                       \
-    "RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")                   \
+    "regexp::RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")           \
   V(re_case_insensitive_compare_non_unicode,                                   \
-    "RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")                \
+    "regexp::RegExpMacroAssembler::CaseInsensitiveCompareNonUnicode()")        \
   V(re_is_character_in_range_array,                                            \
-    "RegExpMacroAssembler::IsCharacterInRangeArray()")                         \
+    "regexp::RegExpMacroAssembler::IsCharacterInRangeArray()")                 \
   V(re_check_stack_guard_state,                                                \
-    "RegExpMacroAssembler*::CheckStackGuardState()")                           \
+    "regexp::RegExpMacroAssembler*::CheckStackGuardState()")                   \
   V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
-  V(re_word_character_map, "RegExpMacroAssembler::word_character_map")         \
+  V(re_word_character_map, "regexp::RegExpMacroAssembler::word_character_map") \
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
   V(re_atom_exec_raw, "RegExp::AtomExecRaw")                                   \
-  V(allocate_regexp_result_vector, "RegExpResultVector::Allocate")             \
-  V(free_regexp_result_vector, "RegExpResultVector::Free")                     \
+  V(allocate_regexp_result_vector, "regexp::ResultVector::Allocate")           \
+  V(free_regexp_result_vector, "regexp::ResultVector::Free")                   \
+  EXTERNAL_REFERENCE_LIST_REGEXP_DIAGNOSTICS(V)                                \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
     "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
     "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
   V(allocate_buffer, "AllocateBuffer")                                         \
+  V(compare_operation_feedback_transition_table,                               \
+    "compare_operation_feedback_transition_table")                             \
+  V(compare_operation_feedback_encode_table,                                   \
+    "compare_operation_feedback_encode_table")                                 \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
   EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
   EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)

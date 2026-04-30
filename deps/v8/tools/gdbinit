@@ -380,6 +380,56 @@ def v8_stop_handler(event):
 gdb.events.stop.connect(v8_stop_handler)
 end
 
+python
+import gdb
+import re
+import sys
+import os
+from gdb.FrameDecorator import FrameDecorator
+
+# Add V8 tools directory to sys.path so we can import turboshaft_type_formatter.
+# We assume gdb is run from the V8 root directory, or 'tools' is accessible.
+_tools_dir = os.path.abspath('tools')
+if _tools_dir not in sys.path:
+    sys.path.insert(0, _tools_dir)
+
+try:
+    from turboshaft_type_formatter import TurboshaftTypeFormatter
+    _turboshaft_formatter = TurboshaftTypeFormatter()
+except ImportError:
+    _turboshaft_formatter = None
+    print("Warning: Could not import turboshaft_type_formatter. Turboshaft frame filtering may be degraded.")
+
+class TurboshaftFrameDecorator(FrameDecorator):
+    def __init__(self, f_obj):
+        super(TurboshaftFrameDecorator, self).__init__(f_obj)
+
+    def function(self):
+        # Get the original symbol name (e.g., 'my_namespace::MyClass::my_function')
+        name = self.inferior_frame().name()
+        if not name:
+            return None
+
+        if _turboshaft_formatter:
+            return _turboshaft_formatter.format_type(name)
+
+        return name
+
+class TurboshaftBacktrace():
+    def __init__(self):
+        self.name = "TurboshaftBacktrace"
+        self.enabled = False
+        self.priority = 100
+        gdb.frame_filters[self.name] = self
+
+    def filter(self, frame_iter):
+        # Maps every frame found by GDB to our decorator
+        return map(TurboshaftFrameDecorator, frame_iter)
+
+# Initialize the filter
+TurboshaftBacktrace()
+end
+
 # Code imported from chromium/src/tools/gdb/gdbinit
 python
 
@@ -457,7 +507,7 @@ def newobj_handler(event):
   # https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
   # https://crbug.com/603286#c35
   add_debug_file_directory(compile_dir)
-  
+
   global src_dir
   if not src_dir:
     set_src_dir(compile_dir)
@@ -603,7 +653,7 @@ def GetStaticRoot(ptr):
 def InterpretTaggedPointer(pointer):
   if (pointer & 0x1) == 0:
     return f"Smi: {pointer >> 1}"
-  
+
   static_root = GetStaticRoot(pointer)
   if static_root is not None:
     return f"{static_root}"
@@ -633,7 +683,7 @@ class TaggedPrinter(object):
     pointer = int(self.ptr)
     fmt = f"Tagged<{self.pointee_type}>{{0x{pointer:02x}}}"
     if (label := InterpretTaggedPointer(pointer)) is not None:
-      fmt += f" ({label})"          
+      fmt += f" ({label})"
     return fmt
 
 
@@ -679,7 +729,7 @@ class HandlePrinter(object):
         fmt += f"0x{pointer:02x}"
         if (label := InterpretTaggedPointer(pointer)) is not None:
           fmt += f" ({label})"
-          
+
     return fmt
 
 

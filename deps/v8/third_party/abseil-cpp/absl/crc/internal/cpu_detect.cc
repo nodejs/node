@@ -15,10 +15,10 @@
 #include "absl/crc/internal/cpu_detect.h"
 
 #include <cstdint>
+#include <optional>  // IWYU pragma: keep
 #include <string>
 
 #include "absl/base/config.h"
-#include "absl/types/optional.h"  // IWYU pragma: keep
 
 #if defined(__aarch64__) && defined(__linux__)
 #include <asm/hwcap.h>
@@ -308,12 +308,12 @@ bool SupportsArmCRC32PMULL() {
 CpuType GetCpuType() { return CpuType::kUnknown; }
 
 template <typename T>
-static absl::optional<T> ReadSysctlByName(const char* name) {
+static std::optional<T> ReadSysctlByName(const char* name) {
   T val;
   size_t val_size = sizeof(T);
   int ret = sysctlbyname(name, &val, &val_size, nullptr, 0);
   if (ret == -1) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return val;
 }
@@ -322,7 +322,7 @@ bool SupportsArmCRC32PMULL() {
   // Newer XNU kernels support querying all capabilities in a single
   // sysctlbyname.
 #if defined(CAP_BIT_CRC32) && defined(CAP_BIT_FEAT_PMULL)
-  static const absl::optional<uint64_t> caps =
+  static const std::optional<uint64_t> caps =
       ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
   if (caps.has_value()) {
     constexpr uint64_t kCrc32AndPmullCaps =
@@ -332,13 +332,13 @@ bool SupportsArmCRC32PMULL() {
 #endif
 
   // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3915619
-  static const absl::optional<int> armv8_crc32 =
+  static const std::optional<int> armv8_crc32 =
       ReadSysctlByName<int>("hw.optional.armv8_crc32");
   if (armv8_crc32.value_or(0) == 0) {
     return false;
   }
   // https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3918855
-  static const absl::optional<int> feat_pmull =
+  static const std::optional<int> feat_pmull =
       ReadSysctlByName<int>("hw.optional.arm.FEAT_PMULL");
   if (feat_pmull.value_or(0) == 0) {
     return false;

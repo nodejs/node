@@ -31,25 +31,52 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-collator-tq.inc"
 
-class JSCollator : public TorqueGeneratedJSCollator<JSCollator, JSObject> {
+V8_OBJECT class JSCollator : public JSObject {
  public:
-  // ecma402/#sec-initializecollator
+  // https://tc39.es/ecma402/#sec-initializecollator
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* service);
 
-  // ecma402/#sec-intl.collator.prototype.resolvedoptions
+  // https://tc39.es/ecma402/#sec-intl.collator.prototype.resolvedoptions
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSCollator> collator);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
+  inline Tagged<Managed<icu::Collator>> icu_collator() const;
+  inline void set_icu_collator(Tagged<Managed<icu::Collator>> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Undefined, JSFunction>> bound_compare() const;
+  inline void set_bound_compare(Tagged<UnionOf<Undefined, JSFunction>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<String> locale() const;
+  inline void set_locale(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSCollator)
+  DECL_VERIFIER(JSCollator)
 
-  DECL_ACCESSORS(icu_collator, Tagged<Managed<icu::Collator>>)
+  // Back-compat offset/size constants.
+  static const int kIcuCollatorOffset;
+  static const int kBoundCompareOffset;
+  static const int kLocaleOffset;
+  static const int kHeaderSize;
 
-  TQ_OBJECT_CONSTRUCTORS(JSCollator)
-};
+ public:
+  TaggedMember<Foreign> icu_collator_;
+  TaggedMember<UnionOf<Undefined, JSFunction>> bound_compare_;
+  TaggedMember<String> locale_;
+} V8_OBJECT_END;
+
+inline constexpr int JSCollator::kIcuCollatorOffset =
+    offsetof(JSCollator, icu_collator_);
+inline constexpr int JSCollator::kBoundCompareOffset =
+    offsetof(JSCollator, bound_compare_);
+inline constexpr int JSCollator::kLocaleOffset = offsetof(JSCollator, locale_);
+inline constexpr int JSCollator::kHeaderSize = sizeof(JSCollator);
 
 }  // namespace internal
 }  // namespace v8

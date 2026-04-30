@@ -10,6 +10,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -436,8 +437,10 @@ class BytecodeGraphBuilder {
   bool skip_tierup_check() const {
     return skip_first_stack_and_tierup_check_ || osr_;
   }
-  int current_exception_handler() const { return current_exception_handler_; }
-  void set_current_exception_handler(int index) {
+  uint32_t current_exception_handler() const {
+    return current_exception_handler_;
+  }
+  void set_current_exception_handler(uint32_t index) {
     current_exception_handler_ = index;
   }
   bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
@@ -493,7 +496,7 @@ class BytecodeGraphBuilder {
 
   // Exception handlers currently entered by the iteration.
   ZoneStack<ExceptionHandler> exception_handlers_;
-  int current_exception_handler_;
+  uint32_t current_exception_handler_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -1331,10 +1334,10 @@ class BytecodeGraphBuilder::OsrIteratorState {
 
  private:
   struct IteratorsStates {
-    int exception_handler_index_;
+    uint32_t exception_handler_index_;
     SourcePositionTableIterator::IndexAndPositionState source_iterator_state_;
 
-    IteratorsStates(int exception_handler_index,
+    IteratorsStates(uint32_t exception_handler_index,
                     SourcePositionTableIterator::IndexAndPositionState
                         source_iterator_state)
         : exception_handler_index_(exception_handler_index),
@@ -1403,7 +1406,7 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops() {
 
   // Suppose we have n nested loops, loop_0 being the outermost one, and
   // loop_n being the OSR loop. We start iterating the bytecode at the header
-  // of loop_n (the OSR loop), and then we peel the part of the the body of
+  // of loop_n (the OSR loop), and then we peel the part of the body of
   // loop_{n-1} following the end of loop_n. We then rewind the iterator to
   // the header of loop_{n-1}, and so on until we have partly peeled loop 0.
   // The full loop_0 body will be generating with the rest of the function,
@@ -2203,6 +2206,84 @@ void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitGetPrivateField() {
+  PrepareEagerCheckpoint();
+  const Operator* lda = javascript()->LoadContextNoCell(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetContextSlotOperand(1), true);
+  Node* key = NewNode(lda);
+  Node* context =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  NodeProperties::ReplaceContextInput(key, context);
+
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
+
+  FeedbackSource feedback = CreateFeedbackSourceForOperand(4);
+  const Operator* op = javascript()->LoadProperty(feedback);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedLoadKeyed(op, object, key, feedback.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    static_assert(JSLoadPropertyNode::ObjectIndex() == 0);
+    static_assert(JSLoadPropertyNode::KeyIndex() == 1);
+    static_assert(JSLoadPropertyNode::FeedbackVectorIndex() == 2);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+
+    node = NewNode(op, object, key, feedback_vector_node());
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitSetPrivateField() {
+  PrepareEagerCheckpoint();
+
+  Node* value = environment()->LookupAccumulator();
+
+  Node* context =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  const Operator* lda = javascript()->LoadContextNoCell(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetContextSlotOperand(1), true);
+  Node* key = NewNode(lda);
+
+  NodeProperties::ReplaceContextInput(key, context);
+  Node* object =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(3));
+
+  FeedbackSource source = CreateFeedbackSourceForOperand(4);
+  LanguageMode language_mode =
+      GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
+  const Operator* op = javascript()->SetKeyedProperty(language_mode, source);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    static_assert(JSSetKeyedPropertyNode::ObjectIndex() == 0);
+    static_assert(JSSetKeyedPropertyNode::KeyIndex() == 1);
+    static_assert(JSSetKeyedPropertyNode::ValueIndex() == 2);
+    static_assert(JSSetKeyedPropertyNode::FeedbackVectorIndex() == 3);
+    DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
+
+    node = NewNode(op, object, key, value, feedback_vector_node());
+  }
+
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitSetPrototypeProperties() {
   // VisitSetPrototypeProperties <name_index>
   Node* acc = environment()->LookupAccumulator();
@@ -2432,11 +2513,13 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   // data to converge. So, we disable allocation site mementos in optimized
   // code. We can revisit this when we have data to the contrary.
   literal_flags |= ArrayLiteral::kDisableMementos;
-  int number_of_elements =
+  uint32_t number_of_elements =
       array_boilerplate_description.constants_elements_length();
   static_assert(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
+  DCHECK_LE(number_of_elements, kMaxInt);
   const Operator* op = javascript()->CreateLiteralArray(
-      array_boilerplate_description, pair, literal_flags, number_of_elements);
+      array_boilerplate_description, pair, literal_flags,
+      static_cast<int>(number_of_elements));
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* literal = NewNode(op, feedback_vector_node());
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
@@ -4465,7 +4548,33 @@ BytecodeGraphBuilder::TryBuildSimplifiedStoreKeyed(const Operator* op,
 void BytecodeGraphBuilder::ApplyEarlyReduction(
     JSTypeHintLowering::LoweringResult reduction) {
   if (reduction.IsExit()) {
-    MergeControlToLeaveFunction(reduction.control());
+    Node* deoptimize = reduction.control();
+    // If we're inside a loop, insert LoopExit nodes for all enclosing loops
+    // before exiting the function via soft deopt. Without this, the loop
+    // peeler sees an unmarked exit and refuses to peel the loop
+    // (crbug.com/488925413).
+    int current_offset = bytecode_iterator().current_offset();
+    int current_loop = bytecode_analysis().GetLoopOffsetFor(current_offset);
+    if (current_loop != -1) {
+      const BytecodeLivenessState* liveness =
+          bytecode_analysis().GetInLivenessFor(current_offset);
+      BuildLoopExitsForFunctionExit(liveness);
+      // The Deoptimize node was already created by JSTypeHintLowering with
+      // the pre-LoopExit effect/control/frame-state. Re-wire it to go
+      // through the LoopExit chain so that the loop peeler recognises the
+      // exit properly.
+      NodeProperties::ReplaceEffectInput(deoptimize,
+                                         environment()->GetEffectDependency());
+      NodeProperties::ReplaceControlInput(
+          deoptimize, environment()->GetControlDependency());
+      // Rebuild the FrameState from the updated environment so that values
+      // referenced by the deopt's StateValues go through LoopExitValue.
+      Node* frame_state = environment()->Checkpoint(
+          BytecodeOffset(current_offset), OutputFrameStateCombine::Ignore(),
+          liveness);
+      deoptimize->ReplaceInput(0, frame_state);
+    }
+    MergeControlToLeaveFunction(deoptimize);
   } else if (reduction.IsSideEffectFree()) {
     environment()->UpdateEffectDependency(reduction.effect());
     environment()->UpdateControlDependency(reduction.control());
@@ -4500,7 +4609,7 @@ void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
   }
 
   // Potentially enter exception handlers.
-  int num_entries = table.NumberOfRangeEntries();
+  uint32_t num_entries = table.NumberOfRangeEntries();
   while (current_exception_handler_ < num_entries) {
     int next_start = table.GetRangeStart(current_exception_handler_);
     if (current_offset < next_start) break;  // Not yet covered by range.

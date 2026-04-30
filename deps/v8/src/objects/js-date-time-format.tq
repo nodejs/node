@@ -16,6 +16,7 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
   explicit_components_in_options: int32: 11 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDateTimeFormat extends JSObject {
   locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>

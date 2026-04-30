@@ -95,10 +95,6 @@ class BytecodeHandlerReducer : public Next {
 
   void DispatchToBytecode(V<WordPtr> target_bytecode,
                           V<WordPtr> new_bytecode_offset) {
-#ifdef V8_IGNITION_DISPATCH_COUNTING
-    TraceBytecodeDispatch(target_bytecode);
-#endif
-
     static_assert(kSystemPointerSizeLog2 ==
                   MemoryRepresentation::UintPtr().SizeInBytesLog2());
     V<WordPtr> target_code_entry =

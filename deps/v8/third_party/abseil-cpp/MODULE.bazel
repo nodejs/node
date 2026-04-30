@@ -31,7 +31,7 @@ bazel_dep(name = "platforms", version = "1.0.0")
 
 bazel_dep(
     name = "google_benchmark",
-    version = "1.9.4",
+    version = "1.9.5",
     dev_dependency = True,
 )
 
@@ -39,5 +39,5 @@ bazel_dep(
 # intended to be used by Abseil users depend on GoogleTest.
 bazel_dep(
     name = "googletest",
-    version = "1.17.0",
+    version = "1.17.0.bcr.2",
 )

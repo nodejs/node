@@ -95,7 +95,7 @@ ostream_state_saver<std::basic_ostream<CharT, Traits>> make_ostream_state_saver(
 }
 
 template <typename T>
-typename absl::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
+typename std::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
                            null_state_saver<T>>
 make_ostream_state_saver(T& is,  // NOLINT(runtime/references)
                          std::ios_base::fmtflags flags = std::ios_base::dec) {
@@ -159,7 +159,7 @@ istream_state_saver<std::basic_istream<CharT, Traits>> make_istream_state_saver(
 }
 
 template <typename T>
-typename absl::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
+typename std::enable_if_t<!std::is_base_of<std::ios_base, T>::value,
                            null_state_saver<T>>
 make_istream_state_saver(T& is,  // NOLINT(runtime/references)
                          std::ios_base::fmtflags flags = std::ios_base::dec) {

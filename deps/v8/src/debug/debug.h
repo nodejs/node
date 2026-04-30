@@ -256,7 +256,8 @@ class V8_EXPORT_PRIVATE Debug {
                     debug::BreakReasons break_reasons = {});
   debug::DebugDelegate::ActionAfterInstrumentation OnInstrumentationBreak();
 
-  std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception)
+  std::optional<Tagged<Object>> OnThrow(DirectHandle<Object> exception,
+                                        bool is_stack_overflow = false)
       V8_WARN_UNUSED_RESULT;
   void OnPromiseReject(DirectHandle<Object> promise,
                        DirectHandle<Object> value);
@@ -529,7 +530,8 @@ class V8_EXPORT_PRIVATE Debug {
 
   void OnException(DirectHandle<Object> exception,
                    MaybeDirectHandle<JSPromise> promise,
-                   v8::debug::ExceptionType exception_type);
+                   v8::debug::ExceptionType exception_type,
+                   bool is_stack_overflow = false);
 
   void ProcessCompileEvent(bool has_compile_error, DirectHandle<Script> script);
 

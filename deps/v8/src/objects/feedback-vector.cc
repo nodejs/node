@@ -218,29 +218,31 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
     Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
     AllocationType allocation) {
-  int length = shared->feedback_metadata()->create_closure_slot_count();
-  if (length == 0) {
+  const int int_length =
+      shared->feedback_metadata()->create_closure_slot_count();
+  if (int_length == 0) {
     return isolate->factory()->empty_closure_feedback_cell_array();
   }
+  DCHECK_GE(int_length, 0);
+  const uint32_t length = static_cast<uint32_t>(int_length);
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
   DirectHandleVector<FeedbackCell> cells(isolate);
   cells.reserve(length);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
     auto initial_code = BUILTIN_CODE(isolate, CompileLazy);
-    FeedbackCell::AllocateAndInstallJSDispatchHandle(
-        cell, FeedbackCell::kDispatchHandleOffset, isolate, parameter_count,
-        initial_code);
+    HeapObject::AllocateAndInstallJSDispatchHandle(
+        cell, &cell->dispatch_handle_, isolate, parameter_count, initial_code);
     cells.push_back(cell);
   }
 
   std::optional<DisallowGarbageCollection> no_gc;
   auto result = Allocate(isolate, length, &no_gc, allocation);
-  for (int i = 0; i < length; i++) {
+  for (uint32_t i = 0; i < length; i++) {
     result->set(i, *cells[i]);
   }
 
@@ -518,7 +520,7 @@ FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot,
       kind_(vector->GetKind(slot, kAcquireLoad)),
       config_(config) {}
 
-DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
+DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(uint32_t length) {
   DCHECK(config()->can_write());
   DirectHandle<WeakFixedArray> array =
       config()->isolate()->factory()->NewWeakFixedArray(length);
@@ -641,6 +643,13 @@ bool FeedbackNexus::ConfigureMegamorphic() {
   return false;
 }
 
+void FeedbackNexus::ConfigureHomomorphic(
+    DirectHandle<WeakHomomorphicFixedArray> maps,
+    const MaybeObjectDirectHandle& handler) {
+  DisallowGarbageCollection no_gc;
+  SetFeedback(*maps, UPDATE_WRITE_BARRIER, *handler, UPDATE_WRITE_BARRIER);
+}
+
 void FeedbackNexus::ConfigureMegaDOM(const MaybeObjectDirectHandle& handler) {
   DisallowGarbageCollection no_gc;
   Tagged<MaybeObject> sentinel = MegaDOMSentinel();
@@ -669,7 +678,7 @@ Tagged<Map> FeedbackNexus::GetFirstMap() const {
     return it.map();
   }
 
-  return Map();
+  return {};
 }
 
 InlineCacheState FeedbackNexus::ic_state() const {
@@ -726,14 +735,18 @@ InlineCacheState FeedbackNexus::ic_state() const {
           // are cleared.
           return InlineCacheState::POLYMORPHIC;
         }
+        if (IsWeakHomomorphicFixedArray(heap_object)) {
+          return InlineCacheState::HOMOMORPHIC;
+        }
         if (IsName(heap_object)) {
           DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
                  IsKeyedHasICKind(kind()) || IsDefineKeyedOwnICKind(kind()));
           Tagged<Object> extra_object = extra.GetHeapObjectAssumeStrong();
           Tagged<WeakFixedArray> extra_array =
               Cast<WeakFixedArray>(extra_object);
-          return extra_array->length() > 2 ? InlineCacheState::POLYMORPHIC
-                                           : InlineCacheState::MONOMORPHIC;
+          return extra_array->ulength().value() > 2
+                     ? InlineCacheState::POLYMORPHIC
+                     : InlineCacheState::MONOMORPHIC;
         }
       }
       // TODO(1393773): Remove once the issue is solved.
@@ -860,10 +873,12 @@ Builtin FeedbackNexus::ic_handler(Tagged<MaybeObject> feedback_extra,
     LoadHandler::Kind handler_kind = LoadHandler::KindBits::decode(handler);
     // LoadField.
     if (handler_kind == LoadHandler::Kind::kField) {
-      int field_index = LoadHandler::FieldIndexBits::decode(handler);
+      int storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
       bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
       bool is_double = LoadHandler::IsDoubleBits::decode(handler);
-      return GetLoadICHandlerForFieldIndex(field_index, is_inobject, is_double);
+      return GetLoadICHandlerForStorageOffset(storage_offset, is_inobject,
+                                              is_double);
     }
   } else {
     Tagged<HeapObject> heap_object;
@@ -905,17 +920,17 @@ void FeedbackNexus::ConfigurePropertyCellMode(DirectHandle<PropertyCell> cell) {
 
 #if DEBUG
 namespace {
-bool shouldStressLexicalIC(int script_context_index, int context_slot_index) {
+bool shouldStressLexicalIC(uint32_t script_context_index,
+                           int context_slot_index) {
   return (script_context_index + context_slot_index) % 100 == 0;
 }
 }  // namespace
 #endif
 
-bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
+bool FeedbackNexus::ConfigureLexicalVarMode(uint32_t script_context_index,
                                             int context_slot_index,
                                             bool immutable) {
   DCHECK(IsGlobalICKind(kind()));
-  DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
 #if DEBUG
   if (v8_flags.stress_ic &&
@@ -950,11 +965,11 @@ void FeedbackNexus::ConfigureCloneObject(
   // TODO(olivf): Introduce a CloneHandler to deal with all the logic of this
   // state machine which is now spread between Runtime_CloneObjectIC_Miss and
   // this method.
-  auto GetHandler = [=]() {
+  auto GetHandler = [=]() -> Tagged<MaybeObject> {
     if (IsSmi(*handler_handle)) {
       return *handler_handle;
     }
-    return MakeWeak(*handler_handle);
+    return MakeWeak(Cast<MaybeWeak<HeapObject>>(*handler_handle));
   };
   DCHECK(config()->can_write());
   Isolate* isolate = config()->isolate();
@@ -990,11 +1005,12 @@ void FeedbackNexus::ConfigureCloneObject(
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
-      const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
-                               kCloneObjectPolymorphicEntrySize;
+      const uint32_t kMaxElements = v8_flags.max_valid_polymorphic_map_count *
+                                    kCloneObjectPolymorphicEntrySize;
       DirectHandle<WeakFixedArray> array = Cast<WeakFixedArray>(feedback);
-      int i = 0;
-      for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
+      const uint32_t array_len = array->ulength().value();
+      uint32_t i = 0;
+      for (; i < array_len; i += kCloneObjectPolymorphicEntrySize) {
         Tagged<MaybeObject> feedback_map = array->get(i);
         if (feedback_map.IsCleared()) break;
         DirectHandle<Map> cached_map(Cast<Map>(feedback_map.GetHeapObject()),
@@ -1004,7 +1020,7 @@ void FeedbackNexus::ConfigureCloneObject(
           break;
       }
 
-      if (i >= array->length()) {
+      if (i >= array_len) {
         if (i == kMaxElements) {
           // Transition to MEGAMORPHIC.
           Tagged<MaybeObject> sentinel = MegamorphicSentinel();
@@ -1013,9 +1029,9 @@ void FeedbackNexus::ConfigureCloneObject(
         }
 
         // Grow polymorphic feedback array.
-        DirectHandle<WeakFixedArray> new_array = CreateArrayOfSize(
-            array->length() + kCloneObjectPolymorphicEntrySize);
-        for (int j = 0; j < array->length(); ++j) {
+        DirectHandle<WeakFixedArray> new_array =
+            CreateArrayOfSize(array_len + kCloneObjectPolymorphicEntrySize);
+        for (uint32_t j = 0; j < array_len; ++j) {
           new_array->set(j, array->get(j));
         }
         SetFeedback(*new_array);
@@ -1113,26 +1129,27 @@ void FeedbackNexus::ConfigureMonomorphic(
 
 void FeedbackNexus::ConfigurePolymorphic(
     DirectHandle<Name> name, MapsAndHandlers const& maps_and_handlers) {
-  int receiver_count = static_cast<int>(maps_and_handlers.size());
+  const uint32_t receiver_count =
+      static_cast<uint32_t>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
-  int current = 0;
+  uint32_t insert_at_idx = 0;
 
-  for (; current < receiver_count; ++current) {
+  for (uint32_t current = 0; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];
     if (map->is_deprecated()) continue;
-    array->set(current * 2, MakeWeak(*map));
+    array->set(insert_at_idx++, MakeWeak(*map));
     DCHECK(IC::IsHandler(*handler));
-    array->set(current * 2 + 1, *handler);
+    array->set(insert_at_idx++, *handler);
   }
 
-  for (; current < receiver_count; ++current) {
+  for (uint32_t current = 0; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];
     if (!map->is_deprecated()) continue;
-    array->set(current * 2, MakeWeak(*map));
+    array->set(insert_at_idx++, MakeWeak(*map));
     DCHECK(IC::IsHandler(*handler));
-    array->set(current * 2 + 1, *handler);
+    array->set(insert_at_idx++, *handler);
   }
 
   if (name.is_null()) {
@@ -1166,6 +1183,20 @@ MaybeObjectHandle FeedbackNexus::ExtractMegaDOMHandler() {
   }
 
   return MaybeObjectHandle();
+}
+
+MaybeObjectDirectHandle FeedbackNexus::ExtractHomomorphicHandler() {
+  DCHECK_EQ(ic_state(), InlineCacheState::HOMOMORPHIC);
+  DisallowGarbageCollection no_gc;
+
+  auto pair = GetFeedbackPair();
+  Tagged<MaybeObject> maybe_handler = pair.second;
+  if (!maybe_handler.IsCleared()) {
+    MaybeObjectDirectHandle handler = config()->NewHandle(maybe_handler);
+    return handler;
+  }
+
+  return MaybeObjectDirectHandle();
 }
 
 int FeedbackNexus::ExtractMapsAndHandlers(MapsAndHandlers* maps_and_handlers,
@@ -1474,10 +1505,11 @@ void FeedbackIterator::Advance() {
 void FeedbackIterator::AdvancePolymorphic() {
   CHECK(!done_);
   CHECK_EQ(state_, kPolymorphic);
-  int length = polymorphic_feedback_->length();
+  const uint32_t length = polymorphic_feedback_->ulength().value();
   Tagged<HeapObject> heap_object;
 
-  while (index_ < length) {
+  DCHECK_GE(index_, 0);
+  while (static_cast<uint32_t>(index_) < length) {
     if (polymorphic_feedback_->get(index_).GetHeapObjectIfWeak(&heap_object)) {
       Tagged<MaybeObject> handler =
           polymorphic_feedback_->get(index_ + kHandlerOffset);

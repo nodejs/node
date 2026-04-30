@@ -156,6 +156,19 @@ transitioning macro MorphAndEnqueuePromiseReaction(
 transitioning macro TriggerPromiseReactions(
     implicit context: Context)(reactions: Zero|PromiseReaction,
     argument: JSAny, reactionType: constexpr PromiseReactionType): void {
+  // Fast path for 0 or 1 reaction.
+  typeswitch (reactions) {
+    case (Zero): {
+      return;
+    }
+    case (reaction: PromiseReaction): {
+      if (TaggedEqual(reaction.next, kZero)) {
+        MorphAndEnqueuePromiseReaction(reaction, argument, reactionType);
+        return;
+      }
+    }
+  }
+
   // We need to reverse the {reactions} here, since we record them on the
   // JSPromise in the reverse order.
   let current = reactions;

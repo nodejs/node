@@ -24,6 +24,7 @@
 #include "src/heap/factory.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
@@ -56,6 +57,8 @@ void ToUtf8Lossy(Isolate* isolate, DirectHandle<String> string,
 
 }  // namespace internal
 
+// This is the implementation of the public `WasmStreaming` API, see
+// `include/v8-wasm.h`.
 class WasmStreaming::WasmStreamingImpl {
  public:
   WasmStreamingImpl(
@@ -74,6 +77,8 @@ class WasmStreaming::WasmStreamingImpl {
     streaming_decoder_->OnBytesReceived(base::VectorOf(bytes, size));
   }
   void Finish(const WasmStreaming::ModuleCachingCallback& caching_callback) {
+    // Finish can only be called on the main thread of the isolate.
+    CHECK_EQ(i_isolate_->thread_id(), i::ThreadId::Current());
     streaming_decoder_->Finish(caching_callback);
   }
 
@@ -113,7 +118,7 @@ class WasmStreaming::WasmStreamingImpl {
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
     : impl_(std::move(impl)) {
-  TRACE_EVENT0("v8.wasm", "wasm.InitializeStreaming");
+  TRACE_EVENT("v8.wasm", "wasm.InitializeStreaming");
 }
 
 // The destructor is defined here because we have a unique_ptr with forward
@@ -121,18 +126,18 @@ WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
 WasmStreaming::~WasmStreaming() = default;
 
 void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
-  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
+  TRACE_EVENT("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
   impl_->OnBytesReceived(bytes, size);
 }
 
 void WasmStreaming::Finish(
     const WasmStreaming::ModuleCachingCallback& caching_callback) {
-  TRACE_EVENT0("v8.wasm", "wasm.FinishStreaming");
+  TRACE_EVENT("v8.wasm", "wasm.FinishStreaming");
   impl_->Finish(caching_callback);
 }
 
 void WasmStreaming::Abort(MaybeLocal<Value> exception) {
-  TRACE_EVENT0("v8.wasm", "wasm.AbortStreaming");
+  TRACE_EVENT("v8.wasm", "wasm.AbortStreaming");
   i::MaybeHandle<i::JSAny> maybe_exception;
   if (!exception.IsEmpty()) {
     maybe_exception =
@@ -152,18 +157,18 @@ void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
 
 void WasmStreaming::SetUrl(const char* url, size_t length) {
   DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
-  TRACE_EVENT1("v8.wasm", "wasm.SetUrl", "url", url);
+  TRACE_EVENT("v8.wasm", "wasm.SetUrl", "url", url);
   impl_->SetUrl(base::VectorOf(url, length));
 }
 
 // static
 std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
                                                      Local<Value> value) {
-  TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.Unpack");
+  TRACE_EVENT("v8.wasm", "wasm.WasmStreaming.Unpack");
   i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
   auto managed =
       i::Cast<i::Managed<WasmStreaming>>(Utils::OpenDirectHandle(*value));
-  return managed->get();
+  return managed->ptr().as_shared_ptr();
 }
 
 class WasmModuleCompilation::Impl {
@@ -236,13 +241,13 @@ class WasmModuleCompilation::Impl {
 WasmModuleCompilation::WasmModuleCompilation()
     : impl_(std::make_unique<Impl>(WasmEnabledFeatures::FromFlags(),
                                    CompileTimeImports{})) {
-  TRACE_EVENT0("v8.wasm", "wasm.ModuleCompilation");
+  TRACE_EVENT("v8.wasm", "wasm.ModuleCompilation");
 }
 
 WasmModuleCompilation::~WasmModuleCompilation() = default;
 
 void WasmModuleCompilation::OnBytesReceived(const uint8_t* bytes, size_t size) {
-  TRACE_EVENT1("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
+  TRACE_EVENT("v8.wasm", "wasm.OnBytesReceived", "bytes", size);
   impl_->OnBytesReceived(bytes, size);
 }
 
@@ -250,12 +255,12 @@ void WasmModuleCompilation::Finish(
     Isolate* isolate, const ModuleCachingCallback& caching_callback,
     const std::function<void(std::variant<Local<WasmModuleObject>, Local<Value>>
                                  module_or_error)>& resolution_callback) {
-  TRACE_EVENT0("v8.wasm", "wasm.FinishModuleCompilation");
+  TRACE_EVENT("v8.wasm", "wasm.FinishModuleCompilation");
   impl_->Finish(isolate, caching_callback, resolution_callback);
 }
 
 void WasmModuleCompilation::Abort() {
-  TRACE_EVENT0("v8.wasm", "wasm.AbortModuleCompilation");
+  TRACE_EVENT("v8.wasm", "wasm.AbortModuleCompilation");
   impl_->Abort();
 }
 
@@ -270,7 +275,7 @@ void WasmModuleCompilation::SetMoreFunctionsCanBeSerializedCallback(
 
 void WasmModuleCompilation::SetUrl(const char* url, size_t length) {
   DCHECK_EQ('\0', url[length]);  // {url} is null-terminated.
-  TRACE_EVENT1("v8.wasm", "wasm.SetUrl", "url", url);
+  TRACE_EVENT("v8.wasm", "wasm.SetUrl", "url", url);
   impl_->SetUrl(base::VectorOf(url, length));
 }
 
@@ -941,7 +946,7 @@ bool TransferPrototype(i::Isolate* isolate,
                        i::DirectHandle<i::JSObject> destination,
                        i::DirectHandle<i::JSReceiver> source) {
   i::MaybeDirectHandle<i::HeapObject> maybe_prototype =
-      i::JSObject::GetPrototype(isolate, source);
+      i::JSReceiver::GetPrototype(isolate, source);
   i::DirectHandle<i::HeapObject> prototype;
   if (maybe_prototype.ToHandle(&prototype)) {
     Maybe<bool> result =
@@ -1165,12 +1170,12 @@ template <typename... Args>
 Local<FixedArray> MakeInternalFixedArray(i::Isolate* i_isolate, Args... args) {
   i::DirectHandle<i::FixedArray> fixed_array =
       i_isolate->factory()->NewFixedArray(sizeof...(args));
-  int index = 0;
+  uint32_t index = 0;
   auto add = [&](Local<Data> obj) {
     fixed_array->set(index++, *Utils::OpenHandle(*obj));
   };
   (add(args), ...);
-  DCHECK_EQ(fixed_array->length(), index);
+  DCHECK_EQ(fixed_array->ulength().value(), index);
   return Utils::FixedArrayToLocal(fixed_array);
 }
 
@@ -1429,8 +1434,6 @@ std::optional<std::optional<uint64_t>> GetOptionalAddressValue(
 // Fetch 'initial' or 'minimum' property from `descriptor`. If both are
 // provided, a TypeError is thrown.
 // Returns std::nullopt on error (exception or error set in the thrower).
-// TODO(aseemgarg): change behavior when the following bug is resolved:
-// https://github.com/WebAssembly/js-types/issues/6
 std::optional<uint64_t> GetInitialOrMinimumProperty(
     v8::Isolate* isolate, ErrorThrower* thrower, Local<Context> context,
     Local<v8::Object> descriptor, AddressType address_type,
@@ -1441,28 +1444,7 @@ std::optional<uint64_t> GetInitialOrMinimumProperty(
   if (!maybe_maybe_initial) return std::nullopt;
   std::optional<uint64_t> maybe_initial = *maybe_maybe_initial;
 
-  auto enabled_features =
-      WasmEnabledFeatures::FromIsolate(reinterpret_cast<i::Isolate*>(isolate));
-  if (enabled_features.has_type_reflection()) {
-    auto maybe_maybe_minimum = GetOptionalAddressValue(
-        thrower, context, descriptor, v8_str(isolate, "minimum"), address_type,
-        0, upper_bound);
-    if (!maybe_maybe_minimum) return std::nullopt;
-    std::optional<uint64_t> maybe_minimum = *maybe_maybe_minimum;
-
-    if (maybe_initial && maybe_minimum) {
-      thrower->TypeError(
-          "The properties 'initial' and 'minimum' are not allowed at the same "
-          "time");
-      return std::nullopt;
-    }
-    if (maybe_minimum) {
-      // Only 'minimum' exists, so we use 'minimum' as 'initial'.
-      return *maybe_minimum;
-    }
-  }
   if (!maybe_initial) {
-    // TODO(aseemgarg): update error message when the spec issue is resolved.
     thrower->TypeError("Property 'initial' is required");
     return std::nullopt;
   }
@@ -1551,11 +1533,6 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // The JS api uses 'anyfunc' instead of 'funcref'.
     if (string->IsEqualTo(base::CStrVector("anyfunc"))) {
       type = i::wasm::kWasmFuncRef;
-    } else if (enabled_features.has_type_reflection() &&
-               string->IsEqualTo(base::CStrVector("funcref"))) {
-      // With the type reflection proposal, "funcref" replaces "anyfunc",
-      // and anyfunc just becomes an alias for "funcref".
-      type = i::wasm::kWasmFuncRef;
     } else if (string->IsEqualTo(base::CStrVector("externref"))) {
       type = i::wasm::kWasmExternRef;
     } else if (enabled_features.has_stringref() &&
@@ -1606,11 +1583,12 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   DCHECK(!type.has_index());  // The JS API can't express type indices.
   i::wasm::CanonicalValueType canonical_type{type};
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table;
   i::DirectHandle<i::WasmTableObject> table_obj = i::WasmTableObject::New(
       i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(), type,
       canonical_type, initial, maybe_maximum.has_value(),
       maybe_maximum.value_or(0) /* note: unused if previous param is false */,
-      DefaultReferenceValue(i_isolate, type), address_type);
+      DefaultReferenceValue(i_isolate, type), address_type, &dispatch_table);
 
   // The infrastructure for `new Foo` calls allocates an object, which is
   // available here as {info.This()}. We're going to discard this object
@@ -1637,7 +1615,8 @@ void WebAssemblyTableImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return;
     }
     for (uint32_t index = 0; index < initial; ++index) {
-      i::WasmTableObject::Set(i_isolate, table_obj, index, element);
+      i::WasmTableObject::Set(i_isolate, table_obj, dispatch_table, index,
+                              element);
     }
   } else if (initial > 0) {
     DCHECK_EQ(type, table_obj->unsafe_type());
@@ -1714,11 +1693,10 @@ void WebAssemblyMemoryImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return js_api_scope.AssertException();
   }
 
-  auto shared = value->BooleanValue(isolate) ? i::SharedFlag::kShared
-                                             : i::SharedFlag::kNotShared;
+  i::SharedFlag shared = i::SharedFlag(value->BooleanValue(isolate));
 
   // Throw TypeError if shared is true, and the descriptor has no "maximum".
-  if (shared == i::SharedFlag::kShared && !maybe_maximum.has_value()) {
+  if (shared == i::SharedFlag::kYes && !maybe_maximum.has_value()) {
     thrower.TypeError("If shared is true, maximum property should be defined.");
     return;
   }
@@ -1820,11 +1798,6 @@ std::optional<i::wasm::ValueType> GetValueType(
     return i::wasm::kWasmS128;
   } else if (string->IsEqualTo(base::CStrVector("externref"))) {
     return i::wasm::kWasmExternRef;
-  } else if (enabled_features.has_type_reflection() &&
-             string->IsEqualTo(base::CStrVector("funcref"))) {
-    // The type reflection proposal renames "anyfunc" to "funcref", and makes
-    // "anyfunc" an alias of "funcref".
-    return i::wasm::kWasmFuncRef;
   } else if (string->IsEqualTo(base::CStrVector("anyfunc"))) {
     // The JS api spec uses 'anyfunc' instead of 'funcref'.
     return i::wasm::kWasmFuncRef;
@@ -1841,8 +1814,7 @@ std::optional<i::wasm::ValueType> GetValueType(
     return i::wasm::kWasmArrayRef;
   } else if (string->IsEqualTo(base::CStrVector("i31ref"))) {
     return i::wasm::kWasmI31Ref;
-  } else if (enabled_features.has_exnref() &&
-             string->IsEqualTo(base::CStrVector("exnref"))) {
+  } else if (string->IsEqualTo(base::CStrVector("exnref"))) {
     return i::wasm::kWasmExnRef;
   }
   // Unrecognized type.
@@ -1890,7 +1862,7 @@ bool ToF64(Local<v8::Value> value, Local<Context> context, double* f64_value) {
 }
 }  // namespace
 
-// WebAssembly.Global
+// new WebAssembly.Global(descriptor[, value])
 void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   WasmJSApiScope js_api_scope{info, "WebAssembly.Global()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
@@ -1943,8 +1915,8 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::MaybeDirectHandle<i::WasmGlobalObject> maybe_global_obj =
       i::WasmGlobalObject::New(
           i_isolate, i::DirectHandle<i::WasmTrustedInstanceData>(),
-          i::MaybeDirectHandle<i::JSArrayBuffer>(),
-          i::MaybeDirectHandle<i::FixedArray>(), type, offset, is_mutable);
+          i::MaybeDirectHandle<i::WasmGlobalObject::BufferType>(), type, offset,
+          is_mutable);
 
   i::DirectHandle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {
@@ -2322,7 +2294,6 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
 
   int num_imported_functions = module->num_imported_functions;
   i::DirectHandle<i::TrustedObject> implicit_arg;
-  constexpr bool kShared = false;
   if (func_index >= num_imported_functions) {
     implicit_arg = trusted_instance_data;
   } else {
@@ -2331,15 +2302,15 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
                           trusted_instance_data->dispatch_table_for_imports()
                               ->implicit_arg(func_index)),
                       i_isolate),
-        kShared);
+        i::SharedFlag::kNo);
   }
 
   i::DirectHandle<i::WasmInternalFunction> internal =
       i_isolate->factory()->NewWasmInternalFunction(
-          implicit_arg, func_index, kShared,
+          implicit_arg, func_index, i::SharedFlag::kNo,
           trusted_instance_data->GetCallTarget(func_index), sig);
   i::DirectHandle<i::WasmFuncRef> func_ref =
-      i_isolate->factory()->NewWasmFuncRef(internal, rtt, kShared);
+      i_isolate->factory()->NewWasmFuncRef(internal, rtt, i::SharedFlag::kNo);
   if (func_index < num_imported_functions) {
     i::TrustedCast<i::WasmImportData>(implicit_arg)->set_call_origin(*internal);
   }
@@ -2348,119 +2319,6 @@ i::DirectHandle<i::JSFunction> NewPromisingWasmExportedFunction(
       i_isolate, trusted_instance_data, func_ref, internal,
       static_cast<int>(sig->parameter_count()), wrapper);
   return result;
-}
-
-// WebAssembly.Function
-void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Function()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-
-  if (!info.IsConstructCall()) {
-    thrower.TypeError("WebAssembly.Function must be invoked with 'new'");
-    return;
-  }
-  if (!info[0]->IsObject()) {
-    thrower.TypeError("Argument 0 must be a function type");
-    return;
-  }
-  Local<Object> function_type = Local<Object>::Cast(info[0]);
-  Local<Context> context = isolate->GetCurrentContext();
-  auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
-
-  // Load the 'parameters' property of the function type.
-  Local<String> parameters_key = v8_str(isolate, "parameters");
-  v8::MaybeLocal<v8::Value> parameters_maybe =
-      function_type->Get(context, parameters_key);
-  v8::Local<v8::Value> parameters_value;
-  if (!parameters_maybe.ToLocal(&parameters_value) ||
-      !parameters_value->IsObject()) {
-    thrower.TypeError("Argument 0 must be a function type with 'parameters'");
-    return;
-  }
-  Local<Object> parameters = parameters_value.As<Object>();
-  uint32_t parameters_len = GetIterableLength(i_isolate, context, parameters);
-  if (parameters_len == i::kMaxUInt32) {
-    thrower.TypeError("Argument 0 contains parameters without 'length'");
-    return;
-  }
-  if (parameters_len > i::wasm::kV8MaxWasmFunctionParams) {
-    thrower.TypeError("Argument 0 contains too many parameters");
-    return;
-  }
-
-  // Load the 'results' property of the function type.
-  v8::Local<v8::Value> results_value;
-  if (!function_type->Get(context, v8_str(isolate, "results"))
-           .ToLocal(&results_value)) {
-    return js_api_scope.AssertException();
-  }
-  if (!results_value->IsObject()) {
-    thrower.TypeError("Argument 0 must be a function type with 'results'");
-    return;
-  }
-  Local<Object> results = results_value.As<Object>();
-  uint32_t results_len = GetIterableLength(i_isolate, context, results);
-  if (results_len == i::kMaxUInt32) {
-    thrower.TypeError("Argument 0 contains results without 'length'");
-    return;
-  }
-  if (results_len > i::wasm::kV8MaxWasmFunctionReturns) {
-    thrower.TypeError("Argument 0 contains too many results");
-    return;
-  }
-
-  // Decode the function type and construct a signature.
-  i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-  i::wasm::FunctionSig::Builder builder(&zone, results_len, parameters_len);
-  for (uint32_t i = 0; i < parameters_len; ++i) {
-    MaybeLocal<Value> maybe = parameters->Get(context, i);
-    std::optional<i::wasm::ValueType> maybe_type =
-        GetValueType(isolate, maybe, context, enabled_features);
-    if (!maybe_type) return;
-    i::wasm::ValueType type = *maybe_type;
-    if (type == i::wasm::kWasmVoid) {
-      thrower.TypeError(
-          "Argument 0 parameter type at index #%u must be a value type", i);
-      return;
-    }
-    builder.AddParam(type);
-  }
-  for (uint32_t i = 0; i < results_len; ++i) {
-    MaybeLocal<Value> maybe = results->Get(context, i);
-    std::optional<i::wasm::ValueType> maybe_type =
-        GetValueType(isolate, maybe, context, enabled_features);
-    if (!maybe_type) return js_api_scope.AssertException();
-    i::wasm::ValueType type = *maybe_type;
-    if (type == i::wasm::kWasmVoid) {
-      thrower.TypeError(
-          "Argument 0 result type at index #%u must be a value type", i);
-      return;
-    }
-    builder.AddReturn(type);
-  }
-
-  if (!info[1]->IsObject()) {
-    thrower.TypeError("Argument 1 must be a function");
-    return;
-  }
-  const i::wasm::FunctionSig* sig = builder.Get();
-  i::wasm::Suspend suspend = i::wasm::kNoSuspend;
-
-  i::DirectHandle<i::JSReceiver> callable =
-      Utils::OpenDirectHandle(*info[1].As<Object>());
-  if (i::IsWasmSuspendingObject(*callable)) {
-    suspend = i::wasm::kSuspend;
-    callable = direct_handle(
-        i::Cast<i::WasmSuspendingObject>(*callable)->callable(), i_isolate);
-    DCHECK(i::IsCallable(*callable));
-  } else if (!i::IsCallable(*callable)) {
-    thrower.TypeError("Argument 1 must be a function");
-    return;
-  }
-
-  i::DirectHandle<i::JSFunction> result =
-      i::WasmJSFunction::New(i_isolate, sig, callable, suspend);
-  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 // WebAssembly.promising(Function) -> Function
@@ -2512,8 +2370,7 @@ void WebAssemblySuspendingImpl(
   i::DirectHandle<i::JSReceiver> callable =
       Utils::OpenDirectHandle(*info[0].As<Function>());
 
-  if (i::WasmExportedFunction::IsWasmExportedFunction(*callable) ||
-      i::WasmJSFunction::IsWasmJSFunction(*callable)) {
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     thrower.TypeError("Argument 0 must not be a WebAssembly function");
     return;
   }
@@ -2523,73 +2380,12 @@ void WebAssemblySuspendingImpl(
   info.GetReturnValue().Set(Utils::ToLocal(i::Cast<i::JSObject>(result)));
 }
 
-// WebAssembly.Function.prototype.type() -> FunctionType
-void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Function.type()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-
-  i::DirectHandle<i::JSObject> type;
-
-  i::DirectHandle<i::Object> fun = Utils::OpenDirectHandle(*info.This());
-  if (i::WasmExportedFunction::IsWasmExportedFunction(*fun)) {
-    auto wasm_exported_function = i::Cast<i::WasmExportedFunction>(fun);
-    i::Tagged<i::WasmExportedFunctionData> data =
-        wasm_exported_function->shared()->wasm_exported_function_data();
-    // Note: while {zone} is only referenced directly in the if-block below,
-    // its lifetime must exceed that of {sig}.
-    // TODO(42210967): Creating a Zone just to create a modified copy of a
-    // single signature is rather expensive. It would be good to find a more
-    // efficient approach, if this function is ever considered performance
-    // relevant.
-    i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    const i::wasm::FunctionSig* sig =
-        data->instance_data()->module()->functions[data->function_index()].sig;
-    i::wasm::Promise promise_flags =
-        i::WasmFunctionData::PromiseField::decode(data->js_promise_flags());
-    if (promise_flags == i::wasm::kPromise) {
-      // The wrapper function returns a promise as an externref instead of the
-      // original return type.
-      size_t param_count = sig->parameter_count();
-      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count);
-      for (size_t i = 0; i < param_count; ++i) {
-        builder.AddParam(sig->GetParam(i));
-      }
-      builder.AddReturn(i::wasm::kWasmExternRef);
-      sig = builder.Get();
-    }
-    type = i::wasm::GetTypeForFunction(i_isolate, sig);
-  } else if (i::WasmJSFunction::IsWasmJSFunction(*fun)) {
-    const i::wasm::CanonicalSig* sig = i::Cast<i::WasmJSFunction>(fun)
-                                           ->shared()
-                                           ->wasm_js_function_data()
-                                           ->internal()
-                                           ->sig();
-    // As long as WasmJSFunctions cannot use indexed types, their canonical
-    // signatures are bit-compatible with module-specific signatures.
-#if DEBUG
-    for (i::wasm::CanonicalValueType t : sig->all()) {
-      DCHECK(!t.has_index());
-    }
-#endif
-    static_assert(sizeof(i::wasm::ValueType) ==
-                  sizeof(i::wasm::CanonicalValueType));
-    type = i::wasm::GetTypeForFunction(
-        i_isolate, reinterpret_cast<const i::wasm::FunctionSig*>(sig));
-  } else {
-    thrower.TypeError("Receiver must be a WebAssembly.Function");
-    return;
-  }
-
-  info.GetReturnValue().Set(Utils::ToLocal(type));
-}
-
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmMemoryMapDescriptor =
     "WebAssembly.MemoryMapDescriptor";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
-constexpr const char* kName_WasmTagObject = "WebAssembly.Tag";
 constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
 
 #define EXTRACT_THIS(var, WasmType)                                \
@@ -2609,8 +2405,8 @@ void WebAssemblyInstanceGetExportsImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Instance.exports()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmInstanceObject);
-  i::DirectHandle<i::JSObject> exports_object(receiver->exports_object(),
-                                              i_isolate);
+  i::DirectHandle<i::JSObject> exports_object(
+      Cast<i::JSObject>(receiver->exports_object()), i_isolate);
 
   info.GetReturnValue().Set(Utils::ToLocal(exports_object));
 }
@@ -2659,11 +2455,13 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   static_assert(i::wasm::kV8MaxWasmTableSize <= i::kMaxUInt32);
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+      receiver->trusted_dispatch_table(i_isolate), i_isolate);
   int old_size = grow_by > i::wasm::max_table_size()
                      ? -1
-                     : i::WasmTableObject::Grow(i_isolate, receiver,
-                                                static_cast<uint32_t>(grow_by),
-                                                init_value);
+                     : i::WasmTableObject::Grow(
+                           i_isolate, receiver, dispatch_table,
+                           static_cast<uint32_t>(grow_by), init_value);
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %" PRIu64, grow_by);
     return;
@@ -2691,6 +2489,10 @@ V8_WARN_UNUSED_RESULT bool WasmObjectToJSReturnValue(
       default:
         break;
     }
+  } else if (unsafe_type.has_index() &&
+             unsafe_type.ref_type_kind() == i::wasm::RefTypeKind::kCont) {
+    thrower->TypeError("invalid type %s", unsafe_type.name().c_str());
+    return false;
   }
   return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
   return true;
@@ -2765,20 +2567,10 @@ void WebAssemblyTableSetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  i::WasmTableObject::Set(i_isolate, table_object,
+  i::DirectHandle<i::WasmDispatchTable> dispatch_table(
+      table_object->trusted_dispatch_table(i_isolate), i_isolate);
+  i::WasmTableObject::Set(i_isolate, table_object, dispatch_table,
                           static_cast<uint32_t>(address), element);
-}
-
-// WebAssembly.Table.type() -> TableType
-void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Table.type()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  EXTRACT_THIS(table, WasmTableObject);
-  std::optional<uint64_t> max_size = table->maximum_length_u64();
-  auto type = i::wasm::GetTypeForTable(i_isolate, table->unsafe_type(),
-                                       table->current_length(), max_size,
-                                       table->address_type());
-  info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 // WebAssembly.MemoryMapDescriptor.map()
@@ -2844,7 +2636,7 @@ void WebAssemblyMemoryGrowImpl(
   if (!maybe_delta_pages) return js_api_scope.AssertException();
   uint64_t delta_pages = *maybe_delta_pages;
 
-  std::shared_ptr<i::BackingStore> backing_store = receiver->backing_store();
+  i::Managed<i::BackingStore>::Ptr backing_store = receiver->backing_store();
 #ifdef DEBUG
   if (i::Tagged<i::JSArrayBuffer> buffer;
       TryCast(receiver->array_buffer(), &buffer)) {
@@ -2860,9 +2652,14 @@ void WebAssemblyMemoryGrowImpl(
     return;
   }
 
-  static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
-  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
-                                          static_cast<uint32_t>(delta_pages));
+  int32_t ret;
+  if (delta_pages > i::wasm::kV8MaxWasmMemory64Pages - old_pages) {
+    ret = -1;
+  } else {
+    static_assert(i::wasm::kV8MaxWasmMemory64Pages <= i::kMaxUInt32);
+    ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
+                                    static_cast<uint32_t>(delta_pages));
+  }
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory");
     return;
@@ -2902,7 +2699,6 @@ void WebAssemblyMemoryToResizableBufferImpl(
   WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.toResizableBuffer()"};
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   EXTRACT_THIS(receiver, WasmMemoryObject);
-  i_isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmResizableBuffers);
 
   if (!receiver->has_maximum_pages()) {
     thrower.TypeError("Memory must have a maximum");
@@ -2913,74 +2709,6 @@ void WebAssemblyMemoryToResizableBufferImpl(
       i::WasmMemoryObject::ChangeArrayBufferResizability(
           i_isolate, receiver, i::ResizableFlag::kResizable);
   info.GetReturnValue().Set(Utils::ToLocal(buffer));
-}
-
-// WebAssembly.Memory.type() -> MemoryType
-void WebAssemblyMemoryType(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Memory.type()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  EXTRACT_THIS(memory, WasmMemoryObject);
-
-  std::shared_ptr<i::BackingStore> backing_store = memory->backing_store();
-  size_t curr_size = backing_store->byte_length() / i::wasm::kWasmPageSize;
-  DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
-  uint32_t min_size = static_cast<uint32_t>(curr_size);
-  std::optional<uint32_t> max_size;
-  if (memory->has_maximum_pages()) {
-    uint64_t max_size64 = memory->maximum_pages();
-    DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
-    max_size.emplace(static_cast<uint32_t>(max_size64));
-  }
-  bool shared = backing_store->is_shared();
-  auto type = i::wasm::GetTypeForMemory(i_isolate, min_size, max_size, shared,
-                                        memory->address_type());
-  info.GetReturnValue().Set(Utils::ToLocal(type));
-}
-
-// WebAssembly.Tag.type() -> FunctionType
-void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Tag.type()"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  EXTRACT_THIS(tag, WasmTagObject);
-
-  i::wasm::CanonicalTypeIndex type_index{
-      static_cast<uint32_t>(tag->canonical_type_index())};
-  const i::wasm::CanonicalSig* csig =
-      i::wasm::GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
-  const i::wasm::FunctionSig* sig = nullptr;
-  bool has_indexed_types =
-      std::any_of(csig->all().begin(), csig->all().end(),
-                  [](i::wasm::CanonicalValueType c) { return c.has_index(); });
-  // We need the FunctionSig. If the CanonicalSig contains indexed types, we
-  // do a linear lookup of the FunctionSig in the module. Otherwise, the
-  // CanonicalSig can be reinterpret-casted as a FunctionSig.
-  if (has_indexed_types) {
-    DCHECK(tag->has_trusted_data());
-    const i::wasm::WasmModule* module =
-        tag->trusted_data(i::IsolateForSandbox(i_isolate))->module();
-    DCHECK_GE(i::kMaxUInt32, module->isorecursive_canonical_type_ids.size());
-    size_t num_types = module->types.size();
-    DCHECK_EQ(num_types, module->isorecursive_canonical_type_ids.size());
-    for (uint32_t local_id = 0; local_id < num_types; ++local_id) {
-      if (!module->has_signature(i::wasm::ModuleTypeIndex{local_id})) {
-        continue;
-      }
-      i::wasm::CanonicalTypeIndex canonical_id =
-          module->canonical_sig_id(i::wasm::ModuleTypeIndex{local_id});
-      if (canonical_id != csig->index()) {
-        continue;
-      }
-      sig = module->signature(i::wasm::ModuleTypeIndex{local_id});
-      break;
-    }
-    DCHECK_NOT_NULL(sig);
-  } else {
-    // This also handles the case where the tag does not have an instance.
-    sig = reinterpret_cast<const i::wasm::FunctionSig*>(csig);
-  }
-  constexpr bool kForException = true;
-  auto type = i::wasm::GetTypeForFunction(i_isolate, sig, kForException);
-  info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 void WebAssemblyExceptionGetArgImpl(
@@ -3119,6 +2847,15 @@ void WebAssemblyExceptionIsImpl(
   info.GetReturnValue().Set(tag_object->tag() == *tag);
 }
 
+void WebAssemblyExceptionGetStackImpl(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  WasmJSApiScope js_api_scope{info, "WebAssembly.Exception.stack()"};
+  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
+  EXTRACT_THIS(exception, WasmExceptionPackage);
+
+  info.GetReturnValue().Set(v8::Undefined(isolate));
+}
+
 void WebAssemblyGlobalGetValueCommon(WasmJSApiScope& js_api_scope) {
   auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
   auto& info = js_api_scope.callback_info();  // Needed by EXTRACT_THIS.
@@ -3187,17 +2924,14 @@ void WebAssemblyGlobalSetValueImpl(
     thrower.TypeError("Can't set the value of an immutable global.");
     return;
   }
-  if (info.Length() == 0) {
-    thrower.TypeError("Argument 0 is required");
-    return;
-  }
 
+  Local<Value> value = info[0];  // potentially `undefined`.
   Local<Context> context = isolate->GetCurrentContext();
   i::wasm::ValueType unsafe_type = receiver->unsafe_type();
   switch (unsafe_type.kind()) {
     case i::wasm::kI32: {
       int32_t i32_value = 0;
-      if (!info[0]->Int32Value(context).To(&i32_value)) {
+      if (!value->Int32Value(context).To(&i32_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetI32(i32_value);
@@ -3205,7 +2939,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kI64: {
       v8::Local<v8::BigInt> bigint_value;
-      if (!info[0]->ToBigInt(context).ToLocal(&bigint_value)) {
+      if (!value->ToBigInt(context).ToLocal(&bigint_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetI64(bigint_value->Int64Value());
@@ -3213,7 +2947,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kF32: {
       double f64_value = 0;
-      if (!info[0]->NumberValue(context).To(&f64_value)) {
+      if (!value->NumberValue(context).To(&f64_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetF32(i::DoubleToFloat32(f64_value));
@@ -3221,7 +2955,7 @@ void WebAssemblyGlobalSetValueImpl(
     }
     case i::wasm::kF64: {
       double f64_value = 0;
-      if (!info[0]->NumberValue(context).To(&f64_value)) {
+      if (!value->NumberValue(context).To(&f64_value)) {
         return js_api_scope.AssertException();
       }
       receiver->SetF64(f64_value);
@@ -3236,15 +2970,15 @@ void WebAssemblyGlobalSetValueImpl(
           receiver->has_trusted_data()
               ? receiver->trusted_data(i_isolate)->module()
               : nullptr;
-      i::DirectHandle<i::Object> value = Utils::OpenDirectHandle(*info[0]);
+      i::DirectHandle<i::Object> value_handle = Utils::OpenDirectHandle(*value);
       const char* error_message;
-      if (!i::wasm::JSToWasmObject(i_isolate, module, value, unsafe_type,
+      if (!i::wasm::JSToWasmObject(i_isolate, module, value_handle, unsafe_type,
                                    &error_message)
-               .ToHandle(&value)) {
+               .ToHandle(&value_handle)) {
         thrower.TypeError("%s", error_message);
         return;
       }
-      receiver->SetRef(value);
+      receiver->SetRef(value_handle);
       return;
     }
     case i::wasm::kI8:
@@ -3255,17 +2989,6 @@ void WebAssemblyGlobalSetValueImpl(
     case i::wasm::kVoid:
       UNREACHABLE();
   }
-}
-
-// WebAssembly.Global.type() -> GlobalType
-void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  WasmJSApiScope js_api_scope{info, "WebAssembly.Global.type())"};
-  auto [isolate, i_isolate, thrower] = js_api_scope.isolates_and_thrower();
-  EXTRACT_THIS(global, WasmGlobalObject);
-
-  auto type = i::wasm::GetTypeForGlobal(i_isolate, global->is_mutable(),
-                                        global->unsafe_type());
-  info.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
 }  // namespace
@@ -3521,6 +3244,10 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
     InstallFunc(isolate, memory_proto, "grow", wasm::WebAssemblyMemoryGrow, 1);
     InstallGetter(isolate, memory_proto, "buffer",
                   wasm::WebAssemblyMemoryGetBuffer);
+    InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
+                wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
+    InstallFunc(isolate, memory_proto, "toResizableBuffer",
+                wasm::WebAssemblyMemoryToResizableBuffer, 0);
   }
 
   // Create the Global object.
@@ -3562,6 +3289,7 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
   {
     DirectHandle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", wasm::WebAssemblyException);
+    exception_constructor->shared()->set_length(2);
     SetDummyInstanceTemplate(isolate, exception_constructor);
     DirectHandle<JSObject> exception_proto = SetupConstructor(
         isolate, exception_constructor, WASM_EXCEPTION_PACKAGE_TYPE,
@@ -3571,22 +3299,27 @@ void WasmJs::PrepareForSnapshot(Isolate* isolate) {
                 wasm::WebAssemblyExceptionGetArg, 2);
     InstallFunc(isolate, exception_proto, "is", wasm::WebAssemblyExceptionIs,
                 1);
+    InstallGetter(isolate, exception_proto, "stack",
+                  wasm::WebAssemblyExceptionGetStack);
     native_context->set_wasm_exception_constructor(*exception_constructor);
 
     DirectHandle<Map> initial_map(exception_constructor->initial_map(),
                                   isolate);
     Map::EnsureDescriptorSlack(isolate, initial_map, 2);
     {
-      Descriptor d = Descriptor::DataField(
-          isolate, f->wasm_exception_tag_symbol(),
-          WasmExceptionPackage::kTagIndex, DONT_ENUM, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate, f->wasm_exception_tag_symbol(),
+                                initial_map->GetInObjectPropertyOffset(
+                                    WasmExceptionPackage::kTagIndex),
+                                DONT_ENUM, Representation::Tagged(), true);
       initial_map->AppendDescriptor(isolate, &d);
     }
     {
       Descriptor d =
           Descriptor::DataField(isolate, f->wasm_exception_values_symbol(),
-                                WasmExceptionPackage::kValuesIndex, DONT_ENUM,
-                                Representation::Tagged());
+                                initial_map->GetInObjectPropertyOffset(
+                                    WasmExceptionPackage::kValuesIndex),
+                                DONT_ENUM, Representation::Tagged(), true);
       initial_map->AppendDescriptor(isolate, &d);
     }
   }
@@ -3691,7 +3424,7 @@ void WasmJs::Install(Isolate* isolate) {
   // Even in interpreter-only mode, wasm currently still creates executable
   // memory at runtime. Unexpose wasm until this changes.
   // The correctness fuzzers are a special case: many of their test cases are
-  // built by fetching a random property from the the global object, and thus
+  // built by fetching a random property from the global object, and thus
   // the global object layout must not change between configs. That is why we
   // continue exposing wasm on correctness fuzzers even in jitless mode.
   // TODO(jgruber): Remove this once / if wasm can run without executable
@@ -3733,10 +3466,6 @@ void WasmJs::Install(Isolate* isolate) {
   // {WasmEnabledFeatures::FromFlags} instead.
   const auto enabled_features = wasm::WasmEnabledFeatures::FromFlags();
 
-  if (enabled_features.has_type_reflection()) {
-    InstallTypeReflection(isolate, native_context, webassembly);
-  }
-
   if (enabled_features.has_memory_control()) {
     InstallMemoryControl(isolate, native_context, webassembly);
   }
@@ -3748,10 +3477,6 @@ void WasmJs::Install(Isolate* isolate) {
     isolate->WasmInitJSPIFeature();
     InstallJSPromiseIntegration(isolate, native_context, webassembly);
     native_context->set_is_wasm_jspi_installed(Smi::FromInt(1));
-  }
-
-  if (enabled_features.has_rab_integration()) {
-    InstallResizableBufferIntegration(isolate, native_context, webassembly);
   }
 }
 
@@ -3842,109 +3567,6 @@ void WasmJs::InstallMemoryControl(Isolate* isolate,
               wasm::WebAssemblyMemoryMapDescriptorMap, 2);
   InstallFunc(isolate, descriptor_proto, "unmap",
               wasm::WebAssemblyMemoryMapDescriptorUnmap, 0);
-}
-
-// Return true only if this call resulted in installation of type reflection.
-// static
-bool WasmJs::InstallTypeReflection(Isolate* isolate,
-                                   DirectHandle<NativeContext> context,
-                                   DirectHandle<JSObject> webassembly) {
-  // Extensibility of the `WebAssembly` object should already have been checked
-  // by the caller.
-  DCHECK(webassembly->map()->is_extensible());
-
-  // First check if any of the type reflection fields already exist. If so, bail
-  // out and don't install any new fields.
-  if (JSObject::HasRealNamedProperty(isolate, webassembly,
-                                     isolate->factory()->Function_string())
-          .FromMaybe(true)) {
-    return false;
-  }
-
-  auto GetProto = [isolate](Tagged<JSFunction> constructor) {
-    return handle(Cast<JSObject>(constructor->instance_prototype()), isolate);
-  };
-  DirectHandle<JSObject> table_proto =
-      GetProto(context->wasm_table_constructor());
-  DirectHandle<JSObject> global_proto =
-      GetProto(context->wasm_global_constructor());
-  DirectHandle<JSObject> memory_proto =
-      GetProto(context->wasm_memory_constructor());
-  DirectHandle<JSObject> tag_proto = GetProto(context->wasm_tag_constructor());
-
-  DirectHandle<String> type_string = v8_str(isolate, "type");
-  auto CheckProto = [isolate, type_string](DirectHandle<JSObject> proto) {
-    if (JSObject::HasRealNamedProperty(isolate, proto, type_string)
-            .FromMaybe(true)) {
-      return false;
-    }
-    // Also check extensibility, otherwise adding properties will fail.
-    if (!proto->map()->is_extensible()) return false;
-    return true;
-  };
-  if (!CheckProto(table_proto)) return false;
-  if (!CheckProto(global_proto)) return false;
-  if (!CheckProto(memory_proto)) return false;
-  if (!CheckProto(tag_proto)) return false;
-
-  // Checks are done, start installing the new fields.
-  InstallFunc(isolate, table_proto, type_string, WebAssemblyTableType, 0, false,
-              NONE, SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, memory_proto, type_string, WebAssemblyMemoryType, 0,
-              false, NONE, SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, global_proto, type_string, WebAssemblyGlobalType, 0,
-              false, NONE, SideEffectType::kHasNoSideEffect);
-  InstallFunc(isolate, tag_proto, type_string, WebAssemblyTagType, 0, false,
-              NONE, SideEffectType::kHasNoSideEffect);
-
-  // Create the Function object.
-  DirectHandle<JSFunction> function_constructor = InstallConstructorFunc(
-      isolate, webassembly, "Function", WebAssemblyFunction);
-  SetDummyInstanceTemplate(isolate, function_constructor);
-  JSFunction::EnsureHasInitialMap(isolate, function_constructor);
-  DirectHandle<JSObject> function_proto(
-      Cast<JSObject>(function_constructor->instance_prototype()), isolate);
-  DirectHandle<Map> function_map =
-      Map::Copy(isolate, isolate->sloppy_function_without_prototype_map(),
-                "WebAssembly.Function");
-  CHECK(JSObject::SetPrototype(
-            isolate, function_proto,
-            direct_handle(context->function_function()->prototype(), isolate),
-            false, kDontThrow)
-            .FromJust());
-  JSFunction::SetInitialMap(isolate, function_constructor, function_map,
-                            function_proto);
-
-  constexpr PropertyAttributes ro_attributes =
-      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-  JSObject::AddProperty(isolate, function_proto,
-                        isolate->factory()->to_string_tag_symbol(),
-                        v8_str(isolate, "WebAssembly.Function"), ro_attributes);
-
-  InstallFunc(isolate, function_proto, type_string, WebAssemblyFunctionType, 0);
-  SimpleInstallFunction(isolate, function_proto, "bind",
-                        Builtin::kWebAssemblyFunctionPrototypeBind, 1,
-                        kDontAdapt);
-  // Make all exported functions an instance of {WebAssembly.Function}.
-  context->set_wasm_exported_function_map(*function_map);
-  return true;
-}
-
-// static
-void WasmJs::InstallResizableBufferIntegration(
-    Isolate* isolate, DirectHandle<NativeContext> context,
-    DirectHandle<JSObject> webassembly) {
-  // Extensibility of the `WebAssembly` object should already have been checked
-  // by the caller.
-  DCHECK(webassembly->map()->is_extensible());
-
-  DirectHandle<JSObject> memory_proto = direct_handle(
-      Cast<JSObject>(context->wasm_memory_constructor()->instance_prototype()),
-      isolate);
-  InstallFunc(isolate, memory_proto, "toFixedLengthBuffer",
-              wasm::WebAssemblyMemoryToFixedLengthBuffer, 0);
-  InstallFunc(isolate, memory_proto, "toResizableBuffer",
-              wasm::WebAssemblyMemoryToResizableBuffer, 0);
 }
 
 // static

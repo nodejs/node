@@ -15,37 +15,33 @@ bitfield struct TurboshaftFloatSpecialValues extends uint32 {
 }
 
 @abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftType extends HeapObject {}
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftWord32Type extends TurboshaftType {}
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
-@generateFactoryFunction
 extern class TurboshaftWord32RangeType extends TurboshaftWord32Type {
   from: uint32;
   to: uint32;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
-@generateFactoryFunction
 extern class TurboshaftWord32SetType extends TurboshaftWord32Type {
   const set_size: uint32;
   elements[set_size]: uint32;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftWord64Type extends TurboshaftType {}
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
-@generateFactoryFunction
 extern class TurboshaftWord64RangeType extends TurboshaftWord64Type {
   from_high: uint32;
   from_low: uint32;
@@ -53,34 +49,30 @@ extern class TurboshaftWord64RangeType extends TurboshaftWord64Type {
   to_low: uint32;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
-@generateFactoryFunction
 extern class TurboshaftWord64SetType extends TurboshaftWord64Type {
   const set_size: uint32;
   elements_high[set_size]: uint32;
   elements_low[set_size]: uint32;
 }
 
-@generateBodyDescriptor
-@generateUniqueMap
-@generateFactoryFunction
+@abstract
+@cppObjectLayoutDefinition
 extern class TurboshaftFloat64Type extends TurboshaftType {
   special_values: TurboshaftFloatSpecialValues;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
-@generateFactoryFunction
 extern class TurboshaftFloat64RangeType extends TurboshaftFloat64Type {
   _padding: uint32;
   min: float64;
   max: float64;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 @generateUniqueMap
-@generateFactoryFunction
 extern class TurboshaftFloat64SetType extends TurboshaftFloat64Type {
   const set_size: uint32;
   elements[set_size]: float64;

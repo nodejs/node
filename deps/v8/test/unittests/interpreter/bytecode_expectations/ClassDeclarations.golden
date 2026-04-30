@@ -90,7 +90,7 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 77
+bytecode array length: 76
 bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(2),
                 B(PushContext), R(1),

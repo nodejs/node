@@ -227,9 +227,10 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    int contextId, InjectedScript*& injectedScript) {
+    int contextId, InjectedScript*& injectedScript,
+    std::shared_ptr<InspectedContext>* inspectedContext) {
   injectedScript = nullptr;
-  InspectedContext* context =
+  std::shared_ptr<InspectedContext> context =
       m_inspector->getContext(m_contextGroupId, contextId);
   if (!context)
     return Response::ServerError("Cannot find context with specified id");
@@ -239,14 +240,17 @@ Response V8InspectorSessionImpl::findInjectedScript(
     if (m_customObjectFormatterEnabled)
       injectedScript->setCustomObjectFormatterEnabled(true);
   }
+  if (inspectedContext) *inspectedContext = context;
   return Response::Success();
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
+    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript,
+    std::shared_ptr<InspectedContext>* inspectedContext) {
   if (objectId->isolateId() != m_inspector->isolateId())
     return Response::ServerError("Cannot find context with specified id");
-  return findInjectedScript(objectId->contextId(), injectedScript);
+  return findInjectedScript(objectId->contextId(), injectedScript,
+                            inspectedContext);
 }
 
 void V8InspectorSessionImpl::releaseObjectGroup(StringView objectGroup) {
@@ -289,7 +293,8 @@ Response V8InspectorSessionImpl::unwrapObject(const String16& objectId,
   Response response = RemoteObjectId::parse(objectId, &remoteId);
   if (!response.IsSuccess()) return response;
   InjectedScript* injectedScript = nullptr;
-  response = findInjectedScript(remoteId.get(), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  response = findInjectedScript(remoteId.get(), injectedScript, &inspectedContext);
   if (!response.IsSuccess()) return response;
   response = injectedScript->findObject(*remoteId, object);
   if (!response.IsSuccess()) return response;
@@ -311,7 +316,9 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    const String16& groupName,
                                    bool generatePreview) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(InspectedContext::contextId(context), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  findInjectedScript(InspectedContext::contextId(context), injectedScript,
+                     &inspectedContext);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
   injectedScript->wrapObject(value, groupName,
@@ -326,7 +333,9 @@ V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
                                   v8::Local<v8::Object> table,
                                   v8::MaybeLocal<v8::Array> columns) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(InspectedContext::contextId(context), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  findInjectedScript(InspectedContext::contextId(context), injectedScript,
+                     &inspectedContext);
   if (!injectedScript) return nullptr;
   return injectedScript->wrapTable(table, columns);
 }

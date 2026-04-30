@@ -9,10 +9,11 @@
 #include "src/codegen/signature.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/isolate.h"
+#include "src/objects/shared-function-info.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/interpreter/wasm-interpreter-runtime.h"
-#include "src/wasm/object-access.h"
+#include "src/wasm/interpreter/wasm-interpreter.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -22,152 +23,13 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 #if V8_ENABLE_WEBASSEMBLY
-
-namespace {
-// Helper functions for the GenericJSToWasmInterpreterWrapper.
-
-void PrepareForJsToWasmConversionBuiltinCall(MacroAssembler* masm,
-                                             Register current_param_slot,
-                                             Register valuetypes_array_ptr,
-                                             Register wasm_instance,
-                                             Register function_data) {
-  {
-    UseScratchRegisterScope temps(masm);
-    Register GCScanCount = temps.AcquireX();
-    // Pushes and puts the values in order onto the stack before builtin calls
-    // for the GenericJSToWasmInterpreterWrapper. The last two slots contain
-    // tagged objects that need to be visited during GC.
-    __ Mov(GCScanCount, 2);
-    __ Str(GCScanCount,
-           MemOperand(
-               fp,
-               BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
-  }
-  __ Push(current_param_slot, valuetypes_array_ptr, wasm_instance,
-          function_data);
-  // We had to prepare the parameters for the Call: we have to put the context
-  // into x27.
-  Register wasm_trusted_instance = wasm_instance;
-  __ LoadTrustedPointerField(
-      wasm_trusted_instance,
-      FieldMemOperand(wasm_instance, WasmInstanceObject::kTrustedDataOffset),
-      kWasmTrustedInstanceDataIndirectPointerTag);
-  __ LoadTaggedField(
-      kContextRegister,  // cp(x27)
-      MemOperand(wasm_trusted_instance,
-                 wasm::ObjectAccess::ToTagged(
-                     WasmTrustedInstanceData::kNativeContextOffset)));
-}
-
-void RestoreAfterJsToWasmConversionBuiltinCall(MacroAssembler* masm,
-                                               Register function_data,
-                                               Register wasm_instance,
-                                               Register valuetypes_array_ptr,
-                                               Register current_param_slot) {
-  // Pop and load values from the stack in order into the registers after
-  // builtin calls for the GenericJSToWasmInterpreterWrapper.
-  __ Pop(function_data, wasm_instance, valuetypes_array_ptr,
-         current_param_slot);
-  __ Str(
-      xzr,
-      MemOperand(
-          fp, BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
-}
-
-void PrepareForBuiltinCall(MacroAssembler* masm, Register array_start,
-                           Register return_count, Register wasm_instance) {
-  {
-    UseScratchRegisterScope temps(masm);
-    Register GCScanCount = temps.AcquireX();
-    // Pushes and puts the values in order onto the stack before builtin calls
-    // for the GenericJSToWasmInterpreterWrapper.
-    __ Mov(GCScanCount, 1);
-    __ Str(GCScanCount,
-           MemOperand(
-               fp,
-               BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
-  }
-  // The last slot contains a tagged object that need to be visited during GC.
-  __ Push(array_start, return_count, xzr, wasm_instance);
-  // We had to prepare the parameters for the Call: we have to put the context
-  // into x27.
-  Register wasm_trusted_instance = wasm_instance;
-  __ LoadTrustedPointerField(
-      wasm_trusted_instance,
-      FieldMemOperand(wasm_instance, WasmInstanceObject::kTrustedDataOffset),
-      kWasmTrustedInstanceDataIndirectPointerTag);
-  __ LoadTaggedField(
-      kContextRegister,  // cp(x27)
-      MemOperand(wasm_trusted_instance,
-                 wasm::ObjectAccess::ToTagged(
-                     WasmTrustedInstanceData::kNativeContextOffset)));
-}
-
-void RestoreAfterBuiltinCall(MacroAssembler* masm, Register wasm_instance,
-                             Register return_count, Register array_start) {
-  // Pop and load values from the stack in order into the registers after
-  // builtin calls for the GenericJSToWasmInterpreterWrapper.
-  __ Pop(wasm_instance, xzr, return_count, array_start);
-}
-
-void PrepareForWasmToJsConversionBuiltinCall(
-    MacroAssembler* masm, Register return_count, Register result_index,
-    Register current_return_slot, Register valuetypes_array_ptr,
-    Register wasm_instance, Register fixed_array, Register jsarray,
-    bool load_native_context = true) {
-  {
-    UseScratchRegisterScope temps(masm);
-    Register GCScanCount = temps.AcquireX();
-    // Pushes and puts the values in order onto the stack before builtin calls
-    // for the GenericJSToWasmInterpreterWrapper.
-    // The last three slots contain tagged objects that need to be visited
-    // during GC.
-    __ Mov(GCScanCount, 3);
-    __ Str(GCScanCount,
-           MemOperand(
-               fp,
-               BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
-  }
-  __ Push(return_count, result_index, current_return_slot, valuetypes_array_ptr,
-          xzr, wasm_instance, fixed_array, jsarray);
-  if (load_native_context) {
-    // Put the context into x27.
-    Register wasm_trusted_instance = wasm_instance;
-    __ LoadTrustedPointerField(
-        wasm_trusted_instance,
-        FieldMemOperand(wasm_instance, WasmInstanceObject::kTrustedDataOffset),
-        kWasmTrustedInstanceDataIndirectPointerTag);
-    __ LoadTaggedField(
-        kContextRegister,  // cp(x27)
-        MemOperand(wasm_trusted_instance,
-                   wasm::ObjectAccess::ToTagged(
-                       WasmTrustedInstanceData::kNativeContextOffset)));
-  }
-}
-
-void RestoreAfterWasmToJsConversionBuiltinCall(
-    MacroAssembler* masm, Register jsarray, Register fixed_array,
-    Register wasm_instance, Register valuetypes_array_ptr,
-    Register current_return_slot, Register result_index,
-    Register return_count) {
-  // Pop and load values from the stack in order into the registers after
-  // builtin calls for the GenericJSToWasmInterpreterWrapper.
-  __ Pop(jsarray, fixed_array, wasm_instance, xzr, valuetypes_array_ptr,
-         current_return_slot, result_index, return_count);
-  __ Str(
-      xzr,
-      MemOperand(
-          fp, BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
-}
-
-}  // namespace
-
 void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   // Input registers:
   //  x7 (kWasmImplicitArgRegister): wasm_instance
   //  x12: array_start
   //  w15: function_index
   Register array_start = x12;
+  Register result_start = x13;
   Register function_index = x15;
 
   // Set up the stackframe:
@@ -176,15 +38,36 @@ void Builtins::Generate_WasmInterpreterEntry(MacroAssembler* masm) {
   // fp-0x08  Marker(StackFrame::WASM_INTERPRETER_ENTRY)
   // fp       Old RBP
   __ EnterFrame(StackFrame::WASM_INTERPRETER_ENTRY);
-
   __ Str(kWasmImplicitArgRegister, MemOperand(sp, 0));
-  __ Push(function_index, array_start);
+  __ Push(kWasmImplicitArgRegister, function_index, array_start, result_start);
   __ Mov(kWasmImplicitArgRegister, xzr);
-  __ CallRuntime(Runtime::kWasmRunInterpreter, 3);
-
+  __ CallRuntime(Runtime::kWasmRunInterpreter, 4);
   // Deconstruct the stack frame.
   __ LeaveFrame(StackFrame::WASM_INTERPRETER_ENTRY);
   __ Ret();
+}
+
+// Given a WasmExportedFunctionData in |function_data|, derive the Wasm
+// instance object into |wasm_instance|. The two registers may alias.
+void LoadWasmInstanceFromFunctionData(MacroAssembler* masm,
+                                      Register function_data,
+                                      Register wasm_instance) {
+  Register trusted_instance_data = wasm_instance;
+#if V8_ENABLE_SANDBOX
+  __ DecompressProtected(
+      trusted_instance_data,
+      FieldMemOperand(function_data,
+                      WasmExportedFunctionData::kProtectedInstanceDataOffset));
+#else
+  __ LoadTaggedField(
+      trusted_instance_data,
+      FieldMemOperand(function_data,
+                      WasmExportedFunctionData::kProtectedInstanceDataOffset));
+#endif
+  __ LoadTaggedField(
+      wasm_instance,
+      FieldMemOperand(trusted_instance_data,
+                      WasmTrustedInstanceData::kInstanceObjectOffset));
 }
 
 void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
@@ -194,9 +77,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
   Register shared_function_info = closure;
   __ LoadTaggedField(
       shared_function_info,
-      MemOperand(
-          closure,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+      FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   closure = no_reg;
   __ LoadTrustedPointerField(
       function_data,
@@ -205,24 +86,7 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
       kWasmExportedFunctionDataIndirectPointerTag);
   shared_function_info = no_reg;
 
-  Register trusted_instance_data = wasm_instance;
-#if V8_ENABLE_SANDBOX
-  __ DecompressProtected(
-      trusted_instance_data,
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
-                     kHeapObjectTag));
-#else
-  __ LoadTaggedField(
-      trusted_instance_data,
-      MemOperand(function_data,
-                 WasmExportedFunctionData::kProtectedInstanceDataOffset -
-                     kHeapObjectTag));
-#endif
-  __ LoadTaggedField(
-      wasm_instance,
-      FieldMemOperand(trusted_instance_data,
-                      WasmTrustedInstanceData::kInstanceObjectOffset));
+  LoadWasmInstanceFromFunctionData(masm, function_data, wasm_instance);
 }
 
 void LoadFromSignature(MacroAssembler* masm, Register valuetypes_array_ptr,
@@ -371,6 +235,8 @@ class RegisterAllocator {
   ASSIGN_REG(Name);        \
   Name = Name.W();
 
+#define ASSIGN_PINNED(Name, Reg) regs.Pinned(Reg, &Name);
+
 #define DEFINE_PINNED(Name, Reg) \
   Register Name = no_reg;        \
   regs.Pinned(Reg, &Name);
@@ -381,609 +247,113 @@ class RegisterAllocator {
 
 #define FREE_REG(Name) regs.Free(&Name);
 
-// TODO(paolosev@microsoft.com): this should be converted into a Torque builtin,
-// like it was done for GenericJSToWasmWrapper.
-void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
-    MacroAssembler* masm) {
+void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
-  // Set up the stackframe.
   __ EnterFrame(StackFrame::JS_TO_WASM);
 
-  // -------------------------------------------
-  // Compute offsets and prepare for GC.
-  // -------------------------------------------
-  // GenericJSToWasmInterpreterWrapperFrame:
-  // fp-N     Args/retvals array for Wasm call
-  // ...       ...
-  // fp-0x58  SignatureData
-  // fp-0x50  CurrentIndex
-  // fp-0x48  ArgRetsIsArgs
-  // fp-0x40  ArgRetsAddress
-  // fp-0x38  ValueTypesArray
-  // fp-0x30  SigReps
-  // fp-0x28  ReturnCount
-  // fp-0x20  ParamCount
-  // fp-0x18  InParamCount
-  // fp-0x10  GCScanSlotCount
-  // fp-0x08  Marker(StackFrame::JS_TO_WASM)
-  // fp       Old RBP
+  /* Current frame */
+  // fp + kImplicitArgOffset: functionData
+  // fp + kResultArrayParamOffset: result array
+  // fp + 8 * kSystemPointerSize: return address
+  // fp:  old fp
+  // fp - 8 : type
+  // fp -16 : wrpperbuffer
+  // fp -24 : GcScanSlotCount
+  // fp -32 : WasmInstance
+  // fp -40 : result_array
 
-  constexpr int kMarkerOffset =
-      BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset +
-      kSystemPointerSize;
-  // The number of parameters passed to this function.
-  constexpr int kInParamCountOffset =
-      BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset -
-      kSystemPointerSize;
-  // The number of parameters according to the signature.
-  constexpr int kParamCountOffset =
-      BuiltinWasmInterpreterWrapperConstants::kParamCountOffset;
-  constexpr int kReturnCountOffset =
-      BuiltinWasmInterpreterWrapperConstants::kReturnCountOffset;
-  constexpr int kSigRepsOffset =
-      BuiltinWasmInterpreterWrapperConstants::kSigRepsOffset;
-  constexpr int kValueTypesArrayStartOffset =
-      BuiltinWasmInterpreterWrapperConstants::kValueTypesArrayStartOffset;
-  // Array for arguments and return values. They will be scanned by GC.
-  constexpr int kArgRetsAddressOffset =
-      BuiltinWasmInterpreterWrapperConstants::kArgRetsAddressOffset;
-  // Arg/Return arrays use the same stack address. So, we should keep a flag
-  // whether we are using the array for args or returns. (1 = Args, 0 = Rets)
-  constexpr int kArgRetsIsArgsOffset =
-      BuiltinWasmInterpreterWrapperConstants::kArgRetsIsArgsOffset;
-  // The index of the argument being converted.
-  constexpr int kCurrentIndexOffset =
-      BuiltinWasmInterpreterWrapperConstants::kCurrentIndexOffset;
-  // Precomputed signature data, a uint32_t with the format:
-  // bit 0-14: PackedArgsSize
-  // bit 15:   HasRefArgs
-  // bit 16:   HasRefRets
-  constexpr int kSignatureDataOffset =
-      BuiltinWasmInterpreterWrapperConstants::kSignatureDataOffset;
-  // We set and use this slot only when moving parameters into the parameter
-  // registers (so no GC scan is needed).
-  constexpr int kNumSpillSlots =
-      (kMarkerOffset - kSignatureDataOffset) / kSystemPointerSize;
-  constexpr int kNum16BytesAlignedSpillSlots = 2 * ((kNumSpillSlots + 1) / 2);
+  // Load the implicit argument (instance data or import data) from the frame.
 
-  __ Sub(sp, sp, Immediate(kNum16BytesAlignedSpillSlots * kSystemPointerSize));
-  // Put the in_parameter count on the stack, we only  need it at the very end
-  // when we pop the parameters off the stack.
-  __ Sub(kJavaScriptCallArgCountRegister, kJavaScriptCallArgCountRegister, 1);
-  __ Str(kJavaScriptCallArgCountRegister, MemOperand(fp, kInParamCountOffset));
+  DEFINE_PINNED(wasm_instance, kWasmImplicitArgRegister);
+  DEFINE_PINNED(implicitArg, x1);
+  DEFINE_REG(result_array);
+  DEFINE_PINNED(wrapper_buffer,
+                WasmJSToWasmWrapperDescriptor::WrapperBufferRegister());
 
-  // -------------------------------------------
-  // Load the Wasm exported function data and the Wasm instance.
-  // -------------------------------------------
-  DEFINE_PINNED(function_data, kJSFunctionRegister);       // x1
-  DEFINE_PINNED(wasm_instance, kWasmImplicitArgRegister);  // x7
-  LoadFunctionDataAndWasmInstance(masm, function_data, wasm_instance);
-
-  regs.ResetExcept(function_data, wasm_instance);
-
-  // -------------------------------------------
-  // Load values from the signature.
-  // -------------------------------------------
-
-  // Param should be x0 for calling Runtime in the conversion loop.
-  DEFINE_PINNED(param, x0);
-  // These registers stays alive until we load params to param registers.
-  // To prevent aliasing assign higher register here.
-  DEFINE_PINNED(valuetypes_array_ptr, x11);
-
-  DEFINE_REG(return_count);
-  DEFINE_REG(param_count);
-  DEFINE_REG(signature_data);
-  DEFINE_REG(scratch);
-
-  // -------------------------------------------
-  // Load values from the signature.
-  // -------------------------------------------
-  LoadValueTypesArray(masm, function_data, valuetypes_array_ptr, return_count,
-                      param_count, signature_data);
-  __ Str(signature_data, MemOperand(fp, kSignatureDataOffset));
-  Register array_size = signature_data;
-  __ And(array_size, array_size,
-         Immediate(wasm::WasmInterpreterRuntime::PackedArgsSizeField::kMask));
-  // -------------------------------------------
-  // Store signature-related values to the stack.
-  // -------------------------------------------
-  // We store values on the stack to restore them after function calls.
-  // We cannot push values onto the stack right before the wasm call. The wasm
-  // function expects the parameters, that didn't fit into the registers, on the
-  // top of the stack.
-  __ Str(param_count, MemOperand(fp, kParamCountOffset));
-  __ Str(return_count, MemOperand(fp, kReturnCountOffset));
-  __ Str(valuetypes_array_ptr, MemOperand(fp, kSigRepsOffset));
-  __ Str(valuetypes_array_ptr, MemOperand(fp, kValueTypesArrayStartOffset));
-
-  // -------------------------------------------
-  // Allocate array for args and return value.
-  // -------------------------------------------
-
-  // Leave space for WasmInstance.
-  __ Add(array_size, array_size, Immediate(kSystemPointerSize));
-  // Ensure that the array is 16-bytes aligned.
-  __ Add(scratch, array_size, Immediate(8));
-  __ And(array_size, scratch, Immediate(-16));
-
-  DEFINE_PINNED(array_start, x12);
-  __ Sub(array_start, sp, array_size);
-  __ Mov(sp, array_start);
-
-  __ Mov(scratch, 1);
-  __ Str(scratch, MemOperand(fp, kArgRetsIsArgsOffset));
-
-  __ Str(xzr, MemOperand(fp, kCurrentIndexOffset));
-
-  // Set the current_param_slot to point to the start of the section, after the
-  // WasmInstance object.
-  DEFINE_PINNED(current_param_slot, x13);
-  __ Add(current_param_slot, array_start, Immediate(kSystemPointerSize));
-  __ Str(current_param_slot, MemOperand(fp, kArgRetsAddressOffset));
-
-  Label prepare_for_wasm_call;
-  __ Cmp(param_count, 0);
-
-  // IF we have 0 params: jump through parameter handling.
-  __ B(&prepare_for_wasm_call, eq);
-
-  // Create a section on the stack to pass the evaluated parameters to the
-  // interpreter and to receive the results. This section represents the array
-  // expected as argument by the Runtime_WasmRunInterpreter.
-  // Arguments are stored one after the other without holes, starting at the
-  // beginning of the array, and the interpreter puts the returned values in the
-  // same array, also starting at the beginning.
-
-  // Loop through the params starting with the first.
-  // 'fp + kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize' points to the
-  // first JS parameter we are processing.
-
-  // We have to check the types of the params. The ValueType array contains
-  // first the return then the param types.
-
-  // Set the ValueType array pointer to point to the first parameter.
-  constexpr int kValueTypeSize = sizeof(wasm::ValueType);
-  static_assert(kValueTypeSize == 4);
-  const int32_t kValueTypeSizeLog2 = log2(kValueTypeSize);
-  // Set the ValueType array pointer to point to the first parameter.
-  __ Add(valuetypes_array_ptr, valuetypes_array_ptr,
-         Operand(return_count, LSL, kValueTypeSizeLog2));
-
-  DEFINE_REG(current_index);
-  __ Mov(current_index, xzr);
-
-  // -------------------------------------------
-  // Param evaluation loop.
-  // -------------------------------------------
-  Label loop_through_params;
-  __ bind(&loop_through_params);
-
-  constexpr int kReceiverOnStackSize = kSystemPointerSize;
-  constexpr int kArgsOffset =
-      kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize;
-  // Read JS argument into 'param'.
-  __ Add(scratch, fp, kArgsOffset);
-  __ Ldr(param,
-         MemOperand(scratch, current_index, LSL, kSystemPointerSizeLog2));
-  __ Str(current_index, MemOperand(fp, kCurrentIndexOffset));
-
-  DEFINE_REG_W(valuetype);
-  __ Ldr(valuetype, MemOperand(valuetypes_array_ptr, 0));
-
-  // -------------------------------------------
-  // Param conversion.
-  // -------------------------------------------
-  // If param is a Smi we can easily convert it. Otherwise we'll call a builtin
-  // for conversion.
-  Label param_conversion_done;
-  Label check_ref_param;
-  Label convert_param;
-  __ Cmp(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
-  __ B(&check_ref_param, ne);
-  __ JumpIfNotSmi(param, &convert_param);
-
-  // Change the param from Smi to int32.
-  __ SmiUntag(param);
-  // Place the param into the proper slot in Integer section.
-  __ Str(param.W(), MemOperand(current_param_slot, 0));
-  __ Add(current_param_slot, current_param_slot, Immediate(sizeof(int32_t)));
-  __ jmp(&param_conversion_done);
-
-  Label handle_ref_param;
-  __ bind(&check_ref_param);
-
-  // wasm::ValueKind::kRefNull is not representable as a cmp immediate operand.
-  __ Tst(valuetype, Immediate(1));
-  __ B(&convert_param, eq);
-
-  // Place the reference param into the proper slot.
-  __ bind(&handle_ref_param);
-  // Make sure slot for ref args are 64-bit aligned.
-  __ And(scratch, current_param_slot, Immediate(0x04));
-  __ Add(current_param_slot, current_param_slot, scratch);
-  __ Str(param, MemOperand(current_param_slot, 0));
-  __ Add(current_param_slot, current_param_slot, Immediate(kSystemPointerSize));
-
-  // -------------------------------------------
-  // Param conversion done.
-  // -------------------------------------------
-  __ bind(&param_conversion_done);
-
-  __ Add(valuetypes_array_ptr, valuetypes_array_ptr, kValueTypeSize);
-
-  __ Ldr(current_index, MemOperand(fp, kCurrentIndexOffset));
-  __ Ldr(scratch, MemOperand(fp, kParamCountOffset));
-  __ Add(current_index, current_index, 1);
-  __ cmp(current_index, scratch);
-  __ B(&loop_through_params, lt);
-  __ Str(current_index, MemOperand(fp, kCurrentIndexOffset));
-  __ jmp(&prepare_for_wasm_call);
-
-  // -------------------------------------------
-  // Param conversion builtins.
-  // -------------------------------------------
-  __ bind(&convert_param);
-  // The order of pushes is important. We want the heap objects, that should be
-  // scanned by GC, to be on the top of the stack.
-  // We have to set the indicating value for the GC to the number of values on
-  // the top of the stack that have to be scanned before calling the builtin
-  // function.
-  // We don't need the JS context for these builtin calls.
-  // The builtin expects the parameter to be in register param = rax.
-
-  PrepareForJsToWasmConversionBuiltinCall(masm, current_param_slot,
-                                          valuetypes_array_ptr, wasm_instance,
-                                          function_data);
-
-  Label param_kWasmI32_not_smi, param_kWasmI64, param_kWasmF32, param_kWasmF64,
-      throw_type_error;
-
-  __ Cmp(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
-  __ B(&param_kWasmI32_not_smi, eq);
-  __ Cmp(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
-  __ B(&param_kWasmI64, eq);
-  __ Cmp(valuetype, Immediate(wasm::kWasmF32.raw_bit_field()));
-  __ B(&param_kWasmF32, eq);
-  __ Cmp(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
-  __ B(&param_kWasmF64, eq);
-
-  __ Cmp(valuetype, Immediate(wasm::kWasmS128.raw_bit_field()));
-  // Simd arguments cannot be passed from JavaScript.
-  __ B(&throw_type_error, eq);
-
-  // Invalid type.
-  __ DebugBreak();
-
-  __ bind(&param_kWasmI32_not_smi);
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
-          RelocInfo::CODE_TARGET);
-  // Param is the result of the builtin.
-  RestoreAfterJsToWasmConversionBuiltinCall(masm, function_data, wasm_instance,
-                                            valuetypes_array_ptr,
-                                            current_param_slot);
-  __ Str(param.W(), MemOperand(current_param_slot, 0));
-  __ Add(current_param_slot, current_param_slot, Immediate(sizeof(int32_t)));
-  __ jmp(&param_conversion_done);
-
-  __ bind(&param_kWasmI64);
-  __ Call(BUILTIN_CODE(masm->isolate(), BigIntToI64), RelocInfo::CODE_TARGET);
-  RestoreAfterJsToWasmConversionBuiltinCall(masm, function_data, wasm_instance,
-                                            valuetypes_array_ptr,
-                                            current_param_slot);
-  __ Str(param, MemOperand(current_param_slot, 0));
-  __ Add(current_param_slot, current_param_slot, Immediate(sizeof(int64_t)));
-  __ jmp(&param_conversion_done);
-
-  __ bind(&param_kWasmF32);
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedToFloat32),
-          RelocInfo::CODE_TARGET);
-  RestoreAfterJsToWasmConversionBuiltinCall(masm, function_data, wasm_instance,
-                                            valuetypes_array_ptr,
-                                            current_param_slot);
-  __ Str(s0, MemOperand(current_param_slot, 0));
-  __ Add(current_param_slot, current_param_slot, Immediate(sizeof(float)));
-  __ jmp(&param_conversion_done);
-
-  __ bind(&param_kWasmF64);
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedToFloat64),
-          RelocInfo::CODE_TARGET);
-  RestoreAfterJsToWasmConversionBuiltinCall(masm, function_data, wasm_instance,
-                                            valuetypes_array_ptr,
-                                            current_param_slot);
-  __ Str(kFPReturnRegister0, MemOperand(current_param_slot, 0));
-  __ Add(current_param_slot, current_param_slot, Immediate(sizeof(double)));
-  __ jmp(&param_conversion_done);
-
-  __ bind(&throw_type_error);
-  // CallRuntime expects kRootRegister (x26) to contain the root.
-  __ CallRuntime(Runtime::kWasmThrowJSTypeError);
-  __ DebugBreak();  // Should not return.
-
-  // -------------------------------------------
-  // Prepare for the Wasm call.
-  // -------------------------------------------
-
-  regs.ResetExcept(function_data, wasm_instance, array_start, scratch);
-
-  __ bind(&prepare_for_wasm_call);
-
-  DEFINE_PINNED(function_index, w15);
+  // Leave the frame space
+  __ Sub(sp, sp, Operand(4 * kSystemPointerSize));
+  __ Ldr(implicitArg,
+         MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  LoadWasmInstanceFromFunctionData(masm, /*function_data=*/implicitArg,
+                                   /*wasm_instance=*/wasm_instance);
   __ Ldr(
-      function_index,
-      MemOperand(function_data, WasmExportedFunctionData::kFunctionIndexOffset -
-                                    kHeapObjectTag));
-  // We pass function_index as Smi.
+      result_array,
+      MemOperand(fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
+  __ Str(implicitArg,
+         MemOperand(fp, WasmInterpreterWrapperConstants::kImplicitArgOffset));
+  __ Str(result_array,
+         MemOperand(fp, WasmInterpreterWrapperConstants::kResultArrayOffset));
 
-  // One tagged object (the wasm_instance) to be visited if there is a GC
-  // during the call.
-  constexpr int kWasmCallGCScanSlotCount = 1;
+  DEFINE_PINNED(params_start, x12);  // array_start
+  __ Ldr(params_start,
+         MemOperand(wrapper_buffer,
+                    WasmInterpreterWrapperConstants::kWrapperBufferParamStart));
+
+  DEFINE_PINNED(function_index, x15);
+  __ Ldr(function_index.W(),
+         MemOperand(wrapper_buffer,
+                    WasmInterpreterWrapperConstants::kWrapperBufferCallTarget));
+  __ SmiTag(function_index);
+  __ AssertSmi(function_index);
+  constexpr int kWasmCallGCScanSlotCount = 0;
+  DEFINE_REG(scratch);
   __ Mov(scratch, kWasmCallGCScanSlotCount);
   __ Str(
       scratch,
-      MemOperand(
-          fp, BuiltinWasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
-
+      MemOperand(fp, WasmInterpreterWrapperConstants::kGCScanSlotCountOffset));
   // -------------------------------------------
   // Call the Wasm function.
   // -------------------------------------------
-
-  // Here array_start == sp.
-  __ Str(wasm_instance, MemOperand(sp));
-  // Skip wasm_instance.
-  __ Ldr(array_start, MemOperand(fp, kArgRetsAddressOffset));
-  // Here array_start == sp + kSystemPointerSize.
+  {
+    DEFINE_SCOPED(result_size);
+    __ Ldr(result_size,
+           MemOperand(wrapper_buffer, JSToWasmWrapperFrameConstants::
+                                          kWrapperBufferStackReturnBufferSize));
+    // The `result_size` is the number of slots needed on the stack to store the
+    // return values of the wasm function. If `result_size` is an odd number, we
+    // have to add `1` to preserve stack pointer alignment.
+    __ Add(result_size, result_size, 1);
+    __ Bic(result_size, result_size, 1);
+    __ Sub(sp, sp, Operand(result_size, LSL, kSystemPointerSizeLog2));
+  }
+  DEFINE_PINNED(result_start, x13);
+  __ Mov(result_start, sp);
+  __ Str(
+      result_start,
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferStart));
+  __ Push(params_start, wrapper_buffer);
   __ Call(BUILTIN_CODE(masm->isolate(), WasmInterpreterEntry),
           RelocInfo::CODE_TARGET);
-  __ Ldr(wasm_instance, MemOperand(sp));
-  __ Ldr(array_start, MemOperand(fp, kArgRetsAddressOffset));
+  __ Pop(wrapper_buffer, params_start);
+  regs.ResetExcept(wasm_instance, wrapper_buffer);
+  // The wrapper_buffer has to be in x2 as the correct parameter register.
+  regs.Reserve(kReturnRegister0, kReturnRegister1, x2);
+  // Reload from the caller's outgoing-arg slot rather than from our own
+  // kImplicitArgOffset spill. The caller (Torque JSToWasmInterpreterWrapper)
+  // keeps `functionData` alive AND updates it across GC, per
+  // WasmJSToWasmWrapperDescriptor's stack-parameter contract. Our own spill
+  // at WasmInterpreterWrapperConstants::kImplicitArgOffset is intentionally
+  // not visited by JsToWasmFrame::Iterate and therefore must not be read
+  // after any safepoint (e.g. the WasmInterpreterEntry call above).
+  __ Ldr(wasm_instance,
+         MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+  LoadWasmInstanceFromFunctionData(masm, /*function_data=*/wasm_instance,
+                                   /*wasm_instance=*/wasm_instance);
 
-  __ Str(xzr, MemOperand(fp, kArgRetsIsArgsOffset));
-
-  regs.ResetExcept(wasm_instance, array_start, scratch);
-
-  // -------------------------------------------
-  // Return handling.
-  // -------------------------------------------
-  DEFINE_PINNED(return_value, kReturnRegister0);  // x0
-  ASSIGN_REG(return_count);
-  __ Ldr(return_count, MemOperand(fp, kReturnCountOffset));
-
-  // All return values are already in the packed array.
-  __ Str(return_count,
-         MemOperand(
-             fp, BuiltinWasmInterpreterWrapperConstants::kCurrentIndexOffset));
-
-  DEFINE_PINNED(fixed_array, x14);
-  __ Mov(fixed_array, xzr);
-  DEFINE_PINNED(jsarray, x15);
-  __ Mov(jsarray, xzr);
-
-  Label all_results_conversion_done, start_return_conversion, return_jsarray;
-
-  __ cmp(return_count, 1);
-  __ B(&start_return_conversion, eq);
-  __ B(&return_jsarray, gt);
-
-  // If no return value, load undefined.
-  __ LoadRoot(return_value, RootIndex::kUndefinedValue);
-  __ jmp(&all_results_conversion_done);
-
-  // If we have more than one return value, we need to return a JSArray.
-  __ bind(&return_jsarray);
-  PrepareForBuiltinCall(masm, array_start, return_count, wasm_instance);
-  __ Mov(return_value, return_count);
-  __ SmiTag(return_value);
-
-  // Create JSArray to hold results.
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmAllocateJSArray),
-          RelocInfo::CODE_TARGET);
-  __ Mov(jsarray, return_value);
-
-  RestoreAfterBuiltinCall(masm, wasm_instance, return_count, array_start);
-  __ LoadTaggedField(fixed_array, MemOperand(jsarray, JSArray::kElementsOffset -
-                                                          kHeapObjectTag));
-
-  __ bind(&start_return_conversion);
-  Register current_return_slot = array_start;
-  __ Ldr(current_return_slot, MemOperand(fp, kArgRetsAddressOffset));
-
-  DEFINE_PINNED(result_index, x13);
-  __ Mov(result_index, xzr);
-
-  ASSIGN_REG(valuetypes_array_ptr);
-  __ Ldr(valuetypes_array_ptr, MemOperand(fp, kValueTypesArrayStartOffset));
-
-  // -------------------------------------------
-  // Return conversions.
-  // -------------------------------------------
-  Label convert_return_value;
-  __ bind(&convert_return_value);
-  // We have to make sure that the kGCScanSlotCount is set correctly when we
-  // call the builtins for conversion. For these builtins it's the same as for
-  // the Wasm call, that is, kGCScanSlotCount = 0, so we don't have to reset it.
-  // We don't need the JS context for these builtin calls.
-
-  // The first valuetype of the array is the return's valuetype.
-  ASSIGN_REG_W(valuetype);
-  __ Ldr(valuetype, MemOperand(valuetypes_array_ptr, 0));
-
-  Label return_kWasmI32, return_kWasmI64, return_kWasmF32, return_kWasmF64,
-      return_kWasmRef;
-
-  __ Cmp(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
-  __ B(&return_kWasmI32, eq);
-  __ Cmp(valuetype, Immediate(wasm::kWasmI64.raw_bit_field()));
-  __ B(&return_kWasmI64, eq);
-  __ Cmp(valuetype, Immediate(wasm::kWasmF32.raw_bit_field()));
-  __ B(&return_kWasmF32, eq);
-  __ Cmp(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
-  __ B(&return_kWasmF64, eq);
-
-  {
-    __ Tst(valuetype, Immediate(1));
-    __ B(&return_kWasmRef, ne);
-
-    // Invalid type. Wasm cannot return Simd results to JavaScript.
-    __ DebugBreak();
-  }
-
-  Label return_value_done;
-
-  Label to_heapnumber;
-  {
-    __ bind(&return_kWasmI32);
-    __ Ldr(return_value, MemOperand(current_return_slot, 0));
-    __ Add(current_return_slot, current_return_slot,
-           Immediate(sizeof(int32_t)));
-    // If pointer compression is disabled, we can convert the return to a smi.
-    if (SmiValuesAre32Bits()) {
-      __ SmiTag(return_value);
-    } else {
-      // Double the return value to test if it can be a Smi.
-      __ Adds(wzr, return_value.W(), return_value.W());
-      // If there was overflow, convert the return value to a HeapNumber.
-      __ B(&to_heapnumber, vs);
-      // If there was no overflow, we can convert to Smi.
-      __ SmiTag(return_value);
-    }
-  }
-  __ jmp(&return_value_done);
-
-  // Handle the conversion of the I32 return value to HeapNumber when it cannot
-  // be a smi.
-  __ bind(&to_heapnumber);
-
-  PrepareForWasmToJsConversionBuiltinCall(
-      masm, return_count, result_index, current_return_slot,
-      valuetypes_array_ptr, wasm_instance, fixed_array, jsarray);
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmInt32ToHeapNumber),
-          RelocInfo::CODE_TARGET);
-  RestoreAfterWasmToJsConversionBuiltinCall(
-      masm, jsarray, fixed_array, wasm_instance, valuetypes_array_ptr,
-      current_return_slot, result_index, return_count);
-  __ jmp(&return_value_done);
-
-  __ bind(&return_kWasmI64);
-  __ Ldr(return_value, MemOperand(current_return_slot, 0));
-  __ Add(current_return_slot, current_return_slot, Immediate(sizeof(int64_t)));
-  PrepareForWasmToJsConversionBuiltinCall(
-      masm, return_count, result_index, current_return_slot,
-      valuetypes_array_ptr, wasm_instance, fixed_array, jsarray);
-  __ Call(BUILTIN_CODE(masm->isolate(), I64ToBigInt), RelocInfo::CODE_TARGET);
-  RestoreAfterWasmToJsConversionBuiltinCall(
-      masm, jsarray, fixed_array, wasm_instance, valuetypes_array_ptr,
-      current_return_slot, result_index, return_count);
-  __ jmp(&return_value_done);
-
-  __ bind(&return_kWasmF32);
-  __ Ldr(s0, MemOperand(current_return_slot, 0));
-  __ Add(current_return_slot, current_return_slot, Immediate(sizeof(float)));
-  PrepareForWasmToJsConversionBuiltinCall(
-      masm, return_count, result_index, current_return_slot,
-      valuetypes_array_ptr, wasm_instance, fixed_array, jsarray);
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat32ToNumber),
-          RelocInfo::CODE_TARGET);
-  RestoreAfterWasmToJsConversionBuiltinCall(
-      masm, jsarray, fixed_array, wasm_instance, valuetypes_array_ptr,
-      current_return_slot, result_index, return_count);
-  __ jmp(&return_value_done);
-
-  __ bind(&return_kWasmF64);
-  __ Ldr(d0, MemOperand(current_return_slot, 0));
-  __ Add(current_return_slot, current_return_slot, Immediate(sizeof(double)));
-  PrepareForWasmToJsConversionBuiltinCall(
-      masm, return_count, result_index, current_return_slot,
-      valuetypes_array_ptr, wasm_instance, fixed_array, jsarray);
-  __ Call(BUILTIN_CODE(masm->isolate(), WasmFloat64ToNumber),
-          RelocInfo::CODE_TARGET);
-  RestoreAfterWasmToJsConversionBuiltinCall(
-      masm, jsarray, fixed_array, wasm_instance, valuetypes_array_ptr,
-      current_return_slot, result_index, return_count);
-  __ jmp(&return_value_done);
-
-  __ bind(&return_kWasmRef);
-  // Make sure slot for ref args are 64-bit aligned.
-  __ And(scratch, current_return_slot, Immediate(0x04));
-  __ Add(current_return_slot, current_return_slot, scratch);
-  __ Ldr(return_value, MemOperand(current_return_slot, 0));
-  __ Add(current_return_slot, current_return_slot,
-         Immediate(kSystemPointerSize));
-
-  Label next_return_value;
-
-  __ bind(&return_value_done);
-  __ Add(valuetypes_array_ptr, valuetypes_array_ptr, Immediate(kValueTypeSize));
-  __ cmp(fixed_array, xzr);
-  __ B(&next_return_value, eq);
-
-  // Store result into JSArray.
-  DEFINE_REG(array_items);
-  __ Add(array_items, fixed_array,
-         OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-  __ StoreTaggedField(return_value, MemOperand(array_items, result_index, LSL,
-                                               kTaggedSizeLog2));
-
-  Label skip_write_barrier;
-  // See the arm64 version of LiftoffAssembler::StoreTaggedPointer.
-  __ CheckPageFlag(array_items,
-                   MemoryChunk::kPointersFromHereAreInterestingMask, kZero,
-                   &skip_write_barrier);
-  __ JumpIfSmi(return_value, &skip_write_barrier);
-  __ CheckPageFlag(return_value, MemoryChunk::kPointersToHereAreInterestingMask,
-                   eq, &skip_write_barrier);
-  PrepareForWasmToJsConversionBuiltinCall(
-      masm, return_count, result_index, current_return_slot,
-      valuetypes_array_ptr, wasm_instance, fixed_array, jsarray, false);
-  Register offset = return_count;
-  __ Mov(offset, Immediate(OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag));
-  __ Add(offset, offset, Operand(result_index, LSL, kTaggedSizeLog2));
-  __ CallRecordWriteStubSaveRegisters(fixed_array, Operand(offset),
-                                      SaveFPRegsMode::kSave);
-  RestoreAfterWasmToJsConversionBuiltinCall(
-      masm, jsarray, fixed_array, wasm_instance, valuetypes_array_ptr,
-      current_return_slot, result_index, return_count);
-  __ bind(&skip_write_barrier);
-
-  __ bind(&next_return_value);
-  __ Add(result_index, result_index, 1);
-  __ cmp(result_index, return_count);
-  __ B(&convert_return_value, lt);
-
-  __ bind(&all_results_conversion_done);
-  ASSIGN_REG(param_count);
-  __ Ldr(param_count, MemOperand(fp, kParamCountOffset));  // ???
-
-  Label do_return;
-  __ cmp(fixed_array, xzr);
-  __ B(&do_return, eq);
-  // The result is jsarray.
-  __ Mov(return_value, jsarray);
-
-  __ bind(&do_return);
-  // Calculate the number of parameters we have to pop off the stack. This
-  // number is max(in_param_count, param_count).
-  DEFINE_REG(in_param_count);
-  __ Ldr(in_param_count, MemOperand(fp, kInParamCountOffset));
-  __ cmp(param_count, in_param_count);
-  __ csel(param_count, in_param_count, param_count, lt);
-
-  // -------------------------------------------
-  // Deconstruct the stack frame.
-  // -------------------------------------------
+  __ Ldr(x0, MemOperand(
+                 fp, JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
+  __ Mov(x1, wrapper_buffer);
+  // x0: result_array
+  // x1: wrapper_buffer
+  __ CallBuiltin(Builtin::kJSToWasmInterpreterHandleReturns);
   __ LeaveFrame(StackFrame::JS_TO_WASM);
-
-  // We have to remove the caller frame slots:
-  //  - JS arguments
-  //  - the receiver
-  // and transfer the control to the return address (the return address is
-  // expected to be on the top of the stack).
-  // Add 1 to include the receiver in the cleanup count.
-  // We cannot use just the ret instruction for this, because we cannot pass the
-  // number of slots to remove in a Register as an argument.
-  __ Add(param_count, param_count, Immediate(1));
-  __ DropArguments(param_count);
-  __ Ret(lr);
+  // incoming argument count matches both cases:
+  //  instance and result array
+  constexpr int64_t stack_arguments_in = 2;
+  __ DropArguments(stack_arguments_in);
+  __ Ret();
 }
 
 void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
@@ -1181,9 +551,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   DEFINE_REG(shared_function_info);
   __ LoadTaggedField(
       shared_function_info,
-      MemOperand(
-          target_js_function,
-          wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()));
+      MemOperand(target_js_function,
+                 JSFunction::kSharedFunctionInfoOffset - kHeapObjectTag));
 
   // Set the context of the function; the call has to run in the function
   // context.
@@ -1797,6 +1166,1524 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Mov(x0, Immediate(WasmToJSInterpreterFrameConstants::kSuccess));
   __ Ret(lr);
 }
+
+#if !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+
+////////////////////////////////////////////////////////////////////////////////
+// Interpreter Load/Store Builtins for ARM64
+//
+// These builtins implement memory load/store insrtruction handlers, using guard
+// pages and trap handlers for out-of-bounds detection instead of explicit
+// bounds checks.
+//
+// Register conventions (matching the __vectorcall-like C++ handlers):
+//   x0 (code):         Bytecode pointer
+//   x1 (sp):           Interpreter stack pointer (not to be confused with SP)
+//   x2 (wasm_runtime): WasmInterpreterRuntime*
+//   x3 (r0):           Integer register
+//   d0 (fp0):          Floating-point register
+
+namespace {
+
+enum IntMemoryType {
+  kInt64,
+  kIntS32,
+  kIntU32,
+  kIntS16,
+  kIntU16,
+  kIntS8,
+  kIntU8
+};
+
+enum IntValueType { kValueInt32, kValueInt64 };
+
+enum FloatType { kFloat32, kFloat64 };
+
+// Slot size in bytes (must match kSlotSize in wasm-interpreter.h)
+constexpr int kSlotSizeLog2 = 2;  // 4 bytes
+
+// Helper to load from a slot with proper byte offset calculation.
+// slot_offset is in units of kSlotSize (4 bytes).
+// Uses scratch register to compute byte offset for non-32-bit accesses.
+void LoadFromSlot(MacroAssembler* masm, Register sp_reg, Register slot_offset,
+                  Register result, IntMemoryType memory_type) {
+  // For 32-bit loads, we can use LSL, 2 directly since it matches the data
+  // size; For other sizes, we need to compute the byte offset.
+  switch (memory_type) {
+    case kInt64: {
+      UseScratchRegisterScope temps(masm);
+      Register byte_offset = temps.AcquireX();
+      __ Lsl(byte_offset, slot_offset, kSlotSizeLog2);
+      __ Ldr(result, MemOperand(sp_reg, byte_offset));
+      break;
+    }
+    case kIntS32:
+      __ Ldr(result.W(), MemOperand(sp_reg, slot_offset, LSL, 2));
+      break;
+    case kIntS16: {
+      UseScratchRegisterScope temps(masm);
+      Register byte_offset = temps.AcquireX();
+      __ Lsl(byte_offset, slot_offset, kSlotSizeLog2);
+      __ Ldrh(result.W(), MemOperand(sp_reg, byte_offset));
+      break;
+    }
+    case kIntS8: {
+      UseScratchRegisterScope temps(masm);
+      Register byte_offset = temps.AcquireX();
+      __ Lsl(byte_offset, slot_offset, kSlotSizeLog2);
+      __ Ldrb(result.W(), MemOperand(sp_reg, byte_offset));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+// Helper to load float from a slot
+void LoadFloatFromSlot(MacroAssembler* masm, Register sp_reg,
+                       Register slot_offset, VRegister result,
+                       FloatType float_type) {
+  switch (float_type) {
+    case kFloat32:
+      // 32-bit load with LSL, 2 is OK
+      __ Ldr(result.S(), MemOperand(sp_reg, slot_offset, LSL, 2));
+      break;
+    case kFloat64: {
+      // 64-bit load needs byte offset
+      UseScratchRegisterScope temps(masm);
+      Register byte_offset = temps.AcquireX();
+      __ Lsl(byte_offset, slot_offset, kSlotSizeLog2);
+      __ Ldr(result.D(), MemOperand(sp_reg, byte_offset));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+// Emit a load instruction from memory. This is the potential trap point.
+void EmitLoadInstruction(MacroAssembler* masm, Register result,
+                         Register memory_start, Register memory_index,
+                         IntValueType value_type, IntMemoryType memory_type) {
+  MemOperand src(memory_start, memory_index);
+  switch (memory_type) {
+    case kInt64:
+      switch (value_type) {
+        case kValueInt64:
+          __ Ldr(result, src);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
+    case kIntS32:
+      if (value_type == kValueInt64) {
+        __ Ldrsw(result, src);
+      } else {
+        __ Ldr(result.W(), src);
+      }
+      break;
+    case kIntU32:
+      switch (value_type) {
+        case kValueInt64:
+          __ Ldr(result.W(), src);  // Zero-extends to 64-bit
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
+    case kIntS16:
+      if (value_type == kValueInt64) {
+        __ Ldrsh(result, src);
+      } else {
+        __ Ldrsh(result.W(), src);
+      }
+      break;
+    case kIntU16:
+      if (value_type == kValueInt64) {
+        __ Ldrh(result.W(), src);  // Zero-extends to 64-bit
+      } else {
+        __ Ldrh(result.W(), src);  // Zero-extends
+      }
+      break;
+    case kIntS8:
+      if (value_type == kValueInt64) {
+        __ Ldrsb(result, src);
+      } else {
+        __ Ldrsb(result.W(), src);
+      }
+      break;
+    case kIntU8:
+      if (value_type == kValueInt64) {
+        __ Ldrb(result.W(), src);  // Zero-extends to 64-bit
+      } else {
+        __ Ldrb(result.W(), src);  // Zero-extends
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void EmitLoadInstruction(MacroAssembler* masm, Register memory_start,
+                         Register memory_offset, VRegister result,
+                         FloatType float_type) {
+  MemOperand src(memory_start, memory_offset);
+  switch (float_type) {
+    case kFloat32:
+      __ Ldr(result.S(), src);
+      __ Fcvt(result.D(), result.S());  // Convert to double (fp0 is always d0)
+      break;
+    case kFloat64:
+      __ Ldr(result.D(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void EmitLoadInstruction(MacroAssembler* masm, Register memory_start,
+                         Register memory_offset, Register sp_reg,
+                         Register slot_offset, FloatType float_type) {
+  MemOperand src(memory_start, memory_offset);
+  // slot_offset is in units of 4 bytes - compute byte offset
+  UseScratchRegisterScope temps(masm);
+  Register byte_offset = temps.AcquireX();
+  __ Lsl(byte_offset, slot_offset, 2);  // Convert to byte offset
+  switch (float_type) {
+    case kFloat32: {
+      VRegister temp = temps.AcquireD();
+      __ Ldr(temp.S(), src);
+      __ Str(temp.S(), MemOperand(sp_reg, byte_offset));
+      break;
+    }
+    case kFloat64: {
+      VRegister temp = temps.AcquireD();
+      __ Ldr(temp.D(), src);
+      __ Str(temp.D(), MemOperand(sp_reg, byte_offset));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+void WriteToSlot(MacroAssembler* masm, Register sp_reg, Register slot_offset,
+                 Register value, IntValueType value_type) {
+  // slot_offset is in units of 4 bytes (kSlotSize)
+  // Compute byte offset first, then use unscaled register offset
+  UseScratchRegisterScope temps(masm);
+  Register byte_offset = temps.AcquireX();
+  __ Lsl(byte_offset, slot_offset, 2);  // Convert to byte offset
+  switch (value_type) {
+    case kValueInt64:
+      __ Str(value, MemOperand(sp_reg, byte_offset));
+      break;
+    case kValueInt32:
+      __ Str(value.W(), MemOperand(sp_reg, byte_offset));
+      break;
+  }
+}
+
+void EmitStoreInstruction(MacroAssembler* masm, Register value,
+                          Register memory_start, Register memory_index,
+                          IntMemoryType memory_type) {
+  MemOperand dst(memory_start, memory_index);
+  switch (memory_type) {
+    case kInt64:
+      __ Str(value, dst);
+      break;
+    case kIntS32:
+      __ Str(value.W(), dst);
+      break;
+    case kIntS16:
+      __ Strh(value.W(), dst);
+      break;
+    case kIntS8:
+      __ Strb(value.W(), dst);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void EmitStoreInstruction(MacroAssembler* masm, VRegister value,
+                          Register memory_start, Register memory_index,
+                          FloatType float_type) {
+  MemOperand dst(memory_start, memory_index);
+  switch (float_type) {
+    case kFloat32:
+      __ Str(value.S(), dst);
+      break;
+    case kFloat64:
+      __ Str(value.D(), dst);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+// Load the next instruction handler ID from bytecode
+void EmitLoadNextInstructionId(MacroAssembler* masm, Register next_handler_id,
+                               Register code, uint32_t code_offset) {
+  // Handler ID is stored as uint16_t
+  __ Ldrh(next_handler_id.W(), MemOperand(code, code_offset));
+  // Mask for security (same as x64)
+  __ And(next_handler_id, next_handler_id,
+         Immediate(wasm::kInstructionTableMask));
+}
+
+template <bool Compressed>
+class WasmInterpreterHandlerCodeEmitter {
+ public:
+  static void EmitLoadSlotOffset(MacroAssembler* masm, Register slot_offset,
+                                 const MemOperand& operand);
+  static void EmitLoadMemoryOffset(MacroAssembler* masm, Register memory_offset,
+                                   const MemOperand& operand);
+};
+
+template <>
+void WasmInterpreterHandlerCodeEmitter<true>::EmitLoadSlotOffset(
+    MacroAssembler* masm, Register slot_offset, const MemOperand& operand) {
+  __ Ldrh(slot_offset.W(), operand);
+}
+
+template <>
+void WasmInterpreterHandlerCodeEmitter<true>::EmitLoadMemoryOffset(
+    MacroAssembler* masm, Register memory_offset, const MemOperand& operand) {
+  __ Ldr(memory_offset.W(), operand);
+}
+
+template <>
+void WasmInterpreterHandlerCodeEmitter<false>::EmitLoadSlotOffset(
+    MacroAssembler* masm, Register slot_offset, const MemOperand& operand) {
+  __ Ldr(slot_offset.W(), operand);
+}
+
+template <>
+void WasmInterpreterHandlerCodeEmitter<false>::EmitLoadMemoryOffset(
+    MacroAssembler* masm, Register memory_offset, const MemOperand& operand) {
+  __ Ldr(memory_offset, operand);
+}
+
+template <bool Compressed>
+class WasmInterpreterHandlerBuiltins {
+  using slot_offset_t = wasm::handler_traits<Compressed>::slot_offset_t;
+  using memory_offset32_t = wasm::handler_traits<Compressed>::memory_offset32_t;
+  using handler_id_t = wasm::handler_traits<Compressed>::handler_id_t;
+  using emitter = WasmInterpreterHandlerCodeEmitter<Compressed>;
+
+ public:
+  static void Generate_r2r_ILoadMem(MacroAssembler* masm,
+                                    IntValueType value_type,
+                                    IntMemoryType memory_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kNextHandlerId =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register wasm_runtime = x2;
+    Register memory_index = x3;  // r0 contains index, will contain result.
+
+    // Zero-extend the 32-bit index to 64-bit.
+    __ Mov(memory_index, Operand(memory_index.W(), UXTW));
+
+    Register memory_start = x4;
+    Register memory_start_plus_index = memory_index;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_index, memory_start, memory_index);
+
+    // Load memory offset from bytecode
+    Register memory_offset = x5;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    // Result goes back to x3 (r0)
+    Register result = x3;
+    EmitLoadInstruction(masm, result, memory_start_plus_index, memory_offset,
+                        value_type, memory_type);
+
+    // Load next handler ID
+    Register next_handler_id = x6;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+
+    // Advance bytecode pointer
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    // Load instruction table
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    // Load and jump to next handler
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2r_FLoadMem(MacroAssembler* masm,
+                                    FloatType float_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kNextHandlerId =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register wasm_runtime = x2;
+    Register memory_index = x3;  // r0 contains index
+
+    // Zero-extend the 32-bit index to 64-bit
+    __ Mov(memory_index, Operand(memory_index.W(), UXTW));
+
+    // Compute address
+    Register memory_start = x4;
+    Register memory_start_plus_index = memory_index;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_index, memory_start, memory_index);
+
+    Register memory_offset = x5;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    // Load to d0 (fp0)
+    EmitLoadInstruction(masm, memory_start_plus_index, memory_offset, d0,
+                        float_type);
+
+    Register next_handler_id = x6;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2s_ILoadMem(MacroAssembler* masm,
+                                    IntValueType value_type,
+                                    IntMemoryType memory_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kSlotOffset = kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId = kSlotOffset + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+    Register memory_index = x3;
+
+    // Zero-extend the 32-bit index to 64-bit
+    __ Mov(memory_index, Operand(memory_index.W(), UXTW));
+
+    Register memory_start = x4;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    Register memory_start_plus_index = memory_index;
+    __ Add(memory_start_plus_index, memory_start, memory_index);
+
+    Register memory_offset = x5;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register value = x6;
+    EmitLoadInstruction(masm, value, memory_start_plus_index, memory_offset,
+                        value_type, memory_type);
+
+    Register slot_offset = x7;
+    emitter::EmitLoadSlotOffset(masm, slot_offset,
+                                MemOperand(code, kSlotOffset));
+
+    WriteToSlot(masm, sp_reg, slot_offset, value, value_type);
+
+    Register next_handler_id = x8;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2s_FLoadMem(MacroAssembler* masm,
+                                    FloatType float_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kSlotOffset = kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId = kSlotOffset + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+    Register memory_index = x3;
+
+    // Zero-extend the 32-bit index to 64-bit
+    __ Mov(memory_index, Operand(memory_index.W(), UXTW));
+
+    Register memory_start = x4;
+    Register memory_start_plus_index = memory_index;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_index, memory_start, memory_index);
+
+    Register memory_offset = x5;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register slot_offset = x7;
+    emitter::EmitLoadSlotOffset(masm, slot_offset,
+                                MemOperand(code, kSlotOffset));
+
+    EmitLoadInstruction(masm, memory_start_plus_index, memory_offset, sp_reg,
+                        slot_offset, float_type);
+
+    Register next_handler_id = x8;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2r_ILoadMem(MacroAssembler* masm,
+                                    IntValueType value_type,
+                                    IntMemoryType memory_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kMemoryIndexSlot =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId =
+        kMemoryIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kMemoryIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    // Load memory index from stack slot
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    // Result goes to x3 (r0)
+    Register result = x3;
+    EmitLoadInstruction(masm, result, memory_start_plus_offset, memory_index,
+                        value_type, memory_type);
+
+    Register next_handler_id = x8;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2r_FLoadMem(MacroAssembler* masm,
+                                    FloatType float_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kMemoryIndexSlot =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId =
+        kMemoryIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kMemoryIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    // Load to d0 (fp0)
+    EmitLoadInstruction(masm, memory_start_plus_offset, memory_index, d0,
+                        float_type);
+
+    Register next_handler_id = x8;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_ILoadMem(MacroAssembler* masm,
+                                    IntValueType value_type,
+                                    IntMemoryType memory_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kIndexSlot = kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kResultSlot = kIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kNextHandlerId = kResultSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    Register result_slot_offset = x8;
+    emitter::EmitLoadSlotOffset(masm, result_slot_offset,
+                                MemOperand(code, kResultSlot));
+
+    Register value = x9;
+    EmitLoadInstruction(masm, value, memory_start_plus_offset, memory_index,
+                        value_type, memory_type);
+
+    WriteToSlot(masm, sp_reg, result_slot_offset, value, value_type);
+
+    Register next_handler_id = x10;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_FLoadMem(MacroAssembler* masm,
+                                    FloatType float_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kIndexSlot = kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kResultSlot = kIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kNextHandlerId = kResultSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    Register result_slot_offset = x8;
+    emitter::EmitLoadSlotOffset(masm, result_slot_offset,
+                                MemOperand(code, kResultSlot));
+
+    EmitLoadInstruction(masm, memory_start_plus_offset, memory_index, sp_reg,
+                        result_slot_offset, float_type);
+
+    Register next_handler_id = x10;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_ILoadMem_LocalSet(MacroAssembler* masm,
+                                             IntValueType value_type,
+                                             IntMemoryType memory_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kIndexSlot = kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kSetSlot = kIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kNextHandlerId = kSetSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    Register set_slot_offset = x8;
+    emitter::EmitLoadSlotOffset(masm, set_slot_offset,
+                                MemOperand(code, kSetSlot));
+
+    Register value = x9;
+    EmitLoadInstruction(masm, value, memory_start_plus_offset, memory_index,
+                        value_type, memory_type);
+
+    WriteToSlot(masm, sp_reg, set_slot_offset, value, value_type);
+
+    Register next_handler_id = x10;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_FLoadMem_LocalSet(MacroAssembler* masm,
+                                             FloatType float_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kIndexSlot = kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kSetSlot = kIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kNextHandlerId = kSetSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    Register set_slot_offset = x8;
+    emitter::EmitLoadSlotOffset(masm, set_slot_offset,
+                                MemOperand(code, kSetSlot));
+
+    EmitLoadInstruction(masm, memory_start_plus_offset, memory_index, sp_reg,
+                        set_slot_offset, float_type);
+
+    Register next_handler_id = x10;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2s_IStoreMem(MacroAssembler* masm,
+                                     IntValueType /*value_type*/,
+                                     IntMemoryType memory_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kMemoryIndexSlot =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId =
+        kMemoryIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+    Register value = x3;  // r0 contains the value to store
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kMemoryIndexSlot));
+
+    Register memory_start_plus_offset = memory_offset;
+    Register memory_start = x6;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
+                         memory_type);
+
+    Register next_handler_id = x8;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2s_FStoreMem(MacroAssembler* masm,
+                                     FloatType float_type) {
+    constexpr uint32_t kMemoryOffset = 0;
+    constexpr uint32_t kMemoryIndexSlot =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId =
+        kMemoryIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    // d0 (fp0) contains the value to store
+    VRegister value = d0;
+    if (float_type == kFloat32) {
+      __ Fcvt(value.S(), value.D());  // Convert double to float
+    }
+
+    Register memory_offset = x4;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x5;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kMemoryIndexSlot));
+
+    Register memory_start = x6;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x7;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
+                         float_type);
+
+    Register next_handler_id = x8;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_IStoreMem(MacroAssembler* masm,
+                                     IntValueType /*value_type*/,
+                                     IntMemoryType memory_type) {
+    constexpr uint32_t kValueSlot = 0;
+    constexpr uint32_t kMemoryOffset = kValueSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kMemoryIndexSlot =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId =
+        kMemoryIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register value_slot_offset = x4;
+    emitter::EmitLoadSlotOffset(masm, value_slot_offset,
+                                MemOperand(code, kValueSlot));
+
+    // Load value from stack based on memory type
+    Register value = x5;
+    LoadFromSlot(masm, sp_reg, value_slot_offset, value, memory_type);
+
+    Register memory_offset = x6;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x7;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kMemoryIndexSlot));
+
+    Register memory_start = x8;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x9;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
+                         memory_type);
+
+    Register next_handler_id = x10;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_FStoreMem(MacroAssembler* masm,
+                                     FloatType float_type) {
+    constexpr uint32_t kValueSlot = 0;
+    constexpr uint32_t kMemoryOffset = kValueSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kMemoryIndexSlot =
+        kMemoryOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId =
+        kMemoryIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register value_slot_offset = x4;
+    emitter::EmitLoadSlotOffset(masm, value_slot_offset,
+                                MemOperand(code, kValueSlot));
+
+    VRegister value = d1;
+    LoadFloatFromSlot(masm, sp_reg, value_slot_offset, value, float_type);
+
+    Register memory_offset = x5;
+    emitter::EmitLoadMemoryOffset(masm, memory_offset,
+                                  MemOperand(code, kMemoryOffset));
+
+    Register memory_index_slot_offset = x6;
+    emitter::EmitLoadSlotOffset(masm, memory_index_slot_offset,
+                                MemOperand(code, kMemoryIndexSlot));
+
+    Register memory_start = x7;
+    Register memory_start_plus_offset = memory_offset;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+    __ Add(memory_start_plus_offset, memory_start, memory_offset);
+
+    Register memory_index = x8;
+    __ Ldr(memory_index.W(),
+           MemOperand(sp_reg, memory_index_slot_offset, LSL, 2));
+
+    EmitStoreInstruction(masm, value, memory_start_plus_offset, memory_index,
+                         float_type);
+
+    Register next_handler_id = x10;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2s_ILoadStoreMem(MacroAssembler* masm,
+                                         IntValueType value_type,
+                                         IntMemoryType memory_type) {
+    constexpr uint32_t kLoadOffset = 0;
+    constexpr uint32_t kStoreOffset = kLoadOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kStoreIndexSlot =
+        kStoreOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId = kStoreIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+    Register load_index = x3;  // r0 contains load index
+
+    // Zero-extend the 32-bit index to 64-bit
+    __ Mov(load_index, Operand(load_index.W(), UXTW));
+
+    // Load memory_start
+    Register memory_start = x4;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+
+    Register memory_start_plus_load_index = x5;
+    __ Add(memory_start_plus_load_index, memory_start, load_index);
+
+    Register load_offset = x6;
+    emitter::EmitLoadMemoryOffset(masm, load_offset,
+                                  MemOperand(code, kLoadOffset));
+
+    Register value = x7;
+    EmitLoadInstruction(masm, value, memory_start_plus_load_index, load_offset,
+                        value_type, memory_type);
+
+    Register store_index_slot_offset = x8;
+    emitter::EmitLoadSlotOffset(masm, store_index_slot_offset,
+                                MemOperand(code, kStoreIndexSlot));
+
+    Register store_index = x9;
+    __ Ldr(store_index.W(),
+           MemOperand(sp_reg, store_index_slot_offset, LSL, 2));
+
+    Register store_offset = x10;
+    emitter::EmitLoadMemoryOffset(masm, store_offset,
+                                  MemOperand(code, kStoreOffset));
+
+    Register memory_start_plus_store_index = x11;
+    __ Add(memory_start_plus_store_index, memory_start, store_index);
+
+    EmitStoreInstruction(masm, value, memory_start_plus_store_index,
+                         store_offset, memory_type);
+
+    Register next_handler_id = x12;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_r2s_FLoadStoreMem(MacroAssembler* masm,
+                                         FloatType float_type) {
+    constexpr uint32_t kLoadOffset = 0;
+    constexpr uint32_t kStoreOffset = kLoadOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kStoreIndexSlot =
+        kStoreOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId = kStoreIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+    Register load_index = x3;
+
+    // Zero-extend the 32-bit index to 64-bit
+    __ Mov(load_index, Operand(load_index.W(), UXTW));
+
+    Register memory_start = x4;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+
+    Register memory_start_plus_load_index = x5;
+    __ Add(memory_start_plus_load_index, memory_start, load_index);
+
+    Register load_offset = x6;
+    emitter::EmitLoadMemoryOffset(masm, load_offset,
+                                  MemOperand(code, kLoadOffset));
+
+    // Load to d1 (not d0/fp0, as we need to preserve it)
+    VRegister value = d1;
+    MemOperand load_src(memory_start_plus_load_index, load_offset);
+    switch (float_type) {
+      case kFloat32:
+        __ Ldr(value.S(), load_src);
+        break;
+      case kFloat64:
+        __ Ldr(value.D(), load_src);
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    Register store_index_slot_offset = x7;
+    emitter::EmitLoadSlotOffset(masm, store_index_slot_offset,
+                                MemOperand(code, kStoreIndexSlot));
+
+    Register store_index = x8;
+    __ Ldr(store_index.W(),
+           MemOperand(sp_reg, store_index_slot_offset, LSL, 2));
+
+    Register store_offset = x9;
+    emitter::EmitLoadMemoryOffset(masm, store_offset,
+                                  MemOperand(code, kStoreOffset));
+
+    Register memory_start_plus_store_index = x10;
+    __ Add(memory_start_plus_store_index, memory_start, store_index);
+
+    EmitStoreInstruction(masm, value, memory_start_plus_store_index,
+                         store_offset, float_type);
+
+    Register next_handler_id = x11;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_ILoadStoreMem(MacroAssembler* masm,
+                                         IntValueType value_type,
+                                         IntMemoryType memory_type) {
+    constexpr uint32_t kLoadOffset = 0;
+    constexpr uint32_t kLoadIndexSlot = kLoadOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kStoreOffset = kLoadIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kStoreIndexSlot =
+        kStoreOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId = kStoreIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register load_index_slot_offset = x4;
+    emitter::EmitLoadSlotOffset(masm, load_index_slot_offset,
+                                MemOperand(code, kLoadIndexSlot));
+
+    Register load_index = x5;
+    __ Ldr(load_index.W(), MemOperand(sp_reg, load_index_slot_offset, LSL, 2));
+
+    Register memory_start = x6;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+
+    Register memory_start_plus_load_index = x7;
+    __ Add(memory_start_plus_load_index, memory_start, load_index);
+
+    Register load_offset = x8;
+    emitter::EmitLoadMemoryOffset(masm, load_offset,
+                                  MemOperand(code, kLoadOffset));
+
+    Register value = x9;
+    EmitLoadInstruction(masm, value, memory_start_plus_load_index, load_offset,
+                        value_type, memory_type);
+
+    Register store_index_slot_offset = x10;
+    emitter::EmitLoadSlotOffset(masm, store_index_slot_offset,
+                                MemOperand(code, kStoreIndexSlot));
+
+    Register store_index = x11;
+    __ Ldr(store_index.W(),
+           MemOperand(sp_reg, store_index_slot_offset, LSL, 2));
+
+    Register store_offset = x12;
+    emitter::EmitLoadMemoryOffset(masm, store_offset,
+                                  MemOperand(code, kStoreOffset));
+
+    Register memory_start_plus_store_index = x13;
+    __ Add(memory_start_plus_store_index, memory_start, store_index);
+
+    EmitStoreInstruction(masm, value, memory_start_plus_store_index,
+                         store_offset, memory_type);
+
+    Register next_handler_id = x14;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+  static void Generate_s2s_FLoadStoreMem(MacroAssembler* masm,
+                                         FloatType float_type) {
+    constexpr uint32_t kLoadOffset = 0;
+    constexpr uint32_t kLoadIndexSlot = kLoadOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kStoreOffset = kLoadIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kStoreIndexSlot =
+        kStoreOffset + sizeof(memory_offset32_t);
+    constexpr uint32_t kNextHandlerId = kStoreIndexSlot + sizeof(slot_offset_t);
+    constexpr uint32_t kInstructionCodeLength =
+        kNextHandlerId + sizeof(handler_id_t);
+
+    Register code = x0;
+    Register sp_reg = x1;
+    Register wasm_runtime = x2;
+
+    Register load_index_slot_offset = x4;
+    emitter::EmitLoadSlotOffset(masm, load_index_slot_offset,
+                                MemOperand(code, kLoadIndexSlot));
+
+    Register load_index = x5;
+    __ Ldr(load_index.W(), MemOperand(sp_reg, load_index_slot_offset, LSL, 2));
+
+    Register memory_start = x6;
+    __ Ldr(memory_start,
+           MemOperand(wasm_runtime,
+                      wasm::WasmInterpreterRuntime::memory_start_offset()));
+
+    Register memory_start_plus_load_index = x7;
+    __ Add(memory_start_plus_load_index, memory_start, load_index);
+
+    Register load_offset = x8;
+    emitter::EmitLoadMemoryOffset(masm, load_offset,
+                                  MemOperand(code, kLoadOffset));
+
+    VRegister value = d1;
+    MemOperand load_src(memory_start_plus_load_index, load_offset);
+    switch (float_type) {
+      case kFloat32:
+        __ Ldr(value.S(), load_src);
+        break;
+      case kFloat64:
+        __ Ldr(value.D(), load_src);
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    Register store_index_slot_offset = x9;
+    emitter::EmitLoadSlotOffset(masm, store_index_slot_offset,
+                                MemOperand(code, kStoreIndexSlot));
+
+    Register store_index = x10;
+    __ Ldr(store_index.W(),
+           MemOperand(sp_reg, store_index_slot_offset, LSL, 2));
+
+    Register store_offset = x11;
+    emitter::EmitLoadMemoryOffset(masm, store_offset,
+                                  MemOperand(code, kStoreOffset));
+
+    Register memory_start_plus_store_index = x12;
+    __ Add(memory_start_plus_store_index, memory_start, store_index);
+
+    EmitStoreInstruction(masm, value, memory_start_plus_store_index,
+                         store_offset, float_type);
+
+    Register next_handler_id = x13;
+    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
+    __ Add(code, code, Immediate(kInstructionCodeLength));
+
+    Register instr_table = x4;
+    __ Ldr(
+        instr_table,
+        MemOperand(wasm_runtime,
+                   wasm::WasmInterpreterRuntime::instruction_table_offset()));
+
+    Register next_handler_addr = x5;
+    __ Ldr(next_handler_addr, MemOperand(instr_table, next_handler_id, LSL, 3));
+    __ Br(next_handler_addr);
+  }
+
+};  // class WasmInterpreterHandlerBuiltins<Compressed>
+
+}  // namespace
+
+#define FOREACH_INT_LOADSTORE_BUILTIN(V)                                     \
+  V(r2r_I32LoadMem8S, Generate_r2r_ILoadMem, kValueInt32, kIntS8)            \
+  V(r2r_I32LoadMem8U, Generate_r2r_ILoadMem, kValueInt32, kIntU8)            \
+  V(r2r_I32LoadMem16S, Generate_r2r_ILoadMem, kValueInt32, kIntS16)          \
+  V(r2r_I32LoadMem16U, Generate_r2r_ILoadMem, kValueInt32, kIntU16)          \
+  V(r2r_I64LoadMem8S, Generate_r2r_ILoadMem, kValueInt64, kIntS8)            \
+  V(r2r_I64LoadMem8U, Generate_r2r_ILoadMem, kValueInt64, kIntU8)            \
+  V(r2r_I64LoadMem16S, Generate_r2r_ILoadMem, kValueInt64, kIntS16)          \
+  V(r2r_I64LoadMem16U, Generate_r2r_ILoadMem, kValueInt64, kIntU16)          \
+  V(r2r_I64LoadMem32S, Generate_r2r_ILoadMem, kValueInt64, kIntS32)          \
+  V(r2r_I64LoadMem32U, Generate_r2r_ILoadMem, kValueInt64, kIntU32)          \
+  V(r2r_I32LoadMem, Generate_r2r_ILoadMem, kValueInt32, kIntS32)             \
+  V(r2r_I64LoadMem, Generate_r2r_ILoadMem, kValueInt64, kInt64)              \
+                                                                             \
+  V(r2s_I32LoadMem8S, Generate_r2s_ILoadMem, kValueInt32, kIntS8)            \
+  V(r2s_I32LoadMem8U, Generate_r2s_ILoadMem, kValueInt32, kIntU8)            \
+  V(r2s_I32LoadMem16S, Generate_r2s_ILoadMem, kValueInt32, kIntS16)          \
+  V(r2s_I32LoadMem16U, Generate_r2s_ILoadMem, kValueInt32, kIntU16)          \
+  V(r2s_I64LoadMem8S, Generate_r2s_ILoadMem, kValueInt64, kIntS8)            \
+  V(r2s_I64LoadMem8U, Generate_r2s_ILoadMem, kValueInt64, kIntU8)            \
+  V(r2s_I64LoadMem16S, Generate_r2s_ILoadMem, kValueInt64, kIntS16)          \
+  V(r2s_I64LoadMem16U, Generate_r2s_ILoadMem, kValueInt64, kIntU16)          \
+  V(r2s_I64LoadMem32S, Generate_r2s_ILoadMem, kValueInt64, kIntS32)          \
+  V(r2s_I64LoadMem32U, Generate_r2s_ILoadMem, kValueInt64, kIntU32)          \
+  V(r2s_I32LoadMem, Generate_r2s_ILoadMem, kValueInt32, kIntS32)             \
+  V(r2s_I64LoadMem, Generate_r2s_ILoadMem, kValueInt64, kInt64)              \
+                                                                             \
+  V(s2r_I32LoadMem8S, Generate_s2r_ILoadMem, kValueInt32, kIntS8)            \
+  V(s2r_I32LoadMem8U, Generate_s2r_ILoadMem, kValueInt32, kIntU8)            \
+  V(s2r_I32LoadMem16S, Generate_s2r_ILoadMem, kValueInt32, kIntS16)          \
+  V(s2r_I32LoadMem16U, Generate_s2r_ILoadMem, kValueInt32, kIntU16)          \
+  V(s2r_I64LoadMem8S, Generate_s2r_ILoadMem, kValueInt64, kIntS8)            \
+  V(s2r_I64LoadMem8U, Generate_s2r_ILoadMem, kValueInt64, kIntU8)            \
+  V(s2r_I64LoadMem16S, Generate_s2r_ILoadMem, kValueInt64, kIntS16)          \
+  V(s2r_I64LoadMem16U, Generate_s2r_ILoadMem, kValueInt64, kIntU16)          \
+  V(s2r_I64LoadMem32S, Generate_s2r_ILoadMem, kValueInt64, kIntS32)          \
+  V(s2r_I64LoadMem32U, Generate_s2r_ILoadMem, kValueInt64, kIntU32)          \
+  V(s2r_I32LoadMem, Generate_s2r_ILoadMem, kValueInt32, kIntS32)             \
+  V(s2r_I64LoadMem, Generate_s2r_ILoadMem, kValueInt64, kInt64)              \
+                                                                             \
+  V(s2s_I32LoadMem8S, Generate_s2s_ILoadMem, kValueInt32, kIntS8)            \
+  V(s2s_I32LoadMem8U, Generate_s2s_ILoadMem, kValueInt32, kIntU8)            \
+  V(s2s_I32LoadMem16S, Generate_s2s_ILoadMem, kValueInt32, kIntS16)          \
+  V(s2s_I32LoadMem16U, Generate_s2s_ILoadMem, kValueInt32, kIntU16)          \
+  V(s2s_I64LoadMem8S, Generate_s2s_ILoadMem, kValueInt64, kIntS8)            \
+  V(s2s_I64LoadMem8U, Generate_s2s_ILoadMem, kValueInt64, kIntU8)            \
+  V(s2s_I64LoadMem16S, Generate_s2s_ILoadMem, kValueInt64, kIntS16)          \
+  V(s2s_I64LoadMem16U, Generate_s2s_ILoadMem, kValueInt64, kIntU16)          \
+  V(s2s_I64LoadMem32S, Generate_s2s_ILoadMem, kValueInt64, kIntS32)          \
+  V(s2s_I64LoadMem32U, Generate_s2s_ILoadMem, kValueInt64, kIntU32)          \
+  V(s2s_I32LoadMem, Generate_s2s_ILoadMem, kValueInt32, kIntS32)             \
+  V(s2s_I64LoadMem, Generate_s2s_ILoadMem, kValueInt64, kInt64)              \
+                                                                             \
+  V(s2s_I32LoadMem8S_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt32,  \
+    kIntS8)                                                                  \
+  V(s2s_I32LoadMem8U_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt32,  \
+    kIntU8)                                                                  \
+  V(s2s_I32LoadMem16S_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt32, \
+    kIntS16)                                                                 \
+  V(s2s_I32LoadMem16U_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt32, \
+    kIntU16)                                                                 \
+  V(s2s_I64LoadMem8S_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64,  \
+    kIntS8)                                                                  \
+  V(s2s_I64LoadMem8U_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64,  \
+    kIntU8)                                                                  \
+  V(s2s_I64LoadMem16S_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64, \
+    kIntS16)                                                                 \
+  V(s2s_I64LoadMem16U_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64, \
+    kIntU16)                                                                 \
+  V(s2s_I64LoadMem32S_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64, \
+    kIntS32)                                                                 \
+  V(s2s_I64LoadMem32U_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64, \
+    kIntU32)                                                                 \
+  V(s2s_I32LoadMem_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt32,    \
+    kIntS32)                                                                 \
+  V(s2s_I64LoadMem_LocalSet, Generate_s2s_ILoadMem_LocalSet, kValueInt64,    \
+    kInt64)                                                                  \
+                                                                             \
+  V(r2s_I32StoreMem8, Generate_r2s_IStoreMem, kValueInt32, kIntS8)           \
+  V(r2s_I32StoreMem16, Generate_r2s_IStoreMem, kValueInt32, kIntS16)         \
+  V(r2s_I64StoreMem8, Generate_r2s_IStoreMem, kValueInt64, kIntS8)           \
+  V(r2s_I64StoreMem16, Generate_r2s_IStoreMem, kValueInt64, kIntS16)         \
+  V(r2s_I64StoreMem32, Generate_r2s_IStoreMem, kValueInt64, kIntS32)         \
+  V(r2s_I32StoreMem, Generate_r2s_IStoreMem, kValueInt32, kIntS32)           \
+  V(r2s_I64StoreMem, Generate_r2s_IStoreMem, kValueInt64, kInt64)            \
+                                                                             \
+  V(s2s_I32StoreMem8, Generate_s2s_IStoreMem, kValueInt32, kIntS8)           \
+  V(s2s_I32StoreMem16, Generate_s2s_IStoreMem, kValueInt32, kIntS16)         \
+  V(s2s_I64StoreMem8, Generate_s2s_IStoreMem, kValueInt64, kIntS8)           \
+  V(s2s_I64StoreMem16, Generate_s2s_IStoreMem, kValueInt64, kIntS16)         \
+  V(s2s_I64StoreMem32, Generate_s2s_IStoreMem, kValueInt64, kIntS32)         \
+  V(s2s_I32StoreMem, Generate_s2s_IStoreMem, kValueInt32, kIntS32)           \
+  V(s2s_I64StoreMem, Generate_s2s_IStoreMem, kValueInt64, kInt64)            \
+                                                                             \
+  V(r2s_I32LoadStoreMem, Generate_r2s_ILoadStoreMem, kValueInt32, kIntS32)   \
+  V(r2s_I64LoadStoreMem, Generate_r2s_ILoadStoreMem, kValueInt64, kInt64)    \
+                                                                             \
+  V(s2s_I32LoadStoreMem, Generate_s2s_ILoadStoreMem, kValueInt32, kIntS32)   \
+  V(s2s_I64LoadStoreMem, Generate_s2s_ILoadStoreMem, kValueInt64, kInt64)
+
+#define GENERATE_INT_LOADSTORE_BUILTIN(builtin_name, generator, value_type,   \
+                                       memory_type)                           \
+  void Builtins::Generate_##builtin_name##_s(MacroAssembler* masm) {          \
+    return WasmInterpreterHandlerBuiltins<true>::generator(masm, value_type,  \
+                                                           memory_type);      \
+  }                                                                           \
+  void Builtins::Generate_##builtin_name##_l(MacroAssembler* masm) {          \
+    return WasmInterpreterHandlerBuiltins<false>::generator(masm, value_type, \
+                                                            memory_type);     \
+  }
+
+FOREACH_INT_LOADSTORE_BUILTIN(GENERATE_INT_LOADSTORE_BUILTIN)
+#undef FOREACH_INT_LOADSTORE_BUILTIN
+
+#define FOREACH_FLOAT_LOADMEM_BUILTIN(V)                               \
+  V(r2r_F32LoadMem, Generate_r2r_FLoadMem, kFloat32)                   \
+  V(r2r_F64LoadMem, Generate_r2r_FLoadMem, kFloat64)                   \
+  V(r2s_F32LoadMem, Generate_r2s_FLoadMem, kFloat32)                   \
+  V(r2s_F64LoadMem, Generate_r2s_FLoadMem, kFloat64)                   \
+  V(s2r_F32LoadMem, Generate_s2r_FLoadMem, kFloat32)                   \
+  V(s2r_F64LoadMem, Generate_s2r_FLoadMem, kFloat64)                   \
+  V(s2s_F32LoadMem, Generate_s2s_FLoadMem, kFloat32)                   \
+  V(s2s_F64LoadMem, Generate_s2s_FLoadMem, kFloat64)                   \
+  V(s2s_F32LoadMem_LocalSet, Generate_s2s_FLoadMem_LocalSet, kFloat32) \
+  V(s2s_F64LoadMem_LocalSet, Generate_s2s_FLoadMem_LocalSet, kFloat64) \
+  V(r2s_F32StoreMem, Generate_r2s_FStoreMem, kFloat32)                 \
+  V(r2s_F64StoreMem, Generate_r2s_FStoreMem, kFloat64)                 \
+  V(s2s_F32StoreMem, Generate_s2s_FStoreMem, kFloat32)                 \
+  V(s2s_F64StoreMem, Generate_s2s_FStoreMem, kFloat64)                 \
+  V(r2s_F32LoadStoreMem, Generate_r2s_FLoadStoreMem, kFloat32)         \
+  V(r2s_F64LoadStoreMem, Generate_r2s_FLoadStoreMem, kFloat64)         \
+  V(s2s_F32LoadStoreMem, Generate_s2s_FLoadStoreMem, kFloat32)         \
+  V(s2s_F64LoadStoreMem, Generate_s2s_FLoadStoreMem, kFloat64)
+
+#define GENERATE_FLOAT_LOADMEM_BUILTIN(builtin_name, generator, value_type)    \
+  void Builtins::Generate_##builtin_name##_s(MacroAssembler* masm) {           \
+    return WasmInterpreterHandlerBuiltins<true>::generator(masm, value_type);  \
+  }                                                                            \
+  void Builtins::Generate_##builtin_name##_l(MacroAssembler* masm) {           \
+    return WasmInterpreterHandlerBuiltins<false>::generator(masm, value_type); \
+  }
+
+FOREACH_FLOAT_LOADMEM_BUILTIN(GENERATE_FLOAT_LOADMEM_BUILTIN)
+#undef FOREACH_FLOAT_LOADMEM_BUILTIN
+
+#endif  // !V8_DRUMBRAKE_BOUNDS_CHECKS
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

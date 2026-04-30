@@ -281,6 +281,183 @@ TEST_F(WasmSimdTest, Simd256Extract128Lane_ConstantFolding) {
 
 #endif
 
+TEST_F(WasmSimdTest, OptimizationCaseAsymmetricalI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like (i.3 ADD (i.2 ADD (i.1 ADD i.0)))
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(add1, extract3);
+        V<Word32> add3 = __ Word32Add(add2, extract4);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 1u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#endif
+}
+
+TEST_F(WasmSimdTest, OptimizationCaseSymmetricalI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like ((i.3 ADD i.2) ADD (i.1 ADD i.0)))
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(extract3, extract4);
+        V<Word32> add3 = __ Word32Add(add1, add2);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 1u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#endif
+}
+
+TEST_F(WasmSimdTest, FailureCaseDuplicateInputsI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like (i.0 ADD (i.0 ADD (i.0 ADD i.0)))
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(add1, extract3);
+        V<Word32> add3 = __ Word32Add(add2, extract4);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+TEST_F(WasmSimdTest, FailureCaseDuplicateInputs2I32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        V<Simd128> input = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract3, extract4);
+        V<Word32> add_nop = __ Word32Add(extract3, extract3);
+        V<Word32> add2 = __ Word32Add(extract2, extract1);
+        V<Word32> add3 = __ Word32Add(extract2, add1);
+        V<Word32> add4 = __ Word32Add(add2, add3);
+        __ Return(add4);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
+TEST_F(WasmSimdTest, FailureCaseMixedInputsI32x4AddReduce) {
+  auto test = CreateFromGraph(
+      1,
+      [](auto& Asm) {
+        auto SplatKind = Simd128SplatOp::Kind::kI32x4;
+        auto ExtractKind = Simd128ExtractLaneOp::Kind::kI32x4;
+
+        // Testing graph like (i.3 ADD (i.2 ADD (j.1 ADD j.0)))
+        V<Simd128> input1 = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Simd128> input2 = __ Simd128Splat(__ Word32Constant(9), SplatKind);
+        V<Word32> extract1 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input1, ExtractKind, 0));
+        V<Word32> extract2 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input1, ExtractKind, 1));
+        V<Word32> extract3 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input2, ExtractKind, 2));
+        V<Word32> extract4 =
+            V<Word32>::Cast(__ Simd128ExtractLane(input2, ExtractKind, 3));
+        V<Word32> add1 = __ Word32Add(extract1, extract2);
+        V<Word32> add2 = __ Word32Add(add1, extract3);
+        V<Word32> add3 = __ Word32Add(add2, extract4);
+        __ Return(add3);
+      },
+      true);
+
+  test.Run<MachineOptimizationReducer>();
+  test.Run<DeadCodeEliminationReducer>();
+
+#ifdef V8_TARGET_ARCH_ARM64
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128ExtractLane), 4u);
+#else
+  ASSERT_EQ(test.CountOp(Opcode::kSimd128Reduce), 0u);
+#endif
+}
+
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft

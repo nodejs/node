@@ -75,7 +75,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 60
 bytecodes: [
   /*    7 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
   /*    9 E> */ B(StaGlobal), U8(1:"l"), FBV(1),

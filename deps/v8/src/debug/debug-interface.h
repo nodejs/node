@@ -5,7 +5,10 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
+#include <stdint.h>
+
 #include <memory>
+#include <vector>
 
 #include "include/v8-callbacks.h"
 #include "include/v8-date.h"
@@ -197,7 +200,8 @@ class V8_EXPORT_PRIVATE ScriptSource {
 
   MaybeLocal<String> JavaScriptCode() const;
 #if V8_ENABLE_WEBASSEMBLY
-  Maybe<MemorySpan<const uint8_t>> WasmBytecode() const;
+  // When the size is exceeded, returns `Just` of an empty vector.
+  Maybe<std::vector<uint8_t>> GetWasmBytecode(size_t max_size) const;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

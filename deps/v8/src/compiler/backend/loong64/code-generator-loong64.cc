@@ -275,8 +275,8 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
                             InstructionCode opcode, Instruction* instr,
                             int pc) {
   const MemoryAccessMode access_mode = AccessModeField::decode(opcode);
-  if ((access_mode == kMemoryAccessProtectedMemOutOfBounds) ||
-      (access_mode == kMemoryAccessProtectedNullDereference)) {
+  if ((access_mode == kMemoryAccessTrappingMemOutOfBounds) ||
+      (access_mode == kMemoryAccessTrappingNullDereference)) {
     ReferenceMap* reference_map =
         codegen->zone()->New<ReferenceMap>(codegen->zone());
     // The safepoint has to be recorded at the return address of a call. Address
@@ -284,7 +284,7 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     // fault address (here `pc`) + 1. Therefore the safepoint here has to be
     // recorded at pc + 1;
     codegen->RecordSafepoint(reference_map, pc + 1);
-    codegen->RecordProtectedInstruction(pc);
+    codegen->RecordTrappingInstruction(pc);
   }
 }
 #else
@@ -477,6 +477,19 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
       break;
   }
   UNREACHABLE();
+}
+
+LSXSize LaneSizeToLSXSize(LaneSize size) {
+  switch (size) {
+    case LaneSize::kL8:
+      return LSX_B;
+    case LaneSize::kL16:
+      return LSX_H;
+    case LaneSize::kL32:
+      return LSX_W;
+    case LaneSize::kL64:
+      return LSX_D;
+  }
 }
 
 }  // namespace
@@ -898,8 +911,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareCallCFunction: {
       UseScratchRegisterScope temps(masm());
       Register scratch = temps.Acquire();
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      uint32_t param_counts = i.InputUint32(0);
+      int const num_gp_parameters = ParamField::decode(param_counts);
+      int const num_fp_parameters = FPParamField::decode(param_counts);
       __ PrepareCallCFunction(num_gp_parameters, num_fp_parameters, scratch);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
@@ -1033,6 +1047,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       break;
 #if V8_ENABLE_WEBASSEMBLY
+    case kArchTrap:
+      __ Branch(zone()->New<WasmOutOfLineTrap>(this, instr)->entry());
+      break;
     case kArchStackPointer:
       // The register allocator expects an allocatable register for the output,
       // we cannot use sp directly.
@@ -1580,12 +1597,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool predicate;
       FPUCondition cc =
           FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
-
-      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-          !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
-      }
-
       __ CompareF32(left, right, cc);
     } break;
     case kLoong64Float32Add:
@@ -1638,11 +1649,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool predicate;
       FPUCondition cc =
           FlagsConditionToConditionCmpFPU(&predicate, instr->flags_condition());
-      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-          !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
-      }
-
       __ CompareF64(left, right, cc);
     } break;
     case kLoong64Float64Add:
@@ -1664,12 +1670,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputDoubleRegister(1));
       break;
     case kLoong64Float64Mod: {
-      // TODO(turbofan): implement directly.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ PrepareCallCFunction(0, 2, scratch);
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+      __ Float64Mod(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                    i.InputDoubleRegister(1));
       break;
     }
     case kLoong64Float64Abs:
@@ -1895,10 +1897,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kLoong64Float64ToUint64: {
-      FPURegister scratch = kScratchDoubleReg;
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      FPURegister scratch_d = temps.AcquireFp();
+      bool set_overflow_to_min_u64 = MiscField::decode(instr->opcode());
       Register result = instr->OutputCount() > 1 ? i.OutputRegister(1) : no_reg;
-      __ Ftintrz_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), scratch,
+      __ Ftintrz_ul_d(i.OutputRegister(0), i.InputDoubleRegister(0), scratch_d,
                       result);
+      if (set_overflow_to_min_u64) {
+        // Avoid UINT64_MAX as an overflow indicator and use 0 instead,
+        // because 0 allows easier out-of-bounds detection.
+        __ addi_d(scratch, i.OutputRegister(0), 1);
+        __ maskeqz(i.OutputRegister(0), i.OutputRegister(0), scratch);
+      }
       break;
     }
     case kLoong64BitcastDL:
@@ -2046,9 +2057,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroSingleRegister(index);
-      if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
-      }
       __ Fst_s(ft, operand, &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2061,9 +2069,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       MemOperand operand = i.MemoryOperand(&index);
       FPURegister ft = i.InputOrZeroDoubleRegister(index);
-      if (ft == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {
-        __ Move(kDoubleRegZero, 0.0);
-      }
       __ Fst_d(ft, operand, &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2383,7 +2388,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kLoong64S128LoadSplat: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      auto sz = static_cast<LSXSize>(LaneSizeField::decode(instr->opcode()));
+      LSXSize sz = LaneSizeToLSXSize(LaneSizeField::decode(instr->opcode()));
       __ LoadSplat(sz, i.OutputSimd128Register(), i.MemoryOperand(), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2486,7 +2491,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope lsx_scope(masm(), LSX);
       Simd128Register dst = i.OutputSimd128Register();
       DCHECK_EQ(dst, i.InputSimd128Register(0));
-      auto sz = static_cast<LSXSize>(LaneSizeField::decode(instr->opcode()));
+      LSXSize sz = LaneSizeToLSXSize(LaneSizeField::decode(instr->opcode()));
       __ LoadLane(sz, dst, i.InputUint8(1), i.MemoryOperand(2), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2494,7 +2499,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64S128StoreLane: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       Simd128Register src = i.InputSimd128Register(0);
-      auto sz = static_cast<LSXSize>(LaneSizeField::decode(instr->opcode()));
+      LSXSize sz = LaneSizeToLSXSize(LaneSizeField::decode(instr->opcode()));
       __ StoreLane(sz, src, i.InputUint8(1), i.MemoryOperand(2), &trap_pc);
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, trap_pc);
       break;
@@ -2689,7 +2694,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     /* SIMDS8x16 */
     case kLoong64S8x16Concat: {
       CpuFeatureScope lsx_scope(masm(), LSX);
-      Simd128Register dst = i.OutputSimd128Register(), tmp = kSimd128RegZero;
+      Simd128Register dst = i.OutputSimd128Register();
+      Simd128Register tmp = kSimd128ScratchReg;
       DCHECK(dst == i.InputSimd128Register(0));
       __ vbsll_v(tmp, dst, 16 - i.InputInt4(2));
       __ vbsrl_v(dst, i.InputSimd128Register(1), i.InputInt4(2));
@@ -2802,8 +2808,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
 
       // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 | src1) : (src1 | src1).
@@ -2825,8 +2831,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
 
       // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 & src1) : (src1 & src1).
@@ -3002,8 +3008,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
       // If inputs are -0.0. and +0.0, then write +0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 & src1) : (src1 & src1).
       __ vfcmp_cond_s(CEQ, scratch0, src0, src1);
@@ -3024,8 +3030,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
 
       // If inputs are -0.0. and +0.0, then write -0.0 to scratch1.
       // scratch1 = (src0 == src1) ?  (src0 | src1) : (src1 | src1).
@@ -3310,8 +3316,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope lsx_scope(masm(), LSX);
       Register dst = i.OutputRegister();
       Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
       __ vsrli_d(scratch0, src, 63);
       __ vshuf4i_w(scratch1, scratch0, 0x02);
       __ vslli_d(scratch1, scratch1, 1);
@@ -3483,8 +3489,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope lsx_scope(masm(), LSX);
       Register dst = i.OutputRegister();
       Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
       __ vsrli_w(scratch0, src, 31);
       __ vsrli_d(scratch1, scratch0, 31);
       __ vor_v(scratch0, scratch0, scratch1);
@@ -3728,8 +3734,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope lsx_scope(masm(), LSX);
       Register dst = i.OutputRegister();
       Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
       __ vsrli_h(scratch0, src, 15);
       __ vsrli_w(scratch1, scratch0, 15);
       __ vor_v(scratch0, scratch0, scratch1);
@@ -3997,8 +4003,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope lsx_scope(masm(), LSX);
       Register dst = i.OutputRegister();
       Simd128Register src = i.InputSimd128Register(0);
-      Simd128Register scratch0 = kSimd128RegZero;
-      Simd128Register scratch1 = kSimd128ScratchReg;
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
       __ vsrli_b(scratch0, src, 7);
       __ vsrli_h(scratch1, scratch0, 7);
       __ vor_v(scratch0, scratch0, scratch1);
@@ -4017,9 +4023,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
-      __ vsat_h(kSimd128ScratchReg, src0, 7);
-      __ vsat_h(kSimd128RegZero, src1, 7);
-      __ vpickev_b(dst, kSimd128RegZero, kSimd128ScratchReg);
+      Simd128Register scratch0 = kSimd128ScratchReg;
+      Simd128Register scratch1 = kSimd128ScratchReg1;
+      __ vsat_h(scratch0, src0, 7);
+      __ vsat_h(scratch1, src1, 7);
+      __ vpickev_b(dst, scratch1, scratch0);
       break;
     }
     case kLoong64I8x16UConvertI16x8: {
@@ -4041,8 +4049,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src0 = i.InputSimd128Register(0);
       Simd128Register src1 = i.InputSimd128Register(1);
       __ vsat_w(kSimd128ScratchReg, src0, 15);
-      __ vsat_w(kSimd128RegZero, src1, 15);
-      __ vpickev_h(dst, kSimd128RegZero, kSimd128ScratchReg);
+      __ vsat_w(kSimd128ScratchReg1, src1, 15);
+      __ vpickev_h(dst, kSimd128ScratchReg1, kSimd128ScratchReg);
       break;
     }
     case kLoong64I16x8UConvertI32x4: {
@@ -4283,17 +4291,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64F64x2ConvertLowI32x4S: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       __ vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-      __ vilvl_w(kSimd128RegZero, kSimd128RegZero, i.InputSimd128Register(0));
-      __ vslli_d(kSimd128RegZero, kSimd128RegZero, 32);
-      __ vsrai_d(kSimd128RegZero, kSimd128RegZero, 32);
-      __ vffint_d_l(i.OutputSimd128Register(), kSimd128RegZero);
+      __ vilvl_w(kSimd128ScratchReg, kSimd128RegZero,
+                 i.InputSimd128Register(0));
+      __ vslli_d(kSimd128ScratchReg, kSimd128ScratchReg, 32);
+      __ vsrai_d(kSimd128ScratchReg, kSimd128ScratchReg, 32);
+      __ vffint_d_l(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
     case kLoong64F64x2ConvertLowI32x4U: {
       CpuFeatureScope lsx_scope(masm(), LSX);
       __ vxor_v(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-      __ vilvl_w(kSimd128RegZero, kSimd128RegZero, i.InputSimd128Register(0));
-      __ vffint_d_lu(i.OutputSimd128Register(), kSimd128RegZero);
+      __ vilvl_w(kSimd128ScratchReg, kSimd128RegZero,
+                 i.InputSimd128Register(0));
+      __ vffint_d_lu(i.OutputSimd128Register(), kSimd128ScratchReg);
       break;
     }
     case kLoong64Word64AtomicAndUint64:
@@ -4561,12 +4571,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     return;
   } else if (instr->arch_opcode() == kLoong64Float64Cmp ||
              instr->arch_opcode() == kLoong64Float32Cmp) {
-    FPURegister left = i.InputOrZeroDoubleRegister(0);
-    FPURegister right = i.InputOrZeroDoubleRegister(1);
-    if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-        !__ IsDoubleZeroRegSet()) {
-      __ Move(kDoubleRegZero, 0.0);
-    }
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
     {

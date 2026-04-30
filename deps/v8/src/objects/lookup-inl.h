@@ -322,7 +322,7 @@ bool LookupIterator::IsCacheableTransition() {
   return IsPropertyCell(*transition_, isolate_) ||
          (transition_map()->is_dictionary_map() &&
           !GetStoreTarget<JSReceiver>()->HasFastProperties(isolate_)) ||
-         IsMap(transition_map()->GetBackPointer(isolate_), isolate_);
+         IsMap(transition_map()->GetBackPointer(), isolate_);
 }
 
 // static

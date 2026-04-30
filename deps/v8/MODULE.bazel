@@ -29,6 +29,7 @@ llvm_toolchain_repository(
     name = "llvm_toolchain",
     path = "third_party/llvm-build/Release+Asserts",
     config_file_content = """
+load("@rules_cc//cc:defs.bzl", "CcToolchainConfigInfo", "cc_common")
 load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "feature", "flag_group", "flag_set", "tool_path")
 
 def _impl(ctx):
@@ -109,6 +110,7 @@ def _impl(ctx):
 
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
+        toolchain_identifier = "local_clang",
         features = features,
         cxx_builtin_include_directories = [
             "{WORKSPACE_ROOT}/buildtools/third_party/libc++",
@@ -121,7 +123,6 @@ def _impl(ctx):
             "{WORKSPACE_ROOT}/build/linux/debian_bullseye_amd64-sysroot/usr/include",
             "{WORKSPACE_ROOT}/build/linux/debian_bullseye_amd64-sysroot/usr/local/include",
         ],
-        toolchain_identifier = "local_clang",
         host_system_name = "local",
         target_system_name = "local",
         target_cpu = "k8",
@@ -139,6 +140,7 @@ cc_toolchain_config = rule(
 )
 """,
     build_file_content = """
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 load(":cc_toolchain_config.bzl", "cc_toolchain_config")
 
 package(default_visibility = ["//visibility:public"])
@@ -189,4 +191,10 @@ libcxx_repository = use_repo_rule("//bazel/toolchain:libcxx_repository.bzl", "li
 
 libcxx_repository(
     name = "libcxx",
+)
+
+single_version_override(
+    module_name = "highway",
+    patches = ["//bazel/patches:highway_rules_cc.patch"],
+    patch_strip = 1,
 )

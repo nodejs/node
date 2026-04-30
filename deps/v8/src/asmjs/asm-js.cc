@@ -21,7 +21,8 @@
 #include "src/heap/factory.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
@@ -423,8 +424,9 @@ MaybeDirectHandle<Object> AsmJs::InstantiateAsmWasm(
     if (isolate->is_execution_terminating()) return {};
     if (isolate->has_exception()) isolate->clear_exception();
     if (thrower.error()) {
-      base::ScopedVector<char> error_reason(100);
-      SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
+      auto error_reason = base::OwnedVector<char>::NewForOverwrite(100);
+      SNPrintF(error_reason.as_vector(), "Internal wasm failure: %s",
+               thrower.error_msg());
       ReportInstantiationFailure(script, position, error_reason.begin());
     } else {
       ReportInstantiationFailure(script, position, "Internal wasm failure");

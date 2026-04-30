@@ -5,6 +5,7 @@
 // JSReceiver corresponds to objects in the JS sense.
 @abstract
 @highestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class JSReceiver extends HeapObject {
   properties_or_hash: SwissNameDictionary|FixedArrayBase|PropertyArray|Smi;
 }
@@ -13,6 +14,7 @@ type Constructor extends JSReceiver;
 
 @apiExposedInstanceTypeValue(0x421)
 @highestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class JSObject extends JSReceiver {
   // [elements]: The elements (properties with names that are integers).
   //
@@ -40,6 +42,7 @@ macro NewJSObject(implicit context: Context)(): JSObject {
   return AllocateJSObjectFromMap(map);
 }
 
+@cppObjectLayoutDefinition
 extern class JSExternalObject extends JSObject {
   value: ExternalPointer;
 }
@@ -47,17 +50,20 @@ extern class JSExternalObject extends JSObject {
 // A JSObject that may contain EmbedderDataSlots for purposes other than being
 // an API wrapper object. E.g., Promise objects can be set up to have embedder
 // fields.
+@cppObjectLayoutDefinition
 extern class JSObjectWithEmbedderSlots extends JSObject {}
 
 // A JSObject that may contain EmbedderDataSlots and are considered API wrapper
 // objects.
 @abstract
+@cppObjectLayoutDefinition
 extern class JSAPIObjectWithEmbedderSlots extends JSObject {
   cpp_heap_wrappable: CppHeapPointer;
 }
 
 @abstract
 @lowestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class JSCustomElementsObject extends JSObject {}
 
 // These may also contain EmbedderDataSlots but can't be a child class of
@@ -65,6 +71,7 @@ extern class JSCustomElementsObject extends JSObject {}
 // also considered API wrapper objects.
 @abstract
 @lowestInstanceTypeWithinParentClassRange
+@cppObjectLayoutDefinition
 extern class JSSpecialObject extends JSCustomElementsObject {
   // Mirror the same class hierarchy as with JSAPIObjectWithEmbedderSlots.
   cpp_heap_wrappable: CppHeapPointer;
@@ -75,7 +82,7 @@ macro GetDerivedMap(
     newTarget: JSReceiver): Map {
   try {
     const constructor =
-        Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
+        Cast<JSFunctionWithPrototype>(newTarget) otherwise SlowPath;
     dcheck(IsConstructor(constructor));
     if (Is<TheHole>(constructor.prototype_or_initial_map)) goto SlowPath;
     const map =
@@ -114,8 +121,10 @@ macro AllocateFastOrSlowJSObjectFromMap(
       SlackTrackingMode::kWithSlackTracking);
 }
 
+@cppObjectLayoutDefinition
 extern class JSGlobalProxy extends JSSpecialObject {}
 
+@cppObjectLayoutDefinition
 extern class JSGlobalObject extends JSSpecialObject {
   // [global proxy]: the global proxy object of the current context.
   // This global proxy preserves identity of the JavaScript's global object
@@ -142,10 +151,12 @@ extern class JSGlobalObject extends JSSpecialObject {
   global_proxy_for_api: JSGlobalProxy;
 }
 
+@cppObjectLayoutDefinition
 extern class JSPrimitiveWrapper extends JSCustomElementsObject {
   value: JSAny;
 }
 
+@cppObjectLayoutDefinition
 extern class JSMessageObject extends JSObject {
   // Tagged fields.
   message_type: Smi;
@@ -165,6 +176,7 @@ extern class JSMessageObject extends JSObject {
   error_level: Smi;
 }
 
+@cppObjectLayoutDefinition
 extern class JSDate extends JSObject {
   // If one component is NaN, all of them are, indicating a NaN time value.
 
@@ -185,6 +197,7 @@ extern class JSDate extends JSObject {
   cache_stamp: Smi|NaN;
 }
 
+@cppObjectLayoutDefinition
 extern class JSAsyncFromSyncIterator extends JSObject {
   sync_iterator: JSReceiver;
   // The "next" method is loaded during GetIterator, and is not reloaded for
@@ -192,6 +205,7 @@ extern class JSAsyncFromSyncIterator extends JSObject {
   next: Object;
 }
 
+@cppObjectLayoutDefinition
 extern class JSStringIterator extends JSObject {
   // The [[IteratedString]] slot.
   string: String;
@@ -201,6 +215,7 @@ extern class JSStringIterator extends JSObject {
 
 // The wrapper returned by Iterator.from().
 // https://tc39.es/ecma262/#sec-wrapforvaliditeratorprototype-object
+@cppObjectLayoutDefinition
 extern class JSValidIteratorWrapper extends JSObject {
   // The [[Iterated]] slot.
   underlying: iterator::IteratorRecord;

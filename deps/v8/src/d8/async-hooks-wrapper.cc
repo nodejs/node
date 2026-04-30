@@ -17,7 +17,7 @@
 namespace v8 {
 
 namespace {
-std::shared_ptr<AsyncHooksWrap> UnwrapHook(
+i::Managed<AsyncHooksWrap>::Ptr UnwrapHook(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   v8::Isolate* v8_isolate = info.GetIsolate();
@@ -29,12 +29,12 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
   if (!hooks->async_hook_ctor.Get(v8_isolate)->HasInstance(hook)) {
     v8_isolate->ThrowError(
         "Invalid 'this' passed instead of AsyncHooks instance");
-    return nullptr;
+    return {};
   }
 
   i::DirectHandle<i::Object> handle =
       Utils::OpenDirectHandle(*hook->GetInternalField(0));
-  return Cast<i::Managed<AsyncHooksWrap>>(handle)->get();
+  return Cast<i::Managed<AsyncHooksWrap>>(handle)->ptr();
 }
 
 void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {

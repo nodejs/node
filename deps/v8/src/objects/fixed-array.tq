@@ -5,11 +5,12 @@
 @abstract
 @cppObjectLayoutDefinition
 extern class FixedArrayBase extends HeapObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 @cppObjectLayoutDefinition
-@generateBodyDescriptor
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
 }
@@ -18,13 +19,17 @@ type EmptyFixedArray extends FixedArray;
 
 @cppObjectLayoutDefinition
 extern class TrustedFixedArray extends TrustedObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   objects[length]: Object;
 }
 
 @cppObjectLayoutDefinition
 extern class ProtectedFixedArray extends TrustedObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   objects[length]: TrustedObject|Smi;
 }
 
@@ -35,19 +40,31 @@ extern class FixedDoubleArray extends FixedArrayBase {
 
 @cppObjectLayoutDefinition
 extern class WeakFixedArray extends HeapObject {
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  objects[length]: MaybeObject;
+}
+
+@cppObjectLayoutDefinition
+extern class WeakHomomorphicFixedArray extends HeapObject {
   const length: Smi;
   objects[length]: MaybeObject;
 }
 
 @cppObjectLayoutDefinition
 extern class TrustedWeakFixedArray extends TrustedObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   objects[length]: MaybeObject;
 }
 
 @cppObjectLayoutDefinition
 extern class ProtectedWeakFixedArray extends TrustedObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   // TODO(jkummerow): Define "TrustedMaybeObject" if we ever write Torque
   // code accessing these values.
   objects[length]: TrustedObject|Smi;
@@ -60,7 +77,9 @@ extern class ByteArray extends FixedArrayBase {
 
 @cppObjectLayoutDefinition
 extern class TrustedByteArray extends TrustedObject {
-  const length: Smi;
+  const length: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
   values[length]: uint8;
 }
 
@@ -68,20 +87,22 @@ extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 
 @cppObjectLayoutDefinition
 extern class ArrayList extends HeapObject {
-  const capacity: Smi;
-  length: Smi;
+  const capacity: uint32;
+  length: uint32;
   objects[capacity]: Object;
 }
 
-@generateBodyDescriptor
+@cppObjectLayoutDefinition
 extern class WeakArrayList extends HeapObject {
-  const capacity: Smi;
-  length: Smi;
-  @cppRelaxedLoad @cppRelaxedStore objects[capacity]: MaybeObject;
+  const capacity: uint32;
+  length: uint32;
+  objects[capacity]: MaybeObject;
 }
 
-extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
-    FixedArrayBase): intptr;
+operator '.length_intptr' macro LoadFixedArrayBaseLengthIntptr(
+    array: FixedArrayBase): intptr {
+  return Convert<intptr>(array.length);
+}
 
 extern operator '.objects[]' macro LoadFixedArrayElement(
     FixedArray, intptr): Object;
@@ -189,23 +210,26 @@ extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
 
 macro NewFixedArray<Iterator: type>(
     length: intptr, it: Iterator): FixedArray {
+  const length: uint32 = Unsigned(Convert<int32>(length));
   if (length == 0) return kEmptyFixedArray;
   if (length > kFixedArrayMaxLength) deferred {
       runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
     }
   return new
-  FixedArray{map: kFixedArrayMap, length: Convert<Smi>(length), objects: ...it};
+  FixedArray{map: kFixedArrayMap, length, optional_padding: 0, objects: ...it};
 }
 
 macro NewFixedDoubleArray<Iterator: type>(
     length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
+  const length: uint32 = Unsigned(Convert<int32>(length));
   if (length == 0) return kEmptyFixedArray;
   if (length > kFixedDoubleArrayMaxLength) deferred {
       runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
     }
   return new FixedDoubleArray{
     map: kFixedDoubleArrayMap,
-    length: Convert<Smi>(length),
+    length,
+    optional_padding: 0,
     values: ...it
   };
 }

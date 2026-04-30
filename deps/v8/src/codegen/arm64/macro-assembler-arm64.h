@@ -562,9 +562,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     eor3(vd, vn, vm, va);
   }
 
+  void Xar(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           unsigned imm) {
+    DCHECK(allow_macro_instructions());
+    xar(vd, vn, vm, imm);
+  }
+
   void Bic(const VRegister& vd, const int imm8, const int left_shift = 0) {
     DCHECK(allow_macro_instructions());
     bic(vd, imm8, left_shift);
+  }
+
+  void Bext(const ZRegister& zd, const ZRegister& zn, const ZRegister& zm) {
+    DCHECK(allow_macro_instructions());
+    bext(zd, zn, zm);
   }
 
   // This is required for compatibility in architecture independent code.
@@ -634,6 +645,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void SmiUntag(Register dst, Register src);
   inline void SmiUntag(Register dst, const MemOperand& src);
   inline void SmiUntag(Register smi);
+
+  inline void SmiUntagUnsigned(Register dst, Register src);
+  inline void SmiUntagUnsigned(Register dst, const MemOperand& src);
+  inline void SmiUntagUnsigned(Register smi);
 
   inline void SmiTag(Register dst, Register src);
   inline void SmiTag(Register smi);
@@ -1055,6 +1070,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef);
+
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
   void LoadInterpreterDataInterpreterTrampoline(Register destination,
@@ -1187,6 +1206,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
                          DoubleRegister double_input, StubCallMode stub_mode,
                          LinkRegisterStatus lr_status);
+
+  void Float64Mod(VRegister out, VRegister left, VRegister right);
 
   inline void Mul(const Register& rd, const Register& rn, const Register& rm);
 
@@ -1609,6 +1630,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
+  void SmiUntagFieldUnsigned(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
@@ -1684,11 +1706,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
-  // object has none of the expected types, the destination register will be
-  // zeroed and execution continues as fall-through.
+  // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
+  // the provided is_unavailable label is not a nullptr, then the helper will
+  // jump there. If the field is valid and the object has one of the expected
+  // types, then the helper will jump to the corresponding label. In all other
+  // cases, the destination register will be zeroed and execution continues as
+  // fall-through.
   void LoadTrustedUnknownPointerField(
       Register destination, MemOperand field_operand, Register scratch,
-      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases);
+      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
+      Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
 
@@ -1727,13 +1754,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Retrieve the Code object referenced by the given code pointer handle.
   void ResolveCodePointerHandle(Register destination, Register handle);
-
-  // Load the pointer to a Code's entrypoint via a code pointer.
-  // Only available when the sandbox is enabled as it requires the code pointer
-  // table.
-  void LoadCodeEntrypointViaCodePointer(Register destination,
-                                        MemOperand field_operand,
-                                        CodeEntrypointTag tag);
 
   // Load the value of Code pointer table corresponding to
   // IsolateGroup::current()->code_pointer_table_.

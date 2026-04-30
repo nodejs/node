@@ -5,6 +5,7 @@
 #include "src/maglev/maglev-code-generator.h"
 
 #include <algorithm>
+#include <fstream>
 
 #include "absl/container/flat_hash_map.h"
 #include "src/base/hashmap.h"
@@ -23,6 +24,7 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/frame-translation-builder.h"
+#include "src/diagnostics/gdb-jit.h"
 #include "src/execution/frame-constants.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
@@ -825,7 +827,26 @@ class MaglevCodeGeneratingNodeProcessor {
          << PrintNode(node);
       __ RecordComment(ss.str());
     }
-    if (collect_source_positions_) {
+    if (v8_flags.gdbjit_full && v8_flags.maglev_gdbjit) {
+      int line_number = graph_labeller()->GetNodeLineNumber(node);
+      if (line_number != -1) {
+        Isolate* isolate = masm_->code_gen_state()
+                               ->compilation_info()
+                               ->broker()
+                               ->local_isolate()
+                               ->GetMainThreadIsolateUnsafe();
+        std::string func_name =
+            masm_->code_gen_state()->compilation_info()->function_name();
+        std::string filename = GetMaglevGraphFilename(
+            func_name,
+            masm_->code_gen_state()->compilation_info()->optimization_id());
+        int file_id =
+            isolate->LookupOrAddExternallyCompiledFilename(filename.c_str());
+        SourcePosition pos = SourcePosition::External(line_number, file_id);
+        code_gen_state()->source_position_table_builder()->AddPosition(
+            masm_->pc_offset(), pos, true);
+      }
+    } else if (collect_source_positions_) {
       // TODO(leszeks): Consider collecting source position in a more memory
       // friendly way, if we don't need the whole graph labeller.
       const auto& provenance = graph_labeller()->GetNodeProvenance(node);
@@ -1581,7 +1602,15 @@ class MaglevFrameTranslationBuilder {
     if (object_type == vobj::ObjectType::kConsString) {
       translation_array_builder_->StringConcat();
     } else {
-      translation_array_builder_->BeginCapturedObject(object->slot_count());
+      int fields = object->slot_count();
+#if TAGGED_SIZE_8_BYTES
+      // To keep the deoptimization data in sync with TF (which represents
+      // length and padding in a single Uint64), we skip the padding.
+      if (object_type == vobj::ObjectType::kFixedArray) {
+        fields--;
+      }
+#endif  // TAGGED_SIZE_8_BYTES
+      translation_array_builder_->BeginCapturedObject(fields);
     }
     auto callback = [&](ValueNode* node, const vobj::Field& desc) -> bool {
       BuildNestedValue(node, input_location, virtual_objects);
@@ -1997,7 +2026,15 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
     builder.set_is_context_specialized();
   }
 
-  return builder.TryBuild();
+  MaybeHandle<Code> maybe_code = builder.TryBuild();
+  Handle<Code> code;
+  if (maybe_code.ToHandle(&code)) {
+    Isolate* isolate = local_isolate->GetMainThreadIsolateUnsafe();
+    LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
+                                code->instruction_start(), *source_positions,
+                                JitCodeEvent::JIT_CODE));
+  }
+  return maybe_code;
 }
 
 GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
@@ -2049,7 +2086,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetFrameTranslation(*translations);
     raw_data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
     raw_data->SetOptimizationId(
-        Smi::FromInt(local_isolate->NextOptimizationId()));
+        Smi::FromInt(code_gen_state_.compilation_info()->optimization_id()));
 
     DCHECK_NE(deopt_exit_start_offset_, -1);
     raw_data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
@@ -2058,14 +2095,14 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetWrappedSharedFunctionInfo(*sfi_wrapper);
   }
 
-  int inlined_functions_size =
-      static_cast<int>(graph_->inlined_functions().size());
+  uint32_t inlined_functions_size =
+      static_cast<uint32_t>(graph_->inlined_functions().size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       local_isolate->factory()->NewProtectedFixedArray(
-          protected_deopt_literals_.size());
+          static_cast<uint32_t>(protected_deopt_literals_.size()));
   DirectHandle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
-          deopt_literals_.size());
+          static_cast<uint32_t>(deopt_literals_.size()));
   DirectHandle<TrustedPodArray<InliningPosition>> inlining_positions =
       TrustedPodArray<InliningPosition>::New(local_isolate,
                                              inlined_functions_size);
@@ -2092,7 +2129,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     }
   }
 
-  for (int i = 0; i < inlined_functions_size; i++) {
+  for (uint32_t i = 0; i < inlined_functions_size; i++) {
     auto inlined_function_info = graph_->inlined_functions()[i];
     inlining_positions->set(i, inlined_function_info.position);
   }
@@ -2145,6 +2182,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   return data;
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal

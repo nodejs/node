@@ -123,8 +123,6 @@ class CanonicalTypeNamesProvider {
   // TODO(jkummerow): Use Zone allocation for the character payloads?
   using StringT = base::OwnedVector<char>;
 
-  size_t DetectInlineStringThreshold();
-
   std::vector<StringT> type_names_;
   std::map<uint32_t, std::vector<StringT>> field_names_;
   mutable base::Mutex mutex_;

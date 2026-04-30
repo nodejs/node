@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --for-of-optimization
 
 var results = [];
 
@@ -14,17 +14,39 @@ function testForOf(iterable) {
 }
 
 testForOf([1, 2, 3]);
-console.log(results);
 assertEquals(results, [1, 2, 3]);
 
 testForOf([1, 2, 3].keys());
-console.log(results);
 assertEquals(results, [0, 1, 2]);
 
 testForOf([1, 2, 3].entries());
-console.log(results);
 assertEquals(results, [[0, 1], [1, 2], [2, 3]]);
 
 testForOf(new Uint8Array([1, 2, 3, 4, 5]));
-console.log(results);
 assertEquals(results, [1, 2, 3, 4, 5]);
+
+// Test missing 'done' property (ES6 treats missing done as falsy)
+function testMissingDone(iterable) {
+  let sum = 0;
+  for (var i of iterable) {
+    sum += i;
+  }
+  return sum;
+}
+
+const missingDoneIterable = {
+  [Symbol.iterator]() {
+    let count = 0;
+    const iterator = {
+      next() {
+        if (count++ < 3) return { value: 10 };
+        return { done: true };
+      }
+    };
+    %NeverOptimizeFunction(iterator.next);
+    return iterator;
+  }
+};
+
+testMissingDone(missingDoneIterable);
+assertEquals(30, testMissingDone(missingDoneIterable));

@@ -12,23 +12,10 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/normal-page-inl.h"
-#include "src/heap/read-only-heap-inl.h"
-#include "src/objects/api-callbacks.h"
-#include "src/objects/cell.h"
-#include "src/objects/descriptor-array.h"
-#include "src/objects/feedback-vector.h"
-#include "src/objects/heap-number.h"
-#include "src/objects/hole.h"
-#include "src/objects/literal-objects.h"
-#include "src/objects/map.h"
+#include "src/objects/objects-inl.h"  // For CastTraits<T>::AllowFrom.
 #include "src/objects/oddball.h"
-#include "src/objects/property-array.h"
-#include "src/objects/property-cell.h"
-#include "src/objects/scope-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
-#include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/roots/static-roots.h"
 
@@ -132,13 +119,6 @@ Address ReadOnlyRoots::last_name_for_protector() const {
 bool ReadOnlyRoots::IsNameForProtector(Tagged<HeapObject> object) const {
   return base::IsInRange(object.ptr(), first_name_for_protector(),
                          last_name_for_protector());
-}
-
-void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
-  // The symbols and strings that can cause protector invalidation should
-  // reside on the same page so we can do a fast range check.
-  CHECK_EQ(BasePage::FromAddress(first_name_for_protector()),
-           BasePage::FromAddress(last_name_for_protector()));
 }
 
 V8_RO_CONST Tagged<Object> ReadOnlyRoots::object_at(

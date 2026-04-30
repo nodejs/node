@@ -182,6 +182,12 @@ void WasmGCTypeAnalyzer::ProcessOperations(const Block& block) {
       case Opcode::kIsNull:
         ProcessIsNull(op.Cast<IsNullOp>());
         break;
+      case Opcode::kAnyConvertExtern:
+        ProcessAnyConvertExtern(op.Cast<AnyConvertExternOp>());
+        break;
+      case Opcode::kExternConvertAny:
+        ProcessExternConvertAny(op.Cast<ExternConvertAnyOp>());
+        break;
       case Opcode::kParameter:
         ProcessParameter(op.Cast<ParameterOp>());
         break;
@@ -248,6 +254,35 @@ void WasmGCTypeAnalyzer::ProcessAssertNotNull(
 
 void WasmGCTypeAnalyzer::ProcessIsNull(const IsNullOp& is_null) {
   input_type_map_[graph_.Index(is_null)] = GetResolvedType(is_null.object());
+}
+
+void WasmGCTypeAnalyzer::ProcessAnyConvertExtern(const AnyConvertExternOp& op) {
+  wasm::ValueType input_type = GetResolvedType(op.object());
+  input_type_map_[graph_.Index(op)] = input_type;
+  DCHECK(input_type.is_ref() || input_type.is_bottom() ||
+         input_type == wasm::ValueType());
+  if (input_type == wasm::ValueType()) return;
+  wasm::ValueType result_type =
+      input_type.is_uninhabited()
+          ? wasm::kWasmBottom
+          : wasm::ValueType::Generic(wasm::GenericKind::kAny,
+                                     input_type.nullability(), op.is_shared);
+  RefineTypeKnowledge(graph_.Index(op), result_type, op);
+}
+
+void WasmGCTypeAnalyzer::ProcessExternConvertAny(const ExternConvertAnyOp& op) {
+  wasm::ValueType input_type = GetResolvedType(op.object());
+  input_type_map_[graph_.Index(op)] = input_type;
+  DCHECK(input_type.is_ref() || input_type.is_bottom() ||
+         input_type == wasm::ValueType());
+  if (input_type == wasm::ValueType()) return;
+  wasm::ValueType result_type =
+      input_type.is_uninhabited()
+          ? wasm::kWasmBottom
+          : wasm::ValueType::Generic(wasm::GenericKind::kExtern,
+                                     input_type.nullability(),
+                                     input_type.is_shared());
+  RefineTypeKnowledge(graph_.Index(op), result_type, op);
 }
 
 void WasmGCTypeAnalyzer::ProcessParameter(const ParameterOp& parameter) {

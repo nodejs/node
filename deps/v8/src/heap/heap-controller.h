@@ -23,31 +23,32 @@ struct BaseControllerTrait {
   static constexpr double kTargetMutatorUtilization = 0.97;
 };
 
-struct V8HeapTrait : public BaseControllerTrait {
+struct V8_EXPORT_PRIVATE V8HeapTrait : public BaseControllerTrait {
   static constexpr char kName[] = "HeapController";
+  static constexpr size_t kMinimumAllocationLimitGrowingStep = 8 * MB;
+
+  static size_t BoundAllocationLimit(uint64_t current_size, uint64_t limit,
+                                     size_t min_size, size_t max_size,
+                                     size_t new_space_capacity);
 };
 
-struct GlobalMemoryTrait : public BaseControllerTrait {
+struct V8_EXPORT_PRIVATE GlobalMemoryTrait : public BaseControllerTrait {
   static constexpr char kName[] = "GlobalMemoryController";
+  static constexpr size_t kMinimumAllocationLimitGrowingStep = 8 * MB;
+
+  static size_t BoundAllocationLimit(uint64_t current_size, uint64_t limit,
+                                     size_t min_size, size_t max_size,
+                                     size_t new_space_capacity);
 };
 
 template <typename Trait>
 class V8_EXPORT_PRIVATE MemoryController : public AllStatic {
  public:
-  // Computes the growing step when the limit increases.
-  static size_t MinimumAllocationLimitGrowingStep(
-      Heap::HeapGrowingMode growing_mode);
-
   static double GrowingFactor(Isolate* isolate, uint64_t physical_memory,
                               size_t max_heap_size,
                               std::optional<double> gc_speed,
                               double mutator_speed,
                               Heap::HeapGrowingMode growing_mode);
-
-  static size_t BoundAllocationLimit(Isolate* isolate, size_t current_size,
-                                     uint64_t limit, size_t min_size,
-                                     size_t max_size, size_t new_space_capacity,
-                                     Heap::HeapGrowingMode growing_mode);
 
  private:
   static double MaxGrowingFactor(uint64_t physical_memory,
@@ -109,8 +110,7 @@ class V8_EXPORT_PRIVATE HeapLimits {
       Heap::HeapGrowingMode mode, const HeapLimitBounds& boundaries,
       const char* caller = __builtin_FUNCTION());
 
-  void ShrinkAllocationLimitIfNotConfigured(Heap::HeapGrowingMode mode,
-                                            size_t old_generation_consumed,
+  void ShrinkAllocationLimitIfNotConfigured(size_t old_generation_consumed,
                                             size_t global_consumed);
 
   // Sets allocation limits for both old generation and the global heap.
@@ -136,7 +136,7 @@ class V8_EXPORT_PRIVATE HeapLimits {
   size_t OldGenerationConsumedBytesAtLastGC() const;
 
   // Returns the global amount of bytes after the last MarkCompact GC.
-  size_t GlobalConsumedBytesAtLastGC() const;
+  uint64_t GlobalConsumedBytesAtLastGC() const;
 
   size_t PromotedSinceLastGC(size_t old_generation_size) const;
 
@@ -159,12 +159,24 @@ class V8_EXPORT_PRIVATE HeapLimits {
   // Overshoot margin is 50% of allocation limit or half-way to the max heap
   // with special handling of small heaps.
   size_t old_generation_overshoot_margin() const {
+    // It's possible for current size to go beyond max size, in which case the
+    // limit also goes over. We consider the margin is 0 to avoid underflow
+    // below.
+    if (old_generation_allocation_limit() > max_old_generation_size()) {
+      return 0;
+    }
     return std::min(
         std::max(old_generation_allocation_limit() / 2, kMarginForSmallHeaps),
         (max_old_generation_size() - old_generation_allocation_limit()) / 2);
   }
 
   size_t global_overshoot_margin() const {
+    // It's possible for current size to go beyond max size, in which case the
+    // limit also goes over. We consider the margin is 0 to avoid underflow
+    // below.
+    if (global_allocation_limit() > max_global_memory_size()) {
+      return 0;
+    }
     return std::min(
         std::max(global_allocation_limit() / 2, kMarginForSmallHeaps),
         (max_global_memory_size() - global_allocation_limit()) / 2);

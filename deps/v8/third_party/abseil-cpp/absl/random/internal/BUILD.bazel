@@ -29,6 +29,7 @@ load(
 
 default_package_visibility = [
     "//absl/random:__pkg__",
+    "//absl:friends",
 ]
 
 package(
@@ -115,6 +116,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         "//absl/base:config",
+        "//absl/meta:type_traits",
         "//absl/numeric:bits",
         "//absl/numeric:int128",
     ],
@@ -129,6 +131,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:fast_type_id",
         "//absl/meta:type_traits",
+        "//absl/random:mocking_access",
         "//absl/utility",
     ],
 )
@@ -399,7 +402,6 @@ cc_library(
         ":platform",
         ":randen_hwaes_impl",
         "//absl/base:config",
-        "//absl/types:optional",
     ],
 )
 
@@ -592,7 +594,7 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/base:fast_type_id",
-        "//absl/types:optional",
+        "//absl/random:mocking_access",
     ],
 )
 

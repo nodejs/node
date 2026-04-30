@@ -383,7 +383,7 @@ static void Prop1Getter(v8::Local<v8::Name> property,
 
 static void Prop1Setter(v8::Local<v8::Name> property,
                         v8::Local<v8::Value> value,
-                        const v8::PropertyCallbackInfo<void>& info) {}
+                        const v8::PropertyCallbackInfo<v8::Boolean>& info) {}
 
 static void Prop2Getter(v8::Local<v8::Name> property,
                         const v8::PropertyCallbackInfo<v8::Value>& info) {}

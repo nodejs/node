@@ -15,6 +15,8 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-array.h"
+#include "src/sandbox/cppheap-pointer.h"
+#include "src/sandbox/external-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -35,6 +37,7 @@ class NativeContext;
 class IsCompiledScope;
 class StackTraceInfo;
 class SwissNameDictionary;
+class GlobalDictionary;
 class ElementsAccessor;
 class Undefined;
 class Null;
@@ -43,8 +46,13 @@ class Null;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
+V8_OBJECT class JSReceiver : public HeapObjectLayout {
  public:
+  using Properties =
+      UnionOf<SwissNameDictionary, FixedArrayBase, PropertyArray>;
+  using PropertiesOrHash = UnionOf<SwissNameDictionary, FixedArrayBase,
+                                   PropertyArray, Smi, GlobalDictionary>;
+
   // Returns true if there is no slow (ie, dictionary) backing store.
   DECL_GETTER(HasFastProperties, bool)
 
@@ -65,7 +73,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
   // empty_fixed_array(), the hash will be maintained in this case as well.
-  void SetProperties(Tagged<HeapObject> properties);
+  void SetProperties(Tagged<Properties> properties);
 
   // There are five possible values for the properties offset.
   // 1) EmptyFixedArray/EmptyPropertyDictionary - This is the standard
@@ -84,8 +92,15 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   //
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
-  DECL_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
-  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
+  inline Tagged<PropertiesOrHash> raw_properties_or_hash() const;
+  inline void set_raw_properties_or_hash(
+      Tagged<PropertiesOrHash> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<PropertiesOrHash> raw_properties_or_hash(
+      RelaxedLoadTag tag) const;
+  inline void set_raw_properties_or_hash(
+      Tagged<PropertiesOrHash> value, RelaxedStoreTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline void initialize_properties(Isolate* isolate);
 
@@ -154,7 +169,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> object,
       DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
-      Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index);
+      Isolate* isolate, DirectHandle<JSReceiver> object, size_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, DirectHandle<JSReceiver> receiver, const char* key);
@@ -286,9 +301,9 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>
-  GetCreationContext();
+  GetCreationContext() const;
   V8_EXPORT_PRIVATE inline MaybeDirectHandle<NativeContext> GetCreationContext(
-      Isolate* isolate);
+      Isolate* isolate) const;
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -298,7 +313,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
                            DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
-                           uint32_t index);
+                           size_t index);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetElementAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -356,20 +371,30 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // TC39 "Dynamic Code Brand Checks"
   bool IsCodeLike(Isolate* isolate) const;
 
- private:
-  // Hide generated accessors; custom accessors are called
-  // "raw_properties_or_hash".
-  DECL_ACCESSORS(properties_or_hash, Tagged<Object>)
+  DECL_VERIFIER(JSReceiver)
 
-  TQ_OBJECT_CONSTRUCTORS(JSReceiver)
-};
+ public:
+  TaggedMember<PropertiesOrHash> properties_or_hash_;
+} V8_OBJECT_END;
 
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
 // caching.
-class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
+V8_OBJECT class JSObject : public JSReceiver {
  public:
+  // Back-compat offset/size constants. Defined out-of-line below so they
+  // can use sizeof(JSObject) / offsetof(JSObject, ...) once the class is
+  // complete.
+  static const int kElementsOffset;
+  static const int kEndOfStrongFieldsOffset;
+  static const int kHeaderSize;
+  static constexpr int kMapOffset = HeapObject::kMapOffset;
+
+  // Mirror the JSReceiver::IntegrityLevel type alias so method signatures
+  // that take `IntegrityLevel` parameters can be declared on JSObject.
+  using IntegrityLevel = JSReceiver::IntegrityLevel;
+
   static bool IsUnmodifiedApiObject(FullObjectSlot o);
 
   V8_EXPORT_PRIVATE static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> New(
@@ -699,10 +724,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Get the header size for a JSObject.  Used to compute the index of
   // embedder fields as well as the number of embedder fields.
-  // The |function_has_prototype_slot| parameter is needed only for
-  // JSFunction objects.
-  static V8_EXPORT_PRIVATE int GetHeaderSize(
-      InstanceType instance_type, bool function_has_prototype_slot = false);
+  static V8_EXPORT_PRIVATE int GetHeaderSize(InstanceType instance_type);
   static inline int GetHeaderSize(Tagged<Map> map);
 
   static inline bool MayHaveEmbedderFields(Tagged<Map> map);
@@ -838,8 +860,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
-  inline Tagged<Object> InObjectPropertyAt(int index);
-  inline Tagged<Object> InObjectPropertyAtPut(
+  inline Tagged<Object> InObjectPropertyAtOffset(int offset);
+  inline Tagged<Object> InObjectPropertyPutAtIndex(
+      int index, Tagged<Object> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> InObjectPropertyPutAtOffset(
       int index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -882,7 +907,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
   DECL_PRINTER(JSObject)
-  DECL_VERIFIER(JSObject)
+  EXPORT_DECL_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   bool PrintProperties(std::ostream& os);
   void PrintElements(std::ostream& os);
@@ -968,26 +993,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static_assert(kMaxNumberOfDescriptors + kFieldsAdded <=
                 PropertyArray::kMaxLength);
 
-  static_assert(kHeaderSize == Internals::kJSObjectHeaderSize);
-  static const int kMaxInObjectProperties =
-      (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
-  static_assert(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
-
+  static const int kMaxInObjectProperties;
   static const int kMaxFirstInobjectPropertyOffset =
       (1 << kFirstInobjectPropertyOffsetBitCount) - 1;
-  static const int kMaxEmbedderFields =
-      (kMaxFirstInobjectPropertyOffset - kHeaderSize) / kEmbedderDataSlotSize;
-  static_assert(kHeaderSize +
-                    kMaxEmbedderFields * kEmbedderDataSlotSizeInTaggedSlots <=
-                kMaxInstanceSize);
-
-  static constexpr int kMaxJSApiObjectInObjectProperties =
-      (kMaxInstanceSize - kHeaderSize - kCppHeapPointerSlotSize) >>
-      kTaggedSizeLog2;
-  static constexpr int kMaxJSApiObjectEmbedderFields =
-      (kMaxFirstInobjectPropertyOffset - kHeaderSize -
-       kCppHeapPointerSlotSize) /
-      kEmbedderDataSlotSize;
+  static const int kMaxEmbedderFields;
+  static const int kMaxJSApiObjectInObjectProperties;
+  static const int kMaxJSApiObjectEmbedderFields;
 
   class BodyDescriptor;
 
@@ -1030,13 +1041,116 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
       SeqCstAccessTag tag);
 
-  TQ_OBJECT_CONSTRUCTORS(JSObject)
-};
+ public:
+  TaggedMember<FixedArrayBase> elements_;
+} V8_OBJECT_END;
+
+inline constexpr int JSObject::kElementsOffset = offsetof(JSObject, elements_);
+inline constexpr int JSObject::kEndOfStrongFieldsOffset =
+    JSObject::kElementsOffset + kTaggedSize;
+inline constexpr int JSObject::kHeaderSize = sizeof(JSObject);
+
+inline constexpr int JSObject::kMaxInObjectProperties =
+    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kTaggedSizeLog2;
+inline constexpr int JSObject::kMaxEmbedderFields =
+    (JSObject::kMaxFirstInobjectPropertyOffset - JSObject::kHeaderSize) /
+    kEmbedderDataSlotSize;
+inline constexpr int JSObject::kMaxJSApiObjectInObjectProperties =
+    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize -
+     kCppHeapPointerSlotSize) >>
+    kTaggedSizeLog2;
+inline constexpr int JSObject::kMaxJSApiObjectEmbedderFields =
+    (JSObject::kMaxFirstInobjectPropertyOffset - JSObject::kHeaderSize -
+     kCppHeapPointerSlotSize) /
+    kEmbedderDataSlotSize;
+
+static_assert(JSObject::kElementsOffset == sizeof(JSReceiver));
+static_assert(JSObject::kHeaderSize == Internals::kJSObjectHeaderSize);
+static_assert(JSObject::kMaxInObjectProperties <= kMaxNumberOfDescriptors);
+static_assert(JSObject::kHeaderSize + JSObject::kMaxEmbedderFields *
+                                          kEmbedderDataSlotSizeInTaggedSlots <=
+              JSObject::kMaxInstanceSize);
+
+// An abstract superclass for JSObjects that may contain EmbedderDataSlots.
+// Carries no fields itself; the in-instance tail ([embedder fields] followed
+// by [in-object properties]) is managed by the Map + BodyDescriptor and never
+// shows up as a C++ member.
+V8_OBJECT class JSObjectWithEmbedderSlots : public JSObject {
+ public:
+  DECL_PRINTER(JSObjectWithEmbedderSlots)
+  DECL_VERIFIER(JSObjectWithEmbedderSlots)
+
+  static const int kHeaderSize;
+} V8_OBJECT_END;
+
+inline constexpr int JSObjectWithEmbedderSlots::kHeaderSize =
+    sizeof(JSObjectWithEmbedderSlots);
+
+static_assert(JSObjectWithEmbedderSlots::kHeaderSize == JSObject::kHeaderSize);
+
+// An abstract superclass for JSObjects that may contain EmbedderDataSlots and
+// are used as API wrapper objects. Carries the cpp_heap_wrappable field; the
+// [embedder fields] + [in-object properties] tail is managed by the Map +
+// BodyDescriptor.
+V8_OBJECT class JSAPIObjectWithEmbedderSlots : public JSObject {
+ public:
+  class BodyDescriptor;
+
+  static const int kCppHeapWrappableOffset;
+  static const int kHeaderSize;
+
+ public:
+  CppHeapPointerMember cpp_heap_wrappable_;
+} V8_OBJECT_END;
+
+inline constexpr int JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset =
+    offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_);
+inline constexpr int JSAPIObjectWithEmbedderSlots::kHeaderSize =
+    sizeof(JSAPIObjectWithEmbedderSlots);
+
+// An abstract superclass for JSObjects that may have elements while having an
+// empty fixed array as elements backing store. It doesn't carry any
+// functionality but allows function classes to be identified in the type
+// system.
+V8_OBJECT class JSCustomElementsObject : public JSObject {
+ public:
+  static const int kHeaderSize;
+} V8_OBJECT_END;
+
+inline constexpr int JSCustomElementsObject::kHeaderSize =
+    sizeof(JSCustomElementsObject);
+
+static_assert(JSCustomElementsObject::kHeaderSize == JSObject::kHeaderSize);
+
+// These may also contain EmbedderDataSlots but can't be a child class of
+// JSAPIObjectWithEmbedderSlots due to type id constraints. These objects are
+// also considered API wrapper objects. Mirrors the
+// JSAPIObjectWithEmbedderSlots cpp_heap_wrappable field so CppHeapObjectWrapper
+// can access both sibling hierarchies at the same offset (see the
+// static_assert in cpp-heap-object-wrapper.h).
+V8_OBJECT class JSSpecialObject : public JSCustomElementsObject {
+ public:
+  static const int kCppHeapWrappableOffset;
+  static const int kHeaderSize;
+
+ public:
+  CppHeapPointerMember cpp_heap_wrappable_;
+} V8_OBJECT_END;
+
+inline constexpr int JSSpecialObject::kCppHeapWrappableOffset =
+    offsetof(JSSpecialObject, cpp_heap_wrappable_);
+inline constexpr int JSSpecialObject::kHeaderSize = sizeof(JSSpecialObject);
+
+// The set of tags that a JSExternalObject's value may carry. Any user-
+// facing v8::External pointer maps to a tag in [kFirstExternalTypeTag,
+// kLastExternalTypeTag]. Defined here so the ExternalPointerMember field
+// below can reference it at template-argument position.
+inline constexpr ExternalPointerTagRange kExternalObjectValueTagRange{
+    kFirstExternalTypeTag, kLastExternalTypeTag};
 
 // A JSObject created through the public api which wraps an external pointer.
 // See v8::External.
-class JSExternalObject
-    : public TorqueGeneratedJSExternalObject<JSExternalObject, JSObject> {
+V8_OBJECT class JSExternalObject : public JSObject {
  public:
   // [value]: field containing the pointer value.
   inline void* value(ExternalPointerTagRange tag_range) const;
@@ -1047,59 +1161,14 @@ class JSExternalObject
   inline void set_value(IsolateForSandbox isolate, ExternalPointerTag tag,
                         void* value);
 
-  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
-
   DECL_PRINTER(JSExternalObject)
+  DECL_VERIFIER(JSExternalObject)
 
   class BodyDescriptor;
 
- private:
-  TQ_OBJECT_CONSTRUCTORS(JSExternalObject)
-};
-
-// An abstract superclass for JSObjects that may contain EmbedderDataSlots.
-class JSObjectWithEmbedderSlots
-    : public TorqueGeneratedJSObjectWithEmbedderSlots<JSObjectWithEmbedderSlots,
-                                                      JSObject> {
  public:
-  static_assert(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSObjectWithEmbedderSlots)
-};
-
-// An abstract superclass for JSObjects that may contain EmbedderDataSlots and
-// are used as API wrapper objects.
-class JSAPIObjectWithEmbedderSlots
-    : public TorqueGeneratedJSAPIObjectWithEmbedderSlots<
-          JSAPIObjectWithEmbedderSlots, JSObject> {
- public:
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(JSAPIObjectWithEmbedderSlots)
-};
-
-// An abstract superclass for JSObjects that may have elements while having an
-// empty fixed array as elements backing store. It doesn't carry any
-// functionality but allows function classes to be identified in the type
-// system.
-class JSCustomElementsObject
-    : public TorqueGeneratedJSCustomElementsObject<JSCustomElementsObject,
-                                                   JSObject> {
- public:
-  static_assert(kHeaderSize == JSObject::kHeaderSize);
-  TQ_OBJECT_CONSTRUCTORS(JSCustomElementsObject)
-};
-
-// An abstract superclass for JSObjects that require non-standard element
-// access. It doesn't carry any functionality but allows function classes to be
-// identified in the type system.
-// These may also contain EmbedderDataSlots, but can't currently inherit from
-// JSAPIObjectWithEmbedderSlots due to instance_type constraints.
-class JSSpecialObject
-    : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
-                                            JSCustomElementsObject> {
- public:
-  TQ_OBJECT_CONSTRUCTORS(JSSpecialObject)
-};
+  ExternalPointerMember<kExternalObjectValueTagRange> value_;
+} V8_OBJECT_END;
 
 // JSAccessorPropertyDescriptor is just a JSObject with a specific initial
 // map. This initial map adds in-object properties for "get", "set",
@@ -1119,12 +1188,6 @@ class JSAccessorPropertyDescriptor : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
-
-  // Indices of in-object properties.
-  static const int kGetIndex = 0;
-  static const int kSetIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAccessorPropertyDescriptor);
@@ -1148,12 +1211,6 @@ class JSDataPropertyDescriptor : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
-
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kWritableIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataPropertyDescriptor);
@@ -1179,11 +1236,8 @@ class JSIteratorResult : public JSObject {
                                 JS_ITERATOR_RESULT_FIELDS)
 #undef JS_ITERATOR_RESULT_FIELDS
 
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kDoneIndex = 1;
-
-  OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSIteratorResult);
 };
 
 // JSGlobalProxy's prototype must be a JSGlobalObject or null,
@@ -1194,11 +1248,10 @@ class JSIteratorResult : public JSObject {
 //
 // Accessing a JSGlobalProxy requires security check.
 
-class JSGlobalProxy
-    : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
+V8_OBJECT class JSGlobalProxy : public JSSpecialObject {
  public:
   inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
-  V8_EXPORT_PRIVATE bool IsDetached();
+  inline bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1206,14 +1259,32 @@ class JSGlobalProxy
   DECL_PRINTER(JSGlobalProxy)
   DECL_VERIFIER(JSGlobalProxy)
 
-  TQ_OBJECT_CONSTRUCTORS(JSGlobalProxy)
-};
+  // Back-compat.
+  static const int kHeaderSize;
+} V8_OBJECT_END;
+
+inline constexpr int JSGlobalProxy::kHeaderSize = sizeof(JSGlobalProxy);
 
 // JavaScript global object.
-class JSGlobalObject
-    : public TorqueGeneratedJSGlobalObject<JSGlobalObject, JSSpecialObject> {
+V8_OBJECT class JSGlobalObject : public JSSpecialObject {
  public:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, Tagged<GlobalDictionary>)
+  inline Tagged<JSGlobalProxy> global_proxy() const;
+  inline void set_global_proxy(Tagged<JSGlobalProxy> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSGlobalProxy> global_proxy_for_api() const;
+  inline void set_global_proxy_for_api(
+      Tagged<JSGlobalProxy> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<GlobalDictionary> global_dictionary(AcquireLoadTag) const;
+  inline Tagged<GlobalDictionary> global_dictionary(PtrComprCageBase cage_base,
+                                                    AcquireLoadTag) const;
+  inline void set_global_dictionary(
+      Tagged<GlobalDictionary> value, ReleaseStoreTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<HeapObject> raw_global_proxy() const;
 
   static void InvalidatePropertyCell(DirectHandle<JSGlobalObject> object,
                                      DirectHandle<Name> name);
@@ -1225,24 +1296,41 @@ class JSGlobalObject
   DECL_PRINTER(JSGlobalObject)
   DECL_VERIFIER(JSGlobalObject)
 
-  TQ_OBJECT_CONSTRUCTORS(JSGlobalObject)
-};
+  // Back-compat offset/size constants.
+  static const int kGlobalProxyOffset;
+  static const int kGlobalProxyForApiOffset;
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<JSGlobalProxy> global_proxy_;
+  TaggedMember<JSGlobalProxy> global_proxy_for_api_;
+} V8_OBJECT_END;
+
+inline constexpr int JSGlobalObject::kGlobalProxyOffset =
+    offsetof(JSGlobalObject, global_proxy_);
+inline constexpr int JSGlobalObject::kGlobalProxyForApiOffset =
+    offsetof(JSGlobalObject, global_proxy_for_api_);
+inline constexpr int JSGlobalObject::kHeaderSize = sizeof(JSGlobalObject);
 
 // Representation for JS Wrapper objects, String, Number, Boolean, etc.
-class JSPrimitiveWrapper
-    : public TorqueGeneratedJSPrimitiveWrapper<JSPrimitiveWrapper,
-                                               JSCustomElementsObject> {
+V8_OBJECT class JSPrimitiveWrapper : public JSCustomElementsObject {
  public:
+  inline Tagged<JSAny> value() const;
+  inline void set_value(Tagged<JSAny> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Dispatched behavior.
   DECL_PRINTER(JSPrimitiveWrapper)
+  DECL_VERIFIER(JSPrimitiveWrapper)
 
-  TQ_OBJECT_CONSTRUCTORS(JSPrimitiveWrapper)
-};
+ public:
+  TaggedMember<JSAny> value_;
+} V8_OBJECT_END;
 
 class DateCache;
 
 // Representation for JS date objects.
-class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
+V8_OBJECT class JSDate : public JSObject {
  public:
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSDate> New(
       Isolate* isolate, DirectHandle<JSFunction> constructor,
@@ -1261,6 +1349,41 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   static Address GetField(Isolate* isolate, Address raw_date,
                           Address smi_index);
 
+  inline double value() const;
+  inline void set_value(double v);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> year() const;
+  inline void set_year(Tagged<UnionOf<Smi, HeapNumber>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> month() const;
+  inline void set_month(Tagged<UnionOf<Smi, HeapNumber>> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> day() const;
+  inline void set_day(Tagged<UnionOf<Smi, HeapNumber>> value,
+                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> weekday() const;
+  inline void set_weekday(Tagged<UnionOf<Smi, HeapNumber>> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> hour() const;
+  inline void set_hour(Tagged<UnionOf<Smi, HeapNumber>> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> min() const;
+  inline void set_min(Tagged<UnionOf<Smi, HeapNumber>> value,
+                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> sec() const;
+  inline void set_sec(Tagged<UnionOf<Smi, HeapNumber>> value,
+                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Smi, HeapNumber>> cache_stamp() const;
+  inline void set_cache_stamp(Tagged<UnionOf<Smi, HeapNumber>> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   void SetValue(Isolate* isolate, double v);
   void SetNanValue();
 
@@ -1268,7 +1391,7 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)
-  DECL_VERIFIER(JSDate)
+  EXPORT_DECL_VERIFIER(JSDate)
 
   // The order is important. It must be kept in sync with date macros
   // in macros.py.
@@ -1309,8 +1432,17 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   inline void SetCachedFields(Isolate* isolate, int64_t local_time_ms,
                               DateCache* date_cache);
 
-  TQ_OBJECT_CONSTRUCTORS(JSDate)
-};
+ public:
+  UnalignedDoubleMember value_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> year_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> month_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> day_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> weekday_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> hour_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> min_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> sec_;
+  TaggedMember<UnionOf<Smi, HeapNumber>> cache_stamp_;
+} V8_OBJECT_END;
 
 // Representation of message objects used for error reporting through
 // the API. The messages are formatted in JavaScript so this object is
@@ -1318,8 +1450,7 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
 // error messages are not directly accessible from JavaScript to
 // prevent leaking information to user code called during error
 // formatting.
-class JSMessageObject
-    : public TorqueGeneratedJSMessageObject<JSMessageObject, JSObject> {
+V8_OBJECT class JSMessageObject : public JSObject {
  public:
   // [type]: the type of error message.
   inline MessageTemplate type() const;
@@ -1354,17 +1485,26 @@ class JSMessageObject
   // EnsureSourcePositionsAvailable must have been called before calling this.
   DirectHandle<String> GetSourceLine() const;
 
-  DECL_INT_ACCESSORS(error_level)
+  inline Tagged<Object> argument() const;
+  inline void set_argument(Tagged<Object> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Script> script() const;
+  inline void set_script(Tagged<Script> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<StackTraceInfo, Hole>> stack_trace() const;
+  inline void set_stack_trace(Tagged<UnionOf<StackTraceInfo, Hole>> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int error_level() const;
+  inline void set_error_level(int value);
 
   // Dispatched behavior.
   DECL_PRINTER(JSMessageObject)
+  DECL_VERIFIER(JSMessageObject)
 
-  // TODO(v8:8989): [torque] Support marker constants.
-  static const int kPointerFieldsEndOffset = kStartPositionOffset;
-
-  using BodyDescriptor =
-      FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
-                          kHeaderSize>;
+  class BodyDescriptor;
 
  private:
   friend class Factory;
@@ -1375,67 +1515,109 @@ class JSMessageObject
 
   // [shared]: optional SharedFunctionInfo that can be used to reconstruct the
   // source position if not available when the message was generated.
-  DECL_ACCESSORS(shared_info, Tagged<Object>)
+  inline Tagged<Object> shared_info() const;
+  inline void set_shared_info(Tagged<Object> value,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [bytecode_offset]: optional offset using along with |shared| to generation
   // source positions.
-  DECL_ACCESSORS(bytecode_offset, Tagged<Smi>)
+  inline Tagged<Smi> bytecode_offset() const;
+  inline void set_bytecode_offset(Tagged<Smi> value);
 
   // [start_position]: the start position in the script for the error message.
-  DECL_INT_ACCESSORS(start_position)
+  inline int start_position() const;
+  inline void set_start_position(int value);
 
   // [end_position]: the end position in the script for the error message.
-  DECL_INT_ACCESSORS(end_position)
+  inline int end_position() const;
+  inline void set_end_position(int value);
 
-  DECL_INT_ACCESSORS(raw_type)
+  inline int raw_type() const;
+  inline void set_raw_type(int value);
 
-  // Hide generated accessors; custom accessors are named "raw_type".
-  DECL_INT_ACCESSORS(message_type)
-
-  TQ_OBJECT_CONSTRUCTORS(JSMessageObject)
-};
+ public:
+  TaggedMember<Smi> message_type_;
+  TaggedMember<Object> argument_;
+  TaggedMember<Script> script_;
+  TaggedMember<UnionOf<StackTraceInfo, Hole>> stack_trace_;
+  TaggedMember<UnionOf<SharedFunctionInfo, Smi>> shared_info_;
+  // Raw data fields below (treated as non-pointers by BodyDescriptor).
+  TaggedMember<Smi> bytecode_offset_;
+  TaggedMember<Smi> start_position_;
+  TaggedMember<Smi> end_position_;
+  TaggedMember<Smi> error_level_;
+} V8_OBJECT_END;
 
 // The [Async-from-Sync Iterator] object
-// (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
+// (https://tc39.es/proposal-async-iteration/#sec-async-from-sync-iterator-objects)
 // An object which wraps an ordinary Iterator and converts it to behave
 // according to the Async Iterator protocol.
-// (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
-class JSAsyncFromSyncIterator
-    : public TorqueGeneratedJSAsyncFromSyncIterator<JSAsyncFromSyncIterator,
-                                                    JSObject> {
+// (See https://tc39.es/proposal-async-iteration/#sec-iteration)
+V8_OBJECT class JSAsyncFromSyncIterator : public JSObject {
  public:
-  DECL_PRINTER(JSAsyncFromSyncIterator)
-
   // Async-from-Sync Iterator instances are ordinary objects that inherit
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
-  // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
+  // (https://tc39.es/proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
+  inline Tagged<JSReceiver> sync_iterator() const;
+  inline void set_sync_iterator(Tagged<JSReceiver> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
-};
+  // The "next" method is loaded during GetIterator, and is not reloaded for
+  // subsequent "next" invocations.
+  inline Tagged<Object> next() const;
+  inline void set_next(Tagged<Object> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-class JSStringIterator
-    : public TorqueGeneratedJSStringIterator<JSStringIterator, JSObject> {
+  DECL_PRINTER(JSAsyncFromSyncIterator)
+  DECL_VERIFIER(JSAsyncFromSyncIterator)
+
  public:
+  TaggedMember<JSReceiver> sync_iterator_;
+  TaggedMember<Object> next_;
+} V8_OBJECT_END;
+
+V8_OBJECT class JSStringIterator : public JSObject {
+ public:
+  inline Tagged<String> string() const;
+  inline void set_string(Tagged<String> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int index() const;
+  inline void set_index(int value);
+
   // Dispatched behavior.
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  TQ_OBJECT_CONSTRUCTORS(JSStringIterator)
-};
+ public:
+  TaggedMember<String> string_;
+  TaggedMember<Smi> index_;
+} V8_OBJECT_END;
 
 // The valid iterator wrapper is the wrapper object created by
 // Iterator.from(obj), which attempts to wrap iterator-like objects into an
 // actual iterator with %Iterator.prototype%.
-class JSValidIteratorWrapper
-    : public TorqueGeneratedJSValidIteratorWrapper<JSValidIteratorWrapper,
-                                                   JSObject> {
+V8_OBJECT class JSValidIteratorWrapper : public JSObject {
  public:
-  DECL_PRINTER(JSValidIteratorWrapper)
+  // The [[Iterated]] slot, modelled as the two fields of an
+  // iterator::IteratorRecord struct (object + next).
+  inline Tagged<JSReceiver> underlying_object() const;
+  inline void set_underlying_object(
+      Tagged<JSReceiver> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  TQ_OBJECT_CONSTRUCTORS(JSValidIteratorWrapper)
-};
+  inline Tagged<JSAny> underlying_next() const;
+  inline void set_underlying_next(Tagged<JSAny> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(JSValidIteratorWrapper)
+  DECL_VERIFIER(JSValidIteratorWrapper)
+
+ public:
+  TaggedMember<JSReceiver> underlying_object_;
+  TaggedMember<JSAny> underlying_next_;
+} V8_OBJECT_END;
 
 // JSPromiseWithResolversResult is just a JSObject with a specific initial map.
 // This initial map adds in-object properties for "promise", "resolve", and
@@ -1465,7 +1647,8 @@ class JSPromiseWithResolversResult : public JSObject {
   static const int kResolveIndex = 1;
   static const int kRejectIndex = 2;
 
-  OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSPromiseWithResolversResult);
 };
 
 // JSUint8ArraySetFromResult is just a JSObject with a specific initial map.
@@ -1491,7 +1674,8 @@ class JSUint8ArraySetFromResult : public JSObject {
   static const int kReadIndex = 0;
   static const int kWrittenIndex = 1;
 
-  OBJECT_CONSTRUCTORS(JSUint8ArraySetFromResult, JSObject);
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSUint8ArraySetFromResult);
 };
 
 }  // namespace v8::internal

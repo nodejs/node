@@ -155,6 +155,24 @@ void WriteBarrier::ForValue(HeapObjectLayout* host, TaggedMemberBase* slot,
                                value_object, mode);
 }
 
+// static
+template <typename T>
+void WriteBarrier::ForValue(HeapObjectLayout* host, MaybeObjectSlot slot,
+                            Tagged<T> value, WriteBarrierMode mode) {
+  if (IsSkipWriteBarrierMode(mode)) {
+#if V8_VERIFY_WRITE_BARRIERS
+    VerifySkipWriteBarrier(host, value, mode);
+#endif  // V8_VERIFY_WRITE_BARRIERS
+    return;
+  }
+  Tagged<HeapObject> value_object;
+  if (!value.GetHeapObject(&value_object)) {
+    return;
+  }
+  CombinedWriteBarrierInternal(Tagged(host), HeapObjectSlot(slot), value_object,
+                               mode);
+}
+
 #if V8_VERIFY_WRITE_BARRIERS
 // static
 template <typename T>
@@ -288,6 +306,13 @@ void WriteBarrier::ForJSDispatchHandle(Tagged<HeapObject> host,
 }
 
 // static
+void WriteBarrier::ForJSDispatchHandle(HeapObjectLayout* host,
+                                       JSDispatchHandle handle,
+                                       WriteBarrierMode mode) {
+  ForJSDispatchHandle(Tagged(host), handle, mode);
+}
+
+// static
 void WriteBarrier::ForProtectedPointer(Tagged<TrustedObject> host,
                                        ProtectedPointerSlot slot,
                                        Tagged<TrustedObject> value,
@@ -307,6 +332,24 @@ void WriteBarrier::ForProtectedPointer(Tagged<TrustedObject> host,
     SharedSlow(host, slot, value);
   }
   Marking(host, slot, value);
+}
+
+// static
+template <typename T>
+void WriteBarrier::ForProtectedPointer(HeapObjectLayout* host,
+                                       TaggedMemberBase* slot, Tagged<T> value,
+                                       WriteBarrierMode mode) {
+  // Only a host in trusted space may hold a ProtectedTaggedMember (i.e. a
+  // TaggedMember<T, TrustedSpaceCompressionScheme>). The type already implies
+  // trusted space, but DCHECK to catch misuse.
+  DCHECK(TrustedHeapLayout::InTrustedSpace(Tagged(host)));
+  Tagged<HeapObject> value_object;
+  if (!value.GetHeapObject(&value_object)) {
+    return;
+  }
+  ForProtectedPointer(UncheckedCast<TrustedObject>(Tagged(host)),
+                      ProtectedPointerSlot(reinterpret_cast<Address>(slot)),
+                      UncheckedCast<TrustedObject>(value_object), mode);
 }
 
 // static

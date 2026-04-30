@@ -43,6 +43,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -53,6 +54,8 @@
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/has_ostream_operator.h"
 #include "absl/strings/str_format.h"
+#include "absl/types/source_location.h"
+#include "absl/types/span.h"
 #include "absl/types/variant.h"
 #include "absl/utility/utility.h"
 
@@ -244,50 +247,50 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   // is explicit if and only if the corresponding construction of `T` from `U`
   // is explicit. (This constructor inherits its explicitness from the
   // underlying constructor.)
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 false, T, U, false, const U&>::value,
                             int> = 0>
   StatusOr(const StatusOr<U>& other)  // NOLINT
       : Base(static_cast<const typename StatusOr<U>::Base&>(other)) {}
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 false, T, U, true, const U&>::value,
                             int> = 0>
   StatusOr(const StatusOr<U>& other ABSL_ATTRIBUTE_LIFETIME_BOUND)  // NOLINT
       : Base(static_cast<const typename StatusOr<U>::Base&>(other)) {}
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 true, T, U, false, const U&>::value,
                             int> = 0>
   explicit StatusOr(const StatusOr<U>& other)
       : Base(static_cast<const typename StatusOr<U>::Base&>(other)) {}
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 true, T, U, true, const U&>::value,
                             int> = 0>
   explicit StatusOr(const StatusOr<U>& other ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : Base(static_cast<const typename StatusOr<U>::Base&>(other)) {}
 
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 false, T, U, false, U&&>::value,
                             int> = 0>
   StatusOr(StatusOr<U>&& other)  // NOLINT
       : Base(static_cast<typename StatusOr<U>::Base&&>(other)) {}
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 false, T, U, true, U&&>::value,
                             int> = 0>
   StatusOr(StatusOr<U>&& other ABSL_ATTRIBUTE_LIFETIME_BOUND)  // NOLINT
       : Base(static_cast<typename StatusOr<U>::Base&&>(other)) {}
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 true, T, U, false, U&&>::value,
                             int> = 0>
   explicit StatusOr(StatusOr<U>&& other)
       : Base(static_cast<typename StatusOr<U>::Base&&>(other)) {}
-  template <typename U, absl::enable_if_t<
+  template <typename U, std::enable_if_t<
                             internal_statusor::IsConstructionFromStatusOrValid<
                                 true, T, U, true, U&&>::value,
                             int> = 0>
@@ -314,7 +317,7 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   // assignable from `absl::StatusOr<U>` and `StatusOr<T>` cannot be directly
   // assigned from `StatusOr<U>`.
   template <typename U,
-            absl::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
+            std::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
                                   T, const U&, false>::value,
                               int> = 0>
   StatusOr& operator=(const StatusOr<U>& other) {
@@ -322,7 +325,7 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
     return *this;
   }
   template <typename U,
-            absl::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
+            std::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
                                   T, const U&, true>::value,
                               int> = 0>
   StatusOr& operator=(const StatusOr<U>& other ABSL_ATTRIBUTE_LIFETIME_BOUND) {
@@ -330,7 +333,7 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
     return *this;
   }
   template <typename U,
-            absl::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
+            std::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
                                   T, U&&, false>::value,
                               int> = 0>
   StatusOr& operator=(StatusOr<U>&& other) {
@@ -338,7 +341,7 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
     return *this;
   }
   template <typename U,
-            absl::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
+            std::enable_if_t<internal_statusor::IsStatusOrAssignmentValid<
                                   T, U&&, true>::value,
                               int> = 0>
   StatusOr& operator=(StatusOr<U>&& other ABSL_ATTRIBUTE_LIFETIME_BOUND) {
@@ -358,18 +361,18 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   // In optimized builds, passing absl::OkStatus() here will have the effect
   // of passing absl::StatusCode::kInternal as a fallback.
   template <typename U = absl::Status,
-            absl::enable_if_t<internal_statusor::IsConstructionFromStatusValid<
+            std::enable_if_t<internal_statusor::IsConstructionFromStatusValid<
                                   false, T, U>::value,
                               int> = 0>
   StatusOr(U&& v) : Base(std::forward<U>(v)) {}
 
   template <typename U = absl::Status,
-            absl::enable_if_t<internal_statusor::IsConstructionFromStatusValid<
+            std::enable_if_t<internal_statusor::IsConstructionFromStatusValid<
                                   true, T, U>::value,
                               int> = 0>
   explicit StatusOr(U&& v) : Base(std::forward<U>(v)) {}
   template <typename U = absl::Status,
-            absl::enable_if_t<internal_statusor::IsConstructionFromStatusValid<
+            std::enable_if_t<internal_statusor::IsConstructionFromStatusValid<
                                   false, T, U>::value,
                               int> = 0>
   StatusOr& operator=(U&& v) {
@@ -426,26 +429,26 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   // ambiguity, this constructor is disabled if `U` is a `StatusOr<J>`, where
   // `J` is convertible to `T`.
   template <typename U = T,
-            absl::enable_if_t<internal_statusor::IsConstructionValid<
+            std::enable_if_t<internal_statusor::IsConstructionValid<
                                   false, T, U, false>::value,
                               int> = 0>
   StatusOr(U&& u)  // NOLINT
       : StatusOr(absl::in_place, std::forward<U>(u)) {}
   template <typename U = T,
-            absl::enable_if_t<internal_statusor::IsConstructionValid<
+            std::enable_if_t<internal_statusor::IsConstructionValid<
                                   false, T, U, true>::value,
                               int> = 0>
   StatusOr(U&& u ABSL_ATTRIBUTE_LIFETIME_BOUND)  // NOLINT
       : StatusOr(absl::in_place, std::forward<U>(u)) {}
 
   template <typename U = T,
-            absl::enable_if_t<internal_statusor::IsConstructionValid<
+            std::enable_if_t<internal_statusor::IsConstructionValid<
                                   true, T, U, false>::value,
                               int> = 0>
   explicit StatusOr(U&& u)  // NOLINT
       : StatusOr(absl::in_place, std::forward<U>(u)) {}
   template <typename U = T,
-            absl::enable_if_t<
+            std::enable_if_t<
                 internal_statusor::IsConstructionValid<true, T, U, true>::value,
                 int> = 0>
   explicit StatusOr(U&& u ABSL_ATTRIBUTE_LIFETIME_BOUND)  // NOLINT
@@ -474,6 +477,36 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
   // function returns `absl::OkStatus()`.
   ABSL_MUST_USE_RESULT const Status& status() const&;
   Status status() &&;
+
+  absl::Span<const absl::SourceLocation> GetSourceLocations() const {
+    return this->status_.GetSourceLocations();
+  }
+  // Appends the `loc` to the current location chain inside the status, iff the
+  // status-or is non-ok and contains a non-empty message.
+  void AddSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) {
+    this->status_.AddSourceLocation(loc);
+  }
+
+  // StatusOr<T>::WithSourceLocation()
+  //
+  // Appends the `loc` to the current location chain inside the status iff the
+  // status-or is non-ok and contains a non-empty message, and returns an rvalue
+  // reference to `*this`.
+  //
+  // Example:
+  //
+  //   StatusOr<int> Finalize(...);
+  //
+  //   StatusOr<int> DoSomething(...) {
+  //     ...
+  //     return Finalize().WithSourceLocation();
+  //   }
+  ABSL_MUST_USE_RESULT StatusOr<T>&& WithSourceLocation(
+      absl::SourceLocation loc = absl::SourceLocation::current()) && {
+    AddSourceLocation(loc);
+    return std::move(*this);
+  }
 
   // StatusOr<T>::value()
   //
@@ -591,7 +624,7 @@ class StatusOr : private internal_statusor::OperatorBase<T>,
 
   template <
       typename U, typename... Args,
-      absl::enable_if_t<
+      std::enable_if_t<
           std::is_constructible<T, std::initializer_list<U>&, Args&&...>::value,
           int> = 0>
   T& emplace(std::initializer_list<U> ilist,

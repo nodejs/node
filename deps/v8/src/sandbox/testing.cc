@@ -115,7 +115,7 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Factory* factory = reinterpret_cast<Isolate*>(isolate)->factory();
   std::unique_ptr<BackingStore> memory = BackingStore::WrapAllocation(
       reinterpret_cast<void*>(sandbox->base() + offset), size,
-      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNotShared);
+      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNo);
   if (!memory) {
     isolate->ThrowError("Out of memory: MemoryView backing store");
     return;
@@ -456,6 +456,40 @@ void SandboxGetBuiltinNames(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(result);
 }
 
+// Returns compressed Code object by a given builtin id.
+//
+// This can be useful for manipulating IC handlers represented by Code objects.
+//
+// Sandbox.getBuiltinCode(Number) -> Number
+void SandboxGetBuiltinCode(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  if (!info[0]->IsInt32()) {
+    isolate->ThrowError("First argument must be an integer");
+    return;
+  }
+
+  int raw_builtin_id = info[0]->Int32Value(context).FromMaybe(-1);
+  if (!Builtins::IsBuiltinId(raw_builtin_id)) {
+    isolate->ThrowError("Invalid builtin id");
+    return;
+  }
+  Builtin builtin = static_cast<Builtin>(raw_builtin_id);
+
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Tagged<Code> code = i_isolate->builtins()->code(builtin);
+  // Update this code once we move builtins' Code objects from the main cage.
+  // The Sandbox Api must not leak addresses outside of the main cage, so this
+  // function should probably return a CodeWrapper or whatever we'll be using
+  // as IC handlers representing builtins. If we decide to encode those
+  // builtins into Smi handlers, then this function should probably be removed.
+  CHECK(code.IsInMainCageBase());
+
+  info.GetReturnValue().Set(V8HeapCompressionScheme::CompressAny(code.ptr()));
+}
+
 // Sets given function's code value to a given builtin's code object.
 //
 // This can be used to shortcut overwriting JSFunction's code in testcases.
@@ -657,6 +691,7 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
   InstallFunction(isolate, sandbox, SandboxGetBuiltinNames, "getBuiltinNames",
                   0);
+  InstallFunction(isolate, sandbox, SandboxGetBuiltinCode, "getBuiltinCode", 1);
   InstallFunction(isolate, sandbox, SandboxSetFunctionCodeToBuiltin,
                   "setFunctionCodeToBuiltin", 2);
   InstallFunction(isolate, sandbox, SandboxCorruptObjectField,
@@ -783,7 +818,8 @@ bool IsCrashInSafeMemoryRegion(Address faultaddr,
   return false;
 }
 
-[[noreturn]] void FilterCrash(const char* reason) {
+[[noreturn]]
+void FilterCrash(const char* reason) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
   PrintToStderr(reason);
@@ -941,8 +977,8 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (nullptr dereference).");
       }
 
-      size_t padding = 1 * MB;
-      if (faultaddr < 4ULL * GB + padding) {
+      if (faultaddr <
+          (Sandbox::kSmiAddressRange + Sandbox::kSmiAddressRangePadding)) {
         // Currently we also ignore access violations in the first 4GB of the
         // virtual address space. See crbug.com/1470641 for more details.
         // We need to add some "padding" to the 4GB since we might access a
@@ -1155,6 +1191,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
   if (!is_initialized) {
     types["JS_OBJECT_TYPE"] = JS_OBJECT_TYPE;
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
+    types["JS_BOUND_FUNCTION_TYPE"] = JS_BOUND_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
     types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
@@ -1170,6 +1207,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["PROMISE_REACTION"] = PROMISE_REACTION_TYPE;
     types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
     types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
+    types["FEEDBACK_CELL_TYPE"] = FEEDBACK_CELL_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
@@ -1194,6 +1232,9 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSFunction::kDispatchHandleOffset;
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
         JSFunction::kSharedFunctionInfoOffset;
+    fields[JS_FUNCTION_TYPE]["feedback_cell"] = JSFunction::kFeedbackCellOffset;
+    fields[JS_BOUND_FUNCTION_TYPE]["bound_arguments"] =
+        JSBoundFunction::kBoundArgumentsOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
@@ -1225,16 +1266,15 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[SHARED_FUNCTION_INFO_TYPE]["script"] =
         SharedFunctionInfo::kScriptOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
-        Script::kEvalFromPositionOffset;
+        offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
-        JSPromise::kReactionsOrResultOffset;
+        offsetof(JSPromise, reactions_or_result_);
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
-    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
-        JSFunction::kSharedFunctionInfoOffset;
+    fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
 #ifdef V8_INTL_SUPPORT
-    fields[JS_SEGMENTS_TYPE]["unicode_string"] =
-        JSSegments::kUnicodeStringOffset;
+    fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
+        JSSegments::kIcuIteratorWithTextOffset;
 #endif  // V8_INTL_SUPPORT
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =

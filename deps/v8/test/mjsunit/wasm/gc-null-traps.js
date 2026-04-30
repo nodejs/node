@@ -12,8 +12,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       makeField(kWasmF64, true), makeField(kWasmF32, true)]);
   let struct_ref =
       builder.addStruct([makeField(wasmRefNullType(struct), true)]);
-  let array = builder.addArray(kWasmI64, true);
-  let array_ref = builder.addArray(wasmRefNullType(struct), true);
+  let array = builder.addArray(kWasmI64);
+  let array_ref = builder.addArray(wasmRefNullType(struct));
   let sig = builder.addType(kSig_i_i);
 
   for (let field_type of [[0, kWasmI32], [1, kWasmI64],

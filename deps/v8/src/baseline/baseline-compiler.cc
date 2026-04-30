@@ -21,6 +21,7 @@
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
+#include "src/execution/local-isolate-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
@@ -73,9 +74,10 @@ template <typename IsolateT>
 Handle<TrustedByteArray> BytecodeOffsetTableBuilder::ToBytecodeOffsetTable(
     IsolateT* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_trusted_byte_array();
+  const uint32_t bytes_size = static_cast<uint32_t>(bytes_.size());
   Handle<TrustedByteArray> table =
-      isolate->factory()->NewTrustedByteArray(static_cast<int>(bytes_.size()));
-  MemCopy(table->begin(), bytes_.data(), bytes_.size());
+      isolate->factory()->NewTrustedByteArray(bytes_size);
+  MemCopy(table->begin(), bytes_.data(), bytes_size);
   return table;
 }
 
@@ -274,7 +276,11 @@ std::unique_ptr<AssemblerBuffer> AllocateBuffer(
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(*bytecodes);
   }
-  return NewAssemblerBuffer(RoundUp(estimated_size, 4 * KB));
+  int rounded_size = RoundUp(estimated_size, 4 * KB);
+  if (rounded_size > Assembler::kMaximalBufferSize) {
+    V8::FatalProcessOutOfMemory(nullptr, "BaselineCompiler::AllocateBuffer");
+  }
+  return NewAssemblerBuffer(rounded_size);
 }
 }  // namespace
 
@@ -293,6 +299,8 @@ BaselineCompiler::BaselineCompiler(
           CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
+      allow_sparkplug_plus_(v8_flags.sparkplug_plus &&
+                            local_isolate->is_short_builtin_calls_enabled()),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),
       label_tags_(2 * bytecode_->length(), &zone_) {
   // Empirically determined expected size of the offset table at the 95th %ile,
@@ -309,7 +317,7 @@ void BaselineCompiler::GenerateCode() {
     // Mark exception handlers as valid indirect jump targets. This is required
     // when CFI is enabled, to allow indirect jumps into baseline code.
     HandlerTable table(*bytecode_);
-    for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+    for (uint32_t i = 0; i < table.NumberOfRangeEntries(); ++i) {
       MarkIndirectJumpTarget(table.GetRangeHandler(i));
     }
     for (; !iterator_.done(); iterator_.Advance()) {
@@ -424,7 +432,7 @@ uint32_t BaselineCompiler::Flag8(int operand_index) {
 uint32_t BaselineCompiler::Flag16(int operand_index) {
   return iterator().GetFlag16Operand(operand_index);
 }
-uint32_t BaselineCompiler::EmbeddedFeedback(int operand_index) {
+uint8_t BaselineCompiler::EmbeddedFeedback(int operand_index) {
   return iterator().GetEmbeddedFeedback(operand_index);
 }
 uint32_t BaselineCompiler::RegisterCount(int operand_index) {
@@ -1043,7 +1051,7 @@ void BaselineCompiler::VisitMov() {
 }
 
 void BaselineCompiler::VisitGetNamedProperty() {
-  if (v8_flags.sparkplug_plus) {
+  if (allow_sparkplug_plus_) {
     CallBuiltin<Builtin::kLoadICUninitializedBaseline>(
         RegisterOperand(0),        // object
         Constant<Name>(1),         // name
@@ -1110,6 +1118,35 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ LoadContext(scratch);
   int depth = Uint(1);
   __ StaModuleVariable(scratch, value, cell_index, depth);
+}
+
+void BaselineCompiler::VisitGetPrivateField() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  LoadRegister(context, 0);
+
+  __ LdaContextSlotNoCell(context, ContextSlot(1), Uint(2));
+
+  CallBuiltin<Builtin::kKeyedLoadICBaseline>(
+      RegisterOperand(3),               // object
+      kInterpreterAccumulatorRegister,  // name
+      FeedbackSlotAsTagged(4));         // slot
+}
+
+void BaselineCompiler::VisitSetPrivateField() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  LoadRegister(context, 0);
+
+  Register reg(context);
+  __ LdaContextSlotNoCell(context, ContextSlot(1), Uint(2),
+                          BaselineAssembler::CompressionMode::kDefault, reg);
+
+  CallBuiltin<Builtin::kKeyedStoreICBaseline>(
+      RegisterOperand(3),               // object
+      reg,                              // symbol
+      kInterpreterAccumulatorRegister,  // value
+      FeedbackSlotAsTagged(4));         // slot
 }
 
 void BaselineCompiler::VisitSetPrototypeProperties() {
@@ -1615,14 +1652,14 @@ void BaselineCompiler::VisitIntrinsicGeneratorGetResumeMode(
   __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
   __ LoadTaggedField(kInterpreterAccumulatorRegister,
                      kInterpreterAccumulatorRegister,
-                     JSGeneratorObject::kResumeModeOffset);
+                     offsetof(JSGeneratorObject, resume_mode_));
 }
 
 void BaselineCompiler::VisitIntrinsicGeneratorClose(
     interpreter::RegisterList args) {
   __ LoadRegister(kInterpreterAccumulatorRegister, args[0]);
   __ StoreTaggedSignedField(kInterpreterAccumulatorRegister,
-                            JSGeneratorObject::kContinuationOffset,
+                            offsetof(JSGeneratorObject, continuation_),
                             Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
 }
@@ -1722,78 +1759,84 @@ void BaselineCompiler::VisitConstructForwardAllArgs() {
       FeedbackSlotAsTagged(1));  // kSlot
 }
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define TYPED_COMPARE_CASE(name, type)                       \
+  case CompareOperationFeedback::Type::k##type:              \
+    CallBuiltin<Builtin::k##name##_##type##_Baseline>(       \
+        RegisterOperand(0), kInterpreterAccumulatorRegister, \
+        feedback_index_offset);                              \
+    break;
+
+#define Equal_CASE(type) TYPED_COMPARE_CASE(Equal, type)
+#define StrictEqual_CASE(type) TYPED_COMPARE_CASE(StrictEqual, type)
+#define LessThan_CASE(type) TYPED_COMPARE_CASE(LessThan, type)
+#define GreaterThan_CASE(type) TYPED_COMPARE_CASE(GreaterThan, type)
+#define LessThanOrEqual_CASE(type) TYPED_COMPARE_CASE(LessThanOrEqual, type)
+#define GreaterThanOrEqual_CASE(type) \
+  TYPED_COMPARE_CASE(GreaterThanOrEqual, type)
+
+#define VISIT_TYPED_COMPARE_OPERATION(TypedStubList, Name)                 \
+  using Feedback = CompareOperationFeedback;                               \
+  auto feedback_index_offset =                                             \
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex); \
+  if (allow_sparkplug_plus_) {                                             \
+    switch (Feedback::DecodeTypeIndex(                                     \
+        static_cast<Feedback::TypeIndex>(EmbeddedFeedback(1)))) {          \
+      TypedStubList(Name##_CASE) default                                   \
+          : CallBuiltin<Builtin::k##Name##_Generic_Baseline>(              \
+                RegisterOperand(0), kInterpreterAccumulatorRegister,       \
+                feedback_index_offset);                                    \
+      break;                                                               \
+    }                                                                      \
+  } else {                                                                 \
+    CallBuiltin<Builtin::k##Name##_Generic_Baseline>(                      \
+        RegisterOperand(0), kInterpreterAccumulatorRegister,               \
+        feedback_index_offset);                                            \
+  }
+#else
+#define VISIT_TYPED_COMPARE_OPERATION(TypedStubList, Name)                 \
+  auto feedback_index_offset =                                             \
+      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex); \
+  CallBuiltin<Builtin::k##Name##_Generic_Baseline>(                        \
+      RegisterOperand(0), kInterpreterAccumulatorRegister,                 \
+      feedback_index_offset);
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+
 void BaselineCompiler::VisitTestEqual() {
-  auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
-  CallBuiltin<Builtin::kEqual_Baseline>(RegisterOperand(0),
-                                        kInterpreterAccumulatorRegister,
-                                        feedback_value_offset);
+  VISIT_TYPED_COMPARE_OPERATION(TYPED_EQUAL_STUB_LIST, Equal)
 }
 
 void BaselineCompiler::VisitTestEqualStrict() {
-  auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
-
-#ifdef V8_ENABLE_SPARKPLUG_PLUS
-  if (v8_flags.sparkplug_plus) {
-#define TYPED_STRICTEQUAL_CASE(type)                         \
-  case CompareOperationFeedback::Type::k##type:              \
-    CallBuiltin<Builtin::kStrictEqual_##type##_Baseline>(    \
-        RegisterOperand(0), kInterpreterAccumulatorRegister, \
-        feedback_value_offset);                              \
-    break;
-    switch (static_cast<CompareOperationFeedback::Type>(EmbeddedFeedback(1))) {
-      TYPED_STRICTEQUAL_STUB_LIST(TYPED_STRICTEQUAL_CASE)
-      default:
-        CallBuiltin<Builtin::kStrictEqual_Generic_Baseline>(
-            RegisterOperand(0), kInterpreterAccumulatorRegister,
-            feedback_value_offset);
-        break;
-    }
-#undef TYPED_STRICTEQUAL_CASE
-  } else {
-#endif  // V8_ENABLE_SPARKPLUG_PLUS
-
-    CallBuiltin<Builtin::kStrictEqual_Generic_Baseline>(
-        RegisterOperand(0), kInterpreterAccumulatorRegister,
-        feedback_value_offset);
-
-#ifdef V8_ENABLE_SPARKPLUG_PLUS
-  }
-#endif  // V8_ENABLE_SPARKPLUG_PLUS
+  VISIT_TYPED_COMPARE_OPERATION(TYPED_STRICTEQUAL_STUB_LIST, StrictEqual)
 }
 
 void BaselineCompiler::VisitTestLessThan() {
-  auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
-  CallBuiltin<Builtin::kLessThan_Baseline>(RegisterOperand(0),
-                                           kInterpreterAccumulatorRegister,
-                                           feedback_value_offset);
+  VISIT_TYPED_COMPARE_OPERATION(TYPED_RELATIONAL_COMPARE_STUB_LIST, LessThan)
 }
 
 void BaselineCompiler::VisitTestGreaterThan() {
-  auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
-  CallBuiltin<Builtin::kGreaterThan_Baseline>(RegisterOperand(0),
-                                              kInterpreterAccumulatorRegister,
-                                              feedback_value_offset);
+  VISIT_TYPED_COMPARE_OPERATION(TYPED_RELATIONAL_COMPARE_STUB_LIST, GreaterThan)
 }
 
 void BaselineCompiler::VisitTestLessThanOrEqual() {
-  auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
-  CallBuiltin<Builtin::kLessThanOrEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister,
-      feedback_value_offset);
+  VISIT_TYPED_COMPARE_OPERATION(TYPED_RELATIONAL_COMPARE_STUB_LIST,
+                                LessThanOrEqual)
 }
 
 void BaselineCompiler::VisitTestGreaterThanOrEqual() {
-  auto feedback_value_offset =
-      iterator().GetEmbeddedFeedbackOffset(kEmbeddedFeedbackOperandIndex);
-  CallBuiltin<Builtin::kGreaterThanOrEqual_Baseline>(
-      RegisterOperand(0), kInterpreterAccumulatorRegister,
-      feedback_value_offset);
+  VISIT_TYPED_COMPARE_OPERATION(TYPED_RELATIONAL_COMPARE_STUB_LIST,
+                                GreaterThanOrEqual)
 }
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+#undef Equal_CASE
+#undef StrictEqual_CASE
+#undef LessThan_CASE
+#undef GreaterThan_CASE
+#undef LessThanOrEqual_CASE
+#undef GreaterThanOrEqual_CASE
+#undef TYPED_COMPARE_CASE
+#endif  // V8_ENABLE_SPARKPLUG_PLUS
+#undef VISIT_TYPED_COMPARE_OPERATION
 
 void BaselineCompiler::VisitTestReferenceEqual() {
   SelectBooleanConstant(
@@ -2548,14 +2591,14 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
 
   Register continuation = scratch_scope.AcquireScratch();
   __ LoadTaggedSignedFieldAndUntag(continuation, generator_object,
-                                   JSGeneratorObject::kContinuationOffset);
+                                   offsetof(JSGeneratorObject, continuation_));
   __ StoreTaggedSignedField(
-      generator_object, JSGeneratorObject::kContinuationOffset,
+      generator_object, offsetof(JSGeneratorObject, continuation_),
       Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
 
   Register context = scratch_scope.AcquireScratch();
   __ LoadTaggedField(context, generator_object,
-                     JSGeneratorObject::kContextOffset);
+                     offsetof(JSGeneratorObject, context_));
   __ StoreContext(context);
 
   interpreter::JumpTableTargetOffsets offsets =

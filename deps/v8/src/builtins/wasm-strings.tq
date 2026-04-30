@@ -24,16 +24,27 @@ transitioning javascript builtin WebAssemblyStringTest(
   return Is<String>(arg) ? SmiConstant(1) : SmiConstant(0);
 }
 
-extern runtime WasmCastToSpecialPrimitiveArray(Context, Object, Smi): WasmArray;
+extern runtime WasmCastToSpecialPrimitiveArray(
+    Context, Object, Smi, Smi): WasmArray;
 
 transitioning javascript builtin WebAssemblyStringFromWtf16Array(
     js-implicit context: Context)(arrayArg: JSAny, startArg: JSAny,
     endArg: JSAny): JSAny {
-  const array =
-      WasmCastToSpecialPrimitiveArray(context, arrayArg, SmiConstant(16));
+  const array = WasmCastToSpecialPrimitiveArray(
+      context, arrayArg, SmiConstant(16), SmiConstant(0));
   const start = NumberToUint32(ToNumber_Inline(startArg));
   const end = NumberToUint32(ToNumber_Inline(endArg));
   return wasm::WasmStringNewWtf16Array(array, start, end);
+}
+
+transitioning javascript builtin WebAssemblyStringFromWtf16ArrayShared(
+    js-implicit context: Context)(arrayArg: JSAny, startArg: JSAny,
+    endArg: JSAny): JSAny {
+  const array = WasmCastToSpecialPrimitiveArray(
+      context, arrayArg, SmiConstant(16), SmiConstant(1));
+  const start = NumberToUint32(ToNumber_Inline(startArg));
+  const end = NumberToUint32(ToNumber_Inline(endArg));
+  return wasm::WasmStringNewWtf16ArrayShared(array, start, end);
 }
 
 const kLossyUtf8:
@@ -42,23 +53,36 @@ const kLossyUtf8:
 transitioning javascript builtin WebAssemblyStringFromUtf8Array(
     js-implicit context: Context)(arrayArg: JSAny, startArg: JSAny,
     endArg: JSAny): JSAny {
-  const array =
-      WasmCastToSpecialPrimitiveArray(context, arrayArg, SmiConstant(8));
+  const array = WasmCastToSpecialPrimitiveArray(
+      context, arrayArg, SmiConstant(8), SmiConstant(0));
   const start = NumberToUint32(ToNumber_Inline(startArg));
   const end = NumberToUint32(ToNumber_Inline(endArg));
-  const result =
-      wasm::WasmStringNewWtf8Array(start, end, array, SmiConstant(kLossyUtf8));
+  const result = wasm::WasmStringNewWtf8Array(
+      start, end, array, SmiConstant(kLossyUtf8), SmiConstant(0) /* shared */);
   dcheck(Is<String>(result));
   return %RawDownCast<String>(result);
 }
 
-transitioning javascript builtin WebAssemblyStringIntoUtf8Array(
-    js-implicit context: Context)(stringArg: JSAny, arrayArg: JSAny,
-    startArg: JSAny): JSAny {
+transitioning javascript builtin WebAssemblyStringFromUtf8ArrayShared(
+    js-implicit context: Context)(arrayArg: JSAny, startArg: JSAny,
+    endArg: JSAny): JSAny {
+  const array = WasmCastToSpecialPrimitiveArray(
+      context, arrayArg, SmiConstant(8), SmiConstant(1));
+  const start = NumberToUint32(ToNumber_Inline(startArg));
+  const end = NumberToUint32(ToNumber_Inline(endArg));
+  const result = wasm::WasmStringNewWtf8Array(
+      start, end, array, SmiConstant(kLossyUtf8), SmiConstant(1) /* shared */);
+  dcheck(Is<String>(result));
+  return %RawDownCast<String>(result);
+}
+
+transitioning macro WebAssemblyStringIntoUtf8ArrayImpl(
+    context: Context, stringArg: JSAny, arrayArg: JSAny, startArg: JSAny,
+    shared: Smi): JSAny {
   try {
     const string = Cast<String>(stringArg) otherwise goto IllegalCast;
-    const array =
-        WasmCastToSpecialPrimitiveArray(context, arrayArg, SmiConstant(8));
+    const array = WasmCastToSpecialPrimitiveArray(
+        context, arrayArg, SmiConstant(8), shared);
     const start = NumberToUint32(ToNumber_Inline(startArg));
     return runtime::WasmStringEncodeWtf8Array(
         context, SmiConstant(kLossyUtf8), string, array,
@@ -68,23 +92,47 @@ transitioning javascript builtin WebAssemblyStringIntoUtf8Array(
   }
 }
 
+transitioning javascript builtin WebAssemblyStringIntoUtf8Array(
+    js-implicit context: Context)(stringArg: JSAny, arrayArg: JSAny,
+    startArg: JSAny): JSAny {
+  return WebAssemblyStringIntoUtf8ArrayImpl(
+      context, stringArg, arrayArg, startArg, SmiConstant(0));
+}
+
+transitioning javascript builtin WebAssemblyStringIntoUtf8ArrayShared(
+    js-implicit context: Context)(stringArg: JSAny, arrayArg: JSAny,
+    startArg: JSAny): JSAny {
+  return WebAssemblyStringIntoUtf8ArrayImpl(
+      context, stringArg, arrayArg, startArg, SmiConstant(1));
+}
+
 transitioning javascript builtin WebAssemblyStringToUtf8Array(
     js-implicit context: Context)(stringArg: JSAny): JSAny {
   try {
     const string = Cast<String>(stringArg) otherwise goto IllegalCast;
-    return runtime::WasmStringToUtf8Array(context, string);
+    return runtime::WasmStringToUtf8Array(context, string, SmiConstant(0));
   } label IllegalCast deferred {
     Trap(context, MessageTemplate::kWasmTrapIllegalCast);
   }
 }
 
-transitioning javascript builtin WebAssemblyStringToWtf16Array(
-    js-implicit context: Context)(stringArg: JSAny, arrayArg: JSAny,
-    startArg: JSAny): JSAny {
+transitioning javascript builtin WebAssemblyStringToUtf8ArrayShared(
+    js-implicit context: Context)(stringArg: JSAny): JSAny {
   try {
     const string = Cast<String>(stringArg) otherwise goto IllegalCast;
-    const array =
-        WasmCastToSpecialPrimitiveArray(context, arrayArg, SmiConstant(16));
+    return runtime::WasmStringToUtf8Array(context, string, SmiConstant(1));
+  } label IllegalCast deferred {
+    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
+  }
+}
+
+transitioning macro WebAssemblyStringToWtf16ArrayImpl(
+    context: Context, stringArg: JSAny, arrayArg: JSAny, startArg: JSAny,
+    shared: Smi): JSAny {
+  try {
+    const string = Cast<String>(stringArg) otherwise goto IllegalCast;
+    const array = WasmCastToSpecialPrimitiveArray(
+        context, arrayArg, SmiConstant(16), shared);
     const start = NumberToUint32(ToNumber_Inline(startArg));
     const written = wasm::WasmStringEncodeWtf16Array(string, array, start);
     return Convert<Smi>(written);
@@ -93,10 +141,33 @@ transitioning javascript builtin WebAssemblyStringToWtf16Array(
   }
 }
 
+transitioning javascript builtin WebAssemblyStringToWtf16Array(
+    js-implicit context: Context)(stringArg: JSAny, arrayArg: JSAny,
+    startArg: JSAny): JSAny {
+  return WebAssemblyStringToWtf16ArrayImpl(
+      context, stringArg, arrayArg, startArg, SmiConstant(0));
+}
+
+transitioning javascript builtin WebAssemblyStringToWtf16ArrayShared(
+    js-implicit context: Context)(stringArg: JSAny, arrayArg: JSAny,
+    startArg: JSAny): JSAny {
+  return WebAssemblyStringToWtf16ArrayImpl(
+      context, stringArg, arrayArg, startArg, SmiConstant(1));
+}
+
 transitioning javascript builtin WebAssemblyStringFromCharCode(
     js-implicit context: Context)(codeArg: JSAny): JSAny {
   const code = NumberToUint32(ToNumber_Inline(codeArg));
   return StringFromSingleCharCode(%RawDownCast<char16>(code & 0xFFFF));
+}
+
+transitioning javascript builtin WebAssemblyStringFromCharCodeShared(
+    js-implicit context: Context)(codeArg: JSAny): JSAny {
+  const code = NumberToUint32(ToNumber_Inline(codeArg));
+  const codeSmi = Convert<Smi>(code & 0xFFFF);
+  // TODO(42204563): Can we allocate the shared string in generated code?
+  return runtime::WasmStringFromCodePoint(
+      context, codeSmi, SmiConstant(1) /* shared */);
 }
 
 transitioning javascript builtin WebAssemblyStringFromCodePoint(
@@ -106,7 +177,16 @@ transitioning javascript builtin WebAssemblyStringFromCodePoint(
   if (codeUint <= 0xFFFF) {
     return StringFromSingleCharCode(%RawDownCast<char16>(codeUint));
   }
-  return runtime::WasmStringFromCodePoint(context, code);
+  return runtime::WasmStringFromCodePoint(
+      context, code, SmiConstant(0) /* shared */);
+}
+
+transitioning javascript builtin WebAssemblyStringFromCodePointShared(
+    js-implicit context: Context)(codeArg: JSAny): JSAny {
+  // TODO(42204563): Can we allocate the shared string in generated code?
+  const code = ToNumber_Inline(codeArg);
+  return runtime::WasmStringFromCodePoint(
+      context, code, SmiConstant(1) /* shared */);
 }
 
 transitioning javascript builtin WebAssemblyStringCodePointAt(

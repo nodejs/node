@@ -924,7 +924,6 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
   PagedSpaceForNewSpace* paged_space = heap_->paged_new_space()->paged_space();
   paged_space->ClearAllocatorState();
 
-  int will_be_swept = 0;
   bool has_promoted_pages = false;
 
   heap_->StartResizeNewSpace();
@@ -956,7 +955,6 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
     } else {
       // Page is not promoted. Sweep it instead.
       sweeper()->AddNewSpacePage(p);
-      will_be_swept++;
     }
   }
 
@@ -967,12 +965,6 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
       heap_->young_external_pointer_space(), heap_->isolate()->counters());
 #endif
 
-  if (v8_flags.gc_verbose) {
-    PrintIsolate(heap_->isolate(),
-                 "sweeping: space=%s initialized_for_sweeping=%d",
-                 ToString(paged_space->identity()), will_be_swept);
-  }
-
   return has_promoted_pages;
 }
 
@@ -980,8 +972,6 @@ void MinorMarkSweepCollector::StartSweepNewSpaceWithStickyBits() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP_NEW);
   PagedSpaceBase* paged_space = heap_->sticky_space();
   paged_space->ClearAllocatorState();
-
-  int will_be_swept = 0;
 
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     NormalPage* p = *(it++);
@@ -997,7 +987,6 @@ void MinorMarkSweepCollector::StartSweepNewSpaceWithStickyBits() {
 
     // TODO(333906585): Fix the promotion counter.
     sweeper()->AddPage(OLD_SPACE, p);
-    will_be_swept++;
   }
 
   static_cast<StickySpace*>(paged_space)
@@ -1009,12 +998,6 @@ void MinorMarkSweepCollector::StartSweepNewSpaceWithStickyBits() {
   heap_->isolate()->external_pointer_table().SweepAndCompact(
       heap_->young_external_pointer_space(), heap_->isolate()->counters());
 #endif
-
-  if (v8_flags.gc_verbose) {
-    PrintIsolate(heap_->isolate(),
-                 "sweeping: space=%s initialized_for_sweeping=%d",
-                 ToString(paged_space->identity()), will_be_swept);
-  }
 }
 
 bool MinorMarkSweepCollector::SweepNewLargeSpace() {

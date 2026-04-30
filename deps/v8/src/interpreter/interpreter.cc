@@ -66,18 +66,6 @@ Interpreter::Interpreter(Isolate* isolate)
     : isolate_(isolate),
       interpreter_entry_trampoline_instruction_start_(kNullAddress) {
   memset(dispatch_table_, 0, sizeof(dispatch_table_));
-
-  if (V8_IGNITION_DISPATCH_COUNTING_BOOL) {
-    InitDispatchCounters();
-  }
-}
-
-void Interpreter::InitDispatchCounters() {
-  static const int kBytecodeCount = static_cast<int>(Bytecode::kLast) + 1;
-  bytecode_dispatch_counters_table_.reset(
-      new uintptr_t[kBytecodeCount * kBytecodeCount]);
-  memset(bytecode_dispatch_counters_table_.get(), 0,
-         sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
 }
 
 namespace {
@@ -186,7 +174,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
             RuntimeCallCounterId::kCompileIgnition,
             RuntimeCallStats::kThreadSpecific);
   // TODO(lpy): add support for background compilation RCS trace.
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   std::optional<base::ElapsedTimer> timer;
   if (v8_flags.enable_bytecode_compiler_ablation &&
@@ -267,8 +255,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   RCS_SCOPE(parse_info()->runtime_call_stats(),
             RuntimeCallCounterId::kCompileIgnitionFinalization);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileIgnitionFinalization");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+              "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 
@@ -276,8 +264,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
     DirectHandle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileIgnitionFinalization,
             RuntimeCallStats::kThreadSpecific);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileIgnitionFinalization");
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+              "V8.CompileIgnitionFinalization");
   return DoFinalizeJobImpl(shared_info, isolate);
 }
 
@@ -404,56 +392,6 @@ void Interpreter::Initialize() {
 
 bool Interpreter::IsDispatchTableInitialized() const {
   return dispatch_table_[0] != kNullAddress;
-}
-
-uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
-  int from_index = Bytecodes::ToByte(from);
-  int to_index = Bytecodes::ToByte(to);
-  CHECK_WITH_MSG(bytecode_dispatch_counters_table_ != nullptr,
-                 "Dispatch counters require building with "
-                 "v8_enable_ignition_dispatch_counting");
-  return bytecode_dispatch_counters_table_[from_index * kNumberOfBytecodes +
-                                           to_index];
-}
-
-DirectHandle<JSObject> Interpreter::GetDispatchCountersObject() {
-  DirectHandle<JSObject> counters_map =
-      isolate_->factory()->NewJSObjectWithNullProto();
-
-  // Output is a JSON-encoded object of objects.
-  //
-  // The keys on the top level object are source bytecodes,
-  // and corresponding value are objects. Keys on these last are the
-  // destinations of the dispatch and the value associated is a counter for
-  // the correspondent source-destination dispatch chain.
-  //
-  // Only non-zero counters are written to file, but an entry in the top-level
-  // object is always present, even if the value is empty because all counters
-  // for that source are zero.
-
-  for (int from_index = 0; from_index < kNumberOfBytecodes; ++from_index) {
-    Bytecode from_bytecode = Bytecodes::FromByte(from_index);
-    DirectHandle<JSObject> counters_row =
-        isolate_->factory()->NewJSObjectWithNullProto();
-
-    for (int to_index = 0; to_index < kNumberOfBytecodes; ++to_index) {
-      Bytecode to_bytecode = Bytecodes::FromByte(to_index);
-      uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
-
-      if (counter > 0) {
-        DirectHandle<Object> value =
-            isolate_->factory()->NewNumberFromSize(counter);
-        JSObject::AddProperty(isolate_, counters_row,
-                              Bytecodes::ToString(to_bytecode), value, NONE);
-      }
-    }
-
-    JSObject::AddProperty(isolate_, counters_map,
-                          Bytecodes::ToString(from_bytecode), counters_row,
-                          NONE);
-  }
-
-  return counters_map;
 }
 
 }  // namespace interpreter
