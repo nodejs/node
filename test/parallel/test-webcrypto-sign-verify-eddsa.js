@@ -101,17 +101,17 @@ async function testVerify({ name,
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.verify({ name, context }, hmacKey, signature, data), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
     subtle.verify({ name, context }, rsaKeys.publicKey, signature, data), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
     subtle.verify({ name, context }, ecKeys.publicKey, signature, data), {
-      message: /Unable to use this key to verify/
+      message: /Key algorithm mismatch/
     });
 
   if (name === 'Ed448' && supportsContext) {
@@ -227,17 +227,17 @@ async function testSign({ name,
   // Test failure when using the wrong algorithms
   await assert.rejects(
     subtle.sign({ name, context }, hmacKey, data), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
     subtle.sign({ name, context }, rsaKeys.privateKey, data), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 
   await assert.rejects(
     subtle.sign({ name, context }, ecKeys.privateKey, data), {
-      message: /Unable to use this key to sign/
+      message: /Key algorithm mismatch/
     });
 
   if (name === 'Ed448' && supportsContext) {

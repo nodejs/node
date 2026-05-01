@@ -55,8 +55,8 @@ namespace v8 {
 namespace internal {
 
 // Get the CPU features enabled by the build.
-static unsigned CpuFeaturesImpliedByCompiler() {
-  unsigned answer = 0;
+static CpuFeatureSet CpuFeaturesImpliedByCompiler() {
+  CpuFeatureSet answer;
   return answer;
 }
 
@@ -216,61 +216,61 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     uint64_t one = static_cast<uint64_t>(1);
     // Test for Distinct Operands Facility - Bit 45
     if (facilities[0] & (one << (63 - 45))) {
-      supported_ |= (1u << DISTINCT_OPS);
+      supported_.Add(DISTINCT_OPS);
     }
     // Test for General Instruction Extension Facility - Bit 34
     if (facilities[0] & (one << (63 - 34))) {
-      supported_ |= (1u << GENERAL_INSTR_EXT);
+      supported_.Add(GENERAL_INSTR_EXT);
     }
     // Test for Floating Point Extension Facility - Bit 37
     if (facilities[0] & (one << (63 - 37))) {
-      supported_ |= (1u << FLOATING_POINT_EXT);
+      supported_.Add(FLOATING_POINT_EXT);
     }
     // Test for Vector Facility - Bit 129
     if (facilities[2] & (one << (63 - (129 - 128))) &&
         supportsCPUFeature("vx")) {
-      supported_ |= (1u << VECTOR_FACILITY);
+      supported_.Add(VECTOR_FACILITY);
     }
     // Test for Vector Enhancement Facility 1 - Bit 135
     if (facilities[2] & (one << (63 - (135 - 128))) &&
         supportsCPUFeature("vx")) {
-      supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
+      supported_.Add(VECTOR_ENHANCE_FACILITY_1);
     }
     // Test for Vector Enhancement Facility 2 - Bit 148
     if (facilities[2] & (one << (63 - (148 - 128))) &&
         supportsCPUFeature("vx")) {
-      supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
+      supported_.Add(VECTOR_ENHANCE_FACILITY_2);
     }
     // Test for Vector Enhancement Facility 3 - Bit 198
     if (facilities[3] & (one << (63 - (198 - 192))) &&
         supportsCPUFeature("vx")) {
-      supported_ |= (1u << VECTOR_ENHANCE_FACILITY_3);
+      supported_.Add(VECTOR_ENHANCE_FACILITY_3);
     }
     // Test for Miscellaneous Instruction Extension Facility 2 - Bit 58
     if (facilities[0] & (1lu << (63 - 58))) {
-      supported_ |= (1u << MISC_INSTR_EXT2);
+      supported_.Add(MISC_INSTR_EXT2);
     }
     // Test for Miscellaneous Instruction Extension Facility 4 - Bit 84
     if (facilities[1] & (one << (63 - (84 - 64)))) {
-      supported_ |= (1u << MISC_INSTR_EXT4);
+      supported_.Add(MISC_INSTR_EXT4);
     }
   }
 #else
   // All distinct ops instructions can be simulated
-  supported_ |= (1u << DISTINCT_OPS);
+  supported_.Add(DISTINCT_OPS);
   // RISBG can be simulated
-  supported_ |= (1u << GENERAL_INSTR_EXT);
-  supported_ |= (1u << FLOATING_POINT_EXT);
-  supported_ |= (1u << MISC_INSTR_EXT2);
-  supported_ |= (1u << MISC_INSTR_EXT4);
+  supported_.Add(GENERAL_INSTR_EXT);
+  supported_.Add(FLOATING_POINT_EXT);
+  supported_.Add(MISC_INSTR_EXT2);
+  supported_.Add(MISC_INSTR_EXT4);
   USE(performSTFLE);  // To avoid assert
   USE(supportsCPUFeature);
-  supported_ |= (1u << VECTOR_FACILITY);
-  supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
-  supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
-  supported_ |= (1u << VECTOR_ENHANCE_FACILITY_3);
+  supported_.Add(VECTOR_FACILITY);
+  supported_.Add(VECTOR_ENHANCE_FACILITY_1);
+  supported_.Add(VECTOR_ENHANCE_FACILITY_2);
+  supported_.Add(VECTOR_ENHANCE_FACILITY_3);
 #endif
-  supported_ |= (1u << FPU);
+  supported_.Add(FPU);
 
   // Set a static value on whether Simd is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()

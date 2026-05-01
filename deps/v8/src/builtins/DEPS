@@ -11,6 +11,9 @@ specific_include_rules = {
   "number-builtins-reducer-inl.h": [
     "+src/compiler",
   ],
+  ".*-tsa-inl.h": [
+    "+src/compiler",
+  ],
   ".*-tsa.cc": [
     "+src/compiler",
   ],

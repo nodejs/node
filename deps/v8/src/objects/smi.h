@@ -34,8 +34,21 @@ class Smi : public AllStatic {
     return Tagged<Smi>(object.ptr()).value();
   }
 
+  // Convert a positive Smi object to an uint32_t.
+  static inline constexpr uint32_t ToUInt(const Tagged<Object> object) {
+    int value = ToInt(object);
+    DCHECK_GE(value, 0);
+    return static_cast<uint32_t>(value);
+  }
+
   // Convert a value to a Smi object.
   static inline constexpr Tagged<Smi> FromInt(int value) {
+    DCHECK(Smi::IsValid(value));
+    return Tagged<Smi>(Internals::IntegralToSmi(value));
+  }
+
+  // Convert a value from [0, kMaxSmiValue] range to a Smi object.
+  static inline constexpr Tagged<Smi> FromUInt(uint32_t value) {
     DCHECK(Smi::IsValid(value));
     return Tagged<Smi>(Internals::IntegralToSmi(value));
   }

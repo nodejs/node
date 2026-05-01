@@ -391,17 +391,15 @@ DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
-test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/addon-verify.mjs
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
 		$(call available-node, \
-			$(DOC_KIT) generate \
-			-t addon-verify \
-			-i doc/api/addons.md \
-			-o test/addons/ \
-			--type-map doc/type-map.json \
+			tools/doc/addon-verify.mjs \
+			--input doc/api/addons.md \
+			--output test/addons/ \
 		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
@@ -1246,11 +1244,18 @@ pkg-upload: pkg
 	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
-$(TARBALL): release-only doc-only
+TARBALL_DEPS=release-only
+ifneq ($(SKIP_SHARED_DEPS), 1)
+TARBALL_DEPS+= doc-only
+endif
+
+$(TARBALL): $(TARBALL_DEPS)
 	git checkout-index -a -f --prefix=$(TARNAME)/
+ifneq ($(SKIP_SHARED_DEPS), 1)
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+endif
 	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
@@ -1292,7 +1297,6 @@ endif
 	$(RM) -r $(TARNAME)/deps/v8/samples
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
-	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint

@@ -220,7 +220,7 @@ CpuFeatureScope::~CpuFeatureScope() {
 bool CpuFeatures::initialized_ = false;
 bool CpuFeatures::supports_wasm_simd_128_ = false;
 bool CpuFeatures::supports_cetss_ = false;
-unsigned CpuFeatures::supported_ = 0;
+CpuFeatureSet CpuFeatures::supported_ = {};
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 unsigned CpuFeatures::vlen_ = 0;
@@ -338,6 +338,11 @@ IndirectHandle<HeapObject> AssemblerBase::GetEmbeddedObject(
     EmbeddedObjectIndex index) const {
   DCHECK_LT(index, embedded_objects_.size());
   return embedded_objects_[index];
+}
+
+void AssemblerBase::RecordJSDispatchHandle(JSDispatchHandle handle,
+                                           uint16_t argument_count) {
+  js_dispatch_handles_.push_back({handle, argument_count});
 }
 
 int Assembler::WriteCodeComments() {

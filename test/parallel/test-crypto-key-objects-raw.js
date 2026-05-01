@@ -32,6 +32,50 @@ const { hasOpenSSL } = require('../common/crypto');
   }
 }
 
+// Raw key imports do not support strings.
+{
+  const pubKeyObj = crypto.createPublicKey(
+    fixtures.readKey('ed25519_public.pem', 'ascii'));
+  const privKeyObj = crypto.createPrivateKey(
+    fixtures.readKey('ed25519_private.pem', 'ascii'));
+
+  const rawPub = pubKeyObj.export({ format: 'raw-public' });
+  const rawPriv = privKeyObj.export({ format: 'raw-private' });
+
+  for (const encoding of ['hex', 'base64', 'utf8', 'latin1', 'ascii']) {
+    assert.throws(() => crypto.createPublicKey({
+      key: rawPub.toString(encoding),
+      encoding,
+      format: 'raw-public',
+      asymmetricKeyType: 'ed25519',
+    }), { code: 'ERR_INVALID_ARG_TYPE' });
+
+    assert.throws(() => crypto.createPrivateKey({
+      key: rawPriv.toString(encoding),
+      encoding,
+      format: 'raw-private',
+      asymmetricKeyType: 'ed25519',
+    }), { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+}
+
+// Raw seed imports do not support strings.
+if (hasOpenSSL(3, 5)) {
+  const privKeyObj = crypto.createPrivateKey(
+    fixtures.readKey('ml_dsa_44_private.pem', 'ascii'));
+
+  const rawSeed = privKeyObj.export({ format: 'raw-seed' });
+
+  for (const encoding of ['hex', 'base64']) {
+    assert.throws(() => crypto.createPrivateKey({
+      key: rawSeed.toString(encoding),
+      encoding,
+      format: 'raw-seed',
+      asymmetricKeyType: 'ml-dsa-44',
+    }), { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+}
+
 // Key types that don't support raw-* formats
 {
   for (const [type, pub, priv] of [

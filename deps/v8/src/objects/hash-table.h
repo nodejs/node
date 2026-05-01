@@ -180,6 +180,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Returns whether k is a real key.  The hole and undefined are not allowed as
   // keys and can be used to indicate missing or deleted elements.
   static inline bool IsKey(ReadOnlyRoots roots, Tagged<Object> k);
+  static inline bool IsKey(EarlyReadOnlyRoots roots, Tagged<Object> k);
 
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry,
                     Tagged<Object>* out_k);

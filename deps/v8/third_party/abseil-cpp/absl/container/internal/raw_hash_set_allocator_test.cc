@@ -142,6 +142,10 @@ struct Policy {
   using init_type = Tracked<int32_t>;
   using key_type = int32_t;
 
+  using DefaultHash = void;
+  using DefaultEq = void;
+  using DefaultAlloc = void;
+
   template <class allocator_type, class... Args>
   static void construct(allocator_type* alloc, slot_type* slot,
                         Args&&... args) {

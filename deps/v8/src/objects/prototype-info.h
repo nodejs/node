@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+class PrototypeSharedClosureInfo;
+
 #include "torque-generated/src/objects/prototype-info-tq.inc"
 
 // Container for metadata stored on each prototype map.

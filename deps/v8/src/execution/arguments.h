@@ -87,6 +87,7 @@ class Arguments {
 
   // Get the total number of arguments including the receiver.
   V8_INLINE int length() const { return static_cast<int>(length_); }
+  V8_INLINE uint32_t ulength() const { return static_cast<uint32_t>(length_); }
 
  private:
   intptr_t length_;

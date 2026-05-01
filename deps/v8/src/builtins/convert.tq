@@ -148,6 +148,9 @@ FromConstexpr<float64, constexpr int32>(i: constexpr int32): float64 {
 FromConstexpr<float64, constexpr float64>(i: constexpr float64): float64 {
   return Float64Constant(i);
 }
+FromConstexpr<float32, constexpr float32>(i: constexpr float32): float32 {
+  return Float32Constant(i);
+}
 FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
   return BoolConstant(b);
 }
@@ -182,6 +185,11 @@ FromConstexpr<IterationKind, constexpr IterationKind>(
 FromConstexpr<string::TrimMode, string::constexpr TrimMode>(
     c: string::constexpr TrimMode): string::TrimMode {
   return %RawDownCast<string::TrimMode>(Unsigned(%FromConstexpr<int32>(c)));
+}
+
+FromConstexpr<PrivateSymbolKind, constexpr PrivateSymbolKind>(
+    c: constexpr PrivateSymbolKind): PrivateSymbolKind {
+  return %RawDownCast<PrivateSymbolKind>(Unsigned(%FromConstexpr<int32>(c)));
 }
 
 macro Convert<To: type, From: type>(i: From): To {

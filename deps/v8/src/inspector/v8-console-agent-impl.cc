@@ -59,9 +59,15 @@ void V8ConsoleAgentImpl::reportAllMessages() {
   V8ConsoleMessageStorage* storage =
       m_session->inspector()->ensureConsoleMessageStorage(
           m_session->contextGroupId());
-  for (const auto& message : storage->messages()) {
-    if (message->origin() == V8MessageOrigin::kConsole) {
-      if (!reportMessage(message.get(), false)) return;
+  // The message queue can be cleared by a getter during message formatting.
+  // Make a copy of the message to avoid a UAF.
+  const auto& messages = storage->messages();
+  const size_t size = messages.size();
+  for (size_t i = 0; i < size; ++i) {
+    if (i >= messages.size()) break;
+    V8ConsoleMessage message = *messages[i];
+    if (!reportMessage(&message, false)) {
+      break;
     }
   }
 }

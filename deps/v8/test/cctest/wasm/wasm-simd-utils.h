@@ -130,14 +130,6 @@ class ObserveSIMD256Scope {
   Isolate* isolate_;
   compiler::NodeObserver* node_observer_;
 };
-
-// Build input wasm expressions and check if the revectorization success
-// (create the expected simd256 node).
-// TODO(42202660): Reimplement checks for Turboshaft (Turbofan checks were
-// removed in https://crrev.com/c/6074953).
-#define BUILD_AND_CHECK_REVEC_NODE(wasm_runner, expected_simd256_op, ...) \
-  r.Build({__VA_ARGS__});
-
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 namespace wasm {
@@ -320,61 +312,41 @@ void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            DoubleCompareOp expected_op);
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op,
-                           compiler::IrOpcode::Value revec_opcode);
-void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op,
-                            compiler::IrOpcode::Value revec_opcode);
-void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op,
-                           compiler::IrOpcode::Value revec_opcode);
-void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op,
-                           compiler::IrOpcode::Value revec_opcode);
-void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op,
-                           compiler::IrOpcode::Value revec_opcode);
+void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op);
+void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op);
+void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op);
+void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op);
+void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op);
 
 template <typename T = int8_t, typename OpType = T (*)(T, T)>
-void RunI8x32BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
-                            compiler::IrOpcode::Value revec_opcode);
+void RunI8x32BinOpRevecTest(WasmOpcode opcode, OpType expected_op);
 
 template <typename T = int16_t, typename OpType = T (*)(T, T)>
-void RunI16x16BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
-                             compiler::IrOpcode::Value revec_opcode);
+void RunI16x16BinOpRevecTest(WasmOpcode opcode, OpType expected_op);
 
 template <typename T = int32_t, typename OpType = T (*)(T, T)>
-void RunI32x8BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
-                            compiler::IrOpcode::Value revec_opcode);
+void RunI32x8BinOpRevecTest(WasmOpcode opcode, OpType expected_op);
 
-void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op,
-                            compiler::IrOpcode::Value revec_opcode);
-void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
-                            compiler::IrOpcode::Value revec_opcode);
-void RunF64x4CompareOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
-                                compiler::IrOpcode::Value revec_opcode);
-void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
-                            compiler::IrOpcode::Value revec_opcode);
-void RunF32x8CompareOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
-                                compiler::IrOpcode::Value revec_opcode);
+void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op);
+void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op);
+void RunF64x4CompareOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op);
+void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op);
+void RunF32x8CompareOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op);
 
-void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op,
-                               compiler::IrOpcode::Value revec_opcode);
-void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op,
-                              compiler::IrOpcode::Value revec_opcode);
-void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op,
-                              compiler::IrOpcode::Value revec_opcode);
+void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op);
+void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op);
+void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op);
 
 template <typename IntType>
 void RunI32x8ConvertF32x8RevecTest(WasmOpcode opcode,
-                                   ConvertToIntOp expected_op,
-                                   compiler::IrOpcode::Value revec_opcode);
+                                   ConvertToIntOp expected_op);
 template <typename IntType>
-void RunF32x8ConvertI32x8RevecTest(WasmOpcode opcode,
-                                   compiler::IrOpcode::Value revec_opcode);
+void RunF32x8ConvertI32x8RevecTest(WasmOpcode opcode);
 template <typename NarrowIntType, typename WideIntType>
 void RunIntSignExtensionRevecTest(WasmOpcode opcode_low, WasmOpcode opcode_high,
-                                  WasmOpcode splat_op,
-                                  compiler::IrOpcode::Value revec_opcode);
+                                  WasmOpcode splat_op);
 template <typename S, typename T>
-void RunIntToIntNarrowingRevecTest(WasmOpcode opcode,
-                                   compiler::IrOpcode::Value revec_opcode);
+void RunIntToIntNarrowingRevecTest(WasmOpcode opcode);
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 }  // namespace wasm

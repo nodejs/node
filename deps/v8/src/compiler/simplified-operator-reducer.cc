@@ -319,11 +319,11 @@ Reduction SimplifiedOperatorReducer::ReplaceInt32(int32_t value) {
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(double value) {
-  return Replace(jsgraph()->ConstantNoHole(value));
+  return Replace(jsgraph()->ConstantMaybeHole(value));
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(Float64 value) {
-  return Replace(jsgraph()->ConstantNoHole(value));
+  return Replace(jsgraph()->ConstantMaybeHole(value));
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {

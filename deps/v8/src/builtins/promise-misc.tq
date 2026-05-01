@@ -478,4 +478,28 @@ transitioning javascript builtin SetContinuationPreservedEmbedderData(
   return Undefined;
 }
 
+// Fast path for await on non-thenable values. Instead of creating a wrapper
+// promise and scheduling PerformPromiseThen, directly enqueue a microtask
+// that will call the resolve handler with the non-thenable value.
+//
+// Per ECMA-262, non-Object values (primitives) are never checked for a "then"
+// property, making them guaranteed non-thenables. This could potentially be
+// extended to handle non-primitive non-thenables as well in the future.
+transitioning builtin AsyncAwaitNonThenableFastPath(
+    implicit context: Context)(value: JSAny, onResolve: JSFunction,
+    throwaway: JSPromise|Undefined): Undefined {
+  // Extract the handler context from the resolve closure.
+  const handlerContext: Context = onResolve.context;
+
+  // Create a PromiseFulfillReactionJobTask directly with the non-thenable
+  // value as the argument. The handler will be called with this value when
+  // the microtask runs.
+  const task = NewPromiseFulfillReactionJobTask(
+      handlerContext, value, onResolve, throwaway);
+
+  // Enqueue the microtask.
+  EnqueueMicrotask(handlerContext, task);
+  return Undefined;
+}
+
 }

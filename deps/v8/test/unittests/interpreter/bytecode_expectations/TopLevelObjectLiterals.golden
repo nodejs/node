@@ -14,16 +14,16 @@ frame size: 3
 parameter count: 1
 bytecode array length: 31
 bytecodes: [
-                B(LdaConstant), U8(0),
+                B(LdaConstant), U8(0:FIXED_ARRAY_TYPE),
                 B(Star1),
                 B(Mov), R(closure), R(2),
-  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
-  /*    8 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), RegCount8(2),
+  /*    8 S> */ B(CreateObjectLiteral), U8(1:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star1),
-  /*   16 E> */ B(CreateClosure), U8(2), U8(0), U8(0),
-                B(DefineNamedOwnProperty), R(1), U8(3), U8(1),
+  /*   16 E> */ B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x0),
+                B(DefineNamedOwnProperty), R(1), U8(3:"func"), FBV(1),
                 B(Ldar), R(1),
-  /*    8 E> */ B(StaGlobal), U8(4), U8(3),
+  /*    8 E> */ B(StaGlobal), U8(4:"a"), FBV(3),
                 B(LdaUndefined),
   /*   34 S> */ B(Return),
 ]

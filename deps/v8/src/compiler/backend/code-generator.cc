@@ -247,13 +247,11 @@ void CodeGenerator::AssembleCode() {
     AssembleCodeStartRegisterCheck();
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Check that {kJavaScriptCallDispatchHandleRegister} has been set correctly.
   if (v8_flags.debug_code && call_descriptor->IsJSFunctionCall()) {
     masm()->RecordComment("-- Prologue: check dispatch handle register --");
     AssembleDispatchHandleRegisterCheck();
   }
-#endif
 
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
@@ -261,7 +259,9 @@ void CodeGenerator::AssembleCode() {
   if (info->IsOptimizing()) {
     DCHECK(call_descriptor->IsJSFunctionCall());
     masm()->RecordComment("-- Prologue: check for deoptimization --");
-    BailoutIfDeoptimized();
+    if (v8_flags.debug_code) {
+      AssertNotDeoptimized();
+    }
   }
 
   // Define deoptimization literals for all inlined functions.
@@ -860,6 +860,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());
+#ifdef V8_DUMPLING
+      if (v8_flags.turbofan_dumping) {
+        FrameStateDescriptor* descriptor =
+            GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
+        if (descriptor->type() == FrameStateType::kUnoptimizedFunction &&
+            !isolate()->dumpling_manager()->IsIsolateDumpDisabled()) {
+          AssembleDumpFrame();
+        }
+      }
+#endif  // V8_DUMPLING
       break;
     }
     case kFlags_set: {

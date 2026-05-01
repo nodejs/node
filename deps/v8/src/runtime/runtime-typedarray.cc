@@ -35,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferDetach) {
 RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> argument = args.at(0);
+  DirectHandle<Object> argument = args.at(0);
   DirectHandle<Object> key = args.at(1);
   // This runtime function is exposed in ClusterFuzz and as such has to
   // support arbitrary arguments.
@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSetDetachKey) {
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
   auto array_buffer = Cast<JSArrayBuffer>(argument);
-  array_buffer->set_detach_key(*key);
+  JSArrayBuffer::SetDetachKey(array_buffer, key, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

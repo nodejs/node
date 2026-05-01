@@ -33,8 +33,10 @@ namespace compiler {
   V(Loong64Fst_s)                                          \
   V(Loong64Fld_d)                                          \
   V(Loong64Fst_d)                                          \
-  V(Loong64LoadLane)                                       \
-  V(Loong64StoreLane)                                      \
+  V(Loong64S128Ld)                                         \
+  V(Loong64S128St)                                         \
+  V(Loong64S128LoadLane)                                   \
+  V(Loong64S128StoreLane)                                  \
   V(Loong64S128LoadSplat)                                  \
   V(Loong64S128Load8x8S)                                   \
   V(Loong64S128Load8x8U)                                   \
@@ -213,8 +215,8 @@ namespace compiler {
   V(Loong64F64x2ConvertLowI32x4S)                    \
   V(Loong64F64x2ConvertLowI32x4U)                    \
   V(Loong64F64x2PromoteLowF32x4)                     \
-  V(Loong64F64x2RelaxedMin)                          \
-  V(Loong64F64x2RelaxedMax)                          \
+  V(Loong64F64x2Qfma)                                \
+  V(Loong64F64x2Qfms)                                \
   V(Loong64I64x2Splat)                               \
   V(Loong64I64x2ExtractLane)                         \
   V(Loong64I64x2ReplaceLane)                         \
@@ -242,6 +244,8 @@ namespace compiler {
   V(Loong64F32x4Neg)                                 \
   V(Loong64F32x4Sqrt)                                \
   V(Loong64F32x4Add)                                 \
+  V(Loong64F32x4RecipApprox)                         \
+  V(Loong64F32x4RecipSqrtApprox)                     \
   V(Loong64F32x4Sub)                                 \
   V(Loong64F32x4Mul)                                 \
   V(Loong64F32x4Div)                                 \
@@ -258,8 +262,8 @@ namespace compiler {
   V(Loong64F32x4Trunc)                               \
   V(Loong64F32x4NearestInt)                          \
   V(Loong64F32x4DemoteF64x2Zero)                     \
-  V(Loong64F32x4RelaxedMin)                          \
-  V(Loong64F32x4RelaxedMax)                          \
+  V(Loong64F32x4Qfma)                                \
+  V(Loong64F32x4Qfms)                                \
   V(Loong64I32x4SConvertF32x4)                       \
   V(Loong64I32x4UConvertF32x4)                       \
   V(Loong64I32x4Neg)                                 \
@@ -270,12 +274,11 @@ namespace compiler {
   V(Loong64I32x4Abs)                                 \
   V(Loong64I32x4BitMask)                             \
   V(Loong64I32x4DotI16x8S)                           \
+  V(Loong64I32x4DotI8x16AddS)                        \
   V(Loong64I32x4TruncSatF64x2SZero)                  \
   V(Loong64I32x4TruncSatF64x2UZero)                  \
   V(Loong64I32x4RelaxedTruncF32x4S)                  \
   V(Loong64I32x4RelaxedTruncF32x4U)                  \
-  V(Loong64I32x4RelaxedTruncF64x2SZero)              \
-  V(Loong64I32x4RelaxedTruncF64x2UZero)              \
   V(Loong64I16x8Splat)                               \
   V(Loong64I16x8ExtractLaneU)                        \
   V(Loong64I16x8ExtractLaneS)                        \
@@ -305,7 +308,7 @@ namespace compiler {
   V(Loong64I16x8Abs)                                 \
   V(Loong64I16x8BitMask)                             \
   V(Loong64I16x8Q15MulRSatS)                         \
-  V(Loong64I16x8RelaxedQ15MulRS)                     \
+  V(Loong64I16x8DotI8x16S)                           \
   V(Loong64I8x16Splat)                               \
   V(Loong64I8x16ExtractLaneU)                        \
   V(Loong64I8x16ExtractLaneS)                        \
@@ -340,6 +343,7 @@ namespace compiler {
   V(Loong64S128Not)                                  \
   V(Loong64S128Select)                               \
   V(Loong64S128AndNot)                               \
+  V(Loong64S128OrNot)                                \
   V(Loong64I64x2AllTrue)                             \
   V(Loong64I32x4AllTrue)                             \
   V(Loong64I16x8AllTrue)                             \

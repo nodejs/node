@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/base/bits.h"
+#include "src/base/iterator.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -177,10 +178,10 @@ TEST(FreeListTest, Allocate) {
   FreeList list = CreatePopulatedFreeList(blocks);
 
   // Try allocate from the biggest block.
-  for (auto it = blocks.rbegin(); it < blocks.rend(); ++it) {
-    const auto result = list.Allocate(it->Size());
-    EXPECT_EQ(it->Address(), result.address);
-    EXPECT_EQ(it->Size(), result.size);
+  for (const auto& block : v8::base::Reversed(blocks)) {
+    const auto result = list.Allocate(block.Size());
+    EXPECT_EQ(block.Address(), result.address);
+    EXPECT_EQ(block.Size(), result.size);
   }
 
   EXPECT_EQ(0u, list.Size());

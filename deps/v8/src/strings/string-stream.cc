@@ -194,12 +194,11 @@ void StringStream::Add(base::Vector<const char> format,
 
 void StringStream::PrintObject(Tagged<Object> o) {
   ShortPrint(o, this);
-  if (SafeIsAnyHole(o)) return;
   if (IsString(o)) {
     if (Cast<String>(o)->length() <= String::kMaxShortPrintLength) {
       return;
     }
-  } else if (IsNumber(o) || IsOddball(o)) {
+  } else if (IsAnyHole(o) || IsNumber(o) || IsOddball(o)) {
     return;
   }
   if (IsHeapObject(o) && object_print_mode_ == kPrintObjectVerbose) {

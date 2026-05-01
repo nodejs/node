@@ -8,23 +8,19 @@
 #include "src/heap/object-lock.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/heap/mutable-page-metadata-inl.h"
+#include "src/heap/mutable-page-inl.h"
 
 namespace v8 {
 namespace internal {
 
 // static
 void ObjectLock::Lock(Isolate* isolate, Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(isolate, heap_object)
-      ->object_mutex()
-      .Lock();
+  MutablePage::FromHeapObject(isolate, heap_object)->object_mutex().Lock();
 }
 
 // static
 void ObjectLock::Unlock(Isolate* isolate, Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(isolate, heap_object)
-      ->object_mutex()
-      .Unlock();
+  MutablePage::FromHeapObject(isolate, heap_object)->object_mutex().Unlock();
 }
 
 ObjectLockGuard::ObjectLockGuard(Isolate* isolate, Tagged<HeapObject> object)

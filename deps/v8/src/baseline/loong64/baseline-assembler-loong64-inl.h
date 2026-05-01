@@ -9,6 +9,7 @@
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/loong64/assembler-loong64-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -179,6 +180,42 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   __ Ld_d(scratch, operand);
   __ CompareTaggedAndBranch(target, cc, scratch, Operand(value));
 }
+
+#ifdef V8_STATIC_ROOTS
+void BaselineAssembler::JumpIfStaticRootToBoolean(
+    Register value, Label* true_target, Label::Distance true_distance,
+    Label* false_target, Label::Distance false_distance) {
+  static_assert(StaticReadOnlyRoot::kFirstAllocatedRoot ==
+                StaticReadOnlyRoot::kUndefinedValue);
+  static_assert(StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined) ==
+                StaticReadOnlyRoot::kNullValue);
+  static_assert(StaticReadOnlyRoot::kNullValue + sizeof(Null) ==
+                StaticReadOnlyRoot::kempty_string);
+  static_assert(StaticReadOnlyRoot::kempty_string +
+                    SeqOneByteString::SizeFor(0) ==
+                StaticReadOnlyRoot::kFalseValue);
+  static_assert(StaticReadOnlyRoot::kFalseValue + sizeof(False) ==
+                StaticReadOnlyRoot::kTrueValue);
+
+  // Static roots are only valid for builds with pointer compression and a
+  // shared read-only heap.
+
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  __ slli_w(scratch, value, 0);
+  // Smi zero is falsey.
+  __ Branch(false_target, kEqual, scratch, Operand(Smi::zero()));
+  // Other Smis are true.
+  __ JumpIfSmi(value, true_target);
+  // The falsey static roots are at the start of the cage, just before the true
+  // value.
+  __ Branch(false_target, kUnsignedLessThan, scratch,
+            Operand(StaticReadOnlyRoot::kTrueValue));
+  __ Branch(true_target, kEqual, scratch,
+            Operand(StaticReadOnlyRoot::kTrueValue));
+}
+#endif
+
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                    Label* target, Label::Distance) {
   __ Branch(target, cc, value, Operand(byte));
@@ -355,7 +392,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
   ASM_CODE_COMMENT(masm_);
   __ StoreTaggedField(value, FieldMemOperand(target, offset));
   ScratchRegisterScope temps(this);
-  __ RecordWriteField(target, offset, value, kRAHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, kRAHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 void BaselineAssembler::StoreTaggedFieldNoWriteBarrier(Register target,

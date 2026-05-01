@@ -1735,6 +1735,13 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 added:
   - v23.11.0
   - v22.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62878
+    description: A failed `execve(2)` system call now throws an exception
+                 instead of aborting the process. Native `AtExit`
+                 callbacks registered via the embedder API are no longer
+                 invoked before the `execve(2)` call.
 -->
 
 > Stability: 1 - Experimental
@@ -1751,10 +1758,19 @@ This is achieved by using the `execve` POSIX function and therefore no memory or
 resources from the current process are preserved, except for the standard input,
 standard output and standard error file descriptor.
 
-All other resources are discarded by the system when the processes are swapped, without triggering
-any exit or close events and without running any cleanup handler.
+On success, all other resources are discarded by the system when the
+processes are swapped, without triggering any exit or close events, without
+running any JavaScript cleanup handler (for example `process.on('exit')`),
+and without invoking native `AtExit` callbacks registered through the
+embedder API. Callers that need to run cleanup logic should do so before
+calling `process.execve()`.
 
-This function will never return, unless an error occurred.
+This function does not return on success. If the underlying `execve(2)`
+system call fails, an `Error` is thrown whose `code` property is set to the
+corresponding `errno` string (for example, `'ENOENT'` when `file` does not
+exist), with `syscall` set to `'execve'` and `path` set to `file`. When
+`execve(2)` fails the current process continues to run with its state
+unchanged, so a caller may handle the error and take another action.
 
 This function is not available on Windows or IBM i.
 

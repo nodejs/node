@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE NameConverter {
   // none is found.
   // TODO(jgruber,v8:7989): This is a temporary solution until we can preserve
   // code comments through snapshotting.
-  virtual const char* RootRelativeName(int offset) const { UNREACHABLE(); }
+  virtual const char* RootRelativeName(int offset) const { return nullptr; }
 
  protected:
   v8::base::EmbeddedVector<char, 128> tmp_buffer_;

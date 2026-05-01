@@ -31,7 +31,6 @@ void Symbol::set_description(Tagged<PrimitiveHeapObject> value,
   description_.store(this, value, mode);
 }
 
-BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
                     Symbol::IsWellKnownSymbolBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
@@ -39,29 +38,32 @@ BIT_FIELD_ACCESSORS(Symbol, flags, is_in_public_symbol_table,
 BIT_FIELD_ACCESSORS(Symbol, flags, is_interesting_symbol,
                     Symbol::IsInterestingSymbolBit)
 
+bool Symbol::is_any_private() const {
+  return Symbol::PrivateSymbolKindBits::decode(flags()) !=
+         PrivateSymbolKind::kPublic;
+}
+
+void Symbol::set_private_symbol_kind(PrivateSymbolKind kind) {
+  set_flags(Symbol::PrivateSymbolKindBits::update(flags(), kind));
+}
+
+bool Symbol::is_private_internal() const {
+  return Symbol::PrivateSymbolKindBits::decode(flags()) ==
+         PrivateSymbolKind::kInternal;
+}
+
 bool Symbol::is_private_brand() const {
-  bool value = Symbol::IsPrivateBrandBit::decode(flags());
-  DCHECK_IMPLIES(value, is_private());
-  return value;
+  return Symbol::PrivateSymbolKindBits::decode(flags()) ==
+         PrivateSymbolKind::kBrand;
 }
 
-void Symbol::set_is_private_brand() {
-  set_flags(Symbol::IsPrivateBit::update(flags(), true));
-  set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
-  set_flags(Symbol::IsPrivateBrandBit::update(flags(), true));
+PrivateSymbolKind Symbol::private_symbol_kind() const {
+  return Symbol::PrivateSymbolKindBits::decode(flags());
 }
 
-bool Symbol::is_private_name() const {
-  bool value = Symbol::IsPrivateNameBit::decode(flags());
-  DCHECK_IMPLIES(value, is_private());
-  return value;
-}
-
-void Symbol::set_is_private_name() {
-  // TODO(gsathya): Re-order the bits to have these next to each other
-  // and just do the bit shifts once.
-  set_flags(Symbol::IsPrivateBit::update(flags(), true));
-  set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
+bool Symbol::is_any_private_name() const {
+  return Symbol::PrivateSymbolKindBits::decode(flags()) >=
+         PrivateSymbolKind::kFieldName;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(Name, IsUniqueName) {
@@ -255,21 +257,22 @@ bool Name::IsInteresting(Isolate* isolate) {
          this == *isolate->factory()->get_string();
 }
 
-bool Name::IsPrivate() {
-  return IsSymbol(this) && Cast<Symbol>(this)->is_private();
+bool Name::IsAnyPrivate() {
+  return IsSymbol(this) && Cast<Symbol>(this)->is_any_private();
 }
 
-bool Name::IsPrivateName() {
-  bool is_private_name =
-      IsSymbol(this) && Cast<Symbol>(this)->is_private_name();
-  DCHECK_IMPLIES(is_private_name, IsPrivate());
-  return is_private_name;
+bool Name::IsPrivateInternal() {
+  return IsSymbol(this) && Cast<Symbol>(this)->is_private_internal();
+}
+
+bool Name::IsAnyPrivateName() {
+  return IsSymbol(this) && Cast<Symbol>(this)->is_any_private_name();
 }
 
 bool Name::IsPrivateBrand() {
   bool is_private_brand =
       IsSymbol(this) && Cast<Symbol>(this)->is_private_brand();
-  DCHECK_IMPLIES(is_private_brand, IsPrivateName());
+  DCHECK_IMPLIES(is_private_brand, IsAnyPrivateName());
   return is_private_brand;
 }
 

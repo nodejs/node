@@ -4,6 +4,10 @@
 //
 // Flags: --allow-natives-syntax --maglev
 // Flags: --typed-array-length-loading
+// Flags: --mock-arraybuffer-allocator
+
+// Using --mock-arraybuffer-allocator makes the big array buffer allocation
+// always succeed. This test doesn't access the memory, so it's fine.
 
 // Use a top-level HOLEY_SMI_ELEMENTS array so that the test function doesn't
 // get confused about unexpected ElementsKinds in configs which don't have

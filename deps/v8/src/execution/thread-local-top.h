@@ -144,10 +144,6 @@ class ThreadLocalTop {
 
   Tagged<Object> exception_ = Smi::zero();
 
-  static constexpr int exception_offset() {
-    return offsetof(ThreadLocalTop, exception_);
-  }
-
   // Communication channel between Isolate::FindHandler and the CEntry.
   Tagged<Context> pending_handler_context_;
   Address pending_handler_entrypoint_;

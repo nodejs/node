@@ -39,6 +39,7 @@ TEST(StatusCode, InsertionOperator) {
   std::ostringstream oss;
   oss << code;
   EXPECT_EQ(oss.str(), absl::StatusCodeToString(code));
+  EXPECT_EQ(oss.str(), absl::StatusCodeToStringView(code));
 }
 
 // This structure holds the details for testing a single error code,

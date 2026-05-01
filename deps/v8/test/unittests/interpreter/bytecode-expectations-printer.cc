@@ -12,6 +12,7 @@
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/source-position-table.h"
 #include "src/flags/save-flags.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -190,18 +191,56 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
   } else {
     switch (op_type) {
       case OperandType::kFlag8:
-        *stream << 'U' << size_tag << '(';
-        *stream << bytecode_iterator.GetFlag8Operand(op_index);
+        *stream << "Flag" << size_tag << '(';
+        *stream << "0x" << std::hex
+                << bytecode_iterator.GetFlag8Operand(op_index) << std::dec;
         break;
       case OperandType::kFlag16:
-        *stream << 'U' << size_tag << '(';
-        *stream << bytecode_iterator.GetFlag16Operand(op_index);
+        *stream << "Flag" << size_tag << '(';
+        *stream << "0x" << std::hex
+                << bytecode_iterator.GetFlag16Operand(op_index) << std::dec;
         break;
-      case OperandType::kIdx: {
-        *stream << 'U' << size_tag << '(';
-        *stream << bytecode_iterator.GetIndexOperand(op_index);
+      case OperandType::kEmbeddedFeedback: {
+        // Ignore embedded feedback bytes in bytecode expectation test.
+        DCHECK(Bytecodes::IsEmbeddedFeedbackBytecode(bytecode));
+        DCHECK_EQ(op_index, kEmbeddedFeedbackOperandIndex);
+        *stream << "EmbeddedFeedback(";
         break;
       }
+      case OperandType::kConstantPoolIndex: {
+        *stream << 'U' << size_tag << '(';
+        *stream << bytecode_iterator.GetConstantPoolIndexOperand(op_index);
+
+        Handle<Object> constant =
+            bytecode_iterator.GetConstantForOperand(op_index, i_isolate());
+        *stream << ":";
+        // For strings, just print the value, since the instance type isn't that
+        // interesting (and is in the constant pool if we need it).
+        if (Handle<String> string; TryCast(constant, &string)) {
+          PrintV8String(stream, *string);
+        } else {
+          // Otherwise print the full constant with instance type, same as in
+          // the constant pool. This is a bit redundant with the constant pool
+          // printing and the index, but it can help align diffs a bit better if
+          // the constant pool changes.
+          PrintConstant(stream, constant);
+        }
+        break;
+      }
+      case OperandType::kFeedbackSlot:
+        *stream << "FBV";
+        if (op_size != OperandSize::kByte) *stream << size_tag;
+        *stream << '(';
+        *stream << bytecode_iterator.GetFeedbackSlotOperand(op_index);
+        break;
+      case OperandType::kContextSlot:
+        *stream << 'C' << size_tag << '(';
+        *stream << bytecode_iterator.GetContextSlotOperand(op_index);
+        break;
+      case OperandType::kCoverageSlot:
+        *stream << 'c' << size_tag << '(';
+        *stream << bytecode_iterator.GetCoverageSlotOperand(op_index);
+        break;
       case OperandType::kUImm:
         *stream << 'U' << size_tag << '(';
         *stream << bytecode_iterator.GetUnsignedImmediateOperand(op_index);
@@ -211,7 +250,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         *stream << bytecode_iterator.GetImmediateOperand(op_index);
         break;
       case OperandType::kRegCount:
-        *stream << 'U' << size_tag << '(';
+        *stream << "RegCount" << size_tag << '(';
         *stream << bytecode_iterator.GetRegisterCountOperand(op_index);
         break;
       case OperandType::kRuntimeId: {
@@ -232,6 +271,16 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         *stream << 'U' << size_tag << '(';
         uint32_t idx = bytecode_iterator.GetNativeContextIndexOperand(op_index);
         *stream << "%" << NameForNativeContextIntrinsicIndex(idx);
+        break;
+      }
+      case OperandType::kAbortReason: {
+        *stream << 'U' << size_tag << '(';
+        AbortReason reason = bytecode_iterator.GetAbortReasonOperand(op_index);
+        if (IsValidAbortReason(static_cast<int>(reason))) {
+          *stream << "AbortReason::" << GetAbortReason(reason);
+        } else {
+          *stream << "Invalid abort reason: " << static_cast<int>(reason);
+        }
         break;
       }
       default:

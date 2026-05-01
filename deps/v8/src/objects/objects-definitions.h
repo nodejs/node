@@ -172,6 +172,8 @@ namespace internal {
   V(_, PROPERTY_DESCRIPTOR_OBJECT_TYPE, PropertyDescriptorObject,             \
     property_descriptor_object)                                               \
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
+  V(_, PROTOTYPE_SHARED_CLOSURE_INFO_TYPE, PrototypeSharedClosureInfo,        \
+    prototype_shared_closure_info)                                            \
   V(_, REG_EXP_BOILERPLATE_DESCRIPTION_TYPE, RegExpBoilerplateDescription,    \
     regexp_boilerplate_description)                                           \
   V(_, REG_EXP_DATA_WRAPPER_TYPE, RegExpDataWrapper, regexp_data_wrapper)     \

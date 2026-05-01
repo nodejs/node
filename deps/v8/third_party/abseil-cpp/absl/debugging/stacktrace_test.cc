@@ -94,15 +94,23 @@ TEST(StackTrace, HugeFrame) {
 // This is a separate function to avoid inlining.
 ABSL_ATTRIBUTE_NOINLINE static void FixupNoFixupEquivalenceNoInline() {
 #if !ABSL_HAVE_ATTRIBUTE_WEAK
-  GTEST_SKIP() << "Need weak symbol support";
-#endif
-#if defined(__riscv)
-  GTEST_SKIP() << "Skipping test on RISC-V due to pre-existing failure";
-#endif
-#if defined(_WIN32)
+  const char* kSkipReason = "Need weak symbol support";
+#elif defined(__riscv)
+  const char* kSkipReason =
+      "Skipping test on RISC-V due to pre-existing failure";
+#elif defined(_WIN32)
   // TODO(b/434184677): Add support for fixups on Windows if needed
-  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+  const char* kSkipReason =
+      "Skipping test on Windows due to lack of support for fixups";
+#else
+  const char* kSkipReason = nullptr;
 #endif
+
+  // This conditional is to avoid an unreachable code warning.
+  if (kSkipReason != nullptr) {
+    GTEST_SKIP() << kSkipReason;
+  }
+
   bool can_rely_on_frame_pointers = false;
   if (!can_rely_on_frame_pointers) {
     GTEST_SKIP() << "Frame pointers are required, but not guaranteed in OSS";
@@ -233,12 +241,19 @@ TEST(StackTrace, FixupNoFixupEquivalence) { FixupNoFixupEquivalenceNoInline(); }
 
 TEST(StackTrace, FixupLowStackUsage) {
 #if !ABSL_HAVE_ATTRIBUTE_WEAK
-  GTEST_SKIP() << "Skipping test on MSVC due to weak symbols";
-#endif
-#if defined(_WIN32)
+  const char* kSkipReason = "Skipping test on MSVC due to weak symbols";
+#elif defined(_WIN32)
   // TODO(b/434184677): Add support for fixups on Windows if needed
-  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+  const char* kSkipReason =
+      "Skipping test on Windows due to lack of support for fixups";
+#else
+  const char* kSkipReason = nullptr;
 #endif
+
+  // This conditional is to avoid an unreachable code warning.
+  if (kSkipReason != nullptr) {
+    GTEST_SKIP() << kSkipReason;
+  }
 
   const Cleanup restore_state([enable_fixup = g_enable_fixup,
                                fixup_calls = g_fixup_calls,
@@ -276,12 +291,19 @@ TEST(StackTrace, FixupLowStackUsage) {
 
 TEST(StackTrace, CustomUnwinderPerformsFixup) {
 #if !ABSL_HAVE_ATTRIBUTE_WEAK
-  GTEST_SKIP() << "Need weak symbol support";
-#endif
-#if defined(_WIN32)
+  const char* kSkipReason = "Need weak symbol support";
+#elif defined(_WIN32)
   // TODO(b/434184677): Add support for fixups on Windows if needed
-  GTEST_SKIP() << "Skipping test on Windows due to lack of support for fixups";
+  const char* kSkipReason =
+      "Skipping test on Windows due to lack of support for fixups";
+#else
+  const char* kSkipReason = nullptr;
 #endif
+
+  // This conditional is to avoid an unreachable code warning.
+  if (kSkipReason != nullptr) {
+    GTEST_SKIP() << kSkipReason;
+  }
 
   constexpr int kSkip = 1;  // Skip our own frame, whose return PCs won't match
   constexpr auto kStackCount = 1;

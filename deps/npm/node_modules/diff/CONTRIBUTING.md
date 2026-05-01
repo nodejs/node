@@ -19,7 +19,7 @@ A full release may be completed by first updating the `"version"` property in pa
 ```
 yarn clean
 yarn build
-yarn publish
+yarn npm publish
 ```
 
 After releasing, remember to:

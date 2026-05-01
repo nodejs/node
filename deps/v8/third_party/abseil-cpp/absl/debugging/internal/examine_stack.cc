@@ -149,6 +149,10 @@ void RegisterDebugStackTraceHook(SymbolizeUrlEmitter hook) {
   debug_stack_trace_hook = hook;
 }
 
+SymbolizeUrlEmitterLegacy GetDebugStackTraceHookLegacy() {
+  return debug_stack_trace_hook;
+}
+
 SymbolizeUrlEmitter GetDebugStackTraceHook() { return debug_stack_trace_hook; }
 
 // Returns the program counter from signal context, nullptr if

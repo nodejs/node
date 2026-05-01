@@ -6,8 +6,8 @@
 #define V8_HEAP_CPPGC_MARKING_VERIFIER_H_
 
 #include <optional>
-#include <unordered_set>
 
+#include "absl/container/flat_hash_set.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
@@ -65,9 +65,9 @@ class V8_EXPORT_PRIVATE MarkingVerifierBase
   VerificationState& verification_state_;
   std::unique_ptr<cppgc::Visitor> visitor_;
 
-  std::unordered_set<const HeapObjectHeader*> in_construction_objects_heap_;
-  std::unordered_set<const HeapObjectHeader*> in_construction_objects_stack_;
-  std::unordered_set<const HeapObjectHeader*>* in_construction_objects_ =
+  absl::flat_hash_set<const HeapObjectHeader*> in_construction_objects_heap_;
+  absl::flat_hash_set<const HeapObjectHeader*> in_construction_objects_stack_;
+  absl::flat_hash_set<const HeapObjectHeader*>* in_construction_objects_ =
       &in_construction_objects_heap_;
   size_t verifier_found_marked_bytes_ = 0;
   bool verifier_found_marked_bytes_are_exact_ = true;

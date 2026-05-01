@@ -92,30 +92,31 @@ class RecomputePhiUseHintsProcessor {
 
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
+    if (ValueNode* value_node = node->TryCast<ValueNode>()) {
+      if (value_node->use_count() == 0 &&
+          !value_node->properties().is_required_when_unused()) {
+        return ProcessResult::kContinue;
+      }
+    }
     for (Input input : node->inputs()) {
       if (!input.node()) continue;
       if (Phi* phi = input.node()->TryCast<Phi>()) {
         UseRepresentation use_repr = UseRepresentation::kTagged;
-        if (node->properties().is_conversion()) {
+        if (node->is_conversion()) {
           use_repr = UseRepresentationFromValue(
               node->Cast<ValueNode>()->value_representation());
         } else if (node->Is<ReturnedValue>()) {
           ValueNode* unwrapped = node->input_node(0);
-          while (!unwrapped->Is<ReturnedValue>()) {
+          while (unwrapped->Is<ReturnedValue>()) {
             unwrapped = unwrapped->input_node(0);
           }
-          DCHECK(!unwrapped->properties().is_conversion());
-          DCHECK(!node->Is<TruncateCheckedNumberOrOddballToInt32>());
-          DCHECK(!node->Is<TruncateUnsafeNumberOrOddballToInt32>());
-          DCHECK(!node->Is<TruncateUint32ToInt32>());
-          DCHECK(!node->Is<TruncateHoleyFloat64ToInt32>());
+          DCHECK(!unwrapped->is_conversion());
           use_repr =
               UseRepresentationFromValue(unwrapped->value_representation());
-        } else if (node->Is<TruncateUint32ToInt32>() ||
-                   node->Is<TruncateHoleyFloat64ToInt32>() ||
-                   node->Is<TruncateCheckedNumberOrOddballToInt32>() ||
-                   node->Is<TruncateUnsafeNumberOrOddballToInt32>()) {
+        } else if (IsTruncatingToInt32(node->opcode())) {
           use_repr = UseRepresentation::kTruncatedInt32;
+        } else if (node->Is<NumberToString>()) {
+          use_repr = UseRepresentation::kTaggedForNumberToString;
         }
         phi->RecordUseReprHint(UseRepresentationSet{use_repr},
                                live_loop_phis_.contains(phi));
@@ -211,7 +212,7 @@ class LoopOptimizationProcessor {
   ProcessResult Process(LoadContextSlotNoCells* ltf,
                         const ProcessingState& state) {
     DCHECK(loop_effects);
-    ValueNode* object = ltf->object_input().node();
+    ValueNode* object = ltf->ValueInput().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kContinue;
     }
@@ -228,18 +229,17 @@ class LoopOptimizationProcessor {
     if (ltf->property_key().type() != PropertyKey::kName) {
       return ProcessResult::kContinue;
     }
-    return ProcessNamedLoad(ltf, ltf->object_input().node(),
-                            ltf->property_key());
+    return ProcessNamedLoad(ltf, ltf->ValueInput().node(), ltf->property_key());
   }
 
   ProcessResult Process(StringLength* len, const ProcessingState& state) {
-    return ProcessNamedLoad(len, len->object_input().node(),
+    return ProcessNamedLoad(len, len->StringInput().node(),
                             PropertyKey::StringLength());
   }
 
   ProcessResult Process(LoadTypedArrayLength* len,
                         const ProcessingState& state) {
-    return ProcessNamedLoad(len, len->receiver_input().node(),
+    return ProcessNamedLoad(len, len->ValueInput().node(),
                             PropertyKey::TypedArrayLength());
   }
 
@@ -267,7 +267,7 @@ class LoopOptimizationProcessor {
     // hoisting of this check fails we need to abort (and not continue) to
     // ensure we are not hoisting other instructions over it.
     if (was_deoptimized) return ProcessResult::kSkipBlock;
-    ValueNode* object = maps->receiver_input().node();
+    ValueNode* object = maps->ReceiverInput().node();
     if (IsLoopPhi(object)) {
       return ProcessResult::kSkipBlock;
     }
@@ -341,16 +341,9 @@ class AnyUseMarkingProcessor {
     return ProcessResult::kContinue;
   }
 
-#ifdef DEBUG
   ProcessResult Process(Dead* node, const ProcessingState& state) {
-    if (!v8_flags.maglev_untagged_phis) {
-      // These nodes are removed in the phi representation selector, if we are
-      // running without it. Just remove it here.
-      return ProcessResult::kRemove;
-    }
-    UNREACHABLE();
+    return ProcessResult::kRemove;
   }
-#endif  // DEBUG
 
   void PostProcessGraph(Graph* graph) {
     RunEscapeAnalysis(graph);

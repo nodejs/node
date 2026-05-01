@@ -437,6 +437,16 @@ napi_create_external_arraybuffer(napi_env env,
                                  node_api_basic_finalize finalize_cb,
                                  void* finalize_hint,
                                  napi_value* result);
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_CREATE_EXTERNAL_SHAREDARRAYBUFFER
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_create_external_sharedarraybuffer(napi_env env,
+                                           void* external_data,
+                                           size_t byte_length,
+                                           node_api_noenv_finalize finalize_cb,
+                                           void* finalize_hint,
+                                           napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
 #endif  // NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_arraybuffer_info(
     napi_env env, napi_value arraybuffer, void** data, size_t* byte_length);

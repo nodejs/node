@@ -62,6 +62,13 @@ for (let key of nonexistent) {
   assertFalse(Reflect.has(foo, key));
 }
 
+// foo as prototype
+let obj = Object.create(foo);
+assertThrows(() => obj.yo = 123, TypeError);
+for (let key of nonexistent) {
+    assertThrows(() => obj[key] = 123, TypeError);
+}
+
 // The actual star import that we are testing. Namespace imports are
 // initialized before evaluation.
 import * as foo from "modules-namespace1.mjs";

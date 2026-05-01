@@ -5,13 +5,9 @@
 #ifndef V8_HEAP_EPHEMERON_REMEMBERED_SET_H_
 #define V8_HEAP_EPHEMERON_REMEMBERED_SET_H_
 
-#if defined(_MSVC_STL_VERSION)
-#include <map>
-#else
 #include <unordered_map>
-#endif
-#include <unordered_set>
 
+#include "absl/container/flat_hash_set.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/base/worklist.h"
 #include "src/objects/hash-table.h"
@@ -35,14 +31,9 @@ class EphemeronRememberedSet final {
   using TableList = ::heap::base::Worklist<Tagged<EphemeronHashTable>,
                                            kEphemeronTableListSegmentSize>;
 
-  using IndicesSet = std::unordered_set<int>;
-#if defined(_MSVC_STL_VERSION)
-  using TableMap = std::map<Tagged<EphemeronHashTable>, IndicesSet,
-                            Object::Comparer>;
-#else
+  using IndicesSet = absl::flat_hash_set<int>;
   using TableMap = std::unordered_map<Tagged<EphemeronHashTable>, IndicesSet,
                                       Object::Hasher>;
-#endif
 
   void RecordEphemeronKeyWrite(Tagged<EphemeronHashTable> table,
                                Address key_slot);

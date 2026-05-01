@@ -77,13 +77,13 @@ class WasmValue {
       : type_(type), bit_pattern_{} {
     static_assert(sizeof(DirectHandle<Object>) <= sizeof(bit_pattern_),
                   "bit_pattern_ must be large enough to fit a Handle");
-    DCHECK(type.is_reference());
+    DCHECK(type.is_ref());
     base::WriteUnalignedValue<DirectHandle<Object>>(
         reinterpret_cast<Address>(bit_pattern_), ref);
   }
 
   DirectHandle<Object> to_ref() const {
-    DCHECK(type_.is_reference());
+    DCHECK(type_.is_ref());
     return base::ReadUnalignedValue<DirectHandle<Object>>(
         reinterpret_cast<Address>(bit_pattern_));
   }
@@ -96,8 +96,8 @@ class WasmValue {
   bool operator==(const WasmValue& other) const {
     return type_ == other.type_ &&
            !memcmp(bit_pattern_, other.bit_pattern_,
-                   type_.is_reference() ? sizeof(DirectHandle<Object>)
-                                        : type_.value_kind_size());
+                   type_.is_ref() ? sizeof(DirectHandle<Object>)
+                                  : type_.value_kind_size());
   }
 
   void CopyTo(uint8_t* to) const {

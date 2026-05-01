@@ -6,13 +6,14 @@
 
 #include <algorithm>
 
+#include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/new-spaces.h"
-#include "src/heap/page-metadata-inl.h"
+#include "src/heap/normal-page-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/free-space-inl.h"
 
@@ -28,8 +29,8 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   if (heap->sweeping_in_progress()) {
     SafepointScope scope(heap->isolate(),
                          kGlobalSafepointForSharedSpaceIsolate);
-    heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
+    heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                  CompleteSweepingReason::kTesting);
   }
 
   if (marking->IsStopped()) {
@@ -51,7 +52,7 @@ int FixedArrayLenFromSize(int size) {
                    FixedArray::kMaxRegularLength});
 }
 
-void FillPageInPagedSpace(PageMetadata* page,
+void FillPageInPagedSpace(NormalPage* page,
                           std::vector<Handle<FixedArray>>* out_handles) {
   Heap* heap = page->heap();
   ManualGCScope manual_gc_scope(heap->isolate());
@@ -61,12 +62,9 @@ void FillPageInPagedSpace(PageMetadata* page,
 
   PauseAllocationObserversScope no_observers_scope(heap);
 
-  CollectionEpoch full_epoch =
-      heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::MARK_COMPACTOR);
-  CollectionEpoch young_epoch = heap->tracer()->CurrentEpoch(
-      GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER);
+  CollectionEpoch epoch = heap->tracer()->CurrentEpoch();
 
-  for (PageMetadata* p : *paged_space) {
+  for (NormalPage* p : *paged_space) {
     if (p != page) paged_space->UnlinkFreeListCategories(p);
   }
 
@@ -121,8 +119,8 @@ void FillPageInPagedSpace(PageMetadata* page,
               sizes_in_category.push_back(node_size);
             });
       });
-  for (auto it = remaining_sizes.rbegin(); it != remaining_sizes.rend(); ++it) {
-    std::vector<int> sizes_in_category = *it;
+  for (const std::vector<int>& sizes_in_category :
+       base::Reversed(remaining_sizes)) {
     for (int size : sizes_in_category) {
       DCHECK_LE(size, kMaxRegularHeapObjectSize);
       int array_length = FixedArrayLenFromSize(size);
@@ -136,15 +134,12 @@ void FillPageInPagedSpace(PageMetadata* page,
   DCHECK_EQ(0, page->AvailableInFreeList());
   DCHECK_EQ(0, page->AvailableInFreeListFromAllocatedBytes());
 
-  for (PageMetadata* p : *paged_space) {
+  for (NormalPage* p : *paged_space) {
     if (p != page) paged_space->RelinkFreeListCategories(p);
   }
 
   // Allocations in this method should not require a GC.
-  CHECK_EQ(full_epoch, heap->tracer()->CurrentEpoch(
-                           GCTracer::Scope::ScopeId::MARK_COMPACTOR));
-  CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
-                            GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER));
+  CHECK_EQ(epoch, heap->tracer()->CurrentEpoch());
   heap->FreeLinearAllocationAreas();
 }
 
@@ -162,11 +157,12 @@ void HeapInternalsBase::SimulateFullSpace(
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   new_space->heap()->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
   if (v8_flags.minor_ms) {
     auto* space = heap->paged_new_space()->paged_space();
     space->AllocatePageUpToCapacityForTesting();
-    for (PageMetadata* page : *space) {
+    for (NormalPage* page : *space) {
       FillPageInPagedSpace(page, out_handles);
     }
     DCHECK_IMPLIES(space->free_list(), space->free_list()->Available() == 0);
@@ -188,7 +184,8 @@ void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   heap->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
   space->ResetFreeList();
 }
 
@@ -262,9 +259,10 @@ void FillCurrentPagedSpacePage(v8::internal::NewSpace* space,
                                std::vector<Handle<FixedArray>>* out_handles) {
   const Address top = space->heap()->NewSpaceTop();
   if (top == kNullAddress) return;
-  PageMetadata* page = PageMetadata::FromAllocationAreaAddress(top);
+  NormalPage* page = NormalPage::FromAllocationAreaAddress(top);
   space->heap()->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kV8Only);
+      Heap::SweepingForcedFinalizationMode::kV8Only,
+      CompleteSweepingReason::kTesting);
   FillPageInPagedSpace(page, out_handles);
 }
 

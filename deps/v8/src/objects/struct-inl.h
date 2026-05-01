@@ -27,10 +27,24 @@ Tagged<Object> Tuple2::value1() const { return value1_.load(); }
 void Tuple2::set_value1(Tagged<Object> value, WriteBarrierMode mode) {
   value1_.store(this, value, mode);
 }
+Tagged<Object> Tuple2::value1(RelaxedLoadTag) const {
+  return value1_.Relaxed_Load();
+}
+void Tuple2::set_value1(Tagged<Object> value, RelaxedStoreTag,
+                        WriteBarrierMode mode) {
+  value1_.Relaxed_Store(this, value, mode);
+}
 
 Tagged<Object> Tuple2::value2() const { return value2_.load(); }
 void Tuple2::set_value2(Tagged<Object> value, WriteBarrierMode mode) {
   value2_.store(this, value, mode);
+}
+Tagged<Object> Tuple2::value2(RelaxedLoadTag) const {
+  return value2_.Relaxed_Load();
+}
+void Tuple2::set_value2(Tagged<Object> value, RelaxedStoreTag,
+                        WriteBarrierMode mode) {
+  value2_.Relaxed_Store(this, value, mode);
 }
 
 Tagged<Object> AccessorPair::get(AccessorComponent component) {

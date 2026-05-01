@@ -4,8 +4,7 @@
 
 #include "src/heap/cppgc/marking-state.h"
 
-#include <unordered_set>
-
+#include "absl/container/flat_hash_set.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/stats-collector.h"
 
@@ -63,7 +62,7 @@ void BasicMarkingState::Publish() {
 }
 
 void MutatorMarkingState::FlushNotFullyConstructedObjects() {
-  std::unordered_set<HeapObjectHeader*> objects =
+  absl::flat_hash_set<HeapObjectHeader*> objects =
       not_fully_constructed_worklist_.Extract<AccessMode::kAtomic>();
   for (HeapObjectHeader* object : objects) {
     if (MarkNoPush(*object))

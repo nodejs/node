@@ -38,7 +38,7 @@ DirectHandle<Code> BuildWithTurboshaftAssemblerImpl(
                     &info, options);
   data.InitializeBuiltinComponent(call_descriptor,
                                   std::move(bytecode_handler_data));
-  data.InitializeGraphComponent(nullptr);
+  data.InitializeGraphComponent(nullptr, Graph::Origin::kPureTurboshaft);
   ZoneWithName<kTempZoneName> temp_zone(&zone_stats, kTempZoneName);
   generator(&data, isolate, data.graph(), temp_zone);
 

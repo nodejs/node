@@ -357,3 +357,28 @@ selects.config_setting_group(
         ":is_fastbuild",
     ],
 )
+
+# To build with sanitizers in the command line, define the local
+# variable SANITIZER.
+# Eg: bazel build --copt=-fsanitize=address --linkopt=-fsanitize=address \
+#       --define=SANITIZER=asan ...
+
+config_setting(
+    name = "asan_enabled",
+    values = {"define": "SANITIZER=asan"},
+)
+
+config_setting(
+    name = "hwasan_enabled",
+    values = {"define": "SANITIZER=hwasan"},
+)
+
+config_setting(
+    name = "msan_enabled",
+    values = {"define": "SANITIZER=msan"},
+)
+
+config_setting(
+    name = "ubsan_enabled",
+    values = {"define": "SANITIZER=ubsan"},
+)

@@ -58,6 +58,30 @@ static napi_value newExternalBuffer(napi_env env, napi_callback_info info) {
   return theBuffer;
 }
 
+static char externalSharedArrayBufferData[1];
+
+static void freeExternalSharedArrayBuffer(void* data, void* hint) {
+  (void)hint;
+  NODE_API_BASIC_ASSERT_RETURN_VOID(
+      data == (void*)externalSharedArrayBufferData,
+      "SharedArrayBuffer points to wrong data");
+  deleterCallCount++;
+}
+
+static napi_value newExternalSharedArrayBuffer(napi_env env,
+                                               napi_callback_info info) {
+  napi_value sab;
+  NODE_API_CALL(
+      env,
+      node_api_create_external_sharedarraybuffer(env,
+                                                 externalSharedArrayBufferData,
+                                                 1,
+                                                 freeExternalSharedArrayBuffer,
+                                                 NULL,
+                                                 &sab));
+  return sab;
+}
+
 static napi_value getDeleterCallCount(napi_env env, napi_callback_info info) {
   napi_value callCount;
   NODE_API_CALL(env, napi_create_int32(env, deleterCallCount, &callCount));
@@ -171,6 +195,8 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor methods[] = {
       DECLARE_NODE_API_PROPERTY("newBuffer", newBuffer),
       DECLARE_NODE_API_PROPERTY("newExternalBuffer", newExternalBuffer),
+      DECLARE_NODE_API_PROPERTY("newExternalSharedArrayBuffer",
+                                newExternalSharedArrayBuffer),
       DECLARE_NODE_API_PROPERTY("getDeleterCallCount", getDeleterCallCount),
       DECLARE_NODE_API_PROPERTY("copyBuffer", copyBuffer),
       DECLARE_NODE_API_PROPERTY("bufferHasInstance", bufferHasInstance),

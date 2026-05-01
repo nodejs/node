@@ -247,28 +247,35 @@ void SourceTextModuleDescriptor::MakeIndirectExportsExplicit(Zone* zone) {
   for (auto it = regular_exports_.begin(); it != regular_exports_.end();) {
     Entry* entry = it->second;
     DCHECK_NOT_NULL(entry->local_name);
-    auto import = regular_imports_.find(entry->local_name);
-    if (import != regular_imports_.end()) {
+    auto ReExport = [&](const Entry* import_entry) {
       // Found an indirect export.  Patch export entry and move it from regular
       // to special.
       DCHECK_NULL(entry->import_name);
       DCHECK_LT(entry->module_request, 0);
-      DCHECK_NOT_NULL(import->second->import_name);
-      DCHECK_LE(0, import->second->module_request);
-      DCHECK_LT(import->second->module_request,
+      DCHECK_LE(0, import_entry->module_request);
+      DCHECK_LT(import_entry->module_request,
                 static_cast<int>(module_requests_.size()));
-      entry->import_name = import->second->import_name;
-      entry->module_request = import->second->module_request;
+      entry->import_name = import_entry->import_name;
+      entry->module_request = import_entry->module_request;
       // Hack: When the indirect export cannot be resolved, we want the error
       // message to point at the import statement, not at the export statement.
       // Therefore we overwrite [entry]'s location here.  Note that Validate()
       // has already checked for duplicate exports, so it's guaranteed that we
       // won't need to report any error pointing at the (now lost) export
       // location.
-      entry->location = import->second->location;
+      entry->location = import_entry->location;
       entry->local_name = nullptr;
       AddSpecialExport(entry, zone);
       it = regular_exports_.erase(it);
+    };
+    if (auto import = regular_imports_.find(entry->local_name);
+        import != regular_imports_.end()) {
+      ReExport(import->second);
+    } else if (auto ns_import = namespace_imports_.find(entry->local_name);
+               v8_flags.js_esm_ns_reexport &&
+               ns_import != namespace_imports_.end()) {
+      // Found a namespace re-export.
+      ReExport(ns_import->second);
     } else {
       it++;
     }

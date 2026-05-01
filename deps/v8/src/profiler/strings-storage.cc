@@ -86,7 +86,7 @@ const char* StringsStorage::GetSymbol(Tagged<Symbol> sym) {
                              description->length());
   size_t data_length = 0;
   auto data = description->ToCString(0, length, &data_length);
-  if (sym->is_private_name()) {
+  if (sym->is_any_private_name()) {
     return AddOrDisposeString(data.release(), data_length);
   }
   auto str_length = 8 + data_length + 1 + 1;

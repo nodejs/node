@@ -26,10 +26,10 @@ constexpr GraphConfig graph_configs[] = {GraphConfig::kOneUse,
                                          GraphConfig::kTwoUsesTwoBlocks};
 
 #define SELECT_OP_LIST(V) \
-  V(Word32Select)         \
-  V(Word64Select)         \
-  V(Float32Select)        \
-  V(Float64Select)
+  V(Word32)               \
+  V(Word64)               \
+  V(Float32)              \
+  V(Float64)
 
 enum class SelectOperator {
 #define DEF(kind) k##kind,
@@ -45,13 +45,13 @@ bool SelectIsSupported(SelectOperator op) {
   SupportedOperations::Initialize();
 
   switch (op) {
-    case SelectOperator::kWord32Select:
+    case SelectOperator::kWord32:
       return SupportedOperations::word32_select();
-    case SelectOperator::kWord64Select:
+    case SelectOperator::kWord64:
       return SupportedOperations::word64_select();
-    case SelectOperator::kFloat32Select:
+    case SelectOperator::kFloat32:
       return SupportedOperations::float32_select();
-    case SelectOperator::kFloat64Select:
+    case SelectOperator::kFloat64:
       return SupportedOperations::float64_select();
   }
 }
@@ -121,16 +121,16 @@ class ConditionalSelectGen {
         m().Get(select()).template Cast<SelectOp>().vtrue();
     V<Word32> cond;
     switch (select_op()) {
-      case SelectOperator::kFloat32Select:
+      case SelectOperator::kFloat32:
         cond = m().Float32LessThan(select(), cond_second_input);
         break;
-      case SelectOperator::kFloat64Select:
+      case SelectOperator::kFloat64:
         cond = m().Float64LessThan(select(), cond_second_input);
         break;
-      case SelectOperator::kWord32Select:
+      case SelectOperator::kWord32:
         cond = m().Int32LessThan(select(), cond_second_input);
         break;
-      case SelectOperator::kWord64Select:
+      case SelectOperator::kWord64:
         cond = m().Int64LessThan(select(), cond_second_input);
         break;
     }
@@ -177,9 +177,11 @@ class ConditionalSelectGen {
   OpIndex MakeSelect(SelectOperator op, OpIndex cond, OpIndex vtrue,
                      OpIndex vfalse) {
     switch (op) {
-#define CASE(kind)              \
-  case SelectOperator::k##kind: \
-    return m().kind(cond, vtrue, vfalse);
+#define CASE(kind)                                                         \
+  case SelectOperator::k##kind:                                            \
+    return m().Select(cond, vtrue, vfalse, RegisterRepresentation::kind(), \
+                      BranchHint::kNone,                                   \
+                      SelectOp::Implementation::kForceCMove);
       SELECT_OP_LIST(CASE)
 #undef CASE
     }
@@ -204,15 +206,15 @@ class UInt32ConditionalSelectGen
   OpIndex AddBinopUse() override {
     BufferedRawMachineAssemblerTester<ResultType>& m = this->m();
     switch (this->select_op()) {
-      case SelectOperator::kFloat32Select:
+      case SelectOperator::kFloat32:
         return m.Float32Add(this->select(),
                             m.ChangeUint32ToFloat32(this->bin_node()));
-      case SelectOperator::kFloat64Select:
+      case SelectOperator::kFloat64:
         return m.Float64Add(this->select(),
                             m.ChangeUint32ToFloat64(this->bin_node()));
-      case SelectOperator::kWord32Select:
+      case SelectOperator::kWord32:
         return m.Word32Add(this->select(), this->bin_node());
-      case SelectOperator::kWord64Select:
+      case SelectOperator::kWord64:
         return m.Word64Add(this->select(),
                            m.ChangeUint32ToUint64(this->bin_node()));
     }
@@ -230,16 +232,16 @@ class UInt64ConditionalSelectGen
   OpIndex AddBinopUse() override {
     BufferedRawMachineAssemblerTester<ResultType>& m = this->m();
     switch (this->select_op()) {
-      case SelectOperator::kFloat32Select:
+      case SelectOperator::kFloat32:
         return m.Float32Add(this->select(),
                             m.ChangeUint64ToFloat32(this->bin_node()));
-      case SelectOperator::kFloat64Select:
+      case SelectOperator::kFloat64:
         return m.Float64Add(this->select(),
                             m.ChangeUint64ToFloat64(this->bin_node()));
-      case SelectOperator::kWord32Select:
+      case SelectOperator::kWord32:
         return m.Word32Add(this->select(),
                            m.TruncateWord64ToWord32(this->bin_node()));
-      case SelectOperator::kWord64Select:
+      case SelectOperator::kWord64:
         return m.Word64Add(this->select(), this->bin_node());
     }
   }
@@ -259,7 +261,7 @@ constexpr TurboshaftBinop int32_bin_opcodes[] = {
 };
 
 TEST(Word32SelectCombineInt32CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kWord32Select)) {
+  if (!SelectIsSupported(SelectOperator::kWord32)) {
     return;
   }
 
@@ -274,7 +276,7 @@ TEST(Word32SelectCombineInt32CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kWord32Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kWord32, lhs, rhs, tval, fval);
 
         FOR_UINT32_INPUTS(a) {
           FOR_UINT32_INPUTS(b) {
@@ -289,7 +291,7 @@ TEST(Word32SelectCombineInt32CompareZero) {
 }
 
 TEST(Word64SelectCombineInt32CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kWord64Select)) {
+  if (!SelectIsSupported(SelectOperator::kWord64)) {
     return;
   }
 
@@ -304,7 +306,7 @@ TEST(Word64SelectCombineInt32CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kWord64Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kWord64, lhs, rhs, tval, fval);
 
         FOR_UINT32_INPUTS(a) {
           FOR_UINT32_INPUTS(b) {
@@ -321,7 +323,7 @@ TEST(Word64SelectCombineInt32CompareZero) {
 }
 
 TEST(Float32SelectCombineInt32CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kFloat32Select)) {
+  if (!SelectIsSupported(SelectOperator::kFloat32)) {
     return;
   }
 
@@ -336,7 +338,7 @@ TEST(Float32SelectCombineInt32CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kFloat32Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kFloat32, lhs, rhs, tval, fval);
 
         FOR_UINT32_INPUTS(a) {
           FOR_UINT32_INPUTS(b) {
@@ -351,7 +353,7 @@ TEST(Float32SelectCombineInt32CompareZero) {
 }
 
 TEST(Float64SelectCombineInt32CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kFloat64Select)) {
+  if (!SelectIsSupported(SelectOperator::kFloat64)) {
     return;
   }
 
@@ -366,7 +368,7 @@ TEST(Float64SelectCombineInt32CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kFloat64Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kFloat64, lhs, rhs, tval, fval);
 
         FOR_UINT32_INPUTS(a) {
           FOR_UINT32_INPUTS(b) {
@@ -392,7 +394,7 @@ constexpr TurboshaftComparison int64_cmp_opcodes[] = {
     TurboshaftComparison::kUint64LessThanOrEqual};
 
 TEST(Word32SelectCombineInt64CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kWord32Select)) {
+  if (!SelectIsSupported(SelectOperator::kWord32)) {
     return;
   }
 
@@ -407,7 +409,7 @@ TEST(Word32SelectCombineInt64CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kWord32Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kWord32, lhs, rhs, tval, fval);
 
         FOR_UINT64_INPUTS(a) {
           FOR_UINT64_INPUTS(b) {
@@ -422,7 +424,7 @@ TEST(Word32SelectCombineInt64CompareZero) {
 }
 
 TEST(Word64SelectCombineInt64CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kWord64Select)) {
+  if (!SelectIsSupported(SelectOperator::kWord64)) {
     return;
   }
 
@@ -437,7 +439,7 @@ TEST(Word64SelectCombineInt64CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kWord64Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kWord64, lhs, rhs, tval, fval);
 
         FOR_UINT64_INPUTS(a) {
           FOR_UINT64_INPUTS(b) {
@@ -454,7 +456,7 @@ TEST(Word64SelectCombineInt64CompareZero) {
 }
 
 TEST(Float32SelectCombineInt64CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kFloat32Select)) {
+  if (!SelectIsSupported(SelectOperator::kFloat32)) {
     return;
   }
 
@@ -469,7 +471,7 @@ TEST(Float32SelectCombineInt64CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kFloat32Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kFloat32, lhs, rhs, tval, fval);
 
         FOR_UINT64_INPUTS(a) {
           FOR_UINT64_INPUTS(b) {
@@ -484,7 +486,7 @@ TEST(Float32SelectCombineInt64CompareZero) {
 }
 
 TEST(Float64SelectCombineInt64CompareZero) {
-  if (!SelectIsSupported(SelectOperator::kFloat64Select)) {
+  if (!SelectIsSupported(SelectOperator::kFloat64)) {
     return;
   }
 
@@ -499,7 +501,7 @@ TEST(Float64SelectCombineInt64CompareZero) {
         OpIndex rhs = m.Parameter(1);
         OpIndex tval = m.Parameter(2);
         OpIndex fval = m.Parameter(3);
-        gen.BuildGraph(SelectOperator::kFloat64Select, lhs, rhs, tval, fval);
+        gen.BuildGraph(SelectOperator::kFloat64, lhs, rhs, tval, fval);
 
         FOR_UINT64_INPUTS(a) {
           FOR_UINT64_INPUTS(b) {

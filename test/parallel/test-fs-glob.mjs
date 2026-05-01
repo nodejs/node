@@ -36,6 +36,9 @@ async function setup() {
 
   const symlinkTo = resolve(fixtureDir, 'a/symlink/a/b/c');
   const symlinkFrom = '../..';
+  const followTarget = resolve(fixtureDir, 'follow/target');
+  const followLink = resolve(fixtureDir, 'follow/link');
+  const followCycle = resolve(fixtureDir, 'follow/cycle');
 
   for (const file of files) {
     const f = resolve(fixtureDir, file);
@@ -44,11 +47,18 @@ async function setup() {
     await writeFile(f, 'i like tests');
   }
 
+  await mkdir(followTarget, { recursive: true });
+  await writeFile(resolve(followTarget, 'file.txt'), 'follow symlinks');
+
   if (!common.isWindows) {
     const d = dirname(symlinkTo);
     await mkdir(d, { recursive: true });
     await symlink(symlinkFrom, symlinkTo, 'dir');
   }
+
+  const linkType = common.isWindows ? 'junction' : 'dir';
+  await symlink(followTarget, followLink, linkType);
+  await symlink(resolve(fixtureDir, 'follow'), followCycle, linkType);
 
   await Promise.all(['foo', 'bar', 'baz', 'asdf', 'quux', 'qwer', 'rewq'].map(async function(w) {
     await mkdir(resolve(absDir, w), { recursive: true });
@@ -216,6 +226,9 @@ const patterns = {
     common.isWindows ? null : 'a/symlink',
     'a/x',
     'a/z',
+    'follow/cycle',
+    'follow/link',
+    'follow/target',
   ],
   [`{${absDir}/*,*}`]: [
     `${absDir}/asdf`,
@@ -226,6 +239,7 @@ const patterns = {
     `${absDir}/qwer`,
     `${absDir}/rewq`,
     'a',
+    'follow',
   ],
   'a/!(symlink)/**': [
     'a/abcdef',
@@ -522,6 +536,100 @@ describe('fsPromises glob - exclude', function() {
       assert.deepStrictEqual(actual.sort(), normalized);
     });
   }
+});
+
+const followSymlinkPattern = 'follow/**';
+const followSymlinkExpected = [
+  'follow',
+  'follow/cycle',
+  'follow/link',
+  'follow/target',
+  'follow/target/file.txt',
+].map((item) => item.replaceAll('/', sep)).sort();
+const followSymlinkExpectedWithFollow = [
+  ...followSymlinkExpected,
+  'follow/link/file.txt'.replaceAll('/', sep),
+].sort();
+
+const getNestedCycleMatches = (matches) => {
+  return matches.filter((match) => match.startsWith(`follow${sep}cycle${sep}`));
+};
+
+describe('glob - followSymlinks', function() {
+  const promisified = promisify(glob);
+
+  test('does not follow symlinks by default', async () => {
+    const actual = (await promisified(followSymlinkPattern, { cwd: fixtureDir })).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpected);
+  });
+
+  test('follows symlinked directories when enabled', async () => {
+    const actual = (await promisified(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+    })).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
+  });
+});
+
+describe('globSync - followSymlinks', function() {
+  test('does not follow symlinks by default', () => {
+    const actual = globSync(followSymlinkPattern, { cwd: fixtureDir }).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpected);
+  });
+
+  test('validates followSymlinks', () => {
+    assert.throws(() => {
+      globSync(followSymlinkPattern, {
+        cwd: fixtureDir,
+        followSymlinks: 1,
+      });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('follows symlinked directories when enabled', () => {
+    const actual = globSync(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+    }).sort();
+    assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
+  });
+
+  test('supports withFileTypes when following symlinked directories', () => {
+    const actual = globSync(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+      withFileTypes: true,
+    });
+    assertDirents(actual);
+    const normalized = actual.map(normalizeDirent).sort();
+    assert.deepStrictEqual(normalized, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(normalized), []);
+  });
+});
+
+describe('fsPromises glob - followSymlinks', function() {
+  test('does not follow symlinks by default', async () => {
+    const actual = [];
+    for await (const item of asyncGlob(followSymlinkPattern, { cwd: fixtureDir })) actual.push(item);
+    actual.sort();
+    assert.deepStrictEqual(actual, followSymlinkExpected);
+  });
+
+  test('follows symlinked directories when enabled', async () => {
+    const actual = [];
+    for await (const item of asyncGlob(followSymlinkPattern, {
+      cwd: fixtureDir,
+      followSymlinks: true,
+    })) actual.push(item);
+    actual.sort();
+    assert.deepStrictEqual(actual, followSymlinkExpectedWithFollow);
+    assert.deepStrictEqual(getNestedCycleMatches(actual), []);
+  });
 });
 
 describe('glob - with restricted directory', function() {

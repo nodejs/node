@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
 import re
 import shlex
 import sys
@@ -10,11 +9,10 @@ import sys
 from pathlib import Path
 
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
-from testrunner.outproc import message
 
 PY_FLAGS_PATTERN = re.compile(r"#\s+Flags:(.*)")
+
 
 class PYTestCase(testcase.TestCase):
 
@@ -57,13 +55,7 @@ class TestCase(PYTestCase):
     return flags
 
   def _expected_fail(self):
-    path = self.path
-    while path:
-      head, tail = os.path.split(path)
-      if tail == 'fail':
-        return True
-      path = head
-    return False
+    return 'fail' in self.path.parts
 
   def _get_files_params(self):
     return self._source_files

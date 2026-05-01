@@ -20,6 +20,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
+#include "src/wasm/wasm-stack-wrapper-cache.h"
 #endif
 
 namespace v8::internal {
@@ -192,7 +193,7 @@ MemoryMeasurement::MemoryMeasurement(Isolate* isolate)
 bool MemoryMeasurement::EnqueueRequest(
     std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
     v8::MeasureMemoryExecution execution,
-    const std::vector<Handle<NativeContext>> contexts) {
+    const std::vector<Handle<NativeContext>>& contexts) {
   int length = static_cast<int>(contexts.size());
   DirectHandle<WeakFixedArray> weak_contexts =
       isolate_->factory()->NewWeakFixedArray(length);
@@ -239,7 +240,8 @@ void MemoryMeasurement::FinishProcessing(const NativeContextStats& stats) {
   size_t wasm_code = wasm::GetWasmCodeManager()->committed_code_space();
   size_t wasm_metadata =
       wasm::GetWasmEngine()->EstimateCurrentMemoryConsumption() +
-      wasm::GetWasmImportWrapperCache()->EstimateCurrentMemoryConsumption();
+      wasm::GetWasmImportWrapperCache()->EstimateCurrentMemoryConsumption() +
+      wasm::GetWasmStackEntryWrapperCache()->EstimateCurrentMemoryConsumption();
 #endif
 
   while (!processing_.empty()) {

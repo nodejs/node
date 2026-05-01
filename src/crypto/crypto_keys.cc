@@ -5,7 +5,7 @@
 #include "crypto/crypto_dh.h"
 #include "crypto/crypto_dsa.h"
 #include "crypto/crypto_ec.h"
-#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_rsa.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
@@ -200,7 +200,37 @@ bool ExportJWKAsymmetricKey(Environment* env,
     case EVP_PKEY_ML_DSA_65:
       // Fall through
     case EVP_PKEY_ML_DSA_87:
-      return ExportJwkMlDsaKey(env, key, target);
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      // Fall through
+    case EVP_PKEY_ML_KEM_512:
+      // Fall through
+    case EVP_PKEY_ML_KEM_768:
+      // Fall through
+    case EVP_PKEY_ML_KEM_1024:
+      return ExportJwkPqcKey(env, key, target);
 #endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
@@ -723,7 +753,7 @@ static KeyObjectData ImportJWKFromArgs(Environment* env, Local<Object> jwk) {
     return ImportJWKEdKey(env, jwk);
   } else if (*kty_string == std::string_view("AKP")) {
 #if OPENSSL_WITH_PQC
-    return ImportJWKAkpKey(env, jwk);
+    return ImportJWKPqcKey(env, jwk);
 #else
     THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported key type");
     return {};

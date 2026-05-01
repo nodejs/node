@@ -159,8 +159,8 @@ class WasmInterpreterRuntime {
 
   void PrintStack(uint32_t* sp, RegMode reg_mode, int64_t r0, double fp0);
 
-  void SetTrap(TrapReason trap_reason, pc_t trap_pc);
-  void SetTrap(TrapReason trap_reason, const uint8_t*& current_code);
+  void SetTrap(MessageTemplate message_template, pc_t trap_pc);
+  void SetTrap(MessageTemplate message_template, const uint8_t*& current_code);
 
   // GC helpers.
   DirectHandle<Map> RttCanon(uint32_t type_index) const;
@@ -207,6 +207,14 @@ class WasmInterpreterRuntime {
   static int memory_start_offset();
   static int instruction_table_offset();
 
+#if defined(V8_ENABLE_DRUMBRAKE_TRACING) && !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+  static int trace_pop_func_offset();
+  static int trace_pop2_func_offset();
+  static int trace_push_func_offset();
+  static int trace_replace_func_offset();
+#endif  // defined(V8_ENABLE_DRUMBRAKE_TRACING) &&
+        // !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+
   size_t TotalBytecodeSize() const { return codemap_->TotalBytecodeSize(); }
 
   void ResetCurrentHandleScope();
@@ -238,6 +246,13 @@ class WasmInterpreterRuntime {
                                             const FunctionSig* sig,
                                             uint32_t* sp,
                                             uint32_t return_slot_offset);
+
+  ExternalCallResult CallExternalWasmFunction(uint32_t function_index,
+                                              DirectHandle<Object> object_ref,
+                                              const FunctionSig* sig,
+                                              uint32_t* sp,
+                                              uint32_t return_slot_offset,
+                                              uint32_t ref_stack_fp_offset);
 
   inline Address EffectiveAddress(uint64_t index) const;
 
@@ -402,6 +417,48 @@ class WasmInterpreterRuntime {
 
   std::unique_ptr<InterpreterTracer> tracer_;
   ShadowStack* shadow_stack_;
+
+#ifndef V8_DRUMBRAKE_BOUNDS_CHECKS
+  enum class TracePopType : bool {
+    kNormal,     // pop once
+    kDuplicate,  // pop twice
+  };
+
+  template <TracePopType type>
+  static void TracePopWithCheck(WasmInterpreterRuntime* wasm_runtime) {
+    if (v8_flags.trace_drumbrake_execution) {
+      if constexpr (type == TracePopType::kDuplicate) {
+        wasm_runtime->TracePop();
+      }
+      wasm_runtime->TracePop();
+    }
+  }
+
+  enum class TracePushType : bool {
+    kNormal,   // push once
+    kReplace,  // pop and push
+  };
+
+  template <TracePushType type>
+  static void TracePushWithCheck(WasmInterpreterRuntime* wasm_runtime,
+                                 ValueKind kind, uint32_t slot_offset) {
+    if (v8_flags.trace_drumbrake_execution) {
+      if constexpr (type == TracePushType::kReplace) {
+        wasm_runtime->TracePop();
+      }
+      wasm_runtime->TracePush(kind, slot_offset);
+    }
+  }
+
+  using TracePopFuncT = void (*)(WasmInterpreterRuntime*);
+  using TracePushFuncT = void (*)(WasmInterpreterRuntime*, ValueKind, uint32_t);
+  TracePopFuncT trace_pop_func_ = &TracePopWithCheck<TracePopType::kNormal>;
+  TracePopFuncT trace_pop2_func_ = &TracePopWithCheck<TracePopType::kDuplicate>;
+  TracePushFuncT trace_push_func_ = &TracePushWithCheck<TracePushType::kNormal>;
+  TracePushFuncT trace_replace_func_ =
+      &TracePushWithCheck<TracePushType::kReplace>;
+#endif  // V8_DRUMBRAKE_BOUNDS_CHECKS
+
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
   WasmInterpreterRuntime(const WasmInterpreterRuntime&) = delete;

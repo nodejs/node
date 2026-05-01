@@ -178,9 +178,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), 0);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(
-      Object::NumberValue(*iterator.GetConstantForIndexOperand(0, isolate())),
-      heap_num_0);
+  EXPECT_EQ(Object::NumberValue(*iterator.GetConstantForOperand(0, isolate())),
+            heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
 }
 
@@ -321,9 +320,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(
-      Object::NumberValue(*iterator.GetConstantForIndexOperand(0, isolate())),
-      heap_num_1);
+  EXPECT_EQ(Object::NumberValue(*iterator.GetConstantForOperand(0, isolate())),
+            heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(16);
@@ -367,8 +365,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
-  EXPECT_EQ(iterator.GetIndexOperand(2), feedback_slot);
+  EXPECT_EQ(iterator.GetConstantPoolIndexOperand(1), name_index);
+  EXPECT_EQ(iterator.GetFeedbackSlotOperand(2), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator += 2;
@@ -474,9 +472,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(
-      Object::NumberValue(*iterator.GetConstantForIndexOperand(0, isolate())),
-      heap_num_0);
+  EXPECT_EQ(Object::NumberValue(*iterator.GetConstantForOperand(0, isolate())),
+            heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -493,9 +490,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(
-      Object::NumberValue(*iterator.GetConstantForIndexOperand(0, isolate())),
-      heap_num_1);
+  EXPECT_EQ(Object::NumberValue(*iterator.GetConstantForOperand(0, isolate())),
+            heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -595,8 +591,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
-  EXPECT_EQ(iterator.GetIndexOperand(2), feedback_slot);
+  EXPECT_EQ(iterator.GetConstantPoolIndexOperand(1), name_index);
+  EXPECT_EQ(iterator.GetFeedbackSlotOperand(2), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kGetNamedProperty, OperandScale::kSingle);
   ++iterator;
@@ -642,7 +638,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
   EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
-  EXPECT_EQ(iterator.GetIndexOperand(1), feedback_slot);
+  EXPECT_EQ(iterator.GetFeedbackSlotOperand(1), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kForInPrepare, OperandScale::kSingle);
   ++iterator;
@@ -761,7 +757,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
   EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
-  EXPECT_EQ(iterator.GetIndexOperand(1), feedback_slot);
+  EXPECT_EQ(iterator.GetFeedbackSlotOperand(1), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -806,8 +802,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_16.index());
-  EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
-  EXPECT_EQ(iterator.GetIndexOperand(2), feedback_slot);
+  EXPECT_EQ(iterator.GetConstantPoolIndexOperand(1), name_index);
+  EXPECT_EQ(iterator.GetFeedbackSlotOperand(2), feedback_slot);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -906,9 +902,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(
-      Object::NumberValue(*iterator.GetConstantForIndexOperand(0, isolate())),
-      heap_num_1);
+  EXPECT_EQ(Object::NumberValue(*iterator.GetConstantForOperand(0, isolate())),
+            heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -925,9 +920,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(
-      Object::NumberValue(*iterator.GetConstantForIndexOperand(0, isolate())),
-      heap_num_0);
+  EXPECT_EQ(Object::NumberValue(*iterator.GetConstantForOperand(0, isolate())),
+            heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
   ASSERT_FALSE(iterator.IsValid());

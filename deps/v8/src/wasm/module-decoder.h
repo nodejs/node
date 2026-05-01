@@ -22,7 +22,7 @@
 namespace v8 {
 namespace internal {
 
-class Counters;
+class DelayedCounterUpdates;
 
 namespace wasm {
 
@@ -85,14 +85,19 @@ enum class DecodingMethod {
 };
 
 // Decodes the bytes of a wasm module in {wire_bytes} while recording events and
-// updating counters.
+// updating counters in the given isolate.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
+// Decodes the bytes of a wasm module in {wire_bytes} and returns delayed
+// counter updates and the metrics event to the caller.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, Counters* counters,
-    std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    WasmDetectedFeatures* detected_features);
+    ModuleOrigin origin, DelayedCounterUpdates* delayed_counters,
+    std::optional<v8::metrics::WasmModuleDecoded>* metrics_event,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
 // Decodes the bytes of a wasm module in {wire_bytes} without recording events
 // or updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
@@ -105,19 +110,10 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone.
-V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    WasmEnabledFeatures enabled_features, Zone* zone,
-    base::Vector<const uint8_t> bytes);
-
-// Decodes the bytes of a wasm function in {function_bytes} (part of
-// {wire_bytes}).
-V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunctionForTesting(
-    WasmEnabledFeatures enabled, Zone* zone, ModuleWireBytes wire_bytes,
-    const WasmModule* module, base::Vector<const uint8_t> function_bytes);
-
-V8_EXPORT_PRIVATE ConstantExpression DecodeWasmInitExprForTesting(
-    WasmEnabledFeatures enabled_features, base::Vector<const uint8_t> bytes,
-    ValueType expected);
+V8_EXPORT_PRIVATE
+Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>>
+DecodeWasmSignatureForTesting(WasmEnabledFeatures enabled_features,
+                              base::Vector<const uint8_t> bytes);
 
 struct CustomSectionOffset {
   WireBytesRef section;

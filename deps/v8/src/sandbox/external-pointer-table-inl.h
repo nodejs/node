@@ -103,7 +103,8 @@ void ExternalPointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   payload_.store(new_payload, std::memory_order_relaxed);
 }
 
-uint32_t ExternalPointerTableEntry::GetNextFreelistEntryIndex() const {
+std::optional<uint32_t> ExternalPointerTableEntry::GetNextFreelistEntryIndex()
+    const {
   auto payload = payload_.load(std::memory_order_relaxed);
   return payload.ExtractFreelistLink();
 }

@@ -151,8 +151,7 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
 
     // We have not validated the allocation site yet, since we have not
     // dereferenced the site during collecting information.
-    // This is an inlined check of AllocationMemento::IsValid.
-    if (!IsAllocationSite(site) || site->IsZombie()) continue;
+    if (!IsAllocationSite(site)) continue;
 
     const int value = static_cast<int>(site_and_count.second);
     DCHECK_LT(0, value);

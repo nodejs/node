@@ -48,7 +48,7 @@ macro ConvertToAndFromWasm(context: Context, wasmType: uint32, value: JSAny):
     }
     const refKind =
         (wasmType & kValueTypeRefKindBits) >>> kValueTypeRefKindShift;
-    if (refKind != ToUint(RefTypeKind::kFunction)) {
+    if (refKind != RefTypeKind::kFunction) {
       // We only have to check funcrefs.
       return value;
     }

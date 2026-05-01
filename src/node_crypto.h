@@ -46,8 +46,8 @@
 #endif
 #include "crypto/crypto_keygen.h"
 #include "crypto/crypto_keys.h"
-#include "crypto/crypto_ml_dsa.h"
 #include "crypto/crypto_pbkdf2.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_random.h"
 #include "crypto/crypto_rsa.h"
 #include "crypto/crypto_scrypt.h"

@@ -225,8 +225,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     FieldAccess access(BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                        OptionalMapRef(), Type::Any(),
                        MachineType::IndirectPointer(), write_barrier,
-                       "OptimizedStoreIndirectPointerField");
-    access.indirect_pointer_tag = tag;
+                       "OptimizedStoreIndirectPointerField",
+                       ConstFieldInfo::None(), false, kExternalPointerNullTag,
+                       tag, false, false);
     AddNode(simplified()->StoreField(access), object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value,
@@ -1114,6 +1115,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void AbortCSADcheck(Node* message);
   void DebugBreak();
   void Unreachable();
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  void EnterSandbox();
+  void ExitSandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   void Comment(const std::string& msg);
   void StaticAssert(Node* value, const char* source);
 

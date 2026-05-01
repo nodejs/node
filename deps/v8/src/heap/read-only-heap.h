@@ -23,12 +23,13 @@ class SharedMemoryStatistics;
 namespace internal {
 
 class Isolate;
-class PageMetadata;
+class NormalPage;
 class ReadOnlyArtifacts;
-class ReadOnlyPageMetadata;
+class ReadOnlyPage;
 class ReadOnlySpace;
 class SharedReadOnlySpace;
 class SnapshotData;
+class EarlyReadOnlyRoots;
 
 // This class transparently manages read-only space, roots and cache creation
 // and destruction.
@@ -73,7 +74,7 @@ class ReadOnlyHeap final {
   V8_EXPORT_PRIVATE static bool SandboxSafeContains(Tagged<HeapObject> object);
   // Returns the current isolates roots table during initialization as opposed
   // to the shared one in case the latter is not initialized yet.
-  V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
+  V8_EXPORT_PRIVATE inline static EarlyReadOnlyRoots EarlyGetReadOnlyRoots(
       Tagged<HeapObject> object);
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
@@ -81,9 +82,6 @@ class ReadOnlyHeap final {
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 #endif  // V8_ENABLE_SANDBOX
-  JSDispatchTable::Space* js_dispatch_table_space() {
-    return &js_dispatch_table_space_;
-  }
 
   void InitializeIsolateRoots(Isolate* isolate);
   void InitializeFromIsolateRoots(Isolate* isolate);
@@ -116,7 +114,6 @@ class ReadOnlyHeap final {
   // are never deallocated.
   CodePointerTable::Space code_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
-  JSDispatchTable::Space js_dispatch_table_space_;
 
  private:
   friend ReadOnlyRoots GetReadOnlyRoots();
@@ -133,20 +130,19 @@ enum class SkipFreeSpaceOrFiller {
 class V8_EXPORT_PRIVATE ReadOnlyPageObjectIterator final {
  public:
   explicit ReadOnlyPageObjectIterator(
-      const ReadOnlyPageMetadata* page,
+      const ReadOnlyPage* page,
       SkipFreeSpaceOrFiller skip_free_space_or_filler =
           SkipFreeSpaceOrFiller::kYes);
-  ReadOnlyPageObjectIterator(const ReadOnlyPageMetadata* page,
-                             Address current_addr,
+  ReadOnlyPageObjectIterator(const ReadOnlyPage* page, Address current_addr,
                              SkipFreeSpaceOrFiller skip_free_space_or_filler =
                                  SkipFreeSpaceOrFiller::kYes);
 
   Tagged<HeapObject> Next();
 
  private:
-  void Reset(const ReadOnlyPageMetadata* page);
+  void Reset(const ReadOnlyPage* page);
 
-  const ReadOnlyPageMetadata* page_;
+  const ReadOnlyPage* page_;
   Address current_addr_;
   const SkipFreeSpaceOrFiller skip_free_space_or_filler_;
 
@@ -164,7 +160,7 @@ class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator final {
 
  private:
   const ReadOnlySpace* const ro_space_;
-  std::vector<ReadOnlyPageMetadata*>::const_iterator current_page_;
+  std::vector<ReadOnlyPage*>::const_iterator current_page_;
   ReadOnlyPageObjectIterator page_iterator_;
 };
 

@@ -104,16 +104,19 @@ javascript builtin DataViewPrototypeGetByteLength(
   if (IsVariableLengthJSArrayBufferView(dataView)) {
     try {
       const byteLength = LoadVariableLengthJSArrayBufferViewByteLength(
-          dataView, dataView.buffer) otherwise DetachedOrOutOfBounds;
+          dataView, dataView.buffer, TypedArrayAccessMode::kRead)
+          otherwise Fail;
       return Convert<Number>(byteLength);
-    } label DetachedOrOutOfBounds {
+    } label Fail {
       ThrowTypeError(
-          MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
+          MessageTemplate::kTypedArrayValidateErrorOperation,
+          kBuiltinNameByteLength);
     }
   } else {
     if (WasDetached(dataView)) {
       ThrowTypeError(
-          MessageTemplate::kDetachedOperation, kBuiltinNameByteLength);
+          MessageTemplate::kTypedArrayValidateErrorOperation,
+          kBuiltinNameByteLength);
     }
     return Convert<Number>(dataView.byte_length);
   }
@@ -127,9 +130,11 @@ javascript builtin DataViewPrototypeGetByteOffset(
       ValidateDataView(context, receiver, 'get DataView.prototype.byteOffset');
   try {
     typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
-        otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
-  } label DetachedOrOutOfBounds {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameByteOffset);
+        otherwise Fail, NotDetachedNorOutOfBounds;
+  } label Fail {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateErrorOperation,
+        kBuiltinNameByteOffset);
   } label NotDetachedNorOutOfBounds {
     return Convert<Number>(dataView.byte_offset);
   }
@@ -431,7 +436,7 @@ transitioning macro DataViewGet(
           otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
     } label DetachedOrOutOfBounds {
       ThrowTypeError(
-          MessageTemplate::kDetachedOperation,
+          MessageTemplate::kTypedArrayValidateErrorOperation,
           MakeDataViewGetterNameString(kind));
     } label NotDetachedNorOutOfBounds {}
 
@@ -442,7 +447,8 @@ transitioning macro DataViewGet(
     let viewSize: uintptr;
     if (dataView.bit_field.is_length_tracking) {
       viewSize = LoadVariableLengthJSArrayBufferViewByteLength(
-          dataView, dataView.buffer) otherwise unreachable;
+          dataView, dataView.buffer, TypedArrayAccessMode::kRead)
+          otherwise unreachable;
     } else {
       viewSize = dataView.byte_length;
     }
@@ -722,6 +728,12 @@ transitioning macro DataViewSet(
   const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, MakeDataViewSetterNameString(kind));
 
+  if (IsImmutableArrayBuffer(dataView.buffer)) {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayImmutableBufferErrorOperation,
+        MakeDataViewSetterNameString(kind));
+  }
+
   try {
     // 3. Let getIndex be ? ToIndex(requestIndex).
     const getIndex: uintptr = ToIndex(requestIndex) otherwise RangeError;
@@ -745,11 +757,6 @@ transitioning macro DataViewSet(
     const buffer: JSArrayBuffer = dataView.buffer;
 
     // 6. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(
-          MessageTemplate::kDetachedOperation,
-          MakeDataViewSetterNameString(kind));
-    }
     // 8. Let getBufferByteLength be
     // MakeIdempotentArrayBufferByteLengthGetter(Unordered).
     // 9. NOTE: Bounds checking is not a synchronizing operation when view's
@@ -761,8 +768,8 @@ transitioning macro DataViewSet(
           otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
     } label DetachedOrOutOfBounds {
       ThrowTypeError(
-          MessageTemplate::kDetachedOperation,
-          MakeDataViewGetterNameString(kind));
+          MessageTemplate::kTypedArrayValidateErrorOperation,
+          MakeDataViewSetterNameString(kind));
     } label NotDetachedNorOutOfBounds {}
 
     // 11. Let viewOffset be view.[[ByteOffset]].
@@ -772,7 +779,8 @@ transitioning macro DataViewSet(
     let viewSize: uintptr;
     if (dataView.bit_field.is_length_tracking) {
       viewSize = LoadVariableLengthJSArrayBufferViewByteLength(
-          dataView, dataView.buffer) otherwise unreachable;
+          dataView, buffer, TypedArrayAccessMode::kRead)
+          otherwise unreachable;
     } else {
       viewSize = dataView.byte_length;
     }

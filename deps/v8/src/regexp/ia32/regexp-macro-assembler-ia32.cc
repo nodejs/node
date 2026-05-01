@@ -85,12 +85,11 @@ const int RegExpMacroAssemblerIA32::kRegExpCodeSize;
 RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(Isolate* isolate, Zone* zone,
                                                    Mode mode,
                                                    int registers_to_save)
-    : NativeRegExpMacroAssembler(isolate, zone),
+    : NativeRegExpMacroAssembler(isolate, zone, mode),
       masm_(std::make_unique<MacroAssembler>(
           isolate, CodeObjectRequired::kYes,
           NewAssemblerBuffer(kRegExpCodeSize))),
       no_root_array_scope_(masm_.get()),
-      mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
       entry_label_(),
@@ -115,10 +114,6 @@ RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerIA32::stack_limit_slack_slot_count() {
-  return RegExpStack::kStackLimitSlackSlotCount;
-}
-
 void RegExpMacroAssemblerIA32::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ add(edi, Immediate(by * char_size()));
@@ -141,7 +136,7 @@ void RegExpMacroAssemblerIA32::Backtrack() {
     Label next;
     __ inc(Operand(ebp, kBacktrackCountOffset));
     __ cmp(Operand(ebp, kBacktrackCountOffset), Immediate(backtrack_limit()));
-    __ j(not_equal, &next);
+    __ j(not_equal, &next, Label::kNear);
 
     // Backtrack limit exceeded.
     if (can_fallback()) {
@@ -199,7 +194,7 @@ void RegExpMacroAssemblerIA32::CheckCharacterLT(base::uc16 limit,
 void RegExpMacroAssemblerIA32::CheckFixedLengthLoop(Label* on_equal) {
   Label fallthrough;
   __ cmp(edi, Operand(backtrack_stackpointer(), 0));
-  __ j(not_equal, &fallthrough);
+  __ j(not_equal, &fallthrough, Label::kNear);
   __ add(backtrack_stackpointer(), Immediate(kSystemPointerSize));  // Pop.
   BranchOrBacktrack(on_equal);
   __ bind(&fallthrough);
@@ -256,7 +251,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     BranchOrBacktrack(greater, on_no_match);
   }
 
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     Label success;
     Label fail;
     Label loop_increment;
@@ -276,14 +271,14 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ bind(&loop);
     __ movzx_b(eax, Operand(edi, 0));
     __ cmpb_al(Operand(edx, 0));
-    __ j(equal, &loop_increment);
+    __ j(equal, &loop_increment, Label::kNear);
 
     // Mismatch, try case-insensitive match (converting letters to lower-case).
     __ or_(eax, 0x20);  // Convert match character to lower-case.
     __ lea(ecx, Operand(eax, -'a'));
     __ cmp(ecx, static_cast<int32_t>('z' - 'a'));  // Is eax a lowercase letter?
     Label convert_capture;
-    __ j(below_equal, &convert_capture);  // In range 'a'-'z'.
+    __ j(below_equal, &convert_capture, Label::kNear);  // In range 'a'-'z'.
     // Latin-1: Check for values in range [224,254] but not 247.
     __ sub(ecx, Immediate(224 - 'a'));
     __ cmp(ecx, Immediate(254 - 224));
@@ -305,7 +300,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     // Compare to end of match, and loop if not done.
     __ cmp(edi, ebx);
     __ j(below, &loop);
-    __ jmp(&success);
+    __ jmp(&success, Label::kNear);
 
     __ bind(&fail);
     // Restore original values before failing.
@@ -326,7 +321,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
       __ sub(edi, register_location(start_reg + 1));
     }
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
     // Save registers before calling C function.
     __ push(esi);
     __ push(edi);
@@ -429,11 +424,11 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(int start_reg,
 
   Label loop;
   __ bind(&loop);
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     __ movzx_b(eax, Operand(edx, 0));
     __ cmpb_al(Operand(ebx, 0));
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
     __ movzx_w(eax, Operand(edx, 0));
     __ cmpw_ax(Operand(ebx, 0));
   }
@@ -444,7 +439,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(int start_reg,
   // Check if we have reached end of match area.
   __ cmp(ebx, ecx);
   __ j(below, &loop);
-  __ jmp(&success);
+  __ jmp(&success, Label::kNear);
 
   __ bind(&fail);
   // Restore backtrack stackpointer.
@@ -570,7 +565,7 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
     Label* on_bit_set) {
   __ mov(eax, Immediate(table));
   Register index = current_character();
-  if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
+  if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ mov(ebx, kTableSize - 1);
     __ and_(ebx, current_character());
     index = ebx;
@@ -592,45 +587,44 @@ void RegExpMacroAssemblerIA32::SkipUntilBitInTable(
   GoTo(&again);
 }
 
-bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
+void RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
     StandardCharacterSet type, Label* on_no_match) {
+  DCHECK(CanOptimizeSpecialClassRanges(type));
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
   // TODO(jgruber): No custom implementation (yet): s(UC16), S(UC16).
   switch (type) {
-    case StandardCharacterSet::kWhitespace:
+    case StandardCharacterSet::kWhitespace: {
       // Match space-characters.
-      if (mode_ == LATIN1) {
-        // One byte space characters are '\t'..'\r', ' ' and \u00a0.
-        Label success;
-        __ cmp(current_character(), ' ');
-        __ j(equal, &success, Label::kNear);
-        // Check range 0x09..0x0D.
-        __ lea(eax, Operand(current_character(), -'\t'));
-        __ cmp(eax, '\r' - '\t');
-        __ j(below_equal, &success, Label::kNear);
-        // \u00a0 (NBSP).
-        __ cmp(eax, 0x00A0 - '\t');
-        BranchOrBacktrack(not_equal, on_no_match);
-        __ bind(&success);
-        return true;
-      }
-      return false;
+      DCHECK_EQ(mode(), LATIN1);
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
+      Label success;
+      __ cmp(current_character(), ' ');
+      __ j(equal, &success, Label::kNear);
+      // Check range 0x09..0x0D.
+      __ lea(eax, Operand(current_character(), -'\t'));
+      __ cmp(eax, '\r' - '\t');
+      __ j(below_equal, &success, Label::kNear);
+      // \u00a0 (NBSP).
+      __ cmp(eax, 0x00A0 - '\t');
+      BranchOrBacktrack(not_equal, on_no_match);
+      __ bind(&success);
+      break;
+    }
     case StandardCharacterSet::kNotWhitespace:
-      // The emitted code for generic character classes is good enough.
-      return false;
+      UNREACHABLE();
     case StandardCharacterSet::kDigit:
       // Match ASCII digits ('0'..'9').
       __ lea(eax, Operand(current_character(), -'0'));
       __ cmp(eax, '9' - '0');
       BranchOrBacktrack(above, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kNotDigit:
       // Match non ASCII-digits.
       __ lea(eax, Operand(current_character(), -'0'));
       __ cmp(eax, '9' - '0');
       BranchOrBacktrack(below_equal, on_no_match);
-      return true;
+      break;
     case StandardCharacterSet::kLineTerminator:
       // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 or 0x2029).
       // The opposite of '.'.
@@ -639,12 +633,12 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
       // See if current character is '\n'^1 or '\r'^1, i.e., 0x0B or 0x0C.
       __ sub(eax, Immediate(0x0B));
       __ cmp(eax, 0x0C - 0x0B);
-      if (mode_ == LATIN1) {
+      if (mode() == LATIN1) {
         BranchOrBacktrack(above, on_no_match);
       } else {
         Label done;
         BranchOrBacktrack(below_equal, &done);
-        DCHECK_EQ(UC16, mode_);
+        DCHECK_EQ(UC16, mode());
         // Compare original value to 0x2028 and 0x2029, using the already
         // computed (current_char ^ 0x01 - 0x0B). I.e., check for
         // 0x201D (0x2028 - 0x0B) or 0x201E.
@@ -653,7 +647,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
         BranchOrBacktrack(above, on_no_match);
         __ bind(&done);
       }
-      return true;
+      break;
     case StandardCharacterSet::kNotLineTerminator: {
       // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029).
       __ mov(eax, current_character());
@@ -662,7 +656,7 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
       __ sub(eax, Immediate(0x0B));
       __ cmp(eax, 0x0C - 0x0B);
       BranchOrBacktrack(below_equal, on_no_match);
-      if (mode_ == UC16) {
+      if (mode() == UC16) {
         // Compare original value to 0x2028 and 0x2029, using the already
         // computed (current_char ^ 0x01 - 0x0B). I.e., check for
         // 0x201D (0x2028 - 0x0B) or 0x201E.
@@ -670,46 +664,46 @@ bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
         __ cmp(eax, 0x2029 - 0x2028);
         BranchOrBacktrack(below_equal, on_no_match);
       }
-      return true;
+      break;
     }
     case StandardCharacterSet::kWord: {
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         __ cmp(current_character(), Immediate('z'));
         BranchOrBacktrack(above, on_no_match);
       }
       DCHECK_EQ(0,
-                word_character_map[0]);  // Character '\0' is not a word char.
+                word_character_map()[0]);  // Character '\0' is not a word char.
       ExternalReference word_map = ExternalReference::re_word_character_map();
       __ test_b(current_character(),
                 Operand(current_character(), times_1, word_map.address(),
                         RelocInfo::EXTERNAL_REFERENCE));
       BranchOrBacktrack(zero, on_no_match);
-      return true;
+      break;
     }
     case StandardCharacterSet::kNotWord: {
       Label done;
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         // Table is 256 entries, so all Latin1 characters can be tested.
         __ cmp(current_character(), Immediate('z'));
-        __ j(above, &done);
+        __ j(above, &done, Label::kNear);
       }
       DCHECK_EQ(0,
-                word_character_map[0]);  // Character '\0' is not a word char.
+                word_character_map()[0]);  // Character '\0' is not a word char.
       ExternalReference word_map = ExternalReference::re_word_character_map();
       __ test_b(current_character(),
                 Operand(current_character(), times_1, word_map.address(),
                         RelocInfo::EXTERNAL_REFERENCE));
       BranchOrBacktrack(not_zero, on_no_match);
-      if (mode_ != LATIN1) {
+      if (mode() != LATIN1) {
         __ bind(&done);
       }
-      return true;
+      break;
     }
   // Non-standard classes (with no syntactic shorthand) used internally.
   case StandardCharacterSet::kEverything:
     // Match any character.
-    return true;
+    break;
   }
 }
 
@@ -812,11 +806,11 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
     Immediate extra_space_for_variables(num_registers_ * kSystemPointerSize);
 
     // Handle it if the stack pointer is already below the stack limit.
-    __ j(below_equal, &stack_limit_hit);
+    __ j(below_equal, &stack_limit_hit, Label::kNear);
     // Check if there is room for the variable number of registers above
     // the stack limit.
     __ cmp(eax, extra_space_for_variables);
-    __ j(above_equal, &stack_ok);
+    __ j(above_equal, &stack_ok, Label::kNear);
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
     __ mov(eax, EXCEPTION);
@@ -848,7 +842,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
   // Set eax to address of char before start of the string.
   // (effectively string position -1).
   __ neg(ebx);
-  if (mode_ == UC16) {
+  if (mode() == UC16) {
     __ lea(eax, Operand(edi, ebx, times_2, -char_size()));
   } else {
     __ lea(eax, Operand(edi, ebx, times_1, -char_size()));
@@ -889,7 +883,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
       __ sub(ecx, Immediate(kSystemPointerSize));
       __ cmp(ecx,
              kRegisterZeroOffset - num_saved_registers_ * kSystemPointerSize);
-      __ j(greater, &init_loop);
+      __ j(greater, &init_loop, Label::kNear);
       __ pop(ecx);
     } else {  // Unroll the loop.
       for (int i = 0; i < num_saved_registers_; i++) {
@@ -910,7 +904,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
       __ mov(ecx, Operand(ebp, kInputEndOffset));
       __ mov(edx, Operand(ebp, kStartIndexOffset));
       __ sub(ecx, Operand(ebp, kInputStartOffset));
-      if (mode_ == UC16) {
+      if (mode() == UC16) {
         __ lea(ecx, Operand(ecx, edx, times_2, 0));
       } else {
         __ add(ecx, edx);
@@ -923,7 +917,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
         }
         // Convert to index from start of string, not end.
         __ add(eax, ecx);
-        if (mode_ == UC16) {
+        if (mode() == UC16) {
           __ sar(eax, 1);  // Convert byte index to character index.
         }
         __ mov(Operand(ebx, i * kSystemPointerSize), eax);
@@ -958,14 +952,14 @@ DirectHandle<HeapObject> RegExpMacroAssemblerIA32::GetCode(
         // edx: capture start index
         __ cmp(edi, edx);
         // Not a zero-length match, restart.
-        __ j(not_equal, &reload_string_start_minus_one);
+        __ j(not_equal, &reload_string_start_minus_one, Label::kNear);
         // edi (offset from the end) is zero if we already reached the end.
         __ test(edi, edi);
         __ j(zero, &exit_label_, Label::kNear);
         // Advance current position after a zero-length match.
         Label advance;
         __ bind(&advance);
-        if (mode_ == UC16) {
+        if (mode() == UC16) {
           __ add(edi, Immediate(2));
         } else {
           __ inc(edi);
@@ -1365,7 +1359,7 @@ void RegExpMacroAssemblerIA32::CheckPreemption() {
   ExternalReference stack_limit =
       ExternalReference::address_of_jslimit(isolate());
   __ cmp(esp, StaticVariable(stack_limit));
-  __ j(above, &no_preempt);
+  __ j(above, &no_preempt, Label::kNear);
 
   SafeCall(&check_preempt_label_);
 
@@ -1378,7 +1372,7 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
   ExternalReference stack_limit =
       ExternalReference::address_of_regexp_stack_limit_address(isolate());
   __ cmp(backtrack_stackpointer(), StaticVariable(stack_limit));
-  __ j(above, &no_stack_overflow);
+  __ j(above, &no_stack_overflow, Label::kNear);
 
   SafeCall(&stack_overflow_label_);
 
@@ -1393,14 +1387,14 @@ void RegExpMacroAssemblerIA32::AssertAboveStackLimitMinusSlack() {
   __ mov(eax, __ ExternalReferenceAsOperand(l, eax));
   __ sub(eax, Immediate(RegExpStack::kStackLimitSlackSize));
   __ cmp(backtrack_stackpointer(), eax);
-  __ j(above, &no_stack_overflow);
+  __ j(above, &no_stack_overflow, Label::kNear);
   __ int3();
   __ bind(&no_stack_overflow);
 }
 
 void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
-  if (mode_ == LATIN1) {
+  if (mode() == LATIN1) {
     if (characters == 4) {
       __ mov(current_character(), Operand(esi, edi, times_1, cp_offset));
     } else if (characters == 2) {
@@ -1410,7 +1404,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
       __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
     }
   } else {
-    DCHECK(mode_ == UC16);
+    DCHECK(mode() == UC16);
     if (characters == 2) {
       __ mov(current_character(),
              Operand(esi, edi, times_1, cp_offset * sizeof(base::uc16)));

@@ -8,6 +8,7 @@ constexpr std::string_view kConfigFileFlag = "--experimental-config-file";
 constexpr std::string_view kDefaultConfigFileFlag =
     "--experimental-default-config-file";
 constexpr std::string_view kDefaultConfigFileName = "node.config.json";
+constexpr std::string_view kSchemaField = "$schema";
 
 inline bool HasEqualsPrefix(std::string_view arg, std::string_view flag) {
   return arg.size() > flag.size() && arg.starts_with(flag) &&
@@ -290,10 +291,14 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       return ParseResult::InvalidContent;
     }
 
+    if (namespace_name == kSchemaField) {
+      continue;
+    }
+
     // Check if this field is a valid namespace
     if (!valid_namespaces.contains(namespace_name)) {
-      // If not, skip it
-      continue;
+      FPrintF(stderr, "Unknown namespace %s\n", namespace_name);
+      return ParseResult::InvalidContent;
     }
 
     // List of implicit namespace flags

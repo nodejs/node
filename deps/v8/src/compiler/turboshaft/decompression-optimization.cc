@@ -62,7 +62,7 @@ struct DecompressionAnalyzer {
     for (const Operation& op : base::Reversed(graph.operations(block))) {
       if (is_loop && op.Is<PhiOp>() && NeedsDecompression(op)) {
         const PhiOp& phi = op.Cast<PhiOp>();
-        if (!NeedsDecompression(phi.input(1))) {
+        if (!NeedsDecompression(phi.back_edge())) {
           Block* backedge = block.LastPredecessor();
           *next_block_id =
               std::max<int32_t>(*next_block_id, backedge->index().id());

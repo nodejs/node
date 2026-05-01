@@ -12,9 +12,11 @@
     'msvs_multi_core_compile': '0',   # we do enable multicore compiles, but not using the V8 way
     'enable_pgo_generate%': '0',
     'enable_pgo_use%': '0',
+    'clang_profile_lib%': '',
     'python%': 'python',
 
     'node_shared%': 'false',
+    'node_enable_experimentals%': 'false',
     'force_dynamic_crt%': 0,
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
@@ -38,7 +40,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.18',
+    'v8_embedder_string': '-node.19',
 
     ##### V8 defaults for Node.js #####
 
@@ -242,6 +244,65 @@
               },],
             ],
           },],
+          ['OS=="win"', {
+            'conditions': [
+              ['enable_lto=="true"', {
+                'msvs_settings': {
+                  'VCCLCompilerTool': {
+                    'AdditionalOptions': ['-flto=full'],
+                  },
+                  'VCLibrarianTool': {
+                    'AdditionalOptions': ['-flto=full'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['-flto=full'],
+                  },
+                },
+              },],
+              ['enable_thin_lto=="true"', {
+                'msvs_settings': {
+                  'VCCLCompilerTool': {
+                    'AdditionalOptions': ['-flto=thin'],
+                  },
+                  'VCLibrarianTool': {
+                    'AdditionalOptions': ['-flto=thin'],
+                  },
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['-flto=thin'],
+                  },
+                },
+              },],
+            ],
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'conditions': [
+                  ['enable_pgo_generate=="true"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        'AdditionalOptions': ['-fprofile-generate'],
+                      },
+                      'VCLinkerTool': {
+                        'AdditionalOptions': [
+                          '/NODEFAULTLIB:clang_rt.profile.lib',
+                          '"<(clang_profile_lib)"',
+                        ],
+                      },
+                    },
+                  },],
+                  ['enable_pgo_use=="true"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        'AdditionalOptions': ['-fprofile-use=$(SolutionDir)node.profdata'],
+                      },
+                      'VCLinkerTool': {
+                        'AdditionalOptions': ['-fprofile-use=$(SolutionDir)node.profdata'],
+                      },
+                    },
+                  },],
+                ],
+              },],
+            ],
+          },],
           ['OS == "android"', {
             'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]
@@ -437,6 +498,9 @@
       }],
       # The defines bellow must include all things from the external_v8_defines
       # list in v8/BUILD.gn.
+      ['node_enable_experimentals == "true"', {
+        'defines': ['EXPERIMENTALS_DEFAULT_VALUE=true'],
+      }],
       ['v8_enable_v8_checks == 1', {
         'defines': ['V8_ENABLE_CHECKS'],
       }],

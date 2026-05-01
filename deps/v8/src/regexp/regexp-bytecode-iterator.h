@@ -18,6 +18,7 @@ class TrustedByteArray;
 class RegExpBytecodeIterator {
  public:
   explicit RegExpBytecodeIterator(DirectHandle<TrustedByteArray> bytecode);
+  RegExpBytecodeIterator(DirectHandle<TrustedByteArray> bytecode, int offset);
   ~RegExpBytecodeIterator();
 
   inline bool done() const;

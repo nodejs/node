@@ -20,12 +20,12 @@ try {
 try {
   boom;
 } catch (__v_1) {
-  __caught++;
+  __prettyPrintExtra(__v_1);
 }
 try {
   boom;
 } catch (__v_2) {
-  __prettyPrintExtra(__v_2);
+  __caught++;
 }
 try {
   boom;
