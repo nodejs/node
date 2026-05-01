@@ -71,10 +71,7 @@ jobs:
       fail-fast: false
       matrix:
         arch:
-          - arm
           - arm64
-          - x86
-          - x86_64
     name: Android ${{ matrix.arch }}
     runs-on: macos-26
     steps:
