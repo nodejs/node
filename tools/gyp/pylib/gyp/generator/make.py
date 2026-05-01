@@ -249,7 +249,11 @@ endef
 define create_thin_archive
         rm -f $(1) $(OBJ_FILE_LIST); mkdir -p `dirname $(1)`
         $(call write-to-file,$(1).$(OBJ_FILE_LIST),$(filter %.o,$(2)))
-        $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST)
+        if [ "$(TOOLSET)" = "host" ] && [ "$$(uname -s)" = "Darwin" ]; then \
+          $(AR.$(TOOLSET)) crs $(1) @$(1).$(OBJ_FILE_LIST); \
+        else \
+          $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST); \
+        fi
 endef
 
 # Due to circular dependencies between libraries :(, we wrap the
@@ -258,7 +262,7 @@ endef
 quiet_cmd_link = LINK($(TOOLSET)) $@
 quiet_cmd_link_host = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
-cmd_link_host = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
+cmd_link_host = if [ "$$(uname -s)" = "Darwin" ]; then $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS); else $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS); fi
 
 # Other shared-object link notes:
 # - Set SONAME to the library filename so our binaries don't reference

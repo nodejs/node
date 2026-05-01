@@ -405,6 +405,31 @@
             'src/unix/os390-syscalls.c'
           ]
         }],
+      ],
+      'target_conditions': [
+        [ '_toolset=="host" and host_os=="mac" and OS=="android"', {
+          'defines': [
+            '_DARWIN_USE_64_BIT_INODE=1',
+            '_DARWIN_UNLIMITED_SELECT=1',
+          ],
+          'sources': [
+            '<@(uv_sources_apple)',
+            '<@(uv_sources_bsd_common)',
+            'src/unix/proctitle.c',
+          ],
+          'sources!': [
+            '<@(uv_sources_android)',
+            '<@(uv_sources_linux)',
+          ],
+        }],
+        [ '_toolset=="host" and host_os=="linux" and OS=="android"', {
+          'sources': [
+            '<@(uv_sources_linux)',
+          ],
+          'sources!': [
+            '<@(uv_sources_android)',
+          ],
+        }],
       ]
     },
   ]
