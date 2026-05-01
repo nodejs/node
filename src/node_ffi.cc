@@ -20,7 +20,6 @@ using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
 using v8::DontEnum;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -39,10 +38,12 @@ using v8::ReadOnly;
 using v8::String;
 using v8::TryCatch;
 using v8::Value;
-using v8::WeakCallbackInfo;
-using v8::WeakCallbackType;
 
 namespace ffi {
+
+void FFIFunctionInfo::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("sb_backing", sb_backing);
+}
 
 DynamicLibrary::DynamicLibrary(Environment* env, Local<Object> object)
     : BaseObject(env, object), lib_{}, handle_(nullptr), symbols_() {
@@ -189,13 +190,44 @@ Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
   return Just(PreparedFunction{fn, should_cache_symbol, should_cache_function});
 }
 
-void DynamicLibrary::CleanupFunctionInfo(
-    const WeakCallbackInfo<FFIFunctionInfo>& data) {
-  FFIFunctionInfo* info = data.GetParameter();
-  info->fn.reset();
-  info->self.Reset();
-  info->library.Reset();
-  delete info;
+FFIFunctionInfo::FFIFunctionInfo(Environment* env,
+                                 Local<Object> object,
+                                 std::shared_ptr<FFIFunction> fn,
+                                 DynamicLibrary* library)
+    : BaseObject(env, object), fn(std::move(fn)) {
+  // Keep the DynamicLibrary instance alive as long as any of its functions are
+  // alive
+  object->SetInternalField(FFIFunctionInfo::kLibrary, library->object());
+}
+
+Local<FunctionTemplate> FFIFunctionInfo::GetConstructorTemplate(
+    IsolateData* isolate_data) {
+  Local<FunctionTemplate> tmpl =
+      isolate_data->ffi_function_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = isolate_data->isolate();
+    tmpl = MakeLazilyInitializedJSTemplate(isolate_data, kInternalFieldCount);
+    Local<String> classname = FIXED_ONE_BYTE_STRING(isolate, "FFIFunctionInfo");
+    tmpl->SetClassName(classname);
+    auto instance = tmpl->InstanceTemplate();
+    instance->SetInternalFieldCount(FFIFunctionInfo::kInternalFieldCount);
+    isolate_data->set_ffi_function_constructor_template(tmpl);
+  }
+  return tmpl;
+}
+
+BaseObjectPtr<FFIFunctionInfo> FFIFunctionInfo::Create(
+    Environment* env,
+    std::shared_ptr<FFIFunction> fn,
+    DynamicLibrary* library) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env->isolate_data())
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return nullptr;
+  }
+  return MakeWeakBaseObject<FFIFunctionInfo>(env, obj, std::move(fn), library);
 }
 
 MaybeLocal<Function> DynamicLibrary::CreateFunction(
@@ -205,24 +237,18 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
-  // The info is held in a unique_ptr so early-return paths free it. Ownership
-  // moves to the weak callback via `release()` once `SetWeak` succeeds.
-  auto info = std::make_unique<FFIFunctionInfo>();
-  info->fn = fn;
+  auto info = FFIFunctionInfo::Create(env, fn, this);
 
   DCHECK_EQ(fn->args.size(), fn->arg_type_names.size());
 
   bool use_sb = IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
 
-  Local<External> data =
-      External::New(isolate, info.get(), v8::kExternalPointerTypeTagDefault);
-
   MaybeLocal<Function> maybe_ret =
       Function::New(context,
                     use_sb ? DynamicLibrary::InvokeFunctionSB
                            : DynamicLibrary::InvokeFunction,
-                    data);
+                    info->object());
   Local<Function> ret;
   if (!maybe_ret.ToLocal(&ret)) {
     return MaybeLocal<Function>();
@@ -270,7 +296,8 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     // (strings, Buffers, ArrayBuffers, and ArrayBufferViews).
     if (has_ptr_args) {
       Local<Function> slow_fn;
-      if (!Function::New(context, DynamicLibrary::InvokeFunction, data)
+      if (!Function::New(
+               context, DynamicLibrary::InvokeFunction, info->object())
                .ToLocal(&slow_fn)) {
         return MaybeLocal<Function>();
       }
@@ -312,12 +339,6 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
       return MaybeLocal<Function>();
     }
   }
-
-  info->self.Reset(isolate, ret);
-  info->library.Reset(isolate, object());
-  info->self.SetWeak(info.release(),
-                     DynamicLibrary::CleanupFunctionInfo,
-                     WeakCallbackType::kParameter);
 
   return ret;
 }
@@ -375,8 +396,8 @@ void DynamicLibrary::Close(const FunctionCallbackInfo<Value>& args) {
 
 void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  FFIFunctionInfo* info = static_cast<FFIFunctionInfo*>(
-      args.Data().As<External>()->Value(v8::kExternalPointerTypeTagDefault));
+  FFIFunctionInfo* info = Unwrap<FFIFunctionInfo>(args.Data());
+  CHECK_NOT_NULL(info);
   FFIFunction* fn = info->fn.get();
 
   if (fn == nullptr || fn->closed || fn->ptr == nullptr) {
@@ -444,8 +465,8 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
 
 void DynamicLibrary::InvokeFunctionSB(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  FFIFunctionInfo* info =
-      static_cast<FFIFunctionInfo*>(args.Data().As<External>()->Value());
+  FFIFunctionInfo* info = Unwrap<FFIFunctionInfo>(args.Data());
+  CHECK_NOT_NULL(info);
   FFIFunction* fn = info->fn.get();
 
   if (fn == nullptr || fn->closed || fn->ptr == nullptr) {
@@ -920,7 +941,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   status = ffi_prep_closure_loc(callback->closure,
                                 &callback->cif,
                                 DynamicLibrary::InvokeCallback,
-                                callback,
+                                callback.get(),
                                 callback->ptr);
   if (status != FFI_OK) {
     const char* msg = "ffi_prep_closure_loc failed";
