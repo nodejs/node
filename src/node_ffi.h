@@ -29,12 +29,33 @@ struct FFIFunction {
   std::string return_type_name;
 };
 
-struct FFIFunctionInfo {
+class FFIFunctionInfo final : public BaseObject {
+ public:
+  enum InternalFields {
+    kLibrary = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  FFIFunctionInfo(Environment* env,
+                  v8::Local<v8::Object> object,
+                  std::shared_ptr<FFIFunction> fn,
+                  DynamicLibrary* library);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(FFIFunctionInfo)
+  SET_SELF_SIZE(FFIFunctionInfo)
+
+  static BaseObjectPtr<FFIFunctionInfo> Create(Environment* env,
+                                               std::shared_ptr<FFIFunction> fn,
+                                               DynamicLibrary* library);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+
+ private:
   std::shared_ptr<FFIFunction> fn;
-  v8::Global<v8::Function> self;
   std::shared_ptr<v8::BackingStore> sb_backing;
-  // Keep the owning DynamicLibrary alive while the generated function is alive.
-  v8::Global<v8::Object> library;
+
+  friend class DynamicLibrary;
 };
 
 struct FFICallback {
