@@ -48,7 +48,7 @@
   ffi = pkgs.libffiReal;
 })
 // (pkgs.lib.optionalAttrs withSSL ({
-  openssl = pkgs.openssl_3_5;
+  openssl = (import ./openssl-matrix.nix { inherit pkgs; }).openssl_3_5;
 }))
 // (pkgs.lib.optionalAttrs withTemporal {
   inherit (pkgs) temporal_capi;

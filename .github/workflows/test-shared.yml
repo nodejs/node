@@ -172,6 +172,7 @@ jobs:
     name: 'aarch64-linux: Cache V8 build'
     outputs:
       local-cache: ${{ steps.upload.outcome != 'skipped' && 'true' || '' }}
+      matrix: ${{ steps.query.outputs.matrix }}
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
@@ -227,25 +228,17 @@ jobs:
           name: libv8
           path: libv8
 
-  # Builds the matrix for `build-openssl` from tools/nix/openssl-matrix.json.
-  # Output shape:
-  # [{ "version": "3.6.1", "attr": "openssl_3_6", "continue-on-error": false }, ...]
-  collect-openssl-versions:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-slim
-    outputs:
-      matrix: ${{ steps.query.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-          sparse-checkout: tools/nix/openssl-matrix.json
-          sparse-checkout-cone-mode: false
-      - id: query
+      - name: Collect matrix of support OpenSSL versions
+        id: query
         run: |
           {
             echo 'matrix<<EOF'
-            cat tools/nix/openssl-matrix.json
+            nix-instantiate --eval --strict --json -E "
+              let
+                matrix = import $TAR_DIR/tools/nix/openssl-matrix.nix {};
+              in
+              builtins.map (attr: { inherit attr; inherit (builtins.getAttr attr matrix) name; }) (builtins.attrNames matrix)
+            "
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
@@ -255,19 +248,16 @@ jobs:
   # entry, while all other shared libs remain at their defaults. Only runs on
   # a single runner/system (aarch64-linux) to keep the matrix to a minimum.
   build-openssl:
-    needs:
-      - build-aarch64-linux-v8
-      - collect-openssl-versions
+    needs: build-aarch64-linux-v8
     strategy:
       fail-fast: false
       matrix:
-        openssl: ${{ fromJSON(needs.collect-openssl-versions.outputs.matrix) }}
-    name: 'aarch64-linux: with shared ${{ matrix.openssl.attr }} (${{ matrix.openssl.version }})'
+        openssl: ${{ fromJSON(needs.build-aarch64-linux-v8.outputs.matrix) }}
+    name: 'aarch64-linux: with shared ${{ matrix.openssl.name }}'
     runs-on: ubuntu-24.04-arm
-    continue-on-error: ${{ matrix.openssl['continue-on-error'] }}
+    continue-on-error: false
     env:
       OPENSSL_ATTR: ${{ matrix.openssl.attr }}
-      OPENSSL_VERSION: ${{ matrix.openssl.version }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -293,5 +283,5 @@ jobs:
           extra-nix-flags: |
             --arg useSeparateDerivationForV8 ${{ needs.build-aarch64-linux-v8.outputs.local-cache && '"$(nix-store --import < libv8)"' || 'true' }} \
             --arg sharedLibDeps "(import $TAR_DIR/tools/nix/sharedLibDeps.nix {}) // {
-                openssl = (import $TAR_DIR/tools/nix/pkgs.nix { config.permittedInsecurePackages = [ \"openssl-$OPENSSL_VERSION\" ]; }).$OPENSSL_ATTR;
+                openssl = (import $TAR_DIR/tools/nix/openssl-matrix.nix {}).$OPENSSL_ATTR;
               }" \
