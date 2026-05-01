@@ -70,16 +70,17 @@ jobs:
     name: Build Android
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
           path: node
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
-      - name: Install Android NDK ${{ env.ANDROID_NDK_VERSION }}
+      - name: Install NDK
         run: |
           ANDROID_SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
           export ANDROID_HOME="$ANDROID_SDK_ROOT"
