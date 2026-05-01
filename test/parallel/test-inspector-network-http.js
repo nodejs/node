@@ -33,8 +33,8 @@ const setResponseHeaders = (res) => {
 const kTimeout = 1000;
 const kDelta = 200;
 const kDefaultResponseHeaders = {
-  server: 'node',
-  etag: '12345',
+  'server': 'node',
+  'etag': '12345',
   'set-cookie': 'key1=value1\nkey2=value2',
   'x-header2': 'value1, value2',
 };
