@@ -67,12 +67,7 @@ permissions:
 jobs:
   build-android:
     if: github.event.pull_request.draft == false
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - arm64
-    name: Android ${{ matrix.arch }}
+    name: Android arm64
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v6
@@ -98,10 +93,10 @@ jobs:
           echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
       - name: Environment Information
         run: npx envinfo
-      - name: Configure Android ${{ matrix.arch }}
-        run: ./android-configure "$ANDROID_NDK_HOME" "$ANDROID_API_LEVEL" "${{ matrix.arch }}"
+      - name: Configure Android arm64
+        run: ./android-configure "$ANDROID_NDK_HOME" "$ANDROID_API_LEVEL" arm64
         working-directory: node
-      - name: Build Android ${{ matrix.arch }}
+      - name: Build Android arm64
         run: make -j
         working-directory: node
       - name: Verify Android binary
