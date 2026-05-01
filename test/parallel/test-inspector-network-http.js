@@ -35,8 +35,8 @@ const kDelta = 200;
 const kDefaultResponseHeaders = {
   server: 'node',
   etag: '12345',
-  setCookie: 'key1=value1\nkey2=value2',
-  xHeader2: 'value1, value2',
+  'set-cookie': 'key1=value1\nkey2=value2',
+  'x-header2': 'value1, value2',
 };
 
 function getDefaultResponseExpect(url) {
