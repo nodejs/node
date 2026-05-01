@@ -874,22 +874,22 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto callback = new FFICallback{.owner = lib,
-                                  .env = env,
-                                  .thread_id = std::this_thread::get_id(),
-                                  .fn = Global<Function>(isolate, fn),
-                                  .closure = nullptr,
-                                  .ptr = nullptr,
-                                  .cif = {},
-                                  .args = std::move(callback_args),
-                                  .return_type = return_type};
+  auto callback = std::unique_ptr<FFICallback>(
+      new FFICallback{.owner = lib,
+                      .env = env,
+                      .thread_id = std::this_thread::get_id(),
+                      .fn = Global<Function>(isolate, fn),
+                      .closure = nullptr,
+                      .ptr = nullptr,
+                      .cif = {},
+                      .args = std::move(callback_args),
+                      .return_type = return_type});
 
   callback->closure = static_cast<ffi_closure*>(
       ffi_closure_alloc(sizeof(ffi_closure), &callback->ptr));
 
   if (callback->closure == nullptr) {
     THROW_ERR_FFI_CALL_FAILED(env, "ffi_closure_alloc failed");
-    delete callback;
     return;
   }
 
@@ -914,7 +914,6 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
     }
 
     THROW_ERR_FFI_CALL_FAILED(env, msg);
-    delete callback;
     return;
   }
 
@@ -938,14 +937,12 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
     }
 
     THROW_ERR_FFI_CALL_FAILED(env, msg);
-    delete callback;
     return;
   }
 
-  lib->callbacks_.emplace(callback->ptr, callback);
-  args.GetReturnValue().Set(BigInt::NewFromUnsigned(
-      isolate,
-      static_cast<uint64_t>(reinterpret_cast<uintptr_t>(callback->ptr))));
+  auto ret = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(callback->ptr));
+  lib->callbacks_.emplace(callback->ptr, std::move(callback));
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, ret));
 }
 
 void DynamicLibrary::UnregisterCallback(
