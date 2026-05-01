@@ -10,58 +10,63 @@ file a new issue.
 
 ## Table of contents
 
-* [Supported platforms](#supported-platforms)
-  * [Input](#input)
-  * [Strategy](#strategy)
-  * [Platform list](#platform-list)
-  * [Supported toolchains](#supported-toolchains)
-  * [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
-    * [OpenSSL asm support](#openssl-asm-support)
-  * [Previous versions of this document](#previous-versions-of-this-document)
-* [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
-  * [Prerequisites](#prerequisites)
-  * [Unix and macOS](#unix-and-macos)
-    * [Unix prerequisites](#unix-prerequisites)
-    * [macOS prerequisites](#macos-prerequisites)
-    * [Building Node.js](#building-nodejs-1)
-    * [Installing Node.js](#installing-nodejs)
-    * [Running Tests](#running-tests)
-    * [Running Coverage](#running-coverage)
-    * [Building the documentation](#building-the-documentation)
-    * [Building a debug build](#building-a-debug-build)
-    * [Building an ASan build](#building-an-asan-build)
-    * [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
-      * [ccache](#ccache)
-      * [Loading JS files from disk instead of embedding](#loading-js-files-from-disk-instead-of-embedding)
-    * [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
-  * [Windows](#windows)
-    * [Windows Prerequisites](#windows-prerequisites)
-      * [Option 1: Manual install](#option-1-manual-install)
-      * [Option 2: Automated install with WinGet](#option-2-automated-install-with-winget)
-    * [Building Node.js](#building-nodejs-2)
-      * [Using ccache](#using-ccache)
-  * [Android](#android)
-* [`Intl` (ECMA-402) support](#intl-ecma-402-support)
-  * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
-    * [Unix/macOS](#unixmacos)
-    * [Windows](#windows-1)
-  * [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
-    * [Unix/macOS](#unixmacos-1)
-    * [Windows](#windows-2)
-  * [Building without Intl support](#building-without-intl-support)
-    * [Unix/macOS](#unixmacos-2)
-    * [Windows](#windows-3)
-  * [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
-  * [Build with a specific ICU](#build-with-a-specific-icu)
-    * [Unix/macOS](#unixmacos-3)
-    * [Windows](#windows-4)
-* [Configuring OpenSSL config appname](#configure-openssl-appname)
-* [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
-* [Building Node.js with Temporal support](#building-nodejs-with-temporal-support)
-* [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
-  * [Unix/macOS](#unixmacos-4)
-  * [Windows](#windows-5)
-* [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
+- [Building Node.js](#building-nodejs)
+  - [Table of contents](#table-of-contents)
+  - [Supported platforms](#supported-platforms)
+    - [Input](#input)
+    - [Strategy](#strategy)
+    - [Platform list](#platform-list)
+    - [Supported toolchains](#supported-toolchains)
+    - [Official binary platforms and toolchains](#official-binary-platforms-and-toolchains)
+      - [OpenSSL asm support](#openssl-asm-support)
+    - [Previous versions of this document](#previous-versions-of-this-document)
+  - [Building Node.js on supported platforms](#building-nodejs-on-supported-platforms)
+    - [Prerequisites](#prerequisites)
+    - [Unix and macOS](#unix-and-macos)
+      - [Unix prerequisites](#unix-prerequisites)
+      - [macOS prerequisites](#macos-prerequisites)
+      - [Nix integration](#nix-integration)
+      - [Building Node.js](#building-nodejs-1)
+      - [Installing Node.js](#installing-nodejs)
+      - [Running tests](#running-tests)
+      - [Running coverage](#running-coverage)
+      - [Building the documentation](#building-the-documentation)
+      - [Building a debug build](#building-a-debug-build)
+      - [Building an ASan build](#building-an-asan-build)
+      - [Speeding up frequent rebuilds when developing](#speeding-up-frequent-rebuilds-when-developing)
+        - [ccache](#ccache)
+        - [Loading JS files from disk instead of embedding](#loading-js-files-from-disk-instead-of-embedding)
+      - [Troubleshooting Unix and macOS builds](#troubleshooting-unix-and-macos-builds)
+    - [Windows](#windows)
+      - [Tips](#tips)
+      - [Windows Prerequisites](#windows-prerequisites)
+        - [Option 1: Manual install](#option-1-manual-install)
+        - [Option 2: Automated install with WinGet](#option-2-automated-install-with-winget)
+      - [Building Node.js](#building-nodejs-2)
+        - [Using ccache:](#using-ccache)
+    - [Android](#android)
+  - [`Intl` (ECMA-402) support](#intl-ecma-402-support)
+    - [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
+      - [Unix/macOS](#unixmacos)
+      - [Windows](#windows-1)
+    - [Trimmed: `small-icu` (English only) support](#trimmed-small-icu-english-only-support)
+      - [Unix/macOS](#unixmacos-1)
+      - [Windows](#windows-2)
+    - [Building without Intl support](#building-without-intl-support)
+      - [Unix/macOS](#unixmacos-2)
+      - [Windows](#windows-3)
+    - [Use existing installed ICU (Unix/macOS only)](#use-existing-installed-icu-unixmacos-only)
+    - [Build with a specific ICU](#build-with-a-specific-icu)
+      - [Unix/macOS](#unixmacos-3)
+      - [Windows](#windows-4)
+    - [Configure OpenSSL appname](#configure-openssl-appname)
+  - [Building Node.js with FIPS-compliant OpenSSL](#building-nodejs-with-fips-compliant-openssl)
+  - [Building Node.js with Temporal support](#building-nodejs-with-temporal-support)
+  - [Building Node.js with external core modules](#building-nodejs-with-external-core-modules)
+    - [Unix/macOS](#unixmacos-4)
+    - [Windows](#windows-5)
+  - [Building to use shared dependencies at runtime](#building-to-use-shared-dependencies-at-runtime)
+  - [Note for downstream distributors of Node.js](#note-for-downstream-distributors-of-nodejs)
 
 ## Supported platforms
 
@@ -922,6 +927,23 @@ make -j4
 
 The Android SDK version should be at least 24 (Android 7.0) and the target
 architecture supports \[arm, arm64/aarch64, x86, x86\_64].
+
+The static Node.js archive is generated at `out/Release/obj.target/libnode.a`.
+This archive is a thin archive by default. It references object files in the
+build directory and may still require the other static dependency archives under
+`out/Release/obj.target/` when embedding Node.js elsewhere. To produce one
+standalone archive for distribution, merge the target static archives with the
+NDK `llvm-ar`.
+
+To reduce the Android build size, disable optional features in the `./configure`
+call made by `android_configure.py`. Common options include:
+
+```bash
+--without-ssl
+--without-node-snapshot
+--without-intl
+--without-inspector
+```
 
 ## `Intl` (ECMA-402) support
 
