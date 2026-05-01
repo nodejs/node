@@ -1669,12 +1669,6 @@ def is_arch_armv7():
   return cc_macros_cache.get('__ARM_ARCH') == '7'
 
 
-def is_arch_armv6():
-  """Check for ARMv6 instructions"""
-  cc_macros_cache = cc_macros()
-  return cc_macros_cache.get('__ARM_ARCH') == '6'
-
-
 def is_arm_hard_float_abi():
   """Check for hardfloat or softfloat eabi on ARM"""
   # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
@@ -1758,7 +1752,7 @@ def configure_arm(o):
     arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
   else:
-    o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
+    o['variables']['arm_version'] = 'default'
 
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
