@@ -6,6 +6,9 @@ on:
       - .mailmap
       - README.md
       - vcbuild.bat
+      - tools/actions/**
+      - tools/clang-format/**
+      - tools/dep_updaters/**
       - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -20,6 +23,9 @@ on:
       - .mailmap
       - README.md
       - vcbuild.bat
+      - tools/actions/**
+      - tools/clang-format/**
+      - tools/dep_updaters/**
       - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'

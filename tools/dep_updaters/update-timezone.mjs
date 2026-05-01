@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Usage: tools/update-timezone.mjs
+
 import { execSync } from 'node:child_process';
 import { renameSync, readdirSync, rmSync } from 'node:fs';
 
