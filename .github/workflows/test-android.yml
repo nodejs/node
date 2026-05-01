@@ -1,0 +1,112 @@
+name: Test Android
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - vcbuild.bat
+      - .**
+      - '!.github/workflows/test-android.yml'
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/actions/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - vcbuild.bat
+      - .**
+      - '!.github/workflows/test-android.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  ANDROID_API_LEVEL: '29'
+  ANDROID_NDK_VERSION: '27.2.12479018'
+  PYTHON_VERSION: '3.14'
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    if: github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - arm
+          - arm64
+          - x86
+          - x86_64
+    name: Android ${{ matrix.arch }}
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          path: node
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Install Android NDK ${{ env.ANDROID_NDK_VERSION }}
+        run: |
+          ANDROID_SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+          export ANDROID_HOME="$ANDROID_SDK_ROOT"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platforms;android-${ANDROID_API_LEVEL}" \
+            "ndk;${ANDROID_NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+      - name: Environment Information
+        run: npx envinfo
+      - name: Configure Android ${{ matrix.arch }}
+        run: ./android-configure "$ANDROID_NDK_HOME" "$ANDROID_API_LEVEL" "${{ matrix.arch }}"
+        working-directory: node
+      - name: Build Android ${{ matrix.arch }}
+        run: make -j
+        working-directory: node
+      - name: Verify Android binary
+        run: file out/Release/node
+        working-directory: node
