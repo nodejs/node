@@ -1084,7 +1084,6 @@ inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
       ->ToString(context)
       .ToLocalChecked();
 }
-
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
