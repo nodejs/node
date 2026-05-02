@@ -14,8 +14,13 @@ if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
 function restart(file, content = readFileSync(file)) {
-  writeFileSync(file, content);
-  const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(250));
+  const rewrite = () => {
+    // Avoid truncating files while restarted workers may be reading them.
+    writeFileSync(file, content, { flag: 'r+' });
+  };
+
+  rewrite();
+  const timer = setInterval(rewrite, common.platformTimeout(250));
   return () => clearInterval(timer);
 }
 
