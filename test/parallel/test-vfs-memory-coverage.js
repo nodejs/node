@@ -75,38 +75,81 @@ const fs = require('fs');
   assert.throws(() => myVfs.realpathSync('/a'), { code: 'ELOOP' });
 }
 
-// Direct entry manipulation (via internals) to cover dynamic content
-// providers and lazy directory population — these features exist on
-// MemoryEntry/MemoryProvider but have no public construction API.
+// Geometric buffer growth in writeSync — append many times to exercise
+// the doubling path.
 {
-  const { MemoryProvider } = require('internal/vfs/providers/memory');
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/grow.txt', 'x'.repeat(10));
+  for (let i = 0; i < 8; i++) {
+    myVfs.appendFileSync('/grow.txt', 'y'.repeat(2 ** i));
+  }
+  assert.ok(myVfs.readFileSync('/grow.txt').length > 250);
+}
+
+// Dynamic content providers (sync) and lazy directory population.
+// These features have no public construction API, so we drive them
+// directly through MemoryEntry / MemoryProvider internals.
+{
+  const memMod = require('internal/vfs/providers/memory');
+  const { MemoryProvider } = memMod;
   const provider = new MemoryProvider();
 
-  // Sync content provider
-  provider.openSync('/dyn-sync.txt', 'w').closeSync();
-  // Reach into the entry to install a content provider
-  const lookup = (p) => provider.statSync(p) && p; // ensure exists; throws otherwise
-  lookup('/dyn-sync.txt');
+  // Lazy-populated directory: install a populate callback on an existing
+  // directory entry via the internal kRoot symbol.
+  const symbols = Object.getOwnPropertySymbols(provider);
+  const kRoot = symbols.find((s) => s.description === 'kRoot');
+  assert.ok(kRoot, 'kRoot symbol expected on MemoryProvider');
+  const root = provider[kRoot];
 
-  // Use a custom content provider via the lazy populate mechanism.
+  // Manually create a lazy directory entry.
+  const memEntryProto = Object.getPrototypeOf(root);
+  const dir = Object.create(memEntryProto);
+  dir.type = 1; // TYPE_DIR
+  dir.mode = 0o755;
+  dir.children = null;
+  dir.populate = (scoped) => {
+    scoped.addFile('hello.txt', 'lazy hello');
+    scoped.addFile('dyn.txt', () => 'dynamic-string');
+    scoped.addDirectory('subdir', null);
+    scoped.addSymlink('link.txt', '/lazy/hello.txt');
+  };
+  dir.populated = false;
+  dir.nlink = 1;
+  dir.uid = 0;
+  dir.gid = 0;
+  const t = Date.now();
+  dir.atime = t;
+  dir.mtime = t;
+  dir.ctime = t;
+  dir.birthtime = t;
+  // Borrow methods from an existing entry
+  dir.isFile = root.isFile.bind(dir);
+  dir.isDirectory = root.isDirectory.bind(dir);
+  dir.isSymbolicLink = root.isSymbolicLink.bind(dir);
+  dir.isDynamic = root.isDynamic.bind(dir);
+  dir.getContentSync = root.getContentSync.bind(dir);
+  dir.getContentAsync = root.getContentAsync.bind(dir);
+
+  // Need a SafeMap children for the directory to behave correctly.
+  dir.children = new Map();
+  root.children.set('lazy', dir);
+
   const myVfs = vfs.create(provider);
-  // Lazy-populated directory via internal populate hook
-  // Manually wire a populate callback into a directory we create via mkdir
-  myVfs.mkdirSync('/lazy');
-  // Pull the entry out via stat then poke populate via a small private channel:
-  // we simulate the populate flow by calling the public addFile-like helpers
-  // available on the scoped VFS object — these are only exposed via populate.
-  // So instead, write content and read it through the dynamic-content path
-  // by enabling a custom contentProvider via reading raw children.
 
-  // The simplest way to exercise the dynamic content path is to read a file
-  // and write to it many times (geometric buffer growth), and to access an
-  // entry whose contentProvider returns a non-Buffer string.
-  myVfs.writeFileSync('/lazy/file.txt', 'x'.repeat(10));
-  for (let i = 0; i < 5; i++) {
-    myVfs.appendFileSync('/lazy/file.txt', 'y'.repeat(2 ** i));
-  }
-  assert.ok(myVfs.readFileSync('/lazy/file.txt').length > 10);
+  // Reading the lazy directory triggers populate
+  const entries = myVfs.readdirSync('/lazy');
+  assert.deepStrictEqual(entries.sort(), ['dyn.txt', 'hello.txt', 'link.txt', 'subdir']);
+
+  // Static lazy file content
+  assert.strictEqual(myVfs.readFileSync('/lazy/hello.txt', 'utf8'), 'lazy hello');
+
+  // Dynamic content provider (sync, returns string)
+  assert.strictEqual(myVfs.readFileSync('/lazy/dyn.txt', 'utf8'), 'dynamic-string');
+
+  // Dynamic content provider (async via promises)
+  myVfs.promises.readFile('/lazy/dyn.txt', 'utf8').then(common.mustCall((s) => {
+    assert.strictEqual(s, 'dynamic-string');
+  }));
 }
 
 // readdir basic — withFileTypes false returns names
@@ -147,6 +190,148 @@ const fs = require('fs');
   const st = myVfs.statSync('/p.txt');
   assert.strictEqual(st.uid, 100);
   assert.strictEqual(st.gid, 200);
+}
+
+// utimes with string time (treated as DateNow)
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/u2.txt', 'x');
+  myVfs.utimesSync('/u2.txt', 'now', 'now');
+}
+
+// readdir with mixed entry types (file, dir, symlink) — exercises
+// non-recursive Dirent type branches.
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/d');
+  myVfs.writeFileSync('/d/a.txt', 'x');
+  myVfs.mkdirSync('/d/sub');
+  myVfs.symlinkSync('a.txt', '/d/lnk');
+  const dirents = myVfs.readdirSync('/d', { withFileTypes: true });
+  const types = dirents.map((d) => d.name + ':' + (d.isFile() ? 'f' : d.isDirectory() ? 'd' : d.isSymbolicLink() ? 'l' : '?'));
+  assert.ok(types.includes('a.txt:f'));
+  assert.ok(types.includes('sub:d'));
+  assert.ok(types.includes('lnk:l'));
+}
+
+// rename: type mismatches throw
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'x');
+  myVfs.mkdirSync('/dir');
+  // rename file onto dir → EISDIR
+  assert.throws(() => myVfs.renameSync('/file.txt', '/dir'), { code: 'EISDIR' });
+  // rename dir onto file → ENOTDIR
+  assert.throws(() => myVfs.renameSync('/dir', '/file.txt'), { code: 'ENOTDIR' });
+}
+
+// link to a directory throws EINVAL
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/d');
+  assert.throws(() => myVfs.linkSync('/d', '/d-link'), { code: 'EINVAL' });
+}
+
+// link to existing target throws EEXIST
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/a.txt', 'x');
+  myVfs.writeFileSync('/b.txt', 'y');
+  assert.throws(() => myVfs.linkSync('/a.txt', '/b.txt'), { code: 'EEXIST' });
+}
+
+// symlink with existing target throws EEXIST
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/a.txt', 'x');
+  assert.throws(() => myVfs.symlinkSync('/a.txt', '/a.txt'), { code: 'EEXIST' });
+}
+
+// readonly write paths throw EROFS
+{
+  const provider = new vfs.MemoryProvider();
+  const myVfs = vfs.create(provider);
+  myVfs.writeFileSync('/f.txt', 'x');
+  myVfs.mkdirSync('/d');
+  myVfs.symlinkSync('/f.txt', '/lnk');
+  provider.setReadOnly();
+  assert.throws(() => myVfs.openSync('/f.txt', 'w'), { code: 'EROFS' });
+  assert.throws(() => myVfs.unlinkSync('/f.txt'), { code: 'EROFS' });
+  assert.throws(() => myVfs.rmdirSync('/d'), { code: 'EROFS' });
+  assert.throws(() => myVfs.renameSync('/f.txt', '/g.txt'), { code: 'EROFS' });
+  assert.throws(() => myVfs.linkSync('/f.txt', '/h.txt'), { code: 'EROFS' });
+  assert.throws(() => myVfs.symlinkSync('/x', '/y'), { code: 'EROFS' });
+  assert.throws(() => myVfs.mkdirSync('/d2'), { code: 'EROFS' });
+}
+
+// open a file via a symlinked parent directory (covers the parent-symlink
+// follow path in #ensureParent)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/real-dir');
+  myVfs.writeFileSync('/real-dir/file.txt', 'hello');
+  myVfs.symlinkSync('/real-dir', '/link-dir');
+  // Read through the symlinked directory
+  assert.strictEqual(myVfs.readFileSync('/link-dir/file.txt', 'utf8'), 'hello');
+  // Write through the symlinked directory
+  myVfs.writeFileSync('/link-dir/new.txt', 'new');
+  assert.strictEqual(myVfs.readFileSync('/real-dir/new.txt', 'utf8'), 'new');
+}
+
+// ENOTDIR mid-path: writing through a non-directory parent fails ENOTDIR
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/file.txt', 'x');
+  // ensureParent walks the path and hits a file in the middle → ENOTDIR
+  assert.throws(() => myVfs.writeFileSync('/file.txt/oops', 'y'),
+                { code: 'ENOTDIR' });
+}
+
+// Dynamic content provider returning a Promise — sync API throws
+{
+  const memMod = require('internal/vfs/providers/memory');
+  const { MemoryProvider } = memMod;
+  const provider = new MemoryProvider();
+  const symbols = Object.getOwnPropertySymbols(provider);
+  const kRoot = symbols.find((s) => s.description === 'kRoot');
+  const root = provider[kRoot];
+
+  // Create a file with an async content provider
+  const memEntryProto = Object.getPrototypeOf(root);
+  const fileEntry = Object.create(memEntryProto);
+  fileEntry.type = 0; // TYPE_FILE
+  fileEntry.mode = 0o644;
+  fileEntry.content = Buffer.alloc(0);
+  fileEntry.contentProvider = async () => 'async-only';
+  fileEntry.children = null;
+  fileEntry.target = null;
+  fileEntry.populate = null;
+  fileEntry.populated = true;
+  fileEntry.nlink = 1;
+  fileEntry.uid = 0;
+  fileEntry.gid = 0;
+  const t = Date.now();
+  fileEntry.atime = t;
+  fileEntry.mtime = t;
+  fileEntry.ctime = t;
+  fileEntry.birthtime = t;
+  fileEntry.isFile = root.isFile.bind(fileEntry);
+  fileEntry.isDirectory = root.isDirectory.bind(fileEntry);
+  fileEntry.isSymbolicLink = root.isSymbolicLink.bind(fileEntry);
+  fileEntry.isDynamic = root.isDynamic.bind(fileEntry);
+  fileEntry.getContentSync = root.getContentSync.bind(fileEntry);
+  fileEntry.getContentAsync = root.getContentAsync.bind(fileEntry);
+
+  root.children.set('async-only.txt', fileEntry);
+
+  const myVfs = vfs.create(provider);
+  // Sync read with async provider throws ERR_INVALID_STATE
+  assert.throws(() => myVfs.readFileSync('/async-only.txt'),
+                { code: 'ERR_INVALID_STATE' });
+  // Async read works
+  myVfs.promises.readFile('/async-only.txt', 'utf8').then(common.mustCall((s) => {
+    assert.strictEqual(s, 'async-only');
+  }));
 }
 
 // MemoryProvider basic watch + watchAsync + watchFile
