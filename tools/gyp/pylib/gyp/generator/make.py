@@ -249,11 +249,7 @@ endef
 define create_thin_archive
         rm -f $(1) $(OBJ_FILE_LIST); mkdir -p `dirname $(1)`
         $(call write-to-file,$(1).$(OBJ_FILE_LIST),$(filter %.o,$(2)))
-        if [ "$(TOOLSET)" = "host" ] && [ "$$(uname -s)" = "Darwin" ]; then \
-          $(AR.$(TOOLSET)) crs $(1) @$(1).$(OBJ_FILE_LIST); \
-        else \
-          $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST); \
-        fi
+        $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST)
 endef
 
 # Due to circular dependencies between libraries :(, we wrap the
@@ -262,7 +258,7 @@ endef
 quiet_cmd_link = LINK($(TOOLSET)) $@
 quiet_cmd_link_host = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
-cmd_link_host = if [ "$$(uname -s)" = "Darwin" ]; then $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS); else $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS); fi
+cmd_link_host = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) -Wl,--end-group $(LIBS)
 
 # Other shared-object link notes:
 # - Set SONAME to the library filename so our binaries don't reference
@@ -275,6 +271,21 @@ cmd_solink_module = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSE
 quiet_cmd_solink_module_host = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module_host = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,-soname=$(@F) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
 """  # noqa: E501
+
+LINK_COMMANDS_ANDROID_DARWIN_HOST = LINK_COMMANDS_ANDROID.replace(
+    "$(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST)",
+    'if [ "$(TOOLSET)" = "host" ]; then \\\n'
+    "          $(AR.$(TOOLSET)) crs $(1) @$(1).$(OBJ_FILE_LIST); \\\n"
+    "        else \\\n"
+    "          $(AR.$(TOOLSET)) crsT $(1) @$(1).$(OBJ_FILE_LIST); \\\n"
+    "        fi",
+).replace(
+    "cmd_link_host = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) "
+    "$(LDFLAGS.$(TOOLSET)) -o $@ -Wl,--start-group $(LD_INPUTS) "
+    "-Wl,--end-group $(LIBS)",
+    "cmd_link_host = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) "
+    "$(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)",
+)
 
 
 LINK_COMMANDS_AIX = """\
@@ -2522,7 +2533,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
             }
         )
     elif flavor == "android":
-        header_params.update({"link_commands": LINK_COMMANDS_ANDROID})
+        link_commands = LINK_COMMANDS_ANDROID
+        if sys.platform == "darwin":
+            link_commands = LINK_COMMANDS_ANDROID_DARWIN_HOST
+        header_params.update({"link_commands": link_commands})
     elif flavor == "zos":
         copy_archive_arguments = "-fPR"
         CC_target = GetEnvironFallback(("CC_target", "CC"), "njsc")
