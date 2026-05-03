@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Recursive readdir must follow symlinks to directories.

@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // VFS readFile callback API.

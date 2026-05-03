@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --experimental-vfs --expose-internals
 'use strict';
 
 // MemoryProvider supports dynamic content providers and lazily-populated

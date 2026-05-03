@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Buffer encoding for watch(): filename arrives as a Buffer.

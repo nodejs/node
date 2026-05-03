@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Rename behaviour: overwrite, type mismatches, same-parent rename.

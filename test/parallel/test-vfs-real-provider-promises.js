@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Promises API for RealFSProvider: every async/promises method,

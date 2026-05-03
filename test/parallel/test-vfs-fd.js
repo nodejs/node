@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 const common = require('../common');

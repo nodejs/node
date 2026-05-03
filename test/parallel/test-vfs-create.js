@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Constructor variants and option validation for vfs.create() and

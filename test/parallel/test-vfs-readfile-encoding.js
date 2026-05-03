@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // readFileSync with invalid encoding must throw.

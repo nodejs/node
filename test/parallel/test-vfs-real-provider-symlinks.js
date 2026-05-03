@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Symlink and path-escape behaviour for RealFSProvider.

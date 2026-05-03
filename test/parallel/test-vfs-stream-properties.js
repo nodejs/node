@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // VFS streams must expose bytesRead, bytesWritten, and pending.

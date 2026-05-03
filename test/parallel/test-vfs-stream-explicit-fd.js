@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Test createReadStream / createWriteStream with an explicit `fd` option.

@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --experimental-vfs --expose-internals
 'use strict';
 
 // RealFileHandle: sync and async file-handle operations, plus EBADF

@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // AbortSignal handling for watch() and promises.watch().

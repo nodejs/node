@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // utimes / lutimes accept Date instances, numeric seconds, strings,

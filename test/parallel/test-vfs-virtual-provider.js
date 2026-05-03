@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Exercise the VirtualProvider base class — its capability flags,

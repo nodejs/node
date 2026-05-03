@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Exercise VirtualFileHandle / MemoryFileHandle methods directly via

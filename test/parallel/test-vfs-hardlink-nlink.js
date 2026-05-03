@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Test that nlink count is updated correctly when creating/removing hard links.

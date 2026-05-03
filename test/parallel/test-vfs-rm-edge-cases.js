@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Tests for VFS rmSync edge cases:

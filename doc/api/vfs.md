@@ -24,7 +24,8 @@ import vfs from 'node:vfs';
 const vfs = require('node:vfs');
 ```
 
-This module is only available under the `node:` scheme.
+This module is only available under the `node:` scheme, and only when Node.js
+is started with the `--experimental-vfs` flag.
 
 ## Overview
 

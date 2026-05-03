@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // rmdirSync on a symlink to a directory should throw ENOTDIR

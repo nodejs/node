@@ -1,3 +1,4 @@
+// Flags: --experimental-vfs
 'use strict';
 
 // Synchronous API for RealFSProvider: construction, basic file ops,
