@@ -5,7 +5,9 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('node:assert');
+const dc = require('node:diagnostics_channel');
 const { once } = require('node:events');
+const { setImmediate: waitForTurn } = require('node:timers/promises');
 const { addresses } = require('../common/internet');
 const fixtures = require('../common/fixtures');
 const http = require('node:http');
@@ -265,6 +267,31 @@ async function assertResponseBody(responseReceived, expectedBody, expectedBase64
   });
   assert.strictEqual(responseBody.base64Encoded, expectedBase64Encoded);
   assert.strictEqual(responseBody.body, expectedBody);
+}
+
+async function testUntrackedBodyEventsAreIgnored() {
+  const onDataSent = common.mustNotCall();
+  const onDataReceived = common.mustNotCall();
+  session.on('Network.dataSent', onDataSent);
+  session.on('Network.dataReceived', onDataReceived);
+
+  dc.channel('http.client.request.bodyChunkSent').publish({
+    request: {},
+    chunk: 'ignored',
+    encoding: 'utf8',
+  });
+  dc.channel('http.client.request.bodySent').publish({
+    request: {},
+  });
+  dc.channel('http.client.response.bodyChunkReceived').publish({
+    request: {},
+    chunk: Buffer.from('ignored'),
+  });
+
+  await waitForTurn();
+
+  session.off('Network.dataSent', onDataSent);
+  session.off('Network.dataReceived', onDataReceived);
 }
 
 async function testHttpGet() {
@@ -532,6 +559,8 @@ async function testBinaryBodyRequest() {
 }
 
 const testNetworkInspection = async () => {
+  await testUntrackedBodyEventsAreIgnored();
+  session.removeAllListeners();
   await testHttpGet();
   session.removeAllListeners();
   await testHttpGetWithAbsoluteUrlPath();
