@@ -135,6 +135,10 @@ jobs:
         run: |
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
+      - name: Verify vendored Rust crates exist in tarball
+        run: |
+          test -f "$TAR_DIR/deps/crates/vendor/icu_locale_core/src/extensions/private/other.rs" \
+            || { echo "Tarball is missing deps/crates vendor sources (deps/crates/vendor/icu_locale_core/src/extensions/private/other.rs not found)"; exit 1; }
       - name: Build
         run: make -C "$TAR_DIR" build-ci -j4 V=1
       - name: Test
