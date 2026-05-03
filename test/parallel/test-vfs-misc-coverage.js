@@ -129,3 +129,47 @@ const vfs = require('node:vfs');
   assert.strictEqual(provider.readonly, true);
   assert.throws(() => myVfs.writeFileSync('/a.txt', 'y'), { code: 'EROFS' });
 }
+
+// existsSync swallows ALL errors from the provider, not just ENOENT
+{
+  // Use a custom provider whose existsSync throws
+  class ThrowingProvider extends vfs.VirtualProvider {
+    existsSync() { throw new Error('boom'); }
+  }
+  const myVfs = vfs.create(new ThrowingProvider());
+  assert.strictEqual(myVfs.existsSync('/anything'), false);
+}
+
+// opendirSync without options object (covers the `options?.recursive` undefined branch)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/od');
+  myVfs.writeFileSync('/od/a.txt', '');
+  const dir = myVfs.opendirSync('/od');
+  dir.closeSync();
+}
+
+// mkdtemp callback failure path (mkdtempSync throws because parent is missing)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdtemp('/missing/prefix-', common.mustCall((err) => {
+    assert.ok(err);
+  }));
+}
+
+// watch with listener as 2nd argument
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/lf.txt', 'a');
+  const w = myVfs.watch('/lf.txt', () => {});
+  w.close();
+}
+
+// watchFile with listener as 2nd argument
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/lf2.txt', 'a');
+  const listener = () => {};
+  myVfs.watchFile('/lf2.txt', listener);
+  myVfs.unwatchFile('/lf2.txt', listener);
+}

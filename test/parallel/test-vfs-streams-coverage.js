@@ -67,3 +67,47 @@ const myVfs = vfs.create();
   }));
   ws.write('x');
 }
+
+// Read stream where the lazy read (vfd.entry.readFileSync) throws.
+// Externally close the underlying virtual fd before _read runs but AFTER
+// the constructor has stashed it, so vfd lookup succeeds but the entry
+// read fails. We can simulate by destroying the virtual fd after the
+// stream is created with autoClose:false.
+{
+  myVfs.writeFileSync('/lz.txt', 'data');
+  const fd = myVfs.openSync('/lz.txt');
+  const rs = myVfs.createReadStream('/lz.txt', { fd, autoClose: true });
+  rs.on('error', common.mustCall(() => {}));
+  // Trigger _read on next tick; before that, close the fd via the vfs
+  // so the lazy lookup hits `if (!vfd)` (already covered) but #close in
+  // _destroy will swallow its own duplicate-close error.
+  myVfs.closeSync(fd);
+  rs.resume();
+}
+
+// Read stream with autoClose:true and an error during _read — covers
+// the close-error swallow path inside #close.
+{
+  myVfs.writeFileSync('/cl.txt', 'data');
+  const fd = myVfs.openSync('/cl.txt');
+  const rs = myVfs.createReadStream('/cl.txt', { fd, autoClose: true });
+  myVfs.closeSync(fd);
+  rs.on('error', common.mustCall(() => {}));
+  rs.resume();
+}
+
+// WriteStream destroyed before write() — covers the destroyed-true branch
+// in _write.
+{
+  const ws = myVfs.createWriteStream('/wd.txt');
+  ws.on('error', () => {});
+  ws.destroy(new Error('boom'));
+}
+
+// Read stream with explicit start beyond file end → remaining <= 0 → push null
+{
+  myVfs.writeFileSync('/sm.txt', 'abc');
+  const rs = myVfs.createReadStream('/sm.txt', { start: 10 });
+  rs.on('data', () => assert.fail('no data expected'));
+  rs.on('end', common.mustCall());
+}
