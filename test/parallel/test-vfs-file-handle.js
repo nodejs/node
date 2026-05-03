@@ -121,3 +121,84 @@ myVfs.writeFileSync('/file.txt', 'hello world');
                 { code: 'EBADF' });
   await assert.rejects(handle.stat(), { code: 'EBADF' });
 })().then(common.mustCall());
+
+// readv with a partial read at EOF (second buffer larger than remaining)
+(async () => {
+  const handle = await myVfs.provider.open('/file.txt', 'r');
+  const b1 = Buffer.alloc(5);
+  const b2 = Buffer.alloc(20);
+  const r = await handle.readv([b1, b2], 0);
+  assert.strictEqual(b1.toString(), 'hello');
+  assert.strictEqual(r.bytesRead, 11);
+  await handle.close();
+})().then(common.mustCall());
+
+// writev with explicit position 0
+(async () => {
+  const wh = await myVfs.provider.open('/wv.txt', 'w+');
+  await wh.writev([Buffer.from('AB'), Buffer.from('CD')], 0);
+  await wh.close();
+  assert.strictEqual(myVfs.readFileSync('/wv.txt', 'utf8'), 'ABCD');
+})().then(common.mustCall());
+
+// appendFile with string + encoding option
+(async () => {
+  const ah = await myVfs.provider.open('/ap.txt', 'a+');
+  await ah.appendFile('hello', { encoding: 'utf8' });
+  await ah.close();
+  assert.strictEqual(myVfs.readFileSync('/ap.txt', 'utf8'), 'hello');
+})().then(common.mustCall());
+
+// 'w'-mode handle rejects all read ops with EBADF
+(async () => {
+  const handle = await myVfs.provider.open('/wonly.txt', 'w');
+  assert.throws(() => handle.readSync(Buffer.alloc(1), 0, 1, 0),
+                { code: 'EBADF' });
+  await assert.rejects(handle.read(Buffer.alloc(1), 0, 1, 0),
+                       { code: 'EBADF' });
+  assert.throws(() => handle.readFileSync(), { code: 'EBADF' });
+  await assert.rejects(handle.readFile(), { code: 'EBADF' });
+  await handle.close();
+})().then(common.mustCall());
+
+// 'r'-mode handle rejects all write ops with EBADF
+(async () => {
+  myVfs.writeFileSync('/ronly.txt', 'x');
+  const handle = await myVfs.provider.open('/ronly.txt', 'r');
+  assert.throws(() => handle.writeSync(Buffer.from('y'), 0, 1, 0),
+                { code: 'EBADF' });
+  await assert.rejects(handle.write(Buffer.from('y'), 0, 1, 0),
+                       { code: 'EBADF' });
+  assert.throws(() => handle.writeFileSync('y'), { code: 'EBADF' });
+  await assert.rejects(handle.writeFile('y'), { code: 'EBADF' });
+  assert.throws(() => handle.truncateSync(0), { code: 'EBADF' });
+  await assert.rejects(handle.truncate(0), { code: 'EBADF' });
+  await handle.close();
+})().then(common.mustCall());
+
+// writeFile with string + encoding
+(async () => {
+  const handle = await myVfs.provider.open('/se.txt', 'w+');
+  await handle.writeFile('héllo', { encoding: 'utf8' });
+  assert.strictEqual(await handle.readFile('utf8'), 'héllo');
+  await handle.close();
+})().then(common.mustCall());
+
+// truncate extending past current size zero-fills
+(async () => {
+  const handle = await myVfs.provider.open('/grow.txt', 'w+');
+  await handle.writeFile('abc');
+  await handle.truncate(10);
+  assert.strictEqual((await handle.stat()).size, 10);
+  assert.strictEqual((await handle.readFile()).length, 10);
+  await handle.close();
+})().then(common.mustCall());
+
+// readv / writev / appendFile on a closed handle reject with EBADF
+(async () => {
+  const handle = await myVfs.provider.open('/file.txt', 'r');
+  await handle.close();
+  await assert.rejects(handle.readv([Buffer.alloc(1)], 0), { code: 'EBADF' });
+  await assert.rejects(handle.writev([Buffer.alloc(1)], 0), { code: 'EBADF' });
+  await assert.rejects(handle.appendFile('x'), { code: 'EBADF' });
+})().then(common.mustCall());

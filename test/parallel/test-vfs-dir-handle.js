@@ -71,3 +71,37 @@ myVfs.opendir('/d', common.mustCall((err, dir) => {
   assert.strictEqual(dir.path, '/d');
   dir.closeSync();
 }));
+
+// read() callback on a closed dir delivers ERR_DIR_CLOSED
+{
+  const dir = myVfs.opendirSync('/d');
+  dir.closeSync();
+  dir.read(common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_DIR_CLOSED');
+  }));
+  // entries() iteration on a closed dir rejects with ERR_DIR_CLOSED
+  (async () => {
+    await assert.rejects(
+      (async () => { for await (const _ of dir.entries()) {} })(), // eslint-disable-line no-unused-vars
+      { code: 'ERR_DIR_CLOSED' });
+  })().then(common.mustCall());
+  // [Symbol.dispose] is a no-op on an already-closed dir (must not throw)
+  dir[Symbol.dispose]();
+}
+
+// async dir.close() returns a promise when invoked without a callback
+(async () => {
+  const dir = myVfs.opendirSync('/d');
+  await dir.close();
+})().then(common.mustCall());
+
+// opendirSync without options object
+{
+  const dir = myVfs.opendirSync('/d');
+  dir.closeSync();
+}
+
+// opendir error path (missing directory)
+myVfs.opendir('/missing-dir', common.mustCall((err) => {
+  assert.ok(err);
+}));

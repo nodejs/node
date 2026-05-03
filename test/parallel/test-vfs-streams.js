@@ -210,3 +210,92 @@ const vfs = require('node:vfs');
     });
   }));
 }
+
+// ==================== Additional coverage ====================
+
+const { Readable } = require('stream');
+const { pipeline } = require('stream/promises');
+
+// Slicing read stream with start/end
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/slice.txt', 'hello world');
+  const rs = myVfs.createReadStream('/slice.txt', { start: 6, end: 10 });
+  const chunks = [];
+  rs.on('data', (c) => chunks.push(c));
+  rs.on('end', common.mustCall(() => {
+    assert.strictEqual(Buffer.concat(chunks).toString(), 'world');
+  }));
+}
+
+// start: beyond file size → empty stream
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/sm.txt', 'abc');
+  const rs = myVfs.createReadStream('/sm.txt', { start: 10 });
+  rs.on('data', () => assert.fail('no data expected'));
+  rs.on('end', common.mustCall());
+}
+
+// Empty file → end immediately
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/empty.txt', '');
+  const rs = myVfs.createReadStream('/empty.txt');
+  rs.on('data', () => assert.fail('no data expected'));
+  rs.on('end', common.mustCall());
+}
+
+// Pipeline write
+(async () => {
+  const myVfs = vfs.create();
+  await pipeline(
+    Readable.from([Buffer.from('hello'), Buffer.from(' world')]),
+    myVfs.createWriteStream('/out.txt'),
+  );
+  assert.strictEqual(myVfs.readFileSync('/out.txt', 'utf8'), 'hello world');
+})().then(common.mustCall());
+
+// Pipeline write with start position
+(async () => {
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/pad.txt', 'AAAAAAAAAA');
+  await pipeline(
+    Readable.from([Buffer.from('XX')]),
+    myVfs.createWriteStream('/pad.txt', { start: 3, flags: 'r+' }),
+  );
+  assert.strictEqual(myVfs.readFileSync('/pad.txt', 'utf8'), 'AAAXXAAAAA');
+})().then(common.mustCall());
+
+// Write string chunk + encoding callback
+(async () => {
+  const myVfs = vfs.create();
+  const stream = myVfs.createWriteStream('/str.txt');
+  await new Promise((resolve, reject) => {
+    stream.write('hello', 'utf8', (err) => err ? reject(err) : resolve());
+  });
+  await new Promise((resolve) => stream.end(resolve));
+  assert.strictEqual(myVfs.readFileSync('/str.txt', 'utf8'), 'hello');
+})().then(common.mustCall());
+
+// path getter
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/p.txt', 'x');
+  const rs = myVfs.createReadStream('/p.txt');
+  assert.strictEqual(rs.path, '/p.txt');
+  rs.destroy();
+
+  const ws = myVfs.createWriteStream('/p2.txt');
+  assert.strictEqual(ws.path, '/p2.txt');
+  ws.destroy();
+}
+
+// destroy() before any data triggers _destroy + close cleanup
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/d.txt', 'data');
+  const rs = myVfs.createReadStream('/d.txt');
+  rs.on('error', () => {});
+  rs.destroy();
+}
