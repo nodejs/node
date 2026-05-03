@@ -100,7 +100,7 @@ jobs:
           rustup --version
       - name: Set up sccache
         if: github.base_ref == 'main' || github.ref_name == 'main'
-        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
         with:
           version: v0.12.0
       - name: Environment Information
