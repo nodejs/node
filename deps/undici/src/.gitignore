@@ -60,11 +60,6 @@ typings/
 # next.js build output
 .next
 
-# lock files
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
 # IDE files
 .idea
 .vscode
@@ -80,9 +75,6 @@ fuzz-results-*.json
 # Bundle output
 undici-fetch.js
 /test/imports/undici-import.js
-
-# .npmrc has platform specific value for windows
-.npmrc
 
 .tap
 

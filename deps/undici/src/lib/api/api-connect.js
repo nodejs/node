@@ -60,7 +60,7 @@ class ConnectHandler extends AsyncResource {
     // Indicates is an HTTP2Session
     if (responseHeaders != null) {
       responseHeaders = this.responseHeaders === 'raw'
-        ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+        ? util.parseRawHeaders(rawHeaders)
         : headers
     }
 
