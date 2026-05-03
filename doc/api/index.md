@@ -35,13 +35,13 @@
 * [HTTPS](https.md)
 * [Inspector](inspector.md)
 * [Internationalization](intl.md)
+* [Iterable Streams API](stream_iter.md)
 * [Modules: CommonJS modules](modules.md)
 * [Modules: ECMAScript modules](esm.md)
 * [Modules: `node:module` API](module.md)
 * [Modules: Packages](packages.md)
 * [Modules: TypeScript](typescript.md)
 * [Net](net.md)
-* [Iterable Streams API](stream_iter.md)
 * [OS](os.md)
 * [Path](path.md)
 * [Performance hooks](perf_hooks.md)
@@ -71,7 +71,6 @@
 * [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
 * [Zlib](zlib.md)
-* [Zlib Iterable Compression](zlib_iter.md)
 
 <hr class="line"/>
 

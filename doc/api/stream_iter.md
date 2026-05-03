@@ -416,7 +416,7 @@ if (writer.endSync() < 0) await writer.end();
 writer.fail(err);  // Always synchronous, no fallback needed
 ```
 
-### `writer.desiredSize`
+#### `writer.desiredSize`
 
 * {number|null}
 
@@ -425,7 +425,7 @@ Returns `null` if the writer is closed or the consumer has disconnected.
 
 The value is always non-negative.
 
-### `writer.end([options])`
+#### `writer.end([options])`
 
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this operation. The signal cancels only
@@ -434,7 +434,7 @@ The value is always non-negative.
 
 Signal that no more data will be written.
 
-### `writer.endSync()`
+#### `writer.endSync()`
 
 * Returns: {number} Total bytes written, or `-1` if the writer is not open.
 
@@ -448,7 +448,7 @@ if (result < 0) {
 }
 ```
 
-### `writer.fail(reason)`
+#### `writer.fail(reason)`
 
 * `reason` {any}
 
@@ -457,7 +457,7 @@ or errored, this is a no-op. Unlike `write()` and `end()`, `fail()` is
 unconditionally synchronous because failing a writer is a pure state
 transition with no async work to perform.
 
-### `writer.write(chunk[, options])`
+#### `writer.write(chunk[, options])`
 
 * `chunk` {Uint8Array|string}
 * `options` {Object}
@@ -467,7 +467,7 @@ transition with no async work to perform.
 
 Write a chunk. The promise resolves when buffer space is available.
 
-### `writer.writeSync(chunk)`
+#### `writer.writeSync(chunk)`
 
 * `chunk` {Uint8Array|string}
 * Returns: {boolean} `true` if the write was accepted, `false` if the
@@ -475,7 +475,7 @@ Write a chunk. The promise resolves when buffer space is available.
 
 Synchronous write. Does not block; returns `false` if backpressure is active.
 
-### `writer.writev(chunks[, options])`
+#### `writer.writev(chunks[, options])`
 
 * `chunks` {Uint8Array\[]|string\[]}
 * `options` {Object}
@@ -485,7 +485,7 @@ Synchronous write. Does not block; returns `false` if backpressure is active.
 
 Write multiple chunks as a single batch.
 
-### `writer.writevSync(chunks)`
+#### `writer.writevSync(chunks)`
 
 * `chunks` {Uint8Array\[]|string\[]}
 * Returns: {boolean} `true` if the write was accepted, `false` if the
@@ -1422,7 +1422,7 @@ added: v25.9.0
 
 Compression and decompression transforms for use with `pull()`, `pullSync()`,
 `pipeTo()`, and `pipeToSync()` are available via the [`node:zlib/iter`][]
-module. See the [`node:zlib/iter` documentation][] for details.
+module. See the [`node:zlib/iter` documentation][`node:zlib/iter`] for details.
 
 ## Classic stream interop
 
@@ -2069,8 +2069,7 @@ console.log(textSync(stream)); // 'hello world'
 [`bytes()`]: #bytessource-options
 [`from()`]: #frominput
 [`fromSync()`]: #fromsyncinput
-[`node:zlib/iter`]: zlib_iter.md
-[`node:zlib/iter` documentation]: zlib_iter.md
+[`node:zlib/iter`]: zlib.md#iterable-compression
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms-options
