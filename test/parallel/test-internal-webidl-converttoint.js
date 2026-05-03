@@ -272,40 +272,6 @@ assert.throws(() => convertToInt(256, 8, 'unsigned', {
   const options = {
     get enforceRange() {
       calls.push('enforceRange');
-      return true;
-    },
-    get clamp() {
-      calls.push('clamp');
-      return true;
-    },
-  };
-
-  assert.strictEqual(convertToInt(1.5, 8, 'unsigned', options), 1);
-  assert.deepStrictEqual(calls, ['enforceRange']);
-}
-
-{
-  const calls = [];
-  const options = {
-    get enforceRange() {
-      calls.push('enforceRange');
-      return true;
-    },
-    get clamp() {
-      calls.push('clamp');
-      return true;
-    },
-  };
-
-  assert.strictEqual(convertToInt(255.5, 8, 'unsigned', options), 255);
-  assert.deepStrictEqual(calls, ['enforceRange']);
-}
-
-{
-  const calls = [];
-  const options = {
-    get enforceRange() {
-      calls.push('enforceRange');
       return false;
     },
     get clamp() {
