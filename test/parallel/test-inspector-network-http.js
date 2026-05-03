@@ -116,7 +116,7 @@ const handleRequest = common.mustCall((req, res) => {
     default:
       assert.fail(`Unexpected path: ${path}`);
   }
-}, 5);
+}, 7);
 
 const httpServer = http.createServer(handleRequest);
 
@@ -130,7 +130,7 @@ const terminate = () => {
   httpServer.close();
   httpsServer.close();
   inspector.close();
-}, 7);
+};
 
 function findFrameInInitiator(scriptName, initiator) {
   const frame = initiator.stack.callFrames.find((it) => {
