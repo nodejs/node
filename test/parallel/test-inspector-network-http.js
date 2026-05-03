@@ -145,6 +145,7 @@ function verifyRequestWillBeSent({ method, params }, expect) {
   assert.ok(params.requestId.startsWith('node-network-event-'));
   assert.strictEqual(params.request.url, expect.url);
   assert.strictEqual(params.request.method, expect.method ?? 'GET');
+  assert.strictEqual(params.request.hasPostData, expect.hasPostData ?? false);
   assert.strictEqual(typeof params.request.headers, 'object');
   assert.strictEqual(params.request.headers['accept-language'], 'en-US');
   assert.strictEqual(params.request.headers.cookie, 'k1=v1; k2=v2');
@@ -241,6 +242,7 @@ function createRequestTracker(url, responseExpect, requestExpect = {}) {
     .then(([event]) => verifyRequestWillBeSent(event, {
       url,
       method: requestExpect.method,
+      hasPostData: requestExpect.hasPostData,
       contentType: requestExpect.contentType,
     }));
 
@@ -271,7 +273,9 @@ async function testHttpGet() {
     requestWillBeSentFuture,
     responseReceivedFuture,
     loadingFinishedFuture,
-  } = createRequestTracker(url, getDefaultResponseExpect(url));
+  } = createRequestTracker(url, getDefaultResponseExpect(url), {
+    hasPostData: true,
+  });
 
   http.get({
     host: '127.0.0.1',
@@ -295,7 +299,9 @@ async function testHttpGetWithAbsoluteUrlPath() {
     requestWillBeSentFuture,
     responseReceivedFuture,
     loadingFinishedFuture,
-  } = createRequestTracker(url, getDefaultResponseExpect(url));
+  } = createRequestTracker(url, getDefaultResponseExpect(url), {
+    hasPostData: true,
+  });
 
   http.get({
     host: '127.0.0.1',
@@ -326,6 +332,8 @@ async function testHttpPostWithAbsoluteUrlPath() {
     charset: 'utf-8',
   }, {
     method: 'POST',
+    hasPostData: true,
+    contentType: 'application/json',
   });
 
   const responsePromise = new Promise((resolve, reject) => {
@@ -362,7 +370,9 @@ async function testHttpsGet() {
     requestWillBeSentFuture,
     responseReceivedFuture,
     loadingFinishedFuture,
-  } = createRequestTracker(url, getDefaultResponseExpect(url));
+  } = createRequestTracker(url, getDefaultResponseExpect(url), {
+    hasPostData: true,
+  });
 
   https.get({
     host: '127.0.0.1',
@@ -384,7 +394,11 @@ async function testHttpsGet() {
 async function testHttpError() {
   const url = `http://${addresses.INVALID_HOST}/`;
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
-    .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'GET' }));
+    .then(([event]) => verifyRequestWillBeSent(event, {
+      url,
+      method: 'GET',
+      hasPostData: true,
+    }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
 
@@ -403,7 +417,11 @@ async function testHttpError() {
 async function testHttpsError() {
   const url = `https://${addresses.INVALID_HOST}/`;
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
-    .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'GET' }));
+    .then(([event]) => verifyRequestWillBeSent(event, {
+      url,
+      method: 'GET',
+      hasPostData: true,
+    }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
 
@@ -446,6 +464,7 @@ async function testTextBodyRequest({ requestModule, protocol, port, requestOptio
     loadingFinishedFuture,
   } = createRequestTracker(url, getDefaultResponseExpect(url), {
     method: 'POST',
+    hasPostData: true,
     contentType: 'text/plain; charset=utf-8',
   });
 
@@ -487,6 +506,7 @@ async function testBinaryBodyRequest() {
     loadingFinishedFuture,
   } = createRequestTracker(url, getDefaultResponseExpect(url), {
     method: 'POST',
+    hasPostData: true,
     contentType: 'application/octet-stream',
   });
 
