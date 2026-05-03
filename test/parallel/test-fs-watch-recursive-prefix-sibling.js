@@ -28,12 +28,19 @@ tmpdir.refresh();
 (async () => {
   const root = fs.mkdtempSync(path.join(tmpdir.path, 'watch-prefix-'));
 
-  // Sibling names that share the prefix `foo` with the entry to delete.
+  // Sibling names that share the prefix `foo` with the entries to delete.
   fs.mkdirSync(path.join(root, 'foo_bar'));
   fs.writeFileSync(path.join(root, 'foo_bar', 'file.txt'), '');
   fs.mkdirSync(path.join(root, 'foo_bar', 'somedir'));
-  fs.mkdirSync(path.join(root, 'foo'));
   fs.writeFileSync(path.join(root, 'foo_'), '');
+
+  // `foo` (empty) exercises the exact-match branch of `#unwatchFiles`.
+  fs.mkdirSync(path.join(root, 'foo'));
+
+  // `foo2` has descendants and exercises the `file + sep` prefix branch.
+  fs.mkdirSync(path.join(root, 'foo2'));
+  fs.writeFileSync(path.join(root, 'foo2', 'inside.txt'), '');
+  fs.mkdirSync(path.join(root, 'foo2', 'sub'));
 
   const events = [];
   const watcher = fs.watch(root, { recursive: true }, (eventType, filename) => {
@@ -44,6 +51,7 @@ tmpdir.refresh();
   await setTimeout(common.platformTimeout(200));
 
   fs.rmdirSync(path.join(root, 'foo'));
+  fs.rmSync(path.join(root, 'foo2'), { recursive: true });
 
   // Wait long enough to capture any spurious follow-up events.
   await setTimeout(common.platformTimeout(500));
