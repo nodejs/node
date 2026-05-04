@@ -40,8 +40,7 @@ static MaybeLocal<Value> GetProperty(Local<Context> context,
 }
 
 static std::unique_ptr<protocol::Value> V8ToProtocolValue(
-    Local<Context> context,
-    Local<Value> value) {
+    Local<Context> context, Local<Value> value) {
   Isolate* isolate = Isolate::GetCurrent();
   if (value->IsNullOrUndefined()) {
     return protocol::Value::null();
@@ -165,9 +164,9 @@ NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
 
     protocol::ErrorSupport errors;
     std::unique_ptr<v8_inspector::protocol::Runtime::API::StackTrace> stack =
-        protocol::ValueConversions<
-            v8_inspector::protocol::Runtime::API::StackTrace>::fromValue(
-            stack_value.get(), &errors);
+        protocol::ValueConversions<v8_inspector::protocol::Runtime::API::
+                                       StackTrace>::fromValue(stack_value.get(),
+                                                              &errors);
     if (!stack) {
       ThrowEventError(isolate, "Invalid initiator.stack in event");
       return {};
@@ -603,11 +602,12 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
       return;
     }
   } else {
-    initiator = protocol::Network::Initiator::create()
-                    .setType(protocol::Network::Initiator::TypeEnum::Script)
-                    .setStack(v8_inspector_->captureStackTrace(true)
-                                  ->buildInspectorObject(0))
-                    .build();
+    initiator =
+        protocol::Network::Initiator::create()
+            .setType(protocol::Network::Initiator::TypeEnum::Script)
+            .setStack(
+                v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
+            .build();
   }
 
   if (requests_.contains(request_id)) {
