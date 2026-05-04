@@ -39,6 +39,8 @@ static MaybeLocal<Value> GetProperty(Local<Context> context,
   return object->Get(context, key);
 }
 
+// Convert JS-provided event payloads into protocol values so existing inspector
+// protocol schema validators can reject malformed structured fields.
 static std::unique_ptr<protocol::Value> V8ToProtocolValue(
     Local<Context> context, Local<Value> value) {
   Isolate* isolate = Isolate::GetCurrent();
@@ -155,6 +157,8 @@ NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
 
   Local<Object> stack_obj;
   if (ObjectGetObject(context, initiator_obj, "stack").ToLocal(&stack_obj)) {
+    // `initiator.stack` is passed in from JS diagnostics channels. Validate it
+    // against the Runtime.StackTrace schema before forwarding it to frontends.
     std::unique_ptr<protocol::Value> stack_value =
         V8ToProtocolValue(context, stack_obj);
     if (!stack_value) {
