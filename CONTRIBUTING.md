@@ -1,4 +1,4 @@
-# Contributing to Node.js
+work bitches
 
 Contributions to Node.js include code, documentation, answering user questions,
 running the project's infrastructure, and advocating for all types of Node.js
