@@ -35,6 +35,7 @@
 * [HTTPS](https.md)
 * [Inspector](inspector.md)
 * [Internationalization](intl.md)
+* [Metrics](metrics.md)
 * [Modules: CommonJS modules](modules.md)
 * [Modules: ECMAScript modules](esm.md)
 * [Modules: `node:module` API](module.md)
