@@ -92,7 +92,7 @@ test('should throw an error when a flag is declared twice', async () => {
   assert.strictEqual(result.code, 9);
 });
 
-test('should override env-file', onlyWithAmaroAndNodeOptions, async () => {
+test('should not override env-file', onlyWithAmaroAndNodeOptions, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
@@ -100,9 +100,9 @@ test('should override env-file', onlyWithAmaroAndNodeOptions, async () => {
     '--env-file', fixtures.path('dotenv/node-options-no-tranform.env'),
     fixtures.path('typescript/ts/transformation/test-enum.ts'),
   ]);
-  assert.strictEqual(result.stderr, '');
-  assert.match(result.stdout, /Hello, TypeScript!/);
-  assert.strictEqual(result.code, 0);
+  assert.match(result.stderr, /SyntaxError/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('should not override NODE_OPTIONS', onlyWithAmaro, async () => {
