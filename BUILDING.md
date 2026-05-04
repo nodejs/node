@@ -232,7 +232,6 @@ Consult previous versions of this document for older versions of Node.js:
 
 * [Node.js 24](https://github.com/nodejs/node/blob/v24.x/BUILDING.md)
 * [Node.js 22](https://github.com/nodejs/node/blob/v22.x/BUILDING.md)
-* [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
