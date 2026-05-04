@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "2cb332d71030ba0200610d72b94bb1badf447418",
+    "commit": "8b5cd267b480d75bce41aa306bebbd07ce414fa5",
     "path": "WebCryptoAPI"
   },
   "webidl": {
