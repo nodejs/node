@@ -28,7 +28,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Create PR with first commit
         if: env.NEW_VERSION
-        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
         # Creates a PR with the new OpenSSL source code committed
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
@@ -51,7 +51,7 @@ jobs:
       - name: Add second commit
         # Adds a second commit to the PR with the generated platform-dependent files
         if: env.NEW_VERSION
-        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        uses: gr2m/create-or-update-pull-request-action@b65137ca591da0b9f43bad7b24df13050ea45d1b  # v1.10.1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
