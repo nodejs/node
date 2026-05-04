@@ -2465,6 +2465,7 @@ var require_diagnostics = __commonJS({
       headers: diagnosticsChannel.channel("undici:request:headers"),
       trailers: diagnosticsChannel.channel("undici:request:trailers"),
       error: diagnosticsChannel.channel("undici:request:error"),
+      fetchEventSourceMessage: diagnosticsChannel.channel("undici:fetch:eventsource:message"),
       // WebSocket
       open: diagnosticsChannel.channel("undici:websocket:open"),
       close: diagnosticsChannel.channel("undici:websocket:close"),
@@ -2748,14 +2749,15 @@ var require_request = __commonJS({
         blocking,
         upgrade,
         headersTimeout,
-        bodyTimeout,
-        reset,
-        expectContinue,
-        servername,
-        throwOnError,
-        maxRedirections,
-        typeOfService
-      }, handler) {
+      bodyTimeout,
+      reset,
+      expectContinue,
+      servername,
+      throwOnError,
+      maxRedirections,
+      typeOfService,
+      fetchRequest
+    }, handler) {
         if (typeof path !== "string") {
           throw new InvalidArgumentError("path must be a string");
         } else if (path[0] !== "/" && !(path.startsWith("http://") || path.startsWith("https://")) && method !== "CONNECT") {
@@ -2874,7 +2876,7 @@ var require_request = __commonJS({
         this.servername = servername || getServerName(this.host) || null;
         this[kHandler] = handler;
         if (channels.create.hasSubscribers) {
-          channels.create.publish({ request: this });
+          channels.create.publish({ request: this, fetchRequest });
         }
       }
       onBodySent(chunk) {
@@ -11760,6 +11762,7 @@ var require_request2 = __commonJS({
     var assert = require("node:assert");
     var { getMaxListeners, setMaxListeners, defaultMaxListeners } = require("node:events");
     var kAbortController = /* @__PURE__ */ Symbol("abortController");
+    var kOriginalRequest = /* @__PURE__ */ Symbol("originalRequest");
     var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
     });
@@ -12341,6 +12344,7 @@ var require_request2 = __commonJS({
     __name(makeRequest, "makeRequest");
     function cloneRequest(request) {
       const newRequest = makeRequest({ ...request, body: null });
+      newRequest[kOriginalRequest] = request[kOriginalRequest] ?? request;
       if (request.body != null) {
         newRequest.body = cloneBody(request.body);
       }
@@ -12488,6 +12492,7 @@ var require_request2 = __commonJS({
       makeRequest,
       fromInnerRequest,
       cloneRequest,
+      kOriginalRequest,
       getRequestDispatcher,
       getRequestState
     };
@@ -12649,8 +12654,9 @@ var require_fetch = __commonJS({
       getResponseState
     } = require_response();
     var { HeadersList } = require_headers();
-    var { Request, cloneRequest, getRequestDispatcher, getRequestState } = require_request2();
+    var { Request, cloneRequest, getRequestDispatcher, getRequestState, kOriginalRequest } = require_request2();
     var zlib = require("node:zlib");
+    var { channels } = require_diagnostics();
     var {
       makePolicyContainer,
       clonePolicyContainer,
@@ -12695,9 +12701,10 @@ var require_fetch = __commonJS({
       subresourceSet
     } = require_constants3();
     var EE = require("node:events");
-    var { Readable, pipeline, finished, isErrored, isReadable } = require("node:stream");
+    var { Readable, Transform, pipeline, finished, isErrored, isReadable } = require("node:stream");
     var { addAbortListener, bufferToLowerCasedHeaderName } = require_util();
     var { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require_data_url();
+    var { EventSourceStream } = require_eventsource_stream();
     var { getGlobalDispatcher: getGlobalDispatcher2 } = require_global2();
     var { webidl } = require_webidl();
     var { STATUS_CODES } = require("node:http");
@@ -12706,6 +12713,42 @@ var require_fetch = __commonJS({
     var GET_OR_HEAD = ["GET", "HEAD"];
     var defaultUserAgent = typeof __UNDICI_IS_NODE__ !== "undefined" || true ? "node" : "undici";
     var resolveObjectURL;
+    function createEventSourceMessageTransform(request) {
+      const originalRequest = request[kOriginalRequest] ?? request;
+      const parser = new EventSourceStream({
+        eventSourceSettings: { lastEventId: "" },
+        push(event) {
+          if (event === null) {
+            return false;
+          }
+          channels.fetchEventSourceMessage.publish({
+            request: originalRequest,
+            eventName: event.type,
+            eventId: event.options.lastEventId,
+            data: event.options.data
+          });
+          return true;
+        }
+      });
+      let transform;
+      transform = new Transform({
+        transform(chunk, encoding, callback) {
+          parser.write(chunk, encoding, (err) => {
+            callback(err, chunk);
+          });
+        },
+        flush(callback) {
+          parser.end(callback);
+        },
+        destroy(err, callback) {
+          parser.destroy(err);
+          callback(err);
+        }
+      });
+      parser.on("error", (err) => transform.destroy(err));
+      return transform;
+    }
+    __name(createEventSourceMessageTransform, "createEventSourceMessageTransform");
     var Fetch = class extends EE {
       static {
         __name(this, "Fetch");
@@ -13616,6 +13659,7 @@ var require_fetch = __commonJS({
               method: request.method,
               body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body2,
               headers: request.headersList.entries,
+              fetchRequest: request[kOriginalRequest] ?? request,
               maxRedirections: 0,
               upgrade: request.mode === "websocket" ? "websocket" : void 0,
               ...allowH2 === false ? { allowH2 } : null
@@ -13656,6 +13700,7 @@ var require_fetch = __commonJS({
                   }
                 }
                 const location = headersList.get("location", true);
+                const mimeType = extractMimeType(headersList);
                 this.body = new Readable({ read: /* @__PURE__ */ __name(() => controller.resume(), "read") });
                 const willFollow = location && request.redirect === "follow" && redirectStatusSet.has(status);
                 const decoders = [];
@@ -13700,15 +13745,24 @@ var require_fetch = __commonJS({
                   }
                 }
                 const onError = /* @__PURE__ */ __name((err) => this.onResponseError(controller, err), "onError");
+                const originalRequest = request[kOriginalRequest] ?? request;
+                const shouldPublishEventSourceMessages = channels.fetchEventSourceMessage.hasSubscribers && originalRequest.eventSource !== true && mimeType !== "failure" && mimeType.essence === "text/event-stream";
+                const eventSourceMessageTransform = shouldPublishEventSourceMessages ? createEventSourceMessageTransform(request) : null;
+                const responseBody = decoders.length || eventSourceMessageTransform ? pipeline(
+                  this.body,
+                  ...decoders,
+                  ...(eventSourceMessageTransform ? [eventSourceMessageTransform] : []),
+                  (err) => {
+                    if (err) {
+                      this.onResponseError(controller, err);
+                    }
+                  }
+                ).on("error", onError) : this.body.on("error", onError);
                 resolve({
                   status,
                   statusText,
                   headersList,
-                  body: decoders.length ? pipeline(this.body, ...decoders, (err) => {
-                    if (err) {
-                      this.onResponseError(controller, err);
-                    }
-                  }).on("error", onError) : this.body.on("error", onError)
+                  body: responseBody
                 });
               },
               onResponseData(controller, chunk) {
@@ -15944,6 +15998,7 @@ var require_eventsource = __commonJS({
         initRequest.headersList = [["accept", { name: "accept", value: "text/event-stream" }]];
         initRequest.cache = "no-store";
         initRequest.initiator = "other";
+        initRequest.eventSource = true;
         initRequest.urlList = [new URL(this.#url)];
         this.#request = makeRequest(initRequest);
         this.#connect();

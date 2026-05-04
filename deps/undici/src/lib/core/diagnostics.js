@@ -21,6 +21,7 @@ const channels = {
   headers: diagnosticsChannel.channel('undici:request:headers'),
   trailers: diagnosticsChannel.channel('undici:request:trailers'),
   error: diagnosticsChannel.channel('undici:request:error'),
+  fetchEventSourceMessage: diagnosticsChannel.channel('undici:fetch:eventsource:message'),
   // WebSocket
   open: diagnosticsChannel.channel('undici:websocket:open'),
   close: diagnosticsChannel.channel('undici:websocket:close'),

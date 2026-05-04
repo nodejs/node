@@ -182,6 +182,7 @@ class EventSource extends EventTarget {
 
     // 12. Set request's initiator type to "other".
     initRequest.initiator = 'other'
+    initRequest.eventSource = true
 
     initRequest.urlList = [new URL(this.#url)]
 

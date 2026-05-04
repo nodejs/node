@@ -96,7 +96,8 @@ class Request {
     servername,
     throwOnError,
     maxRedirections,
-    typeOfService
+    typeOfService,
+    fetchRequest
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -260,7 +261,7 @@ class Request {
     this[kHandler] = handler
 
     if (channels.create.hasSubscribers) {
-      channels.create.publish({ request: this })
+      channels.create.publish({ request: this, fetchRequest })
     }
   }
 

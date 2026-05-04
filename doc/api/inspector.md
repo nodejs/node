@@ -572,6 +572,20 @@ This feature is only available with the `--experimental-network-inspection` flag
 Broadcasts the `Network.responseReceived` event to connected frontends. This event indicates that
 HTTP response is available.
 
+### `inspector.Network.eventSourceMessageReceived([params])`
+
+<!-- YAML
+added:
+  - v26.0.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.eventSourceMessageReceived` event to connected frontends.
+This event indicates that a parsed SSE message has been received from a network request.
+
 ### `inspector.Network.loadingFinished([params])`
 
 <!-- YAML

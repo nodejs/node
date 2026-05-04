@@ -29,6 +29,7 @@ const assert = require('node:assert')
 const { getMaxListeners, setMaxListeners, defaultMaxListeners } = require('node:events')
 
 const kAbortController = Symbol('abortController')
+const kOriginalRequest = Symbol('originalRequest')
 
 const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
@@ -934,6 +935,7 @@ function cloneRequest (request) {
 
   // 1. Let newRequest be a copy of request, except for its body.
   const newRequest = makeRequest({ ...request, body: null })
+  newRequest[kOriginalRequest] = request[kOriginalRequest] ?? request
 
   // 2. If request’s body is non-null, set newRequest’s body to the
   // result of cloning request’s body.
@@ -1110,6 +1112,7 @@ module.exports = {
   makeRequest,
   fromInnerRequest,
   cloneRequest,
+  kOriginalRequest,
   getRequestDispatcher,
   getRequestState
 }

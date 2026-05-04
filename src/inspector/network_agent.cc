@@ -196,6 +196,8 @@ NetworkAgent::NetworkAgent(
       requests_(kDefaultMaxTotalBufferSize) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
+  event_notifier_map_["eventSourceMessageReceived"] =
+      &NetworkAgent::eventSourceMessageReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
   event_notifier_map_["dataSent"] = &NetworkAgent::dataSent;
@@ -521,6 +523,45 @@ void NetworkAgent::responseReceived(v8::Local<v8::Context> context,
   request_entry->second.response_charset =
       response->getCharset() == "utf-8" ? Charset::kUTF8 : Charset::kBinary;
   frontend_->responseReceived(request_id, timestamp, type, std::move(response));
+}
+
+void NetworkAgent::eventSourceMessageReceived(v8::Local<v8::Context> context,
+                                              v8::Local<v8::Object> params) {
+  Isolate* isolate = env_->isolate();
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    ThrowEventError(isolate, "Missing requestId in event");
+    return;
+  }
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    ThrowEventError(isolate, "Missing timestamp in event");
+    return;
+  }
+  protocol::String event_name;
+  if (!ObjectGetProtocolString(context, params, "eventName").To(&event_name)) {
+    ThrowEventError(isolate, "Missing eventName in event");
+    return;
+  }
+  protocol::String event_id;
+  if (!ObjectGetProtocolString(context, params, "eventId").To(&event_id)) {
+    ThrowEventError(isolate, "Missing eventId in event");
+    return;
+  }
+  protocol::String data;
+  if (!ObjectGetProtocolString(context, params, "data").To(&data)) {
+    ThrowEventError(isolate, "Missing data in event");
+    return;
+  }
+
+  auto request_entry = requests_.find(request_id);
+  if (request_entry == requests_.end()) {
+    // No entry found. Ignore it.
+    return;
+  }
+
+  frontend_->eventSourceMessageReceived(
+      request_id, timestamp, event_name, event_id, data);
 }
 
 void NetworkAgent::loadingFailed(v8::Local<v8::Context> context,

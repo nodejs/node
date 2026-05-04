@@ -1,4 +1,5 @@
-// Flags: --inspect=0 --experimental-network-inspection --expose-internals
+// Flags: --inspect=0 --experimental-network-inspection
+// Env: NODE_TLS_REJECT_UNAUTHORIZED=0
 'use strict';
 const common = require('../common');
 
@@ -12,14 +13,6 @@ const http = require('node:http');
 const https = require('node:https');
 const inspector = require('node:inspector/promises');
 
-// Disable certificate validation for the global fetch.
-const undici = require('internal/deps/undici/undici');
-undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
-  connect: {
-    rejectUnauthorized: false,
-  },
-}));
-
 const session = new inspector.Session();
 session.connect();
 
@@ -32,12 +25,15 @@ const requestHeaders = [
   ['x-header1', 'value2'],
 ];
 
-const setResponseHeaders = (res) => {
+const kTextResponse = 'hello world\n';
+const kEventStreamResponse = 'data: hello world\n\n';
+
+const setResponseHeaders = (res, contentType = 'text/plain; charset=utf-8') => {
   res.setHeader('server', 'node');
   res.setHeader('etag', 12345);
   res.setHeader('Set-Cookie', ['key1=value1', 'key2=value2']);
   res.setHeader('x-header2', ['value1', 'value2']);
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Type', contentType);
 };
 
 const handleRequest = common.mustCallAtLeast((req, res) => {
@@ -52,7 +48,20 @@ const handleRequest = common.mustCallAtLeast((req, res) => {
       req.on('end', common.mustCall(() => {
         assert.strictEqual(Buffer.concat(chunks).toString(), 'foobar');
         res.writeHead(200);
-        res.end('hello world\n');
+        res.end(kTextResponse);
+      }));
+      break;
+    }
+    case '/event-stream': {
+      setResponseHeaders(res, 'text/event-stream; charset=utf-8');
+      const chunks = [];
+      req.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+      req.on('end', common.mustCall(() => {
+        assert.strictEqual(Buffer.concat(chunks).toString(), 'foobar');
+        res.writeHead(200);
+        res.end(kEventStreamResponse);
       }));
       break;
     }
@@ -108,7 +117,7 @@ function verifyResponseReceived({ method, params }, expect) {
 
   assert.ok(params.requestId.startsWith('node-network-event-'));
   assert.strictEqual(typeof params.timestamp, 'number');
-  assert.strictEqual(params.type, 'Fetch');
+  assert.strictEqual(params.type, expect.type);
   assert.strictEqual(params.response.status, 200);
   assert.strictEqual(params.response.statusText, 'OK');
   assert.strictEqual(params.response.url, expect.url);
@@ -117,8 +126,8 @@ function verifyResponseReceived({ method, params }, expect) {
   assert.strictEqual(params.response.headers.etag, '12345');
   assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
   assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
-  assert.strictEqual(params.response.mimeType, 'text/plain');
-  assert.strictEqual(params.response.charset, 'utf-8');
+  assert.strictEqual(params.response.mimeType, expect.mimeType);
+  assert.strictEqual(params.response.charset, expect.charset);
 
   return params;
 }
@@ -140,12 +149,17 @@ function verifyLoadingFailed({ method, params }) {
   assert.strictEqual(typeof params.errorText, 'string');
 }
 
-async function testRequest(url) {
+async function testRequest(url, expect) {
   const requestWillBeSentFuture = once(session, 'Network.requestWillBeSent')
     .then(([event]) => verifyRequestWillBeSent(event, { url, method: 'POST' }));
 
   const responseReceivedFuture = once(session, 'Network.responseReceived')
-    .then(([event]) => verifyResponseReceived(event, { url }));
+    .then(([event]) => verifyResponseReceived(event, {
+      url,
+      type: expect.type,
+      mimeType: expect.mimeType,
+      charset: expect.charset,
+    }));
 
   const loadingFinishedFuture = once(session, 'Network.loadingFinished')
     .then(([event]) => verifyLoadingFinished(event));
@@ -170,7 +184,7 @@ async function testRequest(url) {
     requestId: responseReceived.requestId,
   });
   assert.strictEqual(responseBody.base64Encoded, false);
-  assert.strictEqual(responseBody.body, 'hello world\n');
+  assert.strictEqual(responseBody.body, expect.responseBody);
 }
 
 async function testRequestError(url) {
@@ -192,10 +206,28 @@ async function testRequestError(url) {
 
 const testNetworkInspection = async () => {
   // HTTP
-  await testRequest(`http://127.0.0.1:${httpServer.address().port}/hello-world`);
+  await testRequest(`http://127.0.0.1:${httpServer.address().port}/hello-world`, {
+    type: 'Fetch',
+    mimeType: 'text/plain',
+    charset: 'utf-8',
+    responseBody: kTextResponse,
+  });
+  session.removeAllListeners();
+  // HTTP SSE
+  await testRequest(`http://127.0.0.1:${httpServer.address().port}/event-stream`, {
+    type: 'EventSource',
+    mimeType: 'text/event-stream',
+    charset: 'utf-8',
+    responseBody: kEventStreamResponse,
+  });
   session.removeAllListeners();
   // HTTPS
-  await testRequest(`https://127.0.0.1:${httpsServer.address().port}/hello-world`);
+  await testRequest(`https://127.0.0.1:${httpsServer.address().port}/hello-world`, {
+    type: 'Fetch',
+    mimeType: 'text/plain',
+    charset: 'utf-8',
+    responseBody: kTextResponse,
+  });
   session.removeAllListeners();
   // HTTP with invalid host
   await testRequestError(`http://${addresses.INVALID_HOST}/`);
