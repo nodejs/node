@@ -47,6 +47,71 @@ common.expectWarning({
       false,
       ['sign', 'verify'],
     );
+  const { publicKey: rsaPublicKey } = await subtle.generateKey(
+    {
+      name: 'RSA-PSS',
+      modulusLength: 1024,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: 'SHA-256',
+    },
+    true,
+    ['sign', 'verify'],
+  );
+
+  // Public algorithm/usages objects are mutable, but they must be
+  // separate from the native-backed internal slots.
+  rsaPublicKey.algorithm.name = 'FORGED-ALGORITHM';
+  rsaPublicKey.algorithm.hash.name = 'FORGED-HASH';
+  rsaPublicKey.algorithm.publicExponent[0] = 0xff;
+  rsaPublicKey.usages.push('forged-usage');
+
+  const clonedRsaPublicKey = structuredClone(rsaPublicKey);
+  assert.strictEqual(clonedRsaPublicKey.algorithm.name, 'RSA-PSS');
+  assert.strictEqual(clonedRsaPublicKey.algorithm.hash.name, 'SHA-256');
+  assert.deepStrictEqual(
+    clonedRsaPublicKey.algorithm.publicExponent,
+    new Uint8Array([1, 0, 1]));
+  assert.deepStrictEqual(clonedRsaPublicKey.usages, ['verify']);
+
+  const rsaJwk = await subtle.exportKey('jwk', rsaPublicKey);
+  assert.strictEqual(rsaJwk.alg, 'PS256');
+  assert.deepStrictEqual(rsaJwk.key_ops, ['verify']);
+
+  Object.defineProperties(Object.prototype, {
+    hash: {
+      configurable: true,
+      value: { name: 'FORGED-HASH' },
+    },
+    publicExponent: {
+      configurable: true,
+      value: new Uint8Array([0xff]),
+    },
+  });
+
+  try {
+    const aesKey = await subtle.generateKey(
+      { name: 'AES-GCM', length: 128 },
+      true,
+      ['encrypt'],
+    );
+    assert.deepStrictEqual(aesKey.algorithm, {
+      name: 'AES-GCM',
+      length: 128,
+    });
+    assert.strictEqual(Object.hasOwn(aesKey.algorithm, 'hash'), false);
+    assert.strictEqual(
+      Object.hasOwn(aesKey.algorithm, 'publicExponent'),
+      false);
+
+    const clonedAesKey = structuredClone(aesKey);
+    assert.deepStrictEqual(clonedAesKey.algorithm, {
+      name: 'AES-GCM',
+      length: 128,
+    });
+  } finally {
+    delete Object.prototype.hash;
+    delete Object.prototype.publicExponent;
+  }
 
   // Snapshot the real values BEFORE tampering.
   const realType = key.type;
