@@ -227,20 +227,17 @@ fs.lstat(__filename, undefined, common.mustCall());
   const path = 'does_not_exist';
   const opts = { throwIfNoEntry: false };
 
-  assert.strictEqual(fs.statSync(path, opts), undefined);
-  assert.strictEqual(fs.lstatSync(path, opts), undefined);
-
-  /* eslint-disable node-core/must-call-assert */
-
   const assertResult = (stats) => {
+    // eslint-disable-next-line node-core/must-call-assert
     assert.strictEqual(stats, undefined);
   };
+
+  assertResult(fs.statSync(path, opts));
+  assertResult(fs.lstatSync(path, opts));
 
   fs.stat(path, opts, common.mustSucceed(assertResult));
   fs.lstat(path, opts, common.mustSucceed(assertResult));
 
-  fs.promises.stat(path, opts).then(common.mustCall(assertResult));
-  fs.promises.lstat(path, opts).then(common.mustCall(assertResult));
-
-  /* eslint-enable node-core/must-call-assert */
+  fs.promises.stat(path, opts).then(assertResult).then(common.mustCall());
+  fs.promises.lstat(path, opts).then(assertResult).then(common.mustCall());
 }
