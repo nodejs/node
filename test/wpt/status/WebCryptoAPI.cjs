@@ -6,13 +6,24 @@ const { hasOpenSSL } = require('../../common/crypto.js');
 
 const s390x = os.arch() === 's390x';
 
-const conditionalSkips = {};
+const conditionalFileSkips = {};
+const conditionalSubtestSkips = {};
 
 function skip(...files) {
   for (const file of files) {
-    conditionalSkips[file] = {
-      'skip': `Unsupported in OpenSSL ${process.versions.openssl}`,
+    conditionalFileSkips[file] = {
+      'skip': 'Unsupported in ' + (process.features.openssl_is_boringssl ? 'BoringSSL' : `OpenSSL ${process.versions.openssl}`),
     };
+  }
+}
+
+function skipSubtests(...entries) {
+  for (const [file, regexp] of entries) {
+    conditionalSubtestSkips[file] ||= {
+      'skipTests': [],
+    };
+
+    conditionalSubtestSkips[file].skipTests.push(regexp);
   }
 }
 
@@ -45,10 +56,25 @@ if (!hasOpenSSL(3, 5)) {
     'import_export/ML-DSA_importKey.tentative.https.any.js',
     'import_export/ML-KEM_importKey.tentative.https.any.js',
     'sign_verify/mldsa.tentative.https.any.js');
+
+  skipSubtests(
+    ['supports-modern.tentative.https.any.js', /ml-(?:kem|dsa)/i]);
 }
 
+function assertNoOverlap(fileSkips, subtestSkips) {
+  const subtestSkipFiles = new Set(Object.keys(subtestSkips));
+  const overlap = Object.keys(fileSkips).filter((file) => subtestSkipFiles.has(file));
+
+  if (overlap.length !== 0) {
+    throw new Error(`conditionalFileSkips and conditionalSubtestSkips overlap: ${overlap.join(', ')}`);
+  }
+}
+
+assertNoOverlap(conditionalFileSkips, conditionalSubtestSkips);
+
 module.exports = {
-  ...conditionalSkips,
+  ...conditionalFileSkips,
+  ...conditionalSubtestSkips,
   'algorithm-discards-context.https.window.js': {
     'skip': 'Not relevant in Node.js context',
   },
