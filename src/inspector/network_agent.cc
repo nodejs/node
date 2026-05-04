@@ -167,7 +167,7 @@ NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
         protocol::ValueConversions<v8_inspector::protocol::Runtime::API::
                                        StackTrace>::fromValue(stack_value.get(),
                                                               &errors);
-    if (!stack) {
+    if (!stack || !errors.Errors().empty()) {
       ThrowEventError(isolate, "Invalid initiator.stack in event");
       return {};
     }

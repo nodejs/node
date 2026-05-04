@@ -2,11 +2,21 @@
 #include "gtest/gtest.h"
 #include "inspector/node_json.h"
 #include "node/inspector/protocol/Protocol.h"
+#include "node/inspector/protocol/Runtime.h"
 
 namespace node {
 namespace inspector {
 namespace protocol {
 namespace {
+
+class MalformedSerializedValue : public Value {
+ public:
+  MalformedSerializedValue() : Value(TypeObject) {}
+
+  void AppendSerialized(std::vector<uint8_t>* out) const override {
+    out->push_back(0xff);
+  }
+};
 
 TEST(InspectorProtocol, Utf8StringSerDes) {
   constexpr const char* kKey = "unicode_key";
@@ -25,6 +35,18 @@ TEST(InspectorProtocol, Utf8StringSerDes) {
   std::string parsed_value;
   CHECK(parsed->getString(kKey, &parsed_value));
   CHECK_EQ(parsed_value, std::string(kValue));
+}
+
+TEST(InspectorProtocol, StackTraceImportRejectsMalformedBinary) {
+  MalformedSerializedValue value;
+  ErrorSupport errors;
+
+  auto stack =
+      ValueConversions<v8_inspector::protocol::Runtime::API::StackTrace>::
+          fromValue(&value, &errors);
+
+  EXPECT_EQ(stack, nullptr);
+  EXPECT_FALSE(errors.Errors().empty());
 }
 
 }  // namespace
