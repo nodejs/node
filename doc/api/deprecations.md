@@ -3953,6 +3953,21 @@ The `node:_http_agent`, `node:_http_client`, `node:_http_common`, `node:_http_in
 `node:_http_outgoing` and `node:_http_server` modules are deprecated as they should be considered
 an internal nodejs implementation rather than a public facing API, use `node:http` instead.
 
+### DEP0200: Calling `digest()` on an already-finalized `Hmac` instance
+
+<!-- YAML
+changes:
+  - version: NEXT
+    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    description: Runtime-deprecation.
+-->
+
+Type: Runtime
+
+Calling [`hmac.digest()`][] more than once returns an empty buffer instead of
+throwing an error. This behavior is inconsistent with [`hash.digest()`][] and
+may lead to subtle bugs. Use the result of the first call instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
