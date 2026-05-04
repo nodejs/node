@@ -409,6 +409,7 @@
   V(cpu_usage_template, v8::DictionaryTemplate)                                \
   V(crypto_cryptokey_constructor_template, v8::FunctionTemplate)               \
   V(crypto_key_object_handle_constructor, v8::FunctionTemplate)                \
+  V(crypto_key_object_constructor_template, v8::FunctionTemplate)              \
   V(env_proxy_template, v8::ObjectTemplate)                                    \
   V(env_proxy_ctor_template, v8::FunctionTemplate)                             \
   V(ephemeral_key_template, v8::DictionaryTemplate)                            \

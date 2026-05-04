@@ -1735,18 +1735,26 @@ void NativeKeyObject::Initialize(Environment* env, Local<Object> target) {
             target,
             "createNativeKeyObjectClass",
             NativeKeyObject::CreateNativeKeyObjectClass);
+  SetMethod(
+      env->context(), target, "getKeyObjectSlots", NativeKeyObject::GetSlots);
 }
 
 void NativeKeyObject::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(NativeKeyObject::CreateNativeKeyObjectClass);
+  registry->Register(NativeKeyObject::GetSlots);
   registry->Register(NativeKeyObject::New);
+}
+
+bool NativeKeyObject::HasInstance(Environment* env, Local<Value> value) {
+  auto t = env->crypto_key_object_constructor_template();
+  return !t.IsEmpty() && t->HasInstance(value);
 }
 
 void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsObject());
+  CHECK(KeyObjectHandle::HasInstance(env, args[0]));
   KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
   CHECK_NOT_NULL(handle);
   new NativeKeyObject(env, args.This(), handle->Data());
@@ -1765,6 +1773,8 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
       NewFunctionTemplate(isolate, NativeKeyObject::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       NativeKeyObject::kInternalFieldCount);
+  CHECK(env->crypto_key_object_constructor_template().IsEmpty());
+  env->set_crypto_key_object_constructor_template(t);
 
   Local<Value> ctor;
   if (!t->GetFunction(env->context()).ToLocal(&ctor))
@@ -1784,6 +1794,34 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
   if (!ret->Get(env->context(), 3).ToLocal(&ctor)) return;
   env->set_crypto_key_object_private_constructor(ctor.As<Function>());
   args.GetReturnValue().Set(ret);
+}
+
+// Returns the key's native hidden slot tuple as a single Array:
+// [type enum, handle]. JS-side helpers call this once per key to prime
+// a per-instance cache; derived metadata is appended lazily from JS by
+// calling methods on the returned KeyObjectHandle.
+void NativeKeyObject::GetSlots(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  if (!HasInstance(env, args[0])) {
+    THROW_ERR_INVALID_THIS(env, "Value of \"this\" must be of type KeyObject");
+    return;
+  }
+
+  NativeKeyObject* native = Unwrap<NativeKeyObject>(args[0].As<Object>());
+  CHECK_NOT_NULL(native);
+
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, native->handle_data_).ToLocal(&handle)) {
+    return;
+  }
+
+  Isolate* isolate = env->isolate();
+  Local<Value> slots[] = {
+      Uint32::NewFromUnsigned(isolate, native->handle_data_.GetKeyType()),
+      handle,
+  };
+  args.GetReturnValue().Set(Array::New(isolate, slots, arraysize(slots)));
 }
 
 BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
@@ -1825,7 +1863,7 @@ BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
   if (!key_ctor->NewInstance(context, 1, &handle).ToLocal(&key))
     return {};
 
-  return BaseObjectPtr<BaseObject>(Unwrap<KeyObjectHandle>(key.As<Object>()));
+  return BaseObjectPtr<BaseObject>(Unwrap<NativeKeyObject>(key.As<Object>()));
 }
 
 BaseObject::TransferMode NativeKeyObject::GetTransferMode() const {
@@ -1946,6 +1984,7 @@ void NativeCryptoKey::GetSlots(const FunctionCallbackInfo<Value>& args) {
   }
   Local<Object> obj = args[0].As<Object>();
   NativeCryptoKey* native = Unwrap<NativeCryptoKey>(obj);
+  CHECK_NOT_NULL(native);
 
   Local<Object> handle;
   if (!KeyObjectHandle::Create(env, native->handle_data_).ToLocal(&handle)) {
