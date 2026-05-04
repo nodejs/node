@@ -38,7 +38,7 @@ function readStream(stream) {
   const stream = myVfs.createWriteStream('/fd-write.txt', { fd, autoClose: false });
   await new Promise((resolve) => stream.on('ready', resolve));
   await new Promise((resolve, reject) =>
-    stream.end('via-fd', (err) => err ? reject(err) : resolve()));
+    stream.end('via-fd', (err) => (err ? reject(err) : resolve())));
   myVfs.closeSync(fd);
   assert.strictEqual(myVfs.readFileSync('/fd-write.txt', 'utf8'), 'via-fd');
 })().then(common.mustCall());
@@ -50,7 +50,7 @@ function readStream(stream) {
   const ws = myVfs.createWriteStream('/pad.txt', { fd, start: 5, autoClose: false });
   await new Promise((resolve) => ws.on('ready', resolve));
   await new Promise((resolve, reject) =>
-    ws.end('XX', (err) => err ? reject(err) : resolve()));
+    ws.end('XX', (err) => (err ? reject(err) : resolve())));
   myVfs.closeSync(fd);
   // Position 5 → "AAAAAXXAAA"
   assert.strictEqual(myVfs.readFileSync('/pad.txt', 'utf8'), 'AAAAAXXAAA');

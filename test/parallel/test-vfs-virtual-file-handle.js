@@ -68,7 +68,7 @@ assert.throws(() => handle.createWriteStream(),
   assert.rejects(h.read(), { code: 'EBADF' }).then(common.mustCall());
 }
 
-// close via async + Symbol.asyncDispose
+// Close via async + Symbol.asyncDispose
 (async () => {
   const h = new VirtualFileHandle('/z', 'r');
   await h.close();

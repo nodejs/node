@@ -5,7 +5,7 @@
 // - rmSync on a directory without recursive must throw EISDIR
 // - rmSync on a symlink must not recurse into the target directory
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -67,4 +67,4 @@ const vfs = require('node:vfs');
   await myVfs.promises.rm('/link2', { recursive: true });
   assert.strictEqual(myVfs.existsSync('/link2'), false);
   assert.strictEqual(myVfs.existsSync('/d2/sub/file.txt'), true);
-})();
+})().then(common.mustCall());

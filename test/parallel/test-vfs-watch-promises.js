@@ -53,7 +53,7 @@ const vfs = require('node:vfs');
     assert.strictEqual(r.done, true);
   }
 
-  // close while a resolver is pending — drains via the 'close' handler
+  // Close while a resolver is pending — drains via the 'close' handler
   {
     const myVfs = vfs.create();
     myVfs.writeFileSync('/q4.txt', 'a');

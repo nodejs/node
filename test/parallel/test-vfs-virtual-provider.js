@@ -40,7 +40,9 @@ const vfs = require('node:vfs');
 
   // existsSync / exists default impl: stat throws → false
   assert.strictEqual(p.existsSync('/x'), false);
-  p.exists('/x').then(common.mustCall((r) => assert.strictEqual(r, false)));
+  p.exists('/x').then(common.mustCall((r) => {
+    assert.strictEqual(r, false);
+  }));
 }
 
 // Read-only provider: write primitives throw EROFS instead of NOT_IMPL.
@@ -82,7 +84,7 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/src.txt', 'hello');
 
-  // realpath default: returns path as-is after stat — covered by myVfs.realpathSync
+  // Realpath default: returns path as-is after stat — covered by myVfs.realpathSync
   assert.strictEqual(myVfs.realpathSync('/src.txt'), '/src.txt');
 
   // exists default impl
@@ -97,7 +99,7 @@ const vfs = require('node:vfs');
   const COPYFILE_EXCL = 1;
   assert.throws(() =>
     myVfs.provider.copyFileSync('src.txt', 'dst.txt', COPYFILE_EXCL),
-  { code: 'EEXIST' });
+                { code: 'EEXIST' });
 
   // accessSync with mode=0 (existence-only)
   myVfs.provider.accessSync('src.txt', 0);

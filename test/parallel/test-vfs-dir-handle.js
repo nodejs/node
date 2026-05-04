@@ -24,9 +24,9 @@ myVfs.mkdirSync('/d/sub');
   }
   assert.deepStrictEqual(names.sort(), ['a.txt', 'b.txt', 'sub']);
   dir.closeSync();
-  // closing again must throw
+  // Closing again must throw
   assert.throws(() => dir.closeSync(), { code: 'ERR_DIR_CLOSED' });
-  // reading after close throws
+  // Reading after close throws
   assert.throws(() => dir.readSync(), { code: 'ERR_DIR_CLOSED' });
 }
 
@@ -40,18 +40,24 @@ myVfs.mkdirSync('/d/sub');
   assert.deepStrictEqual(names.sort(), ['a.txt', 'b.txt', 'sub']);
 })().then(common.mustCall());
 
-// async read with callback
+// Async read with callback
 (async () => {
   const dir = myVfs.opendirSync('/d');
   await new Promise((resolve, reject) => {
-    dir.read((err, entry) => err ? reject(err) : resolve(entry));
+    dir.read((err, entry) => {
+      if (err) reject(err);
+      else resolve(entry);
+    });
   });
   await new Promise((resolve, reject) => {
-    dir.close((err) => err ? reject(err) : resolve());
+    dir.close((err) => {
+      if (err) reject(err);
+      else resolve();
+    });
   });
 })().then(common.mustCall());
 
-// async read without callback returns a promise
+// Async read without callback returns a promise
 (async () => {
   const dir = myVfs.opendirSync('/d');
   const entry = await dir.read();
@@ -67,8 +73,7 @@ myVfs.mkdirSync('/d/sub');
 }
 
 // opendir (callback)
-myVfs.opendir('/d', common.mustCall((err, dir) => {
-  assert.ifError(err);
+myVfs.opendir('/d', common.mustSucceed((dir) => {
   assert.strictEqual(dir.path, '/d');
   dir.closeSync();
 }));
@@ -83,14 +88,15 @@ myVfs.opendir('/d', common.mustCall((err, dir) => {
   // entries() iteration on a closed dir rejects with ERR_DIR_CLOSED
   (async () => {
     await assert.rejects(
-      (async () => { for await (const _ of dir.entries()) {} })(), // eslint-disable-line no-unused-vars
+      // eslint-disable-next-line no-unused-vars
+      (async () => { for await (const _ of dir.entries()); })(),
       { code: 'ERR_DIR_CLOSED' });
   })().then(common.mustCall());
   // [Symbol.dispose] is a no-op on an already-closed dir (must not throw)
   dir[Symbol.dispose]();
 }
 
-// async dir.close() returns a promise when invoked without a callback
+// Async dir.close() returns a promise when invoked without a callback
 (async () => {
   const dir = myVfs.opendirSync('/d');
   await dir.close();
@@ -102,7 +108,7 @@ myVfs.opendir('/d', common.mustCall((err, dir) => {
   dir.closeSync();
 }
 
-// opendir error path (missing directory)
+// Opendir error path (missing directory)
 myVfs.opendir('/missing-dir', common.mustCall((err) => {
   assert.ok(err);
 }));

@@ -19,7 +19,7 @@ function getRoot(provider) {
 
 function makeFileEntry(prototypeFrom, contentProvider) {
   const t = Date.now();
-  const fileEntry = Object.create(Object.getPrototypeOf(prototypeFrom));
+  const fileEntry = { __proto__: Object.getPrototypeOf(prototypeFrom) };
   Object.assign(fileEntry, {
     type: 0,           // TYPE_FILE
     mode: 0o644,
@@ -51,7 +51,7 @@ function makeFileEntry(prototypeFrom, contentProvider) {
   const provider = new MemoryProvider();
   const root = getRoot(provider);
 
-  const dir = Object.create(Object.getPrototypeOf(root));
+  const dir = { __proto__: Object.getPrototypeOf(root) };
   Object.assign(dir, {
     type: 1,           // TYPE_DIR
     mode: 0o755,

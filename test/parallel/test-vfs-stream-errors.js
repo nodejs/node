@@ -37,7 +37,7 @@ const myVfs = vfs.create();
   const fd = myVfs.openSync('/cl.txt');
   const rs = myVfs.createReadStream('/cl.txt', { fd, autoClose: true });
   myVfs.closeSync(fd);
-  rs.on('error', common.mustCall(() => {}));
+  rs.on('error', common.mustCall());
   rs.resume();
 }
 

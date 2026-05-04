@@ -60,18 +60,19 @@ const vfs = require('node:vfs');
 (async () => {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/sw.txt', 'a');
-  let listener;
+  const listener = common.mustCallAtLeast((curr, prev) => {
+    assert.strictEqual(typeof curr.size, 'number');
+    assert.strictEqual(typeof prev.size, 'number');
+  }, 1);
   const fired = new Promise((resolve) => {
-    listener = (curr, prev) => {
-      assert.strictEqual(typeof curr.size, 'number');
-      assert.strictEqual(typeof prev.size, 'number');
+    myVfs.watchFile('/sw.txt', { interval: 25 }, (curr, prev) => {
+      listener(curr, prev);
       resolve();
-    };
+    });
   });
-  myVfs.watchFile('/sw.txt', { interval: 25 }, listener);
   myVfs.writeFileSync('/sw.txt', 'longer-content-changed');
   await fired;
-  myVfs.unwatchFile('/sw.txt', listener);
+  myVfs.unwatchFile('/sw.txt');
 })().then(common.mustCall());
 
 // bigint: true returns BigInt fields in both curr and prev stats, plus
@@ -79,18 +80,19 @@ const vfs = require('node:vfs');
 (async () => {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/bi.txt', 'a');
-  let listener;
+  const listener = common.mustCallAtLeast((curr, prev) => {
+    assert.strictEqual(typeof curr.size, 'bigint');
+    assert.strictEqual(typeof prev.size, 'bigint');
+  }, 1);
   const fired = new Promise((resolve) => {
-    listener = (curr, prev) => {
-      assert.strictEqual(typeof curr.size, 'bigint');
-      assert.strictEqual(typeof prev.size, 'bigint');
+    myVfs.watchFile('/bi.txt', { interval: 25, bigint: true }, (curr, prev) => {
+      listener(curr, prev);
       resolve();
-    };
+    });
   });
-  myVfs.watchFile('/bi.txt', { interval: 25, bigint: true }, listener);
   myVfs.writeFileSync('/bi.txt', 'longer-content-changed');
   await fired;
-  myVfs.unwatchFile('/bi.txt', listener);
+  myVfs.unwatchFile('/bi.txt');
 })().then(common.mustCall());
 
 // bigint: true on a missing file emits BigInt prev.size = 0n
@@ -105,5 +107,5 @@ const vfs = require('node:vfs');
                                   }, 1));
   setTimeout(() => myVfs.writeFileSync('/missing-b.txt', 'now-here'), 80);
   setTimeout(() => myVfs.unwatchFile('/missing-b.txt'), 500);
-  if (watcher && watcher.unref) watcher.unref();
+  if (watcher?.unref) watcher.unref();
 }

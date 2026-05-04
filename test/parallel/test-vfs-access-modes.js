@@ -37,5 +37,5 @@ assert.rejects(myVfs.promises.access('/no-x.txt', X_OK),
 // F_OK (mode 0) is an existence-only check and does not require permission
 myVfs.accessSync('/no-r.txt', 0);
 
-// mode passed as null also exits early (existence-only)
+// Mode passed as null also exits early (existence-only)
 myVfs.accessSync('/no-r.txt', null);

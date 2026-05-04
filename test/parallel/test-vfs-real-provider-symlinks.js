@@ -83,18 +83,18 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
     fs.symlinkSync(path.join(tmpdir.path, 'outside.txt'),
                    path.join(root, 'esc-link'));
 
-    // readlink returns the absolute target as-is (no translation since it's
+    // Readlink returns the absolute target as-is (no translation since it's
     // outside the root)
     const target = myVfs.readlinkSync('/esc-link');
     assert.strictEqual(target, path.join(tmpdir.path, 'outside.txt'));
 
-    // realpath rejects: the resolved target escapes root
+    // Realpath rejects: the resolved target escapes root
     assert.throws(() => myVfs.realpathSync('/esc-link'), { code: 'EACCES' });
     await assert.rejects(myVfs.promises.realpath('/esc-link'),
                          { code: 'EACCES' });
   }
 
-  // realpath on root and on a subdir
+  // Realpath on root and on a subdir
   {
     fs.mkdirSync(path.join(root, 'sub2'), { recursive: true });
     assert.strictEqual(myVfs.realpathSync('/'), '/');

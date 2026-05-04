@@ -5,7 +5,7 @@
 // - COPYFILE_EXCL throws when destination exists
 // - Without COPYFILE_EXCL, copy overwrites destination
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const vfs = require('node:vfs');
@@ -49,4 +49,4 @@ const { COPYFILE_EXCL } = fs.constants;
 
   await myVfs.promises.copyFile('/src.txt', '/dst.txt');
   assert.strictEqual(myVfs.readFileSync('/dst.txt', 'utf8'), 's');
-})();
+})().then(common.mustCall());

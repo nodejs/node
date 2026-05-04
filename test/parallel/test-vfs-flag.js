@@ -29,10 +29,12 @@ const assert = require('assert');
 
 // With the flag, node:vfs loads and works.
 {
-  const r = spawnSync(process.execPath, [
-    '--experimental-vfs',
-    '-e', "const v = require('node:vfs'); const x = v.create(); x.writeFileSync('/x', 'hi'); console.log(x.readFileSync('/x', 'utf8'));",
-  ]);
+  const script =
+    'const v = require("node:vfs");' +
+    'const x = v.create();' +
+    'x.writeFileSync("/x", "hi");' +
+    'console.log(x.readFileSync("/x", "utf8"));';
+  const r = spawnSync(process.execPath, ['--experimental-vfs', '-e', script]);
   assert.strictEqual(r.status, 0, r.stderr.toString());
   assert.strictEqual(r.stdout.toString().trim(), 'hi');
 }

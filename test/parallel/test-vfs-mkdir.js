@@ -31,7 +31,7 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.statSync('/r-mode/sub/deep').mode & 0o777, 0o700);
 }
 
-// recursive mkdir through a regular-file blocker throws ENOTDIR
+// Recursive mkdir through a regular-file blocker throws ENOTDIR
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/blocker', 'x');
@@ -40,7 +40,7 @@ const vfs = require('node:vfs');
     { code: 'ENOTDIR' });
 }
 
-// rmdir on a non-empty directory throws ENOTEMPTY
+// Rmdir on a non-empty directory throws ENOTEMPTY
 {
   const myVfs = vfs.create();
   myVfs.mkdirSync('/d');

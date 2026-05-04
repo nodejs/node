@@ -273,7 +273,7 @@ const { pipeline } = require('stream/promises');
   const myVfs = vfs.create();
   const stream = myVfs.createWriteStream('/str.txt');
   await new Promise((resolve, reject) => {
-    stream.write('hello', 'utf8', (err) => err ? reject(err) : resolve());
+    stream.write('hello', 'utf8', (err) => (err ? reject(err) : resolve()));
   });
   await new Promise((resolve) => stream.end(resolve));
   assert.strictEqual(myVfs.readFileSync('/str.txt', 'utf8'), 'hello');

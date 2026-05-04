@@ -123,7 +123,7 @@ myVfs.writeFileSync('/file.txt', 'hello world');
   await assert.rejects(handle.stat(), { code: 'EBADF' });
 })().then(common.mustCall());
 
-// readv with a partial read at EOF (second buffer larger than remaining)
+// Readv with a partial read at EOF (second buffer larger than remaining)
 (async () => {
   const handle = await myVfs.provider.open('/file.txt', 'r');
   const b1 = Buffer.alloc(5);
@@ -134,7 +134,7 @@ myVfs.writeFileSync('/file.txt', 'hello world');
   await handle.close();
 })().then(common.mustCall());
 
-// writev with explicit position 0
+// Writev with explicit position 0
 (async () => {
   const wh = await myVfs.provider.open('/wv.txt', 'w+');
   await wh.writev([Buffer.from('AB'), Buffer.from('CD')], 0);
@@ -185,7 +185,7 @@ myVfs.writeFileSync('/file.txt', 'hello world');
   await handle.close();
 })().then(common.mustCall());
 
-// truncate extending past current size zero-fills
+// Truncate extending past current size zero-fills
 (async () => {
   const handle = await myVfs.provider.open('/grow.txt', 'w+');
   await handle.writeFile('abc');

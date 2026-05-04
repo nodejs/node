@@ -3,7 +3,7 @@
 
 // rmdirSync on a symlink to a directory should throw ENOTDIR
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -28,4 +28,4 @@ const vfs = require('node:vfs');
 
   await assert.rejects(myVfs.promises.rmdir('/link'),
                        { code: 'ENOTDIR' });
-})();
+})().then(common.mustCall());

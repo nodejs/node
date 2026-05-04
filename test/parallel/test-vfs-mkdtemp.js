@@ -15,25 +15,23 @@ const vfs = require('node:vfs');
   assert.ok(myVfs.statSync(dir).isDirectory());
 }
 
-// mkdtemp callback variant — success
+// Mkdtemp callback variant - success
 {
   const myVfs = vfs.create();
-  myVfs.mkdtemp('/tmp-', common.mustCall((err, dir) => {
-    assert.ifError(err);
+  myVfs.mkdtemp('/tmp-', common.mustSucceed((dir) => {
     assert.ok(dir.startsWith('/tmp-'));
   }));
 }
 
-// mkdtemp callback variant — with options object
+// Mkdtemp callback variant - with options object
 {
   const myVfs = vfs.create();
-  myVfs.mkdtemp('/tmp-', {}, common.mustCall((err, dir) => {
-    assert.ifError(err);
+  myVfs.mkdtemp('/tmp-', {}, common.mustSucceed((dir) => {
     assert.ok(dir.startsWith('/tmp-'));
   }));
 }
 
-// mkdtemp callback variant — error path (parent doesn't exist)
+// Mkdtemp callback variant — error path (parent doesn't exist)
 {
   const myVfs = vfs.create();
   myVfs.mkdtemp('/missing/prefix-', common.mustCall((err) => {

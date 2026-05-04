@@ -48,7 +48,7 @@ const vfs = require('node:vfs');
   assert.strictEqual(myVfs.readFileSync('/real-dir/new.txt', 'utf8'), 'new');
 }
 
-// symlink onto an existing path throws EEXIST
+// Symlink onto an existing path throws EEXIST
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/a.txt', 'x');
