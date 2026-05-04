@@ -300,9 +300,7 @@ async function testHttpGet() {
     requestWillBeSentFuture,
     responseReceivedFuture,
     loadingFinishedFuture,
-  } = createRequestTracker(url, getDefaultResponseExpect(url), {
-    hasPostData: true,
-  });
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
 
   http.get({
     host: '127.0.0.1',
@@ -326,9 +324,7 @@ async function testHttpGetWithAbsoluteUrlPath() {
     requestWillBeSentFuture,
     responseReceivedFuture,
     loadingFinishedFuture,
-  } = createRequestTracker(url, getDefaultResponseExpect(url), {
-    hasPostData: true,
-  });
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
 
   http.get({
     host: '127.0.0.1',
@@ -397,9 +393,7 @@ async function testHttpsGet() {
     requestWillBeSentFuture,
     responseReceivedFuture,
     loadingFinishedFuture,
-  } = createRequestTracker(url, getDefaultResponseExpect(url), {
-    hasPostData: true,
-  });
+  } = createRequestTracker(url, getDefaultResponseExpect(url));
 
   https.get({
     host: '127.0.0.1',
@@ -424,7 +418,6 @@ async function testHttpError() {
     .then(([event]) => verifyRequestWillBeSent(event, {
       url,
       method: 'GET',
-      hasPostData: true,
     }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
@@ -447,7 +440,6 @@ async function testHttpsError() {
     .then(([event]) => verifyRequestWillBeSent(event, {
       url,
       method: 'GET',
-      hasPostData: true,
     }));
   session.on('Network.responseReceived', common.mustNotCall());
   session.on('Network.loadingFinished', common.mustNotCall());
