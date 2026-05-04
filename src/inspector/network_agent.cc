@@ -157,8 +157,6 @@ NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
 
   Local<Object> stack_obj;
   if (ObjectGetObject(context, initiator_obj, "stack").ToLocal(&stack_obj)) {
-    // `initiator.stack` is passed in from JS diagnostics channels. Validate it
-    // against the Runtime.StackTrace schema before forwarding it to frontends.
     std::unique_ptr<protocol::Value> stack_value =
         V8ToProtocolValue(context, stack_obj);
     if (!stack_value) {
@@ -167,15 +165,10 @@ NetworkAgent::createInitiatorFromObject(v8::Local<v8::Context> context,
     }
 
     protocol::ErrorSupport errors;
-    std::unique_ptr<v8_inspector::protocol::Runtime::API::StackTrace> stack =
+    initiator->setStack(
         protocol::ValueConversions<v8_inspector::protocol::Runtime::API::
                                        StackTrace>::fromValue(stack_value.get(),
-                                                              &errors);
-    if (!stack || !errors.Errors().empty()) {
-      ThrowEventError(isolate, "Invalid initiator.stack in event");
-      return {};
-    }
-    initiator->setStack(std::move(stack));
+                                                              &errors));
   }
 
   protocol::String url;
