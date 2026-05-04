@@ -479,9 +479,9 @@ ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
 ByteSource ByteSource::FromSecretKeyBytes(
     Environment* env,
     Local<Value> value) {
-  // A key can be passed as a string, buffer or KeyObject with type 'secret'.
-  // If it is a string, we need to convert it to a buffer. We are not doing that
-  // in JS to avoid creating an unprotected copy on the heap.
+  // JS normalizes secret KeyObject/CryptoKey inputs to a KeyObjectHandle.
+  // Strings are converted here instead of in JS to avoid creating an
+  // unprotected copy on the heap.
   return value->IsString() || IsAnyBufferSource(value)
              ? ByteSource::FromStringOrBuffer(env, value)
              : ByteSource::FromSymmetricKeyObjectHandle(value);
