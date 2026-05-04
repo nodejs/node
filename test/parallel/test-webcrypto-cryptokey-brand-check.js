@@ -46,6 +46,12 @@ const { subtle } = globalThis.crypto;
     assert.notStrictEqual(getter.call(key), undefined, `baseline ${name}`);
   });
   assert.strictEqual(isCryptoKey(key), true);
+  assert.strictEqual(Object.hasOwn(CryptoKey, 'getSlots'), false);
+  const internalProto = Object.getPrototypeOf(key);
+  assert.strictEqual(Object.hasOwn(internalProto, 'getSlots'), false);
+  assert.strictEqual('getSlots' in internalProto, false);
+  assert.strictEqual(internalProto.constructor, CryptoKey);
+  assert.strictEqual(Object.getPrototypeOf(internalProto), CryptoKey.prototype);
 
   const invalidThis = { code: 'ERR_INVALID_THIS', name: 'TypeError' };
 
