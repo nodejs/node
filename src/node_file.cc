@@ -1139,7 +1139,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 
   bool use_bigint = args[1]->IsTrue();
   if (!args[2]->IsUndefined()) {  // stat(path, use_bigint, req,
-                                  // do_not_throw_if_no_entry)
+                                  //      throw_if_no_entry)
     bool do_not_throw_if_no_entry = args[3]->IsFalse();
     FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     CHECK_NOT_NULL(req_wrap_async);
@@ -1150,25 +1150,14 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STAT, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    if (do_not_throw_if_no_entry) {
-      AsyncCall(env,
-                req_wrap_async,
-                args,
-                "stat",
-                UTF8,
-                AfterStatNoThrowIfNoEntry,
-                uv_fs_stat,
-                *path);
-    } else {
-      AsyncCall(env,
-                req_wrap_async,
-                args,
-                "stat",
-                UTF8,
-                AfterStat,
-                uv_fs_stat,
-                *path);
-    }
+    AsyncCall(env,
+              req_wrap_async,
+              args,
+              "stat",
+              UTF8,
+              do_not_throw_if_no_entry ? AfterStatNoThrowIfNoEntry : AfterStat,
+              uv_fs_stat,
+              *path);
   } else {  // stat(path, use_bigint, undefined, do_not_throw_if_no_entry)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
@@ -1210,7 +1199,9 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
   bool use_bigint = args[1]->IsTrue();
-  if (!args[2]->IsUndefined()) {  // lstat(path, use_bigint, req)
+  if (!args[2]->IsUndefined()) {  // lstat(path, use_bigint, req,
+                                  //       throw_if_no_entry)
+    bool do_not_throw_if_no_entry = args[3]->IsFalse();
     FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     CHECK_NOT_NULL(req_wrap_async);
     FS_ASYNC_TRACE_BEGIN1(
@@ -1220,7 +1211,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
               args,
               "lstat",
               UTF8,
-              AfterStat,
+              do_not_throw_if_no_entry ? AfterStatNoThrowIfNoEntry : AfterStat,
               uv_fs_lstat,
               *path);
   } else {  // lstat(path, use_bigint, undefined, throw_if_no_entry)
