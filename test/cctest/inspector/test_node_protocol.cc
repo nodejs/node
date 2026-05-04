@@ -41,9 +41,9 @@ TEST(InspectorProtocol, StackTraceImportRejectsMalformedBinary) {
   MalformedSerializedValue value;
   ErrorSupport errors;
 
-  auto stack =
-      ValueConversions<v8_inspector::protocol::Runtime::API::StackTrace>::
-          fromValue(&value, &errors);
+  auto stack = ValueConversions<
+      v8_inspector::protocol::Runtime::API::StackTrace>::fromValue(&value,
+                                                                   &errors);
 
   EXPECT_EQ(stack, nullptr);
   EXPECT_FALSE(errors.Errors().empty());
