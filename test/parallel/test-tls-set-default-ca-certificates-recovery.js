@@ -27,7 +27,9 @@ function testRecovery(expectedCerts) {
   {
     const invalidCert = '-----BEGIN CERTIFICATE-----\nvalid cert content\n-----END CERTIFICATE-----';
     assert.throws(() => tls.setDefaultCACertificates([fixtureCert, invalidCert]), {
-      code: 'ERR_OSSL_PEM_ASN1_LIB',
+      code: process.features.openssl_is_boringssl ?
+        'ERR_OSSL_PEM_ASN.1_ENCODING_ROUTINES' :
+        'ERR_OSSL_PEM_ASN1_LIB',
     });
     assertEqualCerts(tls.getCACertificates('default'), expectedCerts);
   }

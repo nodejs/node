@@ -26,7 +26,7 @@ function loadPEM(n) {
 
 // OpenSSL 4.0 disables support for deprecated elliptic curves from RFC 8422
 // (including secp256k1) by default.
-const ecdhCurve = hasOpenSSL(4, 0) ?
+const ecdhCurve = process.features.openssl_is_boringssl || hasOpenSSL(4, 0) ?
   'prime256v1:secp521r1' :
   'secp256k1:prime256v1:secp521r1';
 
@@ -67,7 +67,7 @@ const server = tls.createServer(options, (conn) => {
   }
 
   // Deprecated RFC 8422 curves are disabled by default in OpenSSL 4.0.
-  if (hasOpenSSL(4, 0)) {
+  if (process.features.openssl_is_boringssl || hasOpenSSL(4, 0)) {
     unsupportedCurves.push('secp256k1');
   }
 
