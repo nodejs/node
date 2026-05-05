@@ -1386,16 +1386,6 @@ added:
 
 Enable the experimental [`node:stream/iter`][] module.
 
-### `--experimental-vfs`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Enable the experimental [`node:vfs`][] module.
-
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -1453,6 +1443,16 @@ case-insensitive.
 The flag may be specified more than once; tests must contain **every**
 filter value to run. See [Test tags][] for details on declaring and
 inheriting tags.
+
+### `--experimental-vfs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:vfs`][] module.
 
 ### `--experimental-vm-modules`
 
