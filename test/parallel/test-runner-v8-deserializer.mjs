@@ -77,6 +77,17 @@ describe('v8 deserializer', common.mustCall(() => {
     ]);
   });
 
+  it('should not loop forever on v8 header followed by an oversized length', async () => {
+    // Refs: https://github.com/nodejs/node/issues/62693
+    // FF 0F is the v8 serializer header; the following four bytes encode a
+    // big-endian uint32 payload size that exceeds the buffer.
+    const malformed = Buffer.from([0xff, 0x0f, 0x7f, 0xff, 0xff, 0xff]);
+    const reported = await collectReported([malformed]);
+    assert.deepStrictEqual(reported, [
+      { data: { __proto__: null, file: 'filetest', message: malformed.toString('utf-8') }, type: 'test:stdout' },
+    ]);
+  });
+
   const headerPosition = headerLength * 2 + 4;
   for (let i = 0; i < headerPosition + 5; i++) {
     const message = `should deserialize a serialized message split into two chunks {...${i},${i + 1}...}`;
