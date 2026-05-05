@@ -32,14 +32,22 @@ connect({
   assert.strictEqual(client.getProtocol(), 'TLSv1.3');
 
   const ok = client.renegotiate({}, common.mustCall((err) => {
-    assert.throws(() => { throw err; }, {
-      message: hasOpenSSL3 ?
-        'error:0A00010A:SSL routines::wrong ssl version' :
-        'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
-      code: 'ERR_SSL_WRONG_SSL_VERSION',
-      library: 'SSL routines',
-      reason: 'wrong ssl version',
-    });
+    if (process.features.openssl_is_boringssl) {
+      assert.throws(() => { throw err; }, {
+        message: 'TLS session renegotiation is unsupported by this TLS ' +
+                 'implementation',
+        code: 'ERR_TLS_RENEGOTIATION_UNSUPPORTED',
+      });
+    } else {
+      assert.throws(() => { throw err; }, {
+        message: hasOpenSSL3 ?
+          'error:0A00010A:SSL routines::wrong ssl version' :
+          'error:1420410A:SSL routines:SSL_renegotiate:wrong ssl version',
+        code: 'ERR_SSL_WRONG_SSL_VERSION',
+        library: 'SSL routines',
+        reason: 'wrong ssl version',
+      });
+    }
     cleanup();
   }));
 
