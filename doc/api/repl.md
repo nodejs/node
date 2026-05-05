@@ -710,8 +710,8 @@ npx codemod@latest @nodejs/repl-builtin-modules
 added: v0.1.91
 changes:
   - version:
-     - v25.9.0
      - v26.0.0
+     - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62188
     description: The `handleError` parameter has been added.
   - version: v24.1.0

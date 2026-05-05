@@ -1326,8 +1326,8 @@ Enable experimental support for storage inspection
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental

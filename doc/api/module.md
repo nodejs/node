@@ -179,9 +179,9 @@ added:
   - v20.6.0
   - v18.19.0
 deprecated:
+ - v26.0.0
  - v25.9.0
  - v24.15.0
- - v26.0.0
 changes:
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401

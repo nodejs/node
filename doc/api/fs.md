@@ -381,8 +381,8 @@ added: v10.0.0
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -460,8 +460,8 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1017,8 +1017,8 @@ the end of the file.
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental

@@ -390,8 +390,8 @@ try {
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -530,8 +530,8 @@ probably responsible for the context loss.
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -548,8 +548,8 @@ exits, whether through normal completion or by throwing an error.
 
 <!-- YAML
 added:
- - v25.9.0
  - v26.0.0
+ - v25.9.0
 -->
 
 Explicitly ends the scope and restores the previous store value. This method
