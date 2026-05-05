@@ -277,6 +277,19 @@ test(() => {
         a, a
       ), a !== null && !isString, WebAssembly.RuntimeError);
 
+    if (a !== null && !isString) {
+      assert_throws_if(() => assert_same_behavior(
+        builtinExports['equals'],
+        polyfillExports['equals'],
+        null, a
+      ), true, WebAssembly.RuntimeError);
+      assert_throws_if(() => assert_same_behavior(
+        builtinExports['equals'],
+        polyfillExports['equals'],
+        a, null
+      ), true, WebAssembly.RuntimeError);
+    }
+
     assert_throws_if(() => assert_same_behavior(
         builtinExports['compare'],
         polyfillExports['compare'],
