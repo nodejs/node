@@ -123,5 +123,7 @@
   "zlib options": "zlib.html#class-options",
   "zstd options": "zlib.html#class-zstdoptions",
   "HTTP/2 Headers Object": "http2.html#headers-object",
-  "HTTP/2 Settings Object": "http2.html#settings-object"
+  "HTTP/2 Settings Object": "http2.html#settings-object",
+  "Schema": "validator.html#class-schema",
+  "ValidationResult": "validator.html#type-validationresult"
 }
