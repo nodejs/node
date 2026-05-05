@@ -67,10 +67,6 @@ node --watch ./bootstrap.mjs
 
 For transform mode, swap `amaro/strip` with `amaro/transform` and run Node with `--enable-source-maps`.
 
-#### Type stripping in dependencies
-
-Contrary to the Node.js [TypeScript support](https://nodejs.org/docs/latest/api/typescript.html#type-stripping-in-dependencies), when used as a loader, Amaro handles TypeScript files inside folders under a `node_modules` path.
-
 ### Monorepo usage
 
 Amaro makes working in monorepos smoother by removing the need to rebuild internal packages during development. When used with the [`--conditions`](https://nodejs.org/docs/latest/api/cli.html#-c-condition---conditionscondition) flag, you can reference TypeScript source files directly in exports:
