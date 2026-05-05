@@ -1138,7 +1138,7 @@ const { QuicError } = require('node:quic');
 ```
 
 When a `QuicError` is supplied to APIs that emit a wire frame
-(currently [`writer.fail()`][]), the QUIC stack uses
+([`writer.fail()`][], [`stream.destroy()`][]), the QUIC stack uses
 [`error.errorCode`][] as the wire code for the resulting frame.
 When any other value is supplied (for example a plain `Error`), the
 implementation falls back to the negotiated application protocol's
@@ -1231,17 +1231,54 @@ an `ERR_QUIC_APPLICATION_ERROR` or `ERR_QUIC_TRANSPORT_ERROR` when the
 stream is closed due to a QUIC error (e.g., stream reset by the peer,
 CONNECTION\_CLOSE with a non-zero error code).
 
-### `stream.destroy([error])`
+### `stream.destroy([error[, options]])`
 
 <!-- YAML
 added: v23.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62876
+    description: Added the `options` parameter accepting `code` and `reason`.
 -->
 
 * `error` {any}
+* `options` {Object}
+  * `code` {bigint|number} The application error code to include in the
+    `RESET_STREAM` and `STOP_SENDING` frames sent to the peer. Numbers are
+    coerced to `BigInt`. When omitted, the wire code is derived from `error`
+    (see below).
+  * `reason` {string} An optional human-readable reason string. Accepted for
+    symmetry with [`session.close()`][] and [`session.destroy()`][], but
+    **not transmitted on the wire** — neither `RESET_STREAM` nor
+    `STOP_SENDING` carry a reason field. Provided for application logging
+    and for use by the [`stream.onerror`][] callback.
 
 Immediately and abruptly destroys the stream. If `error` is provided and
 [`stream.onerror`][] is set, the `onerror` callback is invoked before
-destruction. The `stream.closed` promise will reject with the error.
+destruction. The `stream.closed` promise rejects with the error.
+
+When the stream is destroyed with an `error` (or with an explicit
+`options.code`), the QUIC stack signals the abort to the peer:
+
+* If the writable side is still open, a `RESET_STREAM` frame is sent.
+* If the readable side is still open (a bidirectional stream, or a
+  remote-initiated unidirectional stream), a `STOP_SENDING` frame is sent.
+
+Both frames carry the same wire code, resolved with the following
+precedence:
+
+1. `options.code`, when explicitly provided.
+2. [`error.errorCode`][], when `error` is a [`QuicError`][].
+3. The negotiated application protocol's "internal error" code
+   (`H3_INTERNAL_ERROR` (`0x102`) for HTTP/3, or the QUIC transport-layer
+   `INTERNAL_ERROR` (`0x1`) for raw QUIC).
+
+A clean destroy — no `error` and no `options.code` — does not emit
+`RESET_STREAM` or `STOP_SENDING`; the stream's existing close machinery
+handles teardown.
+
+See [Aborting a stream][] for an overview of the available stream-abort
+APIs.
 
 ### `stream.destroyed`
 
@@ -1252,6 +1289,28 @@ added: v23.8.0
 * Type: {boolean}
 
 True if `stream.destroy()` has been called.
+
+### Aborting a stream
+
+A QuicStream can be aborted in three ways, each producing different
+wire-frame side effects:
+
+* [`writer.fail(reason)`][] — Aborts only the writable side. Sends
+  `RESET_STREAM` to the peer. The readable side is unaffected; any data
+  already buffered for read remains available.
+* [`stream.destroy()`][] with an `error` argument — Tears the stream
+  down completely. Sends `RESET_STREAM` on any still-open writable side
+  **and** `STOP_SENDING` on any still-open readable side. The wire code
+  is derived from `error` (see [`stream.destroy()`][] for the precedence
+  rules).
+* [`stream.destroy()`][] with an explicit `options.code` — Same as the
+  previous form but with a caller-supplied wire code, which takes
+  precedence over any code carried by `error`.
+
+When `error` is a [`QuicError`][], its [`error.errorCode`][] is used as
+the wire code for both `writer.fail()` and `stream.destroy()`. Otherwise
+the implementation falls back to the negotiated application protocol's
+"internal error" code (see [`QuicError`][]).
 
 ### `stream.early`
 
@@ -1332,7 +1391,19 @@ added: v23.8.0
 
 * Type: {quic.OnStreamErrorCallback}
 
-The callback to invoke when the stream is reset. Read/write.
+The callback to invoke when the peer aborts a direction of the stream by
+sending a `RESET_STREAM` frame (the peer abandons their writable side, so
+no further data will arrive on our readable side) or a `STOP_SENDING`
+frame (the peer asks us to stop writing on our writable side).
+
+The callback receives a Node.js error whose `errorCode` (`bigint`)
+property carries the application error code from the wire frame.
+
+The stream is **not** automatically destroyed when this callback fires —
+the application chooses how to react. Common patterns are: ignore (and
+continue using the still-active direction on a bidirectional stream),
+abort the other direction with [`writer.fail()`][], or tear down the
+whole stream with [`stream.destroy()`][]. Read/write.
 
 ### `stream.headers`
 
@@ -1563,12 +1634,14 @@ The Writer has the following methods:
 * `writev(chunks[, options])` — Async vectored write.
 * `endSync()` — Synchronous close. Returns total bytes or `-1`.
 * `end([options])` — Async close.
-* `fail(reason)` — Errors the stream (sends RESET\_STREAM to peer).
+* `fail(reason)` — Errors the stream (sends `RESET_STREAM` to peer).
   When `reason` is a [`QuicError`][], its [`error.errorCode`][] is used
-  as the wire code on the resulting RESET\_STREAM frame; otherwise
+  as the wire code on the resulting `RESET_STREAM` frame; otherwise
   the wire code falls back to the negotiated application protocol's
   "internal error" code (`H3_INTERNAL_ERROR` (`0x102`) for HTTP/3, or
   the QUIC transport-layer `INTERNAL_ERROR` (`0x1`) for raw QUIC).
+  See [`stream.destroy()`][] for a full-stream abort that also resets
+  the readable side via `STOP_SENDING`.
 * `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
 
 ### `stream.setBody(body)`
@@ -3252,6 +3325,7 @@ Published when a stream is flow-control blocked and cannot send data
 until the peer increases the flow control window. Useful for diagnosing
 throughput issues caused by flow control.
 
+[Aborting a stream]: #aborting-a-stream
 [Callback error handling]: #callback-error-handling
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
@@ -3264,6 +3338,8 @@ throughput issues caused by flow control.
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
 [`quic.connect()`]: #quicconnectaddress-options
 [`quic.listen()`]: #quiclistencallback-options
+[`session.close()`]: #sessioncloseoptions
+[`session.destroy()`]: #sessiondestroyerror-options
 [`session.maxPendingDatagrams`]: #sessionmaxpendingdatagrams
 [`session.onerror`]: #sessiononerror
 [`session.onkeylog`]: #sessiononkeylog
@@ -3273,6 +3349,7 @@ throughput issues caused by flow control.
 [`sessionOptions.keylog`]: #sessionoptionskeylog
 [`sessionOptions.qlog`]: #sessionoptionsqlog
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
+[`stream.destroy()`]: #streamdestroyerror-options
 [`stream.onerror`]: #streamonerror
 [`stream.onwanttrailers`]: #streamonwanttrailers
 [`stream.pendingTrailers`]: #streampendingtrailers
@@ -3281,5 +3358,6 @@ throughput issues caused by flow control.
 [`stream.setPriority()`]: #streamsetpriorityoptions
 [`stream.writer`]: #streamwriter
 [`writer.fail()`]: #streamwriter
+[`writer.fail(reason)`]: #streamwriter
 [qlog]: https://datatracker.ietf.org/doc/draft-ietf-quic-qlog-main-schema/
 [qvis]: https://qvis.quictools.info/
