@@ -26,7 +26,7 @@ constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
   V(KW_192, AES_Cipher, ncrypto::Cipher::AES_192_KW)                           \
   V(KW_256, AES_Cipher, ncrypto::Cipher::AES_256_KW)
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_AES_OCB
 #define VARIANTS_OCB(V)                                                        \
   V(OCB_128, AES_Cipher, ncrypto::Cipher::AES_128_OCB)                         \
   V(OCB_192, AES_Cipher, ncrypto::Cipher::AES_192_OCB)                         \
