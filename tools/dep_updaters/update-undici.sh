@@ -75,7 +75,7 @@ mv "$DEPS_DIR/undici"/undici-* "$DEPS_DIR/undici/src"
 
   # Rebuild components from source
   rm lib/llhttp/llhttp*.*
-  "$NODE" "$NPM" install --ignore-scripts
+  "$NODE" "$NPM" ci --ignore-scripts
   "$NODE" "$NPM" run build:wasm > lib/llhttp/wasm_build_env.txt
   "$NODE" "$NPM" run build:node
   "$NODE" "$NPM" prune --production
