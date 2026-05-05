@@ -63,7 +63,7 @@ Contributed by Richard Lau in [#61806](https://github.com/nodejs/node/pull/61806
 
 #### V8 14.6
 
-The V8 engine is updated to version 14.6.202.33, which is part of Chromium 134.
+The V8 engine is updated to version 14.6.202.33, which is part of Chromium 146.
 
 This version also includes:
 
