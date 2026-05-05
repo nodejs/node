@@ -36,27 +36,42 @@ const options = {
   honorCipherOrder: true
 };
 
+const isBoringSSL = process.features.openssl_is_boringssl;
 let clients = 0;
+const expectedClients = isBoringSSL ? 1 : 2;
 const server = tls.createServer(options, common.mustCall(() => {
   if (--clients === 0)
     server.close();
-}, 2));
+}, expectedClients));
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
-  clients++;
-  tls.connect({
-    host: '127.0.0.1',
-    port: this.address().port,
-    ciphers: 'AES256-SHA256',
-    rejectUnauthorized: false,
-    maxVersion: 'TLSv1.2',
-  }, common.mustCall(function() {
-    const cipher = this.getCipher();
-    assert.strictEqual(cipher.name, 'AES256-SHA256');
-    assert.strictEqual(cipher.standardName, 'TLS_RSA_WITH_AES_256_CBC_SHA256');
-    assert.strictEqual(cipher.version, 'TLSv1.2');
-    this.end();
-  }));
+  if (isBoringSSL) {
+    // BoringSSL does not provide this static RSA TLS 1.2 cipher suite on
+    // Node's supported cipher surface, so keep the OpenSSL getCipher()
+    // assertion below limited to backends that can create the context.
+    common.printSkipMessage('BoringSSL does not provide AES256-SHA256');
+    assert.throws(() => tls.createSecureContext({ ciphers: 'AES256-SHA256' }), {
+      code: 'ERR_SSL_NO_CIPHER_MATCH',
+      library: 'SSL routines',
+      function: 'OPENSSL_internal',
+      reason: 'NO_CIPHER_MATCH',
+    });
+  } else {
+    clients++;
+    tls.connect({
+      host: '127.0.0.1',
+      port: this.address().port,
+      ciphers: 'AES256-SHA256',
+      rejectUnauthorized: false,
+      maxVersion: 'TLSv1.2',
+    }, common.mustCall(function() {
+      const cipher = this.getCipher();
+      assert.strictEqual(cipher.name, 'AES256-SHA256');
+      assert.strictEqual(cipher.standardName, 'TLS_RSA_WITH_AES_256_CBC_SHA256');
+      assert.strictEqual(cipher.version, 'TLSv1.2');
+      this.end();
+    }));
+  }
 
   clients++;
   tls.connect({
@@ -70,7 +85,9 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     assert.strictEqual(cipher.name, 'ECDHE-RSA-AES256-GCM-SHA384');
     assert.strictEqual(cipher.standardName,
                        'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384');
-    assert.strictEqual(cipher.version, 'TLSv1.2');
+    assert.strictEqual(cipher.version, isBoringSSL ?
+      'TLSv1/SSLv3' :
+      'TLSv1.2');
     this.end();
   }));
 }));
@@ -90,9 +107,14 @@ tls.createServer({
     rejectUnauthorized: false
   }, common.mustCall(() => {
     const cipher = client.getCipher();
-    assert.strictEqual(cipher.name, 'TLS_AES_256_GCM_SHA384');
+    const expectedCipher = isBoringSSL ?
+      'TLS_AES_128_GCM_SHA256' :
+      'TLS_AES_256_GCM_SHA384';
+    assert.strictEqual(cipher.name, expectedCipher);
     assert.strictEqual(cipher.standardName, cipher.name);
-    assert.strictEqual(cipher.version, 'TLSv1.3');
+    assert.strictEqual(cipher.version, isBoringSSL ?
+      'TLSv1/SSLv3' :
+      'TLSv1.3');
     client.end();
   }));
 }));
