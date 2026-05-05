@@ -76,7 +76,7 @@ const { hasOpenSSL } = require('../common/crypto');
     common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
   }
 
-  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  if (hasOpenSSL(3, 5)) {
     rawPublicKeys.push(
       ['ml-dsa-44', 'ml_dsa_44_public.pem'],
       ['ml-kem-768', 'ml_kem_768_public.pem'],
