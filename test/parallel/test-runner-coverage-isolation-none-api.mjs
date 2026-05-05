@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import { before, describe, it, run } from 'node:test';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { cp, writeFile } from 'node:fs/promises';
+import { cp } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
@@ -58,30 +58,9 @@ describe('run() coverage with isolation: none', skipIfNoInspector, () => {
   }
 
   it('is idempotent when --experimental-test-coverage is also passed', async () => {
-    const runnerPath = join(tmpdir.path, 'runner.mjs');
-    await writeFile(runnerPath, `\
-import { run } from 'node:test';
-import { join } from 'node:path';
-
-const stream = run({
-  files: [join(import.meta.dirname, 'tests', 'foo.test.mjs')],
-  coverage: true,
-  isolation: 'none',
-  cwd: import.meta.dirname,
-});
-stream.on('test:fail', () => process.exit(10));
-let summary;
-stream.on('test:coverage', (event) => { summary = event.summary; });
-for await (const _ of stream);
-if (!summary || summary.files.length === 0) process.exit(11);
-const hasSrc = summary.files.some((f) => f.path.endsWith('foo.mjs') && !f.path.endsWith('foo.test.mjs'));
-const hasTest = summary.files.some((f) => f.path.endsWith('foo.test.mjs'));
-if (!hasSrc) process.exit(12);
-if (hasTest) process.exit(13);
-`);
     const result = spawnSync(process.execPath, [
       '--experimental-test-coverage',
-      runnerPath,
+      join(tmpdir.path, 'runner.mjs'),
     ], { cwd: tmpdir.path });
     assert.strictEqual(
       result.status,
