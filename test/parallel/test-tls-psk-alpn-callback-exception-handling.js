@@ -14,6 +14,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testPskTls13Unsupported();
+  return;
+}
+
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const tls = require('tls');

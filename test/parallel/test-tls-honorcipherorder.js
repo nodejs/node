@@ -16,14 +16,40 @@ const util = require('util');
 // default method is updated in the future
 const SSL_Method = 'TLSv1_2_method';
 const localhost = '127.0.0.1';
+const config = process.features.openssl_is_boringssl ? {
+  serverCiphers:
+    'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256',
+  clientPreferenceCiphers:
+    'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384',
+  clientPreferredCipher: 'ECDHE-RSA-AES128-GCM-SHA256',
+  serverPreferredCipher: 'ECDHE-RSA-AES256-GCM-SHA384',
+  singleCipher: 'ECDHE-RSA-AES128-GCM-SHA256',
+  defaultCipher: 'ECDHE-RSA-AES256-GCM-SHA384',
+  limitedDefaultCipher: 'ECDHE-RSA-AES128-GCM-SHA256',
+  extraCases: [],
+} : {
+  serverCiphers: 'AES256-SHA256:AES128-GCM-SHA256:AES128-SHA256:' +
+                 'ECDHE-RSA-AES128-GCM-SHA256',
+  clientPreferenceCiphers: 'AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256',
+  clientPreferredCipher: 'AES128-GCM-SHA256',
+  serverPreferredCipher: 'AES256-SHA256',
+  singleCipher: 'AES128-SHA256',
+  defaultCipher: 'AES256-SHA256',
+  limitedDefaultCipher: 'ECDHE-RSA-AES128-GCM-SHA256',
+  extraCases: [
+    // Server has the preference of cipher suites. AES128-GCM-SHA256 is given
+    // higher priority over AES128-SHA256 among client cipher suites.
+    [true, 'AES128-SHA256:AES128-GCM-SHA256', 'AES128-GCM-SHA256'],
+    [undefined, 'AES128-SHA256:AES128-GCM-SHA256', 'AES128-GCM-SHA256'],
+  ],
+};
 
 function test(honorCipherOrder, clientCipher, expectedCipher, defaultCiphers) {
   const soptions = {
     secureProtocol: SSL_Method,
     key: fixtures.readKey('agent2-key.pem'),
     cert: fixtures.readKey('agent2-cert.pem'),
-    ciphers: 'AES256-SHA256:AES128-GCM-SHA256:AES128-SHA256:' +
-             'ECDHE-RSA-AES128-GCM-SHA256',
+    ciphers: config.serverCiphers,
     honorCipherOrder: honorCipherOrder,
   };
 
@@ -57,34 +83,27 @@ function test(honorCipherOrder, clientCipher, expectedCipher, defaultCiphers) {
 }
 
 // Client explicitly has the preference of cipher suites, not the default.
-test(false, 'AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256',
-     'AES128-GCM-SHA256');
+test(false, config.clientPreferenceCiphers, config.clientPreferredCipher);
 
-// Server has the preference of cipher suites, and AES256-SHA256 is
-// the server's top choice.
-test(true, 'AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256',
-     'AES256-SHA256');
-test(undefined, 'AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256',
-     'AES256-SHA256');
+// Server has the preference of cipher suites.
+test(true, config.clientPreferenceCiphers, config.serverPreferredCipher);
+test(undefined, config.clientPreferenceCiphers, config.serverPreferredCipher);
 
-// Server has the preference of cipher suites. AES128-GCM-SHA256 is given
-// higher priority over AES128-SHA256 among client cipher suites.
-test(true, 'AES128-SHA256:AES128-GCM-SHA256', 'AES128-GCM-SHA256');
-test(undefined, 'AES128-SHA256:AES128-GCM-SHA256', 'AES128-GCM-SHA256');
-
+for (const args of config.extraCases) {
+  test(...args);
+}
 
 // As client has only one cipher, server has no choice, irrespective
 // of honorCipherOrder.
-test(true, 'AES128-SHA256', 'AES128-SHA256');
-test(undefined, 'AES128-SHA256', 'AES128-SHA256');
+test(true, config.singleCipher, config.singleCipher);
+test(undefined, config.singleCipher, config.singleCipher);
 
-// Client did not explicitly set ciphers and client offers
-// tls.DEFAULT_CIPHERS. All ciphers of the server are included in the
-// default list so the negotiated cipher is selected according to the
-// server's top preference of AES256-SHA256.
-test(true, tls.DEFAULT_CIPHERS, 'AES256-SHA256');
-test(true, null, 'AES256-SHA256');
-test(undefined, null, 'AES256-SHA256');
+// Client did not explicitly set ciphers and client offers tls.DEFAULT_CIPHERS.
+// All ciphers of the server are included in the default list so the negotiated
+// cipher is selected according to server preference.
+test(true, tls.DEFAULT_CIPHERS, config.defaultCipher);
+test(true, null, config.defaultCipher);
+test(undefined, null, config.defaultCipher);
 
 // Ensure that `tls.DEFAULT_CIPHERS` is used when its a limited cipher set.
-test(true, null, 'ECDHE-RSA-AES128-GCM-SHA256', 'ECDHE-RSA-AES128-GCM-SHA256');
+test(true, null, config.limitedDefaultCipher, config.limitedDefaultCipher);

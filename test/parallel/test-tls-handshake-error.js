@@ -20,7 +20,7 @@ const server = tls.createServer({
       port: this.address().port,
       ciphers: 'no-such-cipher'
     }, common.mustNotCall());
-  }, /no cipher match/i);
+  }, /no[_ ]cipher[_ ]match/i);
 
   server.close();
 }));
