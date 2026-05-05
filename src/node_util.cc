@@ -422,10 +422,10 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
       // V8 will have scheduled an error to be thrown.
       return;
     }
-    CHECK(key->IsString());
+    CHECK(key->IsName());
     if (target
             ->SetLazyDataProperty(context,
-                                  key.As<String>(),
+                                  key.As<Name>(),
                                   DefineLazyPropertiesGetter,
                                   id,
                                   attribute)

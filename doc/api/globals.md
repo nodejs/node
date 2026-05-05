@@ -1352,6 +1352,24 @@ changes:
 
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 
+## `[Symbol.for('startupSnapshot')]`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An object exposing the `addDeserializeCallback`, `addSerializeCallback`, and `isBuildingSnapshot`
+methods from [`v8.startupSnapshot`][] for usage in libraries that target both Node.js and other
+runtimes and cannot directly rely on the `v8` module.
+
+```js
+const {
+  addDeserializeCallback,
+  addSerializeCallback,
+  isBuildingSnapshot,
+} = globalThis[Symbol.for('startupSnapshot')];
+```
+
 [CommonJS module]: modules.md
 [CommonJS modules]: modules.md
 [ECMAScript module]: esm.md
@@ -1422,6 +1440,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`setInterval`]: timers.md#setintervalcallback-delay-args
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone
+[`v8.startupSnapshot`]: v8.md#startup-snapshot-api
 [`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager

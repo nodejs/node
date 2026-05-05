@@ -24,3 +24,11 @@ assert.throws(() => addDeserializeCallback(() => {}), {
 assert.throws(() => setDeserializeMainFunction(() => {}), {
   code: 'ERR_NOT_BUILDING_SNAPSHOT',
 });
+
+// globalThis[Symbol.for('startupSnapshot')] provides access to a subset
+// of functions.
+assert.deepStrictEqual(globalThis[Symbol.for('startupSnapshot')], {
+  addDeserializeCallback,
+  addSerializeCallback,
+  isBuildingSnapshot,
+});
