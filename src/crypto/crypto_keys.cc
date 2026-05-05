@@ -336,6 +336,85 @@ int GetNidFromName(const char* name) {
   }
   return NID_undef;
 }
+
+bool IsUnavailablePqcKeyType(Environment* env, Local<String> key_type) {
+  return key_type->StringEquals(env->crypto_ml_dsa_44_string()) ||
+         key_type->StringEquals(env->crypto_ml_dsa_65_string()) ||
+         key_type->StringEquals(env->crypto_ml_dsa_87_string()) ||
+         key_type->StringEquals(env->crypto_ml_kem_512_string()) ||
+         key_type->StringEquals(env->crypto_ml_kem_768_string()) ||
+         key_type->StringEquals(env->crypto_ml_kem_1024_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_128f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_128s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_192f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_192s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_256f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_sha2_256s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_128f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_128s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_192f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_192s_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_256f_string()) ||
+         key_type->StringEquals(env->crypto_slh_dsa_shake_256s_string());
+}
+
+bool IsUnsupportedRawKeyType(Environment* env, Local<String> key_type) {
+  return key_type->StringEquals(env->crypto_rsa_string()) ||
+         key_type->StringEquals(env->crypto_rsa_pss_string()) ||
+         key_type->StringEquals(env->crypto_dsa_string()) ||
+         key_type->StringEquals(env->crypto_dh_string());
+}
+
+void ValidateRawKeyImportFormat(Environment* env,
+                                Local<String> key_type,
+                                const char* key_type_name,
+                                int id,
+                                EVPKeyPointer::PKFormatType format) {
+  auto validate_raw_format =
+      [&](EVPKeyPointer::PKFormatType expected_private_format) {
+        if (format == EVPKeyPointer::PKFormatType::RAW_PUBLIC ||
+            format == expected_private_format) {
+          return;
+        }
+        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      };
+
+  if (key_type->StringEquals(env->crypto_ec_string())) {
+    return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+  }
+
+  switch (id) {
+    case EVP_PKEY_X25519:
+    case EVP_PKEY_X448:
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448:
+      return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+    default:
+      break;
+  }
+
+#if OPENSSL_WITH_PQC
+  if (IsPqcSeedKeyId(id)) {
+    return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_SEED);
+  }
+  if (IsPqcRawPrivateKeyId(id)) {
+    return validate_raw_format(EVPKeyPointer::PKFormatType::RAW_PRIVATE);
+  }
+#endif
+
+  if (IsUnavailablePqcKeyType(env, key_type)) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported key type");
+    return;
+  }
+
+  if (IsUnsupportedRawKeyType(env, key_type)) {
+    THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+    return;
+  }
+
+  THROW_ERR_INVALID_ARG_VALUE(
+      env, "Invalid asymmetricKeyType: %s", key_type_name);
+}
 }  // namespace
 
 bool KeyObjectData::ToEncodedPublicKey(
@@ -585,6 +664,12 @@ static KeyObjectData ImportRawKey(Environment* env,
     }
   };
 
+  const int id = GetNidFromName(key_type_name);
+  ValidateRawKeyImportFormat(env, key_type, key_type_name, id, format);
+  if (env->isolate()->HasPendingException()) {
+    return {};
+  }
+
   // EC keys
   if (key_type->StringEquals(env->crypto_ec_string())) {
     int curve_nid = ncrypto::Ec::GetCurveIdFromName(named_curve);
@@ -642,8 +727,6 @@ static KeyObjectData ImportRawKey(Environment* env,
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
   }
 
-  int id = GetNidFromName(key_type_name);
-
   typedef EVPKeyPointer (*new_key_fn)(
       int, const ncrypto::Buffer<const unsigned char>&);
   new_key_fn fn = nullptr;
@@ -698,40 +781,6 @@ static KeyObjectData ImportRawKey(Environment* env,
     return KeyObjectData::CreateAsymmetric(target_type, std::move(pkey));
   }
 
-  if (key_type->StringEquals(env->crypto_rsa_string()) ||
-      key_type->StringEquals(env->crypto_rsa_pss_string()) ||
-      key_type->StringEquals(env->crypto_dsa_string()) ||
-      key_type->StringEquals(env->crypto_dh_string())) {
-    THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-    return {};
-  }
-
-#if !OPENSSL_WITH_PQC
-  if (key_type->StringEquals(env->crypto_ml_dsa_44_string()) ||
-      key_type->StringEquals(env->crypto_ml_dsa_65_string()) ||
-      key_type->StringEquals(env->crypto_ml_dsa_87_string()) ||
-      key_type->StringEquals(env->crypto_ml_kem_512_string()) ||
-      key_type->StringEquals(env->crypto_ml_kem_768_string()) ||
-      key_type->StringEquals(env->crypto_ml_kem_1024_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_128f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_128s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_192f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_192s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_256f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_sha2_256s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_128f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_128s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_192f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_192s_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_256f_string()) ||
-      key_type->StringEquals(env->crypto_slh_dsa_shake_256s_string())) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported key type");
-    return {};
-  }
-#endif
-
-  THROW_ERR_INVALID_ARG_VALUE(
-      env, "Invalid asymmetricKeyType: %s", key_type_name);
   return {};
 }
 
