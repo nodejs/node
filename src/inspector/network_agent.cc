@@ -89,8 +89,7 @@ static std::unique_ptr<protocol::Value> V8ToProtocolValue(
       // `property_names` is a JSArray returned from GetOwnPropertyNames, so
       // indexed access always succeeds. User-defined getters can still throw
       // when reading the property value, which is what we guard against.
-      Local<Value> key =
-          property_names->Get(context, i).ToLocalChecked();
+      Local<Value> key = property_names->Get(context, i).ToLocalChecked();
       Local<Value> property;
       if (!GetProperty(context, object, key).ToLocal(&property)) {
         return nullptr;
