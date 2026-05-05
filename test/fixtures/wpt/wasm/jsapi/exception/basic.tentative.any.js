@@ -4,7 +4,7 @@
 function assert_throws_wasm(fn, message) {
   try {
     fn();
-    assert_not_reached(`expected to throw with ${message}`);
+    assert_unreached(`expected to throw with ${message}`);
   } catch (e) {
     assert_true(e instanceof WebAssembly.Exception, `Error should be a WebAssembly.Exception with ${message}`);
     // According to the spec discussion, the current `WebAssembly.Exception` does not have `[[ErrorData]]` semantically.
