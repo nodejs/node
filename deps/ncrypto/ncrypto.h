@@ -42,20 +42,67 @@
 
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
-#if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
+#if defined(OPENSSL_FIPS) && !OPENSSL_VERSION_PREREQ(3, 0)
 #include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
-// Define OPENSSL_WITH_PQC for post-quantum cryptography support
-#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_PREREQ(3, 0)
+#define OPENSSL_WITH_AES_OCB 1
+#else
+#define OPENSSL_WITH_AES_OCB 0
+#endif
+
+#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_PREREQ(3, 2)
+#define OPENSSL_WITH_ARGON2 1
+#else
+#define OPENSSL_WITH_ARGON2 0
+#endif
+
+#if OPENSSL_VERSION_PREREQ(3, 0)
+#define OPENSSL_WITH_KEM 1
+#else
+#define OPENSSL_WITH_KEM 0
+#endif
+
+#if OPENSSL_VERSION_PREREQ(3, 0)
+#define OPENSSL_WITH_KMAC 1
+#else
+#define OPENSSL_WITH_KMAC 0
+#endif
+
+#if OPENSSL_VERSION_PREREQ(3, 2)
+#define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 1
+#else
+#define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 0
+#endif
+
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 2)
+#define OPENSSL_WITH_OPENSSL_DHKEM 1
+#else
+#define OPENSSL_WITH_OPENSSL_DHKEM 0
+#endif
+
+#if OPENSSL_WITH_KEM && !OPENSSL_VERSION_PREREQ(3, 5)
+#define OPENSSL_WITH_KEM_OPERATION_PARAM 1
+#else
+#define OPENSSL_WITH_KEM_OPERATION_PARAM 0
+#endif
+
+// Define OPENSSL_WITH_PQC for post-quantum cryptography support.
+#if OPENSSL_VERSION_PREREQ(3, 5)
 #define OPENSSL_WITH_PQC 1
+#else
+#define OPENSSL_WITH_PQC 0
+#endif
+
+#if OPENSSL_WITH_PQC
 #define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
 #define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #include <openssl/core_names.h>
 #endif
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_PREREQ(3, 0)
 #define OSSL3_CONST const
 #else
 #define OSSL3_CONST
@@ -1492,7 +1539,7 @@ class HMACCtxPointer final {
   DeleteFnPtr<HMAC_CTX, HMAC_CTX_free> ctx_;
 };
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KMAC
 class EVPMacPointer final {
  public:
   EVPMacPointer() = default;
@@ -1540,7 +1587,7 @@ class EVPMacCtxPointer final {
  private:
   DeleteFnPtr<EVP_MAC_CTX, EVP_MAC_CTX_free> ctx_;
 };
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // OPENSSL_WITH_KMAC
 
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {
@@ -1653,8 +1700,7 @@ DataPointer pbkdf2(const Digest& md,
                    uint32_t iterations,
                    size_t length);
 
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L
-#ifndef OPENSSL_NO_ARGON2
+#if OPENSSL_WITH_ARGON2
 enum class Argon2Type { ARGON2D, ARGON2I, ARGON2ID };
 
 DataPointer argon2(const Buffer<const char>& pass,
@@ -1668,11 +1714,10 @@ DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& ad,
                    Argon2Type type);
 #endif
-#endif
 
 // ============================================================================
 // KEM (Key Encapsulation Mechanism)
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KEM
 
 class KEM final {
  public:
@@ -1696,13 +1741,13 @@ class KEM final {
                                  const Buffer<const void>& ciphertext);
 
  private:
-#if !OPENSSL_VERSION_PREREQ(3, 5)
+#if OPENSSL_WITH_KEM_OPERATION_PARAM
   static bool SetOperationParameter(EVP_PKEY_CTX* ctx,
                                     const EVPKeyPointer& key);
 #endif
 };
 
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // OPENSSL_WITH_KEM
 
 // ============================================================================
 // Version metadata

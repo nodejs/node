@@ -2,8 +2,7 @@
 #include "async_wrap-inl.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L
-#ifndef OPENSSL_NO_ARGON2
+#if OPENSSL_WITH_ARGON2
 #include <openssl/core_names.h>
 
 namespace node::crypto {
@@ -158,5 +157,4 @@ void Argon2::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node::crypto
 
-#endif
 #endif

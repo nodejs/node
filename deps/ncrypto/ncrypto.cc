@@ -20,7 +20,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+#if OPENSSL_WITH_ARGON2
 #include <openssl/thread.h>
 #endif
 #endif
@@ -1955,8 +1955,7 @@ DataPointer pbkdf2(const Digest& md,
   return {};
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x30200000L
-#ifndef OPENSSL_NO_ARGON2
+#if OPENSSL_WITH_ARGON2
 DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
                    uint32_t lanes,
@@ -2048,7 +2047,6 @@ DataPointer argon2(const Buffer<const char>& pass,
 
   return {};
 }
-#endif
 #endif
 
 // ============================================================================
@@ -4614,7 +4612,7 @@ HMACCtxPointer HMACCtxPointer::New() {
   return HMACCtxPointer(HMAC_CTX_new());
 }
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KMAC
 EVPMacPointer::EVPMacPointer(EVP_MAC* mac) : mac_(mac) {}
 
 EVPMacPointer::EVPMacPointer(EVPMacPointer&& other) noexcept
@@ -4702,7 +4700,7 @@ EVPMacCtxPointer EVPMacCtxPointer::New(EVP_MAC* mac) {
   if (!mac) return EVPMacCtxPointer();
   return EVPMacCtxPointer(EVP_MAC_CTX_new(mac));
 }
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // OPENSSL_WITH_KMAC
 
 DataPointer hashDigest(const Buffer<const unsigned char>& buf,
                        const EVP_MD* md) {
@@ -4849,8 +4847,8 @@ const Digest Digest::FromName(const char* name) {
 
 // ============================================================================
 // KEM Implementation
-#if OPENSSL_VERSION_MAJOR >= 3
-#if !OPENSSL_VERSION_PREREQ(3, 5)
+#if OPENSSL_WITH_KEM
+#if OPENSSL_WITH_KEM_OPERATION_PARAM
 bool KEM::SetOperationParameter(EVP_PKEY_CTX* ctx, const EVPKeyPointer& key) {
   const char* operation = nullptr;
 
@@ -4858,7 +4856,7 @@ bool KEM::SetOperationParameter(EVP_PKEY_CTX* ctx, const EVPKeyPointer& key) {
     case EVP_PKEY_RSA:
       operation = OSSL_KEM_PARAM_OPERATION_RSASVE;
       break;
-#if OPENSSL_VERSION_PREREQ(3, 2)
+#if OPENSSL_WITH_OPENSSL_DHKEM
     case EVP_PKEY_EC:
     case EVP_PKEY_X25519:
     case EVP_PKEY_X448:
@@ -4895,7 +4893,7 @@ std::optional<KEM::EncapsulateResult> KEM::Encapsulate(
     return std::nullopt;
   }
 
-#if !OPENSSL_VERSION_PREREQ(3, 5)
+#if OPENSSL_WITH_KEM_OPERATION_PARAM
   if (!SetOperationParameter(ctx.get(), public_key)) {
     return std::nullopt;
   }
@@ -4936,7 +4934,7 @@ DataPointer KEM::Decapsulate(const EVPKeyPointer& private_key,
     return {};
   }
 
-#if !OPENSSL_VERSION_PREREQ(3, 5)
+#if OPENSSL_WITH_KEM_OPERATION_PARAM
   if (!SetOperationParameter(ctx.get(), private_key)) {
     return {};
   }
@@ -4966,6 +4964,6 @@ DataPointer KEM::Decapsulate(const EVPKeyPointer& private_key,
   return shared_key;
 }
 
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+#endif  // OPENSSL_WITH_KEM
 
 }  // namespace ncrypto
