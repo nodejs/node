@@ -22,6 +22,24 @@
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
+
+#ifndef OPENSSL_VERSION_PREREQ
+#define OPENSSL_VERSION_PREREQ(maj, min)                                       \
+  (OPENSSL_VERSION_NUMBER >= (((maj) << 28) | ((min) << 20)))
+#endif
+
+// BoringSSL declares the EVP_*_do_all* APIs, but their implementation may
+// live in libdecrepit. This matches standalone ncrypto's build flag.
+#ifndef NCRYPTO_BSSL_LIBDECREPIT_MISSING
+#define NCRYPTO_BSSL_LIBDECREPIT_MISSING 0
+#endif
+
+#if defined(OPENSSL_IS_BORINGSSL) && NCRYPTO_BSSL_LIBDECREPIT_MISSING
+#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK 1
+#else
+#define NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK 0
+#endif
+
 // The FIPS-related functions are only available
 // when the OpenSSL itself was compiled with FIPS support.
 #if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
