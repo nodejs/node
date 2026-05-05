@@ -167,7 +167,7 @@ class PipelineHandler extends AsyncResource {
       if (this.onInfo) {
         const rawHeaders = controller?.rawHeaders
         const responseHeaders = this.responseHeaders === 'raw'
-          ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+          ? util.parseRawHeaders(rawHeaders)
           : headers
         this.onInfo({ statusCode, headers: responseHeaders })
       }
@@ -181,7 +181,7 @@ class PipelineHandler extends AsyncResource {
       this.handler = null
       const rawHeaders = controller?.rawHeaders
       const responseHeaders = this.responseHeaders === 'raw'
-        ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+        ? util.parseRawHeaders(rawHeaders)
         : headers
       body = this.runInAsyncScope(handler, null, {
         statusCode,

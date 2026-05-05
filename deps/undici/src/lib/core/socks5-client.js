@@ -7,6 +7,7 @@ const { debuglog } = require('node:util')
 const { parseAddress } = require('./socks5-utils')
 
 const debug = debuglog('undici:socks5')
+const EMPTY_BUFFER = Buffer.alloc(0)
 
 // SOCKS5 constants
 const SOCKS_VERSION = 0x05
@@ -51,6 +52,7 @@ const STATES = {
   INITIAL: 'initial',
   HANDSHAKING: 'handshaking',
   AUTHENTICATING: 'authenticating',
+  AUTHENTICATED: 'authenticated',
   CONNECTING: 'connecting',
   CONNECTED: 'connected',
   ERROR: 'error',
@@ -72,7 +74,10 @@ class Socks5Client extends EventEmitter {
     this.socket = socket
     this.options = options
     this.state = STATES.INITIAL
-    this.buffer = Buffer.alloc(0)
+    this.buffer = EMPTY_BUFFER
+    this.onSocketData = this.onData.bind(this)
+    this.onSocketError = this.onError.bind(this)
+    this.onSocketClose = this.onClose.bind(this)
 
     // Authentication settings
     this.authMethods = []
@@ -82,9 +87,9 @@ class Socks5Client extends EventEmitter {
     this.authMethods.push(AUTH_METHODS.NO_AUTH)
 
     // Socket event handlers
-    this.socket.on('data', this.onData.bind(this))
-    this.socket.on('error', this.onError.bind(this))
-    this.socket.on('close', this.onClose.bind(this))
+    this.socket.on('data', this.onSocketData)
+    this.socket.on('error', this.onSocketError)
+    this.socket.on('close', this.onSocketClose)
   }
 
   /**
@@ -139,6 +144,11 @@ class Socks5Client extends EventEmitter {
     }
   }
 
+  markAuthenticated () {
+    this.state = STATES.AUTHENTICATED
+    this.emit('authenticated')
+  }
+
   /**
    * Start the SOCKS5 handshake
    */
@@ -189,7 +199,7 @@ class Socks5Client extends EventEmitter {
     debug('server selected auth method', method)
 
     if (method === AUTH_METHODS.NO_AUTH) {
-      this.emit('authenticated')
+      this.markAuthenticated()
     } else if (method === AUTH_METHODS.USERNAME_PASSWORD) {
       this.state = STATES.AUTHENTICATING
       this.sendAuthRequest()
@@ -254,7 +264,7 @@ class Socks5Client extends EventEmitter {
 
     this.buffer = this.buffer.subarray(2)
     debug('authentication successful')
-    this.emit('authenticated')
+    this.markAuthenticated()
   }
 
   /**
@@ -263,8 +273,12 @@ class Socks5Client extends EventEmitter {
    * @param {number} port - Target port
    */
   connect (address, port) {
-    if (this.state === STATES.CONNECTED) {
-      throw new InvalidArgumentError('Already connected')
+    if (this.state === STATES.CONNECTING || this.state === STATES.CONNECTED) {
+      throw new InvalidArgumentError('Connection already in progress')
+    }
+
+    if (this.state !== STATES.AUTHENTICATED) {
+      throw new InvalidArgumentError('Client must be authenticated before CONNECT')
     }
 
     debug('connecting to', address, port)
@@ -363,8 +377,9 @@ class Socks5Client extends EventEmitter {
 
     const boundPort = this.buffer.readUInt16BE(offset)
 
-    this.buffer = this.buffer.subarray(responseLength)
+    this.buffer = EMPTY_BUFFER
     this.state = STATES.CONNECTED
+    this.socket.removeListener('data', this.onSocketData)
 
     debug('connected, bound address:', boundAddress, 'port:', boundPort)
     this.emit('connected', { address: boundAddress, port: boundPort })

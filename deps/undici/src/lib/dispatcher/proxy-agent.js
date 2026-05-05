@@ -126,6 +126,8 @@ class ProxyAgent extends DispatcherBase {
       this[kProxyHeaders]['proxy-authorization'] = opts.token
     } else if (username && password) {
       this[kProxyHeaders]['proxy-authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString('base64')}`
+    } else if (username) {
+      this[kProxyHeaders]['proxy-authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:`).toString('base64')}`
     }
 
     const connect = buildConnector({ timeout: connectTimeout, ...opts.proxyTls })

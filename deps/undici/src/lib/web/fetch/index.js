@@ -75,6 +75,35 @@ const defaultUserAgent = typeof __UNDICI_IS_NODE__ !== 'undefined' || typeof esb
 /** @type {import('buffer').resolveObjectURL} */
 let resolveObjectURL
 
+function appendHeadersListFromResponseHeaders (headersList, headers, rawHeaders) {
+  if (Array.isArray(rawHeaders)) {
+    for (let i = 0; i < rawHeaders.length; i += 2) {
+      const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
+      const value = rawHeaders[i + 1]
+
+      if (Array.isArray(value) && !Buffer.isBuffer(value)) {
+        for (const val of value) {
+          headersList.append(nameStr, val.toString('latin1'), true)
+        }
+      } else {
+        headersList.append(nameStr, value.toString('latin1'), true)
+      }
+    }
+
+    return
+  }
+
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        headersList.append(name, `${entry}`, true)
+      }
+    } else {
+      headersList.append(name, `${value}`, true)
+    }
+  }
+}
+
 class Fetch extends EE {
   constructor (dispatcher) {
     super()
@@ -1025,7 +1054,7 @@ function fetchFinale (fetchParams, response) {
       let responseStatus = 0
 
       // 7. If fetchParams’s request’s mode is not "navigate" or response’s has-cross-origin-redirects is false:
-      if (fetchParams.request.mode !== 'navigator' || !response.hasCrossOriginRedirects) {
+      if (fetchParams.request.mode !== 'navigate' || !response.hasCrossOriginRedirects) {
         // 1. Set responseStatus to response’s status.
         responseStatus = response.status
 
@@ -1428,7 +1457,10 @@ async function httpNetworkOrCacheFetch (
   //    8. If contentLengthHeaderValue is non-null, then append
   //    `Content-Length`/contentLengthHeaderValue to httpRequest’s header
   //    list.
-  if (contentLengthHeaderValue != null) {
+  if (
+    contentLengthHeaderValue != null &&
+    !httpRequest.headersList.contains('content-length', true)
+  ) {
     httpRequest.headersList.append('content-length', contentLengthHeaderValue, true)
   }
 
@@ -2193,25 +2225,14 @@ async function httpNetworkFetch (
             timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
           },
 
-          onResponseStart (controller, status, _headers, statusText) {
+          onResponseStart (controller, status, headers, statusText) {
             if (status < 200) {
               return
             }
 
             const rawHeaders = controller?.rawHeaders ?? []
             const headersList = new HeadersList()
-
-            for (let i = 0; i < rawHeaders.length; i += 2) {
-              const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
-              const value = rawHeaders[i + 1]
-              if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
-                for (const val of value) {
-                  headersList.append(nameStr, val.toString('latin1'), true)
-                }
-              } else {
-                headersList.append(nameStr, value.toString('latin1'), true)
-              }
-            }
+            appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
             const location = headersList.get('location', true)
 
             this.body = new Readable({ read: () => controller.resume() })
@@ -2346,7 +2367,7 @@ async function httpNetworkFetch (
             reject(error)
           },
 
-          onRequestUpgrade (controller, status, _headers, socket) {
+          onRequestUpgrade (controller, status, headers, socket) {
             // We need to support 200 for websocket over h2 as per RFC-8441
             // Absence of session means H1
             if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
@@ -2355,18 +2376,7 @@ async function httpNetworkFetch (
 
             const rawHeaders = controller?.rawHeaders ?? []
             const headersList = new HeadersList()
-
-            for (let i = 0; i < rawHeaders.length; i += 2) {
-              const nameStr = bufferToLowerCasedHeaderName(rawHeaders[i])
-              const value = rawHeaders[i + 1]
-              if (Array.isArray(value) && !Buffer.isBuffer(rawHeaders[i + 1])) {
-                for (const val of value) {
-                  headersList.append(nameStr, val.toString('latin1'), true)
-                }
-              } else {
-                headersList.append(nameStr, value.toString('latin1'), true)
-              }
-            }
+            appendHeadersListFromResponseHeaders(headersList, headers, rawHeaders)
 
             resolve({
               status,

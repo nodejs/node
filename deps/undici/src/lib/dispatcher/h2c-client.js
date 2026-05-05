@@ -17,15 +17,15 @@ class H2CClient extends Client {
 
     const { maxConcurrentStreams, pipelining, ...opts } =
             clientOpts ?? {}
-    let defaultMaxConcurrentStreams = 100
+    const defaultMaxConcurrentStreams = maxConcurrentStreams ?? 100
     let defaultPipelining = 100
 
     if (
       maxConcurrentStreams != null &&
-            Number.isInteger(maxConcurrentStreams) &&
-            maxConcurrentStreams > 0
+            (!Number.isInteger(maxConcurrentStreams) ||
+            maxConcurrentStreams < 1)
     ) {
-      defaultMaxConcurrentStreams = maxConcurrentStreams
+      throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
     if (pipelining != null && Number.isInteger(pipelining) && pipelining > 0) {
