@@ -1,6 +1,6 @@
 #include "crypto/crypto_kem.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KEM
 
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
