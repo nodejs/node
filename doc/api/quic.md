@@ -2862,6 +2862,159 @@ added: REPLACEME
 Called when informational (1xx) headers are received from the server
 (e.g., 103 Early Hints).
 
+## HTTP/3 support
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When the negotiated ALPN identifier is `'h3'` (or one of the `'h3-*'`
+draft variants), the QUIC session runs the HTTP/3 application backed
+by `nghttp3`. `'h3'` is the default ALPN for `quic.connect()` and
+`quic.listen()`, so HTTP/3 is what you get unless you select a
+different ALPN explicitly.
+
+Selecting the HTTP/3 application enables a number of stream- and
+session-level capabilities that are not available to non-HTTP/3
+applications:
+
+* **Headers and trailers** — request and response header blocks
+  (including pseudo-headers such as `:method`, `:path`, `:scheme`,
+  `:authority`, and `:status`), trailing headers, and informational
+  (`1xx`) responses. See [`stream.sendHeaders()`][],
+  [`stream.sendTrailers()`][], and
+  [`stream.sendInformationalHeaders()`][].
+* **Stream priority (RFC 9218)** — per-stream urgency and
+  incremental flags. See [`stream.priority`][] and
+  [`stream.setPriority()`][].
+* **HTTP/3 datagrams (RFC 9297)** — unreliable application-layer
+  datagrams. The peer must advertise `SETTINGS_H3_DATAGRAM=1`, which
+  is enabled by setting [`application.enableDatagrams`][] to `true`
+  on both peers. See [`session.sendDatagram()`][] and
+  [`session.ondatagram`][].
+* **ORIGIN frame (RFC 9412)** — servers automatically advertise the
+  hostnames in their [`sessionOptions.sni`][] map (entries with
+  `authoritative: true`); clients receive the list via
+  [`session.onorigin`][].
+* **GOAWAY** — graceful shutdown. The server emits `GOAWAY` as part
+  of [`session.close()`][]; the client observes it via
+  [`session.ongoaway`][] and stops opening new bidirectional streams.
+* **Extended CONNECT settings (RFC 9220)** — the
+  `SETTINGS_ENABLE_CONNECT_PROTOCOL` setting can be enabled via
+  [`application.enableConnectProtocol`][]. The setting is exchanged
+  but the application is responsible for handling the `:protocol`
+  pseudo-header and any payload framing on top.
+* **QPACK tuning** — dynamic-table size and blocked-streams limits
+  via [`application.qpackMaxDTableCapacity`][] and friends.
+
+### Minimal HTTP/3 client
+
+```mjs
+import { connect } from 'node:quic';
+import process from 'node:process';
+
+const session = await connect('example.com:443', {
+  // ALPN defaults to 'h3'.
+  servername: 'example.com',
+});
+await session.opened;
+
+const stream = await session.createBidirectionalStream({
+  headers: {
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'example.com',
+  },
+  onheaders(headers) {
+    console.log('status:', headers[':status']);
+  },
+});
+
+const decoder = new TextDecoder();
+for await (const chunk of stream) {
+  process.stdout.write(decoder.decode(chunk, { stream: true }));
+}
+
+await session.close();
+```
+
+A few things to note:
+
+* `session.createBidirectionalStream({ headers })` automatically
+  marks the HEADERS frame as terminal when no `body` is provided —
+  the request is `HEADERS` followed by `END_STREAM`.
+* The `onheaders` callback receives the response pseudo-headers and
+  regular headers in a single object with lowercase string keys.
+  After the callback returns, the same object is also accessible
+  via [`stream.headers`][].
+* Reading `for await (const chunk of stream)` consumes the response
+  body as `Uint8Array` chunks.
+* HTTP semantic helpers (URL parsing, method/status validation,
+  redirects, content negotiation, and so on) are intentionally not
+  built in. The caller is responsible for any HTTP-level handling
+  beyond the wire framing.
+
+### Minimal HTTP/3 server
+
+```mjs
+import { listen } from 'node:quic';
+
+const encoder = new TextEncoder();
+
+const endpoint = await listen((session) => {
+  // The session.onstream callback fires for each new client-initiated stream.
+}, {
+  sni: { '*': { keys: [defaultKey], certs: [defaultCert] } },
+  // ALPN defaults to 'h3'.
+  onheaders(headers) {
+    // `this` is the QuicStream. Pseudo-headers are available on the
+    // request header block (`:method`, `:path`, `:scheme`,
+    // `:authority`).
+    if (headers[':path'] === '/health') {
+      this.sendHeaders({ ':status': '200', 'content-type': 'text/plain' });
+      const w = this.writer;
+      w.writeSync(encoder.encode('ok\n'));
+      w.endSync();
+    } else {
+      this.sendHeaders({ ':status': '404' }, { terminal: true });
+    }
+  },
+});
+
+console.log('listening on', endpoint.address);
+```
+
+Server-side notes:
+
+* Setting `onheaders` at the [`listen()`][`quic.listen()`] level
+  applies it to every incoming stream (it is wired up before
+  `onstream` fires). Setting it inside `onstream` is too late for
+  HTTP/3, where the request HEADERS frame is the first thing that
+  arrives on the stream.
+* `this.sendHeaders(headers, { terminal: true })` marks the
+  response HEADERS frame as terminal (no body follows).
+* For body responses, send headers first, then write to
+  `this.writer` and call `endSync()` to send the body and close the
+  stream cleanly.
+
+### What is not implemented
+
+* **Server push** — `PUSH_PROMISE` and the related push-stream
+  machinery are not implemented and are not on the near-term
+  roadmap. Server push has limited deployment in practice, and most
+  use cases are better served by Early Hints (`103`) or by direct
+  fetches from the client.
+* **WebTransport / extended-CONNECT helpers** — the
+  `SETTINGS_ENABLE_CONNECT_PROTOCOL` setting can be negotiated but
+  there is no built-in support for the `:protocol` pseudo-header,
+  WebTransport datagram demultiplexing, or capsule framing.
+* **Higher-level HTTP semantics** — there is no built-in
+  request/response router, URL parsing, content-encoding
+  negotiation, body-type coercion, redirect following, or
+  cookie handling. These are deliberately left to higher-level
+  libraries built on top of `node:quic`.
+
 ## Performance measurement
 
 <!-- YAML
@@ -3343,6 +3496,9 @@ throughput issues caused by flow control.
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
 [`QuicError`]: #class-quicerror
+[`application.enableConnectProtocol`]: #sessionoptionsapplication
+[`application.enableDatagrams`]: #sessionoptionsapplication
+[`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
 [`error.errorCode`]: #errorerrorcode
@@ -3352,18 +3508,26 @@ throughput issues caused by flow control.
 [`session.close()`]: #sessioncloseoptions
 [`session.destroy()`]: #sessiondestroyerror-options
 [`session.maxPendingDatagrams`]: #sessionmaxpendingdatagrams
+[`session.ondatagram`]: #sessionondatagram
 [`session.onerror`]: #sessiononerror
+[`session.ongoaway`]: #sessionongoaway
 [`session.onkeylog`]: #sessiononkeylog
 [`session.onnewtoken`]: #sessiononnewtoken
+[`session.onorigin`]: #sessiononorigin
 [`session.onqlog`]: #sessiononqlog
+[`session.sendDatagram()`]: #sessionsenddatagramdatagram-encoding
 [`sessionOptions.datagramDropPolicy`]: #sessionoptionsdatagramdroppolicy
 [`sessionOptions.keylog`]: #sessionoptionskeylog
 [`sessionOptions.qlog`]: #sessionoptionsqlog
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
 [`stream.destroy()`]: #streamdestroyerror-options
+[`stream.headers`]: #streamheaders
 [`stream.onerror`]: #streamonerror
 [`stream.onwanttrailers`]: #streamonwanttrailers
 [`stream.pendingTrailers`]: #streampendingtrailers
+[`stream.priority`]: #streampriority
+[`stream.sendHeaders()`]: #streamsendheadersheaders-options
+[`stream.sendInformationalHeaders()`]: #streamsendinformationalheadersheaders
 [`stream.sendTrailers()`]: #streamsendtrailersheaders
 [`stream.setBody()`]: #streamsetbodybody
 [`stream.setPriority()`]: #streamsetpriorityoptions
