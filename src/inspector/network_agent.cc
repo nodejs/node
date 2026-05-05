@@ -86,10 +86,13 @@ static std::unique_ptr<protocol::Value> V8ToProtocolValue(
     std::unique_ptr<protocol::DictionaryValue> dict =
         protocol::DictionaryValue::create();
     for (uint32_t i = 0; i < property_names->Length(); i++) {
-      Local<Value> key;
+      // `property_names` is a JSArray returned from GetOwnPropertyNames, so
+      // indexed access always succeeds. User-defined getters can still throw
+      // when reading the property value, which is what we guard against.
+      Local<Value> key =
+          property_names->Get(context, i).ToLocalChecked();
       Local<Value> property;
-      if (!property_names->Get(context, i).ToLocal(&key) ||
-          !GetProperty(context, object, key).ToLocal(&property)) {
+      if (!GetProperty(context, object, key).ToLocal(&property)) {
         return nullptr;
       }
       std::unique_ptr<protocol::Value> protocol_value =
