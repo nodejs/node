@@ -10,8 +10,7 @@
 
 namespace node::crypto {
 
-// KMAC (Keccak Message Authentication Code) is available since OpenSSL 3.0.
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KMAC
 
 enum class KmacVariant { KMAC128, KMAC256 };
 
@@ -72,7 +71,7 @@ namespace Kmac {
 void Initialize(Environment* env, v8::Local<v8::Object> target) {}
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {}
 }  // namespace Kmac
-#endif
+#endif  // OPENSSL_WITH_KMAC
 
 }  // namespace node::crypto
 

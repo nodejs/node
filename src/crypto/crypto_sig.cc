@@ -237,9 +237,8 @@ bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
 }
 
 bool SupportsContextString(const EVPKeyPointer& key) {
-#if OPENSSL_VERSION_NUMBER < 0x3020000fL
-  return false;
-#else
+  if (!OPENSSL_WITH_SIGNATURE_CONTEXT_STRING) return false;
+
   switch (key.id()) {
     case EVP_PKEY_ED25519:
     case EVP_PKEY_ED448:
@@ -264,7 +263,6 @@ bool SupportsContextString(const EVPKeyPointer& key) {
     default:
       return false;
   }
-#endif
 }
 }  // namespace
 
