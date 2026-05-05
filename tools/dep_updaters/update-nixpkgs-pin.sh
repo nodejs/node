@@ -29,16 +29,16 @@ mv "$TMP_FILE" "$NIXPKGS_PIN_FILE"
 nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
   let
     pkgs = import <nixpkgs> {};
+    opensslAttrs = builtins.filter
+      (n: builtins.match \"openssl_[0-9]+(_[0-9]+)?\" n != null)
+      (builtins.attrNames pkgs);
+    extraMatrixAttrs = [ \"boringssl\" ];
     attrs = builtins.filter
       (n:
         let t = builtins.tryEval pkgs.\${n}; in
         t.success && (builtins.tryEval t.value.version).success
       )
-      (
-        builtins.filter
-          (n: builtins.match \"openssl_[0-9]+(_[0-9]+)?\" n != null)
-          (builtins.attrNames pkgs)
-      );
+      (opensslAttrs ++ extraMatrixAttrs);
   in
   {
     inherit attrs;
@@ -54,7 +54,7 @@ nix-instantiate -I "nixpkgs=$NIXPKGS_PIN_FILE" --eval --strict --json -E "
 
 {
   inherit (pkgs)
-    \(.attrs | join("\n    "))
+    \(.attrs | sort | join("\n    "))
     ;
 }"' > "$OPENSSL_MATRIX_FILE"
 
