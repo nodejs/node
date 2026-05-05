@@ -63,6 +63,16 @@ class Session::Application : public MemoryRetainer {
   // and is not necessarily 0.
   virtual error_code GetNoErrorCode() const = 0;
 
+  // The "internal error code" is the application-level error code used
+  // to signal a non-specific failure when no more specific code has
+  // been provided by the caller. For example, `writer.fail(reason)` on
+  // the JS side uses this code when `reason` is not a `QuicError`
+  // carrying an explicit code. For HTTP/3 this is
+  // `NGHTTP3_H3_INTERNAL_ERROR` (0x102); for raw QUIC applications
+  // there is no defined application code so we fall back to
+  // NGTCP2_INTERNAL_ERROR (0x1).
+  virtual error_code GetInternalErrorCode() const = 0;
+
   // Called after Session::Receive processes a packet, outside all callback
   // scopes. Applications can use this to handle deferred operations that
   // require calling into JS (e.g., HTTP/3 GOAWAY processing).

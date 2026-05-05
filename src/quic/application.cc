@@ -611,6 +611,13 @@ class DefaultApplication final : public Session::Application {
 
   error_code GetNoErrorCode() const override { return 0; }
 
+  // Raw QUIC has no application-defined "general failure" code, so
+  // fall back to the QUIC transport-level INTERNAL_ERROR (0x1) used
+  // by ngtcp2 for unspecified failures.
+  error_code GetInternalErrorCode() const override {
+    return NGTCP2_INTERNAL_ERROR;
+  }
+
   void EarlyDataRejected() override {
     // Destroy all open streams — ngtcp2 has already discarded their
     // internal state when it rejected the early data.

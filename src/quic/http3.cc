@@ -163,6 +163,14 @@ class Http3ApplicationImpl final : public Session::Application {
 
   error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
 
+  // HTTP/3 defines H3_INTERNAL_ERROR (0x102) for non-specific failures
+  // initiated by the implementation; this is the right code to send
+  // on RESET_STREAM when a stream is being aborted without an
+  // application-supplied code.
+  error_code GetInternalErrorCode() const override {
+    return NGHTTP3_H3_INTERNAL_ERROR;
+  }
+
   void EarlyDataRejected() override {
     // When 0-RTT is rejected, destroy the nghttp3 connection and all
     // open streams — ngtcp2 has discarded their internal state.

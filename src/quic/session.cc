@@ -134,6 +134,8 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(HEADERS_SUPPORTED, headers_supported, uint8_t)                             \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(APPLICATION_TYPE, application_type, uint8_t)                               \
+  V(NO_ERROR_CODE, no_error_code, error_code)                                  \
+  V(INTERNAL_ERROR_CODE, internal_error_code, error_code)                      \
   V(MAX_DATAGRAM_SIZE, max_datagram_size, uint16_t)                            \
   V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)                           \
   V(MAX_PENDING_DATAGRAMS, max_pending_datagrams, uint16_t)
@@ -1996,6 +1998,12 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
   impl_->state_->headers_supported = static_cast<uint8_t>(
       app->SupportsHeaders() ? HeadersSupportState::SUPPORTED
                              : HeadersSupportState::UNSUPPORTED);
+  // Surface the application's "no error" and "internal error" codes via
+  // session state so that JS-side code (e.g. the stream writer's fail()
+  // path) can resolve the right wire code for the negotiated ALPN
+  // without duplicating the per-application table.
+  impl_->state_->no_error_code = app->GetNoErrorCode();
+  impl_->state_->internal_error_code = app->GetInternalErrorCode();
   impl_->application_ = std::move(app);
 }
 

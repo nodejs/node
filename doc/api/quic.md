@@ -1114,6 +1114,103 @@ added: v23.8.0
 
 * Type: {bigint}
 
+## Class: `QuicError`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A `QuicError` is an `Error` subclass that carries an explicit numeric
+QUIC error code. Use it to abort a QUIC stream or session with a
+specific application-protocol-defined error code rather than letting
+the implementation pick a generic fallback.
+
+The class is exported from `node:quic`:
+
+```mjs
+import { QuicError } from 'node:quic';
+```
+
+```cjs
+const { QuicError } = require('node:quic');
+```
+
+When a `QuicError` is supplied to APIs that emit a wire frame
+(currently [`writer.fail()`][]), the QUIC stack uses
+[`error.errorCode`][] as the wire code for the resulting frame.
+When any other value is supplied (for example a plain `Error`), the
+implementation falls back to the negotiated application protocol's
+"internal error" code (`H3_INTERNAL_ERROR` (`0x102`) for HTTP/3, or
+the QUIC transport-layer `INTERNAL_ERROR` (`0x1`) for raw QUIC).
+
+The Node.js error code (`error.code`) defaults to
+`'ERR_QUIC_STREAM_ABORTED'`. Callers who need a more specific code
+string can override it via `options.code` — the numeric QUIC code
+is unaffected.
+
+The Node.js error code is fixed at `'ERR_QUIC_STREAM_ABORTED'` so that
+catch blocks can distinguish a `QuicError` from other Node.js errors
+without checking the prototype chain. The numeric QUIC code lives on
+the separate [`error.errorCode`][] property to avoid colliding with
+the Node.js convention that `error.code` is a string.
+
+### `new QuicError(message, options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `message` {string} A human-readable description of the error.
+* `options` {Object}
+  * `errorCode` {bigint | number} The numeric QUIC error code. Numbers
+    are coerced to `BigInt`. Must be a non-negative 62-bit unsigned
+    varint (`0n <= errorCode <= 2n ** 62n - 1n`).
+  * `code` {string} The Node.js-style error code string assigned to
+    `error.code`. Defaults to `'ERR_QUIC_STREAM_ABORTED'`.
+  * `type` {string} Either `'application'` (default) or `'transport'`.
+    Indicates whether the code is defined by the negotiated
+    application protocol (e.g. RFC 9114 for HTTP/3) or by the QUIC
+    transport layer (RFC 9000). Stream resets always carry application
+    codes, so the default is `'application'`.
+
+```mjs
+import { QuicError } from 'node:quic';
+
+const err = new QuicError('rejecting stream', { errorCode: 0x10cn });
+console.log(err.code);       // 'ERR_QUIC_STREAM_ABORTED'
+console.log(err.errorCode);  // 268n
+console.log(err.type);       // 'application'
+
+const custom = new QuicError('custom failure', {
+  errorCode: 0x10cn,
+  code: 'ERR_MY_QUIC_FAILURE',
+});
+console.log(custom.code);    // 'ERR_MY_QUIC_FAILURE'
+```
+
+### `error.errorCode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint}
+
+The numeric QUIC error code carried by this error.
+
+### `error.type`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+Either `'application'` or `'transport'`. Indicates the namespace of
+[`error.errorCode`][].
+
 ## Class: `QuicStream`
 
 <!-- YAML
@@ -1467,6 +1564,11 @@ The Writer has the following methods:
 * `endSync()` — Synchronous close. Returns total bytes or `-1`.
 * `end([options])` — Async close.
 * `fail(reason)` — Errors the stream (sends RESET\_STREAM to peer).
+  When `reason` is a [`QuicError`][], its [`error.errorCode`][] is used
+  as the wire code on the resulting RESET\_STREAM frame; otherwise
+  the wire code falls back to the negotiated application protocol's
+  "internal error" code (`H3_INTERNAL_ERROR` (`0x102`) for HTTP/3, or
+  the QUIC transport-layer `INTERNAL_ERROR` (`0x1`) for raw QUIC).
 * `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
 
 ### `stream.setBody(body)`
@@ -3155,8 +3257,10 @@ throughput issues caused by flow control.
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
+[`QuicError`]: #class-quicerror
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
+[`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
 [`quic.connect()`]: #quicconnectaddress-options
 [`quic.listen()`]: #quiclistencallback-options
@@ -3176,5 +3280,6 @@ throughput issues caused by flow control.
 [`stream.setBody()`]: #streamsetbodybody
 [`stream.setPriority()`]: #streamsetpriorityoptions
 [`stream.writer`]: #streamwriter
+[`writer.fail()`]: #streamwriter
 [qlog]: https://datatracker.ietf.org/doc/draft-ietf-quic-qlog-main-schema/
 [qvis]: https://qvis.quictools.info/

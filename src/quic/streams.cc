@@ -1122,7 +1122,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
 void Stream::NotifyReadableEnded(error_code code) {
   CHECK(!is_pending());
   Session::SendPendingDataScope send_scope(&session());
-  ngtcp2_conn_shutdown_stream_read(session(), 0, id(), code);
+  CHECK_EQ(ngtcp2_conn_shutdown_stream_read(session(), 0, id(), code), 0);
 }
 
 void Stream::NotifyWritableEnded(error_code code) {
@@ -1511,9 +1511,16 @@ void Stream::ReceiveData(const uint8_t* data,
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
-  // Note that this comes from *this* endpoint, not the other side. We handle it
-  // if we haven't already shutdown our *receiving* side of the stream.
-  if (state_->read_ended) return;
+  // STOP_SENDING from the peer asks us to stop sending. Per RFC 9000
+  // §3.5 the receiver SHOULD respond with RESET_STREAM, which is what
+  // ngtcp2_conn_shutdown_stream_write below schedules. If our
+  // writable side has already been shut down (e.g. we already sent
+  // RESET_STREAM ourselves or finished sending with FIN) there is
+  // nothing more to do here. The previous guard checked
+  // `state_->read_ended` which is unrelated to the writable side and
+  // suppressed STOP_SENDING handling whenever a sibling RESET_STREAM
+  // frame had been processed first within the same packet.
+  if (state_->write_ended) return;
   Debug(this, "Received stop sending with error %s", error);
   ngtcp2_conn_shutdown_stream_write(session(), 0, id(), error.code());
   EndWritable();
