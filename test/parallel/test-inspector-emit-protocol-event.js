@@ -194,6 +194,53 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
     }
   }
 
+  // Verify a user-supplied initiator (with stack) is preserved end-to-end.
+  // Covers the success body of `if (ObjectGetObject(... "stack"))` in
+  // NetworkAgent::createInitiatorFromObject (network_agent.cc L159).
+  session.removeAllListeners('Network.requestWillBeSent');
+  const userInitiator = {
+    type: 'script',
+    stack: { callFrames: [] },
+    url: 'https://nodejs.org/test.js',
+    lineNumber: 12,
+    columnNumber: 34,
+  };
+  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
+    assert.strictEqual(params.requestId, 'request-with-user-initiator');
+    assert.deepStrictEqual(params.initiator, userInitiator);
+  }));
+  inspector.Network.requestWillBeSent({
+    requestId: 'request-with-user-initiator',
+    request: {
+      url: 'https://nodejs.org/en',
+      method: 'GET',
+      headers: {},
+    },
+    timestamp: 1000,
+    wallTime: 1000,
+    initiator: userInitiator,
+  });
+
+  // Verify a duplicate requestId is silently ignored. Covers the early
+  // return when `requests_.contains(request_id)` (network_agent.cc L610).
+  session.removeAllListeners('Network.requestWillBeSent');
+  const duplicateId = 'duplicate-request-id';
+  const duplicateParams = {
+    requestId: duplicateId,
+    request: {
+      url: 'https://nodejs.org/en',
+      method: 'GET',
+      headers: {},
+    },
+    timestamp: 1000,
+    wallTime: 1000,
+  };
+  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
+    assert.strictEqual(params.requestId, duplicateId);
+  }, 1));
+  inspector.Network.requestWillBeSent(duplicateParams);
+  inspector.Network.requestWillBeSent(duplicateParams);
+
   // Check tht no events are emitted after disabling the domain.
   await session.post('Network.disable');
   session.on('Network.requestWillBeSent', common.mustNotCall());
