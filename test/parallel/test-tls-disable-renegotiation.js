@@ -8,6 +8,11 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testRenegotiationUnsupported();
+  return;
+}
+
 const tls = require('tls');
 
 // Renegotiation as a protocol feature was dropped after TLS1.2.

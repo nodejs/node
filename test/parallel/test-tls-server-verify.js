@@ -47,7 +47,7 @@ const { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } =
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const testCases =
+let testCases =
   [{ title: 'Do not request certs. Everyone is unauthorized.',
      requestCert: false,
      rejectUnauthorized: false,
@@ -124,6 +124,15 @@ const testCases =
        { name: 'nocert', shouldReject: true },
      ] },
   ];
+
+if (process.features.openssl_is_boringssl) {
+  // Remove the delayed client-certificate verification case. It depends on TLS
+  // renegotiation to request a client certificate after the initial handshake,
+  // but BoringSSL does not support caller-initiated renegotiation.
+  common.printSkipMessage(
+    'BoringSSL: skipping renegotiated client certificate verification case');
+  testCases = testCases.filter((tcase) => !tcase.renegotiate);
+}
 
 function filenamePEM(n) {
   return fixtures.path('keys', `${n}.pem`);

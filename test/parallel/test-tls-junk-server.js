@@ -24,7 +24,7 @@ server.listen(0, common.mustCall(function() {
   // Different OpenSSL versions report different errors for junk data on a
   // TLS connection, depending on which record validation check fires first.
   const expectedErrorMessage =
-    /wrong version number|packet length too long|bad record type/;
+    /wrong[ _]version[ _]number|packet length too long|bad record type/i;
   req.once('error', common.mustCall(function(err) {
     assert.match(err.message, expectedErrorMessage);
     server.close();

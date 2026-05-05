@@ -22,7 +22,7 @@ const server = tls.createServer({})
               'Instance of Error should be passed to error handler');
     assert.match(
       e.message,
-      /SSL routines:[^:]*:wrong version number/,
+      /SSL routines:[^:]*:wrong[ _]version[ _]number/i,
     );
 
     server.close();
