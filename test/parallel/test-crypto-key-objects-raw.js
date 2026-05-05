@@ -59,6 +59,47 @@ const { hasOpenSSL } = require('../common/crypto');
   }
 }
 
+// Raw public keys cannot be imported as private keys.
+{
+  const rawPublicKeys = [
+    ['ec', 'ec_p256_public.pem', { namedCurve: 'P-256' }],
+    ['ed25519', 'ed25519_public.pem'],
+    ['x25519', 'x25519_public.pem'],
+  ];
+
+  if (!process.features.openssl_is_boringssl) {
+    rawPublicKeys.push(
+      ['ed448', 'ed448_public.pem'],
+      ['x448', 'x448_public.pem'],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
+  }
+
+  if (hasOpenSSL(3, 5)) {
+    rawPublicKeys.push(
+      ['ml-dsa-44', 'ml_dsa_44_public.pem'],
+      ['ml-kem-768', 'ml_kem_768_public.pem'],
+    );
+  }
+
+  if (hasOpenSSL(3, 5)) {
+    rawPublicKeys.push(
+      ['slh-dsa-sha2-128f', 'slh_dsa_sha2_128f_public.pem'],
+    );
+  }
+
+  for (const [asymmetricKeyType, fixture, options = {}] of rawPublicKeys) {
+    const publicKey = crypto.createPublicKey(fixtures.readKey(fixture, 'ascii'));
+    assert.throws(() => crypto.createPrivateKey({
+      key: publicKey.export({ format: 'raw-public' }),
+      format: 'raw-public',
+      asymmetricKeyType,
+      ...options,
+    }), { code: 'ERR_INVALID_ARG_VALUE' });
+  }
+}
+
 // Raw seed imports do not support strings.
 if (hasOpenSSL(3, 5)) {
   const privKeyObj = crypto.createPrivateKey(
@@ -116,7 +157,11 @@ if (hasOpenSSL(3, 5)) {
     for (const format of ['raw-public', 'raw-private', 'raw-seed']) {
       assert.throws(() => crypto.createPrivateKey({
         key: Buffer.alloc(32), format, asymmetricKeyType: 'dh',
-      }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+      }), {
+        code: format === 'raw-public' ?
+          'ERR_INVALID_ARG_VALUE' :
+          'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS',
+      });
     }
   } else {
     common.printSkipMessage('Skipping unsupported dh test case');

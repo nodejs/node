@@ -7,6 +7,10 @@
 #include "threadpoolwork-inl.h"
 #include "v8.h"
 
+#if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
+#include <openssl/digest.h>
+#endif
+
 #include <cstdio>
 
 namespace node {
@@ -40,6 +44,24 @@ void Hash::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("mdctx", mdctx_ ? kSizeOf_EVP_MD_CTX : 0);
   tracker->TrackFieldWithSize("md", digest_ ? md_len_ : 0);
 }
+
+#if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
+struct BoringSSLDigest {
+  const EVP_MD* (*get)();
+  const char* name;
+};
+
+constexpr BoringSSLDigest kBoringSSLDigests[] = {
+    {EVP_md4, "md4"},
+    {EVP_md5, "md5"},
+    {EVP_sha1, "sha1"},
+    {EVP_sha224, "sha224"},
+    {EVP_sha256, "sha256"},
+    {EVP_sha384, "sha384"},
+    {EVP_sha512, "sha512"},
+    {EVP_sha512_256, "sha512-256"},
+};
+#endif
 
 #if OPENSSL_VERSION_MAJOR >= 3
 void PushAliases(const char* name, void* data) {
@@ -122,7 +144,12 @@ void SaveSupportedHashAlgorithms(const EVP_MD* md,
 const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
   if (env->supported_hash_algorithms.empty()) {
     MarkPopErrorOnReturn mark_pop_error_on_return;
-#if OPENSSL_VERSION_MAJOR >= 3
+#if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
+    for (const auto& digest : kBoringSSLDigests) {
+      static_cast<void>(digest.get);
+      env->supported_hash_algorithms.emplace_back(digest.name);
+    }
+#elif OPENSSL_VERSION_MAJOR >= 3
     // Since we'll fetch the EVP_MD*, cache them along the way to speed up
     // later lookups instead of throwing them away immediately.
     EVP_MD_do_all_sorted(SaveSupportedHashAlgorithmsAndCacheMD, env);
