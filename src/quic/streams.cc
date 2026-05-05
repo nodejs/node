@@ -154,31 +154,23 @@ STAT_STRUCT(Stream, STREAM)
 // ============================================================================
 
 namespace {
-// Creates an in-memory DataQueue entry from an ArrayBuffer by either
-// detaching it (zero-copy) or copying its contents if detach is not
-// possible (e.g., SharedArrayBuffer-backed or non-detachable).
-// Returns nullptr on failure (error already thrown if allocation failed).
+// Creates an in-memory DataQueue entry by copying the requested range of
+// the given ArrayBuffer into a fresh BackingStore. The caller's buffer is
+// not detached or otherwise modified, so callers can safely reuse or
+// mutate it after the call returns. Callers that want to ensure their
+// buffer cannot be mutated after handing it off can call
+// `ArrayBuffer.prototype.transfer()` themselves before calling into the
+// QUIC API.
+// Returns nullptr on zero length or allocation failure.
 std::unique_ptr<DataQueue::Entry> CreateEntryFromBuffer(
     Environment* env, Local<ArrayBuffer> buffer, size_t offset, size_t length) {
   if (length == 0) return nullptr;
-  std::shared_ptr<BackingStore> backing;
-  if (buffer->IsDetachable()) {
-    backing = buffer->GetBackingStore();
-    if (buffer->Detach(Local<Value>()).IsNothing()) {
-      backing.reset();
-    }
-  }
-  if (!backing) {
-    // Buffer is not detachable or detach failed. Copy the data.
-    JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, copy, length, nullptr);
-    memcpy(copy->Data(),
-           static_cast<const uint8_t*>(buffer->Data()) + offset,
-           length);
-    offset = 0;
-    backing = std::move(copy);
-  }
+  JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, copy, length, nullptr);
+  memcpy(copy->Data(),
+         static_cast<const uint8_t*>(buffer->Data()) + offset,
+         length);
   return DataQueue::CreateInMemoryEntryFromBackingStore(
-      std::move(backing), offset, length);
+      std::move(copy), 0, length);
 }
 }  // namespace
 

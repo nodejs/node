@@ -88,31 +88,45 @@ Store::Store(std::unique_ptr<BackingStore> store, size_t length, size_t offset)
   CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
-Maybe<Store> Store::From(Local<ArrayBuffer> buffer, Local<Value> detach_key) {
-  if (!buffer->IsDetachable()) {
-    return Nothing<Store>();
-  }
-  bool res;
-  auto backing = buffer->GetBackingStore();
+Maybe<Store> Store::From(Local<ArrayBuffer> buffer) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   auto length = buffer->ByteLength();
-  if (!buffer->Detach(detach_key).To(&res) || !res) {
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      v8::BackingStoreInitializationMode::kUninitialized,
+      v8::BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return Nothing<Store>();
   }
-  return Just(Store(std::move(backing), length, 0));
+  if (length > 0) {
+    memcpy(dest->Data(), buffer->Data(), length);
+  }
+  return Just(Store(std::move(dest), length, 0));
 }
 
-Maybe<Store> Store::From(Local<ArrayBufferView> view, Local<Value> detach_key) {
-  if (!view->Buffer()->IsDetachable()) {
-    return Nothing<Store>();
-  }
-  bool res;
-  auto backing = view->Buffer()->GetBackingStore();
+Maybe<Store> Store::From(Local<ArrayBufferView> view) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
-  if (!view->Buffer()->Detach(detach_key).To(&res) || !res) {
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      v8::BackingStoreInitializationMode::kUninitialized,
+      v8::BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return Nothing<Store>();
   }
-  return Just(Store(std::move(backing), length, offset));
+  if (length > 0) {
+    memcpy(dest->Data(),
+           static_cast<const uint8_t*>(view->Buffer()->Data()) + offset,
+           length);
+  }
+  return Just(Store(std::move(dest), length, 0));
 }
 
 Store Store::CopyFrom(Local<ArrayBuffer> buffer) {

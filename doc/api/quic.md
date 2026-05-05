@@ -798,11 +798,12 @@ the datagram ID.
 
 If `datagram` is a string, it will be encoded using the specified `encoding`.
 
-If `datagram` is an `ArrayBufferView`, the underlying `ArrayBuffer` will be
-transferred if possible (taking ownership to prevent mutation after send).
-If the buffer is not transferable (e.g., a `SharedArrayBuffer` or a view
-over a subset of a larger buffer such as a pooled `Buffer`), the data will
-be copied instead.
+If `datagram` is an `ArrayBufferView`, the bytes are copied into an
+internal buffer; the caller's source buffer is unchanged and may be reused
+or mutated immediately after the call returns. Callers that want to ensure
+their source cannot be mutated after the call (for example, when handing
+the buffer off to another async consumer) can call
+`ArrayBuffer.prototype.transfer()` themselves before passing the buffer.
 
 If `datagram` is a `Promise`, it will be awaited before sending. If the
 session closes while awaiting, `0n` is returned silently (datagrams are
@@ -1644,6 +1645,13 @@ The Writer has the following methods:
   the readable side via `STOP_SENDING`.
 * `desiredSize` — Available capacity in bytes, or `null` if closed/errored.
 
+The bytes from each `writeSync()` / `writevSync()` / `write()` / `writev()`
+input chunk are copied into an internal buffer, so the caller's source
+buffer is unchanged and may be reused or mutated immediately after the
+call returns. Callers that want to ensure a source buffer cannot be
+mutated after handing it off can call `ArrayBuffer.prototype.transfer()`
+themselves before passing the buffer.
+
 ### `stream.setBody(body)`
 
 <!-- YAML
@@ -1661,8 +1669,11 @@ The following body source types are supported:
 * `null` — The writable side is closed immediately (FIN sent with no data).
 * `string` — UTF-8 encoded and sent as a single chunk.
 * `ArrayBuffer`, `SharedArrayBuffer`, `ArrayBufferView` — Sent as a single
-  chunk. `ArrayBuffer` and `ArrayBufferView` are detached (zero-copy
-  transfer) when possible; `SharedArrayBuffer` is always copied.
+  chunk. The bytes are copied into an internal buffer, so the caller's
+  source buffer is unchanged and may be reused or mutated immediately
+  after the call returns. Callers wanting to ensure their source cannot
+  be mutated after handing it off can call
+  `ArrayBuffer.prototype.transfer()` themselves before passing the buffer.
 * `Blob` — Sent from the Blob's underlying data queue.
 * {FileHandle} — The file contents are read asynchronously via an
   fd-backed data source. The `FileHandle` must be opened for reading

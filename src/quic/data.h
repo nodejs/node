@@ -54,28 +54,28 @@ class Store final : public MemoryRetainer {
         size_t length,
         size_t offset = 0);
 
-  // Creates a Store from the contents of an ArrayBuffer, always detaching
-  // it in the process. An empty Maybe will be returned if the ArrayBuffer
-  // is not detachable or detaching failed (likely due to a detach key
-  // mismatch).
-  static v8::Maybe<Store> From(
-      v8::Local<v8::ArrayBuffer> buffer,
-      v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
+  // Creates a Store by copying the contents of an ArrayBuffer into a fresh
+  // BackingStore. The caller's buffer is not modified, so callers can safely
+  // reuse or mutate it after the call returns. Returns an empty Maybe on
+  // allocation failure, in which case an `ERR_MEMORY_ALLOCATION_FAILED`
+  // exception will have been scheduled on the isolate.
+  static v8::Maybe<Store> From(v8::Local<v8::ArrayBuffer> buffer);
 
-  // Creates a Store from the contents of an ArrayBufferView, always detaching
-  // it in the process. An empty Maybe will be returned if the ArrayBuffer
-  // is not detachable or detaching failed (likely due to a detach key
-  // mismatch).
-  static v8::Maybe<Store> From(
-      v8::Local<v8::ArrayBufferView> view,
-      v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
+  // Creates a Store by copying the contents of an ArrayBufferView into a
+  // fresh BackingStore. The caller's view (and its underlying ArrayBuffer)
+  // is not modified. Returns an empty Maybe on allocation failure, in which
+  // case an `ERR_MEMORY_ALLOCATION_FAILED` exception will have been
+  // scheduled on the isolate.
+  static v8::Maybe<Store> From(v8::Local<v8::ArrayBufferView> view);
 
   // Creates a Store from the contents of an ArrayBuffer, always copying the
-  // content.
+  // content. Equivalent to `From()` but returns a Store directly without
+  // surfacing allocation failure.
   static Store CopyFrom(v8::Local<v8::ArrayBuffer> buffer);
 
-  // Creates a Store from the contents of an ArrayBufferView, always copying the
-  // content.
+  // Creates a Store from the contents of an ArrayBufferView, always copying
+  // the content. Equivalent to `From()` but returns a Store directly without
+  // surfacing allocation failure.
   static Store CopyFrom(v8::Local<v8::ArrayBufferView> view);
 
   v8::Local<v8::Uint8Array> ToUint8Array(Environment* env) const;
