@@ -7,6 +7,11 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
+#if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
+#include <openssl/bytestring.h>
+#include <openssl/cipher.h>
+#include <openssl/pem.h>
+#endif
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -67,6 +72,28 @@ using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 
 static constexpr int kX509NameFlagsRFC2253WithinUtf8JSON =
     XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB & ~ASN1_STRFLGS_ESC_CTRL;
+
+#if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
+struct BoringSSLCipher {
+  const EVP_CIPHER* (*get)();
+  const char* name;
+};
+
+constexpr BoringSSLCipher kBoringSSLCiphers[] = {
+    {EVP_aes_128_cbc, "aes-128-cbc"},   {EVP_aes_128_ctr, "aes-128-ctr"},
+    {EVP_aes_128_ecb, "aes-128-ecb"},   {EVP_aes_128_gcm, "aes-128-gcm"},
+    {EVP_aes_128_ofb, "aes-128-ofb"},   {EVP_aes_192_cbc, "aes-192-cbc"},
+    {EVP_aes_192_ctr, "aes-192-ctr"},   {EVP_aes_192_ecb, "aes-192-ecb"},
+    {EVP_aes_192_gcm, "aes-192-gcm"},   {EVP_aes_192_ofb, "aes-192-ofb"},
+    {EVP_aes_256_cbc, "aes-256-cbc"},   {EVP_aes_256_ctr, "aes-256-ctr"},
+    {EVP_aes_256_ecb, "aes-256-ecb"},   {EVP_aes_256_gcm, "aes-256-gcm"},
+    {EVP_aes_256_ofb, "aes-256-ofb"},   {EVP_des_cbc, "des-cbc"},
+    {EVP_des_ecb, "des-ecb"},           {EVP_des_ede, "des-ede"},
+    {EVP_des_ede3_cbc, "des-ede3-cbc"}, {EVP_des_ede_cbc, "des-ede-cbc"},
+    {EVP_rc2_cbc, "rc2-cbc"},           {EVP_rc4, "rc4"},
+};
+
+#endif
 }  // namespace
 
 // ============================================================================
@@ -4209,6 +4236,12 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
   CipherCallbackContext context;
   context.cb = std::move(callback);
 
+#if NCRYPTO_USE_BORINGSSL_EVP_DO_ALL_FALLBACK
+  for (const auto& cipher : kBoringSSLCiphers) {
+    static_cast<void>(cipher.get);
+    context.cb(cipher.name);
+  }
+#else
   EVP_CIPHER_do_all_sorted(
 #if OPENSSL_VERSION_MAJOR >= 3
       array_push_back<EVP_CIPHER,
@@ -4220,6 +4253,7 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
       array_push_back<EVP_CIPHER>,
 #endif
       &context);
+#endif
 }
 
 // ============================================================================
