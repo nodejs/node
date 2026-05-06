@@ -91,30 +91,25 @@ CFunctionInfoBundle& CFunctionInfoBundle::operator=(
 }
 
 CFunctionInfoBundle BuildCFunctionInfo(const FFIFunction& fn) {
-  using T = v8::CTypeInfo::Type;
   static_assert(std::is_trivially_destructible_v<v8::CTypeInfo>,
                 "CTypeInfo must be trivially destructible for placement-new "
                 "array without explicit element destruction");
   CFunctionInfoBundle b;
 
-  // V8 wants the receiver as arg[0]. Total CTypeInfo entries = args + 1.
-  // CTypeInfo has no default constructor, so we allocate raw storage and
-  // placement-new each element individually.
-  size_t n = fn.args.size() + 1;
-  void* raw = ::operator new[](n * sizeof(v8::CTypeInfo));
-  b.arg_types = static_cast<v8::CTypeInfo*>(raw);
-  // Placement-new the receiver slot.
-  new (&b.arg_types[0]) v8::CTypeInfo(T::kV8Value);
-  // Placement-new the arg slots with a placeholder; overwritten below.
-  for (size_t i = 1; i < n; ++i) {
-    new (&b.arg_types[i]) v8::CTypeInfo(T::kVoid);
-  }
-
-  b.arg_classes.reserve(fn.args.size());
-  for (size_t i = 0; i < fn.args.size(); ++i) {
-    auto m = MapArgType(fn.args[i]);
-    b.arg_types[i + 1] = v8::CTypeInfo(m.ctype);
-    b.arg_classes.push_back(m.cls);
+  // We register the C function with HasReceiver=kNo, so V8 does not pass a
+  // JS receiver in the first parameter register. The CTypeInfo[] holds only
+  // user-arg types — no receiver slot. CTypeInfo has no default constructor,
+  // so we allocate raw storage and placement-new each element.
+  size_t n = fn.args.size();
+  if (n > 0) {
+    void* raw = ::operator new[](n * sizeof(v8::CTypeInfo));
+    b.arg_types = static_cast<v8::CTypeInfo*>(raw);
+    b.arg_classes.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+      auto m = MapArgType(fn.args[i]);
+      new (&b.arg_types[i]) v8::CTypeInfo(m.ctype);
+      b.arg_classes.push_back(m.cls);
+    }
   }
 
   auto rm = MapResultType(fn.return_type);
@@ -125,7 +120,8 @@ CFunctionInfoBundle BuildCFunctionInfo(const FFIFunction& fn) {
       return_info,
       static_cast<unsigned int>(n),
       b.arg_types,
-      v8::CFunctionInfo::Int64Representation::kBigInt);
+      v8::CFunctionInfo::Int64Representation::kBigInt,
+      v8::CFunctionInfo::HasReceiver::kNo);
 
   return b;
 }

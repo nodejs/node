@@ -308,6 +308,19 @@ class V8_EXPORT CFunctionInfo {
     kBigInt = 1,  // Use BigInts to represent 64 bit integers.
   };
 
+  // Whether the C function takes a JS receiver as its first argument.
+  // Most fast-call C functions do (matching how V8 wires up FunctionTemplate
+  // callbacks). Embedders that want to register a plain C function pointer
+  // — e.g. an FFI dispatcher that has no use for the receiver — can set this
+  // to kNo. In that mode V8 omits the receiver from the C call: arg_info[0]
+  // is the first user argument, ArgumentCount() returns the user-arg count,
+  // and the JS receiver value is discarded by the lowering instead of being
+  // passed in the first parameter register.
+  enum class HasReceiver : uint8_t {
+    kYes = 0,
+    kNo = 1,
+  };
+
   // Construct a struct to hold a CFunction's type information.
   // |return_info| describes the function's return type.
   // |arg_info| is an array of |arg_count| CTypeInfos describing the
@@ -315,7 +328,8 @@ class V8_EXPORT CFunctionInfo {
   //   CTypeInfo::kCallbackOptionsType.
   CFunctionInfo(const CTypeInfo& return_info, unsigned int arg_count,
                 const CTypeInfo* arg_info,
-                Int64Representation repr = Int64Representation::kNumber);
+                Int64Representation repr = Int64Representation::kNumber,
+                HasReceiver has_receiver = HasReceiver::kYes);
 
   const CTypeInfo& ReturnInfo() const { return return_info_; }
 
@@ -326,6 +340,8 @@ class V8_EXPORT CFunctionInfo {
   }
 
   Int64Representation GetInt64Representation() const { return repr_; }
+
+  bool HasReceiverArg() const { return has_receiver_ == HasReceiver::kYes; }
 
   // |index| must be less than ArgumentCount().
   //  Note: if the last argument passed on construction of CFunctionInfo
@@ -342,6 +358,7 @@ class V8_EXPORT CFunctionInfo {
  private:
   const CTypeInfo return_info_;
   const Int64Representation repr_;
+  const HasReceiver has_receiver_;
   const unsigned int arg_count_;
   const CTypeInfo* arg_info_;
 };

@@ -662,7 +662,9 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     // arguments, so extract c_argument_count from the first function.
     const int c_argument_count =
         static_cast<int>(c_function_.signature->ArgumentCount());
-    CHECK_GE(c_argument_count, kReceiver);
+    if (c_function_.signature->HasReceiverArg()) {
+      CHECK_GE(c_argument_count, kReceiver);
+    }
 
     const int slow_arg_count =
         // Arguments for CallApiCallbackOptimizedXXX builtin including
@@ -677,11 +679,16 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     base::SmallVector<Node*, kInlineSize> inputs(value_input_count +
                                                  kEffectAndControl);
     int cursor = 0;
-    inputs[cursor++] = n.receiver();
+    const bool has_receiver_arg =
+        c_function_.signature->HasReceiverArg();
+    if (has_receiver_arg) {
+      inputs[cursor++] = n.receiver();
+    }
 
     // TODO(turbofan): Consider refactoring CFunctionInfo to distinguish
     // between receiver and arguments, simplifying this (and related) spots.
-    int js_args_count = c_argument_count - kReceiver;
+    int js_args_count =
+        c_argument_count - (has_receiver_arg ? kReceiver : 0);
     for (int i = 0; i < js_args_count; ++i) {
       if (i < n.ArgumentCount()) {
         inputs[cursor++] = n.Argument(i);

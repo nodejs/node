@@ -385,10 +385,14 @@ FastApiCallFunction GetFastApiCallTarget(
       function_template_info.c_signatures(broker);
   const size_t overloads_count = signatures.size();
 
-  // Only considers entries whose type list length matches arg_count.
+  // Only considers entries whose type list length matches arg_count. For
+  // signatures registered with HasReceiver=kNo, the C-side ArgumentCount
+  // already excludes the receiver, so we don't subtract it here.
   for (size_t i = 0; i < overloads_count; i++) {
     const CFunctionInfo* c_signature = signatures[i];
-    const size_t len = c_signature->ArgumentCount() - kReceiver;
+    const size_t len =
+        c_signature->ArgumentCount() -
+        (c_signature->HasReceiverArg() ? kReceiver : 0);
     bool optimize_to_fast_call =
         (len == arg_count) &&
         fast_api_call::CanOptimizeFastSignature(c_signature);

@@ -319,118 +319,85 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
   if (fc_ok) {
     auto bundle = node::ffi::fastcall::BuildCFunctionInfo(*fn);
     {
-      auto stub = node::ffi::fastcall::EmitForwarder(
-          isolate, fn->ptr, bundle.arg_classes, bundle.result_class);
-      if (!stub.has_value()) {
-        // Warn at most once per process: a single FFI app may register hundreds
-        // of functions, and the failure cause (mprotect / SELinux / hardened
-        // runtime) is the same for every call. Repeated warnings would flood
-        // logs without adding signal.
-        static std::atomic<bool> warned{false};
-        if (!warned.exchange(true, std::memory_order_acq_rel)) {
-          if (ProcessEmitWarning(env,
-                  "FFI fast-call stub emission failed for an eligible "
-                  "signature; falling back to libffi for this and possibly "
-                  "future calls. This usually indicates a JIT memory or "
-                  "permission issue (mprotect/SELinux/hardened runtime).")
-                  .IsNothing()) {
-            return MaybeLocal<Function>();
-          }
+      // Register the dlsym'd target function pointer directly with V8 as the
+      // C function. With CFunctionInfo built using HasReceiver=kNo, V8's fast-
+      // call lowering omits the JS receiver from the C call — so no receiver-
+      // strip stub is needed. The target's plain C signature matches the
+      // CFunctionInfo exactly.
+      v8::CFunction cfun(fn->ptr, bundle.info);
+      v8::Local<v8::FunctionTemplate> tmpl = v8::FunctionTemplate::New(
+          isolate,
+          DynamicLibrary::InvokeFunction,
+          data,
+          v8::Local<v8::Signature>(),
+          static_cast<int>(fn->args.size()),
+          v8::ConstructorBehavior::kThrow,
+          v8::SideEffectType::kHasSideEffect,
+          &cfun);
+      v8::Local<v8::Function> fc_fn;
+      if (tmpl->GetFunction(context).ToLocal(&fc_fn)) {
+        bool metadata_ok = true;
+
+        v8::Local<v8::ArrayBuffer> alive_ab = AliveBuffer(isolate);
+        if (!fc_fn->DefineOwnProperty(
+                    context, env->ffi_fastcall_alive_symbol(),
+                    alive_ab, internal_attrs)
+                 .FromMaybe(false)) {
+          metadata_ok = false;
         }
-        // fall through to libffi path
-      } else {
-        v8::CFunction cfun(stub->entry, bundle.info);
-        v8::Local<v8::FunctionTemplate> tmpl = v8::FunctionTemplate::New(
-            isolate,
-            DynamicLibrary::InvokeFunction,
-            data,
-            v8::Local<v8::Signature>(),
-            static_cast<int>(fn->args.size()),
-            v8::ConstructorBehavior::kThrow,
-            v8::SideEffectType::kHasSideEffect,
-            &cfun);
-        v8::Local<v8::Function> fc_fn;
-        if (tmpl->GetFunction(context).ToLocal(&fc_fn)) {
-          // Build all V8 values before touching `info` fields, so that on
-          // any failure we can free the stub and return cleanly without
-          // leaking JIT memory.
-          bool metadata_ok = true;
 
-          // Alive ArrayBuffer.
-          v8::Local<v8::ArrayBuffer> alive_ab = AliveBuffer(isolate);
-          if (!fc_fn->DefineOwnProperty(
-                      context, env->ffi_fastcall_alive_symbol(),
-                      alive_ab, internal_attrs)
-                   .FromMaybe(false)) {
-            metadata_ok = false;
-          }
+        Local<Function> slow_fn;
+        if (metadata_ok &&
+            !Function::New(context, DynamicLibrary::InvokeFunction, data)
+                 .ToLocal(&slow_fn)) {
+          metadata_ok = false;
+        }
+        if (metadata_ok &&
+            !fc_fn->DefineOwnProperty(
+                    context, env->ffi_fastcall_invoke_slow_symbol(),
+                    slow_fn, internal_attrs)
+                 .FromMaybe(false)) {
+          metadata_ok = false;
+        }
 
-          // Build the slow-invoke v8::Function for the wrapper's pointer
-          // fallback path.
-          Local<Function> slow_fn;
-          if (metadata_ok &&
-              !Function::New(context, DynamicLibrary::InvokeFunction, data)
-                   .ToLocal(&slow_fn)) {
-            metadata_ok = false;
-          }
-          if (metadata_ok &&
-              !fc_fn->DefineOwnProperty(
-                      context, env->ffi_fastcall_invoke_slow_symbol(),
-                      slow_fn, internal_attrs)
-                   .FromMaybe(false)) {
-            metadata_ok = false;
-          }
+        Local<Value> params_arr;
+        if (metadata_ok &&
+            !ToV8Value(context, fn->arg_type_names, isolate)
+                 .ToLocal(&params_arr)) {
+          metadata_ok = false;
+        }
+        if (metadata_ok &&
+            !fc_fn->DefineOwnProperty(
+                    context, env->ffi_fastcall_params_symbol(),
+                    params_arr, internal_attrs)
+                 .FromMaybe(false)) {
+          metadata_ok = false;
+        }
+        Local<Value> result_str;
+        if (metadata_ok &&
+            !ToV8Value(context, fn->return_type_name, isolate)
+                 .ToLocal(&result_str)) {
+          metadata_ok = false;
+        }
+        if (metadata_ok &&
+            !fc_fn->DefineOwnProperty(
+                    context, env->ffi_fastcall_result_symbol(),
+                    result_str, internal_attrs)
+                 .FromMaybe(false)) {
+          metadata_ok = false;
+        }
 
-          // Attach params and result type names.
-          Local<Value> params_arr;
-          if (metadata_ok &&
-              !ToV8Value(context, fn->arg_type_names, isolate)
-                   .ToLocal(&params_arr)) {
-            metadata_ok = false;
-          }
-          if (metadata_ok &&
-              !fc_fn->DefineOwnProperty(
-                      context, env->ffi_fastcall_params_symbol(),
-                      params_arr, internal_attrs)
-                   .FromMaybe(false)) {
-            metadata_ok = false;
-          }
-          Local<Value> result_str;
-          if (metadata_ok &&
-              !ToV8Value(context, fn->return_type_name, isolate)
-                   .ToLocal(&result_str)) {
-            metadata_ok = false;
-          }
-          if (metadata_ok &&
-              !fc_fn->DefineOwnProperty(
-                      context, env->ffi_fastcall_result_symbol(),
-                      result_str, internal_attrs)
-                   .FromMaybe(false)) {
-            metadata_ok = false;
-          }
-
-          if (!metadata_ok) {
-            // Free the stub to avoid a JIT memory leak.
-            node::ffi::fastcall::JitMemory::Get(isolate)
-                ->Free(*stub);
-            return MaybeLocal<Function>();
-          }
-
-          // All metadata attached successfully. Populate fast-call state.
-          info->fast = std::make_unique<FastCallState>(
-              isolate, slow_fn, stub->entry, stub->alloc_size,
-              std::make_unique<node::ffi::fastcall::CFunctionInfoBundle>(
-                  std::move(bundle)));
-          ret = fc_fn;
-        } else {
-          // Template-to-function failed (V8 has a pending exception). Free the
-          // stub since we won't use it; mirror the metadata-fail path and
-          // propagate the empty MaybeLocal so the caller surfaces the V8
-          // exception.
-          node::ffi::fastcall::JitMemory::Get(isolate)
-              ->Free(*stub);
+        if (!metadata_ok) {
           return MaybeLocal<Function>();
         }
+
+        info->fast = std::make_unique<FastCallState>(
+            isolate, slow_fn, /*stub=*/nullptr, /*alloc_size=*/0,
+            std::make_unique<node::ffi::fastcall::CFunctionInfoBundle>(
+                std::move(bundle)));
+        ret = fc_fn;
+      } else {
+        return MaybeLocal<Function>();
       }
     }
   }

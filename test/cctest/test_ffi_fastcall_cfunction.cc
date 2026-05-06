@@ -33,7 +33,9 @@ TEST(FFIFastCallCFunction, NumericSignature) {
                    {"i32", "i32"});
   auto bundle = BuildCFunctionInfo(fn);
   // Receiver + 2 args = 3 CTypeInfo entries.
-  EXPECT_EQ(bundle.info->ArgumentCount(), 3u);
+  // No-receiver mode: ArgumentCount counts user args only (no leading
+  // v8::Value receiver slot).
+  EXPECT_EQ(bundle.info->ArgumentCount(), 2u);
   EXPECT_EQ(bundle.arg_classes.size(), 2u);
   EXPECT_EQ(bundle.arg_classes[0], ArgClass::kGP);
   EXPECT_EQ(bundle.arg_classes[1], ArgClass::kGP);

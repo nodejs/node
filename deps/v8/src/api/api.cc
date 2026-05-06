@@ -11992,9 +11992,11 @@ CFunction::CFunction(const void* address, const CFunctionInfo* type_info)
 
 CFunctionInfo::CFunctionInfo(const CTypeInfo& return_info,
                              unsigned int arg_count, const CTypeInfo* arg_info,
-                             Int64Representation repr)
+                             Int64Representation repr,
+                             HasReceiver has_receiver)
     : return_info_(return_info),
       repr_(repr),
+      has_receiver_(has_receiver),
       arg_count_(arg_count),
       arg_info_(arg_info) {
   DCHECK(repr == Int64Representation::kNumber ||
