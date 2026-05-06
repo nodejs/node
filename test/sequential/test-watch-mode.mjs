@@ -978,7 +978,10 @@ process.on('message', (message) => {
     }
   });
 
-  it('should not strip --watch when it appears inside a quoted NODE_OPTIONS value', async () => {
+  it('should not strip --watch when it appears inside a quoted NODE_OPTIONS value', {
+    // Honoring --require from NODE_OPTIONS is required for this test.
+    skip: !!process.config.variables.node_without_node_options,
+  }, async () => {
     // Use /tmp to avoid CI directories with special characters (e.g. ")
     // that would break NODE_OPTIONS parsing.
     const watchDir = path.join(os.tmpdir(), 'test for --watch parsing');
