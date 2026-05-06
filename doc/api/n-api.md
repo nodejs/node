@@ -2578,7 +2578,7 @@ JavaScript `ArrayBuffer`s are described in
 #### `node_api_create_external_sharedarraybuffer`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 ```c

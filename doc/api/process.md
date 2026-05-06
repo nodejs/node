@@ -1736,7 +1736,7 @@ added:
   - v23.11.0
   - v22.15.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62878
     description: A failed `execve(2)` system call now throws an exception
                  instead of aborting the process. Native `AtExit`

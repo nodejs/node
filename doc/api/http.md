@@ -2993,7 +2993,7 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 ### `message.signal`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * Type: {AbortSignal}

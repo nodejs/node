@@ -778,7 +778,7 @@ Read from a file and write to an array of {ArrayBufferView}s
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/57775
     description: Now accepts an additional `signal` property to allow aborting the operation.
   - version: v10.5.0
@@ -1351,7 +1351,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -3472,7 +3472,7 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -5075,7 +5075,7 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/61870
     description: Added `throwIfNoEntry` option.
   - version: v19.1.0
@@ -6054,7 +6054,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -8001,7 +8001,7 @@ Optimal transfer block size.
 #### `statfs.frsize`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * Type: {number|bigint}

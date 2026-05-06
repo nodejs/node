@@ -213,7 +213,7 @@ True if the endpoint is actively listening for incoming connections. Read only.
 ### `endpoint.setSNIContexts(entries[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `entries` {object} An object mapping host names to TLS identity options.
@@ -1147,7 +1147,7 @@ added: v23.8.0
 #### `sessionOptions.alpn`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * Type: {string} (client) | {string\[]} (server)
@@ -1353,7 +1353,7 @@ The peer server name to target (SNI). Defaults to `'localhost'`.
 #### `sessionOptions.sni` (server only)
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * Type: {Object}
