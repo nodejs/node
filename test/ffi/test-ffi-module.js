@@ -1,6 +1,7 @@
 // Flags: --experimental-ffi
 'use strict';
 const common = require('../common');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
@@ -32,17 +33,16 @@ test('ffi builtin is unavailable when disabled', () => {
 });
 
 test('ffi builtin is listed', () => {
-  const { stdout, stderr, status, signal } = spawnSync(process.execPath, [
-    '-p',
-    'require("node:module").builtinModules.includes("node:ffi")',
-  ], {
-    encoding: 'utf8',
-  });
-
-  assert.strictEqual(stdout.trim(), 'true');
-  assert.strictEqual(stderr, '');
-  assert.strictEqual(status, 0);
-  assert.strictEqual(signal, null);
+  for (const [flag, stdout] of Object.entries({
+    '--experimental-ffi': 'true\n',
+    '--no-experimental-ffi': 'false\n',
+  })) {
+    spawnSyncAndAssert(process.execPath, [
+      flag,
+      '-p',
+      'require("node:module").builtinModules.includes("node:ffi")',
+    ], { stdout });
+  }
 });
 
 test('ffi can be imported from ESM', () => {
