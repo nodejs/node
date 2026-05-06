@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
-const { readdirSync } = require('node:fs');
+const { readdirSync, writeFileSync } = require('node:fs');
 const { test } = require('node:test');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -76,6 +76,43 @@ function getSpecCoverageFixtureReport() {
 
   return report;
 }
+
+test('lcov reporter excludes BRDA entries for ignored lines', skipIfNoInspector, () => {
+  const fixture = tmpdir.resolve('lcov-ignore-branch.test.js');
+
+  writeFileSync(fixture, `
+'use strict';
+
+const test = require('node:test');
+
+test('ignored branch', () => {
+  // node:coverage ignore next
+  if (false) {
+    throw new Error('ignored');
+  }
+
+  if (true) {
+    // Covered branch to ensure LCOV still reports branch data.
+  }
+});
+`);
+
+  const child = spawnSync(process.execPath, [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-reporter',
+    'lcov',
+    fixture,
+  ]);
+
+  assert.strictEqual(child.stderr.toString(), '');
+  assert.strictEqual(child.status, 0);
+
+  const stdout = child.stdout.toString();
+
+  assert(!stdout.includes('BRDA:8,'));
+  assert.match(stdout, /BRDA:/);
+});
 
 test('test coverage report', async (t) => {
   await t.test('handles the inspector not being available', (t) => {
