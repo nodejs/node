@@ -4563,16 +4563,31 @@ removed in a future version of Node.js.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63162
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63121
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling `hmac.digest()` more than once returns an empty buffer instead of
 throwing an error. This behavior is inconsistent with `hash.digest()` and
 may lead to subtle bugs. Calling `hmac.digest()` on a finalized `Hmac` instance
 will throw an error in a future version.
+
+```js
+const crypto = require('node:crypto');
+
+const hmac = crypto.createHmac('sha256', 'secret');
+
+hmac.update('hello');
+
+console.log(hmac.digest('hex')); // Works
+
+console.log(hmac.digest('hex')); // Returns empty string/buffer
+```
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf

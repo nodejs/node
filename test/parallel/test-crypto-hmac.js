@@ -7,6 +7,13 @@ if (!common.hasCrypto) {
 const assert = require('assert');
 const crypto = require('crypto');
 
+common.expectWarning({
+  DeprecationWarning: {
+    DEP0181: 'crypto.Hmac constructor is deprecated.',
+    DEP0206: 'Calling digest() on an already-finalized Hmac instance is deprecated.',
+  },
+});
+
 {
   const Hmac = crypto.Hmac;
   const instance = crypto.Hmac('sha256', 'Node');
@@ -459,14 +466,4 @@ assert.strictEqual(
     crypto.createHmac('sha256', buf).update('foo').digest(),
     crypto.createHmac('sha256', keyObject).update('foo').digest(),
   );
-}
-
-{
-  crypto.Hmac('sha256', 'Node');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hmac constructor is deprecated.',
-       'DEP0181'],
-    ]
-  });
 }
