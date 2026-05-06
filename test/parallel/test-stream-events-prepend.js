@@ -19,6 +19,14 @@ class Readable extends stream.Readable {
   }
 }
 
+// Expect deprecation warning when using fallback path
+common.expectWarning(
+  'DeprecationWarning',
+  'Piping to an EventEmitter without a prependListener method is deprecated. ' +
+  'The emitter should have a prependListener method.',
+  'DEP0206',
+);
+
 const w = new Writable();
 w.on('pipe', common.mustCall());
 
