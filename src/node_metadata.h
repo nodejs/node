@@ -64,7 +64,8 @@ namespace node {
   V(nghttp3)                                                                   \
   NODE_VERSIONS_KEY_AMARO(V)                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
-  V(merve)
+  V(merve)                                                                     \
+  V(ata)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl) V(ncrypto)

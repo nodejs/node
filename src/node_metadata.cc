@@ -3,6 +3,7 @@
 #include "ada.h"
 #include "amaro_version.h"
 #include "ares.h"
+#include "ata.h"
 #include "brotli/encode.h"
 #include "llhttp.h"
 #include "merve.h"
@@ -177,6 +178,7 @@ Metadata::Versions::Versions() {
 #endif  // HAVE_FFI
   ada = ADA_VERSION;
   nbytes = NBYTES_VERSION;
+  ata = ATA_VERSION;
 }
 
 std::array<std::pair<std::string_view, std::string_view>,

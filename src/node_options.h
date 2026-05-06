@@ -426,6 +426,9 @@ std::unordered_map<
 MapNamespaceOptionsAssociations();
 std::vector<std::string> MapAvailableNamespaces();
 
+// Builds the `node.config.json` JSON Schema from option metadata.
+std::string GenerateConfigJsonSchema();
+
 // Define all namespace entries
 #define OPTION_NAMESPACE_LIST(V)                                               \
   V(kNoNamespace, "")                                                          \
@@ -663,8 +666,6 @@ class OptionsParser {
   friend std::unordered_map<std::string, OptionMappingDetails>
   MapOptionsByNamespace(std::string namespace_name);
   friend std::vector<std::string> MapAvailableNamespaces();
-  friend void GetEnvOptionsInputType(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
   friend void GetOptionsAsFlags(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 };

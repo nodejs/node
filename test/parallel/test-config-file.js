@@ -38,7 +38,7 @@ test('should handle empty json', async () => {
     `--experimental-config-file=${fixtures.path('rc/empty.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /invalid JSON document/);
   assert.match(result.stderr, /empty\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -165,7 +165,7 @@ test('should throw at unknown flag', async () => {
     `--experimental-config-file=${fixtures.path('rc/unknown-flag.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Unknown or not allowed option some-unknown-flag for namespace nodeOptions/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: some-unknown-flag/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -176,7 +176,7 @@ test('should throw at flag not available in NODE_OPTIONS', async () => {
     `--experimental-config-file=${fixtures.path('rc/not-node-options-flag.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Unknown or not allowed option test for namespace nodeOptions/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: test/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -210,7 +210,7 @@ test('v8 flag should not be allowed in config file', async () => {
     `--experimental-config-file=${fixtures.path('rc/v8-flag.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /V8 flag --abort-on-uncaught-exception is currently not supported/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: abort-on-uncaught-exception/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -268,7 +268,7 @@ test('no op flag should throw', async () => {
     `--experimental-config-file=${fixtures.path('rc/no-op.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /No-op flag --http-parser is currently not supported/);
+  assert.match(result.stderr, /\/nodeOptions additional property not allowed: http-parser/);
   assert.match(result.stderr, /no-op\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -291,7 +291,7 @@ test('non object root', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-root.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Root value unexpected not an object for/);
+  assert.match(result.stderr, /\/ should be object, got array/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -302,7 +302,7 @@ test('non object node options', async () => {
     `--experimental-config-file=${fixtures.path('rc/non-object-node-options.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /"nodeOptions" value unexpected for/);
+  assert.match(result.stderr, /\/nodeOptions should be object, got string/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
 });
@@ -313,7 +313,7 @@ test('should throw correct error when a json is broken', async () => {
     `--experimental-config-file=${fixtures.path('rc/broken.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /invalid JSON document/);
   assert.match(result.stderr, /broken\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -325,7 +325,7 @@ test('broken value in node_options', async () => {
     `--experimental-config-file=${fixtures.path('rc/broken-node-options.json')}`,
     '-p', '"Hello, World!"',
   ]);
-  assert.match(result.stderr, /Can't parse/);
+  assert.match(result.stderr, /invalid JSON document/);
   assert.match(result.stderr, /broken-node-options\.json: invalid content/);
   assert.strictEqual(result.stdout, '');
   assert.strictEqual(result.code, 9);
@@ -512,7 +512,7 @@ describe('namespace-scoped options', () => {
       `--experimental-config-file=${fixtures.path('rc/unknown-flag-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace test/);
+    assert.match(result.stderr, /\/test additional property not allowed: unknown-flag/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
   });
@@ -523,7 +523,7 @@ describe('namespace-scoped options', () => {
       `--experimental-config-file=${fixtures.path('rc/unknown-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /Unknown namespace an-invalid-namespace/);
+    assert.match(result.stderr, /additional property not allowed: an-invalid-namespace/);
     assert.match(result.stderr, /unknown-namespace\.json: invalid content/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
@@ -648,7 +648,7 @@ describe('namespace-scoped options', () => {
       `--experimental-config-file=${fixtures.path('rc/deprecated-testrunner-namespace.json')}`,
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /the "testRunner" namespace has been removed\. Use "test" instead\./);
+    assert.match(result.stderr, /additional property not allowed: testRunner\. did you mean "test"\?/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
   });
@@ -684,6 +684,75 @@ describe('namespace-scoped options', () => {
     ]);
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.stdout, 'false\n');
+    assert.strictEqual(result.code, 0);
+  });
+});
+
+describe('JSON Schema validation', () => {
+  test('rejects boolean option with string value', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-type.json')}`,
+      '-p', '"Hello"',
+    ]);
+    assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/addons/);
+    assert.strictEqual(result.code, 9);
+  });
+
+  test('rejects number option with string value', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-number-as-string.json')}`,
+      '-p', '"Hello"',
+    ]);
+    assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/max-http-header-size/);
+    assert.strictEqual(result.code, 9);
+  });
+
+  test('rejects array option with boolean value', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-array-as-bool.json')}`,
+      '-p', '"Hello"',
+    ]);
+    assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/import/);
+    assert.strictEqual(result.code, 9);
+  });
+
+  test('rejects array with wrong item type', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-nested-type.json')}`,
+      '-p', '"Hello"',
+    ]);
+    assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/import/);
+    assert.strictEqual(result.code, 9);
+  });
+
+  test('reports every error when multiple properties fail', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/invalid-schema-multiple-errors.json')}`,
+      '-p', '"Hello"',
+    ]);
+    assert.match(result.stderr, /Invalid configuration/);
+    assert.match(result.stderr, /\/nodeOptions\/addons/);
+    assert.match(result.stderr, /\/nodeOptions\/max-http-header-size/);
+    assert.strictEqual(result.code, 9);
+  });
+
+  test('accepts valid config with mixed types', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/valid-schema-all-types.json')}`,
+      '-e', 'process.exit(0)',
+    ]);
+    assert.strictEqual(result.code, 0);
+  });
+
+  test('accepts empty object config', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      `--experimental-config-file=${fixtures.path('rc/empty-object.json')}`,
+      '-e', 'process.exit(0)',
+    ]);
     assert.strictEqual(result.code, 0);
   });
 });

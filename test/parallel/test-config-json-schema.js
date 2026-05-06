@@ -41,12 +41,9 @@ const assert = require('assert');
 
 const schema = generateConfigJsonSchema();
 
-// This assertion ensures that whenever we add a new env option, we also add it
-// to the JSON schema. The function getEnvOptionsInputType() returns all the available
-// env options, so we can generate the JSON schema from it and compare it to the
-// current JSON schema.
-// To regenerate the JSON schema, run:
-// out/Release/node --expose-internals tools/doc/generate-json-schema.mjs
-// And then run make doc to update the out/doc/node-config-schema.json file.
-assert.strictEqual(JSON.stringify(schema), JSON.stringify(schemaInDoc), 'JSON schema is outdated.' +
-  'Run `out/Release/node --expose-internals tools/doc/generate-json-schema.mjs` to update it.');
+// Ensures the published doc/node-config-schema.json stays in sync with the
+// runtime schema produced from option metadata. Regenerate with:
+//   node tools/gen_node_config_schema.mjs
+assert.strictEqual(JSON.stringify(schema), JSON.stringify(schemaInDoc),
+                   'doc/node-config-schema.json is out of date. ' +
+                   'Run `node tools/gen_node_config_schema.mjs` to update it.');
