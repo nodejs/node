@@ -121,6 +121,7 @@ expected.beforePreExec = new Set([
 
 expected.atRunTime = new Set([
   'NativeModule internal/process/pre_execution',
+  'NativeModule internal/util/temporal',
 ]);
 
 const { isMainThread } = require('worker_threads');
