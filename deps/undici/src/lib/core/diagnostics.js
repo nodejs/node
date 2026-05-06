@@ -177,10 +177,12 @@ function trackWebSocketEvents (debugLog = websocketDebuglog) {
 
   diagnosticsChannel.subscribe('undici:websocket:open',
     evt => {
-      const {
-        address: { address, port }
-      } = evt
-      debugLog('connection opened %s%s', address, port ? `:${port}` : '')
+      if (evt.address != null) {
+        const { address, port } = evt.address
+        debugLog('connection opened %s%s', address, port ? `:${port}` : '')
+      } else {
+        debugLog('connection opened')
+      }
     })
 
   diagnosticsChannel.subscribe('undici:websocket:close',
