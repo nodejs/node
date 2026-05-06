@@ -19,9 +19,7 @@ using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Just;
 using v8::kPromiseHandlerAddedAfterReject;
-using v8::kPromiseRejectAfterResolved;
 using v8::kPromiseRejectWithNoHandler;
-using v8::kPromiseResolveAfterResolved;
 using v8::Local;
 using v8::Maybe;
 using v8::Number;
@@ -54,8 +52,8 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   Environment* env = Environment::GetCurrent(isolate);
 
   if (env == nullptr || !env->can_call_into_js() ||
-      event != kPromiseRejectWithNoHandler &&
-      event != kPromiseHandlerAddedAfterReject) {
+      (event != kPromiseRejectWithNoHandler &&
+       event != kPromiseHandlerAddedAfterReject)) {
     return;
   }
 
