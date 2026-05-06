@@ -230,101 +230,6 @@ bool SignaturesMatch(const FFIFunction& fn,
   return true;
 }
 
-bool IsSBEligibleFFIType(ffi_type* type) {
-  return type == &ffi_type_void || type == &ffi_type_sint8 ||
-         type == &ffi_type_uint8 || type == &ffi_type_sint16 ||
-         type == &ffi_type_uint16 || type == &ffi_type_sint32 ||
-         type == &ffi_type_uint32 || type == &ffi_type_sint64 ||
-         type == &ffi_type_uint64 || type == &ffi_type_float ||
-         type == &ffi_type_double || type == &ffi_type_pointer;
-}
-
-bool IsSBEligibleSignature(const FFIFunction& fn) {
-  // The JS wrapper writes and reads the shared buffer little-endian while
-  // the C++ side uses memcpy in host order. On big-endian hosts these
-  // disagree, so the fast path is disabled there.
-  if constexpr (IsBigEndian()) {
-    return false;
-  }
-  // Zero-argument functions gain nothing from the shared-buffer path
-  // (no argument packing to skip) and measurably lose on tight native
-  // calls like `uv_os_getpid` due to the wrapper's fixed overhead.
-  if (fn.args.empty()) return false;
-  if (!IsSBEligibleFFIType(fn.return_type)) return false;
-  for (ffi_type* arg : fn.args) {
-    if (!IsSBEligibleFFIType(arg)) return false;
-  }
-  return true;
-}
-
-bool SignatureHasPointerArgs(const FFIFunction& fn) {
-  for (ffi_type* arg : fn.args) {
-    if (arg == &ffi_type_pointer) return true;
-  }
-  return false;
-}
-
-void ReadFFIArgFromBuffer(ffi_type* type,
-                          const uint8_t* buffer,
-                          size_t offset,
-                          void* out) {
-  CHECK(IsSBEligibleFFIType(type));
-  CHECK_LE(type->size, sizeof(uint64_t));
-  // memcpy avoids the strict-aliasing violation that a direct typed load
-  // from the raw uint8_t buffer would incur.
-  const uint8_t* src = buffer + offset;
-  std::memcpy(out, src, type->size);
-}
-
-void WriteFFIReturnToBuffer(ffi_type* type,
-                            const void* result,
-                            uint8_t* buffer,
-                            size_t offset) {
-  CHECK(IsSBEligibleFFIType(type));
-  uint8_t* dst = buffer + offset;
-  std::memset(dst, 0, 8);
-
-  if (type == &ffi_type_void) {
-    return;
-  }
-
-  // libffi promotes small integer return values to ffi_arg size, so these
-  // branches read as ffi_arg or ffi_sarg and then truncate back down.
-  if (type == &ffi_type_sint8) {
-    int8_t tmp = static_cast<int8_t>(*static_cast<const ffi_sarg*>(result));
-    std::memcpy(dst, &tmp, sizeof(tmp));
-    return;
-  }
-  if (type == &ffi_type_uint8) {
-    uint8_t tmp = static_cast<uint8_t>(*static_cast<const ffi_arg*>(result));
-    std::memcpy(dst, &tmp, sizeof(tmp));
-    return;
-  }
-  if (type == &ffi_type_sint16) {
-    int16_t tmp = static_cast<int16_t>(*static_cast<const ffi_sarg*>(result));
-    std::memcpy(dst, &tmp, sizeof(tmp));
-    return;
-  }
-  if (type == &ffi_type_uint16) {
-    uint16_t tmp = static_cast<uint16_t>(*static_cast<const ffi_arg*>(result));
-    std::memcpy(dst, &tmp, sizeof(tmp));
-    return;
-  }
-  if (type == &ffi_type_sint32) {
-    int32_t tmp = static_cast<int32_t>(*static_cast<const ffi_sarg*>(result));
-    std::memcpy(dst, &tmp, sizeof(tmp));
-    return;
-  }
-  if (type == &ffi_type_uint32) {
-    uint32_t tmp = static_cast<uint32_t>(*static_cast<const ffi_arg*>(result));
-    std::memcpy(dst, &tmp, sizeof(tmp));
-    return;
-  }
-
-  // Remaining SB-eligible types (sint64, uint64, float, double, pointer)
-  // are not promoted by libffi and can be copied as-is.
-  std::memcpy(dst, result, type->size);
-}
 
 v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
   if (type_str == "void") {
@@ -364,9 +269,9 @@ v8::Maybe<ffi_type*> ToFFIType(Environment* env, std::string_view type_str) {
   }
 }
 
-// The JS fast path in lib/internal/ffi-shared-buffer.js mirrors the
-// validation below. `writeNumericArg` matches the numeric branches and
-// `writePointerArg` matches the pointer-BigInt branch. Error codes and
+// The JS fast path in lib/internal/ffi-fastcall.js mirrors the
+// validation below. `validateAndCoerce` matches the numeric branches and
+// `coercePointer` matches the pointer-BigInt branch. Error codes and
 // messages must stay identical across all three sites.
 Maybe<FFIArgumentCategory> ToFFIArgument(Environment* env,
                                          unsigned int index,
@@ -737,6 +642,127 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
 
   return true;
 }
+
+#ifdef HAVE_FFI_FASTCALL
+
+namespace {
+
+bool IsFastCallEligibleFFIType(ffi_type* t) {
+  return t == &ffi_type_void ||
+         t == &ffi_type_sint8 || t == &ffi_type_uint8 ||
+         t == &ffi_type_sint16 || t == &ffi_type_uint16 ||
+         t == &ffi_type_sint32 || t == &ffi_type_uint32 ||
+         t == &ffi_type_sint64 || t == &ffi_type_uint64 ||
+         t == &ffi_type_float || t == &ffi_type_double ||
+         t == &ffi_type_pointer;
+}
+
+bool IsFunctionTypeName(const std::string& s) {
+  return s == "function";
+}
+
+// Per-platform emitter GP caps (excluding the implicit receiver slot).
+// Note: Win64 uses a combined gp+fp <= 3 positional-slot cap checked below;
+// it does not use kFastcallMaxGPArgs.
+#if defined(__aarch64__) || defined(_M_ARM64)
+constexpr unsigned kFastcallMaxGPArgs = 7;
+#elif defined(__x86_64__) && !defined(_WIN32)
+constexpr unsigned kFastcallMaxGPArgs = 6;
+#elif defined(__arm__)
+constexpr unsigned kFastcallMaxGPArgs = 3;
+#else
+constexpr unsigned kFastcallMaxGPArgs = 0;  // no emitter on this platform
+#endif
+
+// Every supported emitter allows up to 8 FP args. Win64 is further
+// constrained by the gp+fp<=3 positional-slot cap checked below.
+constexpr unsigned kFastcallMaxFPArgs = 8;
+
+}  // namespace
+
+bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
+  static const char* dummy = "";
+  if (out_reason == nullptr) out_reason = &dummy;
+
+  if (!IsFastCallEligibleFFIType(fn.return_type)) {
+    *out_reason = "unsupported return type";
+    return false;
+  }
+  if (IsFunctionTypeName(fn.return_type_name)) {
+    *out_reason = "return type is function";
+    return false;
+  }
+
+  unsigned gp = 0, fp = 0;
+  for (size_t i = 0; i < fn.args.size(); ++i) {
+    ffi_type* t = fn.args[i];
+    const std::string& name = fn.arg_type_names[i];
+
+    if (!IsFastCallEligibleFFIType(t)) {
+      *out_reason = "unsupported arg type";
+      return false;
+    }
+    // `void` is fine as a return type but has no register slot, so it cannot
+    // appear in `args`. `IsFastCallEligibleFFIType` accepts it for the
+    // return-type check above; reject it explicitly here so the GP/FP
+    // counting below stays consistent and `MapArgType` is never called with
+    // it (where it would hit UNREACHABLE).
+    if (t == &ffi_type_void) {
+      *out_reason = "void cannot be an argument type";
+      return false;
+    }
+    if (IsFunctionTypeName(name)) {
+      *out_reason = "arg is function";
+      return false;
+    }
+
+#if defined(__arm__)
+    // AArch32: i64/u64 consume two GP regs with alignment rules. Not
+    // supported in the v1 stub emitter.
+    if (t == &ffi_type_sint64 || t == &ffi_type_uint64) {
+      *out_reason = "i64/u64 arg unsupported on aarch32";
+      return false;
+    }
+#endif
+
+    if (t == &ffi_type_float || t == &ffi_type_double) {
+      ++fp;
+    } else {
+      ++gp;
+    }
+  }
+
+#if defined(__arm__)
+  if (fn.return_type == &ffi_type_sint64 ||
+      fn.return_type == &ffi_type_uint64) {
+    *out_reason = "i64/u64 return unsupported on aarch32";
+    return false;
+  }
+#endif
+
+#if defined(__x86_64__) && defined(_WIN32)
+  // Win64: positional slots — only 4 total (one taken by receiver), so
+  // gp + fp must not exceed 3.
+  if (gp + fp > 3) {
+    *out_reason = "GP + FP arg count exceeds Win64 cap";
+    return false;
+  }
+#else
+  if (gp > kFastcallMaxGPArgs) {
+    *out_reason = "GP arg count exceeds ABI cap";
+    return false;
+  }
+  if (fp > kFastcallMaxFPArgs) {
+    *out_reason = "FP arg count exceeds ABI cap";
+    return false;
+  }
+#endif
+
+  *out_reason = "";
+  return true;
+}
+
+#endif  // HAVE_FFI_FASTCALL
 
 }  // namespace ffi
 

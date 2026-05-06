@@ -444,6 +444,24 @@ FFI_EXPORT void array_set_f64(double* arr, size_t index, double value) {
   arr[index] = value;
 }
 
+// Arity boundary test helpers.
+
+FFI_EXPORT int add_5(int a, int b, int c, int d, int e) {
+  return a + b + c + d + e;
+}
+
+FFI_EXPORT int add_6(int a, int b, int c, int d, int e, int f) {
+  return a + b + c + d + e + f;
+}
+
+FFI_EXPORT int add_7(int a, int b, int c, int d, int e, int f, int g) {
+  return a + b + c + d + e + f + g;
+}
+
+// Pointer echo for pointer-fallback test.
+
+FFI_EXPORT void* return_pointer_arg(void* p) { return p; }
+
 #ifndef _WIN32
 FFI_EXPORT void* readonly_memory() {
   // TODO(bengl) Add a Windows version of this.

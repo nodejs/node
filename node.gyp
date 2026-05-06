@@ -39,6 +39,7 @@
     'node_use_quic%': 'false',
     'node_use_sqlite%': 'true',
     'node_use_ffi%': 'false',
+    'node_use_ffi_fastcall%': 'false',
     'node_use_v8_platform%': 'true',
     'node_v8_options%': '',
     'node_write_snapshot_as_string_literals': 'true',
@@ -471,6 +472,13 @@
       'src/ffi/data.h',
       'src/ffi/types.cc',
       'src/ffi/types.h',
+    ],
+    'node_ffi_fastcall_sources': [
+      'src/ffi/fastcall/jit_memory.cc',
+      'src/ffi/fastcall/jit_memory.h',
+      'src/ffi/fastcall/stub_emitter.h',
+      'src/ffi/fastcall/cfunction_info.cc',
+      'src/ffi/fastcall/cfunction_info.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
@@ -1010,6 +1018,24 @@
                 'deps/libffi/libffi.gyp:libffi',
               ],
             }],
+            [ 'node_use_ffi_fastcall=="true"', {
+              'defines': [ 'HAVE_FFI_FASTCALL=1' ],
+              'sources': [ '<@(node_ffi_fastcall_sources)' ],
+              'conditions': [
+                [ 'target_arch=="arm64"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_aarch64.cc' ],
+                }],
+                [ 'target_arch=="x64" and OS!="win"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_sysv.cc' ],
+                }],
+                [ 'target_arch=="x64" and OS=="win"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_win.cc' ],
+                }],
+                [ 'target_arch=="arm"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_arm.cc' ],
+                }],
+              ],
+            }],
           ],
         }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
@@ -1075,6 +1101,24 @@
             [ 'node_shared_ffi=="false"', {
               'dependencies': [
                 'deps/libffi/libffi.gyp:libffi',
+              ],
+            }],
+            [ 'node_use_ffi_fastcall=="true"', {
+              'defines': [ 'HAVE_FFI_FASTCALL=1' ],
+              'sources': [ '<@(node_ffi_fastcall_sources)' ],
+              'conditions': [
+                [ 'target_arch=="arm64"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_aarch64.cc' ],
+                }],
+                [ 'target_arch=="x64" and OS!="win"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_sysv.cc' ],
+                }],
+                [ 'target_arch=="x64" and OS=="win"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_win.cc' ],
+                }],
+                [ 'target_arch=="arm"', {
+                  'sources': [ 'src/ffi/fastcall/stub_emitter_arm.cc' ],
+                }],
               ],
             }],
           ],
@@ -1407,6 +1451,18 @@
           ],
         }, {
           'sources!': [ '<@(node_cctest_quic_sources)' ],
+        }],
+        [ 'node_use_ffi_fastcall=="true"', {
+          'defines': [
+            'HAVE_FFI_FASTCALL=1',
+          ],
+        }, {
+          'sources!': [
+            'test/cctest/test_ffi_fastcall_cfunction.cc',
+            'test/cctest/test_ffi_fastcall_eligibility.cc',
+            'test/cctest/test_ffi_fastcall_emitter.cc',
+            'test/cctest/test_ffi_fastcall_jit.cc',
+          ],
         }],
         ['v8_enable_inspector==1', {
           'defines': [

@@ -10,6 +10,16 @@
 #include "ffi/data.h"
 #include "ffi/types.h"
 #include "node_errors.h"
+#include "node_process-inl.h"
+
+#include <atomic>
+#include <mutex>
+
+#ifdef HAVE_FFI_FASTCALL
+#include "ffi/fastcall/cfunction_info.h"
+#include "ffi/fastcall/jit_memory.h"
+#include "ffi/fastcall/stub_emitter.h"
+#endif
 
 namespace node {
 
@@ -44,9 +54,37 @@ using v8::WeakCallbackType;
 
 namespace ffi {
 
+#ifdef HAVE_FFI_FASTCALL
+FastCallState::FastCallState(
+    v8::Isolate* isolate,
+    v8::Local<v8::Function> slow_fn,
+    void* stub,
+    size_t alloc_size,
+    std::unique_ptr<node::ffi::fastcall::CFunctionInfoBundle> bndl)
+    : slow_invoke(isolate, slow_fn),
+      stub_entry(stub),
+      stub_alloc_size(alloc_size),
+      cfun_bundle(std::move(bndl)) {}
+
+FastCallState::~FastCallState() {
+  slow_invoke.Reset();
+  cfun_bundle.reset();
+  if (stub_entry != nullptr) {
+    node::ffi::fastcall::JitMemory::Get(/*isolate=*/nullptr)
+        ->Free(stub_entry, stub_alloc_size);
+    stub_entry = nullptr;
+  }
+}
+#endif
+
 DynamicLibrary::DynamicLibrary(Environment* env, Local<Object> object)
     : BaseObject(env, object), lib_{}, handle_(nullptr), symbols_() {
   MakeWeak();
+#ifdef HAVE_FFI_FASTCALL
+  alive_backing_ = v8::ArrayBuffer::NewBackingStore(env->isolate(), 1);
+  CHECK(alive_backing_);
+  static_cast<uint8_t*>(alive_backing_->Data())[0] = 0;
+#endif
 }
 
 DynamicLibrary::~DynamicLibrary() {
@@ -66,12 +104,34 @@ void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize(
       "symbols", symbols_size, "std::unordered_map<std::string, void*>");
 
-  // FFIFunctionInfo instances and their sb_backing ArrayBuffers are
-  // owned by V8 function wrappers and reachable only via weak references,
-  // so they are deliberately not counted here.
+  // FFIFunctionInfo instances are owned by V8 function wrappers and reachable
+  // only via weak references, so they are deliberately not counted here.
+
+#ifdef HAVE_FFI_FASTCALL
+  // Process-wide JIT bytes from the singleton allocator. Per-library
+  // accounting would require plumbing per-stub bookkeeping through
+  // CreateFunction; for v1 we report the singleton total under each
+  // library's MemoryInfo, with a name that makes the scope clear.
+  size_t jit_bytes =
+      node::ffi::fastcall::JitMemory::Get(env()->isolate())->TotalLiveBytes();
+  tracker->TrackFieldWithSize(
+      "jit_stubs_process_global", jit_bytes,
+      "ffi::FastCallStubs (process-wide singleton)");
+#endif
 }
 
+#ifdef HAVE_FFI_FASTCALL
+v8::Local<v8::ArrayBuffer> DynamicLibrary::AliveBuffer(v8::Isolate* isolate) {
+  return v8::ArrayBuffer::New(isolate, alive_backing_);
+}
+#endif
+
 void DynamicLibrary::Close() {
+#ifdef HAVE_FFI_FASTCALL
+  if (alive_backing_) {
+    static_cast<uint8_t*>(alive_backing_->Data())[0] = 1;
+  }
+#endif
   for (auto& [name, fn] : functions_) {
     fn->closed = true;
     fn->ptr = nullptr;
@@ -192,6 +252,9 @@ Maybe<DynamicLibrary::PreparedFunction> DynamicLibrary::PrepareFunction(
 void DynamicLibrary::CleanupFunctionInfo(
     const WeakCallbackInfo<FFIFunctionInfo>& data) {
   FFIFunctionInfo* info = data.GetParameter();
+#ifdef HAVE_FFI_FASTCALL
+  info->fast.reset();  // FastCallState destructor frees the JIT stub
+#endif
   info->fn.reset();
   info->self.Reset();
   delete info;
@@ -211,20 +274,174 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
 
   DCHECK_EQ(fn->args.size(), fn->arg_type_names.size());
 
-  bool use_sb = IsSBEligibleSignature(*fn);
-  bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
-
   Local<External> data =
       External::New(isolate, info.get(), v8::kExternalPointerTypeTagDefault);
 
-  MaybeLocal<Function> maybe_ret =
-      Function::New(context,
-                    use_sb ? DynamicLibrary::InvokeFunctionSB
-                           : DynamicLibrary::InvokeFunction,
-                    data);
+  // Internal properties are keyed by per-isolate Symbols (see
+  // `env_properties.h`) to keep them out of string-key reflection, and the
+  // `ReadOnly | DontEnum | DontDelete` attribute set blocks user code from
+  // reading, modifying, or deleting them.
+  PropertyAttribute internal_attrs =
+      static_cast<PropertyAttribute>(ReadOnly | DontEnum | DontDelete);
+
   Local<Function> ret;
-  if (!maybe_ret.ToLocal(&ret)) {
-    return MaybeLocal<Function>();
+
+#ifdef HAVE_FFI_FASTCALL
+  const char* fc_reason = "";
+  // One-time process-wide self-test. On failure (entitlement missing,
+  // hardened runtime, SELinux execmem denial, etc.), every subsequent
+  // registration falls back to libffi.
+  static std::atomic<int> selftest_result{-1};
+  static std::once_flag selftest_warn_once;
+  int s = selftest_result.load(std::memory_order_acquire);
+  if (s == -1) {
+    bool ok = node::ffi::fastcall::JitMemory::Get(isolate)->SelfTest(isolate);
+    s = ok ? 1 : 0;
+    selftest_result.store(s, std::memory_order_release);
+    if (!ok) {
+      // The atomic above only dedupes the SelfTest *call*; two threads can
+      // both observe `s == -1` and both reach this branch. `call_once`
+      // ensures at most one warning is emitted per process across all
+      // racing first-callers.
+      bool warn_failed = false;
+      std::call_once(selftest_warn_once, [&]() {
+        if (ProcessEmitWarning(env,
+                "FFI fast-call self-test failed; falling back to libffi for "
+                "all FFI invocations")
+                .IsNothing()) {
+          warn_failed = true;
+        }
+      });
+      if (warn_failed) return MaybeLocal<Function>();
+    }
+  }
+  bool fc_ok = (s == 1) && node::ffi::IsFastCallEligible(*fn, &fc_reason);
+  if (fc_ok) {
+    auto bundle = node::ffi::fastcall::BuildCFunctionInfo(*fn);
+    {
+      auto stub = node::ffi::fastcall::EmitForwarder(
+          isolate, fn->ptr, bundle.arg_classes, bundle.result_class);
+      if (!stub.has_value()) {
+        // Warn at most once per process: a single FFI app may register hundreds
+        // of functions, and the failure cause (mprotect / SELinux / hardened
+        // runtime) is the same for every call. Repeated warnings would flood
+        // logs without adding signal.
+        static std::atomic<bool> warned{false};
+        if (!warned.exchange(true, std::memory_order_acq_rel)) {
+          if (ProcessEmitWarning(env,
+                  "FFI fast-call stub emission failed for an eligible "
+                  "signature; falling back to libffi for this and possibly "
+                  "future calls. This usually indicates a JIT memory or "
+                  "permission issue (mprotect/SELinux/hardened runtime).")
+                  .IsNothing()) {
+            return MaybeLocal<Function>();
+          }
+        }
+        // fall through to libffi path
+      } else {
+        v8::CFunction cfun(stub->entry, bundle.info);
+        v8::Local<v8::FunctionTemplate> tmpl = v8::FunctionTemplate::New(
+            isolate,
+            DynamicLibrary::InvokeFunction,
+            data,
+            v8::Local<v8::Signature>(),
+            static_cast<int>(fn->args.size()),
+            v8::ConstructorBehavior::kThrow,
+            v8::SideEffectType::kHasSideEffect,
+            &cfun);
+        v8::Local<v8::Function> fc_fn;
+        if (tmpl->GetFunction(context).ToLocal(&fc_fn)) {
+          // Build all V8 values before touching `info` fields, so that on
+          // any failure we can free the stub and return cleanly without
+          // leaking JIT memory.
+          bool metadata_ok = true;
+
+          // Alive ArrayBuffer.
+          v8::Local<v8::ArrayBuffer> alive_ab = AliveBuffer(isolate);
+          if (!fc_fn->DefineOwnProperty(
+                      context, env->ffi_fastcall_alive_symbol(),
+                      alive_ab, internal_attrs)
+                   .FromMaybe(false)) {
+            metadata_ok = false;
+          }
+
+          // Build the slow-invoke v8::Function for the wrapper's pointer
+          // fallback path.
+          Local<Function> slow_fn;
+          if (metadata_ok &&
+              !Function::New(context, DynamicLibrary::InvokeFunction, data)
+                   .ToLocal(&slow_fn)) {
+            metadata_ok = false;
+          }
+          if (metadata_ok &&
+              !fc_fn->DefineOwnProperty(
+                      context, env->ffi_fastcall_invoke_slow_symbol(),
+                      slow_fn, internal_attrs)
+                   .FromMaybe(false)) {
+            metadata_ok = false;
+          }
+
+          // Attach params and result type names.
+          Local<Value> params_arr;
+          if (metadata_ok &&
+              !ToV8Value(context, fn->arg_type_names, isolate)
+                   .ToLocal(&params_arr)) {
+            metadata_ok = false;
+          }
+          if (metadata_ok &&
+              !fc_fn->DefineOwnProperty(
+                      context, env->ffi_fastcall_params_symbol(),
+                      params_arr, internal_attrs)
+                   .FromMaybe(false)) {
+            metadata_ok = false;
+          }
+          Local<Value> result_str;
+          if (metadata_ok &&
+              !ToV8Value(context, fn->return_type_name, isolate)
+                   .ToLocal(&result_str)) {
+            metadata_ok = false;
+          }
+          if (metadata_ok &&
+              !fc_fn->DefineOwnProperty(
+                      context, env->ffi_fastcall_result_symbol(),
+                      result_str, internal_attrs)
+                   .FromMaybe(false)) {
+            metadata_ok = false;
+          }
+
+          if (!metadata_ok) {
+            // Free the stub to avoid a JIT memory leak.
+            node::ffi::fastcall::JitMemory::Get(isolate)
+                ->Free(*stub);
+            return MaybeLocal<Function>();
+          }
+
+          // All metadata attached successfully. Populate fast-call state.
+          info->fast = std::make_unique<FastCallState>(
+              isolate, slow_fn, stub->entry, stub->alloc_size,
+              std::make_unique<node::ffi::fastcall::CFunctionInfoBundle>(
+                  std::move(bundle)));
+          ret = fc_fn;
+        } else {
+          // Template-to-function failed (V8 has a pending exception). Free the
+          // stub since we won't use it; mirror the metadata-fail path and
+          // propagate the empty MaybeLocal so the caller surfaces the V8
+          // exception.
+          node::ffi::fastcall::JitMemory::Get(isolate)
+              ->Free(*stub);
+          return MaybeLocal<Function>();
+        }
+      }
+    }
+  }
+  if (ret.IsEmpty())
+#endif
+  {
+    MaybeLocal<Function> maybe_ret =
+        Function::New(context, DynamicLibrary::InvokeFunction, data);
+    if (!maybe_ret.ToLocal(&ret)) {
+      return MaybeLocal<Function>();
+    }
   }
 
   Local<Value> name_str;
@@ -243,74 +460,6 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
     return MaybeLocal<Function>();
   }
 
-  // Internal properties are keyed by per-isolate Symbols (see
-  // `env_properties.h`) to keep them out of string-key reflection, and the
-  // `ReadOnly | DontEnum | DontDelete` attribute set blocks user code from
-  // reading, modifying, or deleting them.
-  PropertyAttribute internal_attrs =
-      static_cast<PropertyAttribute>(ReadOnly | DontEnum | DontDelete);
-
-  if (use_sb) {
-    size_t sb_size = 8 * (fn->args.size() + 1);
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sb_size);
-    // The shared_ptr to the backing store keeps the memory alive while
-    // FFIFunctionInfo still references it.
-    info->sb_backing = ab->GetBackingStore();
-
-    if (!ret->DefineOwnProperty(
-                context, env->ffi_sb_shared_buffer_symbol(), ab, internal_attrs)
-             .FromMaybe(false)) {
-      return MaybeLocal<Function>();
-    }
-
-    // Signatures with pointer args also expose a slow-path invoker bound
-    // to the same FFIFunctionInfo. The JS wrapper routes through it when a
-    // pointer argument is anything other than a BigInt, null, or undefined
-    // (strings, Buffers, ArrayBuffers, and ArrayBufferViews).
-    if (has_ptr_args) {
-      Local<Function> slow_fn;
-      if (!Function::New(context, DynamicLibrary::InvokeFunction, data)
-               .ToLocal(&slow_fn)) {
-        return MaybeLocal<Function>();
-      }
-      if (!ret->DefineOwnProperty(context,
-                                  env->ffi_sb_invoke_slow_symbol(),
-                                  slow_fn,
-                                  internal_attrs)
-               .FromMaybe(false)) {
-        return MaybeLocal<Function>();
-      }
-    }
-
-    // Attach the original signature type names so the JS wrapper can
-    // rebuild the signature from a raw function when the caller did not
-    // pass parameters and result explicitly. The `lib.functions` accessor
-    // path relies on this.
-    Local<Value> params_arr;
-    if (!ToV8Value(context, fn->arg_type_names, isolate).ToLocal(&params_arr)) {
-      return MaybeLocal<Function>();
-    }
-    if (!ret->DefineOwnProperty(context,
-                                env->ffi_sb_params_symbol(),
-                                params_arr,
-                                internal_attrs)
-             .FromMaybe(false)) {
-      return MaybeLocal<Function>();
-    }
-
-    Local<Value> result_name;
-    if (!ToV8Value(context, fn->return_type_name, isolate)
-             .ToLocal(&result_name)) {
-      return MaybeLocal<Function>();
-    }
-    if (!ret->DefineOwnProperty(context,
-                                env->ffi_sb_result_symbol(),
-                                result_name,
-                                internal_attrs)
-             .FromMaybe(false)) {
-      return MaybeLocal<Function>();
-    }
-  }
 
   info->self.Reset(isolate, ret);
   info->self.SetWeak(info.release(),
@@ -438,65 +587,6 @@ void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   // Return result back to Javascript
   ToJSReturnValue(env, args, fn->return_type, result);
   free(result);
-}
-
-void DynamicLibrary::InvokeFunctionSB(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  FFIFunctionInfo* info =
-      static_cast<FFIFunctionInfo*>(args.Data().As<External>()->Value());
-  FFIFunction* fn = info->fn.get();
-
-  if (fn == nullptr || fn->closed || fn->ptr == nullptr) {
-    THROW_ERR_FFI_LIBRARY_CLOSED(env);
-    return;
-  }
-
-  // Arguments reach the native invoker through the shared buffer, not
-  // through V8. The JS wrapper always calls the raw function as `rawFn()`
-  // so any non-zero argument count indicates that user code reached the
-  // raw SB function directly and is about to read stale buffer contents.
-  if (args.Length() != 0) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env,
-        "SB-invoked FFI functions receive arguments through the shared "
-        "buffer, not as JavaScript arguments");
-    return;
-  }
-
-  // A failure of either CHECK means the SB invoker ran against a function
-  // that `CreateFunction` did not set up for the fast path, which is a
-  // contract violation. They stay enabled in Release because each FFI call
-  // is already dominated by `ffi_call` itself.
-  CHECK(info->sb_backing);
-  CHECK_EQ(info->sb_backing->ByteLength(), 8u * (info->fn->args.size() + 1));
-
-  uint8_t* buffer = static_cast<uint8_t*>(info->sb_backing->Data());
-  unsigned int nargs = fn->args.size();
-
-  // Layout is 8 bytes per slot. The return value lives at offset 0 and
-  // argument i lives at offset 8*(i+1).
-  std::vector<uint64_t> values(nargs, 0);
-  std::vector<void*> ffi_args(nargs, nullptr);
-
-  for (unsigned int i = 0; i < nargs; i++) {
-    ReadFFIArgFromBuffer(fn->args[i], buffer, 8 * (i + 1), &values[i]);
-    ffi_args[i] = &values[i];
-  }
-
-  // The storage must cover both the ffi_arg width that libffi uses for
-  // promoted small integer returns and the 8 bytes needed for non-promoted
-  // SB-eligible returns like f64, i64, and u64. `sizeof(ffi_arg)` is only
-  // 4 on 32-bit ARM, so take the max.
-  constexpr size_t kSBResultStorageSize =
-      sizeof(ffi_arg) > 8 ? sizeof(ffi_arg) : 8;
-  alignas(8) uint8_t result_storage[kSBResultStorageSize] = {0};
-  void* result = (fn->return_type != &ffi_type_void) ? result_storage : nullptr;
-
-  ffi_call(&fn->cif, FFI_FN(fn->ptr), result, ffi_args.data());
-
-  if (result != nullptr) {
-    WriteFFIReturnToBuffer(fn->return_type, result, buffer, 0);
-  }
 }
 
 // This is the function that will be called by libffi when a callback
@@ -1141,8 +1231,8 @@ static void Initialize(Local<Object> target,
   SetMethod(context, target, "setFloat64", SetFloat64);
 
   // ToFFIType maps `char` to sint8 or uint8 based on `CHAR_MIN < 0` at C++
-  // build time. Exposing the same decision to JS lets the shared-buffer
-  // wrapper's range check match `ToFFIArgument` on every platform.
+  // build time. Exposing the same decision to JS lets the fast-call wrapper's
+  // range check match `ToFFIArgument` on every platform.
   Isolate* isolate = env->isolate();
   target
       ->Set(context,
@@ -1150,10 +1240,9 @@ static void Initialize(Local<Object> target,
             Boolean::New(isolate, CHAR_MIN < 0))
       .Check();
 
-  // The shared-buffer fast path uses `uintptrMax` to reject pointer BigInts
-  // that would otherwise be silently truncated by `ReadFFIArgFromBuffer`'s
-  // `memcpy(..., type->size, ...)` on 32-bit platforms. The slow path
-  // rejects the same values through `ToFFIArgument`.
+  // `uintptrMax` is used by the fast-call JS wrapper to reject pointer BigInts
+  // that exceed the platform's pointer range on 32-bit platforms. The slow
+  // path rejects the same values through `ToFFIArgument`.
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "uintptrMax"),
@@ -1162,28 +1251,28 @@ static void Initialize(Local<Object> target,
                 static_cast<uint64_t>(std::numeric_limits<uintptr_t>::max())))
       .Check();
 
-  // Per-isolate Symbols used by `lib/internal/ffi-shared-buffer.js` to key
-  // shared-buffer internal state on raw FFI functions.
+#ifdef HAVE_FFI_FASTCALL
   target
       ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kSbSharedBuffer"),
-            env->ffi_sb_shared_buffer_symbol())
+            FIXED_ONE_BYTE_STRING(isolate, "kFastcallAlive"),
+            env->ffi_fastcall_alive_symbol())
       .Check();
   target
       ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kSbInvokeSlow"),
-            env->ffi_sb_invoke_slow_symbol())
+            FIXED_ONE_BYTE_STRING(isolate, "kFastcallInvokeSlow"),
+            env->ffi_fastcall_invoke_slow_symbol())
       .Check();
   target
       ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kSbParams"),
-            env->ffi_sb_params_symbol())
+            FIXED_ONE_BYTE_STRING(isolate, "kFastcallParams"),
+            env->ffi_fastcall_params_symbol())
       .Check();
   target
       ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kSbResult"),
-            env->ffi_sb_result_symbol())
+            FIXED_ONE_BYTE_STRING(isolate, "kFastcallResult"),
+            env->ffi_fastcall_result_symbol())
       .Check();
+#endif
 }
 
 }  // namespace ffi

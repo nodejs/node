@@ -53,30 +53,17 @@ bool SignaturesMatch(const FFIFunction& fn,
                      ffi_type* return_type,
                      const std::vector<ffi_type*>& args);
 
-// True if the FFI type can be read from / written to a raw byte buffer
-// without needing V8 operations (conversion, allocation, etc.).
-bool IsSBEligibleFFIType(ffi_type* type);
-
-// True if the signature's return type and all argument types are SB-eligible.
-bool IsSBEligibleSignature(const FFIFunction& fn);
-
-// True if any argument is pointer-typed. For these, the JS wrapper must
-// do a runtime type check to decide fast vs. slow path per call.
-bool SignatureHasPointerArgs(const FFIFunction& fn);
-
-// Read a value of the given FFI type from buffer at the given byte offset
-// into the output pointer (sized as uint64_t to hold any numeric type).
-void ReadFFIArgFromBuffer(ffi_type* type,
-                          const uint8_t* buffer,
-                          size_t offset,
-                          void* out);
-
-// Write a return value of the given FFI type from the ffi_call result
-// into the buffer at the given byte offset.
-void WriteFFIReturnToBuffer(ffi_type* type,
-                            const void* result,
-                            uint8_t* buffer,
-                            size_t offset);
+#ifdef HAVE_FFI_FASTCALL
+// Returns true if `fn` can be invoked via the V8 fast-call path. On
+// false, `*out_reason` is set to a static string describing why
+// (never null after this returns; callers may pass nullptr to ignore).
+//
+// Eligibility = all of: every arg type and the return type are
+// numeric-or-pointer, no `function`-typed args/return, GP arg count
+// within ABI cap, FP arg count within ABI cap. Adds an AArch32-only
+// rejection of i64/u64 args (kGPPair handling not in v1).
+bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason);
+#endif
 
 }  // namespace node::ffi
 
