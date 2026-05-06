@@ -9,9 +9,7 @@
 #include "node_ffi.h"
 
 using node::ffi::FFIFunction;
-using node::ffi::fastcall::ArgClass;
 using node::ffi::fastcall::BuildCFunctionInfo;
-using node::ffi::fastcall::ResultClass;
 
 namespace {
 FFIFunction MakeFn(ffi_type* ret,
@@ -32,14 +30,10 @@ TEST(FFIFastCallCFunction, NumericSignature) {
                    {&ffi_type_sint32, &ffi_type_sint32},
                    {"i32", "i32"});
   auto bundle = BuildCFunctionInfo(fn);
-  // Receiver + 2 args = 3 CTypeInfo entries.
-  // No-receiver mode: ArgumentCount counts user args only (no leading
+  // HasReceiver=kNo: ArgumentCount counts user args only (no leading
   // v8::Value receiver slot).
   EXPECT_EQ(bundle.info->ArgumentCount(), 2u);
-  EXPECT_EQ(bundle.arg_classes.size(), 2u);
-  EXPECT_EQ(bundle.arg_classes[0], ArgClass::kGP);
-  EXPECT_EQ(bundle.arg_classes[1], ArgClass::kGP);
-  EXPECT_EQ(bundle.result_class, ResultClass::kGP);
+  EXPECT_FALSE(bundle.info->HasReceiverArg());
 }
 
 TEST(FFIFastCallCFunction, FloatSignature) {
@@ -47,36 +41,30 @@ TEST(FFIFastCallCFunction, FloatSignature) {
                    {&ffi_type_float, &ffi_type_double},
                    {"float", "double"});
   auto bundle = BuildCFunctionInfo(fn);
-  EXPECT_EQ(bundle.arg_classes[0], ArgClass::kFP);
-  EXPECT_EQ(bundle.arg_classes[1], ArgClass::kFP);
-  EXPECT_EQ(bundle.result_class, ResultClass::kFP);
+  EXPECT_EQ(bundle.info->ArgumentCount(), 2u);
 }
 
 TEST(FFIFastCallCFunction, VoidReturn) {
   auto fn = MakeFn(&ffi_type_void, "void",
                    {&ffi_type_sint32}, {"i32"});
   auto bundle = BuildCFunctionInfo(fn);
-  EXPECT_EQ(bundle.result_class, ResultClass::kVoid);
+  EXPECT_EQ(bundle.info->ArgumentCount(), 1u);
 }
 
 TEST(FFIFastCallCFunction, PointerSignature) {
   auto fn = MakeFn(&ffi_type_pointer, "pointer",
                    {&ffi_type_pointer}, {"pointer"});
   auto bundle = BuildCFunctionInfo(fn);
-  EXPECT_EQ(bundle.arg_classes[0], ArgClass::kGP);
-  EXPECT_EQ(bundle.result_class, ResultClass::kGP);
+  EXPECT_EQ(bundle.info->ArgumentCount(), 1u);
 }
 
 TEST(FFIFastCallCFunction, MoveCleanupSafe) {
   auto fn = MakeFn(&ffi_type_sint32, "i32",
                    {&ffi_type_sint32}, {"i32"});
   auto a = BuildCFunctionInfo(fn);
-  // Move into a new bundle and let it drop. The moved-from bundle's
-  // destructor must not double-free.
   auto b = std::move(a);
   EXPECT_EQ(a.info, nullptr);
   EXPECT_EQ(a.arg_types, nullptr);
-  // b's destructor runs at end of scope; no crash expected.
 }
 
 TEST(FFIFastCallCFunction, MoveAssignmentSelfSafe) {
@@ -85,19 +73,13 @@ TEST(FFIFastCallCFunction, MoveAssignmentSelfSafe) {
   auto bundle = BuildCFunctionInfo(fn);
   ASSERT_NE(bundle.info, nullptr);
   ASSERT_NE(bundle.arg_types, nullptr);
-  ASSERT_EQ(bundle.arg_classes.size(), 1u);
-  ASSERT_EQ(bundle.result_class, node::ffi::fastcall::ResultClass::kGP);
 
-  // Self-move-assign must be a no-op (or at least not double-free).
-  // The self-assignment guard should keep all four bundle fields valid.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wself-move"
   bundle = std::move(bundle);
 #pragma GCC diagnostic pop
   EXPECT_NE(bundle.info, nullptr);
   EXPECT_NE(bundle.arg_types, nullptr);
-  EXPECT_EQ(bundle.arg_classes.size(), 1u);
-  EXPECT_EQ(bundle.result_class, node::ffi::fastcall::ResultClass::kGP);
 }
 
 TEST(FFIFastCallCFunction, MoveAssignmentReplaces) {
@@ -109,7 +91,6 @@ TEST(FFIFastCallCFunction, MoveAssignmentReplaces) {
   auto bundle_b = BuildCFunctionInfo(fn_b);
   const void* old_a_info = bundle_a.info;
   bundle_a = std::move(bundle_b);
-  // bundle_a now holds what bundle_b had; bundle_b is nulled out.
   EXPECT_EQ(bundle_b.info, nullptr);
   EXPECT_NE(bundle_a.info, nullptr);
   EXPECT_NE(bundle_a.info, old_a_info);

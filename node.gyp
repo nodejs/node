@@ -474,9 +474,6 @@
       'src/ffi/types.h',
     ],
     'node_ffi_fastcall_sources': [
-      'src/ffi/fastcall/jit_memory.cc',
-      'src/ffi/fastcall/jit_memory.h',
-      'src/ffi/fastcall/stub_emitter.h',
       'src/ffi/fastcall/cfunction_info.cc',
       'src/ffi/fastcall/cfunction_info.h',
     ],
@@ -1021,20 +1018,6 @@
             [ 'node_use_ffi_fastcall=="true"', {
               'defines': [ 'HAVE_FFI_FASTCALL=1' ],
               'sources': [ '<@(node_ffi_fastcall_sources)' ],
-              'conditions': [
-                [ 'target_arch=="arm64"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_aarch64.cc' ],
-                }],
-                [ 'target_arch=="x64" and OS!="win"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_sysv.cc' ],
-                }],
-                [ 'target_arch=="x64" and OS=="win"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_win.cc' ],
-                }],
-                [ 'target_arch=="arm"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_arm.cc' ],
-                }],
-              ],
             }],
           ],
         }],
@@ -1106,20 +1089,6 @@
             [ 'node_use_ffi_fastcall=="true"', {
               'defines': [ 'HAVE_FFI_FASTCALL=1' ],
               'sources': [ '<@(node_ffi_fastcall_sources)' ],
-              'conditions': [
-                [ 'target_arch=="arm64"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_aarch64.cc' ],
-                }],
-                [ 'target_arch=="x64" and OS!="win"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_sysv.cc' ],
-                }],
-                [ 'target_arch=="x64" and OS=="win"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_x64_win.cc' ],
-                }],
-                [ 'target_arch=="arm"', {
-                  'sources': [ 'src/ffi/fastcall/stub_emitter_arm.cc' ],
-                }],
-              ],
             }],
           ],
         }],
@@ -1460,8 +1429,6 @@
           'sources!': [
             'test/cctest/test_ffi_fastcall_cfunction.cc',
             'test/cctest/test_ffi_fastcall_eligibility.cc',
-            'test/cctest/test_ffi_fastcall_emitter.cc',
-            'test/cctest/test_ffi_fastcall_jit.cc',
           ],
         }],
         ['v8_enable_inspector==1', {

@@ -14,11 +14,8 @@
 #include <vector>
 
 #ifdef HAVE_FFI_FASTCALL
-// jit_memory.h only uses standard-library headers so it is safe to include
-// here. cfunction_info.h includes node_ffi.h, so it cannot be included here
-// (cycle), but a forward declaration suffices for the unique_ptr member.
-#include "ffi/fastcall/jit_memory.h"  // for JitMemory, EmittedStub
-
+// cfunction_info.h includes node_ffi.h, so it cannot be included here
+// (cycle); a forward declaration suffices for the unique_ptr member.
 namespace node::ffi::fastcall {
 struct CFunctionInfoBundle;
 }  // namespace node::ffi::fastcall
@@ -42,40 +39,21 @@ struct FFIFunction {
 
 #ifdef HAVE_FFI_FASTCALL
 // Owns the per-function fast-call state for a single FFI registration.
-// Three resources are owned and freed by the destructor:
-//   1. The JIT stub bytes — released via
-//      `JitMemory::Free(stub_entry, stub_alloc_size)`.
-//   2. The slow-path libffi `v8::Global<v8::Function>` — reset.
-//   3. The `CFunctionInfoBundle` (which itself owns heap-allocated
-//      `v8::CFunctionInfo` and `v8::CTypeInfo[]`) — destroyed via the
-//      bundle's destructor.
+// Two resources are owned: the slow-path libffi `v8::Global<v8::Function>`,
+// and the `CFunctionInfoBundle` (which itself owns the heap-allocated
+// `v8::CFunctionInfo` + `v8::CTypeInfo[]`).
 //
 // `FFIFunctionInfo::fast` is null for ineligible signatures (libffi-only
 // path); a non-null `fast` always represents a fully-constructed
 // fast-call state.
 struct FastCallState {
   v8::Global<v8::Function> slow_invoke;
-  void* stub_entry = nullptr;
-  size_t stub_alloc_size = 0;
   std::unique_ptr<node::ffi::fastcall::CFunctionInfoBundle> cfun_bundle;
 
-  // Default-construction is forbidden — every FastCallState must hold a
-  // valid stub/bundle/slow-invoke triple. Construct via the value form.
   FastCallState() = delete;
 
-  // Construct a fully-armed FastCallState. All resources move into the
-  // new object atomically (under -fno-exceptions, member init runs
-  // top-to-bottom; an OOM in any V8 handle allocation aborts the
-  // process, which is the project contract).
-  // Preconditions:
-  //   - `slow_fn` is a non-empty Local<Function>.
-  //   - `stub` is a non-null pointer returned from JitMemory::EmitStub.
-  //   - `alloc_size` is the matching allocation size from EmittedStub.
-  //   - `bndl` is a non-null unique_ptr.
   FastCallState(v8::Isolate* isolate,
                 v8::Local<v8::Function> slow_fn,
-                void* stub,
-                size_t alloc_size,
                 std::unique_ptr<fastcall::CFunctionInfoBundle> bndl);
   ~FastCallState();
   FastCallState(const FastCallState&) = delete;

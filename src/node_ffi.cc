@@ -10,15 +10,9 @@
 #include "ffi/data.h"
 #include "ffi/types.h"
 #include "node_errors.h"
-#include "node_process-inl.h"
-
-#include <atomic>
-#include <mutex>
 
 #ifdef HAVE_FFI_FASTCALL
 #include "ffi/fastcall/cfunction_info.h"
-#include "ffi/fastcall/jit_memory.h"
-#include "ffi/fastcall/stub_emitter.h"
 #endif
 
 namespace node {
@@ -58,22 +52,13 @@ namespace ffi {
 FastCallState::FastCallState(
     v8::Isolate* isolate,
     v8::Local<v8::Function> slow_fn,
-    void* stub,
-    size_t alloc_size,
     std::unique_ptr<node::ffi::fastcall::CFunctionInfoBundle> bndl)
     : slow_invoke(isolate, slow_fn),
-      stub_entry(stub),
-      stub_alloc_size(alloc_size),
       cfun_bundle(std::move(bndl)) {}
 
 FastCallState::~FastCallState() {
   slow_invoke.Reset();
   cfun_bundle.reset();
-  if (stub_entry != nullptr) {
-    node::ffi::fastcall::JitMemory::Get(/*isolate=*/nullptr)
-        ->Free(stub_entry, stub_alloc_size);
-    stub_entry = nullptr;
-  }
 }
 #endif
 
@@ -106,18 +91,6 @@ void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
 
   // FFIFunctionInfo instances are owned by V8 function wrappers and reachable
   // only via weak references, so they are deliberately not counted here.
-
-#ifdef HAVE_FFI_FASTCALL
-  // Process-wide JIT bytes from the singleton allocator. Per-library
-  // accounting would require plumbing per-stub bookkeeping through
-  // CreateFunction; for v1 we report the singleton total under each
-  // library's MemoryInfo, with a name that makes the scope clear.
-  size_t jit_bytes =
-      node::ffi::fastcall::JitMemory::Get(env()->isolate())->TotalLiveBytes();
-  tracker->TrackFieldWithSize(
-      "jit_stubs_process_global", jit_bytes,
-      "ffi::FastCallStubs (process-wide singleton)");
-#endif
 }
 
 #ifdef HAVE_FFI_FASTCALL
@@ -288,34 +261,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
 
 #ifdef HAVE_FFI_FASTCALL
   const char* fc_reason = "";
-  // One-time process-wide self-test. On failure (entitlement missing,
-  // hardened runtime, SELinux execmem denial, etc.), every subsequent
-  // registration falls back to libffi.
-  static std::atomic<int> selftest_result{-1};
-  static std::once_flag selftest_warn_once;
-  int s = selftest_result.load(std::memory_order_acquire);
-  if (s == -1) {
-    bool ok = node::ffi::fastcall::JitMemory::Get(isolate)->SelfTest(isolate);
-    s = ok ? 1 : 0;
-    selftest_result.store(s, std::memory_order_release);
-    if (!ok) {
-      // The atomic above only dedupes the SelfTest *call*; two threads can
-      // both observe `s == -1` and both reach this branch. `call_once`
-      // ensures at most one warning is emitted per process across all
-      // racing first-callers.
-      bool warn_failed = false;
-      std::call_once(selftest_warn_once, [&]() {
-        if (ProcessEmitWarning(env,
-                "FFI fast-call self-test failed; falling back to libffi for "
-                "all FFI invocations")
-                .IsNothing()) {
-          warn_failed = true;
-        }
-      });
-      if (warn_failed) return MaybeLocal<Function>();
-    }
-  }
-  bool fc_ok = (s == 1) && node::ffi::IsFastCallEligible(*fn, &fc_reason);
+  bool fc_ok = node::ffi::IsFastCallEligible(*fn, &fc_reason);
   if (fc_ok) {
     auto bundle = node::ffi::fastcall::BuildCFunctionInfo(*fn);
     {
@@ -392,7 +338,7 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
         }
 
         info->fast = std::make_unique<FastCallState>(
-            isolate, slow_fn, /*stub=*/nullptr, /*alloc_size=*/0,
+            isolate, slow_fn,
             std::make_unique<node::ffi::fastcall::CFunctionInfoBundle>(
                 std::move(bundle)));
         ret = fc_fn;

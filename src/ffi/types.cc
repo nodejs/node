@@ -661,23 +661,6 @@ bool IsFunctionTypeName(const std::string& s) {
   return s == "function";
 }
 
-// Per-platform emitter GP caps (excluding the implicit receiver slot).
-// Note: Win64 uses a combined gp+fp <= 3 positional-slot cap checked below;
-// it does not use kFastcallMaxGPArgs.
-#if defined(__aarch64__) || defined(_M_ARM64)
-constexpr unsigned kFastcallMaxGPArgs = 7;
-#elif defined(__x86_64__) && !defined(_WIN32)
-constexpr unsigned kFastcallMaxGPArgs = 6;
-#elif defined(__arm__)
-constexpr unsigned kFastcallMaxGPArgs = 3;
-#else
-constexpr unsigned kFastcallMaxGPArgs = 0;  // no emitter on this platform
-#endif
-
-// Every supported emitter allows up to 8 FP args. Win64 is further
-// constrained by the gp+fp<=3 positional-slot cap checked below.
-constexpr unsigned kFastcallMaxFPArgs = 8;
-
 }  // namespace
 
 bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
@@ -693,7 +676,14 @@ bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
     return false;
   }
 
-  unsigned gp = 0, fp = 0;
+  // V8's fast-call lowering caps the C-side arg count. With HasReceiver=kNo
+  // there's no implicit receiver in the count, so this is the user-arg cap.
+  // V8's hard limit is 8 args; signatures over that fall back to libffi.
+  if (fn.args.size() > 8) {
+    *out_reason = "argument count exceeds V8 fast-call cap";
+    return false;
+  }
+
   for (size_t i = 0; i < fn.args.size(); ++i) {
     ffi_type* t = fn.args[i];
     const std::string& name = fn.arg_type_names[i];
@@ -703,10 +693,8 @@ bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
       return false;
     }
     // `void` is fine as a return type but has no register slot, so it cannot
-    // appear in `args`. `IsFastCallEligibleFFIType` accepts it for the
-    // return-type check above; reject it explicitly here so the GP/FP
-    // counting below stays consistent and `MapArgType` is never called with
-    // it (where it would hit UNREACHABLE).
+    // appear in `args`. Reject it explicitly so MapArgType is never called
+    // with it (where it would hit UNREACHABLE).
     if (t == &ffi_type_void) {
       *out_reason = "void cannot be an argument type";
       return false;
@@ -715,48 +703,7 @@ bool IsFastCallEligible(const FFIFunction& fn, const char** out_reason) {
       *out_reason = "arg is function";
       return false;
     }
-
-#if defined(__arm__)
-    // AArch32: i64/u64 consume two GP regs with alignment rules. Not
-    // supported in the v1 stub emitter.
-    if (t == &ffi_type_sint64 || t == &ffi_type_uint64) {
-      *out_reason = "i64/u64 arg unsupported on aarch32";
-      return false;
-    }
-#endif
-
-    if (t == &ffi_type_float || t == &ffi_type_double) {
-      ++fp;
-    } else {
-      ++gp;
-    }
   }
-
-#if defined(__arm__)
-  if (fn.return_type == &ffi_type_sint64 ||
-      fn.return_type == &ffi_type_uint64) {
-    *out_reason = "i64/u64 return unsupported on aarch32";
-    return false;
-  }
-#endif
-
-#if defined(__x86_64__) && defined(_WIN32)
-  // Win64: positional slots — only 4 total (one taken by receiver), so
-  // gp + fp must not exceed 3.
-  if (gp + fp > 3) {
-    *out_reason = "GP + FP arg count exceeds Win64 cap";
-    return false;
-  }
-#else
-  if (gp > kFastcallMaxGPArgs) {
-    *out_reason = "GP arg count exceeds ABI cap";
-    return false;
-  }
-  if (fp > kFastcallMaxFPArgs) {
-    *out_reason = "FP arg count exceeds ABI cap";
-    return false;
-  }
-#endif
 
   *out_reason = "";
   return true;
