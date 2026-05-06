@@ -117,7 +117,7 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7] |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
-| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4]           |
+| macOS            | x64              | >= 13.5                           | Tier 2       | For notes about compilation see [^4]           |
 | macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
 | AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                |
