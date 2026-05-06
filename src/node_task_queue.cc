@@ -52,8 +52,8 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   Environment* env = Environment::GetCurrent(isolate);
 
   if (env == nullptr || !env->can_call_into_js() ||
-      event != kPromiseRejectWithNoHandler &&
-      event != kPromiseHandlerAddedAfterReject) {
+      (event != kPromiseRejectWithNoHandler &&
+       event != kPromiseHandlerAddedAfterReject)) {
     return;
   }
 
