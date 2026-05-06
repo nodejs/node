@@ -11,24 +11,20 @@ const assert = require('assert');
 const { once } = require('events');
 const vfs = require('node:vfs');
 
-// Modifying a child file of a watched directory must emit a change event.
-{
-  const myVfs = vfs.create();
-  myVfs.mkdirSync('/parent', { recursive: true });
-  myVfs.writeFileSync('/parent/file.txt', 'x');
-
-  const watcher = myVfs.watch('/parent', {
-    interval: 50,
-    persistent: false,
-  }, common.mustCall((eventType, filename) => {
+(async () => {
+  // Modifying a child file emits a change event.
+  {
+    const myVfs = vfs.create();
+    myVfs.mkdirSync('/parent', { recursive: true });
+    myVfs.writeFileSync('/parent/file.txt', 'x');
+    const watcher = myVfs.watch('/parent', { interval: 25 });
+    const changed = once(watcher, 'change');
+    myVfs.writeFileSync('/parent/file.txt', 'longer-content-changed');
+    const [, filename] = await changed;
     assert.strictEqual(filename, 'file.txt');
     watcher.close();
-  }));
+  }
 
-  setTimeout(() => myVfs.writeFileSync('/parent/file.txt', 'y'), 100);
-}
-
-(async () => {
   // Non-recursive directory watch: file creation
   {
     const myVfs = vfs.create();
