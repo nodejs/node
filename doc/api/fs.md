@@ -380,7 +380,7 @@ added: v10.0.0
 #### `filehandle.pull([...transforms][, options])`
 
 <!-- YAML
-added: v26.0.0
+added: v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -457,7 +457,7 @@ run().catch(console.error);
 #### `filehandle.pullSync([...transforms][, options])`
 
 <!-- YAML
-added: v26.0.0
+added: v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1012,7 +1012,7 @@ the end of the file.
 #### `filehandle.writer([options])`
 
 <!-- YAML
-added: v26.0.0
+added: v25.9.0
 -->
 
 > Stability: 1 - Experimental

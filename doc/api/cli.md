@@ -1325,7 +1325,7 @@ Enable experimental support for storage inspection
 ### `--experimental-stream-iter`
 
 <!-- YAML
-added: v26.0.0
+added: v25.9.0
 -->
 
 > Stability: 1 - Experimental
