@@ -1,0 +1,6 @@
+{
+    "permission": {
+        "allow-wasi": true,
+        "allow-inspector": true
+    }
+}
