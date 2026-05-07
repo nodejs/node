@@ -42,6 +42,7 @@ const generatePr = async ({ github, context, releaseBranch, versionTag }) => {
 const release = async ({ github, context, releaseBranch, versionTag }) => {
   const { owner, repo } = context.repo
   const releaseNotes = await generateReleaseNotes({ github, owner, repo, versionTag, releaseBranch })
+  const makeLatest = releaseBranch === 'v6.x' ? 'false' : 'legacy'
 
   await github.rest.repos.createRelease({
     owner,
@@ -52,6 +53,7 @@ const release = async ({ github, context, releaseBranch, versionTag }) => {
     body: releaseNotes,
     draft: false,
     prerelease: false,
+    make_latest: makeLatest,
     generate_release_notes: false
   })
 

@@ -78,6 +78,8 @@ export declare namespace Client {
     localAddress?: string;
     /** Max response body size in bytes, -1 is disabled */
     maxResponseSize?: number;
+    /** WebSocket-specific options */
+    webSocket?: Client.WebSocketOptions;
     /** Enables a family autodetection algorithm that loosely implements section 5 of RFC 8305. */
     autoSelectFamily?: boolean;
     /** The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. */
@@ -102,6 +104,15 @@ export declare namespace Client {
     timeout?: number
     bytesWritten?: number
     bytesRead?: number
+  }
+  export interface WebSocketOptions {
+    /**
+     * Maximum allowed payload size in bytes for WebSocket messages.
+     * Applied to uncompressed messages, compressed frame payloads, and decompressed (permessage-deflate) messages.
+     * Set to 0 to disable the limit.
+     * @default 134217728 (128 MB)
+     */
+    maxPayloadSize?: number;
   }
 }
 
