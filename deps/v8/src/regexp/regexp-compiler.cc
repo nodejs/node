@@ -3841,8 +3841,13 @@ class Analysis : public NodeVisitor {
   }
 
   void VisitChoice(ChoiceNode* that) override {
+    // Flags need to be reset to the state of the ChoiceNode at the beginning
+    // of each alternative, as flags might be modified when visiting an
+    // alternative.
+    RegExpFlags header_flags = flags();
     for (int i = 0; i < that->alternatives()->length(); i++) {
       EnsureAnalyzed(that->alternatives()->at(i).node());
+      set_flags(header_flags);
       if (has_failed()) return;
       STATIC_FOR_EACH(Propagators::VisitChoice(that, i));
     }
