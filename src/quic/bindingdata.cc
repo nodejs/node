@@ -225,7 +225,7 @@ BindingData::BindingData(Realm* realm, Local<Object> object)
 
 SessionManager& BindingData::session_manager() {
   if (!session_manager_) {
-    session_manager_ = std::make_unique<SessionManager>(env());
+    session_manager_ = std::make_unique<SessionManager>();
   }
   return *session_manager_;
 }
