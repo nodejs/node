@@ -13,7 +13,7 @@ added: REPLACEME
 The `node:vfs` module provides an in-memory virtual file system with an
 `fs`-like API. It is useful for tests, fixtures, embedded assets, and other
 scenarios where you need a self-contained file system without touching the
-real disk.
+actual file-system.
 
 To access it:
 
@@ -77,8 +77,8 @@ const realVfs = vfs.create(new vfs.RealFSProvider('/tmp/sandbox'));
 added: REPLACEME
 -->
 
-A `VirtualFileSystem` wraps a [`VirtualProvider`][] and exposes an
-`fs`-like API. Each instance maintains its own file tree.
+A `VirtualFileSystem` wraps a [`VirtualProvider`][] and exposes a
+`node:fs`-like API. Each instance maintains its own file tree.
 
 ### `new VirtualFileSystem([provider][, options])`
 
