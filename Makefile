@@ -603,7 +603,7 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 JS_SUITES ?= default
-NATIVE_SUITES ?= addons js-native-api node-api embedding
+NATIVE_SUITES ?= addons ffi js-native-api node-api embedding
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
