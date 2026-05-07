@@ -38,7 +38,8 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('end', common.mustCall(function() {
+    request.on('error', () => {});
+    request.on('close', common.mustCall(function() {
       client.close();
     }));
     request.end();

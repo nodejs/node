@@ -44,8 +44,14 @@ server.listen(0, common.mustCall(() => {
   {
     const req = client.request();
     req.on('response', common.mustNotCall());
-    req.on('error', common.mustNotCall());
-    req.on('end', common.mustCall());
+    // Peer sends RST(NO_ERROR) before END_STREAM — surfaces as
+    // ERR_HTTP2_STREAM_ABORTED, matching HTTP/1's ECONNRESET on a
+    // peer-side socket.destroy().
+    req.on('error', common.expectsError({
+      code: 'ERR_HTTP2_STREAM_ABORTED',
+      name: 'Error',
+    }));
+    req.on('end', common.mustNotCall());
     req.on('close', common.mustCall(() => countdown.dec()));
     req.resume();
   }

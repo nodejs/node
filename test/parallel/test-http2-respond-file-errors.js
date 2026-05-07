@@ -94,6 +94,7 @@ server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
 
+  req.on('error', () => {});
   req.on('close', common.mustCall(() => {
     client.close();
     server.close();

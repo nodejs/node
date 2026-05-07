@@ -23,6 +23,9 @@ let client_stream;
 
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
+    // Client destroys mid-stream without END_STREAM — peer-reset before
+    // END_STREAM surfaces as 'error' on the server.
+    stream.on('error', () => {});
     stream.resume();
     stream.on('data', function() {
       this.write(Buffer.alloc(1));
