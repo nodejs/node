@@ -1358,7 +1358,6 @@ Session::Session(Endpoint* endpoint,
 
   MakeWeak();
   Debug(this, "Session created.");
-  auto& binding = BindingData::Get(env());
 
   JS_DEFINE_READONLY_PROPERTY(
       env(), object, env()->stats_string(), impl_->stats_.GetArrayBuffer());
