@@ -667,7 +667,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<int32_t*>(ret) = static_cast<int32_t>(value);
+    *static_cast<ffi_sarg*>(ret) = static_cast<ffi_sarg>(value);
   } else if (type == &ffi_type_uint32) {
     uint64_t value;
 
@@ -675,7 +675,7 @@ bool ToFFIReturnValue(Local<Value> result, ffi_type* type, void* ret) {
       return false;
     }
 
-    *static_cast<uint32_t*>(ret) = static_cast<uint32_t>(value);
+    *static_cast<ffi_arg*>(ret) = static_cast<ffi_arg>(value);
   } else if (type == &ffi_type_sint64) {
     bool lossless;
 
