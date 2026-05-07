@@ -418,6 +418,11 @@ Handle<D> TaggedArrayBase<D, S, P>::Allocate(
 
   xs->set_map_after_allocation(isolate, map, SKIP_WRITE_BARRIER);
   xs->set_capacity(capacity);
+#if TAGGED_SIZE_8_BYTES
+  if constexpr (requires(D d) { d.clear_optional_padding(); }) {
+    xs->clear_optional_padding();
+  }
+#endif  // TAGGED_SIZE_8_BYTES
 
   return handle(xs, isolate);
 }
@@ -621,6 +626,9 @@ Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
 
   xs->set_map_after_allocation(isolate, map, SKIP_WRITE_BARRIER);
   xs->set_length(length);
+#if TAGGED_SIZE_8_BYTES
+  xs->clear_optional_padding();
+#endif  // TAGGED_SIZE_8_BYTES
 
   return handle(xs, isolate);
 }
