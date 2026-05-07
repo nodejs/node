@@ -10,10 +10,6 @@
 
 namespace node::quic {
 
-SessionManager::SessionManager(Environment* env) : env_(env) {}
-
-SessionManager::~SessionManager() = default;
-
 BaseObjectPtr<Session> SessionManager::FindSession(const CID& cid) {
   // Direct SCID match.
   auto it = sessions_.find(cid);

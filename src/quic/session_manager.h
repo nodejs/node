@@ -24,8 +24,8 @@ class Session;
 // It is not exposed to JavaScript.
 class SessionManager final {
  public:
-  explicit SessionManager(Environment* env);
-  ~SessionManager();
+  explicit SessionManager() = default;
+  ~SessionManager() = default;
 
   // Session routing. The sessions_ map holds BaseObjectPtr<Session> (owning
   // references). SessionManager is the single authority for session ownership.
@@ -78,8 +78,6 @@ class SessionManager final {
   bool is_empty() const;
 
  private:
-  Environment* env_;
-
   // The sessions_ map holds strong owning references keyed by locally-
   // generated SCIDs. This is the single source of truth for session
   // ownership.
