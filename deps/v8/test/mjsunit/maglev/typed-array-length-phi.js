@@ -4,6 +4,10 @@
 //
 // Flags: --allow-natives-syntax --maglev
 // Flags: --typed-array-length-loading
+// Flags: --mock-arraybuffer-allocator
+
+// Using --mock-arraybuffer-allocator makes the big array buffer allocation
+// always succeed. This test doesn't access the memory, so it's fine.
 
 function foo(size, b) {
   let a = new Uint8Array(size);

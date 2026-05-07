@@ -631,7 +631,15 @@ int TLSContext::OnSNI(SSL* ssl, int* ad, void* arg) {
     auto it = default_ctx->sni_contexts_.find(servername);
     if (it != default_ctx->sni_contexts_.end()) {
       SSL_set_SSL_CTX(ssl, it->second->ctx_.get());
+      return SSL_TLSEXT_ERR_OK;
     }
+  }
+  // No matching hostname found. If the default context has a certificate
+  // (from the sni['*'] wildcard identity), fall through to use it.
+  // Otherwise, reject the connection with an unrecognized_name alert.
+  if (SSL_CTX_get0_certificate(default_ctx->ctx_.get()) == nullptr) {
+    *ad = SSL_AD_UNRECOGNIZED_NAME;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
   return SSL_TLSEXT_ERR_OK;
 }
@@ -697,9 +705,10 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
       !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
-      !SET(verify_private_key) || !SET(keylog) ||
-      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
-      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
+      !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
+      !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
+      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
+      !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -840,15 +849,23 @@ void TLSSession::Initialize(
 
         // The early data will just be ignored if it's invalid.
         if (ossl_context_.set_session_ticket(ticket)) {
-          ngtcp2_vec rtp = sessionTicket.transport_params();
-          if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
-                  *session_, rtp.base, rtp.len) == 0) {
-            if (!ossl_context_.set_early_data_enabled()) {
-              validation_error_ = "Failed to enable early data";
-              ossl_context_.reset();
-              return;
+          // Only enable 0-RTT if the option allows it. The session
+          // ticket is still used for TLS resumption (1-RTT) either way.
+          if (options.enable_early_data) {
+            ngtcp2_vec rtp = sessionTicket.transport_params();
+            if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
+                    *session_, rtp.base, rtp.len) == 0) {
+              if (!ossl_context_.set_early_data_enabled()) {
+                validation_error_ = "Failed to enable early data";
+                ossl_context_.reset();
+                return;
+              }
+              session_->SetStreamOpenAllowed();
+              // Populate the state buffer from the 0-RTT transport
+              // params so that maxDatagramSize and other values are
+              // available before the handshake completes.
+              session_->PopulateEarlyTransportParamsState();
             }
-            session_->SetStreamOpenAllowed();
           }
         }
       }

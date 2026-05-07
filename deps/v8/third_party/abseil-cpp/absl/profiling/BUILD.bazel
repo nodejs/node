@@ -161,6 +161,7 @@ cc_library(
         "//absl/container:btree",
         "//absl/container:flat_hash_map",
         "//absl/strings",
+        "//absl/strings:str_format",
         "//absl/types:span",
     ],
 )

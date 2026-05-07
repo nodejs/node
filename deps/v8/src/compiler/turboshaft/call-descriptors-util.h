@@ -19,12 +19,33 @@
       make_args_type_list_n(detail::IndexTag<name##_index + 1>);               \
   template <size_t I>                                                          \
     requires(I == name##_index + 1)                                            \
-  void CollectArguments(arguments_vector_t& args, detail::IndexTag<I>) const { \
+  void CollectArguments(arguments_vector_t&, bool, detail::IndexTag<I>)        \
+      const {}                                                                 \
+  template <typename T>                                                        \
+    requires(!is_optional_index_v<T>)                                          \
+  void CollectArgumentsImpl(const T& arg, arguments_vector_t& args, bool,      \
+                            detail::IndexTag<name##_index>) const {            \
+    args.push_back(arg);                                                       \
+    CollectArguments(args, false, detail::IndexTag<name##_index + 1>{});       \
   }                                                                            \
-  void CollectArguments(arguments_vector_t& args,                              \
-                        detail::IndexTag<name##_index>) const {                \
-    args.push_back(name);                                                      \
-    CollectArguments(args, detail::IndexTag<name##_index + 1>{});              \
+  template <typename T>                                                        \
+    requires(is_optional_index_v<T>)                                           \
+  void CollectArgumentsImpl(const T& arg, arguments_vector_t& args,            \
+                            bool must_be_nullopt,                              \
+                            detail::IndexTag<name##_index>) const {            \
+    CHECK_WITH_MSG(!must_be_nullopt || !arg.has_value(),                       \
+                   "After the first omitted optional argument, all remaining " \
+                   "arguments must be omitted");                               \
+    if (arg.has_value()) {                                                     \
+      args.push_back(arg.value());                                             \
+      CollectArguments(args, false, detail::IndexTag<name##_index + 1>{});     \
+    } else {                                                                   \
+      CollectArguments(args, true, detail::IndexTag<name##_index + 1>{});      \
+    }                                                                          \
+  }                                                                            \
+  void CollectArguments(arguments_vector_t& args, bool must_be_nullopt,        \
+                        detail::IndexTag<name##_index> tag) const {            \
+    CollectArgumentsImpl(name, args, must_be_nullopt, tag);                    \
   }
 
 namespace v8::internal::compiler::turboshaft {
@@ -56,7 +77,7 @@ struct CallDescriptorBuilder {
   template <typename A>
   static arguments_vector_t ArgumentsToVector(const A& args) {
     arguments_vector_t result;
-    args.CollectArguments(result, detail::IndexTag<0>{});
+    args.CollectArguments(result, false, detail::IndexTag<0>{});
     return result;
   }
 
@@ -72,14 +93,16 @@ struct CallDescriptorBuilder {
         detail::IndexTag<0>);
     static constexpr inline detail::IndexTag<0> index_counter(
         detail::IndexTag<0>);
-    void CollectArguments(arguments_vector_t& args, detail::IndexTag<0>) const {
-    }
+    void CollectArguments(arguments_vector_t&, bool,
+                          detail::IndexTag<0>) const {}
   };
 
 #ifdef DEBUG
   template <typename T, size_t I>
   struct VerifyArgument {
-    void operator()(const CallDescriptor* desc) const {
+    void operator()(const CallDescriptor* desc,
+                    size_t actual_argument_count) const {
+      if (I >= actual_argument_count) return;
       DCHECK(AllowsRepresentation<T>(
           RegisterRepresentation::FromMachineRepresentation(
               desc->GetParameterType(I).representation())));
@@ -96,10 +119,11 @@ struct CallDescriptorBuilder {
 
   template <typename T>
   static bool AllowsRepresentation(RegisterRepresentation rep) {
-    if constexpr (std::is_same_v<T, OpIndex>) {
+    if constexpr (std::is_same_v<T, OpIndex> ||
+                  std::is_same_v<T, OptionalOpIndex>) {
       return true;
     } else {
-      // T is V<...>
+      // T is V<...> or OptionalV<...>
       return T::allows_representation(rep);
     }
   }

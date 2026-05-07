@@ -5,7 +5,7 @@
 #include "crypto/crypto_dh.h"
 #include "crypto/crypto_dsa.h"
 #include "crypto/crypto_ec.h"
-#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_rsa.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
@@ -200,7 +200,37 @@ bool ExportJWKAsymmetricKey(Environment* env,
     case EVP_PKEY_ML_DSA_65:
       // Fall through
     case EVP_PKEY_ML_DSA_87:
-      return ExportJwkMlDsaKey(env, key, target);
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      // Fall through
+    case EVP_PKEY_ML_KEM_512:
+      // Fall through
+    case EVP_PKEY_ML_KEM_768:
+      // Fall through
+    case EVP_PKEY_ML_KEM_1024:
+      return ExportJwkPqcKey(env, key, target);
 #endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
@@ -723,7 +753,7 @@ static KeyObjectData ImportJWKFromArgs(Environment* env, Local<Object> jwk) {
     return ImportJWKEdKey(env, jwk);
   } else if (*kty_string == std::string_view("AKP")) {
 #if OPENSSL_WITH_PQC
-    return ImportJWKAkpKey(env, jwk);
+    return ImportJWKPqcKey(env, jwk);
 #else
     THROW_ERR_INVALID_ARG_VALUE(env, "Unsupported key type");
     return {};
@@ -1756,6 +1786,270 @@ BaseObject::TransferMode NativeKeyObject::GetTransferMode() const {
 std::unique_ptr<worker::TransferData> NativeKeyObject::CloneForMessaging()
     const {
   return std::make_unique<KeyObjectTransferData>(handle_data_);
+}
+
+void NativeCryptoKey::Initialize(Environment* env, Local<Object> target) {
+  SetMethod(env->context(),
+            target,
+            "createCryptoKeyClass",
+            NativeCryptoKey::CreateCryptoKeyClass);
+  SetMethod(
+      env->context(), target, "getCryptoKeySlots", NativeCryptoKey::GetSlots);
+}
+
+void NativeCryptoKey::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(NativeCryptoKey::CreateCryptoKeyClass);
+  registry->Register(NativeCryptoKey::GetSlots);
+  registry->Register(NativeCryptoKey::New);
+}
+
+namespace {
+// Verifies that `value` is a `NativeCryptoKey` by checking whether it
+// was constructed from the Environment's `NativeCryptoKey` template.
+bool IsNativeCryptoKey(Environment* env, Local<Value> value) {
+  auto t = env->crypto_cryptokey_constructor_template();
+  return !t.IsEmpty() && t->HasInstance(value);
+}
+}  // namespace
+
+bool NativeCryptoKey::HasInstance(Environment* env, Local<Value> value) {
+  return IsNativeCryptoKey(env, value);
+}
+
+void NativeCryptoKey::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 4);
+  // args[0] is a KeyObjectHandle; we keep its KeyObjectData directly.
+  // args[1] is the algorithm dictionary object.
+  // args[2] is the usages mask.
+  // args[3] is the extractable boolean.
+  //
+  // args[1] is undefined only when called from
+  // CryptoKeyTransferData::Deserialize for a partially-initialized
+  // CryptoKey: algorithm/usages mask/extractable get filled in afterwards
+  // by FinalizeTransferRead before any JS can see the object.
+  //
+  // This constructor is not exposed to user JS - the public CryptoKey
+  // class throws from its constructor and InternalCryptoKey is kept
+  // in a module-closure.
+  CHECK(KeyObjectHandle::HasInstance(env, args[0]));
+  KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
+  CHECK_NOT_NULL(handle);
+
+  auto* native = new NativeCryptoKey(env, args.This(), handle->Data());
+
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsObject());
+    CHECK(args[2]->IsUint32());
+    CHECK(args[3]->IsBoolean());
+    args.This()->SetInternalField(kAlgorithmField, args[1]);
+    native->usages_mask_ = args[2].As<Uint32>()->Value();
+    native->extractable_ = args[3]->IsTrue();
+  }
+}
+
+void NativeCryptoKey::CreateCryptoKeyClass(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 1);
+  Local<Value> callback = args[0];
+  CHECK(callback->IsFunction());
+
+  Local<FunctionTemplate> t =
+      NewFunctionTemplate(isolate, NativeCryptoKey::New);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      NativeCryptoKey::kInternalFieldCount);
+  CHECK(env->crypto_cryptokey_constructor_template().IsEmpty());
+  env->set_crypto_cryptokey_constructor_template(t);
+
+  Local<Value> ctor;
+  if (!t->GetFunction(env->context()).ToLocal(&ctor)) return;
+
+  Local<Value> recv = Undefined(env->isolate());
+  Local<Value> ret_v;
+  if (!callback.As<Function>()
+           ->Call(env->context(), recv, 1, &ctor)
+           .ToLocal(&ret_v)) {
+    return;
+  }
+  Local<Array> ret = ret_v.As<Array>();
+  Local<Value> internal_ctor_v;
+  if (!ret->Get(env->context(), 1).ToLocal(&internal_ctor_v)) return;
+  CHECK(env->crypto_internal_cryptokey_constructor().IsEmpty());
+  env->set_crypto_internal_cryptokey_constructor(
+      internal_ctor_v.As<Function>());
+  args.GetReturnValue().Set(ret);
+}
+
+// Returns all of the key's internal slot values as a single Array:
+// [type enum, extractable, algorithm, usages mask, handle]. JS-side helpers
+// call this once per key to prime a per-instance cache, so subsequent
+// reads don't need to cross into C++ at all.
+void NativeCryptoKey::GetSlots(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  if (!HasInstance(env, args[0])) {
+    THROW_ERR_INVALID_THIS(env, "Value of \"this\" must be of type CryptoKey");
+    return;
+  }
+  Local<Object> obj = args[0].As<Object>();
+  NativeCryptoKey* native = Unwrap<NativeCryptoKey>(obj);
+
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, native->handle_data_).ToLocal(&handle)) {
+    return;
+  }
+
+  Local<Value> algorithm = obj->GetInternalField(kAlgorithmField).As<Value>();
+  CHECK(algorithm->IsObject());
+  Isolate* isolate = env->isolate();
+  Local<Value> slots[] = {
+      Uint32::NewFromUnsigned(isolate, native->handle_data_.GetKeyType()),
+      v8::Boolean::New(isolate, native->extractable_),
+      algorithm,
+      Uint32::NewFromUnsigned(isolate, native->usages_mask_),
+      handle,
+  };
+  args.GetReturnValue().Set(Array::New(isolate, slots, arraysize(slots)));
+}
+
+BaseObject::TransferMode NativeCryptoKey::GetTransferMode() const {
+  return BaseObject::TransferMode::kCloneable;
+}
+
+std::unique_ptr<worker::TransferData> NativeCryptoKey::CloneForMessaging()
+    const {
+  Isolate* isolate = env()->isolate();
+  Local<Object> obj = object();
+  Local<Value> algorithm_v = obj->GetInternalField(kAlgorithmField).As<Value>();
+  CHECK(algorithm_v->IsObject());
+  v8::Global<Object> algorithm_copy(isolate, algorithm_v.As<Object>());
+  return std::make_unique<CryptoKeyTransferData>(
+      handle_data_, std::move(algorithm_copy), usages_mask_, extractable_);
+}
+
+Maybe<void> NativeCryptoKey::FinalizeTransferRead(
+    Local<Context> context, v8::ValueDeserializer* deserializer) {
+  Local<Value> bundle_v;
+  if (!deserializer->ReadValue(context).ToLocal(&bundle_v)) {
+    return Nothing<void>();
+  }
+  CHECK(bundle_v->IsObject());
+  Local<Object> bundle = bundle_v.As<Object>();
+  Isolate* isolate = env()->isolate();
+  Local<Object> obj = object();
+
+  // The partially-initialized object produced by
+  // CryptoKeyTransferData::Deserialize should not have algorithm set yet.
+  CHECK(obj->GetInternalField(kAlgorithmField).As<Value>()->IsUndefined());
+
+  Local<Value> algorithm_v;
+  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"))
+           .ToLocal(&algorithm_v)) {
+    return Nothing<void>();
+  }
+  CHECK(algorithm_v->IsObject());
+  obj->SetInternalField(kAlgorithmField, algorithm_v);
+
+  Local<Value> usages_v;
+  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "usages"))
+           .ToLocal(&usages_v)) {
+    return Nothing<void>();
+  }
+  CHECK(usages_v->IsUint32());
+  usages_mask_ = usages_v.As<Uint32>()->Value();
+
+  Local<Value> extractable_v;
+  if (!bundle->Get(context, FIXED_ONE_BYTE_STRING(isolate, "extractable"))
+           .ToLocal(&extractable_v)) {
+    return Nothing<void>();
+  }
+  CHECK(extractable_v->IsBoolean());
+  extractable_ = extractable_v->IsTrue();
+
+  return v8::JustVoid();
+}
+
+Maybe<bool> NativeCryptoKey::CryptoKeyTransferData::FinalizeTransferWrite(
+    Local<Context> context, v8::ValueSerializer* serializer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  CHECK(!algorithm_.IsEmpty());
+  Local<Object> bundle = Object::New(isolate);
+  Local<Value> algorithm_v = PersistentToLocal::Strong(algorithm_);
+  if (bundle
+          ->Set(
+              context, FIXED_ONE_BYTE_STRING(isolate, "algorithm"), algorithm_v)
+          .IsNothing() ||
+      bundle
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "usages"),
+                Uint32::NewFromUnsigned(isolate, usages_mask_))
+          .IsNothing() ||
+      bundle
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "extractable"),
+                v8::Boolean::New(isolate, extractable_))
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+  auto ret = serializer->WriteValue(context, bundle);
+  algorithm_.Reset();
+  return ret;
+}
+
+BaseObjectPtr<BaseObject> NativeCryptoKey::CryptoKeyTransferData::Deserialize(
+    Environment* env,
+    Local<Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  if (context != env->context()) {
+    THROW_ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE(env);
+    return {};
+  }
+
+  // Reconstruct the KeyObjectHandle for the transferred KeyObjectData.
+  Local<Object> handle;
+  if (!KeyObjectHandle::Create(env, data_).ToLocal(&handle)) return {};
+
+  // Make sure internal/crypto/keys has been loaded so that the
+  // CryptoKey constructor is registered with the Environment.
+  Isolate* isolate = env->isolate();
+  Local<Value> arg = FIXED_ONE_BYTE_STRING(isolate, "internal/crypto/keys");
+  if (env->builtin_module_require()
+          ->Call(context, Null(isolate), 1, &arg)
+          .IsEmpty()) {
+    return {};
+  }
+
+  // Construct a partially-initialized InternalCryptoKey; algorithm,
+  // usages mask and extractable are filled in via FinalizeTransferRead.
+  Local<Function> cryptokey_ctor = env->crypto_internal_cryptokey_constructor();
+  CHECK(!cryptokey_ctor.IsEmpty());
+  Local<Value> ctor_args[] = {
+      handle,
+      Undefined(isolate),
+      Undefined(isolate),
+      Undefined(isolate),
+  };
+  Local<Value> cryptokey;
+  if (!cryptokey_ctor->NewInstance(context, 4, ctor_args).ToLocal(&cryptokey)) {
+    return {};
+  }
+
+  return BaseObjectPtr<BaseObject>(
+      Unwrap<NativeCryptoKey>(cryptokey.As<Object>()));
+}
+
+void NativeCryptoKey::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("handle_data", handle_data_);
+}
+
+void NativeCryptoKey::CryptoKeyTransferData::MemoryInfo(
+    MemoryTracker* tracker) const {
+  tracker->TrackField("data", data_);
+  tracker->TrackField("algorithm", algorithm_);
 }
 
 namespace Keys {

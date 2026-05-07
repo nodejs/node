@@ -55,7 +55,7 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
   const char* root_name = nullptr;
   i::Tagged<i::Map> map = i::Cast<i::Map>(object);
   intptr_t root_ptr =
-      static_cast<intptr_t>(map.ptr()) & (i::PageMetadata::kPageSize - 1);
+      static_cast<intptr_t>(map.ptr()) & (i::NormalPage::kPageSize - 1);
 
   READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
   MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
@@ -84,7 +84,7 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
   i::ReadOnlyRoots roots(heap);
   const char* root_name = nullptr;
   i::RootIndex root_index = i::RootIndex::kFirstSmiRoot;
-  intptr_t root_ptr = object.ptr() & (i::PageMetadata::kPageSize - 1);
+  intptr_t root_ptr = object.ptr() & (i::NormalPage::kPageSize - 1);
 
   STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
   MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
@@ -146,7 +146,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
       for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
            !object.is_null(); object = ro_iterator.Next()) {
-        if (IsAnyHole(object) || !IsMap(object)) continue;
+        if (!IsMap(object)) continue;
         DumpKnownMap(out, heap, i::ToString(i::RO_SPACE), object);
       }
 

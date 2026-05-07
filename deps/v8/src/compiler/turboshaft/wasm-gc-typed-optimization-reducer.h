@@ -270,7 +270,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (type != wasm::ValueType()) {
       CHECK(!type.is_uninhabited());
       CHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
-                                      cast_op.config.to.heap_type(), module_));
+                                      cast_op.config.to.heap_type()));
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
                                 module_) &&
@@ -336,8 +336,8 @@ class WasmGCTypedOptimizationReducer : public Next {
     }
     if (type != wasm::ValueType()) {
       CHECK(!type.is_uninhabited());
-      CHECK(wasm::IsSameTypeHierarchy(
-          type.heap_type(), type_check.config.to.heap_type(), module_));
+      CHECK(wasm::IsSameTypeHierarchy(type.heap_type(),
+                                      type_check.config.to.heap_type()));
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
                                 type_check.config.to.heap_type(), module_) &&

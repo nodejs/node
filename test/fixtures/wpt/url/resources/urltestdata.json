@@ -6071,6 +6071,16 @@
     "failure": true
   },
   {
+    "input": "http://18446744073709551616",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
+    "input": "http://18446744075840258049",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
     "input": "http://0xffffffff",
     "base": "http://other.com/",
     "href": "http://255.255.255.255/",

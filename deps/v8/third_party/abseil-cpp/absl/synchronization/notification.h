@@ -52,7 +52,7 @@
 
 #include <atomic>
 
-#include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/tracing.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"

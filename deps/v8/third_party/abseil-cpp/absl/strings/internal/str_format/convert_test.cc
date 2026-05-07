@@ -284,6 +284,11 @@ const NativePrintfTraits &VerifyNativeImplementation() {
   return native_traits;
 }
 
+bool IsNativeHexFloatConversion(char f) { return f == 'a' || f == 'A'; }
+bool IsNativeFloatConversion(char f) {
+  return f == 'f' || f == 'F' || f == 'e' || f == 'E' || f == 'a' || f == 'A';
+}
+
 class FormatConvertTest : public ::testing::Test { };
 
 template <typename T>
@@ -799,20 +804,19 @@ void TestWithMultipleFormatsHelper(Floating tested_float) {
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + f;
 
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F' &&
-          f != 'a' && f != 'A') {
+      if (fmt == absl::string_view("%.5000") && !IsNativeFloatConversion(f)) {
         // This particular test takes way too long with snprintf.
         // Disable for the case we are not implementing natively.
         continue;
       }
 
-      if ((f == 'a' || f == 'A') &&
+      if (IsNativeHexFloatConversion(f) &&
           !native_traits.hex_float_has_glibc_rounding) {
         continue;
       }
 
       if (!native_traits.hex_float_prefers_denormal_repr &&
-          (f == 'a' || f == 'A') &&
+          IsNativeHexFloatConversion(f) &&
           std::fpclassify(tested_float) == FP_SUBNORMAL) {
         continue;
       }
@@ -1059,6 +1063,17 @@ TEST_F(FormatConvertTest, DoubleRound) {
             "0.000000000000000000000000000000000002"
             "25694915357879201529997415146671170141"
             "1837869002408041296803276054561138153076171875");
+
+  // Scientific exponent cases
+  // Round to even with all zeros after round digit
+  EXPECT_EQ(format("%0.13e", 1671075773261250), "1.6710757732612e+15");
+
+  // Rounding where precision is in first digit run
+  EXPECT_EQ(format("%0.1e", -1.93437090148818698e-297), "-1.9e-297");
+  EXPECT_EQ(format("%0.1e", -9.92255780642280927e-298), "-9.9e-298");
+
+  // Rounding large negative exponent first digit
+  EXPECT_EQ(format("%0.1e", -8.956e-294), "-9.0e-294");
 }
 
 TEST_F(FormatConvertTest, DoubleRoundA) {
@@ -1317,14 +1332,13 @@ TEST_F(FormatConvertTest, LongDouble) {
                    'e', 'E'}) {
       std::string fmt_str = std::string(fmt) + 'L' + f;
 
-      if (fmt == absl::string_view("%.5000") && f != 'f' && f != 'F' &&
-          f != 'a' && f != 'A') {
+      if (fmt == absl::string_view("%.5000") && !IsNativeFloatConversion(f)) {
         // This particular test takes way too long with snprintf.
         // Disable for the case we are not implementing natively.
         continue;
       }
 
-      if (f == 'a' || f == 'A') {
+      if (IsNativeHexFloatConversion(f)) {
         if (!native_traits.hex_float_has_glibc_rounding ||
             !native_traits.hex_float_optimizes_leading_digit_bit_count) {
           continue;

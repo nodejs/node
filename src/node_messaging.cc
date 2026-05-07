@@ -415,10 +415,15 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       if (!host_objects_[i]->NestedTransferables().To(&nested_transferables))
         return Nothing<bool>();
       for (auto& nested_transferable : nested_transferables) {
-        if (std::ranges::find(host_objects_, nested_transferable) ==
+        if (std::ranges::find(host_objects_, nested_transferable) !=
             host_objects_.end()) {
-          AddHostObject(nested_transferable);
+          ThrowDataCloneException(
+              context_,
+              FIXED_ONE_BYTE_STRING(env_->isolate(),
+                                    "The transfer list is invalid."));
+          return Nothing<bool>();
         }
+        AddHostObject(nested_transferable);
       }
     }
     return Just(true);

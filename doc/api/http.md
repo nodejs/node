@@ -957,7 +957,8 @@ changes:
 
 Destroy the request. Optionally emit an `'error'` event,
 and emit a `'close'` event. Calling this will cause remaining data
-in the response to be dropped and the socket to be destroyed.
+in the response to be dropped, and the socket to be destroyed if used,
+or returned to the corresponding Agent pool otherwise if possible.
 
 See [`writable.destroy()`][] for further details.
 
@@ -1690,7 +1691,7 @@ per connection (in the case of HTTP Keep-Alive connections).
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/60016
     description: Request bodies are no longer exposed raw (unparsed) on the
                  socket argument. Instead, if a body is received, the stream
@@ -1998,9 +1999,13 @@ value only affects new connections to the server, not any existing connections.
 
 <!-- YAML
 added: v8.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62782
+    description: the default value for `http.Server.keepAliveTimeout` is changed from 5 to 65 seconds.
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
+* Type: {number} Timeout in milliseconds. **Default:** `65000` (65 seconds).
 
 The number of milliseconds of inactivity a server needs to wait for additional
 incoming data, after it has finished writing the last response, before a socket
@@ -2863,6 +2868,9 @@ The request/response headers object.
 
 Key-value pairs of header names and values. Header names are lower-cased.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ```js
 // Prints something like:
 //
@@ -2899,6 +2907,9 @@ added:
 
 Similar to [`message.headers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 ```js
 // Prints something like:
@@ -3086,6 +3097,9 @@ added: v0.3.0
 
 The request/response trailers object. Only populated at the `'end'` event.
 
+The object has a null prototype and should not be accessed using the `in`
+operator.
+
 ### `message.trailersDistinct`
 
 <!-- YAML
@@ -3099,6 +3113,9 @@ added:
 Similar to [`message.trailers`][], but there is no join logic and the values are
 always arrays of strings, even for headers received just once.
 Only populated at the `'end'` event.
+
+The object has a null prototype and should not be accessed using the `in`
+operator.
 
 ### `message.url`
 

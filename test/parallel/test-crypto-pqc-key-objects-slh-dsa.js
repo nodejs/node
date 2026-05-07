@@ -26,7 +26,27 @@ for (const asymmetricKeyType of [
   const keys = {
     public: fixtures.readKey(getKeyFileName(asymmetricKeyType, 'public'), 'ascii'),
     private: fixtures.readKey(getKeyFileName(asymmetricKeyType, 'private'), 'ascii'),
+    jwk: JSON.parse(fixtures.readKey(`${asymmetricKeyType}.json`)),
   };
+
+  function assertJwk(jwk) {
+    assert.strictEqual(jwk.kty, 'AKP');
+    // SLH-DSA algorithm names keep the last character (f/s) lowercase.
+    const expectedAlg = asymmetricKeyType.slice(0, -1).toUpperCase() +
+                        asymmetricKeyType.slice(-1);
+    assert.strictEqual(jwk.alg, expectedAlg);
+    assert.ok(jwk.pub);
+  }
+
+  function assertPublicJwk(jwk) {
+    assertJwk(jwk);
+    assert.ok(!jwk.priv);
+  }
+
+  function assertPrivateJwk(jwk) {
+    assertJwk(jwk);
+    assert.ok(jwk.priv);
+  }
 
   function assertKey(key) {
     assert.deepStrictEqual(key.asymmetricKeyDetails, {});
@@ -40,8 +60,9 @@ for (const asymmetricKeyType of [
     assert.strictEqual(key.type, 'public');
     assert.strictEqual(key.export({ format: 'pem', type: 'spki' }), keys.public);
     key.export({ format: 'der', type: 'spki' });
-    assert.throws(() => key.export({ format: 'jwk' }),
-                  { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE', message: 'Unsupported JWK Key Type.' });
+    const jwk = key.export({ format: 'jwk' });
+    assertPublicJwk(jwk);
+    assert.strictEqual(key.equals(createPublicKey({ format: 'jwk', key: jwk })), true);
 
     // Raw format round-trip
     const rawPub = key.export({ format: 'raw-public' });
@@ -58,8 +79,10 @@ for (const asymmetricKeyType of [
     assertPublicKey(createPublicKey(key));
     key.export({ format: 'der', type: 'pkcs8' });
     assert.strictEqual(key.export({ format: 'pem', type: 'pkcs8' }), keys.private);
-    assert.throws(() => key.export({ format: 'jwk' }),
-                  { code: 'ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE', message: 'Unsupported JWK Key Type.' });
+    const jwk = key.export({ format: 'jwk' });
+    assertPrivateJwk(jwk);
+    assert.strictEqual(key.equals(createPrivateKey({ format: 'jwk', key: jwk })), true);
+    assert.ok(createPublicKey({ format: 'jwk', key: jwk }));
 
     // Raw format round-trip
     const rawPriv = key.export({ format: 'raw-private' });
@@ -86,5 +109,36 @@ for (const asymmetricKeyType of [
     assertPublicKey(pubFromPriv);
     assertPrivateKey(createPrivateKey(keys.private));
     assert.strictEqual(pubFromPriv.equals(publicKey), true);
+
+    // JWK import error tests
+    const format = 'jwk';
+    const jwk = keys.jwk;
+
+    assert.throws(() => createPrivateKey({ format, key: { ...jwk, alg: asymmetricKeyType } }),
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
+    assert.throws(() => createPrivateKey({ format, key: { ...jwk, alg: undefined } }),
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
+    assert.throws(() => createPrivateKey({ format, key: { ...jwk, pub: undefined } }),
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
+    assert.throws(() => createPrivateKey({ format, key: { ...jwk, priv: undefined } }),
+                  { code: 'ERR_CRYPTO_INVALID_JWK', message: /JWK does not contain private key material/ });
+    assert.throws(() => createPrivateKey({ format, key: { ...jwk, priv: Buffer.alloc(1).toString('base64url') } }),
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
+    // eslint-disable-next-line @stylistic/js/max-len
+    assert.throws(() => createPublicKey({ format, key: { kty: jwk.kty, alg: jwk.alg, pub: Buffer.alloc(1).toString('base64url') } }),
+                  { code: 'ERR_CRYPTO_INVALID_JWK' });
+
+    // Importing a private JWK where pub does not match priv should fail.
+    assert.throws(
+      () => createPrivateKey({
+        format,
+        key: { ...jwk, pub: `${jwk.pub[0] === 'A' ? 'B' : 'A'}${jwk.pub.slice(1)}` },
+      }),
+      { code: 'ERR_CRYPTO_INVALID_JWK' }
+    );
+
+    // JWK round-trip
+    assert.partialDeepStrictEqual(jwk, createPublicKey({ format, key: jwk }).export({ format }));
+    assert.deepStrictEqual(createPrivateKey({ format, key: jwk }).export({ format }), jwk);
   }
 }

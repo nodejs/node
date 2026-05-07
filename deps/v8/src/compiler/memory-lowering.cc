@@ -448,7 +448,7 @@ Reduction MemoryLowering::ReduceLoadExternalPointerField(Node* node) {
           : __ ExternalConstant(
                 ExternalReference::external_pointer_table_address(isolate()));
   Node* table = __ Load(MachineType::Pointer(), table_address,
-                        Internals::kExternalPointerTableBasePointerOffset);
+                        Internals::kExternalEntityTableBasePointerOffset);
   Node* pointer =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
   Node* actual_tag =

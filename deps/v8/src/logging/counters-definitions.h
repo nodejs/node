@@ -312,10 +312,7 @@ namespace internal {
      V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
   HT(deserialize_script_on_background,                                         \
      V8.CompileScriptMicroSeconds.ConsumeCache.BackgroundThread, 1000000,      \
-     MICROSECOND)                                                              \
-  /* Debugger timers. */                                                       \
-  HT(debug_pause_to_paused_event, V8.DebugPauseToPausedEventMilliSeconds,      \
-     1000000, MILLISECOND)
+     MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

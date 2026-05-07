@@ -67,6 +67,11 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
                             kCodePointerTableReservationSize> {
   using Base = SegmentedTable<WasmCodePointerTableEntry,
                               kCodePointerTableReservationSize>;
+  static_assert(WasmCodePointer::kWasmCodePointerTableEntrySize ==
+                sizeof(WasmCodePointerTableEntry));
+#ifdef V8_TARGET_ARCH_64_BIT
+  static_assert(WasmCodePointer::kIndexSpaceSize == kMaxCapacity);
+#endif  // V8_TARGET_ARCH_64_BIT
 
  public:
   WasmCodePointerTable() = default;
@@ -78,12 +83,6 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
 #ifdef V8_ENABLE_SANDBOX
   static constexpr int kOffsetOfSignatureHash =
       offsetof(WasmCodePointerTableEntry, signature_hash_);
-#endif
-
-#ifdef V8_TARGET_ARCH_64_BIT
-  // 64-bit architectures reserve a large table upfront, hence there's a fixed
-  // maximum number of Wasm code pointers.
-  static constexpr size_t kMaxWasmCodePointers = kMaxCapacity;
 #endif
 
   using WriteScope = CFIMetadataWriteScope;

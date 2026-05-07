@@ -87,7 +87,7 @@ class V8_BASE_EXPORT StackTrace {
   void* trace_[kMaxTraces];
 
   // The number of valid frames in |trace_|.
-  size_t count_;
+  size_t count_ = 0u;
 };
 
 }  // namespace debug

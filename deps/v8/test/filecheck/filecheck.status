@@ -15,10 +15,9 @@
   'deopt-too-much-feedback': [SKIP],
 }],  # variant == code_serializer
 
-['variant == jitless', {
-  'wasm-pause': [SKIP],
-  'crash/wasm-failed-type-assertion': [SKIP],
-}],  # variant == jitless
+['not has_webassembly or variant == jitless', {
+  'wasm/*': [SKIP],
+}],  # not has_webassembly or variant == jitless
 
 ['variant in (jitless, nooptimization)', {
   'js-wasm-wrapper-inlining-lazy-deopt': [SKIP],
@@ -27,15 +26,10 @@
 ['single_generation', {
   # TODO(42204563): These tests rely on the shared heap which is incompatible
   # with single generation.
-  'wasm-pause': [SKIP],
+  'wasm/pause': [SKIP],
 }], # single_generation
 
-['not has_webassembly', {
-  'wasm-*': [SKIP],
-  'crash/wasm-*': [SKIP],
-}], # not has_webassembly
-
 ['official_build', {
-  'crash/wasm-failed-type-assertion': [SKIP],
+  'wasm/crash/failed-type-assertion': [SKIP],
 }], # official_build
 ]

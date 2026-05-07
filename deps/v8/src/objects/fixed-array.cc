@@ -54,7 +54,7 @@ template <template <typename> typename HandleType>
   requires(
       std::is_convertible_v<HandleType<FixedArray>, DirectHandle<FixedArray>>)
 HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
-    Isolate* isolate, HandleType<FixedArray> array, int new_length) {
+    Isolate* isolate, HandleType<FixedArray> array, uint32_t new_length) {
   if (new_length == 0) {
     return isolate->factory()->empty_fixed_array();
   }
@@ -64,10 +64,11 @@ HandleType<FixedArray> FixedArray::RightTrimOrEmpty(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     DirectHandle<FixedArray> FixedArray::RightTrimOrEmpty(
-        Isolate* isolate, DirectHandle<FixedArray> array, int new_length);
+        Isolate* isolate, DirectHandle<FixedArray> array, uint32_t new_length);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     IndirectHandle<FixedArray> FixedArray::RightTrimOrEmpty(
-        Isolate* isolate, IndirectHandle<FixedArray> array, int new_length);
+        Isolate* isolate, IndirectHandle<FixedArray> array,
+        uint32_t new_length);
 
 // static
 DirectHandle<ArrayList> ArrayList::Add(Isolate* isolate,

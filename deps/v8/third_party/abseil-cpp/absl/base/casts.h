@@ -27,6 +27,7 @@
 #include <cstring>
 #include <memory>
 #include <type_traits>
+#include <typeinfo>
 #include <utility>
 
 #if defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
@@ -34,7 +35,10 @@
 #endif  // defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
+#include "absl/base/options.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -190,6 +194,112 @@ inline Dest bit_cast(const Source& source) {
 #endif  // ABSL_HAVE_BUILTIN(__builtin_bit_cast)
 
 #endif  // defined(__cpp_lib_bit_cast) && __cpp_lib_bit_cast >= 201806L
+
+namespace base_internal {
+
+[[noreturn]] ABSL_ATTRIBUTE_NOINLINE void BadDownCastCrash(
+    const char* source_type, const char* target_type);
+
+template <typename To, typename From>
+inline void ValidateDownCast(From* f ABSL_ATTRIBUTE_UNUSED) {
+  // Assert only if RTTI is enabled and in debug mode or hardened asserts are
+  // enabled.
+#ifdef ABSL_INTERNAL_HAS_RTTI
+#if !defined(NDEBUG) || (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2)
+  // Suppress erroneous nonnull comparison warning on older GCC.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnonnull-compare"
+#endif
+  if (ABSL_PREDICT_FALSE(f != nullptr && dynamic_cast<To>(f) == nullptr)) {
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+    absl::base_internal::BadDownCastCrash(
+        typeid(*f).name(), typeid(std::remove_pointer_t<To>).name());
+  }
+#endif
+#endif
+}
+
+}  // namespace base_internal
+
+// An "upcast", i.e. a conversion from a pointer to an object to a pointer to a
+// base subobject, always succeeds if the base is unambiguous and accessible,
+// and so it's fine to use implicit_cast.
+//
+// A "downcast", i.e. a conversion from a pointer to an object to a pointer
+// to a more-derived object that may contain the original object as a base
+// subobject, cannot safely be done using static_cast, because you do not
+// generally know whether the source object is really the base subobject of
+// a containing, more-derived object of the target type. Thus, when you
+// downcast in a polymorphic type hierarchy, you should use the following
+// function template.
+//
+// This function only returns null when the input is null. In debug mode, we
+// use dynamic_cast to double-check whether the downcast is legal (we die if
+// it's not). In normal mode, we do the efficient static_cast instead. Because
+// the process will die in debug mode, it's important to test to make sure the
+// cast is legal before calling this function!
+//
+// dynamic_cast should be avoided except as allowed by the style guide
+// (https://google.github.io/styleguide/cppguide.html#Run-Time_Type_Information__RTTI_).
+
+template <typename To, typename From>  // use like this: down_cast<T*>(foo);
+[[nodiscard]]
+inline To down_cast(From* f) {  // so we only accept pointers
+  static_assert(std::is_pointer<To>::value, "target type not a pointer");
+  // dynamic_cast allows casting to the same type or a more cv-qualified
+  // version of the same type without them being polymorphic.
+  if constexpr (!std::is_same<std::remove_cv_t<std::remove_pointer_t<To>>,
+                              std::remove_cv_t<From>>::value) {
+    static_assert(std::is_polymorphic<From>::value,
+                  "source type must be polymorphic");
+    static_assert(std::is_polymorphic<std::remove_pointer_t<To>>::value,
+                  "target type must be polymorphic");
+  }
+  static_assert(
+      std::is_convertible<std::remove_cv_t<std::remove_pointer_t<To>>*,
+                          std::remove_cv_t<From>*>::value,
+      "target type not derived from source type");
+
+  absl::base_internal::ValidateDownCast<To>(f);
+
+  return static_cast<To>(f);
+}
+
+// Overload of down_cast for references. Use like this:
+// absl::down_cast<T&>(foo). The code is slightly convoluted because we're still
+// using the pointer form of dynamic cast. (The reference form throws an
+// exception if it fails.)
+//
+// There's no need for a special const overload either for the pointer
+// or the reference form. If you call down_cast with a const T&, the
+// compiler will just bind From to const T.
+template <typename To, typename From>
+[[nodiscard]]
+inline To down_cast(From& f) {
+  static_assert(std::is_lvalue_reference<To>::value,
+                "target type not a reference");
+  // dynamic_cast allows casting to the same type or a more cv-qualified
+  // version of the same type without them being polymorphic.
+  if constexpr (!std::is_same<std::remove_cv_t<std::remove_reference_t<To>>,
+                              std::remove_cv_t<From>>::value) {
+    static_assert(std::is_polymorphic<From>::value,
+                  "source type must be polymorphic");
+    static_assert(std::is_polymorphic<std::remove_reference_t<To>>::value,
+                  "target type must be polymorphic");
+  }
+  static_assert(
+      std::is_convertible<std::remove_cv_t<std::remove_reference_t<To>>*,
+                          std::remove_cv_t<From>*>::value,
+      "target type not derived from source type");
+
+  absl::base_internal::ValidateDownCast<std::remove_reference_t<To>*>(
+      std::addressof(f));
+
+  return static_cast<To>(f);
+}
 
 ABSL_NAMESPACE_END
 }  // namespace absl

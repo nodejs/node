@@ -125,3 +125,5 @@ various design documents related to it.
   hardware support. This document discusses various options for how that may
   work in practice, what the implications would be, and which requirements the
   hardware would have to fulfill.
+* [Bytecode Verification](https://docs.google.com/document/d/1UUooVKUvf1zDobG34VDVuLsjoKZd-CeSuhvBcLysc7U/edit?usp=sharing):
+  A simple bytecode verifier that ensures bytecode is safe to execute.

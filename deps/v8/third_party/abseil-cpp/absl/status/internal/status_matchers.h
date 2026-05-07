@@ -69,8 +69,8 @@ class IsOkAndHoldsMatcherImpl
   bool MatchAndExplain(
       StatusOrType actual_value,
       ::testing::MatchResultListener* result_listener) const override {
-    if (!GetStatus(actual_value).ok()) {
-      *result_listener << "which has status " << GetStatus(actual_value);
+    if (!actual_value.ok()) {
+      *result_listener << "which has status " << actual_value.status();
       return false;
     }
 

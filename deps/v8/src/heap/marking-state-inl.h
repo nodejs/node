@@ -9,7 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/marking-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 
 namespace v8 {
 namespace internal {
@@ -46,7 +46,7 @@ template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
     Tagged<HeapObject> obj) {
   if (TryMark(obj)) {
-    MutablePageMetadata::FromHeapObject(isolate_, obj)
+    MutablePage::FromHeapObject(isolate_, obj)
         ->IncrementLiveBytesAtomically(
             ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base())));
     return true;
@@ -58,7 +58,7 @@ template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
     Tagged<HeapObject> obj, int object_size) {
   if (TryMark(obj)) {
-    MutablePageMetadata::FromHeapObject(isolate_, obj)
+    MutablePage::FromHeapObject(isolate_, obj)
         ->IncrementLiveBytesAtomically(object_size);
     return true;
   }

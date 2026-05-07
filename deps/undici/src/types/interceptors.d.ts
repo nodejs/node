@@ -8,7 +8,7 @@ export default Interceptors
 declare namespace Interceptors {
   export type DumpInterceptorOpts = { maxSize?: number }
   export type RetryInterceptorOpts = RetryHandler.RetryOptions
-  export type RedirectInterceptorOpts = { maxRedirections?: number }
+  export type RedirectInterceptorOpts = { maxRedirections?: number, throwOnMaxRedirect?: boolean }
   export type DecompressInterceptorOpts = {
     skipErrorResponses?: boolean
     skipStatusCodes?: number[]

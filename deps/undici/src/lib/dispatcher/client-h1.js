@@ -69,9 +69,9 @@ function lazyllhttp () {
   let useWasmSIMD = process.arch !== 'ppc64'
   // The Env Variable UNDICI_NO_WASM_SIMD allows explicitly overriding the default behavior
   if (process.env.UNDICI_NO_WASM_SIMD === '1') {
-    useWasmSIMD = true
-  } else if (process.env.UNDICI_NO_WASM_SIMD === '0') {
     useWasmSIMD = false
+  } else if (process.env.UNDICI_NO_WASM_SIMD === '0') {
+    useWasmSIMD = true
   }
 
   if (useWasmSIMD) {
@@ -188,6 +188,7 @@ let currentBufferRef = null
  */
 let currentBufferSize = 0
 let currentBufferPtr = null
+let currentBuffer = null
 
 const USE_NATIVE_TIMER = 0
 const USE_FAST_TIMER = 1
@@ -216,6 +217,7 @@ class Parser {
      */
     this.socket = socket
     this.timeout = null
+    this.timeoutWeakRef = new WeakRef(this)
     this.timeoutValue = null
     this.timeoutType = null
     this.statusCode = 0
@@ -231,8 +233,8 @@ class Parser {
     this.bytesRead = 0
 
     this.keepAlive = ''
-    this.contentLength = ''
-    this.connection = ''
+    this.contentLength = -1
+    this.connectionKeepAlive = false
     this.maxResponseSize = client[kMaxResponseSize]
   }
 
@@ -253,9 +255,9 @@ class Parser {
 
       if (delay) {
         if (type & USE_FAST_TIMER) {
-          this.timeout = timers.setFastTimeout(onParserTimeout, delay, new WeakRef(this))
+          this.timeout = timers.setFastTimeout(onParserTimeout, delay, this.timeoutWeakRef)
         } else {
-          this.timeout = setTimeout(onParserTimeout, delay, new WeakRef(this))
+          this.timeout = setTimeout(onParserTimeout, delay, this.timeoutWeakRef)
           this.timeout?.unref()
         }
       }
@@ -322,7 +324,16 @@ class Parser {
       currentBufferPtr = llhttp.malloc(currentBufferSize)
     }
 
-    new Uint8Array(llhttp.memory.buffer, currentBufferPtr, currentBufferSize).set(chunk)
+    if (
+      currentBuffer === null ||
+      currentBuffer.buffer !== llhttp.memory.buffer ||
+      currentBuffer.byteOffset !== currentBufferPtr ||
+      currentBuffer.byteLength !== currentBufferSize
+    ) {
+      currentBuffer = new Uint8Array(llhttp.memory.buffer, currentBufferPtr, currentBufferSize)
+    }
+
+    currentBuffer.set(chunk)
 
     // Call `execute` on the wasm parser.
     // We pass the `llhttp_parser` pointer address, the pointer address of buffer view data,
@@ -447,10 +458,17 @@ class Parser {
       if (headerName === 'keep-alive') {
         this.keepAlive += buf.toString()
       } else if (headerName === 'connection') {
-        this.connection += buf.toString()
+        this.connectionKeepAlive =
+          this.headers[len - 1].length === 10 &&
+          util.bufferToLowerCasedHeaderName(this.headers[len - 1]) === 'keep-alive'
       }
     } else if (key.length === 14 && util.bufferToLowerCasedHeaderName(key) === 'content-length') {
-      this.contentLength += buf.toString()
+      if (this.contentLength === -1) {
+        this.contentLength = 0
+      }
+      for (let i = 0; i < buf.length; i++) {
+        this.contentLength = (this.contentLength * 10) + (buf[i] - 0x30)
+      }
     }
 
     this.trackHeader(buf.length)
@@ -554,7 +572,7 @@ class Parser {
     this.shouldKeepAlive = (
       shouldKeepAlive ||
       // Override llhttp value which does not allow keepAlive for HEAD.
-      (request.method === 'HEAD' && !socket[kReset] && this.connection.toLowerCase() === 'keep-alive')
+      (request.method === 'HEAD' && !socket[kReset] && this.connectionKeepAlive)
     )
 
     if (this.statusCode >= 200) {
@@ -687,9 +705,9 @@ class Parser {
     this.statusCode = 0
     this.statusText = ''
     this.bytesRead = 0
-    this.contentLength = ''
+    this.contentLength = -1
     this.keepAlive = ''
-    this.connection = ''
+    this.connectionKeepAlive = false
 
     this.headers = []
     this.headersSize = 0
@@ -698,7 +716,7 @@ class Parser {
       return 0
     }
 
-    if (request.method !== 'HEAD' && contentLength && bytesRead !== parseInt(contentLength, 10)) {
+    if (request.method !== 'HEAD' && contentLength !== -1 && bytesRead !== contentLength) {
       util.destroy(socket, new ResponseContentLengthMismatchError())
       return -1
     }
@@ -1106,7 +1124,7 @@ function writeH1 (client, request) {
     socket[kReset] = reset
   }
 
-  if (client[kMaxRequests] && socket[kCounter]++ >= client[kMaxRequests]) {
+  if (client[kMaxRequests] && ++socket[kCounter] >= client[kMaxRequests]) {
     socket[kReset] = true
   }
 
@@ -1477,7 +1495,7 @@ class AsyncWriter {
   }
 
   /**
-   * @param {Buffer} chunk
+   * @param {string|Uint8Array} chunk
    * @returns
    */
   write (chunk) {
@@ -1491,7 +1509,7 @@ class AsyncWriter {
       return false
     }
 
-    const len = Buffer.byteLength(chunk)
+    const len = chunk instanceof Uint8Array ? chunk.byteLength : Buffer.byteLength(chunk)
     if (!len) {
       return true
     }

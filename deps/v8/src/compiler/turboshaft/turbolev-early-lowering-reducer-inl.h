@@ -16,6 +16,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/descriptor-array-inl.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -46,17 +47,10 @@ class TurbolevEarlyLoweringReducer : public Next {
 
     if (first_instance_type == last_instance_type) {
 #if V8_STATIC_ROOTS_BOOL
-      if (InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type)) {
-        std::optional<RootIndex> expected_index =
-            InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type);
-        CHECK(expected_index.has_value());
-        Handle<HeapObject> expected_map =
-            Cast<HeapObject>(isolate_->root_handle(expected_index.value()));
-        __ DeoptimizeIfNot(__ TaggedEqual(map, __ HeapConstant(expected_map)),
-                           frame_state, DeoptimizeReason::kWrongInstanceType,
-                           feedback);
-        return;
-      }
+      // If this DCHECK fails, then we could special-case for this and just do a
+      // single map compare rather than loading the instance type.
+      DCHECK(
+          !InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type));
 #endif  // V8_STATIC_ROOTS_BOOL
       V<Word32> instance_type = __ LoadInstanceTypeField(map);
       __ DeoptimizeIfNot(__ Word32Equal(instance_type, first_instance_type),
@@ -370,12 +364,18 @@ class TurbolevEarlyLoweringReducer : public Next {
         details = descs.GetPropertyDetails(descriptor);
       }
       DCHECK_EQ(i, details.field_index() - in_object_length);
-      Representation r = details.representation();
+
+      Representation repr = details.representation();
+      MapRef field_owner_map = old_map.FindFieldOwner(broker_, descriptor);
+      broker_->dependencies()->DependOnFieldRepresentation(
+          old_map, field_owner_map, descriptor, repr);
 
       V<Object> old_value = __ template LoadField<Object>(
-          old_property_array, AccessBuilder::ForPropertyArraySlot(i, r));
+          old_property_array,
+          AccessBuilder::ForPropertyArraySlot(i, repr, true));
       __ InitializeField(new_property_array,
-                         AccessBuilder::ForPropertyArraySlot(i, r), old_value);
+                         AccessBuilder::ForPropertyArraySlot(i, repr, true),
+                         old_value);
     }
 
     // Initialize new properties to undefined.
@@ -383,7 +383,7 @@ class TurbolevEarlyLoweringReducer : public Next {
     for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
       __ InitializeField(new_property_array,
                          AccessBuilder::ForPropertyArraySlot(
-                             old_length + i, Representation::Tagged()),
+                             old_length + i, Representation::Tagged(), true),
                          undefined);
     }
 
@@ -450,6 +450,34 @@ class TurbolevEarlyLoweringReducer : public Next {
              MemoryRepresentation::AnyTagged(),
              WriteBarrierKind::kFullWriteBarrier,
              JSGeneratorObject::kContextOffset);
+  }
+
+  V<Boolean> ObjectIsArray(V<Object> value, V<FrameState> frame_state,
+                           V<NativeContext> native_context,
+                           LazyDeoptOnThrow lazy_deopt_on_throw) {
+    Label<Boolean> done(this);
+
+    V<Boolean> true_bool = __ HeapConstant(factory_->true_value());
+    V<Boolean> false_bool = __ HeapConstant(factory_->false_value());
+
+    GOTO_IF(__ ObjectIsSmi(value), done, false_bool);
+
+    V<Map> map = __ LoadMapField(value);
+    V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+    // Check if {value} is a JSArray
+    GOTO_IF(__ Word32Equal(instance_type, JS_ARRAY_TYPE), done, true_bool);
+
+    // Check if {value} is not a JSProxy
+    GOTO_IF_NOT(__ Word32Equal(instance_type, JS_PROXY_TYPE), done, false_bool);
+
+    // {value} is a JSProxy, let the %ArrayIsArray runtime function dea with it.
+    GOTO(done, __ template CallRuntime<runtime::ArrayIsArray>(
+                   frame_state, native_context, {.input = value},
+                   lazy_deopt_on_throw));
+
+    BIND(done, result);
+    return result;
   }
 
  private:

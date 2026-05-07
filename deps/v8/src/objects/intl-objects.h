@@ -427,7 +427,8 @@ class Intl {
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> ToJSArray(
-      Isolate* isolate, const char* unicode_key,
+      Isolate* isolate,
+      const std::function<std::string(const char*)>& transforms,
       icu::StringEnumeration* enumeration,
       const std::function<bool(const char*)>& removes, bool sort);
 

@@ -1,7 +1,8 @@
-// Flags: --experimental-ffi
+// Flags: --experimental-ffi --expose-gc
 'use strict';
 const common = require('../common');
 common.skipIfFFIMissing();
+const { gcUntil } = require('../common/gc');
 const assert = require('node:assert');
 const { test } = require('node:test');
 const ffi = require('node:ffi');
@@ -21,6 +22,21 @@ test('dlopen without definitions returns empty function map', () => {
   }
 });
 
+test('dlopen resolves symbols from the current process with null path', {
+  skip: common.isWindows,
+}, () => {
+  const { lib, functions } = ffi.dlopen(null, {
+    uv_os_getpid: { result: 'i32', parameters: [] },
+  });
+
+  try {
+    assert.ok(lib instanceof ffi.DynamicLibrary);
+    assert.strictEqual(functions.uv_os_getpid(), process.pid);
+  } finally {
+    lib.close();
+  }
+});
+
 test('dlopen resolves functions from definitions', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     add_i32: fixtureSymbols.add_i32,
@@ -35,7 +51,11 @@ test('dlopen resolves functions from definitions', () => {
     assert.strictEqual(functions.add_f32(1.25, 2.75), 4);
     assert.strictEqual(functions.add_u64(20n, 22n), 42n);
     assert.strictEqual(functions.add_i32.name, 'add_i32');
-    assert.strictEqual(functions.add_i32.length, 0);
+    // Shared-buffer wrapper sets `length` to the FFI signature's arity
+    // (see `inheritMetadata` in lib/internal/ffi-shared-buffer.js). The raw
+    // native function has length 0, but the wrapper exposes the parameter
+    // count so `fn.length` is useful for introspection.
+    assert.strictEqual(functions.add_i32.length, 2);
     assert.strictEqual(typeof functions.add_i32.pointer, 'bigint');
     assert.strictEqual(Object.getPrototypeOf(functions), null);
   } finally {
@@ -98,6 +118,27 @@ test('getFunction caches signatures consistently', () => {
   }
 });
 
+test('FFI functions keep their owning library alive', async () => {
+  let lib = new ffi.DynamicLibrary(libraryPath);
+  const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+  const ref = new WeakRef(lib);
+
+  lib = null;
+
+  for (let i = 0; i < 5; i++) {
+    await gcUntil(
+      'FFI function keeps its owning library alive',
+      () => true,
+      1,
+    );
+    assert.ok(ref.deref() instanceof ffi.DynamicLibrary);
+    assert.strictEqual(addI32(20, 22), 42);
+  }
+
+  ref.deref().close();
+  assert.throws(() => addI32(20, 22), /Library is closed/);
+});
+
 test('closed libraries reject subsequent operations', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     add_i32: fixtureSymbols.add_i32,
@@ -108,6 +149,65 @@ test('closed libraries reject subsequent operations', () => {
   assert.throws(() => functions.add_i32(1, 2), /Library is closed/);
   assert.throws(() => lib.getFunction('add_i32', fixtureSymbols.add_i32), /Library is closed/);
   assert.throws(() => lib.getSymbol('add_i32'), /Library is closed/);
+});
+
+test('DynamicLibrary supports Symbol.dispose', () => {
+  const lib = new ffi.DynamicLibrary(libraryPath);
+  const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+
+  assert.strictEqual(typeof lib[Symbol.dispose], 'function');
+  assert.strictEqual(addI32(20, 22), 42);
+
+  lib[Symbol.dispose]();
+
+  assert.throws(() => addI32(1, 2), /Library is closed/);
+  assert.throws(() => lib.getSymbol('add_i32'), /Library is closed/);
+
+  // Disposing twice is a no-op.
+  lib[Symbol.dispose]();
+  lib.close();
+});
+
+test('using declaration closes DynamicLibrary on scope exit', () => {
+  let captured;
+  {
+    using lib = new ffi.DynamicLibrary(libraryPath);
+    captured = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    assert.strictEqual(captured(20, 22), 42);
+  }
+
+  assert.throws(() => captured(1, 2), /Library is closed/);
+});
+
+test('dlopen return value is disposable', () => {
+  let capturedLib;
+  let capturedFn;
+  {
+    using handle = ffi.dlopen(libraryPath, {
+      add_i32: fixtureSymbols.add_i32,
+    });
+    assert.strictEqual(typeof handle[Symbol.dispose], 'function');
+    capturedLib = handle.lib;
+    capturedFn = handle.functions.add_i32;
+    assert.strictEqual(capturedFn(20, 22), 42);
+  }
+
+  assert.throws(() => capturedFn(1, 2), /Library is closed/);
+  assert.throws(() => capturedLib.getSymbol('add_i32'), /Library is closed/);
+});
+
+test('using still disposes DynamicLibrary when block throws', () => {
+  const sentinel = new Error('boom');
+  let captured;
+
+  assert.throws(() => {
+    using lib = new ffi.DynamicLibrary(libraryPath);
+    captured = lib.getFunction('add_i32', fixtureSymbols.add_i32);
+    assert.strictEqual(captured(20, 22), 42);
+    throw sentinel;
+  }, sentinel);
+
+  assert.throws(() => captured(1, 2), /Library is closed/);
 });
 
 test('dynamic library APIs validate failures and bad signatures', () => {

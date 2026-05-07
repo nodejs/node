@@ -295,6 +295,23 @@ void EscapeAnalysisReducer::Finalize() {
       for (Node* load : loads) {
         switch (load->opcode()) {
           case IrOpcode::kLoadElement: {
+            const ElementAccess& access = ElementAccessOf(load->op());
+            if (!access.machine_type.IsTagged()) {
+              // We could have generated (unreachable) branches where we load
+              // non-tagged elements due to clobbered feedback.
+              NodeProperties::RemoveValueInputs(load);
+              NodeProperties::ChangeOp(load,
+                                       jsgraph()->common()->Unreachable());
+              Node* dead_value = jsgraph()->graph()->NewNode(
+                  jsgraph()->common()->DeadValue(
+                      access.machine_type.representation()),
+                  load);
+              NodeProperties::SetType(load, Type::None());
+              NodeProperties::SetType(dead_value, Type::None());
+              NodeProperties::ReplaceUses(load, dead_value, load);
+              continue;
+            }
+
             Node* index = NodeProperties::GetValueInput(load, 1);
             Node* formal_parameter_count =
                 jsgraph()->ConstantNoHole(params.formal_parameter_count());

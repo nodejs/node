@@ -9,10 +9,14 @@ bitfield struct JSArrayBufferFlags extends uint32 {
   is_asm_js_memory: bool: 1 bit;
   is_shared: bool: 1 bit;
   is_resizable_by_js: bool: 1 bit;
+  is_immutable: bool: 1 bit;
 }
 
+const kNoView: Smi = 0;
+const kManyViews: Smi = 1;
+
 extern class JSArrayBuffer extends JSAPIObjectWithEmbedderSlots {
-  detach_key: Object;
+  views_or_detach_key: Weak<JSArrayBufferView>|Smi|Cell;
   // A BoundedSize if the sandbox is enabled
   raw_byte_length: uintptr;
   // A BoundedSize if the sandbox is enabled
@@ -47,6 +51,11 @@ macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
 @export
 macro IsResizableArrayBuffer(buffer: JSArrayBuffer): bool {
   return buffer.bit_field.is_resizable_by_js;
+}
+
+@export
+macro IsImmutableArrayBuffer(buffer: JSArrayBuffer): bool {
+  return buffer.bit_field.is_immutable;
 }
 
 // We have 4 different DataViews & TypedArrays:
@@ -91,13 +100,15 @@ macro IsLengthTrackingJSArrayBufferView(array: JSArrayBufferView): bool {
 }
 
 extern macro LoadVariableLengthJSArrayBufferViewByteLength(
-    JSArrayBufferView, JSArrayBuffer): uintptr labels DetachedOrOutOfBounds;
+    JSArrayBufferView, JSArrayBuffer, constexpr TypedArrayAccessMode): uintptr
+    labels Fail;
 
 macro LoadJSArrayBufferViewByteLength(
     view: JSArrayBufferView,
     buffer: JSArrayBuffer): uintptr labels DetachedOrOutOfBounds {
   if (IsVariableLengthJSArrayBufferView(view)) {
-    return LoadVariableLengthJSArrayBufferViewByteLength(view, buffer)
+    return LoadVariableLengthJSArrayBufferViewByteLength(
+        view, buffer, TypedArrayAccessMode::kRead)
         otherwise DetachedOrOutOfBounds;
   }
   if (IsDetachedBuffer(buffer)) goto DetachedOrOutOfBounds;
@@ -111,6 +122,11 @@ extern class JSTypedArray extends JSArrayBufferView {
   external_pointer: RawPtr;
   base_pointer: ByteArray|Smi;
 }
+
+// A typed array where the ArrayBuffer is guaranteed to be detached. Note, the
+// inverse does not hold! A normal JSTypedArray can still have a detached
+// buffer.
+extern class JSDetachedTypedArray extends JSTypedArray {}
 
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): uintptr;
 

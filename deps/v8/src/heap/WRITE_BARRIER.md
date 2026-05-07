@@ -9,6 +9,9 @@ The write barrier is required for multiple purposes:
 
 The generational barrier is always enabled, while the other barriers are only enabled while incremental/concurrent marking is running.
 
+`WriteBarrier::IsRequired()` is the source of truth of whether a barrier is required at any given point in time.
+Write barriers should only be omitted via proper bottlenecks in the corresponding layers, ensuring that such operations can be verified in non-release builds.
+
 # Overview
 The barrier is split into multiple separate parts (ordered from fastest to slowest):
 1. fast (inline) code path,

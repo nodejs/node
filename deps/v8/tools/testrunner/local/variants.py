@@ -6,6 +6,7 @@
 ALL_VARIANT_FLAGS = {
     "assert_types": [["--assert-types"]],
     "wasm_assert_types": [["--wasm-assert-types", "--no-liftoff"]],
+    "verify_turboshaft": [["--verify-turboshaft"]],
     "code_serializer": [["--cache=code"]],
     "default": [[]],
     "future": [["--future"]],
@@ -154,7 +155,7 @@ ALL_VARIANT_FLAGS = {
 # jitless mode).
 kIncompatibleFlagsForNoTurbofan = [
     "--turbofan", "--liftoff", "--validate-asm", "--maglev", "--turbolev",
-    "--turbolev-future", "--stress-concurrent-inlining"
+    "--turbolev-future", "--stress-concurrent-inlining", "--turboshaft"
 ]
 
 # Flags that lead to a contradiction with the flags provided by the respective
@@ -260,6 +261,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--no-assert-types"
     ],
     "wasm_assert_types": ["--liftoff-only", "--wasm-dynamic-tiering"],
+    "verify_turboshaft": ["--jitless"],
     "stress_wasm_stack_switching": ["--no-stress-wasm-stack-switching"],
 }
 

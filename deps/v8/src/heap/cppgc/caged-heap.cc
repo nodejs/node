@@ -134,11 +134,11 @@ CagedHeap::Reservation CagedHeap::ReserveCagedHeap(
   static constexpr size_t kTryReserveAlignment =
       api_constants::kCagedHeapReservationAlignment;
 
-  void* hint = reinterpret_cast<void*>(RoundDown(
-      reinterpret_cast<uintptr_t>(platform_allocator.GetRandomMmapAddr()),
-      kTryReserveAlignment));
-
   for (size_t i = 0; i < kAllocationTries; ++i) {
+    void* hint = reinterpret_cast<void*>(RoundDown(
+        reinterpret_cast<uintptr_t>(platform_allocator.GetRandomMmapAddr()),
+        kTryReserveAlignment));
+
     VirtualMemory memory(&platform_allocator, kTryReserveSize,
                          kTryReserveAlignment, hint);
     if (memory.IsReserved()) {

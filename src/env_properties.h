@@ -46,6 +46,10 @@
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
   V(fs_use_promises_symbol, "fs_use_promises_symbol")                          \
   V(async_id_symbol, "async_id_symbol")                                        \
+  V(ffi_sb_shared_buffer_symbol, "ffi_sb_shared_buffer_symbol")                \
+  V(ffi_sb_invoke_slow_symbol, "ffi_sb_invoke_slow_symbol")                    \
+  V(ffi_sb_params_symbol, "ffi_sb_params_symbol")                              \
+  V(ffi_sb_result_symbol, "ffi_sb_result_symbol")                              \
   V(constructor_key_symbol, "constructor_key_symbol")                          \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
@@ -403,6 +407,7 @@
   V(contextify_global_template, v8::ObjectTemplate)                            \
   V(contextify_wrapper_template, v8::ObjectTemplate)                           \
   V(cpu_usage_template, v8::DictionaryTemplate)                                \
+  V(crypto_cryptokey_constructor_template, v8::FunctionTemplate)               \
   V(crypto_key_object_handle_constructor, v8::FunctionTemplate)                \
   V(env_proxy_template, v8::ObjectTemplate)                                    \
   V(env_proxy_ctor_template, v8::FunctionTemplate)                             \
@@ -477,6 +482,7 @@
   V(async_hooks_init_function, v8::Function)                                   \
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
+  V(crypto_internal_cryptokey_constructor, v8::Function)                       \
   V(crypto_key_object_private_constructor, v8::Function)                       \
   V(crypto_key_object_public_constructor, v8::Function)                        \
   V(crypto_key_object_secret_constructor, v8::Function)                        \

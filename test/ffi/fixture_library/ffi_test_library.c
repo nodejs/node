@@ -2,10 +2,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
 #ifdef _WIN32
 #define FFI_EXPORT __declspec(dllexport)
 #else
+#include <sys/mman.h>
 #define FFI_EXPORT
 #endif
 
@@ -215,6 +215,7 @@ FFI_EXPORT int32_t logical_not(int32_t a) {
 // Void operations (side effects).
 
 static int32_t global_counter = 0;
+static int32_t global_scratch = 0;
 
 FFI_EXPORT void increment_counter(void) {
   global_counter++;
@@ -226,6 +227,47 @@ FFI_EXPORT int32_t get_counter(void) {
 
 FFI_EXPORT void reset_counter(void) {
   global_counter = 0;
+}
+
+FFI_EXPORT void store_sum_2_i32(int32_t a, int32_t b) {
+  global_scratch = a + b;
+}
+
+FFI_EXPORT void store_i32(int32_t a) {
+  global_scratch = a;
+}
+
+FFI_EXPORT void store_sum_3_i32(int32_t a, int32_t b, int32_t c) {
+  global_scratch = a + b + c;
+}
+
+FFI_EXPORT void store_sum_4_i32(int32_t a, int32_t b, int32_t c, int32_t d) {
+  global_scratch = a + b + c + d;
+}
+
+FFI_EXPORT void store_sum_5_i32(
+    int32_t a, int32_t b, int32_t c, int32_t d, int32_t e) {
+  global_scratch = a + b + c + d + e;
+}
+
+FFI_EXPORT void store_sum_6_i32(
+    int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
+  global_scratch = a + b + c + d + e + f;
+}
+
+FFI_EXPORT void store_sum_8_i32(int32_t a,
+                                int32_t b,
+                                int32_t c,
+                                int32_t d,
+                                int32_t e,
+                                int32_t f,
+                                int32_t g,
+                                int32_t h) {
+  global_scratch = a + b + c + d + e + f + g + h;
+}
+
+FFI_EXPORT int32_t get_scratch(void) {
+  return global_scratch;
 }
 
 // Callback operations.
@@ -331,6 +373,29 @@ FFI_EXPORT double sum_five_f64(
   return a + b + c + d + e;
 }
 
+FFI_EXPORT int32_t sum_3_i32(int32_t a, int32_t b, int32_t c) {
+  return a + b + c;
+}
+
+FFI_EXPORT int32_t sum_4_i32(int32_t a, int32_t b, int32_t c, int32_t d) {
+  return a + b + c + d;
+}
+
+FFI_EXPORT int32_t
+sum_6_i32(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f) {
+  return a + b + c + d + e + f;
+}
+
+FFI_EXPORT int32_t sum_7_i32(int32_t a,
+                             int32_t b,
+                             int32_t c,
+                             int32_t d,
+                             int32_t e,
+                             int32_t f,
+                             int32_t g) {
+  return a + b + c + d + e + f + g;
+}
+
 // Mixed parameter types.
 
 FFI_EXPORT double mixed_operation(int32_t i, float f, double d, uint32_t u) {
@@ -378,3 +443,12 @@ FFI_EXPORT void array_set_f64(double* arr, size_t index, double value) {
 
   arr[index] = value;
 }
+
+#ifndef _WIN32
+FFI_EXPORT void* readonly_memory() {
+  // TODO(bengl) Add a Windows version of this.
+
+  void* p = mmap(0, 4096, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  return p;
+}
+#endif

@@ -25,11 +25,37 @@ struct FFIFunction {
   ffi_cif cif;
   std::vector<ffi_type*> args;
   ffi_type* return_type;
+  std::vector<std::string> arg_type_names;
+  std::string return_type_name;
 };
 
-struct FFIFunctionInfo {
+class FFIFunctionInfo final : public BaseObject {
+ public:
+  enum InternalFields {
+    kLibrary = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
+  FFIFunctionInfo(Environment* env,
+                  v8::Local<v8::Object> object,
+                  std::shared_ptr<FFIFunction> fn,
+                  DynamicLibrary* library);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(FFIFunctionInfo)
+  SET_SELF_SIZE(FFIFunctionInfo)
+
+  static BaseObjectPtr<FFIFunctionInfo> Create(Environment* env,
+                                               std::shared_ptr<FFIFunction> fn,
+                                               DynamicLibrary* library);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      IsolateData* isolate_data);
+
+ private:
   std::shared_ptr<FFIFunction> fn;
-  v8::Global<v8::Function> self;
+  std::shared_ptr<v8::BackingStore> sb_backing;
+
+  friend class DynamicLibrary;
 };
 
 struct FFICallback {
@@ -75,6 +101,7 @@ class DynamicLibrary : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InvokeFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InvokeFunctionSB(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InvokeCallback(ffi_cif* cif,
                              void* ret,
                              void** args,
@@ -97,13 +124,15 @@ class DynamicLibrary : public BaseObject {
 
  private:
   void Close();
-  bool ResolveSymbol(Environment* env, const std::string& name, void** ptr);
-  bool PrepareFunction(Environment* env,
-                       const std::string& name,
-                       v8::Local<v8::Object> signature,
-                       std::shared_ptr<FFIFunction>* ret,
-                       bool* should_cache_symbol,
-                       bool* should_cache_function);
+  v8::Maybe<void*> ResolveSymbol(Environment* env, const std::string& name);
+  struct PreparedFunction {
+    std::shared_ptr<FFIFunction> fn;
+    bool should_cache_symbol;
+    bool should_cache_function;
+  };
+  v8::Maybe<PreparedFunction> PrepareFunction(Environment* env,
+                                              const std::string& name,
+                                              v8::Local<v8::Object> signature);
   v8::MaybeLocal<v8::Function> CreateFunction(
       Environment* env,
       const std::string& name,
@@ -144,6 +173,8 @@ void SetFloat64(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToString(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
 void ToArrayBuffer(const v8::FunctionCallbackInfo<v8::Value>& args);
+void ExportBytes(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetRawPointer(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 }  // namespace node::ffi
 

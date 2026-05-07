@@ -62,12 +62,6 @@ void Assembler::CheckBuffer() {
   }
 }
 
-void Assembler::CheckConstantPoolQuick(int margin) {
-  if (V8_UNLIKELY(pc_offset() >= constpool_.NextCheckIn() - margin)) {
-    constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
-  }
-}
-
 void Assembler::CheckTrampolinePoolQuick(int margin) {
   DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
                trampoline_check_ - margin);

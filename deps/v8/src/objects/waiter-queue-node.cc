@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 namespace detail {
 
-WaiterQueueNode::WaiterQueueNode(Isolate* requester) : requester_(requester) {}
+WaiterQueueNode::WaiterQueueNode(Isolate* requester)
+    : requester_(requester), should_wait_(true) {}
 
 WaiterQueueNode::~WaiterQueueNode() {
   // Since waiter queue nodes are allocated on the stack, they must be removed
@@ -40,61 +41,40 @@ void WaiterQueueNode::Enqueue(WaiterQueueNode** head,
   }
 }
 
-void WaiterQueueNode::DequeueUnchecked(WaiterQueueNode** head) {
-  if (next_ == this) {
-    // The queue contains exactly 1 node.
-    DCHECK_EQ(this, *head);
-    *head = nullptr;
-  } else {
-    // The queue contains >1 nodes.
-    if (this == *head) {
-      WaiterQueueNode* tail = (*head)->prev_;
-      // The matched node is the head, so next is the new head.
-      next_->prev_ = tail;
-      tail->next_ = next_;
-      *head = next_;
-    } else {
-      // The matched node is in the middle of the queue, so the head does
-      // not need to be updated.
-      prev_->next_ = next_;
-      next_->prev_ = prev_;
-    }
-  }
-  SetNotInListForVerification();
-}
-
 WaiterQueueNode* WaiterQueueNode::DequeueMatching(
     WaiterQueueNode** head, const DequeueMatcher& matcher) {
   DCHECK_NOT_NULL(head);
   DCHECK_NOT_NULL(*head);
-  WaiterQueueNode* original_head = *head;
+  WaiterQueueNode* const original_head = *head;
   WaiterQueueNode* cur = *head;
   do {
     if (matcher(cur)) {
-      cur->DequeueUnchecked(head);
+      WaiterQueueNode* const next = cur->next_;
+      if (next == cur) {
+        // The queue contains exactly 1 node.
+        DCHECK_EQ(cur, original_head);
+        *head = nullptr;
+      } else {
+        // The queue contains >1 nodes.
+        if (cur == original_head) {
+          // The matched node is the original head, so next is the new head.
+          WaiterQueueNode* tail = original_head->prev_;
+          next->prev_ = tail;
+          tail->next_ = next;
+          *head = next;
+        } else {
+          // The matched node is in the middle of the queue, so the head does
+          // not need to be updated.
+          cur->prev_->next_ = next;
+          next->prev_ = cur->prev_;
+        }
+      }
+      cur->SetNotInListForVerification();
       return cur;
     }
     cur = cur->next_;
   } while (cur != original_head);
   return nullptr;
-}
-
-void WaiterQueueNode::DequeueAllMatchingForAsyncCleanup(
-    WaiterQueueNode** head, const DequeueMatcher& matcher) {
-  DCHECK_NOT_NULL(head);
-  DCHECK_NOT_NULL(*head);
-  WaiterQueueNode* original_tail = (*head)->prev_;
-  WaiterQueueNode* cur = *head;
-  for (;;) {
-    DCHECK_NOT_NULL(cur);
-    WaiterQueueNode* next = cur->next_;
-    if (matcher(cur)) {
-      cur->DequeueUnchecked(head);
-      cur->SetReadyForAsyncCleanup();
-    }
-    if (cur == original_tail) break;
-    cur = next;
-  }
 }
 
 // static
@@ -143,6 +123,51 @@ int WaiterQueueNode::LengthFromHead(WaiterQueueNode* head) {
     cur = cur->next_;
   } while (cur != head);
   return len;
+}
+
+void WaiterQueueNode::Wait() {
+  AllowGarbageCollection allow_before_parking;
+  requester_->main_thread_local_heap()->ExecuteWhileParked([this]() {
+    base::MutexGuard guard(&wait_lock_);
+    while (should_wait_) {
+      wait_cond_var_.Wait(&wait_lock_);
+    }
+  });
+}
+
+// Returns false if timed out, true otherwise.
+bool WaiterQueueNode::WaitFor(const base::TimeDelta& rel_time) {
+  bool result;
+  AllowGarbageCollection allow_before_parking;
+  requester_->main_thread_local_heap()->ExecuteWhileParked([this, rel_time,
+                                                            &result]() {
+    base::MutexGuard guard(&wait_lock_);
+    base::TimeTicks current_time = base::TimeTicks::Now();
+    base::TimeTicks timeout_time = current_time + rel_time;
+    for (;;) {
+      if (!should_wait_) {
+        result = true;
+        return;
+      }
+      current_time = base::TimeTicks::Now();
+      if (current_time >= timeout_time) {
+        result = false;
+        return;
+      }
+      base::TimeDelta time_until_timeout = timeout_time - current_time;
+      bool wait_res = wait_cond_var_.WaitFor(&wait_lock_, time_until_timeout);
+      USE(wait_res);
+      // The wake up may have been spurious, so loop again.
+    }
+  });
+  return result;
+}
+
+void WaiterQueueNode::Notify() {
+  base::MutexGuard guard(&wait_lock_);
+  should_wait_ = false;
+  wait_cond_var_.NotifyOne();
+  SetNotInListForVerification();
 }
 
 uint32_t WaiterQueueNode::NotifyAllInList() {

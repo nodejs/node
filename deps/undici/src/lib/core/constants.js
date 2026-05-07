@@ -107,28 +107,6 @@ const headerNameLowerCasedRecord = {}
 // Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
 Object.setPrototypeOf(headerNameLowerCasedRecord, null)
 
-/**
- * @type {Record<Lowercase<typeof wellknownHeaderNames[number]>, Buffer>}
- */
-const wellknownHeaderNameBuffers = {}
-
-// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
-Object.setPrototypeOf(wellknownHeaderNameBuffers, null)
-
-/**
- * @param {string} header Lowercased header
- * @returns {Buffer}
- */
-function getHeaderNameAsBuffer (header) {
-  let buffer = wellknownHeaderNameBuffers[header]
-
-  if (buffer === undefined) {
-    buffer = Buffer.from(header)
-  }
-
-  return buffer
-}
-
 for (let i = 0; i < wellknownHeaderNames.length; ++i) {
   const key = wellknownHeaderNames[i]
   const lowerCasedKey = key.toLowerCase()
@@ -138,6 +116,5 @@ for (let i = 0; i < wellknownHeaderNames.length; ++i) {
 
 module.exports = {
   wellknownHeaderNames,
-  headerNameLowerCasedRecord,
-  getHeaderNameAsBuffer
+  headerNameLowerCasedRecord
 }

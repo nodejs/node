@@ -187,20 +187,12 @@ Tagged<SourceTextModule> Context::module() const {
   return Cast<SourceTextModule>(current->extension());
 }
 
-Tagged<JSGlobalObject> Context::global_object() const {
-  return Cast<JSGlobalObject>(native_context()->extension());
-}
-
 Tagged<Context> Context::script_context() const {
   Tagged<Context> current = *this;
   while (!current->IsScriptContext()) {
     current = current->previous();
   }
   return current;
-}
-
-Tagged<JSGlobalProxy> Context::global_proxy() const {
-  return native_context()->global_proxy_object();
 }
 
 /**

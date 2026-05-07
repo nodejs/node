@@ -78,6 +78,11 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
   bool IsShared() const;
 
   /**
+   * Indicates whether the backing store is immutable.
+   */
+  bool IsImmutable() const;
+
+  /**
    * Indicates whether the backing store was created for a resizable ArrayBuffer
    * or a growable SharedArrayBuffer, and thus may be resized by user JavaScript
    * code.
@@ -327,6 +332,11 @@ class V8_EXPORT ArrayBuffer : public Object {
    * Returns true if this ArrayBuffer has been detached.
    */
   bool WasDetached() const;
+
+  /**
+   * Returns true if this ArrayBuffer is immutable.
+   */
+  bool IsImmutable() const;
 
   /**
    * Detaches this ArrayBuffer and all its views (typed arrays).

@@ -165,11 +165,14 @@ const path = `libsqlite3.${suffix}`;
 added: REPLACEME
 -->
 
-* `path` {string} Path to a dynamic library.
+* `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
+  from the current process image.
 * `definitions` {Object} Symbol definitions to resolve immediately.
 * Returns: {Object}
 
 Loads a dynamic library and resolves the requested function definitions.
+
+On Windows passing `null` is not supported.
 
 When `definitions` is omitted, `functions` is returned as an empty object until
 symbols are resolved explicitly.
@@ -178,6 +181,21 @@ The returned object contains:
 
 * `lib` {DynamicLibrary} The loaded library handle.
 * `functions` {Object} Callable wrappers for the requested symbols.
+
+The returned object also implements the explicit resource management protocol,
+so it can be used with the [`using`][] declaration. Disposing the returned
+object closes the library handle.
+
+```mjs
+import { dlopen } from 'node:ffi';
+
+{
+  using handle = dlopen('./mylib.so', {
+    add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
+  });
+  console.log(handle.functions.add_i32(20, 22));
+} // handle.lib.close() is invoked automatically here.
+```
 
 ```mjs
 import { dlopen } from 'node:ffi';
@@ -237,9 +255,12 @@ Represents a loaded dynamic library.
 
 ### `new DynamicLibrary(path)`
 
-* `path` {string} Path to a dynamic library.
+* `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
+  from the current process image.
 
 Loads the dynamic library without resolving any functions eagerly.
+
+On Windows passing `null` is not supported.
 
 ```cjs
 const { DynamicLibrary } = require('node:ffi');
@@ -269,6 +290,21 @@ An object containing previously resolved symbol addresses as `bigint` values.
 
 Closes the library handle.
 
+`DynamicLibrary` implements the explicit resource management protocol, so a
+library instance can be managed with the [`using`][] declaration. Leaving the
+enclosing scope invokes `library.close()` automatically.
+
+```mjs
+import { DynamicLibrary } from 'node:ffi';
+
+{
+  using lib = new DynamicLibrary('./mylib.so');
+  // Use `lib` here; `lib.close()` is called when the block exits.
+}
+```
+
+Calling `library.close()` (or disposing the library) more than once is a no-op.
+
 After a library has been closed:
 
 * Resolved function wrappers become invalid.
@@ -288,6 +324,16 @@ addresses before the library is closed or before the callback is unregistered.
 Calling `library.close()` from one of the library's active callbacks is
 unsupported and dangerous. The callback must return before the library is
 closed.
+
+### `library[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Calls `library.close()`. This allows `DynamicLibrary` instances to be used with
+the [`using`][] declaration for automatic cleanup when the enclosing scope
+exits. It is a no-op on a library that has already been closed.
 
 ### `library.getFunction(name, signature)`
 
@@ -533,6 +579,8 @@ native memory directly. The caller must guarantee that:
 * `length` stays within the allocated native region.
 * no native code frees or repurposes that memory while JavaScript still uses
   the `Buffer`.
+* Memory protection is observed. For example, read-only memory pages must not
+  be written to.
 
 If these guarantees are not met, reading or writing the `Buffer` can corrupt
 memory or crash the process.
@@ -603,6 +651,55 @@ available storage. This function does not allocate memory on its own.
 
 `buffer` must be a Node.js `Buffer`.
 
+## `ffi.exportArrayBuffer(arrayBuffer, pointer, length)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `arrayBuffer` {ArrayBuffer}
+* `pointer` {bigint}
+* `length` {number}
+
+Copies bytes from an `ArrayBuffer` into native memory.
+
+`length` must be at least `arrayBuffer.byteLength`.
+
+`pointer` must refer to writable native memory with at least `length` bytes of
+available storage. This function does not allocate memory on its own.
+
+## `ffi.exportArrayBufferView(arrayBufferView, pointer, length)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `arrayBufferView` {ArrayBufferView}
+* `pointer` {bigint}
+* `length` {number}
+
+Copies bytes from an `ArrayBufferView` into native memory.
+
+`length` must be at least `arrayBufferView.byteLength`.
+
+`pointer` must refer to writable native memory with at least `length` bytes of
+available storage. This function does not allocate memory on its own.
+
+## `ffi.getRawPointer(source)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Buffer|ArrayBuffer|ArrayBufferView}
+* Returns: {bigint}
+
+Returns the raw memory address of JavaScript-managed byte storage.
+
+This is unsafe and dangerous. The returned pointer can become invalid if the
+underlying memory is detached, resized, transferred, or otherwise invalidated.
+Using stale pointers can cause memory corruption or process crashes.
+
 ## Safety notes
 
 The `node:ffi` module does not track pointer validity, memory ownership, or
@@ -627,3 +724,4 @@ and keep callback and pointer lifetimes explicit on the native side.
 [Permission Model]: permissions.md#permission-model
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
+[`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations

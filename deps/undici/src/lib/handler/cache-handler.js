@@ -479,7 +479,7 @@ function determineStaleAt (cacheType, now, age, resHeaders, responseDate, cacheC
 
   if (cacheControlDirectives.immutable) {
     // https://www.rfc-editor.org/rfc/rfc8246.html#section-2.2
-    return 31536000
+    return 31536000000
   }
 
   return undefined

@@ -47,6 +47,7 @@
 #include "src/heap/cppgc/unmarker.h"
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-controller.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/minor-mark-sweep.h"
@@ -766,9 +767,6 @@ void CppHeap::UpdateGCCapabilitiesFromFlags() {
   sweeping_support_ = v8_flags.single_threaded_gc
                           ? CppHeap::SweepingType::kIncremental
                           : CppHeap::SweepingType::kIncrementalAndConcurrent;
-
-  page_backend_->page_pool().SetDecommitPooledPages(
-      v8_flags.decommit_pooled_pages);
 }
 
 void CppHeap::InitializeMarking(
@@ -1043,9 +1041,9 @@ void CppHeap::CompactAndSweep() {
         SelectSweepingType(), compactable_space_handling,
         ShouldReduceMemory(current_gc_flags_)
             ? cppgc::internal::SweepingConfig::FreeMemoryHandling::
-                  kDiscardWherePossible
+                  kReleaseMemory
             : cppgc::internal::SweepingConfig::FreeMemoryHandling::
-                  kDoNotDiscard};
+                  kRetainMemory};
     DCHECK_IMPLIES(!isolate_,
                    SweepingType::kAtomic == sweeping_config.sweeping_type);
     sweeper().Start(sweeping_config);
@@ -1303,7 +1301,7 @@ void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
   // TODO(mlippautz): Respect full config.
   const auto flags =
       (config.free_memory_handling ==
-       cppgc::internal::GCConfig::FreeMemoryHandling::kDiscardWherePossible)
+       cppgc::internal::GCConfig::FreeMemoryHandling::kReleaseMemory)
           ? GCFlag::kReduceMemoryFootprint
           : GCFlag::kNoFlags;
   isolate_->heap()->CollectAllGarbage(

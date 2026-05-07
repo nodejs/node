@@ -356,7 +356,7 @@ void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) const {
   auto match = store_.find("NODE_OPTIONS");
 
   if (match != store_.end()) {
-    *node_options = match->second;
+    *node_options = " " + match->second;
   }
 }
 

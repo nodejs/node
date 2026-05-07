@@ -24,12 +24,10 @@ IdentityMapBase::~IdentityMapBase() {
 void IdentityMapBase::Clear() {
   if (keys_) {
     DCHECK(!is_iterable());
-    DCHECK_NOT_NULL(strong_roots_entry_);
-    heap_->UnregisterStrongRoots(strong_roots_entry_);
+    heap_->RemoveGlobalGCRootsProvider(this);
     DeletePointerArray(reinterpret_cast<uintptr_t*>(keys_), capacity_);
     DeletePointerArray(values_, capacity_);
     keys_ = nullptr;
-    strong_roots_entry_ = nullptr;
     values_ = nullptr;
     size_ = 0;
     capacity_ = 0;
@@ -70,7 +68,7 @@ bool IdentityMapBase::ShouldGrow() const {
 std::pair<int, bool> IdentityMapBase::InsertKey(Address address,
                                                 uint32_t hash) {
   DCHECK_NE(heap_->gc_state(), Heap::MARK_COMPACT);
-  DCHECK_EQ(gc_counter_, heap_->gc_count());
+  DCHECK(!invalidated_);
 
   if (ShouldGrow()) {
     Resize(capacity_ * kResizeFactor);
@@ -143,7 +141,7 @@ int IdentityMapBase::Lookup(Address key) const {
   int index;
   bool found;
   std::tie(index, found) = ScanKeysFor(key, hash);
-  if (!found && gc_counter_ != heap_->gc_count()) {
+  if (!found && invalidated_) {
     // Miss; rehash if there was a GC, then lookup again.
     const_cast<IdentityMapBase*>(this)->Rehash();
     std::tie(index, found) = ScanKeysFor(key, hash);
@@ -160,7 +158,7 @@ std::pair<int, bool> IdentityMapBase::LookupOrInsert(Address key) {
   std::tie(index, already_exists) = ScanKeysFor(key, hash);
   if (!already_exists) {
     // Miss; rehash if there was a GC, then insert.
-    if (gc_counter_ != heap_->gc_count()) {
+    if (invalidated_) {
       Rehash();
       index = -1;
     }
@@ -223,19 +221,19 @@ IdentityMapBase::RawEntry IdentityMapBase::InsertEntry(Address key) {
     // Allocate the initial storage for keys and values.
     capacity_ = kInitialIdentityMapSize;
     mask_ = kInitialIdentityMapSize - 1;
-    gc_counter_ = heap_->gc_count();
+    invalidated_ = false;
 
     uintptr_t not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
     keys_ = reinterpret_cast<Address*>(NewPointerArray(capacity_, not_mapped));
     for (int i = 0; i < capacity_; i++) keys_[i] = not_mapped;
     values_ = NewPointerArray(capacity_, 0);
 
-    strong_roots_entry_ =
-        heap_->RegisterStrongRoots("IdentityMapBase", FullObjectSlot(keys_),
-                                   FullObjectSlot(keys_ + capacity_));
+    // Register with the GC. Appending to Heap because IdentityMap is passed
+    // around between threads.
+    heap_->AddGlobalGCRootsProvider(this);
   } else {
     // Rehash if there was a GC, then insert.
-    if (gc_counter_ != heap_->gc_count()) Rehash();
+    if (invalidated_) Rehash();
   }
 
   int index;
@@ -288,8 +286,8 @@ int IdentityMapBase::NextIndex(int index) const {
 void IdentityMapBase::Rehash() {
   DCHECK_NE(heap_->gc_state(), Heap::MARK_COMPACT);
   CHECK(!is_iterable());  // Can't rehash while iterating.
-  // Record the current GC counter.
-  gc_counter_ = heap_->gc_count();
+  // Mark as no longer invalidated.
+  invalidated_ = false;
   // Assume that most objects won't be moved.
   std::vector<std::pair<Address, uintptr_t>> reinsert;
   // Search the table looking for keys that wouldn't be found with their
@@ -330,7 +328,7 @@ void IdentityMapBase::Resize(int new_capacity) {
 
   capacity_ = new_capacity;
   mask_ = capacity_ - 1;
-  gc_counter_ = heap_->gc_count();
+  invalidated_ = false;
   size_ = 0;
 
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
@@ -344,14 +342,18 @@ void IdentityMapBase::Resize(int new_capacity) {
     values_[index] = old_values[i];
   }
 
-  // Unregister old keys and register new keys.
-  DCHECK_NOT_NULL(strong_roots_entry_);
-  heap_->UpdateStrongRoots(strong_roots_entry_, FullObjectSlot(keys_),
-                           FullObjectSlot(keys_ + capacity_));
-
   // Delete old storage;
   DeletePointerArray(reinterpret_cast<uintptr_t*>(old_keys), old_capacity);
   DeletePointerArray(old_values, old_capacity);
+}
+
+void IdentityMapBase::Iterate(RootVisitor* v) {
+  v->VisitRootPointers(Root::kIdentityMap, nullptr, FullObjectSlot(keys_),
+                       FullObjectSlot(keys_ + capacity_));
+}
+
+void IdentityMapBase::GCEpilogueInSafepoint(GCType gc_type) {
+  invalidated_ = true;
 }
 
 }  // namespace internal

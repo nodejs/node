@@ -20,6 +20,12 @@
   Visit(param);                                   \
   if (CheckStackOverflow()) return;
 
+// Use this macro when a recursive Process() call may mutate state that would be
+// invalid to consume once stack overflow has been reported.
+#define PROCESS_AND_RETURN_IF_STACK_OVERFLOW(param) \
+  Process(param);                                   \
+  if (CheckStackOverflow()) return;
+
 namespace v8::internal {
 
 class Processor final : public AstVisitor<Processor> {
@@ -124,7 +130,7 @@ void Processor::Process(ZonePtrList<Statement>* statements) {
   // early.
   for (int i = statements->length() - 1; i >= 0 && (breakable_ || !is_set_);
        --i) {
-    Visit(statements->at(i));
+    VISIT_AND_RETURN_IF_STACK_OVERFLOW(statements->at(i));
     statements->Set(i, replacement_);
   }
 }
@@ -141,7 +147,7 @@ void Processor::VisitBlock(Block* node) {
   // to prevent rewriting in that case.
   if (!node->ignore_completion_value()) {
     BreakableScope scope(this, node->is_breakable());
-    Process(node->statements());
+    PROCESS_AND_RETURN_IF_STACK_OVERFLOW(node->statements());
   }
   replacement_ = node;
 }
@@ -161,12 +167,12 @@ void Processor::VisitIfStatement(IfStatement* node) {
   // Rewrite both branches.
   bool set_after = is_set_;
 
-  Visit(node->then_statement());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->then_statement());
   node->set_then_statement(replacement_);
   bool set_in_then = is_set_;
 
   is_set_ = set_after;
-  Visit(node->else_statement());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->else_statement());
   node->set_else_statement(replacement_);
 
   replacement_ = set_in_then && is_set_ ? node : AssignUndefinedBefore(node);
@@ -182,7 +188,7 @@ void Processor::VisitIterationStatement(IterationStatement* node) {
   DCHECK(breakable_ || !is_set_);
   BreakableScope scope(this);
 
-  Visit(node->body());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->body());
   node->set_body(replacement_);
 
   replacement_ = AssignUndefinedBefore(node);
@@ -297,7 +303,7 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   ZonePtrList<CaseClause>* clauses = node->cases();
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
-    Process(clause->statements());
+    PROCESS_AND_RETURN_IF_STACK_OVERFLOW(clause->statements());
   }
 
   replacement_ = AssignUndefinedBefore(node);
@@ -318,7 +324,7 @@ void Processor::VisitBreakStatement(BreakStatement* node) {
 
 
 void Processor::VisitWithStatement(WithStatement* node) {
-  Visit(node->statement());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->statement());
   node->set_statement(replacement_);
 
   replacement_ = is_set_ ? node : AssignUndefinedBefore(node);
@@ -328,7 +334,7 @@ void Processor::VisitWithStatement(WithStatement* node) {
 
 void Processor::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* node) {
-  Visit(node->statement());
+  VISIT_AND_RETURN_IF_STACK_OVERFLOW(node->statement());
   node->set_statement(replacement_);
   replacement_ = node;
 }
@@ -417,6 +423,11 @@ std::optional<VariableProxy*> Rewriter::RewriteBody(
                         result, info->ast_value_factory(), info->zone());
     processor.Process(body);
 
+    if (processor.HasStackOverflow()) {
+      *out_has_stack_overflow = true;
+      return std::nullopt;
+    }
+
     if (processor.result_assigned()) {
       int pos = kNoSourcePosition;
       VariableProxy* result_value =
@@ -429,15 +440,11 @@ std::optional<VariableProxy*> Rewriter::RewriteBody(
       }
       return result_value;
     }
-
-    if (processor.HasStackOverflow()) {
-      *out_has_stack_overflow = true;
-      return std::nullopt;
-    }
   }
   return nullptr;
 }
 
+#undef PROCESS_AND_RETURN_IF_STACK_OVERFLOW
 #undef VISIT_AND_RETURN_IF_STACK_OVERFLOW
 
 }  // namespace v8::internal

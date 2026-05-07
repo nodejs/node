@@ -91,7 +91,7 @@ jobs:
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
           ./configure && make tar -j4 SKIP_XZ=1
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: tarballs
           path: '*.tar.gz'
@@ -121,7 +121,7 @@ jobs:
           allow-prereleases: true
       - name: Set up sccache
         if: github.base_ref == 'main' || github.ref_name == 'main'
-        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        uses: Mozilla-Actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696  # v0.0.10
         with:
           version: v0.12.0
       - name: Environment Information

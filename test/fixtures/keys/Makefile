@@ -2,6 +2,7 @@ all: \
   ca1-cert.pem \
   ca2-cert.pem \
   ca2-crl.pem \
+  ca2-crl-agent3.pem \
   ca3-cert.pem \
   ca4-cert.pem \
   ca5-cert.pem \
@@ -110,6 +111,12 @@ all: \
   ml_dsa_87_private_seed_only.pem \
   ml_dsa_87_private_priv_only.pem \
   ml_dsa_87_public.pem \
+  ml-dsa-44.json \
+  ml-dsa-65.json \
+  ml-dsa-87.json \
+  ml-kem-512.json \
+  ml-kem-768.json \
+  ml-kem-1024.json \
   ml_kem_512_private.pem \
   ml_kem_512_private_seed_only.pem \
   ml_kem_512_private_priv_only.pem \
@@ -146,6 +153,18 @@ all: \
   slh_dsa_shake_256s_public.pem \
   slh_dsa_shake_256f_private.pem \
   slh_dsa_shake_256f_public.pem \
+  slh-dsa-sha2-128s.json \
+  slh-dsa-sha2-128f.json \
+  slh-dsa-sha2-192s.json \
+  slh-dsa-sha2-192f.json \
+  slh-dsa-sha2-256s.json \
+  slh-dsa-sha2-256f.json \
+  slh-dsa-shake-128s.json \
+  slh-dsa-shake-128f.json \
+  slh-dsa-shake-192s.json \
+  slh-dsa-shake-192f.json \
+  slh-dsa-shake-256s.json \
+  slh-dsa-shake-256f.json \
 
 #
 # Create Certificate Authority: ca1
@@ -510,6 +529,28 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent4-cert.pem
 		-gencrl \
 		-out ca2-crl.pem \
 		-passin 'pass:password'
+
+#
+# Make CRL with agent3 being rejected
+# Uses a separate temporary database so the ca2-crl.pem revocation of agent4
+# does not contaminate this CRL.
+#
+ca2-crl-agent3.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent3-cert.pem
+	@> ca2-crl-agent3-database.txt
+	@sed 's/ca2-database/ca2-crl-agent3-database/' ca2.cnf > ca2-crl-agent3.cnf
+	openssl ca -revoke agent3-cert.pem \
+		-keyfile ca2-key.pem \
+		-cert ca2-cert.pem \
+		-config ca2-crl-agent3.cnf \
+		-passin 'pass:password'
+	openssl ca \
+		-keyfile ca2-key.pem \
+		-cert ca2-cert.pem \
+		-config ca2-crl-agent3.cnf \
+		-gencrl \
+		-out ca2-crl-agent3.pem \
+		-passin 'pass:password'
+	@rm -f ca2-crl-agent3.cnf ca2-crl-agent3-database.txt*
 
 #
 # agent5 is signed by ca2 (client cert)
@@ -1047,6 +1088,39 @@ ml_kem_1024_private_priv_only.pem: ml_kem_1024_private.pem
 ml_kem_1024_public.pem: ml_kem_1024_private.pem
 	openssl pkey -in ml_kem_1024_private.pem -pubout -out ml_kem_1024_public.pem
 
+define GEN_PQC_JWK
+$(1): $(subst -,_,$(basename $(1)))_private.pem
+	../../../node -e '\
+		const { readFileSync, writeFileSync } = require("fs"); \
+		const { createPrivateKey } = require("crypto"); \
+		const pem = "$(subst -,_,$(basename $(1)))_private.pem"; \
+		const key = createPrivateKey(readFileSync(pem)); \
+		const jwk = JSON.stringify(key.export({ format: "jwk" }), null, 2); \
+		writeFileSync("$(1)", jwk + "\n")'
+endef
+
+PQC_JWK_FIXTURES = \
+  ml-dsa-44.json \
+  ml-dsa-65.json \
+  ml-dsa-87.json \
+  ml-kem-512.json \
+  ml-kem-768.json \
+  ml-kem-1024.json \
+  slh-dsa-sha2-128s.json \
+  slh-dsa-sha2-128f.json \
+  slh-dsa-sha2-192s.json \
+  slh-dsa-sha2-192f.json \
+  slh-dsa-sha2-256s.json \
+  slh-dsa-sha2-256f.json \
+  slh-dsa-shake-128s.json \
+  slh-dsa-shake-128f.json \
+  slh-dsa-shake-192s.json \
+  slh-dsa-shake-192f.json \
+  slh-dsa-shake-256s.json \
+  slh-dsa-shake-256f.json \
+
+$(foreach v,$(PQC_JWK_FIXTURES),$(eval $(call GEN_PQC_JWK,$(v))))
+
 x448_private.pem:
 	openssl genpkey -algorithm x448 -out x448_private.pem
 
@@ -1110,7 +1184,7 @@ irrelevant_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
 
 clean:
-	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
+	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
 	@> fake-startcom-root-database.txt
 
 test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify

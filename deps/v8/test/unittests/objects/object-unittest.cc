@@ -193,6 +193,46 @@ TEST_F(TestWithNativeContext, CanOnlyAccessFixedFormalParameters) {
   run("'use strict'; (function() { () => { return eval(''); }})", true, false);
 }
 
+TEST_F(TestWithNativeContext, UnusedParameters) {
+  auto run = [this](const char* f, std::initializer_list<bool> used_bits) {
+    DirectHandle<JSFunction> function = RunJS<JSFunction>(f);
+    DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
+                                       i_isolate());
+    CHECK_EQ(scope_info->ParameterCount(), used_bits.size());
+    uint32_t bits = scope_info->unused_parameter_bits();
+    for (uint32_t i = 0; i < 32; i++) {
+      bool unused = (bits >> i) & 0x1;
+      if (i < used_bits.size()) {
+        CHECK_EQ(used_bits.begin()[i], !unused);
+      } else {
+        CHECK(!unused);
+      }
+    }
+  };
+  run("'use strict'; (function(){})", {});
+  run("'use strict'; (function(a) { a })", {true});
+  run("'use strict'; (function(a) { })", {false});
+  run("'use strict'; (function(a, b){})", {false, false});
+  run("'use strict'; (function(a, b){ a })", {true, false});
+  run("'use strict'; (function(a, b){ b })", {false, true});
+  run("'use strict'; (function(a, b){ a; b })", {true, true});
+  // initializers are non-simple
+  run("'use strict'; (function(a, b = a) {})", {true, true});
+  run("'use strict'; (function(a = b, b) {})", {true, true});
+  run("(() => {})", {});
+  run("((a) => { a })", {true});
+  run("((a) => { })", {false});
+  run("((a, b) => {})", {false, false});
+  run("((a, b) => { a })", {true, false});
+  run("((a, b) => { b })", {false, true});
+  run("((a, b) => { a; b })", {true, true});
+  // initializers, rest params are non-simple
+  run("((a, b = a) => {})", {true, true});
+  run("((a = b, b) => {})", {true, true});
+  run("((...a) => { })", {});
+  run("((...a) => { a })", {});
+}
+
 using ObjectTest = TestWithContext;
 
 static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,
@@ -535,6 +575,9 @@ bool FunctionKindIsConciseMethod(FunctionKind kind) {
     case FunctionKind::kAsyncConciseGeneratorMethod:
     case FunctionKind::kStaticAsyncConciseGeneratorMethod:
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+    case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return true;
     default:
       return false;
@@ -621,6 +664,9 @@ bool FunctionKindIsConstructable(FunctionKind kind) {
     case FunctionKind::kConciseMethod:
     case FunctionKind::kStaticConciseMethod:
     case FunctionKind::kClassMembersInitializerFunction:
+    case FunctionKind::kClassMembersInitializerFunctionPrecededByStatic:
+    case FunctionKind::kClassStaticInitializerFunction:
+    case FunctionKind::kClassStaticInitializerFunctionPrecededByMember:
       return false;
     default:
       return true;

@@ -15,7 +15,10 @@
 #ifndef ABSL_CONTAINER_INTERNAL_COMMON_H_
 #define ABSL_CONTAINER_INTERNAL_COMMON_H_
 
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <tuple>
 #include <type_traits>
 
 #include "absl/meta/type_traits.h"
@@ -242,6 +245,54 @@ struct InsertReturnType {
   bool inserted;
   NodeType node;
 };
+
+// Utilities to strip redundant template parameters from the underlying
+// implementation types.
+// We use a variadic pack (ie Params...) to specify required prefix of types for
+// non-default types, and then we use GetFromListOr to select the provided types
+// or the default ones otherwise.
+//
+// These default types do not contribute information for debugging and just
+// bloat the binary.
+// Removing the redundant tail types reduces mangled names and stringified
+// function names like __PRETTY_FUNCTION__.
+//
+// How to use:
+//  1. Define a template with `typename ...Params`
+//  2. Instantiate it via `ApplyWithoutDefaultSuffix<>` to only pass the minimal
+//     set of types.
+//  3. Inside the template use `GetFromListOr` to map back from the existing
+//     `Params` list to the actual types, filling the gaps when types are
+//     missing.
+
+template <typename Or, size_t N, typename... Params>
+using GetFromListOr = std::tuple_element_t<(std::min)(N, sizeof...(Params)),
+                                           std::tuple<Params..., Or>>;
+
+template <typename... T>
+struct TypeList {
+  template <template <typename...> class Template>
+  using Apply = Template<T...>;
+};
+
+// Evaluate to `Template<TPrefix...>` where the last type in the list (if any)
+// is different from the corresponding one in the default list.
+// Eg
+//   ApplyWithoutDefaultSuffix<Template, TypeList<a, b, c>, TypeList<a, X, c>>
+// evaluates to
+//   Template<a, X>
+template <template <typename...> class Template, typename D, typename T,
+          typename L = TypeList<>, typename = void>
+struct ApplyWithoutDefaultSuffix {
+  using type = typename L::template Apply<Template>;
+};
+template <template <typename...> class Template, typename D, typename... Ds,
+          typename T, typename... Ts, typename... L>
+struct ApplyWithoutDefaultSuffix<
+    Template, TypeList<D, Ds...>, TypeList<T, Ts...>, TypeList<L...>,
+    std::enable_if_t<!std::is_same_v<TypeList<D, Ds...>, TypeList<T, Ts...>>>>
+    : ApplyWithoutDefaultSuffix<Template, TypeList<Ds...>, TypeList<Ts...>,
+                       TypeList<L..., T>> {};
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

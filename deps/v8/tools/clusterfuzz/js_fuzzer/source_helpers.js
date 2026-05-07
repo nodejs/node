@@ -12,6 +12,7 @@ const fsPath = require('path');
 
 const { EOL } = require('os');
 
+const babel = require('@babel/core');
 const babelGenerator = require('@babel/generator').default;
 const babelTraverse = require('@babel/traverse').default;
 const babelTypes = require('@babel/types');
@@ -43,6 +44,19 @@ const BABYLON_OPTIONS = {
 
 const BABYLON_REPLACE_VAR_OPTIONS = Object.assign({}, BABYLON_OPTIONS);
 BABYLON_REPLACE_VAR_OPTIONS['placeholderPattern'] = /^VAR_[0-9]+$/;
+
+// Options with all plugins for transforming classes to ES2015. We use
+// loose transformation to trigger a commonly seen pattern:
+// A.prototype.foo = bar;
+const BABYLON_TRANSPILE_OPTIONS = {
+    plugins: [
+    ["@babel/plugin-transform-class-properties", { "loose": true }],
+    ["@babel/plugin-transform-class-static-block", { "loose": true }],
+    ["@babel/plugin-transform-private-methods", { "loose": true }],
+    ["@babel/plugin-transform-private-property-in-object", { "loose": true }],
+    ["@babel/plugin-transform-classes", { "loose": true }],
+  ]
+};
 
 function _idEquals(exp, name) {
   return babelTypes.isIdentifier(exp) && exp.name == name;
@@ -398,7 +412,7 @@ class CachedSource extends Source {
  * natives, as well as removing load expressions and adding the paths-to-load
  * as meta data.
  */
-function loadSource(corpus, relPath, parseStrict=false) {
+function loadSource(corpus, relPath, parseStrict=false, transpile=false) {
   const absPath = fsPath.resolve(fsPath.join(corpus.inputDir, relPath));
   const data = fs.readFileSync(absPath, 'utf-8');
 
@@ -406,11 +420,19 @@ function loadSource(corpus, relPath, parseStrict=false) {
     return null;
   }
 
-  const preprocessed = maybeUseStict(replaceV8Builtins(data), parseStrict);
+  let preprocessed = maybeUseStict(replaceV8Builtins(data), parseStrict);
+  if (transpile){
+    preprocessed = babel.transformSync(
+        preprocessed, BABYLON_TRANSPILE_OPTIONS).code;
+  }
   const ast = babylon.parse(preprocessed, BABYLON_OPTIONS);
 
   removeComments(ast);
   cleanAsserts(ast);
+  if (transpile) {
+    annotateWithComment(ast, ' Transpiled ES6->ES5.');
+    inlineProtoAssignments(ast);
+  }
   annotateWithOriginalPath(ast, relPath);
 
   const flags = corpus.loadFlags(relPath, data);
@@ -492,6 +514,63 @@ function cleanAsserts(ast) {
 }
 
 /**
+ * Inline declarations of the form `var _proto<suffix> = <id>.prototype;`,
+ * where <suffix> is any string and <id> is any identifier name.
+ *
+ * This reverse engineers an "optimization" Babel applies, when transpiling
+ * class methods to ES2015.
+ */
+function inlineProtoAssignments(ast) {
+  const identifiers = new Map();
+
+  // First pass: Store a mapping of matching identifiers to their expressions
+  // and remove their declarations.
+  babelTraverse(ast, {
+    VariableDeclaration(path) {
+      // Check if we have a `var x =` declaration. We ignore listed
+      // decarations.
+      if (path.node.kind != 'var' ||
+          !path.node.declarations ||
+          path.node.declarations.length != 1 ||
+          !babelTypes.isVariableDeclarator(path.node.declarations[0])) {
+        return;
+      }
+      // Check if it's initialized with a member expression:
+      // `var _protoX = a.b`. The identifier starts with '_proto' when Babel
+      // creates extra variables for the proto assignment pattern.
+      const decl = path.node.declarations[0];
+      if (!decl.id || !babelTypes.isIdentifier(decl.id) ||
+          !decl.id.name.startsWith('_proto') ||
+          !decl.init || !babelTypes.isMemberExpression(decl.init)) {
+        return;
+      }
+      // Check if the prototype pattern is used: `var _protoX = a.prototype`.
+      const init = decl.init;
+      if (!init.object || ! init.property ||
+          !babelTypes.isIdentifier(init.object) ||
+          !babelTypes.isIdentifier(init.property) ||
+          init.property.name != 'prototype') {
+        return;
+      }
+      // From `var _protoX = a.prototype` we map _protoX -> a.prototype.
+      identifiers.set(decl.id.name, init);
+      path.remove();
+    },
+  });
+
+  // Second pass: Inline the mapped identifiers with their expressions.
+  babelTraverse(ast, {
+    Identifier(path) {
+      let protoExpression = identifiers.get(path.node.name);
+      if (protoExpression) {
+        path.replaceWith(protoExpression);
+        path.skip();
+      }
+    },
+  });
+}
+
+/**
  * Annotate code with top-level comment.
  */
 function annotateWithComment(ast, comment) {
@@ -554,6 +633,7 @@ module.exports = {
   annotateWithComment: annotateWithComment,
   BaseCorpus: BaseCorpus,
   generateCode: generateCode,
+  inlineProtoAssignments: inlineProtoAssignments,
   loadDependencyAbs: loadDependencyAbs,
   loadResource: loadResource,
   loadSource: loadSource,

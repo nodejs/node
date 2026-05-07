@@ -32,12 +32,61 @@ const { hasOpenSSL } = require('../common/crypto');
   }
 }
 
+// Raw key imports do not support strings.
+{
+  const pubKeyObj = crypto.createPublicKey(
+    fixtures.readKey('ed25519_public.pem', 'ascii'));
+  const privKeyObj = crypto.createPrivateKey(
+    fixtures.readKey('ed25519_private.pem', 'ascii'));
+
+  const rawPub = pubKeyObj.export({ format: 'raw-public' });
+  const rawPriv = privKeyObj.export({ format: 'raw-private' });
+
+  for (const encoding of ['hex', 'base64', 'utf8', 'latin1', 'ascii']) {
+    assert.throws(() => crypto.createPublicKey({
+      key: rawPub.toString(encoding),
+      encoding,
+      format: 'raw-public',
+      asymmetricKeyType: 'ed25519',
+    }), { code: 'ERR_INVALID_ARG_TYPE' });
+
+    assert.throws(() => crypto.createPrivateKey({
+      key: rawPriv.toString(encoding),
+      encoding,
+      format: 'raw-private',
+      asymmetricKeyType: 'ed25519',
+    }), { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+}
+
+// Raw seed imports do not support strings.
+if (hasOpenSSL(3, 5)) {
+  const privKeyObj = crypto.createPrivateKey(
+    fixtures.readKey('ml_dsa_44_private.pem', 'ascii'));
+
+  const rawSeed = privKeyObj.export({ format: 'raw-seed' });
+
+  for (const encoding of ['hex', 'base64']) {
+    assert.throws(() => crypto.createPrivateKey({
+      key: rawSeed.toString(encoding),
+      encoding,
+      format: 'raw-seed',
+      asymmetricKeyType: 'ml-dsa-44',
+    }), { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+}
+
 // Key types that don't support raw-* formats
 {
-  for (const [type, pub, priv] of [
+  const unsupportedKeyTypes = [
     ['rsa', 'rsa_public_2048.pem', 'rsa_private_2048.pem'],
-    ['dsa', 'dsa_public.pem', 'dsa_private.pem'],
-  ]) {
+  ];
+  if (!process.features.openssl_is_boringssl) {
+    unsupportedKeyTypes.push(['dsa', 'dsa_public.pem', 'dsa_private.pem']);
+  } else {
+    common.printSkipMessage('Skipping unsupported dsa test case');
+  }
+  for (const [type, pub, priv] of unsupportedKeyTypes) {
     const pubKeyObj = crypto.createPublicKey(
       fixtures.readKey(pub, 'ascii'));
     const privKeyObj = crypto.createPrivateKey(
@@ -58,7 +107,7 @@ const { hasOpenSSL } = require('../common/crypto');
   }
 
   // DH keys also don't support raw formats
-  {
+  if (!process.features.openssl_is_boringssl) {
     const privKeyObj = crypto.createPrivateKey(
       fixtures.readKey('dh_private.pem', 'ascii'));
     assert.throws(() => privKeyObj.export({ format: 'raw-private' }),
@@ -69,6 +118,8 @@ const { hasOpenSSL } = require('../common/crypto');
         key: Buffer.alloc(32), format, asymmetricKeyType: 'dh',
       }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
     }
+  } else {
+    common.printSkipMessage('Skipping unsupported dh test case');
   }
 }
 
@@ -224,7 +275,12 @@ if (hasOpenSSL(3, 5)) {
   assert.throws(() => ecPriv.export({ format: 'raw-seed' }),
                 { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
 
-  for (const type of ['ed25519', 'ed448', 'x25519', 'x448']) {
+  if (process.features.openssl_is_boringssl) {
+    common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
+  }
+  for (const type of process.features.openssl_is_boringssl ?
+    ['ed25519', 'x25519'] :
+    ['ed25519', 'ed448', 'x25519', 'x448']) {
     const priv = crypto.createPrivateKey(
       fixtures.readKey(`${type}_private.pem`, 'ascii'));
     assert.throws(() => priv.export({ format: 'raw-seed' }),
@@ -392,7 +448,12 @@ if (hasOpenSSL(3, 5)) {
 
 // x25519, ed25519, x448, and ed448 cannot be used as 'ec' namedCurve values
 {
-  for (const type of ['ed25519', 'x25519', 'ed448', 'x448']) {
+  if (process.features.openssl_is_boringssl) {
+    common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
+  }
+  for (const type of process.features.openssl_is_boringssl ?
+    ['ed25519', 'x25519'] :
+    ['ed25519', 'x25519', 'ed448', 'x448']) {
     const priv = crypto.createPrivateKey(
       fixtures.readKey(`${type}_private.pem`, 'ascii'));
     const pub = crypto.createPublicKey(

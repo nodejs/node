@@ -76,7 +76,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
       assert.strictEqual(recvData.toString(), 'nurtzo');
     }));
 
-    const expectedHeaders = { 'hello': 'world',
+    const expectedHeaders = { '__proto__': null, 'hello': 'world',
                               'connection': 'upgrade',
                               'upgrade': 'websocket' };
     assert.deepStrictEqual(expectedHeaders, res.headers);

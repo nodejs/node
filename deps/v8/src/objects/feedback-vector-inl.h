@@ -37,6 +37,15 @@ INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 INT32_ACCESSORS(FeedbackMetadata, create_closure_slot_count,
                 kCreateClosureSlotCountOffset)
 
+#define ASSERT_BUILTIN_ID_CONSECUTIVE(V, Location, Representation, Kind, \
+                                      Index)                             \
+  static_assert(                                                         \
+      static_cast<intptr_t>(                                             \
+          Builtin::kLoadIC##Location##Representation##Kind##Baseline) +  \
+          1 + Index ==                                                   \
+      static_cast<intptr_t>(                                             \
+          Builtin::kLoadIC##Location##Representation##Kind##Index##Baseline));
+
 int32_t FeedbackMetadata::slot_count(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kSlotCountOffset);
 }
@@ -547,6 +556,48 @@ void FeedbackNexus::IterateMapsWithUnclearedHandler(F function) const {
     }
   }
 }
+
+Builtin FeedbackNexus::GetLoadICHandlerForFieldIndex(int field_index,
+                                                     bool is_inobject,
+                                                     bool is_double) {
+  if (is_double) return Builtin::kLoadICDoubleFieldBaseline;
+
+  if (is_inobject) {
+    int in_object_index = field_index - JSObject::kHeaderSize / kTaggedSize;
+    DCHECK_GE(in_object_index, 0);
+    // Currently we have eight handlers that support loading in-object field
+    // with fixed index 0~7.
+    int kMaxIndex = 7;
+    if (in_object_index > kMaxIndex)
+      return Builtin::kLoadICInObjectNonDoubleFieldBaseline;
+
+    LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
+        /*V*/, ASSERT_BUILTIN_ID_CONSECUTIVE)
+    int32_t builtin_id =
+        static_cast<int32_t>(Builtin::kLoadICInObjectNonDoubleFieldBaseline) +
+        in_object_index + 1;
+    return static_cast<Builtin>(builtin_id);
+  } else {
+    int out_of_object_index =
+        field_index - OFFSET_OF_DATA_START(FixedArray) / kTaggedSize;
+    DCHECK_GE(out_of_object_index, 0);
+    // Currently we have four handlers that support loading out-of-object
+    // field with fixed index 0~3.
+    int kMaxIndex = 3;
+    if (out_of_object_index > kMaxIndex)
+      return Builtin::kLoadICOutOfObjectNonDoubleFieldBaseline;
+
+    LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
+        /*V*/, ASSERT_BUILTIN_ID_CONSECUTIVE)
+    int32_t builtin_id =
+        static_cast<int32_t>(
+            Builtin::kLoadICOutOfObjectNonDoubleFieldBaseline) +
+        out_of_object_index + 1;
+    return static_cast<Builtin>(builtin_id);
+  }
+}
+
+#undef ASSERT_BUILTIN_ID_CONSECUTIVE
 
 }  // namespace v8::internal
 

@@ -389,7 +389,9 @@ try {
 ### `asyncLocalStorage.withScope(store)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -527,7 +529,9 @@ probably responsible for the context loss.
 ## Class: `RunScope`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -543,7 +547,9 @@ exits, whether through normal completion or by throwing an error.
 ### `scope.dispose()`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 Explicitly ends the scope and restores the previous store value. This method

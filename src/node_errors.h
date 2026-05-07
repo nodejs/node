@@ -53,7 +53,6 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED, Error)                             \
   V(ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS, Error)                                \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
-  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, TypeError)                               \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \
   V(ERR_CRYPTO_INVALID_COUNTER, TypeError)                                     \
   V(ERR_CRYPTO_INVALID_CURVE, TypeError)                                       \
@@ -79,6 +78,9 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_ENCODING_INVALID_ENCODED_DATA, TypeError)                              \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
+  V(ERR_FFI_CALL_FAILED, Error)                                                \
+  V(ERR_FFI_INVALID_POINTER, Error)                                            \
+  V(ERR_FFI_LIBRARY_CLOSED, Error)                                             \
   V(ERR_FS_CP_EINVAL, Error)                                                   \
   V(ERR_FS_CP_DIR_TO_NON_DIR, Error)                                           \
   V(ERR_FS_CP_NON_DIR_TO_DIR, Error)                                           \
@@ -195,7 +197,6 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS,                                       \
     "The selected key encoding is incompatible with the key type")             \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, "Initialization failed")                 \
-  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, "Invalid Argon2 params")                 \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, "Invalid authentication tag")                 \
   V(ERR_CRYPTO_INVALID_COUNTER, "Invalid counter")                             \
   V(ERR_CRYPTO_INVALID_CURVE, "Invalid EC curve name")                         \
@@ -218,6 +219,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_UNSUPPORTED_OPERATION, "Unsupported crypto operation")          \
   V(ERR_CRYPTO_JOB_INIT_FAILED, "Failed to initialize crypto job config")      \
   V(ERR_DLOPEN_FAILED, "DLOpen failed")                                        \
+  V(ERR_FFI_LIBRARY_CLOSED, "Library is closed")                               \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
     "Context not associated with Node.js environment")                         \
   V(ERR_ILLEGAL_CONSTRUCTOR, "Illegal constructor")                            \

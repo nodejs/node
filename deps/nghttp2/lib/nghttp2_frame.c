@@ -750,6 +750,16 @@ void nghttp2_frame_unpack_altsvc_payload(nghttp2_extension *frame,
   uint8_t *p;
 
   altsvc = frame->payload;
+
+  if (payloadlen == 0) {
+    altsvc->origin = NULL;
+    altsvc->origin_len = 0;
+    altsvc->field_value = NULL;
+    altsvc->field_value_len = 0;
+
+    return;
+  }
+
   p = payload;
 
   altsvc->origin = p;

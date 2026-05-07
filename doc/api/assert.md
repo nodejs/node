@@ -327,7 +327,7 @@ destructuring and call methods directly on the instance.
 <!-- YAML
 added: v0.5.9
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
 -->
@@ -342,7 +342,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v25.0.0
@@ -861,7 +861,7 @@ added:
   - v13.6.0
   - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v16.0.0
@@ -1104,7 +1104,7 @@ assert.doesNotThrow(
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version:
@@ -1292,7 +1292,7 @@ added:
   - v13.6.0
   - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v16.0.0
@@ -1344,7 +1344,7 @@ instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version:
@@ -1471,7 +1471,7 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v9.0.0
@@ -1534,7 +1534,7 @@ instead of the [`AssertionError`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version:
@@ -1601,7 +1601,7 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0
@@ -1657,7 +1657,7 @@ instead of the `AssertionError`.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0
@@ -1904,7 +1904,7 @@ argument gets considered.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0

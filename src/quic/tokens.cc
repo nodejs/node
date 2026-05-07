@@ -61,42 +61,59 @@ std::string TokenSecret::ToString() const {
 // ============================================================================
 // StatelessResetToken
 
-StatelessResetToken::StatelessResetToken() : ptr_(nullptr), buf_() {}
+StatelessResetToken::StatelessResetToken()
+    : ngtcp2_stateless_reset_token(), ptr_(nullptr) {}
 
-StatelessResetToken::StatelessResetToken(const uint8_t* token) : ptr_(token) {}
+StatelessResetToken::StatelessResetToken(const uint8_t* token)
+    : ptr_(reinterpret_cast<const ngtcp2_stateless_reset_token*>(token)) {}
+
+StatelessResetToken::StatelessResetToken(
+    const ngtcp2_stateless_reset_token* token)
+    : ptr_(token) {}
 
 StatelessResetToken::StatelessResetToken(const TokenSecret& secret,
                                          const CID& cid)
-    : ptr_(buf_) {
+    : ptr_(this) {
   CHECK_EQ(ngtcp2_crypto_generate_stateless_reset_token(
-               buf_, secret, kStatelessTokenLen, cid),
+               data, secret, kStatelessTokenLen, cid),
            0);
 }
 
 StatelessResetToken::StatelessResetToken(uint8_t* token,
                                          const TokenSecret& secret,
                                          const CID& cid)
-    : ptr_(token) {
+    : ptr_(reinterpret_cast<const ngtcp2_stateless_reset_token*>(token)) {
   CHECK_EQ(ngtcp2_crypto_generate_stateless_reset_token(
                token, secret, kStatelessTokenLen, cid),
            0);
 }
 
+StatelessResetToken::StatelessResetToken(ngtcp2_stateless_reset_token* token,
+                                         const TokenSecret& secret,
+                                         const CID& cid)
+    : ptr_(token) {
+  CHECK_EQ(ngtcp2_crypto_generate_stateless_reset_token(
+               token->data, secret, kStatelessTokenLen, cid),
+           0);
+}
+
 StatelessResetToken::StatelessResetToken(const StatelessResetToken& other)
-    : ptr_(buf_) {
+    : ngtcp2_stateless_reset_token(), ptr_(other ? this : nullptr) {
   if (other) {
-    memcpy(buf_, other.ptr_, kStatelessTokenLen);
-  } else {
-    ptr_ = nullptr;
+    memcpy(data, other.ptr_->data, kStatelessTokenLen);
   }
 }
 
 StatelessResetToken::operator const uint8_t*() const {
-  return ptr_ != nullptr ? ptr_ : buf_;
+  return ptr_ != nullptr ? ptr_->data : data;
+}
+
+StatelessResetToken::operator const ngtcp2_stateless_reset_token*() const {
+  return ptr_;
 }
 
 StatelessResetToken::operator const char*() const {
-  return reinterpret_cast<const char*>(ptr_ != nullptr ? ptr_ : buf_);
+  return reinterpret_cast<const char*>(ptr_ != nullptr ? ptr_->data : data);
 }
 
 StatelessResetToken::operator bool() const {
@@ -109,7 +126,7 @@ bool StatelessResetToken::operator==(const StatelessResetToken& other) const {
       (ptr_ != nullptr && other.ptr_ == nullptr)) {
     return false;
   }
-  return CRYPTO_memcmp(ptr_, other.ptr_, kStatelessTokenLen) == 0;
+  return CRYPTO_memcmp(ptr_->data, other.ptr_->data, kStatelessTokenLen) == 0;
 }
 
 bool StatelessResetToken::operator!=(const StatelessResetToken& other) const {
@@ -128,7 +145,7 @@ std::string StatelessResetToken::ToString() const {
 size_t StatelessResetToken::Hash::operator()(
     const StatelessResetToken& token) const {
   if (token.ptr_ == nullptr) return 0;
-  return HashBytes(token.ptr_, kStatelessTokenLen);
+  return HashBytes(token.ptr_->data, kStatelessTokenLen);
 }
 
 StatelessResetToken StatelessResetToken::kInvalid;

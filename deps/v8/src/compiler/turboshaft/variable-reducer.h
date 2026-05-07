@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -90,6 +91,15 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE(VariableReducer)
+
+  ~VariableReducer() {
+    if (too_many_variables_bailouts_count_ != 0 &&
+        V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+      std::cout << "Bailing out from block cloning "
+                << too_many_variables_bailouts_count_ << " time"
+                << (too_many_variables_bailouts_count_ > 1 ? "s" : "") << "\n";
+    }
+  }
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
@@ -191,6 +201,26 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
     return table_.GetPredecessorValue(var, predecessor_index);
   }
 
+  bool CanCreateNVariables(size_t n) {
+    // Merges with many predecessors combined with many variables can quickly
+    // blow up memory since the SnapshotTable needs to create a state whose
+    // size can be up to number_of_predecessor*variable_count (note: in
+    // practice, it's often not quite variable_count but less since only
+    // variables that are live in at least one predecessor are counted). To
+    // avoid OOM or otherwise huge memory consumption, we thus stop creating
+    // variables (and bail out on optimizations that need variables) when this
+    // number becomes too large. I somewhat arbitrarily selected 100K here,
+    // which sounds high, but in terms of memory, it's just 100K*8=800KB, which
+    // is less than 1MB, which isn't going to amount for much in a function
+    // that is probably very large if it managed to reach this limit.
+    constexpr uint32_t kMaxAllowedMergeStateSize = 100'000;
+    bool can_create =
+        __ input_graph().max_merge_pred_count() * (variable_count_ + n) <
+        kMaxAllowedMergeStateSize;
+    if (!can_create) too_many_variables_bailouts_count_++;
+    return can_create;
+  }
+
   void SetVariable(Variable var, OpIndex new_index) {
     DCHECK(!is_temporary_);
     if (V8_UNLIKELY(__ generating_unreachable_operations())) return;
@@ -207,10 +237,12 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
 
   Variable NewLoopInvariantVariable(MaybeRegisterRepresentation rep) {
     DCHECK(!is_temporary_);
+    variable_count_++;
     return table_.NewKey(VariableData{rep, true}, OpIndex::Invalid());
   }
   Variable NewVariable(MaybeRegisterRepresentation rep) {
     DCHECK(!is_temporary_);
+    variable_count_++;
     return table_.NewKey(VariableData{rep, false}, OpIndex::Invalid());
   }
 
@@ -315,6 +347,10 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
   GrowingBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_{
       __ input_graph().block_count(), std::nullopt, __ phase_zone()};
   bool is_temporary_ = false;
+
+  // Tracks the number of variables that have been created.
+  uint32_t variable_count_ = 0;
+  uint32_t too_many_variables_bailouts_count_ = 0;
 
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.

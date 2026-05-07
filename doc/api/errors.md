@@ -1332,6 +1332,24 @@ added: v14.0.0
 Used when a feature that is not available
 to the current platform which is running Node.js is used.
 
+<a id="ERR_FFI_CALL_FAILED"></a>
+
+### `ERR_FFI_CALL_FAILED`
+
+A low-level FFI call failed.
+
+<a id="ERR_FFI_INVALID_POINTER"></a>
+
+### `ERR_FFI_INVALID_POINTER`
+
+An invalid pointer was passed to an FFI operation.
+
+<a id="ERR_FFI_LIBRARY_CLOSED"></a>
+
+### `ERR_FFI_LIBRARY_CLOSED`
+
+An operation was attempted on an FFI dynamic library after it was closed.
+
 <a id="ERR_FS_CP_DIR_TO_NON_DIR"></a>
 
 ### `ERR_FS_CP_DIR_TO_NON_DIR`
@@ -2633,6 +2651,32 @@ added:
 
 Opening a QUIC stream failed.
 
+<a id="ERR_QUIC_STREAM_ABORTED"></a>
+
+### `ERR_QUIC_STREAM_ABORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The Node.js error code for a [`QuicError`][] thrown to abort a QUIC stream
+or session with an explicit application or transport error code.
+
+<a id="ERR_QUIC_STREAM_RESET"></a>
+
+### `ERR_QUIC_STREAM_RESET`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC stream was reset by the peer. The error includes the reset code
+provided by the peer.
+
 <a id="ERR_QUIC_TRANSPORT_ERROR"></a>
 
 ### `ERR_QUIC_TRANSPORT_ERROR`
@@ -2706,6 +2750,19 @@ An attempt was made to `require()` an [ES Module][].
 This error has been deprecated since `require()` now supports loading synchronous
 ES modules. When `require()` encounters an ES module that contains top-level
 `await`, it will throw [`ERR_REQUIRE_ASYNC_MODULE`][] instead.
+
+<a id="ERR_REQUIRE_ESM_RACE_CONDITION"></a>
+
+### `ERR_REQUIRE_ESM_RACE_CONDITION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+An attempt was made to `require()` an [ES Module][] while another `import()` call
+was already in progress to load it asynchronously.
 
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
@@ -4405,6 +4462,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
+[`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Writable`]: stream.md#class-streamwritable

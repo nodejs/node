@@ -21,6 +21,7 @@ struct TorqueCompilerOptions {
   std::string v8_root = "";
   bool collect_language_server_data = false;
   bool collect_kythe_data = false;
+  bool output_tsa = false;
 
   // dcheck(...) are only generated for debug builds. To provide
   // language server support for statements inside dchecks, this flag
@@ -39,6 +40,8 @@ struct TorqueCompilerOptions {
   // Strips the v8-root in case the source path contains it as a prefix.
   bool strip_v8_root = false;
 };
+
+DECLARE_CONTEXTUAL_VARIABLE(CurrentCompilerOptions, TorqueCompilerOptions);
 
 struct TorqueCompilerResult {
   // Map translating SourceIds to filenames. This field is

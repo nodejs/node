@@ -10,6 +10,7 @@
 
 #include <array>
 #include <limits>
+#include <string_view>
 #include <type_traits>
 
 #include "src/regexp/regexp-macro-assembler.h"  // For StackCheckFlag
@@ -20,43 +21,94 @@ namespace internal {
 template <RegExpBytecodeOperandType>
 struct RegExpOperandTypeTraits;
 
-#define DECLARE_BASIC_OPERAND_TYPE_TRAITS(Name, CType)                 \
-  template <>                                                          \
-  struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> { \
-    static_assert(!std::is_pointer_v<CType>);                          \
-    static constexpr uint8_t kSize = sizeof(CType);                    \
-    using kCType = CType;                                              \
-    static constexpr bool kIsBasic = true;                             \
+#define DECLARE_BASIC_OPERAND_TYPE_TRAITS(Name, CType)                      \
+  template <>                                                               \
+  struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> {      \
+    static_assert(!std::is_pointer_v<CType>);                               \
+    static constexpr uint8_t kSize = sizeof(CType);                         \
+    using kCType = CType;                                                   \
+    static constexpr bool kIsBasic = true;                                  \
+    static constexpr kCType kMinValue = std::numeric_limits<kCType>::min(); \
+    static constexpr kCType kMaxValue = std::numeric_limits<kCType>::max(); \
+    static constexpr size_t kAlignment = kSize;                             \
   };
 BASIC_BYTECODE_OPERAND_TYPE_LIST(DECLARE_BASIC_OPERAND_TYPE_TRAITS)
 #undef DECLARE_OPERAND_TYPE_TRAITS
 
-#define DECLARE_SPECIAL_OPERAND_TYPE_TRAITS(Name, Size)                \
+#define DECLARE_BASIC_OPERAND_TYPE_LIMITS_TRAITS(Name, CType, MinValue, \
+                                                 MaxValue)              \
+  template <>                                                           \
+  struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> {  \
+    static_assert(!std::is_pointer_v<CType>);                           \
+    static constexpr uint8_t kSize = sizeof(CType);                     \
+    using kCType = CType;                                               \
+    static constexpr bool kIsBasic = true;                              \
+    static_assert(std::is_enum_v<kCType> ||                             \
+                  MinValue >= std::numeric_limits<kCType>::min());      \
+    static_assert(std::is_enum_v<kCType> ||                             \
+                  MaxValue <= std::numeric_limits<kCType>::max());      \
+    static constexpr kCType kMinValue = MinValue;                       \
+    static constexpr kCType kMaxValue = MaxValue;                       \
+    static constexpr size_t kAlignment = kSize;                         \
+  };
+BASIC_BYTECODE_OPERAND_TYPE_LIMITS_LIST(
+    DECLARE_BASIC_OPERAND_TYPE_LIMITS_TRAITS)
+#undef DECLARE_OPERAND_TYPE_LIMITS_TRAITS
+
+#define DECLARE_SPECIAL_OPERAND_TYPE_TRAITS(Name, Size, Alignment)     \
   template <>                                                          \
   struct RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name> { \
     static constexpr uint8_t kSize = Size;                             \
     static constexpr bool kIsBasic = false;                            \
+    static constexpr size_t kAlignment = Alignment;                    \
+    static_assert(IsAligned(kSize, kAlignment));                       \
   };
 SPECIAL_BYTECODE_OPERAND_TYPE_LIST(DECLARE_SPECIAL_OPERAND_TYPE_TRAITS)
 #undef DECLARE_OPERAND_TYPE_TRAITS
 
 namespace detail {
 
-// Bytecode is 4-byte aligned.
-// We can pack operands if multiple operands fit into 4 bytes.
-static constexpr int kBytecodeAlignment = 4;
+template <auto... Args>
+constexpr int CountOf() {
+  return sizeof...(Args);
+}
+
+template <size_t N>
+consteval std::array<std::string_view, N> SplitNames(const char* raw_names) {
+  std::array<std::string_view, N> result;
+  std::string_view names(raw_names);
+
+  // Remove '(' and ')'.
+  DCHECK_EQ(names.front(), '(');
+  DCHECK_EQ(names.back(), ')');
+  size_t start = 1;
+  size_t names_size = names.size() - 1;
+
+  for (size_t i = 0; i < N; ++i) {
+    size_t comma = names.find(',', start);
+    DCHECK_EQ(i == N - 1, comma == std::string_view::npos);
+
+    // Trim whitespace.
+    start = names.find_first_not_of(" ", start);
+    size_t end = (comma == std::string_view::npos) ? names_size : comma;
+    end = names.find_last_not_of(" ,)", end) + 1;
+    result[i] = names.substr(start, end - start);
+
+    start = comma + 1;
+  }
+
+  return result;
+}
 
 // Calculates packed offsets for each Bytecode operand.
-// The first operand can be packed together with the bytecode at an unaligned
-// offset 1. All other operands are aligned to their own size if
-// they are "basic" types.
+// All operands are aligned to their own size.
 template <RegExpBytecodeOperandType... operand_types>
-consteval auto CalculatePackedOffsets() {
+consteval auto CalculateAlignedOffsets() {
   constexpr int N = sizeof...(operand_types);
   constexpr std::array<uint8_t, N> kOperandSizes = {
       RegExpOperandTypeTraits<operand_types>::kSize...};
-  constexpr std::array<bool, N> kIsBasic = {
-      RegExpOperandTypeTraits<operand_types>::kIsBasic...};
+  constexpr std::array<uint8_t, N> kOperandAlignments = {
+      RegExpOperandTypeTraits<operand_types>::kAlignment...};
 
   std::array<int, N> offsets{};
   int first_offset = sizeof(RegExpBytecode);
@@ -64,13 +116,9 @@ consteval auto CalculatePackedOffsets() {
 
   for (size_t i = 0; i < N; ++i) {
     uint8_t operand_size = kOperandSizes[i];
+    size_t operand_alignment = kOperandAlignments[i];
 
-    // An operand is only allowed to be unaligned, if it's packed with the
-    // bytecode. All subsequent basic operands must be aligned to their own
-    // size.
-    if (offset > first_offset && kIsBasic[i]) {
-      offset = RoundUp(offset, operand_size);
-    }
+    offset = RoundUp(offset, operand_alignment);
 
     // If the operand doesn't fit into the current 4-byte block, start a new
     // 4-byte block.
@@ -92,8 +140,10 @@ struct RegExpBytecodeOperandsTraits {
       kOperandTypes = {ops...};
   static constexpr std::array<uint8_t, kOperandCount> kOperandSizes = {
       RegExpOperandTypeTraits<ops>::kSize...};
+  static constexpr std::array<uint8_t, kOperandCount> kOperandAlignments = {
+      RegExpOperandTypeTraits<ops>::kAlignment...};
   static constexpr std::array<int, kOperandCount> kOperandOffsets =
-      CalculatePackedOffsets<ops...>();
+      CalculateAlignedOffsets<ops...>();
   static constexpr int kSize = RoundUp<kBytecodeAlignment>(
       kOperandCount == 0 ? sizeof(RegExpBytecode)
                          : kOperandOffsets.back() + kOperandSizes.back());
@@ -102,11 +152,16 @@ struct RegExpBytecodeOperandsTraits {
 template <RegExpBytecode bc>
 struct RegExpBytecodeOperandNames;
 
-#define DECLARE_OPERAND_NAMES(CamelName, SnakeName, OpNames, OpTypes) \
-  template <>                                                         \
-  struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> {   \
-    enum class Operand { UNPAREN(OpNames) };                          \
-    using enum Operand;                                               \
+#define DECLARE_OPERAND_NAMES(CamelName, OpNames, OpTypes, ...)           \
+  template <>                                                             \
+  struct RegExpBytecodeOperandNames<RegExpBytecode::k##CamelName> {       \
+    enum class Operand { UNPAREN(OpNames) };                              \
+    using enum Operand;                                                   \
+    static constexpr size_t kCount = detail::CountOf<UNPAREN(OpNames)>(); \
+    static constexpr auto kNames = detail::SplitNames<kCount>(#OpNames);  \
+    static constexpr std::string_view Name(Operand op) {                  \
+      return kNames[static_cast<size_t>(op)];                             \
+    }                                                                     \
   };
 REGEXP_BYTECODE_LIST(DECLARE_OPERAND_NAMES)
 #undef DECLARE_OPERAND_NAMES
@@ -114,6 +169,7 @@ REGEXP_BYTECODE_LIST(DECLARE_OPERAND_NAMES)
 template <RegExpBytecode bc, RegExpBytecodeOperandType... OpTypes>
 class RegExpBytecodeOperandsBase {
  public:
+  static constexpr RegExpBytecode kBytecode = bc;
   using Operand = RegExpBytecodeOperandNames<bc>::Operand;
   using Traits = RegExpBytecodeOperandsTraits<OpTypes...>;
   static constexpr int kCount = Traits::kOperandCount;
@@ -129,26 +185,21 @@ class RegExpBytecodeOperandsBase {
     return Traits::kOperandTypes[Index(op)];
   }
 
-  // Returns a tuple of all "real" (non-padding) operands.
+  static constexpr std::string_view Name(Operand op) {
+    return RegExpBytecodeOperandNames<bc>::Name(op);
+  }
+
+  // Returns a tuple of all operands.
   static consteval auto GetOperandsTuple() {
     return []<size_t... Is>(std::index_sequence<Is...>) {
       return std::tuple_cat([]<size_t I>() {
         constexpr auto id = static_cast<Operand>(I);
-        if constexpr (Type(id) == ReBcOpType::kPadding1 ||
-                      Type(id) == ReBcOpType::kPadding2) {
-          return std::tuple<>();
-        } else {
-          return std::tuple(std::integral_constant<Operand, id>{});
-        }
+        return std::tuple(std::integral_constant<Operand, id>{});
       }.template operator()<Is>()...);
     }(std::make_index_sequence<kCount>{});
   }
 
-  static constexpr int kCountWithoutPadding =
-      std::tuple_size_v<decltype(GetOperandsTuple())>;
-
-  // Calls |f| templatized by Operand for each Operand in the Operands list,
-  // ignoring padding.
+  // Calls |f| templatized by Operand for each Operand in the Operands list.
   // Example:
   // using Operands = RegExpBytecodeOperands<RegExpBytecode::...>;
   // size_t op_sizes = 0;
@@ -164,6 +215,19 @@ class RegExpBytecodeOperandsBase {
                filtered_ops);
   }
 
+  // Similar to ForEachOperand, but additionally provides the current index as
+  // a template argument. The index is a sequential index of operands.
+  template <typename Func>
+  static constexpr void ForEachOperandWithIndex(Func&& f) {
+    constexpr auto filtered_ops = GetOperandsTuple();
+    [&]<size_t... I>(std::index_sequence<I...>) {
+      (...,
+       f.template operator()<
+           std::tuple_element_t<I, decltype(filtered_ops)>::value /* Operand */,
+           I /* Index */>());
+    }(std::make_index_sequence<std::tuple_size_v<decltype(filtered_ops)>>{});
+  }
+
   // Similar to above, but calls |f| only for operands of a given type.
   template <RegExpBytecodeOperandType OpType, typename Func>
   static constexpr void ForEachOperandOfType(Func&& f) {
@@ -174,47 +238,16 @@ class RegExpBytecodeOperandsBase {
     });
   }
 
- private:
-  template <RegExpBytecodeOperandType OperandType>
-    requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
-  static auto GetAligned(const uint8_t* pc, int offset) {
-    DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
-    using CType = RegExpOperandTypeTraits<OperandType>::kCType;
-    DCHECK(IsAligned(offset, sizeof(CType)));
-    return *reinterpret_cast<const CType*>(pc + offset);
-  }
-
-  // TODO(pthier): We can remove unaligned packing once we have fully switched
-  // to the new bytecode layout. This is for backwards-compatibility with the
-  // old layout only.
-  template <RegExpBytecodeOperandType OperandType>
-    requires(RegExpOperandTypeTraits<OperandType>::kIsBasic)
-  static auto GetPacked(const uint8_t* pc, int offset) {
-    DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
-    // Only unaligned packing of 2-byte values with the bytecode is supported.
-    DCHECK_EQ(offset, 1);
-    static_assert(RegExpOperandTypeTraits<OperandType>::kSize == 2);
-    using CType = RegExpOperandTypeTraits<OperandType>::kCType;
-    DCHECK(!IsAligned(offset, sizeof(CType)));
-    int32_t packed_value = *reinterpret_cast<const int32_t*>(pc);
-    return static_cast<CType>(packed_value >> BYTECODE_SHIFT);
-  }
-
  public:
   template <Operand op>
     requires(RegExpOperandTypeTraits<Type(op)>::kIsBasic)
   static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
+    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
     constexpr RegExpBytecodeOperandType OperandType = Type(op);
     constexpr int offset = Offset(op);
     using CType = RegExpOperandTypeTraits<OperandType>::kCType;
-    // TODO(pthier): We can remove unaligned packing once we have fully switched
-    // to the new bytecode layout. This is for backwards-compatibility with the
-    // old layout only.
-    if constexpr (!IsAligned(offset, sizeof(CType))) {
-      return GetPacked<OperandType>(pc, offset);
-    } else {
-      return GetAligned<OperandType>(pc, offset);
-    }
+    DCHECK(IsAligned(offset, sizeof(CType)));
+    return *reinterpret_cast<const CType*>(pc + offset);
   }
 
   template <Operand op>
@@ -231,7 +264,7 @@ class RegExpBytecodeOperandsBase {
     requires(Type(op) == RegExpBytecodeOperandType::kBitTable)
   static auto Get(const uint8_t* pc, const DisallowGarbageCollection& no_gc) {
     static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
-    DCHECK_EQ(*pc, RegExpBytecodes::ToByte(bc));
+    DCHECK_EQ(RegExpBytecodes::FromPtr(pc), bc);
     constexpr int offset = Offset(op);
     return pc + offset;
   }
@@ -241,7 +274,7 @@ class RegExpBytecodeOperandsBase {
   static auto Get(DirectHandle<TrustedByteArray> bytecode, int offset,
                   Zone* zone) {
     static_assert(Size(op) == RegExpMacroAssembler::kTableSize / kBitsPerByte);
-    DCHECK_EQ(bytecode->get(offset), RegExpBytecodes::ToByte(bc));
+    DCHECK_EQ(RegExpBytecodes::FromPtr(bytecode->begin() + offset), bc);
     constexpr int op_offset = Offset(op);
     const uint8_t* start = bytecode->begin() + offset + op_offset;
     const uint8_t* end = start + Size(op);
@@ -253,7 +286,7 @@ class RegExpBytecodeOperandsBase {
 
 #define PACK_OPTIONAL(x, ...) x __VA_OPT__(, ) __VA_ARGS__
 
-#define DECLARE_OPERANDS(CamelName, SnakeName, OpNames, OpTypes)   \
+#define DECLARE_OPERANDS(CamelName, OpNames, OpTypes, ...)         \
   template <>                                                      \
   class RegExpBytecodeOperands<RegExpBytecode::k##CamelName> final \
       : public detail::RegExpBytecodeOperandsBase<PACK_OPTIONAL(   \
@@ -278,6 +311,18 @@ static constexpr const char* kBytecodeNames[] = {
 static constexpr uint8_t kBytecodeSizes[] = {
     REGEXP_BYTECODE_LIST(DECLARE_BYTECODE_SIZES)};
 #undef DECLARE_BYTECODE_SIZES
+
+#define DECLARE_BYTECODE_FLAGS(CamelName, OpNames, OpTypes, Flags) \
+  RegExpBytecodeFlags(UNPAREN(Flags)),
+static constexpr RegExpBytecodeFlags kBytecodeFlags[] = {
+    REGEXP_BYTECODE_LIST(DECLARE_BYTECODE_FLAGS)};
+#undef DECLARE_BYTECODE_FLAGS
+
+#define DECLARE_OPERAND_TYPE_SIZE(Name, ...) \
+  RegExpOperandTypeTraits<RegExpBytecodeOperandType::k##Name>::kSize,
+static constexpr uint8_t kOperandTypeSizes[] = {
+    BYTECODE_OPERAND_TYPE_LIST(DECLARE_OPERAND_TYPE_SIZE)};
+#undef DECLARE_OPERAND_TYPE_SIZE
 
 }  // namespace detail
 
@@ -317,21 +362,21 @@ constexpr uint8_t RegExpBytecodes::Size(uint8_t bytecode) {
   return detail::kBytecodeSizes[bytecode];
 }
 
-// Checks for backwards compatibility.
-// TODO(pthier): Remove once we removed the old bytecode format.
-static_assert(kRegExpBytecodeCount == RegExpBytecodes::kCount);
+// static
+constexpr uint8_t RegExpBytecodes::Size(RegExpBytecodeOperandType type) {
+  return detail::kOperandTypeSizes[static_cast<int>(type)];
+}
 
-#define CHECK_BYTECODE_VALUE(CamelName, SnakeName, ...)                  \
-  static_assert(RegExpBytecodes::ToByte(RegExpBytecode::k##CamelName) == \
-                BC_##SnakeName);
-REGEXP_BYTECODE_LIST(CHECK_BYTECODE_VALUE)
-#undef CHECK_BYTECODE_VALUE
+// static
+constexpr RegExpBytecodeFlags RegExpBytecodes::Flags(RegExpBytecode bytecode) {
+  return Flags(ToByte(bytecode));
+}
 
-#define CHECK_LENGTH(CamelName, SnakeName, ...)                        \
-  static_assert(RegExpBytecodes::Size(RegExpBytecode::k##CamelName) == \
-                RegExpBytecodeLength(BC_##SnakeName));
-REGEXP_BYTECODE_LIST(CHECK_LENGTH)
-#undef CHECK_LENGTH
+// static
+constexpr RegExpBytecodeFlags RegExpBytecodes::Flags(uint8_t bytecode) {
+  DCHECK_LT(bytecode, kCount);
+  return detail::kBytecodeFlags[bytecode];
+}
 
 }  // namespace internal
 }  // namespace v8

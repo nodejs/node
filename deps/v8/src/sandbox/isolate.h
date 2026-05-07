@@ -35,9 +35,12 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline CodePointerTable::Space* GetCodePointerTableSpaceFor(
       Address owning_slot);
 
-  inline TrustedPointerTable& GetTrustedPointerTableFor(IndirectPointerTag tag);
+  inline TrustedPointerTable& GetTrustedPointerTableFor(
+      IndirectPointerTagRange tag_range);
   inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
-      IndirectPointerTag tag);
+      IndirectPointerTagRange tag_range);
+
+  inline JSDispatchTable& GetJSDispatchTable();
 
   // Object is needed as a witness that this handle does not come from the
   // shared space.

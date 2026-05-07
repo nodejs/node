@@ -11,7 +11,7 @@ const kBuiltinNameReduceRight: constexpr string =
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduceright
 transitioning macro ReduceRightAllElements(
     implicit context: Context)(
-    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
+    attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
     callbackfn: Callable, initialValue: JSAny|TheHole): JSAny {
   let witness =
       typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
@@ -19,8 +19,7 @@ transitioning macro ReduceRightAllElements(
   for (let k: uintptr = attachedArrayAndLength.length; k-- > 0;) {
     let value: JSAny;
     try {
-      witness.RecheckIndex(k)
-          otherwise goto IsDetachedOrOutOfBounds;
+      witness.RecheckIndex(k) otherwise goto IsDetachedOrOutOfBounds;
       value = witness.Load(k);
     } label IsDetachedOrOutOfBounds deferred {
       value = Undefined;
@@ -60,8 +59,8 @@ transitioning javascript builtin TypedArrayPrototypeReduceRight(
     // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
     const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const initialValue = arguments.length >= 2 ? arguments[1] : TheHole;
@@ -72,9 +71,10 @@ transitioning javascript builtin TypedArrayPrototypeReduceRight(
     ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduceRight);
-  } label IsDetachedOrOutOfBounds deferred {
+  } label Fail deferred {
     ThrowTypeError(
-        MessageTemplate::kDetachedOperation, kBuiltinNameReduceRight);
+        MessageTemplate::kTypedArrayValidateErrorOperation,
+        kBuiltinNameReduceRight);
   }
 }
 }

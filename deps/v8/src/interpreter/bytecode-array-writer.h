@@ -53,6 +53,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   void BindTryRegionEnd(HandlerTableBuilder* handler_table_builder,
                         int handler_id);
 
+  void PatchJumpTableSize(BytecodeJumpTable* jump_table, int new_size);
+
   void SetFunctionEntrySourcePosition(int position);
 
   template <typename IsolateT>
@@ -67,10 +69,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.
-  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
 #endif
 
   bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }
+
+  size_t current_bytecode_size() const { return bytecodes_.size(); }
 
  private:
   // Maximum sized packed bytecode is comprised of a prefix bytecode,
@@ -114,6 +118,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   ConstantArrayBuilder* constant_array_builder() {
     return constant_array_builder_;
   }
+  Zone* zone() { return bytecodes_.zone(); }
 
   ZoneVector<uint8_t> bytecodes_;
   int unbound_jumps_;

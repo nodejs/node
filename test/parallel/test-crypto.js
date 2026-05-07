@@ -145,8 +145,10 @@ assert(crypto.getHashes().includes('sha1'));
 assert(crypto.getHashes().includes('sha256'));
 assert(!crypto.getHashes().includes('SHA1'));
 assert(!crypto.getHashes().includes('SHA256'));
-assert(crypto.getHashes().includes('RSA-SHA1'));
-assert(!crypto.getHashes().includes('rsa-sha1'));
+if (!process.features.openssl_is_boringssl) {
+  assert(crypto.getHashes().includes('RSA-SHA1'));
+  assert(!crypto.getHashes().includes('rsa-sha1'));
+}
 validateList(crypto.getHashes());
 // Make sure all of the hashes are supported by OpenSSL
 for (const algo of crypto.getHashes())

@@ -64,6 +64,9 @@ Node* JSGraph::ConstantMaybeHole(ObjectRef ref, JSHeapBroker* broker) {
 
 Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
   if (ref.IsSmi()) return ConstantMaybeHole(ref.AsSmi());
+  if (ref.IsHeapNumber()) {
+    return ConstantMaybeHole(ref.AsHeapNumber().value());
+  }
 
   switch (ref.HoleType()) {
     case HoleType::kNone:
@@ -88,10 +91,6 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
     case HoleType::kSelfReferenceMarker:
     case HoleType::kBasicBlockCountersMarker:
       UNREACHABLE();
-  }
-
-  if (ref.IsHeapNumber()) {
-    return ConstantMaybeHole(ref.AsHeapNumber().value());
   }
 
   OddballType oddball_type =

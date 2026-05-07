@@ -105,13 +105,13 @@ void JSFunction::UpdateCodeImpl(Isolate* isolate, Tagged<Code> value,
     set_dispatch_handle(handle, mode);
   }
   if (keep_tiering_request) {
-    UpdateDispatchEntryKeepTieringRequest(value, mode);
+    UpdateDispatchEntryKeepTieringRequest(isolate, value, mode);
   } else {
-    UpdateDispatchEntry(value, mode);
+    UpdateDispatchEntry(isolate, value, mode);
   }
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
-    IsolateGroup::current()->js_dispatch_table()->SetTieringRequest(
+    isolate->js_dispatch_table().SetTieringRequest(
         dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
   }
 }
@@ -133,27 +133,25 @@ inline void JSFunction::UpdateCodeKeepTieringRequests(Isolate* isolate,
 }
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
-  return IsolateGroup::current()->js_dispatch_table()->GetCode(
-      dispatch_handle());
+  return Isolate::Current()->js_dispatch_table().GetCode(dispatch_handle());
 }
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
                               AcquireLoadTag tag) const {
-  return IsolateGroup::current()->js_dispatch_table()->GetCode(
-      dispatch_handle(tag));
+  return Isolate::Current()->js_dispatch_table().GetCode(dispatch_handle(tag));
 }
 
 Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return Smi::zero();
-  return IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+  return Isolate::Current()->js_dispatch_table().GetCode(handle);
 }
 
 Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
                                     AcquireLoadTag tag) const {
   JSDispatchHandle handle = dispatch_handle(tag);
   if (handle == kNullJSDispatchHandle) return Smi::zero();
-  return IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
+  return Isolate::Current()->js_dispatch_table().GetCode(handle);
 }
 
 // static
@@ -178,19 +176,18 @@ void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
                                                         handle.value());
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
-void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
+void JSFunction::UpdateDispatchEntry(Isolate* isolate, Tagged<Code> new_code,
                                      WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  IsolateGroup::current()->js_dispatch_table()->SetCodeNoWriteBarrier(handle,
-                                                                      new_code);
+  isolate->js_dispatch_table().SetCodeNoWriteBarrier(handle, new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
-void JSFunction::UpdateDispatchEntryKeepTieringRequest(Tagged<Code> new_code,
+void JSFunction::UpdateDispatchEntryKeepTieringRequest(Isolate* isolate,
+                                                       Tagged<Code> new_code,
                                                        WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  IsolateGroup::current()
-      ->js_dispatch_table()
-      ->SetCodeKeepTieringRequestNoWriteBarrier(handle, new_code);
+  isolate->js_dispatch_table().SetCodeKeepTieringRequestNoWriteBarrier(
+      handle, new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
@@ -231,28 +228,27 @@ bool JSFunction::tiering_in_progress() const {
   return feedback_vector()->tiering_in_progress();
 }
 
-bool JSFunction::IsTieringRequestedOrInProgress() const {
+bool JSFunction::IsTieringRequestedOrInProgress(Isolate* isolate) const {
   if (!has_feedback_vector()) return false;
   return tiering_in_progress() ||
-         IsolateGroup::current()->js_dispatch_table()->IsTieringRequested(
-             dispatch_handle());
+         isolate->js_dispatch_table().IsTieringRequested(dispatch_handle());
 }
 
 bool JSFunction::IsLoggingRequested(Isolate* isolate) const {
-  return IsolateGroup::current()->js_dispatch_table()->IsTieringRequested(
+  return isolate->js_dispatch_table().IsTieringRequested(
       dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
 }
 
 bool JSFunction::IsMaglevRequested(Isolate* isolate) const {
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
+  Address entrypoint = jdt.GetEntrypoint(dispatch_handle());
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
-#define CASE(name, ...)                                                        \
-  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {      \
-    DCHECK(jdt->IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
-                                   isolate));                                  \
-    return TieringBuiltin::k##name !=                                          \
-           TieringBuiltin::kFunctionLogNextExecution;                          \
+#define CASE(name, ...)                                                       \
+  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {     \
+    DCHECK(jdt.IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
+                                  isolate));                                  \
+    return TieringBuiltin::k##name !=                                         \
+           TieringBuiltin::kFunctionLogNextExecution;                         \
   }
   BUILTIN_LIST_BASE_TIERING_MAGLEV(CASE)
 #undef CASE
@@ -260,15 +256,15 @@ bool JSFunction::IsMaglevRequested(Isolate* isolate) const {
 }
 
 bool JSFunction::IsTurbofanRequested(Isolate* isolate) const {
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
+  Address entrypoint = jdt.GetEntrypoint(dispatch_handle());
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
-#define CASE(name, ...)                                                        \
-  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {      \
-    DCHECK(jdt->IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
-                                   isolate));                                  \
-    return TieringBuiltin::k##name !=                                          \
-           TieringBuiltin::kFunctionLogNextExecution;                          \
+#define CASE(name, ...)                                                       \
+  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {     \
+    DCHECK(jdt.IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
+                                  isolate));                                  \
+    return TieringBuiltin::k##name !=                                         \
+           TieringBuiltin::kFunctionLogNextExecution;                         \
   }
   BUILTIN_LIST_BASE_TIERING_TURBOFAN(CASE)
 #undef CASE
@@ -281,19 +277,19 @@ bool JSFunction::IsOptimizationRequested(Isolate* isolate) const {
 
 std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
     Isolate* isolate, ConcurrencyMode mode) const {
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
-  Address entrypoint = jdt->GetEntrypoint(dispatch_handle());
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
+  Address entrypoint = jdt.GetEntrypoint(dispatch_handle());
   const EmbeddedData& embedded_data = EmbeddedData::FromBlob(isolate);
   auto builtin = ([&]() -> std::optional<TieringBuiltin> {
-#define CASE(name, ...)                                                        \
-  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {      \
-    DCHECK(jdt->IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
-                                   isolate));                                  \
-    return TieringBuiltin::k##name;                                            \
+#define CASE(name, ...)                                                       \
+  if (entrypoint == embedded_data.InstructionStartOf(Builtin::k##name)) {     \
+    DCHECK(jdt.IsTieringRequested(dispatch_handle(), TieringBuiltin::k##name, \
+                                  isolate));                                  \
+    return TieringBuiltin::k##name;                                           \
   }
     BUILTIN_LIST_BASE_TIERING(CASE)
 #undef CASE
-    DCHECK(!jdt->IsTieringRequested(dispatch_handle()));
+    DCHECK(!jdt.IsTieringRequested(dispatch_handle()));
     return {};
   })();
   if (V8_LIKELY(!builtin)) return {};
@@ -318,9 +314,8 @@ std::optional<CodeKind> JSFunction::GetRequestedOptimizationIfAny(
   return {};
 }
 
-void JSFunction::ResetTieringRequests() {
-  IsolateGroup::current()->js_dispatch_table()->ResetTieringRequest(
-      dispatch_handle());
+void JSFunction::ResetTieringRequests(Isolate* isolate) {
+  isolate->js_dispatch_table().ResetTieringRequest(dispatch_handle());
 }
 
 void JSFunction::SetTieringInProgress(Isolate* isolate, bool in_progress,
@@ -390,7 +385,7 @@ DEF_GETTER(JSFunction, has_initial_map, bool) {
   DCHECK(has_prototype_slot(cage_base));
   Tagged<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
       prototype_or_initial_map(cage_base, kAcquireLoad);
-  return !IsTheHole(maybe_map) && IsMap(maybe_map, cage_base);
+  return IsMap(maybe_map, cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
@@ -478,8 +473,9 @@ void JSFunction::ResetIfCodeFlushed(
   if (kBytecodeCanFlush && NeedsResetDueToFlushedBytecode(isolate)) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
-    ResetTieringRequests();
-    UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
+    ResetTieringRequests(isolate);
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy),
+               SKIP_WRITE_BARRIER);
     raw_feedback_cell()->reset_feedback_vector(gc_notify_updated_slot);
     return;
   }
@@ -488,8 +484,9 @@ void JSFunction::ResetIfCodeFlushed(
                  kBaselineCodeCanFlush);
   if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode(isolate)) {
     // Flush baseline code from the closure if required
-    ResetTieringRequests();
-    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+    ResetTieringRequests(isolate);
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline),
+               SKIP_WRITE_BARRIER);
   }
 }
 

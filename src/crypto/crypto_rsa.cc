@@ -128,12 +128,24 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
       static_cast<RSAKeyVariant>(args[*offset].As<Uint32>()->Value());
 
   CHECK_IMPLIES(params->params.variant != kKeyVariantRSA_PSS,
-                args.Length() == 10);
+                static_cast<unsigned int>(args.Length()) >= *offset + 3);
   CHECK_IMPLIES(params->params.variant == kKeyVariantRSA_PSS,
-                args.Length() == 13);
+                static_cast<unsigned int>(args.Length()) >= *offset + 6);
 
   params->params.modulus_bits = args[*offset + 1].As<Uint32>()->Value();
   params->params.exponent = args[*offset + 2].As<Uint32>()->Value();
+
+#ifdef OPENSSL_IS_BORINGSSL
+  // BoringSSL hangs indefinitely generating an RSA key with e=1, and for
+  // other invalid exponents (e=0, even values) reports the misleading error
+  // RSA_R_TOO_MANY_ITERATIONS only after running the full keygen loop. Reject
+  // those up-front with a clear error. The constraint here (odd integer >= 3)
+  // matches BoringSSL's own rsa_check_public_key validation.
+  if (params->params.exponent < 3 || (params->params.exponent & 1) == 0) {
+    THROW_ERR_OUT_OF_RANGE(env, "publicExponent is invalid");
+    return Nothing<void>();
+  }
+#endif
 
   *offset += 3;
 

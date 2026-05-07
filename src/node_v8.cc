@@ -26,6 +26,7 @@
 #include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_external_reference.h"
+#include "node_profiling.h"
 #include "util-inl.h"
 #include "v8-profiler.h"
 #include "v8.h"
@@ -250,7 +251,8 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
 void StartCpuProfile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  CpuProfilingResult result = env->StartCpuProfile();
+  CpuProfileOptions options = ParseCpuProfileOptions(args);
+  CpuProfilingResult result = env->StartCpuProfile(options);
   if (result.status == CpuProfilingStatus::kErrorTooManyProfilers) {
     return THROW_ERR_CPU_PROFILE_TOO_MANY(isolate,
                                           "There are too many CPU profiles");

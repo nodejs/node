@@ -182,7 +182,9 @@ enum class SerializationTag : uint8_t {
   kEndJSSet = ',',
   // Array buffer. byteLength:uint32_t, then raw data.
   kArrayBuffer = 'B',
-  // Resizable ArrayBuffer.
+  // Immutable array buffer. byteLength:uint32_t, then raw data.
+  kImmutableArrayBuffer = 'C',
+  // Resizable array buffer. byteLength:uint32_t, maxLength:uint32_t, raw data.
   kResizableArrayBuffer = '~',
   // Array buffer (transferred). transferID:uint32_t
   kArrayBufferTransfer = 't',
@@ -650,6 +652,9 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       return WriteJSSet(Cast<JSSet>(receiver));
     case JS_ARRAY_BUFFER_TYPE:
       return WriteJSArrayBuffer(Cast<JSArrayBuffer>(receiver));
+    case JS_DETACHED_TYPED_ARRAY_TYPE:
+      return ThrowDataCloneError(
+          MessageTemplate::kDataCloneErrorDetachedArrayBuffer);
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
@@ -1006,6 +1011,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     // See comment for WasmMemoryObject::FixUpResizableArrayBuffer for details.
     auto backing_store = array_buffer->GetBackingStore();
     if (backing_store && backing_store->is_wasm_memory()) {
+      DCHECK_EQ(
+          backing_store->is_resizable_by_js(),
+          !backing_store->is_shared() && array_buffer->is_resizable_by_js());
       if (array_buffer->is_resizable_by_js()) {
         Handle<Object> memory =
             Object::GetProperty(
@@ -1050,20 +1058,32 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
   }
-  if (array_buffer->is_resizable_by_js()) {
-    size_t max_byte_length = array_buffer->max_byte_length();
+  size_t max_byte_length = 0;
+  bool is_resizable = array_buffer->is_resizable_by_js();
+  if (is_resizable) {
+    max_byte_length = array_buffer->max_byte_length();
     if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
                                  array_buffer);
     }
+  }
 
+  if (is_resizable) {
     WriteTag(SerializationTag::kResizableArrayBuffer);
     WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
     WriteVarint<uint32_t>(static_cast<uint32_t>(max_byte_length));
     WriteRawBytes(array_buffer->backing_store(), byte_length);
     return ThrowIfOutOfMemory();
   }
-  WriteTag(SerializationTag::kArrayBuffer);
+
+  if (array_buffer->is_immutable()) {
+    // TODO(olivf): Since the AB is not mutable we could share the backing
+    // store in postMessage. Needs a ForStorage flag for the ValueSerializer to
+    // know when sharing is possible.
+    WriteTag(SerializationTag::kImmutableArrayBuffer);
+  } else {
+    WriteTag(SerializationTag::kArrayBuffer);
+  }
   WriteVarint<uint32_t>(static_cast<uint32_t>(byte_length));
   WriteRawBytes(array_buffer->backing_store(), byte_length);
   return ThrowIfOutOfMemory();
@@ -1213,18 +1233,18 @@ Maybe<bool> ValueSerializer::WriteWasmModule(
 
 Maybe<bool> ValueSerializer::WriteWasmMemory(
     DirectHandle<WasmMemoryObject> object) {
-  if (!object->array_buffer()->is_shared()) {
+  DirectHandle<JSArrayBuffer> shared_ab =
+      WasmMemoryObject::GetArrayBuffer(isolate_, object);
+  if (!shared_ab->is_shared()) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
 
-  GlobalBackingStoreRegistry::Register(
-      object->array_buffer()->GetBackingStore());
+  GlobalBackingStoreRegistry::Register(shared_ab->GetBackingStore());
 
   WriteTag(SerializationTag::kWasmMemoryTransfer);
   WriteZigZag<int32_t>(object->maximum_pages());
   WriteByte(object->is_memory64() ? 1 : 0);
-  return WriteJSReceiver(
-      DirectHandle<JSReceiver>(object->array_buffer(), isolate_));
+  return WriteJSReceiver(shared_ab);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1716,12 +1736,20 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kArrayBuffer: {
       constexpr bool is_shared = false;
       constexpr bool is_resizable = false;
-      return ReadJSArrayBuffer(is_shared, is_resizable);
+      constexpr bool is_immutable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
     }
     case SerializationTag::kResizableArrayBuffer: {
       constexpr bool is_shared = false;
       constexpr bool is_resizable = true;
-      return ReadJSArrayBuffer(is_shared, is_resizable);
+      constexpr bool is_immutable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
+    }
+    case SerializationTag::kImmutableArrayBuffer: {
+      constexpr bool is_shared = false;
+      constexpr bool is_resizable = false;
+      constexpr bool is_immutable = true;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
     }
     case SerializationTag::kArrayBufferTransfer: {
       return ReadTransferredJSArrayBuffer();
@@ -1729,7 +1757,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kSharedArrayBuffer: {
       constexpr bool is_shared = true;
       constexpr bool is_resizable = false;
-      return ReadJSArrayBuffer(is_shared, is_resizable);
+      constexpr bool is_immutable = false;
+      return ReadJSArrayBuffer(is_shared, is_resizable, is_immutable);
     }
     case SerializationTag::kError:
       return ReadJSError();
@@ -2111,7 +2140,7 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
 }
 
 MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
-    bool is_shared, bool is_resizable) {
+    bool is_shared, bool is_resizable, bool is_immutable) {
   uint32_t id = next_id_++;
   if (is_shared) {
     uint32_t clone_id;
@@ -2147,6 +2176,16 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
           break;
         case WasmMemoryArrayBufferTag::kResizableFollowedByWasmMemory: {
           array_buffer->set_is_resizable_by_js(true);
+          // Update the byte_length at the same time as the flag to keep
+          // consistent state. The ByteLength is also post-processed after
+          // the creation of the memory object, which should take care of the
+          // most common case. Updating the flag, but not the byte_length is
+          // inconsistent for the buffer object and causes DCHECKS fails.
+          uint32_t byte_length;
+          if (!ReadVarint<uint32_t>().To(&byte_length)) {
+            return MaybeDirectHandle<JSArrayBuffer>();
+          }
+          array_buffer->set_byte_length(byte_length);
           DirectHandle<Object> wasm_memory_obj;
           if (!ReadObject().ToHandle(&wasm_memory_obj) ||
               !IsWasmMemoryObject(*wasm_memory_obj, isolate_)) {
@@ -2183,9 +2222,12 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
           byte_length, max_byte_length, InitializedFlag::kUninitialized,
           is_resizable ? ResizableFlag::kResizable
                        : ResizableFlag::kNotResizable);
-
   DirectHandle<JSArrayBuffer> array_buffer;
   if (!result.ToHandle(&array_buffer)) return result;
+
+  if (is_immutable) {
+    array_buffer->set_is_immutable(true);
+  }
 
   if (byte_length > 0) {
     memcpy(array_buffer->backing_store(), position_, byte_length);
@@ -2456,8 +2498,8 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   DirectHandle<JSArrayBuffer> buffer = Cast<JSArrayBuffer>(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  DirectHandle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages, address_type);
+  DirectHandle<WasmMemoryObject> result = WasmMemoryObject::New(
+      isolate_, buffer, buffer->GetBackingStore(), maximum_pages, address_type);
 
   AddObjectWithID(id, result);
   return result;

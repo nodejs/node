@@ -382,7 +382,7 @@ struct SkipEmpty {
 //   // v[0] == " a ", v[1] == " ", v[2] == "b"
 struct SkipWhitespace {
   bool operator()(absl::string_view sp) const {
-    sp = absl::StripAsciiWhitespace(sp);
+    sp = absl::StripLeadingAsciiWhitespace(sp);
     return !sp.empty();
   }
 };

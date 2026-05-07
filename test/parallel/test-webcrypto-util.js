@@ -8,8 +8,28 @@ if (!common.hasCrypto)
 const assert = require('assert');
 
 const {
+  bigIntArrayToUnsignedInt,
   normalizeAlgorithm,
+  validateKeyOps,
 } = require('internal/crypto/util');
+
+// bigIntArrayToUnsignedInt must return an unsigned 32-bit value even when
+// the most significant byte has its top bit set. Otherwise the signed `<<`
+// operator yields a negative Int32 for inputs like [0x80, 0x00, 0x00, 0x01].
+{
+  assert.strictEqual(
+    bigIntArrayToUnsignedInt(new Uint8Array([0x80, 0x00, 0x00, 0x01])),
+    0x80000001);
+  assert.strictEqual(
+    bigIntArrayToUnsignedInt(new Uint8Array([0xff, 0xff, 0xff, 0xff])),
+    0xffffffff);
+  assert.strictEqual(
+    bigIntArrayToUnsignedInt(new Uint8Array([1, 0, 1])),
+    65537);
+  assert.strictEqual(
+    bigIntArrayToUnsignedInt(new Uint8Array([1, 0, 0, 0, 0])),
+    undefined);
+}
 
 {
   // Check that normalizeAlgorithm does not mutate object inputs.
@@ -48,4 +68,13 @@ const {
   const normalized = normalizeAlgorithm(algorithm, 'sign');
   assert.strictEqual(normalized.name, 'ECDSA');
   assert.strictEqual(nameReadCount, 1);
+}
+
+{
+  for (const ops of [
+    ['sign', 'toString', 'constructor'],
+    ['sign', '__proto__', 'constructor'],
+  ]) {
+    validateKeyOps(ops);
+  }
 }

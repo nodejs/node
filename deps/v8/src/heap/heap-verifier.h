@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class MemoryChunkMetadata;
+class BasePage;
 class ReadOnlyHeap;
 
 // Interface for verifying spaces in the heap.
@@ -26,10 +26,10 @@ class SpaceVerificationVisitor {
 
   // This method will be invoked for each page in the space before verifying an
   // object on it.
-  virtual void VerifyPage(const MemoryChunkMetadata* chunk) = 0;
+  virtual void VerifyPage(const BasePage* chunk) = 0;
 
   // This method will be invoked after verifying all objects on that page.
-  virtual void VerifyPageDone(const MemoryChunkMetadata* chunk) = 0;
+  virtual void VerifyPageDone(const BasePage* chunk) = 0;
 };
 
 class HeapVerifier final {

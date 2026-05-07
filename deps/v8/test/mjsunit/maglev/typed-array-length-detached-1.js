@@ -18,6 +18,6 @@ assertEquals(128, foo(ta));
 assertTrue(isMaglevved(foo));
 
 ta.buffer.transfer();
-assertFalse(isMaglevved(foo));
 
 assertEquals(0, foo(ta));
+assertFalse(isMaglevved(foo));

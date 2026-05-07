@@ -28,26 +28,44 @@ constexpr ExternalPointerTypeTag kExternalPointerTypeTagDefault = 0;
  */
 class V8_EXPORT External : public Value {
  public:
-  V8_DEPRECATE_SOON("Use the version with the type tag.")
+  V8_DEPRECATED("Use the version with the type tag.")
   static Local<External> New(Isolate* isolate, void* value) {
     return New(isolate, value, kExternalPointerTypeTagDefault);
   }
+  /**
+   * Creates a new External object.
+   *
+   * \param isolate The isolate for the external object.
+   * \param value The C++ pointer value.
+   * \param tag The type tag of the external pointer. If type tags are not used
+   * in the embedder, the default value `kExternalPointerTypeTagDefault` can be
+   * used.
+   * \return The new External object.
+   */
   static Local<External> New(Isolate* isolate, void* value,
                              ExternalPointerTypeTag tag);
-  V8_INLINE static External* Cast(Value* value) {
+  V8_INLINE static External* Cast(Data* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);
 #endif
     return static_cast<External*>(value);
   }
 
-  V8_DEPRECATE_SOON("Use the version with the type tag.")
+  V8_DEPRECATED("Use the version with the type tag.")
   void* Value() const { return Value(kExternalPointerTypeTagDefault); }
 
+  /**
+   * Returns the value of the external pointer.
+   *
+   * \param tag The type tag of the external pointer. If type tags are not used
+   * in the embedder, the default value `kExternalPointerTypeTagDefault` can be
+   * used.
+   * \return The value of the external pointer.
+   */
   void* Value(ExternalPointerTypeTag tag) const;
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Data* obj);
 };
 
 }  // namespace v8

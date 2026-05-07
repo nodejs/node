@@ -112,6 +112,10 @@ class DebugOptions : public Options {
                     std::vector<std::string>* argv) override;
 };
 
+#ifndef EXPERIMENTALS_DEFAULT_VALUE
+#define EXPERIMENTALS_DEFAULT_VALUE false
+#endif
+
 class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
@@ -122,18 +126,18 @@ class EnvironmentOptions : public Options {
   bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
-  bool experimental_addon_modules = false;
-  bool experimental_eventsource = false;
-  bool experimental_ffi = false;
+  bool experimental_addon_modules = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_eventsource = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_ffi = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_websocket = true;
   bool experimental_sqlite = HAVE_SQLITE;
-  bool experimental_stream_iter = false;
+  bool experimental_stream_iter = EXPERIMENTALS_DEFAULT_VALUE;
   bool webstorage = HAVE_SQLITE;
-  bool experimental_quic = false;
+  bool experimental_quic = EXPERIMENTALS_DEFAULT_VALUE;
   std::string localstorage_file;
   bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_import_meta_resolve = false;
+  bool experimental_import_meta_resolve = EXPERIMENTALS_DEFAULT_VALUE;
   std::string input_type;  // Value of --input-type
   bool entry_is_url = false;
   bool permission = false;
@@ -148,7 +152,7 @@ class EnvironmentOptions : public Options {
   bool allow_ffi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
-  bool experimental_vm_modules = false;
+  bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
   bool async_context_frame = true;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
@@ -175,10 +179,10 @@ class EnvironmentOptions : public Options {
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
-  bool experimental_network_inspection = false;
-  bool experimental_worker_inspection = false;
-  bool experimental_storage_inspection = false;
-  bool experimental_inspector_network_resource = false;
+  bool experimental_network_inspection = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_worker_inspection = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_storage_inspection = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_inspector_network_resource = EXPERIMENTALS_DEFAULT_VALUE;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
