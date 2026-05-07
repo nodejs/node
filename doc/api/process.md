@@ -2753,7 +2753,7 @@ process.kill(process.pid, 'SIGHUP');
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger. See [Signal Events][].
 
-## `process.loadEnvFile(path)`
+## `process.loadEnvFile(path[, options])`
 
 <!-- YAML
 added:
@@ -2767,7 +2767,10 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
+* `path` {string | URL | Buffer | undefined} **Default:** `'./.env'`
+* `options` {Object}
+  * `override` {boolean} If `true`, values from the file replace any matching
+    variable already set in `process.env`. **Default:** `false`.
 
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
@@ -2781,6 +2784,38 @@ loadEnvFile();
 import { loadEnvFile } from 'node:process';
 loadEnvFile();
 ```
+
+By default, an env file does not override variables that are already set.
+Pass `override: true` to replace them with the values from the file:
+
+```cjs
+const { loadEnvFile } = require('node:process');
+// process.env.API_KEY === 'local-key'
+loadEnvFile('.env', { override: true });
+// process.env.API_KEY now matches the value from .env
+```
+
+```mjs
+import { loadEnvFile } from 'node:process';
+// process.env.API_KEY === 'local-key'
+loadEnvFile('.env', { override: true });
+// process.env.API_KEY now matches the value from .env
+```
+
+When called with options only, the default `'./.env'` path is used:
+
+```cjs
+const { loadEnvFile } = require('node:process');
+loadEnvFile({ override: true });
+```
+
+```mjs
+import { loadEnvFile } from 'node:process';
+loadEnvFile({ override: true });
+```
+
+The same behavior is available at startup via the
+[`--env-file-override-local`][] flag.
 
 ## `process.mainModule`
 
@@ -4613,6 +4648,7 @@ cases:
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
+[`--env-file-override-local`]: cli.md#--env-file-override-local
 [`--no-deprecation`]: cli.md#--no-deprecation
 [`--permission`]: cli.md#--permission
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode

@@ -937,6 +937,26 @@ changes:
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file
 does not exist.
 
+### `--env-file-override-local`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+By default, when a variable defined in an env file is already set in the
+environment, the existing value is preserved. Pass
+`--env-file-override-local` together with [`--env-file`][] (or
+[`--env-file-if-exists`][]) to make values from the file override existing
+environment variables instead.
+
+```bash
+BASIC=local node --env-file=.env --env-file-override-local -p 'process.env.BASIC'
+# prints the value from .env, not 'local'.
+```
+
+To override variables at runtime, use the `override` option of
+[`process.loadEnvFile()`][].
+
 ### `--env-file=file`
 
 <!-- YAML
@@ -4391,6 +4411,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
+[`process.loadEnvFile()`]: process.md#processloadenvfilepath-options
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version

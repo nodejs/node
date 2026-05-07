@@ -619,11 +619,13 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
 static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string path = ".env";
-  if (args.Length() == 1) {
+  if (args.Length() >= 1 && !args[0]->IsUndefined()) {
     BufferValue path_value(args.GetIsolate(), args[0]);
     ToNamespacedPath(env, &path_value);
     path = path_value.ToString();
   }
+
+  bool override = args.Length() >= 2 && args[1]->IsTrue();
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path);
@@ -632,7 +634,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   switch (dotenv.ParsePath(path)) {
     case dotenv.ParseResult::Valid: {
-      USE(dotenv.SetEnvironment(env));
+      USE(dotenv.SetEnvironment(env, override));
       break;
     }
     case dotenv.ParseResult::InvalidContent: {

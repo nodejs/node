@@ -571,6 +571,14 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 Behavior is the same as \fB--env-file\fR, but an error is not thrown if the file
 does not exist.
 .
+.It Fl -env-file-override-local
+Override existing environment variables with values from files supplied via
+\fB--env-file\fR or \fB--env-file-if-exists\fR. Without this flag, existing
+variables take precedence.
+.Bd -literal
+BASIC=local node --env-file=.env --env-file-override-local -p 'process.env.BASIC'
+.Ed
+.
 .It Fl -env-file Ns = Ns Ar file
 Loads environment variables from a file relative to the current directory,
 making them available to applications on \fBprocess.env\fR. The environment

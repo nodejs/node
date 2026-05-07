@@ -110,3 +110,79 @@ describe('process.loadEnvFile()', () => {
     assert.strictEqual(child.code, 0);
   });
 });
+
+describe('process.loadEnvFile(path, options)', () => {
+  const noOverrideFixture = fixtures.path('dotenv/load-env-file-no-override.js');
+  const overrideFixture = fixtures.path('dotenv/load-env-file-override.js');
+  const optionsOnlyFixture = fixtures.path('dotenv/load-env-file-options-only.js');
+  const assertBasicFixture = fixtures.path('dotenv/assert-basic.js');
+
+  it('does not override an existing env var by default', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ noOverrideFixture, validEnvFilePath ],
+      { env: { ...process.env, BASIC: 'Original value' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('overrides an existing env var when override: true', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ overrideFixture, validEnvFilePath ],
+      { env: { ...process.env, BASIC: 'Original value' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('supports passing options only', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ optionsOnlyFixture ],
+      {
+        cwd: fixtures.path('dotenv/'),
+        env: { ...process.env, BASIC: 'Original value' },
+      },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('throws when options is not an object', () => {
+    assert.throws(() => {
+      process.loadEnvFile(validEnvFilePath, 'not-an-object');
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /options/ });
+  });
+
+  it('throws when options.override is not a boolean', () => {
+    assert.throws(() => {
+      process.loadEnvFile(validEnvFilePath, { override: 'yes' });
+    }, { code: 'ERR_INVALID_ARG_TYPE', message: /options\.override/ });
+  });
+
+  it('--env-file-override-local overrides existing env vars from --env-file', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [
+        `--env-file=${validEnvFilePath}`,
+        '--env-file-override-local',
+        assertBasicFixture,
+      ],
+      { env: { ...process.env, BASIC: 'Original value', EXPECTED: 'basic' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('--env-file alone keeps existing env vars', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${validEnvFilePath}`, assertBasicFixture ],
+      { env: { ...process.env, BASIC: 'Original value', EXPECTED: 'Original value' } },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+});

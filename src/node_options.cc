@@ -899,6 +899,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
+  AddOption("--env-file-override-local",
+            "override environment variables already set on the machine with "
+            "values from files supplied via --env-file or --env-file-if-exists",
+            &EnvironmentOptions::env_file_override_local);
+  Implies("--env-file-override-local", "[has_env_file_string]");
   AddOption("--experimental-config-file",
             "set config file path",
             &EnvironmentOptions::experimental_config_file_path,

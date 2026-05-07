@@ -28,7 +28,7 @@ class Dotenv {
   void ParseContent(const std::string_view content);
   ParseResult ParsePath(const std::string_view path);
   void AssignNodeOptionsIfAvailable(std::string* node_options) const;
-  v8::Maybe<void> SetEnvironment(Environment* env);
+  v8::Maybe<void> SetEnvironment(Environment* env, bool override = false);
   v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
 
   static std::vector<env_file_data> GetDataFromArgs(
