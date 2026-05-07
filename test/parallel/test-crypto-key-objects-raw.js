@@ -154,7 +154,11 @@ if (hasOpenSSL(3, 5)) {
     assert.throws(() => privKeyObj.export({ format: 'raw-private' }),
                   { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
 
-    for (const format of ['raw-public', 'raw-private', 'raw-seed']) {
+    assert.throws(() => crypto.createPrivateKey({
+      key: Buffer.alloc(32), format: 'raw-public', asymmetricKeyType: 'dh',
+    }), { code: 'ERR_INVALID_ARG_VALUE' });
+
+    for (const format of ['raw-private', 'raw-seed']) {
       assert.throws(() => crypto.createPrivateKey({
         key: Buffer.alloc(32), format, asymmetricKeyType: 'dh',
       }), {
@@ -326,6 +330,12 @@ if (hasOpenSSL(3, 5)) {
     fixtures.readKey('ec_p256_private.pem', 'ascii'));
   assert.throws(() => ecPriv.export({ format: 'raw-seed' }),
                 { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+  assert.throws(() => crypto.createPrivateKey({
+    key: ecPriv.export({ format: 'raw-private' }),
+    format: 'raw-seed',
+    asymmetricKeyType: 'ec',
+    namedCurve: 'P-256',
+  }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
 
   if (process.features.openssl_is_boringssl) {
     common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
@@ -337,6 +347,11 @@ if (hasOpenSSL(3, 5)) {
       fixtures.readKey(`${type}_private.pem`, 'ascii'));
     assert.throws(() => priv.export({ format: 'raw-seed' }),
                   { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+    assert.throws(() => crypto.createPrivateKey({
+      key: priv.export({ format: 'raw-private' }),
+      format: 'raw-seed',
+      asymmetricKeyType: type,
+    }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
   }
 
   if (hasOpenSSL(3, 5)) {
@@ -344,6 +359,11 @@ if (hasOpenSSL(3, 5)) {
       fixtures.readKey('slh_dsa_sha2_128f_private.pem', 'ascii'));
     assert.throws(() => slhPriv.export({ format: 'raw-seed' }),
                   { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+    assert.throws(() => crypto.createPrivateKey({
+      key: slhPriv.export({ format: 'raw-private' }),
+      format: 'raw-seed',
+      asymmetricKeyType: 'slh-dsa-sha2-128f',
+    }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
   }
 }
 
@@ -354,6 +374,11 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
       fixtures.readKey(`${type.replaceAll('-', '_')}_private_seed_only.pem`, 'ascii'));
     assert.throws(() => priv.export({ format: 'raw-private' }),
                   { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+    assert.throws(() => crypto.createPrivateKey({
+      key: priv.export({ format: 'raw-seed' }),
+      format: 'raw-private',
+      asymmetricKeyType: type,
+    }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
   }
 }
 
