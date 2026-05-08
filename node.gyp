@@ -37,6 +37,7 @@
     'node_use_node_snapshot%': 'false',
     'node_use_openssl%': 'true',
     'node_use_quic%': 'false',
+    'node_use_dtls%': 'false',
     'node_use_sqlite%': 'true',
     'node_use_ffi%': 'false',
     'node_use_v8_platform%': 'true',
@@ -379,6 +380,16 @@
       'src/quic/streams.h',
       'src/quic/tlscontext.h',
       'src/quic/guard.h',
+    ],
+    'node_dtls_sources': [
+      'src/dtls/dtls.cc',
+      'src/dtls/dtls_context.cc',
+      'src/dtls/dtls_endpoint.cc',
+      'src/dtls/dtls_session.cc',
+      'src/dtls/dtls.h',
+      'src/dtls/dtls_context.h',
+      'src/dtls/dtls_endpoint.h',
+      'src/dtls/dtls_session.h',
     ],
     'node_crypto_sources': [
       'src/crypto/crypto_aes.cc',
@@ -1084,6 +1095,14 @@
         [ 'node_use_quic=="true"', {
           'sources': [
             '<@(node_quic_sources)',
+          ],
+        }],
+        [ 'node_use_dtls=="true"', {
+          'sources': [
+            '<@(node_dtls_sources)',
+          ],
+          'defines': [
+            'HAVE_DTLS=1',
           ],
         }],
         [ 'OS in "linux freebsd mac solaris openharmony" and '
