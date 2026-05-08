@@ -2,13 +2,13 @@ import * as crypto from 'node:crypto'
 
 import { hasOpenSSL } from '../../common/crypto.js'
 
-const pqc = hasOpenSSL(3, 5);
+const boringSSL = process.features.openssl_is_boringssl;
+const pqc = hasOpenSSL(3, 5) || boringSSL;
 const argon2 = hasOpenSSL(3, 2);
 const shake128 = crypto.getHashes().includes('shake128');
 const shake256 = crypto.getHashes().includes('shake256');
 const ocb = hasOpenSSL(3);
 const kmac = hasOpenSSL(3);
-const boringSSL = process.features.openssl_is_boringssl;
 
 const { subtle } = globalThis.crypto;
 const X25519 = await subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']);
@@ -74,7 +74,7 @@ export const vectors = {
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
-    [pqc, 'ML-KEM-512'],
+    [pqc && !boringSSL, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [true, 'ChaCha20-Poly1305'],
@@ -95,7 +95,7 @@ export const vectors = {
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
-    [pqc, 'ML-KEM-512'],
+    [pqc && !boringSSL, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [true, 'ChaCha20-Poly1305'],
@@ -116,7 +116,7 @@ export const vectors = {
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
-    [pqc, 'ML-KEM-512'],
+    [pqc && !boringSSL, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [true, 'ChaCha20-Poly1305'],
@@ -140,7 +140,7 @@ export const vectors = {
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
-    [pqc, 'ML-KEM-512'],
+    [pqc && !boringSSL, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
     [false, 'AES-CTR'],
@@ -199,37 +199,39 @@ export const vectors = {
     [false, 'AES-OCB'],
   ],
   'encapsulateBits': [
-    [pqc, 'ML-KEM-512'],
+    [pqc && !boringSSL, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
   ],
   'encapsulateKey': [
-    [pqc, 'ML-KEM-512', 'AES-KW'],
-    [pqc, 'ML-KEM-512', 'AES-GCM'],
-    [pqc, 'ML-KEM-512', 'AES-CTR'],
-    [pqc, 'ML-KEM-512', 'AES-CBC'],
-    [pqc, 'ML-KEM-512', 'ChaCha20-Poly1305'],
-    [pqc, 'ML-KEM-512', 'HKDF'],
-    [pqc, 'ML-KEM-512', 'PBKDF2'],
-    [pqc, 'ML-KEM-512', { name: 'HMAC', hash: 'SHA-256' }],
-    [pqc, 'ML-KEM-512', { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, 'ML-KEM-512', { name: 'HMAC', hash: 'SHA-256', length: 128 }],
+    [pqc && !boringSSL, 'ML-KEM-512', 'AES-KW'],
+    [pqc, 'ML-KEM-768', 'AES-KW'],
+    [pqc, 'ML-KEM-768', 'AES-GCM'],
+    [pqc, 'ML-KEM-768', 'AES-CTR'],
+    [pqc, 'ML-KEM-768', 'AES-CBC'],
+    [pqc, 'ML-KEM-768', 'ChaCha20-Poly1305'],
+    [pqc, 'ML-KEM-768', 'HKDF'],
+    [pqc, 'ML-KEM-768', 'PBKDF2'],
+    [pqc, 'ML-KEM-768', { name: 'HMAC', hash: 'SHA-256' }],
+    [pqc, 'ML-KEM-768', { name: 'HMAC', hash: 'SHA-256', length: 256 }],
+    [false, 'ML-KEM-768', { name: 'HMAC', hash: 'SHA-256', length: 128 }],
   ],
   'decapsulateBits': [
-    [pqc, 'ML-KEM-512'],
+    [pqc && !boringSSL, 'ML-KEM-512'],
     [pqc, 'ML-KEM-768'],
     [pqc, 'ML-KEM-1024'],
   ],
   'decapsulateKey': [
-    [pqc, 'ML-KEM-512', 'AES-KW'],
-    [pqc, 'ML-KEM-512', 'AES-GCM'],
-    [pqc, 'ML-KEM-512', 'AES-CTR'],
-    [pqc, 'ML-KEM-512', 'AES-CBC'],
-    [pqc, 'ML-KEM-512', 'ChaCha20-Poly1305'],
-    [pqc, 'ML-KEM-512', 'HKDF'],
-    [pqc, 'ML-KEM-512', 'PBKDF2'],
-    [pqc, 'ML-KEM-512', { name: 'HMAC', hash: 'SHA-256' }],
-    [pqc, 'ML-KEM-512', { name: 'HMAC', hash: 'SHA-256', length: 256 }],
-    [false, 'ML-KEM-512', { name: 'HMAC', hash: 'SHA-256', length: 128 }],
+    [pqc && !boringSSL, 'ML-KEM-512', 'AES-KW'],
+    [pqc, 'ML-KEM-768', 'AES-KW'],
+    [pqc, 'ML-KEM-768', 'AES-GCM'],
+    [pqc, 'ML-KEM-768', 'AES-CTR'],
+    [pqc, 'ML-KEM-768', 'AES-CBC'],
+    [pqc, 'ML-KEM-768', 'ChaCha20-Poly1305'],
+    [pqc, 'ML-KEM-768', 'HKDF'],
+    [pqc, 'ML-KEM-768', 'PBKDF2'],
+    [pqc, 'ML-KEM-768', { name: 'HMAC', hash: 'SHA-256' }],
+    [pqc, 'ML-KEM-768', { name: 'HMAC', hash: 'SHA-256', length: 256 }],
+    [false, 'ML-KEM-768', { name: 'HMAC', hash: 'SHA-256', length: 128 }],
   ],
 };

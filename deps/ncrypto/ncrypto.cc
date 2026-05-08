@@ -34,9 +34,13 @@ constexpr static PQCMapping pqc_mappings[] = {
     {"ML-DSA-44", EVP_PKEY_ML_DSA_44},
     {"ML-DSA-65", EVP_PKEY_ML_DSA_65},
     {"ML-DSA-87", EVP_PKEY_ML_DSA_87},
-    {"ML-KEM-512", EVP_PKEY_ML_KEM_512},
     {"ML-KEM-768", EVP_PKEY_ML_KEM_768},
     {"ML-KEM-1024", EVP_PKEY_ML_KEM_1024},
+
+#if OPENSSL_WITH_PQC_ML_KEM_512
+    {"ML-KEM-512", EVP_PKEY_ML_KEM_512},
+#endif
+#if OPENSSL_WITH_PQC_SLH_DSA
     {"SLH-DSA-SHA2-128f", EVP_PKEY_SLH_DSA_SHA2_128F},
     {"SLH-DSA-SHA2-128s", EVP_PKEY_SLH_DSA_SHA2_128S},
     {"SLH-DSA-SHA2-192f", EVP_PKEY_SLH_DSA_SHA2_192F},
@@ -49,6 +53,7 @@ constexpr static PQCMapping pqc_mappings[] = {
     {"SLH-DSA-SHAKE-192s", EVP_PKEY_SLH_DSA_SHAKE_192S},
     {"SLH-DSA-SHAKE-256f", EVP_PKEY_SLH_DSA_SHAKE_256F},
     {"SLH-DSA-SHAKE-256s", EVP_PKEY_SLH_DSA_SHAKE_256S},
+#endif
 };
 
 #endif
@@ -2095,27 +2100,99 @@ EVPKeyPointer EVPKeyPointer::NewRawPrivate(
 }
 
 #if OPENSSL_WITH_PQC
-EVPKeyPointer EVPKeyPointer::NewRawSeed(
-    int id, const Buffer<const unsigned char>& data) {
-  if (id == 0) return {};
+namespace {
+constexpr size_t kPqcMlDsaSeedSize = 32;
+constexpr size_t kPqcMlKemSeedSize = 64;
 
+size_t GetPqcSeedSize(int id) {
+  switch (id) {
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+      return kPqcMlDsaSeedSize;
+#if OPENSSL_WITH_PQC_ML_KEM_512
+    case EVP_PKEY_ML_KEM_512:
+#endif
+    case EVP_PKEY_ML_KEM_768:
+    case EVP_PKEY_ML_KEM_1024:
+      return kPqcMlKemSeedSize;
+    default:
+      unreachable();
+  }
+}
+
+#if OPENSSL_WITH_BORINGSSL_PQC
+const EVP_PKEY_ALG* GetPqcSeedAlg(int id) {
+  switch (id) {
+    case EVP_PKEY_ML_DSA_44:
+      return EVP_pkey_ml_dsa_44();
+    case EVP_PKEY_ML_DSA_65:
+      return EVP_pkey_ml_dsa_65();
+    case EVP_PKEY_ML_DSA_87:
+      return EVP_pkey_ml_dsa_87();
+    case EVP_PKEY_ML_KEM_768:
+      return EVP_pkey_ml_kem_768();
+    case EVP_PKEY_ML_KEM_1024:
+      return EVP_pkey_ml_kem_1024();
+    default:
+      unreachable();
+  }
+}
+#else
+const char* GetPqcSeedParamName(int id) {
+  switch (id) {
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+      return OSSL_PKEY_PARAM_ML_DSA_SEED;
+    case EVP_PKEY_ML_KEM_512:
+    case EVP_PKEY_ML_KEM_768:
+    case EVP_PKEY_ML_KEM_1024:
+      return OSSL_PKEY_PARAM_ML_KEM_SEED;
+    default:
+      unreachable();
+  }
+}
+#endif
+
+EVPKeyPointer NewPqcKeyFromSeed(int id,
+                                const Buffer<const unsigned char>& data) {
+#if OPENSSL_WITH_BORINGSSL_PQC
+  return EVPKeyPointer(
+      EVP_PKEY_from_private_seed(GetPqcSeedAlg(id), data.data, data.len));
+#else
   OSSL_PARAM params[] = {
-      OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED,
+      OSSL_PARAM_construct_octet_string(GetPqcSeedParamName(id),
                                         const_cast<unsigned char*>(data.data),
                                         data.len),
       OSSL_PARAM_END};
 
-  EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(id, nullptr);
-  if (ctx == nullptr) return {};
+  auto ctx = EVPKeyCtxPointer::NewFromID(id);
+  if (!ctx) return {};
 
   EVP_PKEY* pkey = nullptr;
-  if (ctx == nullptr || EVP_PKEY_fromdata_init(ctx) <= 0 ||
-      EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0) {
-    EVP_PKEY_CTX_free(ctx);
+  if (EVP_PKEY_fromdata_init(ctx.get()) <= 0 ||
+      EVP_PKEY_fromdata(ctx.get(), &pkey, EVP_PKEY_KEYPAIR, params) <= 0) {
     return {};
   }
-
   return EVPKeyPointer(pkey);
+#endif
+}
+
+bool GetPqcSeed(EVP_PKEY* pkey, int id, const Buffer<unsigned char>& out) {
+  size_t len = out.len;
+#if OPENSSL_WITH_BORINGSSL_PQC
+  return EVP_PKEY_get_private_seed(pkey, out.data, &len) == 1;
+#else
+  return EVP_PKEY_get_octet_string_param(
+             pkey, GetPqcSeedParamName(id), out.data, out.len, &len) == 1;
+#endif
+}
+}  // namespace
+
+EVPKeyPointer EVPKeyPointer::NewRawSeed(
+    int id, const Buffer<const unsigned char>& data) {
+  return NewPqcKeyFromSeed(id, data);
 }
 #endif
 
@@ -2165,7 +2242,7 @@ EVP_PKEY* EVPKeyPointer::release() {
 int EVPKeyPointer::id(const EVP_PKEY* key) {
   if (key == nullptr) return 0;
   int type = EVP_PKEY_id(key);
-#if OPENSSL_WITH_PQC
+#if OPENSSL_WITH_OPENSSL_PQC
   // EVP_PKEY_id returns -1 when EVP_PKEY_* is only implemented in a provider
   // which is the case for all post-quantum NIST algorithms
   // one suggested way would be to use a chain of `EVP_PKEY_is_a`
@@ -2243,34 +2320,11 @@ DataPointer EVPKeyPointer::rawPublicKey() const {
 DataPointer EVPKeyPointer::rawSeed() const {
   if (!pkey_) return {};
 
-  // Determine seed length and parameter name based on key type
-  size_t seed_len;
-  const char* param_name;
-
-  switch (id()) {
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-      seed_len = 32;  // ML-DSA uses 32-byte seeds
-      param_name = OSSL_PKEY_PARAM_ML_DSA_SEED;
-      break;
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-      seed_len = 64;  // ML-KEM uses 64-byte seeds
-      param_name = OSSL_PKEY_PARAM_ML_KEM_SEED;
-      break;
-    default:
-      unreachable();
-  }
+  const size_t seed_len = GetPqcSeedSize(id());
 
   if (auto data = DataPointer::Alloc(seed_len)) {
     const Buffer<unsigned char> buf = data;
-    size_t len = data.size();
-
-    if (EVP_PKEY_get_octet_string_param(
-            get(), param_name, buf.data, len, &seed_len) != 1)
-      return {};
+    if (!GetPqcSeed(get(), id(), buf)) return {};
     return data;
   }
   return {};
@@ -2312,6 +2366,7 @@ EVPKeyPointer::operator const EC_KEY*() const {
 }
 
 namespace {
+
 EVPKeyPointer::ParseKeyResult TryParsePublicKeyInner(const BIOPointer& bp,
                                                      const char* name,
                                                      auto&& parse) {
@@ -2739,6 +2794,7 @@ bool EVPKeyPointer::isOneShotVariant() const {
     case EVP_PKEY_ML_DSA_44:
     case EVP_PKEY_ML_DSA_65:
     case EVP_PKEY_ML_DSA_87:
+#if OPENSSL_WITH_PQC_SLH_DSA
     case EVP_PKEY_SLH_DSA_SHA2_128F:
     case EVP_PKEY_SLH_DSA_SHA2_128S:
     case EVP_PKEY_SLH_DSA_SHA2_192F:
@@ -2751,6 +2807,7 @@ bool EVPKeyPointer::isOneShotVariant() const {
     case EVP_PKEY_SLH_DSA_SHAKE_192S:
     case EVP_PKEY_SLH_DSA_SHAKE_256F:
     case EVP_PKEY_SLH_DSA_SHAKE_256S:
+#endif
 #endif
       return true;
     default:
@@ -4401,7 +4458,17 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
     const EVPKeyPointer& key,
     const Digest& digest,
     const Buffer<const unsigned char>& context_string) {
-#ifdef OSSL_SIGNATURE_PARAM_CONTEXT_STRING
+#ifdef OPENSSL_IS_BORINGSSL
+  EVP_PKEY_CTX* ctx = nullptr;
+  if (!EVP_DigestSignInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
+    return std::nullopt;
+  }
+  if (EVP_PKEY_CTX_set1_signature_context_string(
+          ctx, context_string.data, context_string.len) <= 0) {
+    return std::nullopt;
+  }
+  return ctx;
+#elif defined(OSSL_SIGNATURE_PARAM_CONTEXT_STRING)
   EVP_PKEY_CTX* ctx = nullptr;
 
 #ifdef OSSL_SIGNATURE_PARAM_INSTANCE
@@ -4446,7 +4513,17 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
     const EVPKeyPointer& key,
     const Digest& digest,
     const Buffer<const unsigned char>& context_string) {
-#ifdef OSSL_SIGNATURE_PARAM_CONTEXT_STRING
+#ifdef OPENSSL_IS_BORINGSSL
+  EVP_PKEY_CTX* ctx = nullptr;
+  if (!EVP_DigestVerifyInit(ctx_.get(), &ctx, digest, nullptr, key.get())) {
+    return std::nullopt;
+  }
+  if (EVP_PKEY_CTX_set1_signature_context_string(
+          ctx, context_string.data, context_string.len) <= 0) {
+    return std::nullopt;
+  }
+  return ctx;
+#elif defined(OSSL_SIGNATURE_PARAM_CONTEXT_STRING)
   EVP_PKEY_CTX* ctx = nullptr;
 
 #ifdef OSSL_SIGNATURE_PARAM_INSTANCE

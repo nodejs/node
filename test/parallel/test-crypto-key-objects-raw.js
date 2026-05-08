@@ -76,7 +76,7 @@ const { hasOpenSSL } = require('../common/crypto');
     common.printSkipMessage('Skipping unsupported ed448/x448 test cases');
   }
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     rawPublicKeys.push(
       ['ml-dsa-44', 'ml_dsa_44_public.pem'],
       ['ml-kem-768', 'ml_kem_768_public.pem'],
@@ -170,15 +170,22 @@ if (hasOpenSSL(3, 5)) {
 
 // PQC import throws when PQC is not supported
 if (!hasOpenSSL(3, 5)) {
-  for (const asymmetricKeyType of [
-    'ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87',
-    'ml-kem-512', 'ml-kem-768', 'ml-kem-1024',
-    'slh-dsa-sha2-128f', 'slh-dsa-shake-128f',
-  ]) {
+  const unsupported = process.features.openssl_is_boringssl ?
+    // BoringSSL supports ML-DSA and ML-KEM-{768,1024}, but not ML-KEM-512 or SLH-DSA.
+    ['ml-kem-512', 'slh-dsa-sha2-128f', 'slh-dsa-shake-128f'] :
+    [
+      'ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87',
+      'ml-kem-512', 'ml-kem-768', 'ml-kem-1024',
+      'slh-dsa-sha2-128f', 'slh-dsa-shake-128f',
+    ];
+  for (const asymmetricKeyType of unsupported) {
     for (const format of ['raw-public', 'raw-private', 'raw-seed']) {
       assert.throws(() => crypto.createPublicKey({
         key: Buffer.alloc(32), format, asymmetricKeyType,
-      }), { code: 'ERR_INVALID_ARG_VALUE' });
+      }), {
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: /Invalid asymmetricKeyType|Unsupported key type/
+      });
     }
   }
 }
@@ -224,27 +231,27 @@ if (!hasOpenSSL(3, 5)) {
   }), { code: 'ERR_INVALID_ARG_VALUE' });
 }
 
-// ML-KEM: -768 and -512 public keys cannot be imported as the other type
-if (hasOpenSSL(3, 5)) {
-  const mlKem512Pub = crypto.createPublicKey(
-    fixtures.readKey('ml_kem_512_public.pem', 'ascii'));
+// ML-KEM: public keys of different type cannot be imported as the other type
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   const mlKem768Pub = crypto.createPublicKey(
     fixtures.readKey('ml_kem_768_public.pem', 'ascii'));
+  const mlKem1024Pub = crypto.createPublicKey(
+    fixtures.readKey('ml_kem_1024_public.pem', 'ascii'));
 
-  const mlKem512RawPub = mlKem512Pub.export({ format: 'raw-public' });
   const mlKem768RawPub = mlKem768Pub.export({ format: 'raw-public' });
+  const mlKem1024RawPub = mlKem1024Pub.export({ format: 'raw-public' });
 
   assert.throws(() => crypto.createPublicKey({
-    key: mlKem512RawPub, format: 'raw-public', asymmetricKeyType: 'ml-kem-768',
+    key: mlKem768RawPub, format: 'raw-public', asymmetricKeyType: 'ml-kem-1024',
   }), { code: 'ERR_INVALID_ARG_VALUE' });
 
   assert.throws(() => crypto.createPublicKey({
-    key: mlKem768RawPub, format: 'raw-public', asymmetricKeyType: 'ml-kem-512',
+    key: mlKem1024RawPub, format: 'raw-public', asymmetricKeyType: 'ml-kem-768',
   }), { code: 'ERR_INVALID_ARG_VALUE' });
 }
 
 // ML-DSA: -44 and -65 public keys cannot be imported as the other type
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   const mlDsa44Pub = crypto.createPublicKey(
     fixtures.readKey('ml_dsa_44_public.pem', 'ascii'));
   const mlDsa65Pub = crypto.createPublicKey(
@@ -357,10 +364,10 @@ if (hasOpenSSL(3, 5)) {
 }
 
 // raw-private cannot be used for ml-kem and ml-dsa
-if (hasOpenSSL(3, 5)) {
-  for (const type of ['ml-kem-512', 'ml-dsa-44']) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+  for (const type of ['ml-kem-768', 'ml-dsa-44']) {
     const priv = crypto.createPrivateKey(
-      fixtures.readKey(`${type.replaceAll('-', '_')}_private.pem`, 'ascii'));
+      fixtures.readKey(`${type.replaceAll('-', '_')}_private_seed_only.pem`, 'ascii'));
     assert.throws(() => priv.export({ format: 'raw-private' }),
                   { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
     assert.throws(() => crypto.createPrivateKey({
@@ -465,9 +472,9 @@ if (hasOpenSSL(3, 5)) {
                 { code: 'ERR_INVALID_ARG_VALUE' });
 
   // PQC raw-seed -> createPublicKey
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     const mlDsaPriv = crypto.createPrivateKey(
-      fixtures.readKey('ml_dsa_44_private.pem', 'ascii'));
+      fixtures.readKey('ml_dsa_44_private_seed_only.pem', 'ascii'));
     const mlDsaPub = crypto.createPublicKey(
       fixtures.readKey('ml_dsa_44_public.pem', 'ascii'));
     const mlDsaRawSeed = mlDsaPriv.export({ format: 'raw-seed' });
