@@ -109,6 +109,14 @@ class Link extends Node {
   // so this is a no-op
   [_loadDeps] () {}
 
+  // When a Link receives overrides (via edgesIn), forward them to the target node which holds the actual edgesOut.
+  // Without this, overrides stop at the Link and never reach the target's dependency edges.
+  recalculateOutEdgesOverrides () {
+    if (this.target) {
+      this.target.updateOverridesEdgeInAdded(this.overrides)
+    }
+  }
+
   // links can't have children, only their targets can
   // fix it to an empty list so that we can still call
   // things that iterate over them, just as a no-op

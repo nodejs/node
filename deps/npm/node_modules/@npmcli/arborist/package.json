@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "9.4.3",
+  "version": "9.5.0",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@gar/promise-retry": "^1.0.0",
