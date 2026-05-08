@@ -9,7 +9,9 @@ const fixtures = require('../common/fixtures');
 const { hasOpenSSL } = require('../common/crypto');
 const { promisify } = require('util');
 
-if (!hasOpenSSL(3)) {
+const isBoringSSL = process.features.openssl_is_boringssl;
+
+if (!hasOpenSSL(3) && !isBoringSSL) {
   assert.throws(() => crypto.encapsulate(), { code: 'ERR_CRYPTO_KEM_NOT_SUPPORTED' });
   return;
 }
@@ -79,25 +81,25 @@ const keys = {
     raw: true,
   },
   'ml-kem-512': {
-    supported: hasOpenSSL(3, 5),
+    supported: hasOpenSSL(3, 5),  // BoringSSL does not support ML-KEM-512
     publicKey: fixtures.readKey('ml_kem_512_public.pem', 'ascii'),
-    privateKey: fixtures.readKey('ml_kem_512_private.pem', 'ascii'),
+    privateKey: fixtures.readKey('ml_kem_512_private_seed_only.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 768,
     raw: true,
   },
   'ml-kem-768': {
-    supported: hasOpenSSL(3, 5),
+    supported: hasOpenSSL(3, 5) || isBoringSSL,
     publicKey: fixtures.readKey('ml_kem_768_public.pem', 'ascii'),
-    privateKey: fixtures.readKey('ml_kem_768_private.pem', 'ascii'),
+    privateKey: fixtures.readKey('ml_kem_768_private_seed_only.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 1088,
     raw: true,
   },
   'ml-kem-1024': {
-    supported: hasOpenSSL(3, 5),
+    supported: hasOpenSSL(3, 5) || isBoringSSL,
     publicKey: fixtures.readKey('ml_kem_1024_public.pem', 'ascii'),
-    privateKey: fixtures.readKey('ml_kem_1024_private.pem', 'ascii'),
+    privateKey: fixtures.readKey('ml_kem_1024_private_seed_only.pem', 'ascii'),
     sharedSecretLength: 32,
     ciphertextLength: 1568,
     raw: true,
@@ -109,7 +111,7 @@ for (const [name, {
 }] of Object.entries(keys)) {
   if (!supported) {
     assert.throws(() => crypto.encapsulate(publicKey),
-                  { code: /ERR_OSSL_EVP_DECODE_ERROR|ERR_CRYPTO_OPERATION_FAILED/ });
+                  { code: /ERR_OSSL_EVP_DECODE_ERROR|ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM|ERR_CRYPTO_OPERATION_FAILED/ });
     continue;
   }
 
@@ -211,7 +213,7 @@ for (const [name, {
   } else if (name.startsWith('p-')) {
     wrongPrivateKey = name === 'p-256' ? keys['p-384'].privateKey : keys['p-256'].privateKey;
   } else if (name.startsWith('ml-')) {
-    wrongPrivateKey = name === 'ml-kem-512' ? keys['ml-kem-768'].privateKey : keys['ml-kem-512'].privateKey;
+    wrongPrivateKey = name === 'ml-kem-768' ? keys['ml-kem-1024'].privateKey : keys['ml-kem-768'].privateKey;
   } else {
     wrongPrivateKey = keys.x25519.privateKey;
   }
