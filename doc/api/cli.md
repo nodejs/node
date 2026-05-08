@@ -1212,6 +1212,17 @@ If present, Node.js will look for a
 `node.config.json` file in the current working directory and load it as a
 configuration file.
 
+### `--experimental-dtls`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the DTLS protocol. See the
+[dtls documentation][] for details.
+
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -3760,6 +3771,7 @@ one is included in the list below.
 * `--experimental-abortcontroller`
 * `--experimental-addon-modules`
 * `--experimental-detect-module`
+* `--experimental-dtls`
 * `--experimental-eventsource`
 * `--experimental-ffi`
 * `--experimental-import-meta-resolve`
@@ -4431,6 +4443,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
+[dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables_1
 [filtering tests by name]: test.md#filtering-tests-by-name

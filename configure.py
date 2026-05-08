@@ -1073,6 +1073,12 @@ parser.add_argument('--experimental-quic',
     default=None,
     help='build with experimental QUIC support')
 
+parser.add_argument('--experimental-dtls',
+    action='store_true',
+    dest='experimental_dtls',
+    default=None,
+    help='build with experimental DTLS support')
+
 parser.add_argument('--ninja',
     action='store_true',
     dest='use_ninja',
@@ -2362,6 +2368,10 @@ def configure_quic(o):
   o['variables']['node_use_quic'] = b(options.experimental_quic and
                                       not options.without_ssl)
 
+def configure_dtls(o):
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
+                                      not options.without_ssl)
+
 def configure_static(o):
   if options.fully_static or options.partly_static:
     if flavor == 'mac':
@@ -2820,6 +2830,7 @@ configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
 configure_quic(output)
+configure_dtls(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
