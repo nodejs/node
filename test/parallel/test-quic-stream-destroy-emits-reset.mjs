@@ -12,12 +12,12 @@
 // code is the negotiated application's "internal error" code: for
 // the test fixture's non-h3 ALPN (`quic-test`) the C++
 // DefaultApplication reports `1n`, which propagates to the server
-// as `ERR_QUIC_APPLICATION_ERROR` carrying `1n` in its message.
+// as `ERR_QUIC_APPLICATION_ERROR` exposing `errorCode === 1n`.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, ok, rejects } = assert;
+const { strictEqual, rejects } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -31,10 +31,8 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      // The DefaultApplication's internal error code is 0x1n, which
-      // util.format renders as `1n` (BigInt) in the message text.
-      ok(err.message.includes('1n'),
-         `expected '1n' in message, got: ${err.message}`);
+      // The DefaultApplication's internal error code is 0x1n.
+      strictEqual(err.errorCode, 1n);
       serverResetSeen.resolve();
     });
 

@@ -3451,10 +3451,21 @@ void Session::EmitClose(const QuicError& error) {
       Integer::New(env()->isolate(), static_cast<int>(error.type())),
       BigInt::NewFromUnsigned(env()->isolate(), error.code()),
       Undefined(env()->isolate()),
+      Undefined(env()->isolate()),
   };
   if (error.reason().length() > 0 &&
       !ToV8Value(env()->context(), error.reason()).ToLocal(&argv[2])) {
     return;
+  }
+
+  // Attach a human-readable name for known wire codes (RFC 9000 sec. 20.1
+  // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
+  // codes leave the slot as undefined. See QuicError::name() for the
+  // matching path on stream-level errors.
+  if (const char* n = error.name()) {
+    if (!ToV8Value(env()->context(), n).ToLocal(&argv[3])) {
+      return;
+    }
   }
 
   MakeCallback(
