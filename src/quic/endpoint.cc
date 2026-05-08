@@ -11,6 +11,7 @@
 #include <node_external_reference.h>
 #include <node_process-inl.h>
 #include <node_sockaddr-inl.h>
+#include <permission/permission.h>
 #include <timer_wrap-inl.h>
 #include <util-inl.h>
 #include <uv.h>
@@ -1745,6 +1746,9 @@ JS_METHOD_IMPL(Endpoint::DoConnect) {
   SocketAddressBase* address;
   ASSIGN_OR_RETURN_UNWRAP(&address, args[0]);
 
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, address->address()->ToString());
+
   DCHECK(args[1]->IsObject());
   Session::Options options;
   if (!Session::Options::From(env, args[1]).To(&options)) {
@@ -1770,6 +1774,8 @@ JS_METHOD_IMPL(Endpoint::DoListen) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
 
   Session::Options options;
   if (Session::Options::From(env, args[0]).To(&options)) {

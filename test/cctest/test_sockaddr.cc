@@ -44,7 +44,7 @@ TEST(SocketAddress, SocketAddress) {
 }
 
 TEST(SocketAddress, IpHashAndIpEqual) {
-  sockaddr_storage s1, s2, s3, s4;
+  sockaddr_storage s1, s2, s3;
   // Same IP, different ports.
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 443, &s1);
   SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 8080, &s2);
