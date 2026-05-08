@@ -98,7 +98,7 @@ and libc version. The table below lists the support tier for each supported
 combination. A list of [supported compile toolchains](#supported-toolchains) is
 also supplied for tier 1 platforms.
 
-**For production applications, run Node.js on supported platforms only.**
+**For production applications, run Node.js on supported platforms only (Tier 1 or 2).**
 
 Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
