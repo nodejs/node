@@ -1090,15 +1090,27 @@ There is an automatic build that is kicked off when you promote new builds, so
 within a few minutes nodejs.org will be listing your new version as the latest
 release, and a blog post draft PR will be created.
 
-In the event that a draft PR _is not created_, the [`scripts:release-post`][] script
-can be used as an alternative:
+This is driven by the [`post-release.yml`][] workflow in the `nodejs/node`
+repository, which triggers the [`create-release-post.yml`][] workflow on
+`nodejs/nodejs.org`. The same workflow also triggers a redirect update in the
+[`nodejs/release-cloudflare-worker`](https://github.com/nodejs/release-cloudflare-worker)
+repository. Both steps must complete for the release to be fully available on
+the website.
 
-```bash
-# In the apps/site folder of nodejs/nodejs.org
-node --run scripts:release-post x.y.z
-```
+In the event that [`post-release.yml`][] fails, the **first step should be to
+re-run the failed action** rather than manually triggering workflows in other
+repositories. Skipping steps in the process can result in the blog post being
+published without the release documents being available, or without the
+Cloudflare redirects being updated.
 
-This script will use the promoted builds and changelog to generate the post.
+If the failed action continues to fail after re-running, you can manually
+trigger both of the following:
+
+1. The [`create-release-post.yml`][] workflow on the `nodejs/nodejs.org`
+   repository.
+2. The release worker update on the
+   [`nodejs/release-cloudflare-worker`](https://github.com/nodejs/release-cloudflare-worker)
+   repository.
 
 * You can add a short blurb just under the main heading if you want to say
   something important, otherwise the text should be publication ready.
@@ -1485,8 +1497,9 @@ Typical resolution: sign the release again.
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Node.js Snap management repository]: https://github.com/nodejs/snap
 [Snap]: https://snapcraft.io/node
+[`create-release-post.yml`]: https://github.com/nodejs/nodejs.org/actions/workflows/create-release-post.yml
 [`create-release-proposal`]: https://github.com/nodejs/node/actions/workflows/create-release-proposal.yml
-[`scripts:release-post`]: https://github.com/nodejs/nodejs.org/blob/HEAD/apps/site/scripts/release-post/index.mjs
+[`post-release.yml`]: https://github.com/nodejs/node/actions/workflows/post-release.yml
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org
