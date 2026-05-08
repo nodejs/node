@@ -23,6 +23,287 @@ const quic = require('node:quic');
 
 The module is only available under the `node:` scheme.
 
+## Overview
+
+The `quic` module provides APIs for creating QUIC clients and servers.
+
+### Relevant RFCs and specifications
+
+The QUIC and HTTP/3 protocols are defined by a collection of RFCs produced
+primarily by the IETF QUIC Working Group. A familiarity with these documents
+is strongly recommended for users of this module.
+
+**Core QUIC transport:**
+
+* [RFC 8999][] — Version-Independent Properties of QUIC
+* [RFC 9000][] — QUIC: A UDP-Based Multiplexed and Secure Transport
+* [RFC 9001][] — Using TLS to Secure QUIC
+* [RFC 9002][] — QUIC Loss Detection and Congestion Control
+
+**Core HTTP/3:**
+
+* [RFC 9114][] — HTTP/3
+* [RFC 9204][] — QPACK: Field Compression for HTTP/3
+
+**QUIC extensions:**
+
+* [RFC 9221][] — An Unreliable Datagram Extension to QUIC
+* [RFC 9287][] — Greasing the QUIC Bit
+* [RFC 9368][] — Compatible Version Negotiation for QUIC
+* [RFC 9369][] — QUIC Version 2
+* [RFC 9443][] — Multiplexing Scheme Updates for QUIC
+
+**HTTP/3 extensions:**
+
+* [RFC 9218][] — Extensible Prioritization Scheme for HTTP
+* [RFC 9220][] — Bootstrapping WebSockets with HTTP/3
+* [RFC 9297][] — HTTP Datagrams and the Capsule Protocol
+* [RFC 9412][] — The ORIGIN Extension in HTTP/3
+
+**Operational and informational:**
+
+* [RFC 9308][] — Applicability of the QUIC Transport Protocol
+* [RFC 9312][] — Manageability of the QUIC Transport Protocol
+
+## Architecture
+
+The `quic` module is built around three core abstractions:
+
+* `QuicEndpoint`: represents the local UDP socket binding for QUIC. It is
+  used to send and receive QUIC packets and can be shared across multiple
+  sessions. A single endpoint can be used as both a client and a server
+  simultaneously.
+
+* `QuicSession`: represents a QUIC connection between the local endpoint and
+  a remote peer. A session is created either by initiating a connection to a
+  remote peer using `quic.connect()` or by accepting an incoming connection
+  from a remote peer via `quic.listen()`.
+
+* `QuicStream`: represents a QUIC stream within a session. Streams are
+  created by either local or remote peers and can be bidirectional or
+  unidirectional.
+
+Unlike traditional TCP-based protocols, QUIC "connections" are not inherently
+tied to a specific local port / remote port pair. A session is initiated via
+a QUIC endpoint but may be migrated to a different local or remote address
+over its lifetime, outlive the endpoint that created it, and may even be
+associated with multiple endpoints simultaneously. This flexibility allows for
+advanced use cases such as connection migration, multi-homing, and load balancing.
+Most often, however, a simple one-to-one relationship between endpoint and session
+is sufficient.
+
+### Integrated TLS 1.3
+
+The QUIC protocol integrates TLS 1.3 directly into the protocol for connection
+establishment and security. The `quic` module's API reflects this integration
+by exposing TLS-related information and configuration options. It is currently
+not possible to use QUIC without TLS or to use a different version of TLS.
+
+Every QUIC session starts with the client and server performing a TLS handshake
+to negotiate the application protocol (via ALPN), authenticate the server (and
+optionally the client), exchange transport parameters, and establish shared keys
+for encryption.
+
+### Applications
+
+Every `QuicSession` is associated with a single application protocol, negotiated
+via ALPN during the TLS handshake. The `quic` module is designed to be
+application-agnostic in general but includes built-in support for HTTP/3 as a
+specific application protocol. When using HTTP/3, the `quic` module provides
+additional APIs for handling HTTP/3-specific features such as headers, trailers,
+and prioritization. For other application protocols, users can implement their
+own message framing and multiplexing on top of the core QUIC transport features.
+
+When initiating a TLS handshake, the client will include a list of supported
+ALPN protocols in the `ClientHello`. The server selects one of these protocols
+(if any) and includes it in the `ServerHello`. The negotiated protocol determines
+how the `QuicSession` and `QuicStream` APIs behave. For example, when the `h3`
+protocol is negotiated for HTTP/3, the `QuicSession` and `QuicStream` will support
+HTTP/3-specific features.
+
+Currently, the `quic` module only supports HTTP/3 as a built-in application protocol.
+All other protocols must be implemented by the user on top of the provided JavaScript
+API.
+
+### Configuration
+
+The QUIC API is designed to be flexible and highly configurable to support a wide
+range of use cases. Users can configure various aspects of the QUIC transport,
+TLS handshake, and application behavior via options passed to the `quic.connect()`
+and `quic.listen()` functions, as well as dynamically on `QuicEndpoint` and
+`QuicSession` instances. The API also provides access to detailed statistics and
+events for monitoring and debugging.
+
+QUIC transport parameters are exchanged during the TLS handshake to negotiate
+various transport-level settings such as maximum stream counts, idle timeouts,
+and datagram support. The `quic` module allows users to configure the transport
+parameters their endpoint advertises to peers, as well as access the transport
+parameters advertised by peers. These configure the capabilities and limits of
+the QUIC connection in coordination with the peer.
+
+A rich set of local settings is also available for configuring the behavior of
+the local endpoint and sessions. These include settings for connection limits,
+congestion control, stream prioritization, and more.
+
+### Callbacks and Promises
+
+The `quic` module uses a combination of callbacks and promises for asynchronous
+operations. For example, initiating a connection with `quic.connect()` returns
+a promise for the established session, while incoming sessions on the server
+side are handled via a callback passed to `quic.listen()`. Within a session,
+events such as incoming streams, datagrams, and session state changes are handled
+via callbacks on the `QuicSession` instance. Promises are used for operations
+that have a clear completion point, such as completion of the TLS handshake or
+graceful closure of a session.
+
+All callbacks are invoked synchronously and may either return synchronously or
+return a promise. If a callback returns a promise that rejects, or throws an error,
+the object will be destroyed with the error as the reason if an `onerror` callback
+is not specified.
+
+### Streams
+
+Streams are the primary data-carrying abstraction in QUIC. A stream can be
+initiated by either the local endpoint or the remote peer once a session is
+established.
+
+Streams can be either bidirectional (data flows in both directions) or
+unidirectional (data flows in only one direction). The `quic` module provides
+separate APIs for creating each kind:
+[`session.createBidirectionalStream()`][] and
+[`session.createUnidirectionalStream()`][]. Streams initiated by a remote
+peer are delivered via the [`session.onstream`][] callback.
+
+There are two ways to write data to a stream:
+
+* **Body source** — pass a `body` option when creating the stream (or call
+  [`stream.setBody()`][]). The body can be a string, `ArrayBuffer`,
+  `ArrayBufferView`, `Blob`, `FileHandle`, `AsyncIterable`, sync `Iterable`,
+  or `Promise` resolving to any of these. A `null` body closes the writable
+  side immediately. This is the simplest approach when the data is available
+  up front or can be expressed as an iterable.
+* **Writer** — access [`stream.writer`][] to push data incrementally. The
+  writer exposes synchronous methods (`writeSync()`, `writevSync()`,
+  `endSync()`) that return immediately, as well as async equivalents
+  (`write()`, `writev()`, `end()`) that wait for drain when backpressured.
+  `writeSync()` returns `false` when the write buffer is full; the caller
+  should wait for drain before retrying.
+
+These two approaches are mutually exclusive for a given stream.
+
+Reading is done by iterating the stream as an async iterable. Each iteration
+yields a batch of `Uint8Array` chunks:
+
+```mjs
+for await (const chunks of stream) {
+  for (const chunk of chunks) {
+    // Process each Uint8Array chunk
+  }
+}
+```
+
+Only one async iterator can be obtained per stream. The stream is also
+compatible with `node:stream/iter` utilities such as `Stream.bytes()`,
+`Stream.text()`, and `Stream.pipeTo()`.
+
+### Datagrams
+
+In addition to streams, QUIC supports unreliable datagrams ([RFC 9221][]) for
+use cases that require low-latency, best-effort messaging.
+
+Datagram support is enabled at two levels. At the QUIC transport level, both
+peers must advertise a non-zero [`maxDatagramFrameSize`][] transport parameter
+during the handshake. For HTTP/3 sessions, both peers must additionally set
+[`application.enableDatagrams`][] to `true`, which exchanges the
+`SETTINGS_H3_DATAGRAM` setting on the HTTP/3 control stream.
+
+A datagram is sent with a single call to [`session.sendDatagram()`][]. Each
+datagram must fit within a single QUIC packet — datagrams cannot be
+fragmented. The maximum payload size is determined by the peer's
+`maxDatagramFrameSize` and the path MTU. If a datagram is too large or the
+peer does not support datagrams, `sendDatagram()` returns `0n` rather than
+throwing an error.
+
+There is no guarantee of delivery. Datagrams may be lost, duplicated, or
+delivered out of order. The [`session.ondatagramstatus`][] callback reports
+whether each sent datagram was `'acknowledged'`, `'lost'`, or `'abandoned'`
+(never sent on the wire).
+
+### 0-RTT early data and session resumption
+
+QUIC supports 0-RTT early data, allowing a client that has previously connected
+to a server to send application data with its very first packet, without waiting
+for the handshake to complete. This can eliminate a full round-trip of latency on
+reconnection.
+
+Two pieces of state from a prior connection make this possible:
+
+* A **session ticket**, received via the [`session.onsessionticket`][] callback,
+  enables TLS session resumption and 0-RTT encryption. Pass it as the
+  [`sessionOptions.sessionTicket`][] option on a subsequent connection to the
+  same server.
+* An **address validation token**, received via the [`session.onnewtoken`][]
+  callback, allows the client to skip the server's address validation step
+  (avoiding a Retry round-trip). Pass it as the [`sessionOptions.token`][]
+  option.
+
+If the server accepts the session ticket, any data sent before the handshake
+completes is 0-RTT early data. On the server side, `stream.early` is `true`
+for streams carrying early data. The server can reject the 0-RTT attempt
+(for example, if its configuration has changed since the ticket was issued).
+When this happens, all streams opened during the 0-RTT phase are destroyed and
+the client's [`session.onearlyrejected`][] callback fires. The connection
+falls back to a normal 1-RTT handshake and the application can reopen streams.
+
+Early data is less secure than data sent after the handshake completes — it
+can potentially be replayed by an attacker. Applications should treat 0-RTT
+data with appropriate caution and avoid performing non-idempotent operations
+during the early data phase.
+
+### Connection lifecycle
+
+A typical client session progresses through these stages:
+
+1. Call [`quic.connect()`][] with a server address and options. This returns a
+   `QuicSession`.
+2. The TLS handshake runs automatically. `session.opened` resolves when the
+   handshake completes, providing the negotiated ALPN, cipher, and certificate
+   validation results.
+3. Open streams, send datagrams, and exchange data.
+4. Call [`session.close()`][] to initiate a graceful shutdown. Existing streams
+   are allowed to finish, then the session is destroyed. The returned promise
+   (also available as `session.closed`) resolves when teardown is complete.
+
+On the server side, call [`quic.listen()`][] with a callback. The callback
+fires for each incoming session after the TLS handshake begins. Incoming
+streams arrive via the [`session.onstream`][] callback.
+
+[`session.destroy()`][] is available for immediate teardown — all open streams
+are destroyed and the session is closed without waiting for them to finish.
+
+`QuicEndpoint` and `QuicSession` support `Symbol.asyncDispose`, so they can
+be used with `await using` for automatic cleanup.
+
+### Error handling
+
+Errors in the `quic` module are communicated through two complementary
+mechanisms: the `onerror` callback and the `closed` promise.
+
+Both `QuicSession` and `QuicStream` expose an optional `onerror` callback.
+When a session or stream is destroyed with an error — including errors thrown
+by other user callbacks — the `onerror` callback is invoked with the error
+before the object is torn down. Setting `onerror` also marks the `closed`
+promise as handled, preventing unhandled rejection warnings. If `onerror`
+is not set, the error is delivered solely through the rejection of the
+`closed` promise.
+
+The [`QuicError`][] class carries an explicit numeric QUIC error code
+([`error.errorCode`][]) alongside the usual `message` and `code` properties.
+When a `QuicError` is passed to [`stream.destroy()`][] or
+[`writer.fail()`][], its `errorCode` is used in the `RESET_STREAM` or
+`STOP_SENDING` frame sent to the peer. Any other error type falls back to
+the negotiated protocol's generic internal error code.
+
 ## `quic.connect(address[, options])`
 
 <!-- YAML
@@ -63,7 +344,7 @@ const endpoint = new QuicEndpoint({
 const client = await connect('123.123.123.123:8888', { endpoint });
 ```
 
-## `quic.listen(onsession,[options])`
+## `quic.listen(onsession[, options])`
 
 <!-- YAML
 added: v23.8.0
@@ -100,6 +381,41 @@ with either a `QuicEndpoint` or `EndpointOptions` as the argument.
 
 At most, any single `QuicEndpoint` can only be configured to listen as
 a server once.
+
+## `quic.constants`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+An object containing commonly used constants for QUIC configuration.
+
+### `quic.constants.cc`
+
+* {Object}
+
+Congestion control algorithm identifiers, for use with the
+[`sessionOptions.cc`][] option:
+
+* `quic.constants.cc.RENO` — Reno congestion control.
+* `quic.constants.cc.CUBIC` — CUBIC congestion control.
+* `quic.constants.cc.BBR` — BBR congestion control.
+
+### `quic.constants.DEFAULT_CIPHERS`
+
+* {string}
+
+The default TLS 1.3 cipher suite list used when [`sessionOptions.ciphers`][]
+is not specified.
+
+### `quic.constants.DEFAULT_GROUPS`
+
+* {string}
+
+The default TLS 1.3 key-exchange group list used when
+[`sessionOptions.groups`][] is not specified.
 
 ## Class: `QuicEndpoint`
 
@@ -206,6 +522,10 @@ True if `endpoint.destroy()` has been called. Read only.
 
 ### `endpoint.listening`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 * Type: {boolean}
 
 True if the endpoint is actively listening for incoming connections. Read only.
@@ -272,7 +592,7 @@ added: v23.8.0
 
 * Type: {quic.QuicEndpoint.Stats}
 
-The statistics collected for an active session. Read only.
+The statistics collected for an active endpoint. Read only.
 
 ### `endpoint[Symbol.asyncDispose]()`
 
@@ -378,7 +698,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number sessions rejected due to QUIC version mismatch. Read only.
+* Type: {bigint} The total number of sessions rejected due to QUIC version mismatch. Read only.
 
 ### `endpointStats.statelessResetCount`
 
@@ -412,7 +732,7 @@ added: v23.8.0
 
 * `options` {Object}
   * `code` {bigint|number} The error code to include in the `CONNECTION_CLOSE`
-    frame sent to the peer. Defaults to `0` (no error). **Default:** `0`.
+    frame sent to the peer. **Default:** `0` (no error).
   * `type` {string} Either `'transport'` or `'application'`. Determines the
     error code namespace used in the `CONNECTION_CLOSE` frame. When `'transport'`
     (the default), the frame type is `0x1c` and the code is interpreted as a QUIC
@@ -470,6 +790,17 @@ added: v23.8.0
 
 A promise that is fulfilled once the session is destroyed.
 
+### `session.closing`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+True if [`session.close()`][] has been called and the session has not yet
+been destroyed. Read only.
+
 ### `session.destroy([error[, options]])`
 
 <!-- YAML
@@ -508,11 +839,16 @@ True if `session.destroy()` has been called. Read only.
 added: v23.8.0
 -->
 
-* Type: {quic.QuicEndpoint}
+* Type: {quic.QuicEndpoint|null}
 
-The endpoint that created this session. Read only.
+The endpoint that created this session. Returns `null` if the session
+has been destroyed. Read only.
 
 ### `session.onerror`
+
+<!-- YAML
+added: REPLACEME
+-->
 
 * Type: {Function|undefined}
 
@@ -557,6 +893,10 @@ added: v23.8.0
 The callback to invoke when the status of a datagram is updated. Read/write.
 
 ### `session.onearlyrejected`
+
+<!-- YAML
+added: REPLACEME
+-->
 
 * Type: {Function|undefined}
 
@@ -757,6 +1097,10 @@ added: v23.8.0
     interleaved with data from other streams of the same priority level.
     When `false`, the stream should be completed before same-priority peers.
     **Default:** `false`.
+  * `highWaterMark` {number} The maximum number of bytes that the writer
+    will buffer before `writeSync()` returns `false`. When the buffered
+    data exceeds this limit, the caller should wait for drain before
+    writing more. **Default:** `65536` (64 KB).
   * `onheaders` {Function} Callback for received initial response headers.
     Called with `(headers)`.
   * `ontrailers` {Function} Callback for received trailing headers.
@@ -1315,6 +1659,10 @@ the implementation falls back to the negotiated application protocol's
 
 ### `stream.early`
 
+<!-- YAML
+added: REPLACEME
+-->
+
 * Type: {boolean}
 
 True if any data on this stream was received as 0-RTT (early data)
@@ -1331,9 +1679,10 @@ side, it is always `false`.
 added: v23.8.0
 -->
 
-* Type: {string} One of either `'bidi'` or `'uni'`.
+* Type: {string|null} One of `'bidi'`, `'uni'`, or `null`.
 
-The directionality of the stream. Read only.
+The directionality of the stream, or `null` if the stream has been destroyed
+or is still pending. Read only.
 
 ### `stream.highWaterMark`
 
@@ -1345,8 +1694,7 @@ added: REPLACEME
 
 The maximum number of bytes that the writer will buffer before
 `writeSync()` returns `false`. When the buffered data exceeds this limit,
-the caller should wait for the `drainableProtocol` promise to resolve
-before writing more.
+the caller should wait for drain before writing more.
 
 The value can be changed dynamically at any time. This is particularly
 useful for streams received via the `onstream` callback, where the
@@ -1359,11 +1707,16 @@ The valid range is `0` to `4294967295`.
 added: v23.8.0
 -->
 
-* Type: {bigint}
+* Type: {bigint|null}
 
-The stream ID. Read only.
+The stream ID, or `null` if the stream has been destroyed or is still
+pending. Read only.
 
 ### `stream.onerror`
+
+<!-- YAML
+added: REPLACEME
+-->
 
 * Type: {Function|undefined}
 
@@ -1694,9 +2047,10 @@ the writer has been accessed.
 added: v23.8.0
 -->
 
-* Type: {quic.QuicSession}
+* Type: {quic.QuicSession|null}
 
-The session that created this stream. Read only.
+The session that created this stream, or `null` if the stream has been
+destroyed. Read only.
 
 ### `stream.stats`
 
@@ -1842,7 +2196,7 @@ added: v23.8.0
 
 The endpoint maintains an internal cache of validated socket addresses as a
 performance optimization. This option sets the maximum number of addresses
-that are cache. This is an advanced option that users typically won't have
+that are cached. This is an advanced option that users typically won't have
 need to specify.
 
 #### `endpointOptions.disableStatelessReset`
@@ -2125,8 +2479,8 @@ added: v23.8.0
 
 * Type: {string}
 
-Specifies the congestion control algorithm that will be used
-. Must be set to one of either `'reno'`, `'cubic'`, or `'bbr'`.
+Specifies the congestion control algorithm that will be used.
+Must be set to one of either `'reno'`, `'cubic'`, or `'bbr'`.
 
 This is an advanced option that users typically won't have need to specify.
 
@@ -2183,7 +2537,7 @@ added: v23.8.0
 
 * Type: {string}
 
-The list of support TLS 1.3 cipher groups.
+The list of supported TLS 1.3 cipher groups.
 
 #### `sessionOptions.keylog`
 
@@ -2763,14 +3117,19 @@ added: v23.8.0
 -->
 
 * `this` {quic.QuicSession}
-* `sni` {string}
-* `alpn` {string}
-* `cipher` {string}
-* `cipherVersion` {string}
-* `validationErrorReason` {string}
-* `validationErrorCode` {number}
-* `earlyDataAttempted` {boolean}
-* `earlyDataAccepted` {boolean}
+* `info` {Object} The same object that `session.opened` resolves with.
+  * `local` {net.SocketAddress} The local socket address.
+  * `remote` {net.SocketAddress} The remote socket address.
+  * `servername` {string} The SNI server name negotiated during the handshake.
+  * `protocol` {string} The ALPN protocol negotiated during the handshake.
+  * `cipher` {string} The name of the negotiated TLS cipher suite.
+  * `cipherVersion` {string} The TLS protocol version of the cipher suite.
+  * `validationErrorReason` {string} If certificate validation failed, the
+    reason string. Empty string if validation succeeded.
+  * `validationErrorCode` {number} If certificate validation failed, the
+    error code. `0` if validation succeeded.
+  * `earlyDataAttempted` {boolean} Whether 0-RTT early data was attempted.
+  * `earlyDataAccepted` {boolean} Whether 0-RTT early data was accepted.
 
 ### Callback: `OnNewTokenCallback`
 
@@ -2946,8 +3305,10 @@ const stream = await session.createBidirectionalStream({
 });
 
 const decoder = new TextDecoder();
-for await (const chunk of stream) {
-  process.stdout.write(decoder.decode(chunk, { stream: true }));
+for await (const chunks of stream) {
+  for (const chunk of chunks) {
+    process.stdout.write(decoder.decode(chunk, { stream: true }));
+  }
 }
 
 await session.close();
@@ -2962,8 +3323,8 @@ A few things to note:
   regular headers in a single object with lowercase string keys.
   After the callback returns, the same object is also accessible
   via [`stream.headers`][].
-* Reading `for await (const chunk of stream)` consumes the response
-  body as `Uint8Array` chunks.
+* Reading `for await (const chunks of stream)` consumes the response
+  body. Each iteration yields a `Uint8Array[]` batch of chunks.
 * HTTP semantic helpers (URL parsing, method/status validation,
   redirects, content negotiation, and so on) are intentionally not
   built in. The caller is responsible for any HTTP-level handling
@@ -3507,6 +3868,23 @@ throughput issues caused by flow control.
 [Callback error handling]: #callback-error-handling
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
+[RFC 8999]: https://www.rfc-editor.org/rfc/rfc8999
+[RFC 9000]: https://www.rfc-editor.org/rfc/rfc9000
+[RFC 9001]: https://www.rfc-editor.org/rfc/rfc9001
+[RFC 9002]: https://www.rfc-editor.org/rfc/rfc9002
+[RFC 9114]: https://www.rfc-editor.org/rfc/rfc9114
+[RFC 9204]: https://www.rfc-editor.org/rfc/rfc9204
+[RFC 9218]: https://www.rfc-editor.org/rfc/rfc9218
+[RFC 9220]: https://www.rfc-editor.org/rfc/rfc9220
+[RFC 9221]: https://www.rfc-editor.org/rfc/rfc9221
+[RFC 9287]: https://www.rfc-editor.org/rfc/rfc9287
+[RFC 9297]: https://www.rfc-editor.org/rfc/rfc9297
+[RFC 9308]: https://www.rfc-editor.org/rfc/rfc9308
+[RFC 9312]: https://www.rfc-editor.org/rfc/rfc9312
+[RFC 9368]: https://www.rfc-editor.org/rfc/rfc9368
+[RFC 9369]: https://www.rfc-editor.org/rfc/rfc9369
+[RFC 9412]: https://www.rfc-editor.org/rfc/rfc9412
+[RFC 9443]: https://www.rfc-editor.org/rfc/rfc9443
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
 [`QuicError`]: #class-quicerror
@@ -3517,23 +3895,35 @@ throughput issues caused by flow control.
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
+[`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
 [`quic.connect()`]: #quicconnectaddress-options
-[`quic.listen()`]: #quiclistencallback-options
+[`quic.listen()`]: #quiclistenonsession-options
 [`session.close()`]: #sessioncloseoptions
+[`session.createBidirectionalStream()`]: #sessioncreatebidirectionalstreamoptions
+[`session.createUnidirectionalStream()`]: #sessioncreateunidirectionalstreamoptions
 [`session.destroy()`]: #sessiondestroyerror-options
 [`session.maxPendingDatagrams`]: #sessionmaxpendingdatagrams
 [`session.ondatagram`]: #sessionondatagram
+[`session.ondatagramstatus`]: #sessionondatagramstatus
+[`session.onearlyrejected`]: #sessiononearlyrejected
 [`session.onerror`]: #sessiononerror
 [`session.ongoaway`]: #sessionongoaway
 [`session.onkeylog`]: #sessiononkeylog
 [`session.onnewtoken`]: #sessiononnewtoken
 [`session.onorigin`]: #sessiononorigin
 [`session.onqlog`]: #sessiononqlog
+[`session.onsessionticket`]: #sessiononsessionticket
+[`session.onstream`]: #sessiononstream
 [`session.sendDatagram()`]: #sessionsenddatagramdatagram-encoding
+[`sessionOptions.cc`]: #sessionoptionscc
+[`sessionOptions.ciphers`]: #sessionoptionsciphers
 [`sessionOptions.datagramDropPolicy`]: #sessionoptionsdatagramdroppolicy
+[`sessionOptions.groups`]: #sessionoptionsgroups
 [`sessionOptions.keylog`]: #sessionoptionskeylog
 [`sessionOptions.qlog`]: #sessionoptionsqlog
+[`sessionOptions.sessionTicket`]: #sessionoptionssessionticket
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
+[`sessionOptions.token`]: #sessionoptionstoken-client-only
 [`stream.destroy()`]: #streamdestroyerror-options
 [`stream.headers`]: #streamheaders
 [`stream.onerror`]: #streamonerror
