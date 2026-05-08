@@ -107,7 +107,7 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['deriveKey', 'deriveBits'] },
   ];
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     asymmetric.push({
       algorithm: { name: 'ML-DSA-65' },
       usages: ['verify', 'sign', 'verify', 'sign'],
@@ -122,7 +122,7 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['decapsulateKey', 'decapsulateBits'],
     });
   } else {
-    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5');
+    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5 or BoringSSL');
   }
 
   for (const { algorithm, usages, publicExpected, privateExpected } of asymmetric) {
@@ -289,7 +289,7 @@ function assertSameSet(actual, expected, msg) {
     assert.deepStrictEqual(imported.usages, ['sign']);
   })());
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     // ML-DSA JWK roundtrip.
     tests.push((async () => {
       const { privateKey } = await subtle.generateKey(
@@ -315,7 +315,7 @@ function assertSameSet(actual, expected, msg) {
                              ['decapsulateKey', 'decapsulateBits']);
     })());
   } else {
-    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5');
+    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5 or BoringSSL');
   }
 
   // Spki import of RSA public key.
@@ -491,7 +491,7 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['deriveKey', 'deriveBits'] },
   ];
 
-  if (hasOpenSSL(3, 5)) {
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
     jwkPairVectors.push({
       algorithm: { name: 'ML-DSA-65' },
       usages: ['verify', 'sign', 'verify', 'sign'],
@@ -506,7 +506,7 @@ function assertSameSet(actual, expected, msg) {
       privateExpected: ['decapsulateKey', 'decapsulateBits'],
     });
   } else {
-    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5');
+    common.printSkipMessage('ML-DSA and ML-KEM require OpenSSL >= 3.5 or BoringSSL');
   }
 
   for (const { algorithm, usages, publicExpected, privateExpected } of jwkPairVectors) {

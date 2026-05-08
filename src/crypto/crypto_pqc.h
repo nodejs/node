@@ -18,10 +18,19 @@ KeyObjectData ImportJWKPqcKey(Environment* env, v8::Local<v8::Object> jwk);
 
 // Returns true for PQC algorithms that support raw private key export/import.
 bool IsPqcRawPrivateKeyId(int id);
+// Returns true if the given EVP_PKEY id is a PQC algorithm known to Node.
+bool IsPqcKeyId(int id);
 // Returns true for PQC algorithms that carry the private key as a seed
 // (ML-DSA, ML-KEM). Returns false for algorithms that use the expanded
 // private key (SLH-DSA), or for non-PQC ids.
 bool IsPqcSeedKeyId(int id);
+// Returns true for PQC signature algorithms (ML-DSA, SLH-DSA). Returns false
+// for ML-KEM or for non-PQC ids.
+bool IsPqcSignatureKeyId(int id);
+// Returns the EVP_PKEY id for the given PQC algorithm name, or NID_undef.
+int GetPqcNidFromName(const char* name);
+// Returns the JS asymmetricKeyType string for a PQC id, or undefined.
+v8::Local<v8::Value> GetPqcAsymmetricKeyType(Environment* env, int id);
 #endif
 }  // namespace crypto
 }  // namespace node

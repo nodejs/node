@@ -45,7 +45,7 @@ if (!hasOpenSSL(3, 2)) {
     'import_export/Argon2_importKey.tentative.https.any.js');
 }
 
-if (!hasOpenSSL(3, 5)) {
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
   skip(
     'encap_decap/encap_decap_bits.tentative.https.any.js',
     'encap_decap/encap_decap_keys.tentative.https.any.js',
@@ -77,6 +77,13 @@ if (process.features.openssl_is_boringssl) {
     'import_export/okp_importKey_X448.tentative.https.any.js',
     'sign_verify/eddsa_curve448.tentative.https.any.js');
 
+  skipSubtests(
+    ['encap_decap/encap_decap_bits.tentative.https.any.js', /ml-kem-512/i],
+    ['encap_decap/encap_decap_keys.tentative.https.any.js', /ml-kem-512/i],
+    ['generateKey/failures_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
+    ['generateKey/successes_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
+    ['import_export/ML-KEM_importKey.tentative.https.any.js', /ml-kem-512/i],
+    ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
 }
 
 function assertNoOverlap(fileSkips, subtestSkips) {
