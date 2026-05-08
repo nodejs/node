@@ -902,7 +902,7 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 void ngtcp2_qlog_parameters_set_transport_params(
   ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
   ngtcp2_qlog_side side) {
-  uint8_t buf[1024];
+  uint8_t buf[2048];
   uint8_t *p = buf;
   const ngtcp2_preferred_addr *paddr;
   const ngtcp2_sockaddr_in *sa_in;
