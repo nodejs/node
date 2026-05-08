@@ -2175,8 +2175,6 @@ setTimeout(() => {}, 1000);
 The following example measures the duration of `require()` operations to load
 dependencies:
 
-<!-- eslint-disable no-global-assign -->
-
 ```mjs
 import { performance, PerformanceObserver } from 'node:perf_hooks';
 

@@ -4303,10 +4303,8 @@ Accept: text/plain
 
 Then `request.url` will be:
 
-<!-- eslint-disable @stylistic/js/semi -->
-
-```js
-'/status?name=ryan'
+```json
+"/status?name=ryan"
 ```
 
 To parse the url into its parts, `new URL()` can be used:

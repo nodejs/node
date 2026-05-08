@@ -3658,8 +3658,6 @@ of the four basic stream classes (`stream.Writable`, `stream.Readable`,
 `stream.Duplex`, or `stream.Transform`), making sure they call the appropriate
 parent class constructor:
 
-<!-- eslint-disable no-useless-constructor -->
-
 ```js
 const { Writable } = require('node:stream');
 

@@ -132,8 +132,6 @@ make test-ci
 
 Also running
 
-<!-- eslint-disable strict -->
-
 ```js
 new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 ```
@@ -158,8 +156,6 @@ make
 ```
 
 * Test this newly default-generated Node.js
-
-<!-- eslint-disable strict -->
 
 ```js
 process.versions.icu;
