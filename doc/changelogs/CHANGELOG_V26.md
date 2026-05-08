@@ -403,17 +403,21 @@ Undici has been updated to version 8.0.2, bringing new features and improvements
 #### Deprecations and Removals
 
 * \[[`dff46c07c3`](https://github.com/nodejs/node/commit/dff46c07c3)] - **(SEMVER-MAJOR)** **crypto**: move DEP0182 to End-of-Life (Tobias Nießen) [#61084](https://github.com/nodejs/node/pull/61084)
+
 * \[[`93c25815ee`](https://github.com/nodejs/node/commit/93c25815ee)] - **(SEMVER-MAJOR)** **http**: move writeHeader to end-of-life (Sebastian Beltran) [#60635](https://github.com/nodejs/node/pull/60635)
 
-`http.Server.prototype.writeHeader()` is now fully removed. Use `http.Server.prototype.writeHead()` instead.
+  `http.Server.prototype.writeHeader()` is now fully removed. Use `http.Server.prototype.writeHead()` instead.
 
 * \[[`c755b0113c`](https://github.com/nodejs/node/commit/c755b0113c)] - **(SEMVER-MAJOR)** **stream**: move \_stream\_\* to end-of-life (Sebastian Beltran) [#60657](https://github.com/nodejs/node/pull/60657)
 
-The legacy `_stream_wrap`, `_stream_readable`, `_stream_writable`, `_stream_duplex`, `_stream_transform`, and `_stream_passthrough` modules are now fully removed.
+  The legacy `_stream_wrap`, `_stream_readable`, `_stream_writable`, `_stream_duplex`, `_stream_transform`, and `_stream_passthrough` modules are now fully removed.
 
 * \[[`adac077484`](https://github.com/nodejs/node/commit/adac077484)] - **(SEMVER-MAJOR)** **crypto**: runtime-deprecate DEP0203 and DEP0204 (Filip Skokan) [#62453](https://github.com/nodejs/node/pull/62453)
+
 * \[[`ac6375417a`](https://github.com/nodejs/node/commit/ac6375417a)] - **(SEMVER-MAJOR)** **stream**: promote DEP0201 to runtime deprecation (René) [#62173](https://github.com/nodejs/node/pull/62173)
+
 * \[[`98907f560f`](https://github.com/nodejs/node/commit/98907f560f)] - **(SEMVER-MAJOR)** **module**: runtime-deprecate module.register() (Geoffrey Booth) [#62401](https://github.com/nodejs/node/pull/62401)
+
 * \[[`89f4b6cddb`](https://github.com/nodejs/node/commit/89f4b6cddb)] - **(SEMVER-MAJOR)** **module**: remove --experimental-transform-types (Marco Ippolito) [#61803](https://github.com/nodejs/node/pull/61803)
 
 ### Semver-Major Commits
