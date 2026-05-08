@@ -58,7 +58,7 @@
 #define OPENSSL_WITH_ARGON2 0
 #endif
 
-#if OPENSSL_VERSION_PREREQ(3, 0)
+#if OPENSSL_VERSION_PREREQ(3, 0) || defined(OPENSSL_IS_BORINGSSL)
 #define OPENSSL_WITH_KEM 1
 #else
 #define OPENSSL_WITH_KEM 0
@@ -70,7 +70,7 @@
 #define OPENSSL_WITH_KMAC 0
 #endif
 
-#if OPENSSL_VERSION_PREREQ(3, 2)
+#if defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_PREREQ(3, 2)
 #define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 1
 #else
 #define OPENSSL_WITH_SIGNATURE_CONTEXT_STRING 0
@@ -82,24 +82,40 @@
 #define OPENSSL_WITH_OPENSSL_DHKEM 0
 #endif
 
-#if OPENSSL_WITH_KEM && !OPENSSL_VERSION_PREREQ(3, 5)
+#if OPENSSL_WITH_KEM && !defined(OPENSSL_IS_BORINGSSL) &&                      \
+    !OPENSSL_VERSION_PREREQ(3, 5)
 #define OPENSSL_WITH_KEM_OPERATION_PARAM 1
 #else
 #define OPENSSL_WITH_KEM_OPERATION_PARAM 0
 #endif
 
-// Define OPENSSL_WITH_PQC for post-quantum cryptography support.
-#if OPENSSL_VERSION_PREREQ(3, 5)
-#define OPENSSL_WITH_PQC 1
+// Post-quantum cryptography support. Keep these explicit so code can
+// distinguish provider API shape from the available algorithm set.
+#if !defined(OPENSSL_IS_BORINGSSL) && OPENSSL_VERSION_PREREQ(3, 5)
+#define OPENSSL_WITH_OPENSSL_PQC 1
 #else
-#define OPENSSL_WITH_PQC 0
+#define OPENSSL_WITH_OPENSSL_PQC 0
 #endif
 
-#if OPENSSL_WITH_PQC
+#ifdef OPENSSL_IS_BORINGSSL
+#define OPENSSL_WITH_BORINGSSL_PQC 1
+#else
+#define OPENSSL_WITH_BORINGSSL_PQC 0
+#endif
+
+#define OPENSSL_WITH_PQC                                                       \
+  (OPENSSL_WITH_OPENSSL_PQC || OPENSSL_WITH_BORINGSSL_PQC)
+#define OPENSSL_WITH_PQC_ML_KEM_512 OPENSSL_WITH_OPENSSL_PQC
+#define OPENSSL_WITH_PQC_SLH_DSA OPENSSL_WITH_OPENSSL_PQC
+
+#if OPENSSL_WITH_OPENSSL_PQC
 #define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
 #define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
 #define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #include <openssl/core_names.h>
+#elif OPENSSL_WITH_BORINGSSL_PQC
+#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
+#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
 #endif
 
 #if OPENSSL_VERSION_PREREQ(3, 0)

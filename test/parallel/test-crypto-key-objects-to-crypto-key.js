@@ -195,7 +195,7 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
   }
 }
 
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     const { publicKey, privateKey } = generateKeyPairSync(name.toLowerCase());
     assert.throws(() => {

@@ -76,7 +76,7 @@ const { privateKey } = await subtle.generateKey(
 
 await subtle.getPublicKey(privateKey, ['verify']);
 
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   const kemPair = await subtle.generateKey(
     { name: 'ML-KEM-768' }, false,
     ['encapsulateKey', 'encapsulateBits', 'decapsulateKey', 'decapsulateBits']);
