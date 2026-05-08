@@ -669,3 +669,127 @@ describe('globSync - ENOTDIR', function() {
     }
   });
 });
+
+const dotFixtureDir = tmpdir.resolve('dotfixtures');
+async function setupDotFixtures() {
+  const files = [
+    'lib/visible.js',
+    'lib/.hidden.js',
+    'lib/sub/visible.js',
+    'lib/sub/.hidden.js',
+    'lib/.dotdir/regular.js',
+    'lib/.dotdir/sub/deep.js',
+  ];
+  for (const f of files) {
+    const full = resolve(dotFixtureDir, f);
+    await mkdir(dirname(full), { recursive: true });
+    await writeFile(full, '');
+  }
+}
+await setupDotFixtures();
+
+const dotExpectedWithDot = [
+  'lib',
+  'lib/.dotdir',
+  'lib/.dotdir/regular.js',
+  'lib/.dotdir/sub',
+  'lib/.dotdir/sub/deep.js',
+  'lib/.hidden.js',
+  'lib/sub',
+  'lib/sub/.hidden.js',
+  'lib/sub/visible.js',
+  'lib/visible.js',
+];
+const dotExpectedWithoutDot = [
+  'lib',
+  'lib/sub',
+  'lib/sub/visible.js',
+  'lib/visible.js',
+];
+const dotStarExpectedWithDot = [
+  'lib/.hidden.js',
+  'lib/visible.js',
+];
+const dotStarExpectedWithoutDot = [
+  'lib/visible.js',
+];
+
+describe('glob - dot', function() {
+  const promisified = promisify(glob);
+
+  test('does not match dotfiles by default', async () => {
+    const actual = (await promisified('lib/**', { cwd: dotFixtureDir })).sort();
+    assert.deepStrictEqual(actual, dotExpectedWithoutDot);
+  });
+
+  test('matches dotfiles and traverses dot-dirs when enabled', async () => {
+    const actual = (await promisified('lib/**', {
+      cwd: dotFixtureDir,
+      dot: true,
+    })).sort();
+    assert.deepStrictEqual(actual, dotExpectedWithDot);
+  });
+
+  test('respects dot option for STAR patterns', async () => {
+    const actual = (await promisified('lib/*.js', {
+      cwd: dotFixtureDir,
+      dot: true,
+    })).sort();
+    assert.deepStrictEqual(actual, dotStarExpectedWithDot);
+  });
+});
+
+describe('globSync - dot', function() {
+  test('does not match dotfiles by default', () => {
+    const actual = globSync('lib/**', { cwd: dotFixtureDir }).sort();
+    assert.deepStrictEqual(actual, dotExpectedWithoutDot);
+  });
+
+  test('validates dot', () => {
+    assert.throws(() => {
+      globSync('lib/**', { cwd: dotFixtureDir, dot: 1 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('matches dotfiles and traverses dot-dirs when enabled', () => {
+    const actual = globSync('lib/**', {
+      cwd: dotFixtureDir,
+      dot: true,
+    }).sort();
+    assert.deepStrictEqual(actual, dotExpectedWithDot);
+  });
+
+  test('respects dot option for STAR patterns', () => {
+    const actual = globSync('lib/*.js', {
+      cwd: dotFixtureDir,
+      dot: true,
+    }).sort();
+    assert.deepStrictEqual(actual, dotStarExpectedWithDot);
+  });
+
+  test('STAR patterns drop dotfiles by default', () => {
+    const actual = globSync('lib/*.js', { cwd: dotFixtureDir }).sort();
+    assert.deepStrictEqual(actual, dotStarExpectedWithoutDot);
+  });
+});
+
+describe('fsPromises glob - dot', function() {
+  test('does not match dotfiles by default', async () => {
+    const actual = [];
+    for await (const item of asyncGlob('lib/**', { cwd: dotFixtureDir })) actual.push(item);
+    actual.sort();
+    assert.deepStrictEqual(actual, dotExpectedWithoutDot);
+  });
+
+  test('matches dotfiles and traverses dot-dirs when enabled', async () => {
+    const actual = [];
+    for await (const item of asyncGlob('lib/**', {
+      cwd: dotFixtureDir,
+      dot: true,
+    })) actual.push(item);
+    actual.sort();
+    assert.deepStrictEqual(actual, dotExpectedWithDot);
+  });
+});

@@ -1356,6 +1356,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63205
+    description: Add support for the `dot` option.
   - version:
      - v26.1.0
      - v24.16.0
@@ -1384,6 +1387,10 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `dot` {boolean} When `true`, allows `*` and `**` patterns to match
+    basenames starting with a period (`.`), and allows the walker to
+    descend into directories whose names start with a period. **Default:**
+    `false`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3479,6 +3486,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63205
+    description: Add support for the `dot` option.
   - version:
      - v26.1.0
      - v24.16.0
@@ -3508,6 +3518,10 @@ changes:
 
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `dot` {boolean} When `true`, allows `*` and `**` patterns to match
+    basenames starting with a period (`.`), and allows the walker to
+    descend into directories whose names start with a period. **Default:**
+    `false`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -6073,6 +6087,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63205
+    description: Add support for the `dot` option.
   - version:
      - v26.1.0
      - v24.16.0
@@ -6101,6 +6118,10 @@ changes:
 * `pattern` {string|string\[]}
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  * `dot` {boolean} When `true`, allows `*` and `**` patterns to match
+    basenames starting with a period (`.`), and allows the walker to
+    descend into directories whose names start with a period. **Default:**
+    `false`.
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
