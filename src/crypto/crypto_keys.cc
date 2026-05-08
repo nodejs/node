@@ -177,7 +177,11 @@ bool ExportJWKAsymmetricKey(Environment* env,
                             const KeyObjectData& key,
                             Local<Object> target,
                             bool handleRsaPss) {
-  switch (key.GetAsymmetricKey().id()) {
+  const int id = key.GetAsymmetricKey().id();
+#if OPENSSL_WITH_PQC
+  if (IsPqcKeyId(id)) return ExportJwkPqcKey(env, key, target);
+#endif
+  switch (id) {
     case EVP_PKEY_RSA_PSS: {
       if (handleRsaPss) return ExportJWKRsaKey(env, key, target);
       break;
@@ -187,51 +191,10 @@ bool ExportJWKAsymmetricKey(Environment* env,
     case EVP_PKEY_EC:
       return ExportJWKEcKey(env, key, target);
     case EVP_PKEY_ED25519:
-      // Fall through
     case EVP_PKEY_ED448:
-      // Fall through
     case EVP_PKEY_X25519:
-      // Fall through
     case EVP_PKEY_X448:
       return ExportJWKEdKey(env, key, target);
-#if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-      // Fall through
-    case EVP_PKEY_ML_DSA_65:
-      // Fall through
-    case EVP_PKEY_ML_DSA_87:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      // Fall through
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
-      // Fall through
-    case EVP_PKEY_ML_KEM_512:
-      // Fall through
-    case EVP_PKEY_ML_KEM_768:
-      // Fall through
-    case EVP_PKEY_ML_KEM_1024:
-      return ExportJwkPqcKey(env, key, target);
-#endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
   return false;
@@ -306,35 +269,19 @@ int GetNidFromName(const char* name) {
     const char* name;
     int nid;
   } kNameToNid[] = {
-    {"Ed25519", EVP_PKEY_ED25519},
-    {"Ed448", EVP_PKEY_ED448},
-    {"X25519", EVP_PKEY_X25519},
-    {"X448", EVP_PKEY_X448},
-#if OPENSSL_WITH_PQC
-    {"ML-DSA-44", EVP_PKEY_ML_DSA_44},
-    {"ML-DSA-65", EVP_PKEY_ML_DSA_65},
-    {"ML-DSA-87", EVP_PKEY_ML_DSA_87},
-    {"ML-KEM-512", EVP_PKEY_ML_KEM_512},
-    {"ML-KEM-768", EVP_PKEY_ML_KEM_768},
-    {"ML-KEM-1024", EVP_PKEY_ML_KEM_1024},
-    {"SLH-DSA-SHA2-128f", EVP_PKEY_SLH_DSA_SHA2_128F},
-    {"SLH-DSA-SHA2-128s", EVP_PKEY_SLH_DSA_SHA2_128S},
-    {"SLH-DSA-SHA2-192f", EVP_PKEY_SLH_DSA_SHA2_192F},
-    {"SLH-DSA-SHA2-192s", EVP_PKEY_SLH_DSA_SHA2_192S},
-    {"SLH-DSA-SHA2-256f", EVP_PKEY_SLH_DSA_SHA2_256F},
-    {"SLH-DSA-SHA2-256s", EVP_PKEY_SLH_DSA_SHA2_256S},
-    {"SLH-DSA-SHAKE-128f", EVP_PKEY_SLH_DSA_SHAKE_128F},
-    {"SLH-DSA-SHAKE-128s", EVP_PKEY_SLH_DSA_SHAKE_128S},
-    {"SLH-DSA-SHAKE-192f", EVP_PKEY_SLH_DSA_SHAKE_192F},
-    {"SLH-DSA-SHAKE-192s", EVP_PKEY_SLH_DSA_SHAKE_192S},
-    {"SLH-DSA-SHAKE-256f", EVP_PKEY_SLH_DSA_SHAKE_256F},
-    {"SLH-DSA-SHAKE-256s", EVP_PKEY_SLH_DSA_SHAKE_256S},
-#endif
+      {"Ed25519", EVP_PKEY_ED25519},
+      {"Ed448", EVP_PKEY_ED448},
+      {"X25519", EVP_PKEY_X25519},
+      {"X448", EVP_PKEY_X448},
   };
   for (const auto& entry : kNameToNid) {
     if (StringEqualNoCase(name, entry.name)) return entry.nid;
   }
+#if OPENSSL_WITH_PQC
+  return GetPqcNidFromName(name);
+#else
   return NID_undef;
+#endif
 }
 
 bool IsUnavailablePqcKeyType(Environment* env, Local<String> key_type) {
@@ -442,35 +389,15 @@ bool KeyObjectData::ToEncodedPublicKey(
       const auto point = ECKeyPointer::GetPublicKey(ec_key);
       return ECPointToBuffer(env, group, point, form).ToLocal(out);
     }
-    switch (pkey.id()) {
-      case EVP_PKEY_ED25519:
-      case EVP_PKEY_ED448:
-      case EVP_PKEY_X25519:
-      case EVP_PKEY_X448:
+    const int id = pkey.id();
+    bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                            id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-      case EVP_PKEY_ML_DSA_44:
-      case EVP_PKEY_ML_DSA_65:
-      case EVP_PKEY_ML_DSA_87:
-      case EVP_PKEY_ML_KEM_512:
-      case EVP_PKEY_ML_KEM_768:
-      case EVP_PKEY_ML_KEM_1024:
-      case EVP_PKEY_SLH_DSA_SHA2_128F:
-      case EVP_PKEY_SLH_DSA_SHA2_128S:
-      case EVP_PKEY_SLH_DSA_SHA2_192F:
-      case EVP_PKEY_SLH_DSA_SHA2_192S:
-      case EVP_PKEY_SLH_DSA_SHA2_256F:
-      case EVP_PKEY_SLH_DSA_SHA2_256S:
-      case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      case EVP_PKEY_SLH_DSA_SHAKE_256S:
+    is_raw_supported = is_raw_supported || IsPqcKeyId(id);
 #endif
-        break;
-      default:
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-        return false;
+    if (!is_raw_supported) {
+      THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      return false;
     }
     auto raw_data = pkey.rawPublicKey();
     if (!raw_data) {
@@ -517,29 +444,15 @@ bool KeyObjectData::ToEncodedPrivateKey(
       }
       return Buffer::Copy(env, buf.get<const char>(), buf.size()).ToLocal(out);
     }
-    switch (pkey.id()) {
-      case EVP_PKEY_ED25519:
-      case EVP_PKEY_ED448:
-      case EVP_PKEY_X25519:
-      case EVP_PKEY_X448:
+    const int id = pkey.id();
+    bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                            id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-      case EVP_PKEY_SLH_DSA_SHA2_128F:
-      case EVP_PKEY_SLH_DSA_SHA2_128S:
-      case EVP_PKEY_SLH_DSA_SHA2_192F:
-      case EVP_PKEY_SLH_DSA_SHA2_192S:
-      case EVP_PKEY_SLH_DSA_SHA2_256F:
-      case EVP_PKEY_SLH_DSA_SHA2_256S:
-      case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      case EVP_PKEY_SLH_DSA_SHAKE_256S:
+    is_raw_supported = is_raw_supported || IsPqcRawPrivateKeyId(id);
 #endif
-        break;
-      default:
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-        return false;
+    if (!is_raw_supported) {
+      THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      return false;
     }
     auto raw_data = pkey.rawPrivateKey();
     if (!raw_data) {
@@ -549,23 +462,13 @@ bool KeyObjectData::ToEncodedPrivateKey(
     return Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
         .ToLocal(out);
   } else if (config.format == EVPKeyPointer::PKFormatType::RAW_SEED) {
+#if OPENSSL_WITH_PQC
     Mutex::ScopedLock lock(mutex());
     const auto& pkey = GetAsymmetricKey();
-    switch (pkey.id()) {
-#if OPENSSL_WITH_PQC
-      case EVP_PKEY_ML_DSA_44:
-      case EVP_PKEY_ML_DSA_65:
-      case EVP_PKEY_ML_DSA_87:
-      case EVP_PKEY_ML_KEM_512:
-      case EVP_PKEY_ML_KEM_768:
-      case EVP_PKEY_ML_KEM_1024:
-        break;
-#endif
-      default:
-        THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
-        return false;
+    if (!IsPqcSeedKeyId(pkey.id())) {
+      THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+      return false;
     }
-#if OPENSSL_WITH_PQC
     auto raw_data = pkey.rawSeed();
     if (!raw_data) {
       THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw seed");
@@ -738,33 +641,17 @@ static KeyObjectData ImportRawKey(Environment* env,
       fn = target_type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
                                           : EVPKeyPointer::NewRawPublic;
       break;
-#if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-      fn = target_type == kKeyTypePrivate ? EVPKeyPointer::NewRawSeed
-                                          : EVPKeyPointer::NewRawPublic;
-      break;
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
-      fn = target_type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
-                                          : EVPKeyPointer::NewRawPublic;
-      break;
-#endif
     default:
+#if OPENSSL_WITH_PQC
+      if (IsPqcKeyId(id)) {
+        if (target_type == kKeyTypePrivate) {
+          fn = IsPqcSeedKeyId(id) ? EVPKeyPointer::NewRawSeed
+                                  : EVPKeyPointer::NewRawPrivate;
+        } else {
+          fn = EVPKeyPointer::NewRawPublic;
+        }
+      }
+#endif
       break;
   }
 
@@ -1377,45 +1264,12 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
     case EVP_PKEY_X448:
       return env()->crypto_x448_string();
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-      return env()->crypto_ml_dsa_44_string();
-    case EVP_PKEY_ML_DSA_65:
-      return env()->crypto_ml_dsa_65_string();
-    case EVP_PKEY_ML_DSA_87:
-      return env()->crypto_ml_dsa_87_string();
-    case EVP_PKEY_ML_KEM_512:
-      return env()->crypto_ml_kem_512_string();
-    case EVP_PKEY_ML_KEM_768:
-      return env()->crypto_ml_kem_768_string();
-    case EVP_PKEY_ML_KEM_1024:
-      return env()->crypto_ml_kem_1024_string();
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-      return env()->crypto_slh_dsa_sha2_128f_string();
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-      return env()->crypto_slh_dsa_sha2_128s_string();
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-      return env()->crypto_slh_dsa_sha2_192f_string();
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-      return env()->crypto_slh_dsa_sha2_192s_string();
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-      return env()->crypto_slh_dsa_sha2_256f_string();
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-      return env()->crypto_slh_dsa_sha2_256s_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-      return env()->crypto_slh_dsa_shake_128f_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-      return env()->crypto_slh_dsa_shake_128s_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-      return env()->crypto_slh_dsa_shake_192f_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-      return env()->crypto_slh_dsa_shake_192s_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-      return env()->crypto_slh_dsa_shake_256f_string();
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
-      return env()->crypto_slh_dsa_shake_256s_string();
-#endif
+    default:
+      return GetPqcAsymmetricKeyType(env(), data_.GetAsymmetricKey().id());
+#else
     default:
       return Undefined(env()->isolate());
+#endif
   }
 }
 
@@ -1524,34 +1378,14 @@ void KeyObjectHandle::RawPublicKey(
   Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
-  switch (pkey.id()) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
-    case EVP_PKEY_X25519:
-    case EVP_PKEY_X448:
+  const int id = pkey.id();
+  bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                          id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+  is_raw_supported = is_raw_supported || IsPqcKeyId(id);
 #endif
-      break;
-    default:
-      return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!is_raw_supported) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
   auto raw_data = pkey.rawPublicKey();
@@ -1577,28 +1411,14 @@ void KeyObjectHandle::RawPrivateKey(
   Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
-  switch (pkey.id()) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
-    case EVP_PKEY_X25519:
-    case EVP_PKEY_X448:
+  const int id = pkey.id();
+  bool is_raw_supported = id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448 ||
+                          id == EVP_PKEY_X25519 || id == EVP_PKEY_X448;
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+  is_raw_supported = is_raw_supported || IsPqcRawPrivateKeyId(id);
 #endif
-      break;
-    default:
-      return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!is_raw_supported) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
   auto raw_data = pkey.rawPrivateKey();
@@ -1687,24 +1507,14 @@ void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const KeyObjectData& data = key->Data();
   CHECK_EQ(data.GetKeyType(), kKeyTypePrivate);
 
+#if OPENSSL_WITH_PQC
   Mutex::ScopedLock lock(data.mutex());
   const auto& pkey = data.GetAsymmetricKey();
 
-  switch (pkey.id()) {
-#if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_ML_KEM_512:
-    case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024:
-      break;
-#endif
-    default:
-      return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
+  if (!IsPqcSeedKeyId(pkey.id())) {
+    return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
   }
 
-#if OPENSSL_WITH_PQC
   auto raw_data = pkey.rawSeed();
   if (!raw_data) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get raw seed");
@@ -1713,6 +1523,8 @@ void KeyObjectHandle::RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(
       Buffer::Copy(env, raw_data.get<const char>(), raw_data.size())
           .FromMaybe(Local<Value>()));
+#else
+  return THROW_ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS(env);
 #endif
 }
 
@@ -2180,9 +1992,12 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
+#if OPENSSL_WITH_PQC_ML_KEM_512
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_512);
+#endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_768);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_1024);
+#if OPENSSL_WITH_PQC_SLH_DSA
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128F);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128S);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_192F);
@@ -2195,6 +2010,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_192S);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256F);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256S);
+#endif
 #endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);

@@ -139,7 +139,7 @@ void InitCryptoOnce() {
 
   OPENSSL_init_ssl(0, settings);
 
-#if OPENSSL_WITH_PQC
+#if OPENSSL_WITH_OPENSSL_PQC
   // Configure all loaded providers to prefer seed-only format for ML-KEM and
   // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
   // seed is not available. The provider encoder reads these parameters at

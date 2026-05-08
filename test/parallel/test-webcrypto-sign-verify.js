@@ -173,7 +173,7 @@ if (!process.features.openssl_is_boringssl) {
 }
 
 // Test Sign/Verify ML-DSA
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   async function test(name, data) {
     const ec = new TextEncoder();
     const { publicKey, privateKey } = await subtle.generateKey({

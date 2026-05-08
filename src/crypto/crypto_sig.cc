@@ -3,6 +3,7 @@
 #include "base_object-inl.h"
 #include "crypto/crypto_ec.h"
 #include "crypto/crypto_keys.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -239,30 +240,14 @@ bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
 bool SupportsContextString(const EVPKeyPointer& key) {
   if (!OPENSSL_WITH_SIGNATURE_CONTEXT_STRING) return false;
 
-  switch (key.id()) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
+  const int id = key.id();
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+  if (IsPqcSignatureKeyId(id)) return true;
 #endif
-      return true;
-    default:
-      return false;
-  }
+#ifndef OPENSSL_IS_BORINGSSL
+  if (id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448) return true;
+#endif
+  return false;
 }
 }  // namespace
 

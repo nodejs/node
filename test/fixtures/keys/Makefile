@@ -102,6 +102,8 @@ all: \
   ml_dsa_44_private.pem \
   ml_dsa_44_private_seed_only.pem \
   ml_dsa_44_private_priv_only.pem \
+  ml_dsa_44_private_encrypted.pem \
+  ml_dsa_44_private_encrypted.der \
   ml_dsa_44_public.pem \
   ml_dsa_65_private.pem \
   ml_dsa_65_private_seed_only.pem \
@@ -124,6 +126,8 @@ all: \
   ml_kem_768_private.pem \
   ml_kem_768_private_seed_only.pem \
   ml_kem_768_private_priv_only.pem \
+  ml_kem_768_private_encrypted.pem \
+  ml_kem_768_private_encrypted.der \
   ml_kem_768_public.pem \
   ml_kem_1024_private.pem \
   ml_kem_1024_private_seed_only.pem \
@@ -1028,6 +1032,12 @@ ml_dsa_44_private_priv_only.pem: ml_dsa_44_private.pem
 ml_dsa_44_public.pem: ml_dsa_44_private.pem
 	openssl pkey -in ml_dsa_44_private.pem -pubout -out ml_dsa_44_public.pem
 
+ml_dsa_44_private_encrypted.pem: ml_dsa_44_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-dsa.output_formats=seed-only -in ml_dsa_44_private_seed_only.pem -passout 'pass:password' -out ml_dsa_44_private_encrypted.pem
+
+ml_dsa_44_private_encrypted.der: ml_dsa_44_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-dsa.output_formats=seed-only -in ml_dsa_44_private_seed_only.pem -passout 'pass:password' -outform DER -out ml_dsa_44_private_encrypted.der
+
 ml_dsa_65_private.pem:
 	openssl genpkey -algorithm ml-dsa-65 -out ml_dsa_65_private.pem
 
@@ -1075,6 +1085,12 @@ ml_kem_768_private_priv_only.pem: ml_kem_768_private.pem
 
 ml_kem_768_public.pem: ml_kem_768_private.pem
 	openssl pkey -in ml_kem_768_private.pem -pubout -out ml_kem_768_public.pem
+
+ml_kem_768_private_encrypted.pem: ml_kem_768_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-kem.output_formats=seed-only -in ml_kem_768_private_seed_only.pem -passout 'pass:password' -out ml_kem_768_private_encrypted.pem
+
+ml_kem_768_private_encrypted.der: ml_kem_768_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-kem.output_formats=seed-only -in ml_kem_768_private_seed_only.pem -passout 'pass:password' -outform DER -out ml_kem_768_private_encrypted.der
 
 ml_kem_1024_private.pem:
 	openssl genpkey -algorithm ml-kem-1024 -out ml_kem_1024_private.pem

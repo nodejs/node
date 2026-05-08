@@ -7,8 +7,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
@@ -96,12 +96,23 @@ async function testImportSpki({ name, publicUsages }, extractable) {
 }
 
 async function testImportPkcs8({ name, privateUsages }, extractable) {
-  const key = await subtle.importKey(
-    'pkcs8',
-    keyData[name].pkcs8,
-    { name },
-    extractable,
-    privateUsages);
+  let key;
+  try {
+    key = await subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8,
+      { name },
+      extractable,
+      privateUsages);
+  } catch (err) {
+    if (process.features.openssl_is_boringssl) {
+      assert.strictEqual(err.name, 'DataError');
+      assert.strictEqual(err.cause.code, 'ERR_OSSL_EVP_PRIVATE_KEY_WAS_NOT_SEED');
+      common.printSkipMessage('Skipping unsupported private key format test');
+      return;
+    }
+    throw err;
+  }
   assert.strictEqual(key.type, 'private');
   assert.strictEqual(key.extractable, extractable);
   assert.deepStrictEqual(key.usages, privateUsages);
@@ -480,14 +491,18 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
   });
 })().then(common.mustCall());
 
-(async function() {
-  for (const { name, privateUsages } of testVectors) {
-    const pem = fixtures.readKey(getKeyFileName(name.toLowerCase(), 'private_priv_only'), 'ascii');
-    const keyObject = createPrivateKey(pem);
-    const key = keyObject.toCryptoKey({ name }, true, privateUsages);
-    await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
-      assert.strictEqual(err.name, 'OperationError');
-      return true;
-    });
-  }
-})().then(common.mustCall());
+if (!process.features.openssl_is_boringssl) {
+  (async function() {
+    for (const { name, privateUsages } of testVectors) {
+      const pem = fixtures.readKey(getKeyFileName(name.toLowerCase(), 'private_priv_only'), 'ascii');
+      const keyObject = createPrivateKey(pem);
+      const key = keyObject.toCryptoKey({ name }, true, privateUsages);
+      await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
+        assert.strictEqual(err.name, 'OperationError');
+        return true;
+      });
+    }
+  })().then(common.mustCall());
+} else {
+  common.printSkipMessage('Skipping unsupported private key format test');
+}
