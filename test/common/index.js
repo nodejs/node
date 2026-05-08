@@ -73,6 +73,7 @@ const hasSQLite = Boolean(process.versions.sqlite);
 const hasFFI = Boolean(process.config.variables.node_use_ffi);
 const hasPerfetto = Boolean(process.config.variables.v8_use_perfetto);
 
+const hasDtls = hasCrypto && !!process.features.dtls;
 const hasQuic = hasCrypto && !!process.features.quic;
 
 const hasLocalStorage = (() => {
@@ -1019,6 +1020,7 @@ const common = {
   hasTemporal,
   hasFullICU,
   hasCrypto,
+  hasDtls,
   hasQuic,
   hasInspector,
   hasSQLite,
