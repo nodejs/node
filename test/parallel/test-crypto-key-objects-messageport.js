@@ -48,7 +48,7 @@ process.env.HAS_STARTED_WORKER = 1;
     modulusLength: 1024
   });
   const cryptoKey = await subtle.generateKey(
-    { name: 'AES-CBC', length: 128 }, false, ['encrypt']);
+    { name: 'AES-CBC', length: 128 }, true, ['encrypt']);
 
   // Get immutable representations of all keys.
   const keys = [secretKey, publicKey, privateKey, cryptoKey]
