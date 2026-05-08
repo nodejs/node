@@ -2573,6 +2573,13 @@ StatementSync::~StatementSync() {
 }
 
 void StatementSync::Finalize() {
+  if (statement_ == nullptr) {
+    return;
+  }
+  if (stepping_) {
+    finalize_pending_ = true;
+    return;
+  }
   sqlite3_finalize(statement_);
   statement_ = nullptr;
   InvalidateColumnNameCache();
@@ -2898,6 +2905,10 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   EscapableHandleScope scope(isolate);
   sqlite3_step(stmt);
   int r = sqlite3_reset(stmt);
+  if (db->Connection() == nullptr) {
+    THROW_ERR_INVALID_STATE(env, "database connection was closed mid-query");
+    return MaybeLocal<Object>();
+  }
   CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
 
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
@@ -3026,9 +3037,9 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-
   Local<Value> result;
+  auto step = stmt->MarkStepping();
+  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
                                     stmt->statement_,
@@ -3076,6 +3087,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Get(env,
                                     stmt->db_.get(),
                                     stmt->statement_,
@@ -3100,6 +3112,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Run(
           env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3364,6 +3377,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Run(
           env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3435,6 +3449,7 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Get(env,
                                     stmt->db_.get(),
                                     stmt->statement_,
@@ -3473,8 +3488,9 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   Local<Value> result;
+  auto step = stmt->MarkStepping();
+  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
                                     stmt->statement_,
@@ -3701,6 +3717,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
       iter->statement_reset_generation_ != iter->stmt_->reset_generation_,
       "iterator was invalidated");
 
+  auto step = iter->stmt_->MarkStepping();
   int r = sqlite3_step(iter->stmt_->statement_);
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(

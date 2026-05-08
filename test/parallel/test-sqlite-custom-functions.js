@@ -411,4 +411,88 @@ suite('DatabaseSync.prototype.function()', () => {
       message: /database is not open/,
     });
   });
+
+  suite('reentrant db.close() from inside a user function callback', () => {
+    function setup() {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.prepare('INSERT INTO t VALUES (1, 10)').run();
+      db.prepare('INSERT INTO t VALUES (2, 20)').run();
+      db.function('close_db', (x) => {
+        try { db.close(); } catch { /* already closed on later rows */ }
+        return x;
+      });
+      return db;
+    }
+
+    test('.all() completes without crashing', () => {
+      const db = setup();
+      const rows = db.prepare('SELECT close_db(v) AS v FROM t').all();
+      assert.ok(Array.isArray(rows));
+    });
+
+    test('.get() completes without crashing', () => {
+      const db = setup();
+      const row = db.prepare('SELECT close_db(v) AS v FROM t').get();
+      assert.deepStrictEqual(row, { __proto__: null, v: 10 });
+    });
+
+    test('.run() throws ERR_INVALID_STATE rather than crashing', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.function('close_db', (x) => {
+        try { db.close(); } catch { /* */ }
+        return x;
+      });
+      assert.throws(
+        () => db.prepare('INSERT INTO t SELECT close_db(1), close_db(2)').run(),
+        { code: 'ERR_INVALID_STATE', message: /closed mid-query/ },
+      );
+    });
+
+    test('iterator returns first row, then throws on next()', () => {
+      const db = setup();
+      const iter = db.prepare('SELECT close_db(v) AS v FROM t').iterate();
+      assert.strictEqual(iter.next().done, false);
+      assert.throws(() => iter.next(), {
+        code: 'ERR_INVALID_STATE',
+        message: /statement has been finalized/,
+      });
+    });
+
+    test('SQL tag store .run() throws ERR_INVALID_STATE', () => {
+      const db = new DatabaseSync(':memory:');
+      db.exec('CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER)');
+      db.function('close_db', (x) => {
+        try { db.close(); } catch { /* */ }
+        return x;
+      });
+      const sql = db.createTagStore(4);
+      assert.throws(
+        () => sql.run`INSERT INTO t SELECT close_db(${1}), close_db(${2})`,
+        { code: 'ERR_INVALID_STATE', message: /closed mid-query/ },
+      );
+    });
+
+    test('SQL tag store .all() completes without crashing', () => {
+      const db = setup();
+      const sql = db.createTagStore(4);
+      const rows = sql.all`SELECT close_db(v) AS v FROM t`;
+      assert.ok(Array.isArray(rows));
+    });
+
+    test('SQL tag store .get() completes without crashing', () => {
+      const db = setup();
+      const sql = db.createTagStore(4);
+      const row = sql.get`SELECT close_db(v) AS v FROM t`;
+      assert.deepStrictEqual(row, { __proto__: null, v: 10 });
+    });
+
+    test('a fresh database works after the reentrant close', () => {
+      setup().prepare('SELECT close_db(v) FROM t').all();
+      const db2 = new DatabaseSync(':memory:');
+      assert.deepStrictEqual(db2.prepare('SELECT 1 AS x').get(),
+                             { __proto__: null, x: 1 });
+    });
+  });
 });

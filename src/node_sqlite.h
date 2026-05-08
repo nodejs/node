@@ -284,6 +284,19 @@ class StatementSync : public BaseObject {
   void Finalize();
   bool IsFinalized();
 
+  // RAII guard: defer Finalize() if called while sqlite3_step is on the
+  // stack for this statement. Wrap every sqlite3_step caller.
+  inline auto MarkStepping() {
+    stepping_ = true;
+    return OnScopeLeave([this]() {
+      stepping_ = false;
+      if (finalize_pending_) {
+        finalize_pending_ = false;
+        Finalize();
+      }
+    });
+  }
+
   SET_MEMORY_INFO_NAME(StatementSync)
   SET_SELF_SIZE(StatementSync)
 
@@ -295,6 +308,8 @@ class StatementSync : public BaseObject {
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
+  bool stepping_ = false;
+  bool finalize_pending_ = false;
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   inline int ResetStatement();
