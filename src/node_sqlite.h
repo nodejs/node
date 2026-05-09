@@ -221,6 +221,20 @@ class DatabaseSync : public BaseObject {
   }
   sqlite3* Connection();
 
+  // SQLite forbids closing the database, finalizing/resetting the running
+  // statement, or recursively stepping while a user-supplied callback
+  // (scalar or aggregate function, or authorizer) is on the stack. Wrap
+  // every such callback with the RAII guard returned by
+  // EnterUserFunctionCallback(); JS-callable methods that would perform a
+  // forbidden operation must check IsInUserFunctionCallback() and throw.
+  inline auto EnterUserFunctionCallback() {
+    user_function_callback_depth_++;
+    return OnScopeLeave([this]() { user_function_callback_depth_--; });
+  }
+  bool IsInUserFunctionCallback() const {
+    return user_function_callback_depth_ > 0;
+  }
+
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
   // exception. In this case, the SQLite error should be ignored. These methods
@@ -241,6 +255,7 @@ class DatabaseSync : public BaseObject {
   bool enable_load_extension_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
+  int user_function_callback_depth_ = 0;
 
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
@@ -284,19 +299,6 @@ class StatementSync : public BaseObject {
   void Finalize();
   bool IsFinalized();
 
-  // RAII guard: defer Finalize() if called while sqlite3_step is on the
-  // stack for this statement. Wrap every sqlite3_step caller.
-  inline auto MarkStepping() {
-    stepping_ = true;
-    return OnScopeLeave([this]() {
-      stepping_ = false;
-      if (finalize_pending_) {
-        finalize_pending_ = false;
-        Finalize();
-      }
-    });
-  }
-
   SET_MEMORY_INFO_NAME(StatementSync)
   SET_SELF_SIZE(StatementSync)
 
@@ -308,8 +310,6 @@ class StatementSync : public BaseObject {
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
-  bool stepping_ = false;
-  bool finalize_pending_ = false;
   uint64_t reset_generation_ = 0;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   inline int ResetStatement();
