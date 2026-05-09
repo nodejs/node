@@ -35,6 +35,7 @@
         '<(ABSEIL_ROOT)/absl/base/internal/direct_mmap.h',
         '<(ABSEIL_ROOT)/absl/base/internal/endian.h',
         '<(ABSEIL_ROOT)/absl/base/internal/errno_saver.h',
+        '<(ABSEIL_ROOT)/absl/base/internal/hardening.h',
         '<(ABSEIL_ROOT)/absl/base/internal/hide_ptr.h',
         '<(ABSEIL_ROOT)/absl/base/internal/iterator_traits.h',
         '<(ABSEIL_ROOT)/absl/base/internal/low_level_alloc.h',
