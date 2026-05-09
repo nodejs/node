@@ -33,7 +33,8 @@ class NonIdempotentDataQueueReader;
 
 class EntryImpl : public DataQueue::Entry {
  public:
-  std::shared_ptr<DataQueue::Reader> get_reader(Environment* env = nullptr) override = 0;
+  std::shared_ptr<DataQueue::Reader> get_reader(
+      Environment* env = nullptr) override = 0;
 };
 
 class DataQueueImpl final : public DataQueue,
