@@ -19,10 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --predictable-gc-schedule
+// Flags: --expose-gc --predictable-gc-schedule
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+
+// Clear stale ArrayBuffer backing stores before taking the baseline so the
+// exact allocation delta below is not affected by unrelated cleanup.
+globalThis.gc();
 
 const r = process.memoryUsage();
 // On IBMi, the rss memory always returns zero
