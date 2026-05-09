@@ -178,6 +178,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
   bool exception_handler_was_used = false;
+  bool block_already_exists = false;
   int deopt_frame_distance = 0;
 };
 
@@ -1220,7 +1221,8 @@ class MaglevGraphBuilder {
         }
 
         DCHECK_IMPLIES(!IsInsideTryBlock(), is_inline());
-        if (!IsInsideTryBlock() && !is_eager_inline()) {
+        if (catch_block.block_already_exists) {
+          DCHECK(!IsInsideTryBlock());
           // If we are inlining a function non-eagerly and we are not inside a
           // try block, then the catch block already exists.
           new (node->exception_handler_info()) ExceptionHandlerInfo(
@@ -1276,7 +1278,7 @@ class MaglevGraphBuilder {
       // Inside a try-block.
       int offset = catch_block_stack_.top().handler;
       return {&jump_targets_[offset],
-              merge_states_[offset]->exception_handler_was_used(), 0};
+              merge_states_[offset]->exception_handler_was_used(), false, 0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};
@@ -1286,7 +1288,8 @@ class MaglevGraphBuilder {
 
   CatchBlockDetails GetTryCatchBlockFromInfo(ExceptionHandlerInfo* info) {
     if (IsInsideTryBlock()) {
-      return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), 0};
+      return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true,
+              0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};
