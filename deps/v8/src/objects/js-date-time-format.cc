@@ -2695,11 +2695,35 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
     DCHECK(U_SUCCESS(status));
   }
 
+  // The ICU "iso8601" calendar resource bundle does not carry month-name (or
+  // most other) symbol data and therefore inherits empty strings rather than
+  // falling back to "gregory", which leaves MMMM/MMM expansions blank in the
+  // generated pattern (see nodejs/node#63041). Per the Unicode TR35 definition
+  // the iso8601 calendar is gregorian with ISO week-numbering, so date and
+  // time symbols are identical to gregorian. Use a copy of the locale with
+  // ca=gregory for pattern lookup and SimpleDateFormat construction; the
+  // iso8601 Calendar instance is still attached below via adoptCalendar so
+  // resolvedOptions().calendar continues to report "iso8601".
+  icu::Locale icu_locale_for_patterns(icu_locale);
+  {
+    UErrorCode ca_status = U_ZERO_ERROR;
+    std::string ca_value =
+        icu_locale_for_patterns.getUnicodeKeywordValue<std::string>(
+            "ca", ca_status);
+    if (U_SUCCESS(ca_status) && ca_value == "iso8601") {
+      ca_status = U_ZERO_ERROR;
+      icu_locale_for_patterns.setUnicodeKeywordValue("ca", "gregory",
+                                                     ca_status);
+      DCHECK(U_SUCCESS(ca_status));
+    }
+  }
+
   static base::LazyInstance<DateTimePatternGeneratorCache>::type
       generator_cache = LAZY_INSTANCE_INITIALIZER;
 
   std::unique_ptr<icu::DateTimePatternGenerator> generator(
-      generator_cache.Pointer()->CreateGenerator(isolate, icu_locale));
+      generator_cache.Pointer()->CreateGenerator(isolate,
+                                                 icu_locale_for_patterns));
 
   // 15.Let hcDefault be dataLocaleData.[[hourCycle]].
   HourCycle hc_default = ToHourCycle(generator->getDefaultHourCycle(status));
@@ -2926,7 +2950,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
         v8::Isolate::UseCounterFeature::kDateTimeFormatDateTimeStyle);
 
     icu_date_format =
-        DateTimeStylePattern(date_style, time_style, icu_locale,
+        DateTimeStylePattern(date_style, time_style, icu_locale_for_patterns,
                              dateTimeFormatHourCycle, generator.get());
     if (icu_date_format.get() == nullptr) {
       THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
@@ -3002,13 +3026,18 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
       dateTimeFormatHourCycle = HourCycle::kUndefined;
     }
     icu::UnicodeString skeleton_ustr(skeleton.c_str());
-    icu_date_format = CreateICUDateFormatFromCache(
-        icu_locale, skeleton_ustr, generator.get(), dateTimeFormatHourCycle);
+    icu_date_format = CreateICUDateFormatFromCache(icu_locale_for_patterns,
+                                                   skeleton_ustr,
+                                                   generator.get(),
+                                                   dateTimeFormatHourCycle);
     if (icu_date_format.get() == nullptr) {
       // Remove extensions and try again.
-      icu_locale = icu::Locale(icu_locale.getBaseName());
-      icu_date_format = CreateICUDateFormatFromCache(
-          icu_locale, skeleton_ustr, generator.get(), dateTimeFormatHourCycle);
+      icu_locale_for_patterns =
+          icu::Locale(icu_locale_for_patterns.getBaseName());
+      icu_date_format = CreateICUDateFormatFromCache(icu_locale_for_patterns,
+                                                     skeleton_ustr,
+                                                     generator.get(),
+                                                     dateTimeFormatHourCycle);
       if (icu_date_format.get() == nullptr) {
         THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
       }
