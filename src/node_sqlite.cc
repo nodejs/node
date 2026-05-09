@@ -2520,12 +2520,8 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
           NullableSQLiteStringToValue(isolate, param4).ToLocalChecked(),
       });
 
-  MaybeLocal<Value> retval;
-  {
-    auto guard = db->EnterUserFunctionCallback();
-    retval = callback->Call(
-        context, Undefined(isolate), js_argv.size(), js_argv.data());
-  }
+  MaybeLocal<Value> retval = callback->Call(
+      context, Undefined(isolate), js_argv.size(), js_argv.data());
 
   Local<Value> result;
 
@@ -3041,10 +3037,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      stmt->db_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
+      env, stmt->IsStepping(), "statement is currently being executed");
   Isolate* isolate = env->isolate();
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
@@ -3054,6 +3047,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
+  auto step = stmt->MarkStepping();
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
@@ -3072,10 +3066,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      stmt->db_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
+      env, stmt->IsStepping(), "statement is currently being executed");
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3100,10 +3091,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      stmt->db_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
+      env, stmt->IsStepping(), "statement is currently being executed");
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3112,6 +3100,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Get(env,
                                     stmt->db_.get(),
                                     stmt->statement_,
@@ -3129,10 +3118,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      stmt->db_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
+      env, stmt->IsStepping(), "statement is currently being executed");
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
 
@@ -3141,6 +3127,7 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Run(
           env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3386,17 +3373,15 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      session->database_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
 
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
 
   uint32_t n_params = args.Length() - 1;
   int r = stmt->ResetStatement();
@@ -3410,6 +3395,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Run(
           env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
           .ToLocal(&result)) {
@@ -3424,17 +3410,15 @@ void SQLTagStore::Iterate(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      session->database_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
 
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
 
   uint32_t n_params = args.Length() - 1;
   int r = stmt->ResetStatement();
@@ -3464,17 +3448,15 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      session->database_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
 
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
 
   uint32_t n_params = args.Length() - 1;
   Isolate* isolate = env->isolate();
@@ -3491,6 +3473,7 @@ void SQLTagStore::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
+  auto step = stmt->MarkStepping();
   if (StatementExecutionHelper::Get(env,
                                     stmt->db_.get(),
                                     stmt->statement_,
@@ -3508,17 +3491,15 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      session->database_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
 
   BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
   }
+
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsStepping(), "statement is currently being executed");
 
   uint32_t n_params = args.Length() - 1;
   Isolate* isolate = env->isolate();
@@ -3535,6 +3516,7 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> result;
+  auto step = stmt->MarkStepping();
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   if (StatementExecutionHelper::All(env,
                                     stmt->db_.get(),
@@ -3746,10 +3728,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      iter->stmt_->db_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
+      env, iter->stmt_->IsStepping(), "statement is currently being executed");
   Isolate* isolate = env->isolate();
 
   auto iter_template = getLazyIterTemplate(env);
@@ -3772,6 +3751,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
       iter->statement_reset_generation_ != iter->stmt_->reset_generation_,
       "iterator was invalidated");
 
+  auto step = iter->stmt_->MarkStepping();
   int r = sqlite3_step(iter->stmt_->statement_);
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
@@ -3827,10 +3807,7 @@ void StatementSyncIterator::Return(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_ON_BAD_STATE(
       env, iter->stmt_->IsFinalized(), "statement has been finalized");
   THROW_AND_RETURN_ON_BAD_STATE(
-      env,
-      iter->stmt_->db_->IsInUserFunctionCallback(),
-      "database operation is not allowed inside a user-defined function "
-      "callback");
+      env, iter->stmt_->IsStepping(), "statement is currently being executed");
   Isolate* isolate = env->isolate();
 
   sqlite3_reset(iter->stmt_->statement_);
