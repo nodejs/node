@@ -632,6 +632,7 @@
         'run_torque',
         'v8_libbase',
         'fp16',
+        'simdutf',
       ],
       'conditions': [
         ['node_shared_abseil=="false"', {
@@ -1489,6 +1490,7 @@
 
       'dependencies': [
         'v8_headers',
+        'llvm-libc-headers',
       ],
 
       'conditions': [
@@ -2513,7 +2515,7 @@
       'target_name': 'simdutf',
       'type': 'static_library',
       'toolsets': ['host', 'target'],
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
           '<(V8_ROOT)/third_party/simdutf',
         ],
@@ -2523,5 +2525,18 @@
         '<(V8_ROOT)/third_party/simdutf/simdutf.cpp',
       ],
     },  # simdutf
+    {
+      'target_name': 'llvm-libc-headers',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(V8_ROOT)/third_party/llvm-libc/src',
+        ],
+        'defines': [
+          'LIBC_NAMESPACE=__llvm_libc_cr',
+        ],
+      },
+    }
   ],
 }
