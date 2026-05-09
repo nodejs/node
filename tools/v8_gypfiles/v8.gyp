@@ -1415,6 +1415,7 @@
       'dependencies': [
         'v8_headers',
         'abseil.gyp:abseil',
+        'llvm-libc-headers',
       ],
 
       'conditions': [
@@ -2493,5 +2494,18 @@
         '<(V8_ROOT)/third_party/simdutf/simdutf.cpp',
       ],
     },  # simdutf
+    {
+      'target_name': 'llvm-libc-headers',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(V8_ROOT)/third_party/llvm-libc/src',
+        ],
+        'defines': [
+          'LIBC_NAMESPACE=__llvm_libc_cr',
+        ],
+      },
+    }
   ],
 }
