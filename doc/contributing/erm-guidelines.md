@@ -280,25 +280,25 @@ The `Symbol.dispose` method should return `undefined` and the
 `Symbol.asyncDispose` method should return a `Promise` that resolves to
 `undefined`.
 
-<!-- eslint-skip -->
+<!-- eslint-disable no-useless-return -->
 
 ```js
-[Symbol.dispose]() {
-  return void this.dispose();
-  // or
-  this.dispose();
-  // or
-  return;
-  // or
-  // no return
-}
+class MyIterable {
+  [Symbol.dispose]() {
+    this.dispose();
+    // or
+    return;
+    // or
+    // no return
+  }
 
-async [Symbol.asyncDispose]() {
-  await this.dispose();
-  // or
-  return;
-  // or
-  // no return
+  async [Symbol.asyncDispose]() {
+    await this.dispose();
+    // or
+
+    // or
+    // no return
+  }
 }
 ```
 
@@ -312,21 +312,21 @@ directly.
 
 For example:
 
-<!-- eslint-skip -->
+<!-- eslint-disable no-unreachable,no-redeclare -->
 
 ```js
 // Do something like this:
-function dispose() { ... }
+function dispose() { /* ... */ }
 return {
   dispose,
-  [Symbol.dispose]() { this.dispose(); }
+  [Symbol.dispose]() { this.dispose(); },
 };
 
 // Rather than this:
-function dispose() { ... }
+function dispose() { /* ... */ }
 return {
   dispose,
-  [Symbol.dispose]: dispose
+  [Symbol.dispose]: dispose,
 };
 ```
 
