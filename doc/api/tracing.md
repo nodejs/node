@@ -326,8 +326,6 @@ collect();
 ```
 
 ```cjs
-'use strict';
-
 const { Session } = require('node:inspector');
 const session = new Session();
 session.connect();
