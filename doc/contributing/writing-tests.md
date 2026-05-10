@@ -43,7 +43,6 @@ changes.
 Let's analyze this basic test from the Node.js test suite:
 
 ```js
-'use strict';                                                          // 1
 const common = require('../common');                                   // 2
 const fixtures = require('../common/fixtures');                        // 3
 
@@ -71,7 +70,6 @@ server.listen(0, () => {                                               // 14
 ### **Lines 1-3**
 
 ```js
-'use strict';
 const common = require('../common');
 const fixtures = require('../common/fixtures');
 ```
@@ -184,7 +182,6 @@ avoid the use of extra variables and the corresponding assertions. Let's
 explain this with a real test from the test suite.
 
 ```js
-'use strict';
 require('../common');
 const assert = require('node:assert');
 const http = require('node:http');
@@ -218,7 +215,6 @@ const server = http.createServer((req, res) => {
 This test could be greatly simplified by using `common.mustCall` like this:
 
 ```js
-'use strict';
 const common = require('../common');
 const http = require('node:http');
 
@@ -288,8 +284,6 @@ test followed by the flags. For example, to allow a test to require some of the
 A test that would require `internal/freelist` could start like this:
 
 ```js
-'use strict';
-
 // Flags: --expose-internals
 
 require('../common');
