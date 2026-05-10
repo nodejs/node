@@ -1002,6 +1002,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_skip_pattern,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--experimental-test-tag-filter",
+            "run tests matching the given tag filter expression",
+            &EnvironmentOptions::experimental_test_tag_filter,
+            kDisallowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
