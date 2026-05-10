@@ -850,7 +850,6 @@ test('spies on a function', () => {
 ```
 
 ```cjs
-'use strict';
 const assert = require('node:assert');
 const { mock, test } = require('node:test');
 

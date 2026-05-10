@@ -59,7 +59,6 @@ console.log(query.all());
 ```
 
 ```cjs
-'use strict';
 const { DatabaseSync } = require('node:sqlite');
 const database = new DatabaseSync(':memory:');
 
@@ -316,7 +315,6 @@ database.loadExtension('./base64.dylib', 'sqlite3_base64_init');
 ```
 
 ```cjs
-'use strict';
 const { DatabaseSync } = require('node:sqlite');
 const database = new DatabaseSync(':memory:', { allowExtension: true });
 
