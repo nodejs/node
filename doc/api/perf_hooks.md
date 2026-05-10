@@ -1678,7 +1678,6 @@ setImmediate(() => {
 ```
 
 ```cjs
-'use strict';
 const { eventLoopUtilization } = require('node:perf_hooks');
 const { spawnSync } = require('node:child_process');
 
@@ -2126,7 +2125,6 @@ setTimeout(() => {}, 1000);
 ```
 
 ```cjs
-'use strict';
 const async_hooks = require('node:async_hooks');
 const {
   performance,
@@ -2194,7 +2192,6 @@ await timedImport('some-module');
 <!-- eslint-disable no-global-assign -->
 
 ```cjs
-'use strict';
 const {
   performance,
   PerformanceObserver,
@@ -2251,7 +2248,6 @@ createServer((req, res) => {
 ```
 
 ```cjs
-'use strict';
 const { PerformanceObserver } = require('node:perf_hooks');
 const http = require('node:http');
 
@@ -2293,7 +2289,6 @@ createServer((socket) => {
 ```
 
 ```cjs
-'use strict';
 const { PerformanceObserver } = require('node:perf_hooks');
 const net = require('node:net');
 const obs = new PerformanceObserver((items) => {
@@ -2327,7 +2322,6 @@ promises.resolve('localhost');
 ```
 
 ```cjs
-'use strict';
 const { PerformanceObserver } = require('node:perf_hooks');
 const dns = require('node:dns');
 const obs = new PerformanceObserver((items) => {
