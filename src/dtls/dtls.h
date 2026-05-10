@@ -6,9 +6,57 @@
 
 #include <env.h>
 #include <node_errors.h>
+#include <uv.h>
 #include <v8.h>
 
+#include <cstdint>
+
 namespace node::dtls {
+
+// Utilities for updating stats maintained in an AliasedStruct.
+template <typename Stats, uint64_t Stats::*member>
+void IncrementStat(Stats* stats, uint64_t amt = 1) {
+  stats->*member += amt;
+}
+
+template <typename Stats, uint64_t Stats::*member>
+void RecordTimestampStat(Stats* stats) {
+  stats->*member = uv_hrtime();
+}
+
+#define DTLS_STAT_INCREMENT(Type, name)                                        \
+  IncrementStat<Type, &Type::name>(stats_.Data())
+#define DTLS_STAT_INCREMENT_N(Type, name, amt)                                 \
+  IncrementStat<Type, &Type::name>(stats_.Data(), amt)
+#define DTLS_STAT_RECORD_TIMESTAMP(Type, name)                                 \
+  RecordTimestampStat<Type, &Type::name>(stats_.Data())
+
+#define DTLS_STAT_FIELD(_, name) uint64_t name;
+
+// ============================================================================
+// Stats X-macros: V(ENUM_NAME, field_name)
+
+#define DTLS_ENDPOINT_STATS(V)                                                 \
+  V(CREATED_AT, created_at)                                                    \
+  V(DESTROYED_AT, destroyed_at)                                                \
+  V(BYTES_RECEIVED, bytes_received)                                            \
+  V(BYTES_SENT, bytes_sent)                                                    \
+  V(PACKETS_RECEIVED, packets_received)                                        \
+  V(PACKETS_SENT, packets_sent)                                                \
+  V(SERVER_SESSIONS, server_sessions)                                          \
+  V(CLIENT_SESSIONS, client_sessions)                                          \
+  V(SERVER_BUSY_COUNT, server_busy_count)
+
+#define DTLS_SESSION_STATS(V)                                                  \
+  V(CREATED_AT, created_at)                                                    \
+  V(DESTROYED_AT, destroyed_at)                                                \
+  V(CLOSING_AT, closing_at)                                                    \
+  V(HANDSHAKE_COMPLETED_AT, handshake_completed_at)                            \
+  V(BYTES_RECEIVED, bytes_received)                                            \
+  V(BYTES_SENT, bytes_sent)                                                    \
+  V(MESSAGES_RECEIVED, messages_received)                                      \
+  V(MESSAGES_SENT, messages_sent)                                              \
+  V(RETRANSMIT_COUNT, retransmit_count)
 
 // State indices shared between C++ and JS via AliasedStruct/DataView.
 // Keep in sync with lib/internal/dtls/state.js.

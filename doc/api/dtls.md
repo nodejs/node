@@ -178,6 +178,17 @@ Shared state object with properties:
 * `sessionCount` {number}
 * `busy` {boolean}
 
+### `endpoint.stats`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {DTLSEndpoint.Stats}
+
+The statistics collected for this endpoint. Read only. The stats object is
+live and updated by the C++ internals as data flows through the endpoint.
+
 ### `endpoint.busy`
 
 * {boolean}
@@ -203,6 +214,99 @@ Immediately destroys the endpoint without sending `close_notify` alerts.
 ### `endpoint[Symbol.asyncDispose]()`
 
 Equivalent to calling `endpoint.close()`.
+
+## Class: `DTLSEndpoint.Stats`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A view of the collected statistics for an endpoint.
+
+### `endpointStats.createdAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} A timestamp indicating when the endpoint was created. Read only.
+
+### `endpointStats.destroyedAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} A timestamp indicating when the endpoint was destroyed. Read only.
+
+### `endpointStats.bytesReceived`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of bytes received by this endpoint. Read only.
+
+### `endpointStats.bytesSent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of bytes sent by this endpoint. Read only.
+
+### `endpointStats.packetsReceived`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of UDP packets received by this endpoint. Read only.
+
+### `endpointStats.packetsSent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of UDP packets sent by this endpoint. Read only.
+
+### `endpointStats.serverSessions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of peer-initiated sessions accepted by this
+  endpoint. Read only.
+
+### `endpointStats.clientSessions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of sessions initiated by this endpoint. Read only.
+
+### `endpointStats.serverBusyCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of incoming connections rejected because the
+  endpoint was marked busy. Read only.
+
+### `endpointStats.isConnected`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+`true` if the stats object is still connected to the underlying endpoint.
+Once the endpoint is destroyed, the stats become a stale snapshot.
 
 ## Class: `DTLSSession`
 
@@ -264,6 +368,17 @@ Immediately destroys the session without sending `close_notify`.
 
 * Returns: {string|undefined} The negotiated SRTP protection profile name.
 
+### `session.stats`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {DTLSSession.Stats}
+
+The statistics collected for this session. Read only. The stats object is
+live and updated as data flows through the session.
+
 ### `session.exportKeyingMaterial(length, label[, context])`
 
 * `length` {number} Number of bytes to export.
@@ -274,6 +389,97 @@ Immediately destroys the session without sending `close_notify`.
 Exports keying material from the DTLS session, as defined in
 [RFC 5705][]. This is commonly used with DTLS-SRTP to derive
 encryption keys for media streams.
+
+## Class: `DTLSSession.Stats`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A view of the collected statistics for a session.
+
+### `sessionStats.createdAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} A timestamp indicating when the session was created. Read only.
+
+### `sessionStats.destroyedAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} A timestamp indicating when the session was destroyed. Read only.
+
+### `sessionStats.closingAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} A timestamp indicating when `close()` was called. Read only.
+
+### `sessionStats.handshakeCompletedAt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} A timestamp indicating when the DTLS handshake completed. Read only.
+
+### `sessionStats.bytesReceived`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of application data bytes received. Read only.
+
+### `sessionStats.bytesSent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of application data bytes sent. Read only.
+
+### `sessionStats.messagesReceived`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of application messages received. Read only.
+
+### `sessionStats.messagesSent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of application messages sent. Read only.
+
+### `sessionStats.retransmitCount`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint} The total number of DTLS handshake retransmissions. Read only.
+
+### `sessionStats.isConnected`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+`true` if the stats object is still connected to the underlying session.
+Once the session is destroyed, the stats become a stale snapshot.
 
 ### Callback properties
 

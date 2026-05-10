@@ -31,6 +31,11 @@ struct DTLSEndpointStateData {
   uint8_t busy = 0;
 };
 
+// Stats collected for a DTLS endpoint, backed by a BigUint64Array.
+struct DTLSEndpointStats {
+  DTLS_ENDPOINT_STATS(DTLS_STAT_FIELD)
+};
+
 // DTLSEndpoint manages a single UDP socket and dispatches incoming
 // datagrams to the appropriate DTLSSession based on the remote address.
 // For server mode, it handles stateless cookie exchange via DTLSv1_listen()
@@ -93,6 +98,7 @@ class DTLSEndpoint final : public HandleWrap {
   static void DoClose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoDestroy(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetState(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMTU(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoSetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -136,6 +142,7 @@ class DTLSEndpoint final : public HandleWrap {
   v8::Global<v8::Function> callbacks_[DTLS_CB_COUNT];
 
   AliasedStruct<DTLSEndpointStateData> state_;
+  AliasedStruct<DTLSEndpointStats> stats_;
 
   bool listening_ = false;
   uint32_t mtu_ = 1200;  // Conservative default MTU for data payload
