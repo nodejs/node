@@ -1037,30 +1037,28 @@ when running the `./configure` script.
 
 An example of the possible output looks like:
 
-<!-- eslint-skip -->
-
-```js
+```json
 {
-  target_defaults:
-   { cflags: [],
-     default_configuration: 'Release',
-     defines: [],
-     include_dirs: [],
-     libraries: [] },
-  variables:
+  "target_defaults":
+   { "cflags": [],
+     "default_configuration": "Release",
+     "defines": [],
+     "include_dirs": [],
+     "libraries": [] },
+  "variables":
    {
-     host_arch: 'x64',
-     napi_build_version: 5,
-     node_install_npm: 'true',
-     node_prefix: '',
-     node_shared_cares: 'false',
-     node_shared_http_parser: 'false',
-     node_shared_libuv: 'false',
-     node_shared_zlib: 'false',
-     node_use_openssl: 'true',
-     node_shared_openssl: 'false',
-     target_arch: 'x64',
-     v8_use_snapshot: 1
+     "host_arch": "x64",
+     "napi_build_version": 5,
+     "node_install_npm": "true",
+     "node_prefix": "",
+     "node_shared_cares": "false",
+     "node_shared_http_parser": "false",
+     "node_shared_libuv": "false",
+     "node_shared_zlib": "false",
+     "node_use_openssl": "true",
+     "node_shared_openssl": "false",
+     "target_arch": "x64",
+     "v8_use_snapshot": 1
    }
 }
 ```
@@ -1536,20 +1534,18 @@ See environ(7).
 
 An example of this object looks like:
 
-<!-- eslint-skip -->
-
-```js
+```json
 {
-  TERM: 'xterm-256color',
-  SHELL: '/usr/local/bin/bash',
-  USER: 'maciej',
-  PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
-  PWD: '/Users/maciej',
-  EDITOR: 'vim',
-  SHLVL: '1',
-  HOME: '/Users/maciej',
-  LOGNAME: 'maciej',
-  _: '/usr/local/bin/node'
+  "TERM": "xterm-256color",
+  "SHELL": "/usr/local/bin/bash",
+  "USER": "maciej",
+  "PATH": "~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin",
+  "PWD": "/Users/maciej",
+  "EDITOR": "vim",
+  "SHLVL": "1",
+  "HOME": "/Users/maciej",
+  "LOGNAME": "maciej",
+  "_": "/usr/local/bin/node"
 }
 ```
 
@@ -1678,10 +1674,8 @@ Results in `process.execArgv`:
 
 And `process.argv`:
 
-<!-- eslint-disable @stylistic/js/semi -->
-
-```js
-['/usr/local/bin/node', 'script.js', '--version']
+```json
+["/usr/local/bin/node", "script.js", "--version"]
 ```
 
 Refer to [`Worker` constructor][] for the detailed behavior of worker
@@ -1698,10 +1692,8 @@ added: v0.1.100
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
 
-<!-- eslint-disable @stylistic/js/semi -->
-
-```js
-'/usr/local/bin/node'
+```json
+"/usr/local/bin/node"
 ```
 
 ## `process.execve(file[, args[, env]])`
@@ -3319,15 +3311,13 @@ tarball.
   * `'Hydrogen'` for the 18.x LTS line beginning with 18.12.0.
     For other LTS Release code names, see [Node.js Changelog Archive](https://github.com/nodejs/node/blob/HEAD/doc/changelogs/CHANGELOG_ARCHIVE.md)
 
-<!-- eslint-skip -->
-
-```js
+```json
 {
-  name: 'node',
-  lts: 'Hydrogen',
-  sourceUrl: 'https://nodejs.org/download/release/v18.12.0/node-v18.12.0.tar.gz',
-  headersUrl: 'https://nodejs.org/download/release/v18.12.0/node-v18.12.0-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v18.12.0/win-x64/node.lib'
+  "name": "node",
+  "lts": "Hydrogen",
+  "sourceUrl": "https://nodejs.org/download/release/v18.12.0/node-v18.12.0.tar.gz",
+  "headersUrl": "https://nodejs.org/download/release/v18.12.0/node-v18.12.0-headers.tar.gz",
+  "libUrl": "https://nodejs.org/download/release/v18.12.0/win-x64/node.lib"
 }
 ```
 

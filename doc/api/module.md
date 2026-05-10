@@ -1118,8 +1118,6 @@ export async function load(url, context, nextLoad) {
 Unlike synchronous hooks, the asynchronous hooks would not run for these modules loaded in the file
 that calls `register()`:
 
-<!-- eslint-disable no-restricted-globals -->
-
 ```mjs
 // register-hooks.js
 import { register, createRequire } from 'node:module';
@@ -1127,11 +1125,9 @@ register('./hooks.mjs', import.meta.url);
 
 // Asynchronous hooks does not affect modules loaded via custom require()
 // functions created by module.createRequire().
-const userRequire = createRequire(__filename);
+const userRequire = createRequire(import.meta.filename);
 userRequire('./my-app-2.cjs');  // Hooks won't affect this
 ```
-
-<!-- eslint-enable no-restricted-globals -->
 
 ```cjs
 // register-hooks.js

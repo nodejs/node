@@ -1347,8 +1347,6 @@ not preserved. In particular, {Buffer} objects will be read as
 plain {Uint8Array}s on the receiving side, and instances of JavaScript
 classes will be cloned as plain JavaScript objects.
 
-<!-- eslint-disable no-unused-private-class-members -->
-
 ```js
 const b = Symbol('b');
 
@@ -1359,7 +1357,7 @@ class Foo {
     this.c = 3;
   }
 
-  get d() { return 4; }
+  get d() { return this.#a + 3; }
 }
 
 const { port1, port2 } = new MessageChannel();

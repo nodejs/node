@@ -53,8 +53,6 @@ try {
 }
 ```
 
-<!-- eslint-enable no-global-assign -->
-
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
 _before_ any attempt to load the module is made (using, for instance,
