@@ -38,7 +38,6 @@ wasi.start(instance);
 ```
 
 ```cjs
-'use strict';
 const { readFile } = require('node:fs/promises');
 const { WASI } = require('node:wasi');
 const { argv, env } = require('node:process');
