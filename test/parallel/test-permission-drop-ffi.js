@@ -1,4 +1,4 @@
-// Flags: --permission --allow-ffi --allow-fs-read=*
+// Flags: --permission --allow-ffi --experimental-ffi --allow-fs-read=*
 'use strict';
 
 const common = require('../common');
