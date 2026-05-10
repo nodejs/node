@@ -1592,8 +1592,10 @@ void Stream::UpdateWriteDesiredSize() {
   uint32_t old_size = state_->write_desired_size;
   state_->write_desired_size = clamped;
 
-  // Fire drain when transitioning from 0 to non-zero
-  if (old_size == 0 && desired > 0) {
+  // Fire drain when transitioning from 0 to non-zero.
+  // writeDesiredSize == 0 means the buffer is full or flow control is
+  // exhausted, so the JS side may be waiting for capacity.
+  if (old_size == 0 && clamped > 0) {
     EmitDrain();
   }
 }
