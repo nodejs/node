@@ -1097,8 +1097,6 @@ import foo from 'foo';
 import source Foo from 'foo';
 ```
 
-<!-- eslint-enable no-duplicate-imports -->
-
 The `modules` array must contain two references to the same instance, because the two
 module requests are identical but in two phases.
 
@@ -1137,8 +1135,6 @@ import bar from './bar.js';
 import withAttrs from '../with-attrs.ts' with { arbitraryAttr: 'attr-val' };
 import source Module from 'wasm-mod.wasm';
 ```
-
-<!-- eslint-enable no-duplicate-imports -->
 
 The value of the `sourceTextModule.moduleRequests` will be:
 
