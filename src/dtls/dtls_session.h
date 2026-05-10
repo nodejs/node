@@ -17,6 +17,8 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 
+#include "dtls.h"
+
 namespace node::dtls {
 
 class DTLSEndpoint;
@@ -28,6 +30,11 @@ struct DTLSSessionStateData {
   uint8_t closing = 0;
   uint8_t destroyed = 0;
   uint8_t has_message_listener = 0;
+};
+
+// Stats collected for a DTLS session, backed by a BigUint64Array.
+struct DTLSSessionStats {
+  DTLS_SESSION_STATS(DTLS_STAT_FIELD)
 };
 
 // DTLSSession represents a single DTLS association with a remote peer.
@@ -102,6 +109,7 @@ class DTLSSession final : public AsyncWrap {
   static void DoClose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DoDestroy(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetState(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetRemoteAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCipher(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -159,6 +167,7 @@ class DTLSSession final : public AsyncWrap {
   int cycle_depth_ = 0;
 
   AliasedStruct<DTLSSessionStateData> state_;
+  AliasedStruct<DTLSSessionStats> stats_;
 };
 
 }  // namespace node::dtls

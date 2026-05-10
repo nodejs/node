@@ -50,10 +50,12 @@ DTLSEndpoint::DTLSEndpoint(Environment* env, Local<Object> wrap)
                  wrap,
                  reinterpret_cast<uv_handle_t*>(&handle_),
                  PROVIDER_DTLS_ENDPOINT),
-      state_(env->isolate()) {
+      state_(env->isolate()),
+      stats_(env->isolate()) {
   CHECK_EQ(uv_udp_init(env->event_loop(), &handle_), 0);
   handle_.data = this;
   MakeWeak();
+  DTLS_STAT_RECORD_TIMESTAMP(DTLSEndpointStats, created_at);
 }
 
 Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
@@ -71,6 +73,7 @@ Local<FunctionTemplate> DTLSEndpoint::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "close", DoClose);
     SetProtoMethod(isolate, tmpl, "destroy", DoDestroy);
     SetProtoMethod(isolate, tmpl, "getState", GetState);
+    SetProtoMethod(isolate, tmpl, "getStats", GetStats);
     SetProtoMethod(isolate, tmpl, "getAddress", GetAddress);
     SetProtoMethod(isolate, tmpl, "setMTU", SetMTU);
     SetProtoMethod(isolate, tmpl, "setCallbacks", DoSetCallbacks);
@@ -96,6 +99,7 @@ void DTLSEndpoint::RegisterExternalReferences(
   registry->Register(DoClose);
   registry->Register(DoDestroy);
   registry->Register(GetState);
+  registry->Register(GetStats);
   registry->Register(GetAddress);
   registry->Register(SetMTU);
   registry->Register(DoSetCallbacks);
@@ -171,6 +175,7 @@ BaseObjectPtr<DTLSSession> DTLSEndpoint::Connect(DTLSContext* context,
 
   sessions_[remote] = session;
   state_->session_count = sessions_.size();
+  DTLS_STAT_INCREMENT(DTLSEndpointStats, client_sessions);
 
   // Ref the handle while we have sessions.
   uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
@@ -197,6 +202,8 @@ int DTLSEndpoint::SendTo(const SocketAddress& dest,
   int err = uv_udp_try_send(&handle_, &buf, 1, dest.data());
 
   if (err == static_cast<int>(len)) {
+    DTLS_STAT_INCREMENT_N(DTLSEndpointStats, bytes_sent, len);
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, packets_sent);
     return 0;  // Sent successfully.
   }
 
@@ -215,6 +222,8 @@ int DTLSEndpoint::SendTo(const SocketAddress& dest,
     return err;
   }
 
+  DTLS_STAT_INCREMENT_N(DTLSEndpointStats, bytes_sent, len);
+  DTLS_STAT_INCREMENT(DTLSEndpointStats, packets_sent);
   return 0;
 }
 
@@ -358,6 +367,11 @@ void DTLSEndpoint::OnRecv(uv_udp_t* handle,
     return;
   }
 
+  IncrementStat<DTLSEndpointStats, &DTLSEndpointStats::bytes_received>(
+      endpoint->stats_.Data(), nread);
+  IncrementStat<DTLSEndpointStats, &DTLSEndpointStats::packets_received>(
+      endpoint->stats_.Data());
+
   SocketAddress remote(addr);
   endpoint->ProcessDatagram(
       reinterpret_cast<const uint8_t*>(buf->base), nread, remote);
@@ -373,6 +387,7 @@ void DTLSEndpoint::OnSend(uv_udp_send_t* req, int status) {
 void DTLSEndpoint::OnClose() {
   state_->closing = 0;
   state_->destroyed = 1;
+  DTLS_STAT_RECORD_TIMESTAMP(DTLSEndpointStats, destroyed_at);
 
   Local<Function> cb = GetCallback(DTLS_CB_ENDPOINT_CLOSE);
   if (!cb.IsEmpty()) {
@@ -402,7 +417,10 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
 void DTLSEndpoint::AcceptConnection(const uint8_t* data,
                                     size_t len,
                                     const SocketAddress& remote) {
-  if (state_->busy) return;
+  if (state_->busy) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_busy_count);
+    return;
+  }
 
   HandleScope handle_scope(env()->isolate());
   Context::Scope context_scope(env()->context());
@@ -481,6 +499,7 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
 
   sessions_[remote] = session;
   state_->session_count = sessions_.size();
+  DTLS_STAT_INCREMENT(DTLSEndpointStats, server_sessions);
 
   uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
 
@@ -579,6 +598,12 @@ void DTLSEndpoint::GetState(const FunctionCallbackInfo<Value>& args) {
   DTLSEndpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   args.GetReturnValue().Set(endpoint->state_.GetArrayBuffer());
+}
+
+void DTLSEndpoint::GetStats(const FunctionCallbackInfo<Value>& args) {
+  DTLSEndpoint* endpoint;
+  ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
+  args.GetReturnValue().Set(endpoint->stats_.GetArrayBuffer());
 }
 
 void DTLSEndpoint::GetAddress(const FunctionCallbackInfo<Value>& args) {

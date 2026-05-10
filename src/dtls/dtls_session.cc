@@ -53,6 +53,8 @@ DTLSSession::DTLSSession(Environment* env,
       retransmit_timer_(env,
                         [this] {
                           if (destroyed_) return;
+                          DTLS_STAT_INCREMENT(DTLSSessionStats,
+                                              retransmit_count);
                           int ret = DTLSv1_handle_timeout(ssl_.get());
                           if (ret < 0) {
                             // Handshake timeout expired.
@@ -70,8 +72,10 @@ DTLSSession::DTLSSession(Environment* env,
                         }),
       remote_address_(remote),
       is_server_(is_server),
-      state_(env->isolate()) {
+      state_(env->isolate()),
+      stats_(env->isolate()) {
   MakeWeak();
+  DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, created_at);
   retransmit_timer_.Unref();
 
   // Update shared state.
@@ -103,6 +107,7 @@ Local<FunctionTemplate> DTLSSession::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "close", DoClose);
     SetProtoMethod(isolate, tmpl, "destroy", DoDestroy);
     SetProtoMethod(isolate, tmpl, "getState", GetState);
+    SetProtoMethod(isolate, tmpl, "getStats", GetStats);
     SetProtoMethod(isolate, tmpl, "getRemoteAddress", GetRemoteAddress);
     SetProtoMethod(isolate, tmpl, "getProtocol", GetProtocol);
     SetProtoMethod(isolate, tmpl, "getCipher", GetCipher);
@@ -132,6 +137,7 @@ void DTLSSession::RegisterExternalReferences(
   registry->Register(DoClose);
   registry->Register(DoDestroy);
   registry->Register(GetState);
+  registry->Register(GetStats);
   registry->Register(GetRemoteAddress);
   registry->Register(GetProtocol);
   registry->Register(GetCipher);
@@ -275,6 +281,7 @@ void DTLSSession::Cycle() {
       handshake_complete_ = true;
       state_->handshaking = 0;
       state_->open = 1;
+      DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, handshake_completed_at);
 
       Local<Value> argv[] = {
           String::NewFromUtf8(env()->isolate(), SSL_get_version(ssl_.get()))
@@ -301,6 +308,8 @@ void DTLSSession::ClearOut() {
   int read;
 
   while ((read = SSL_read(ssl_.get(), buf, sizeof(buf))) > 0) {
+    DTLS_STAT_INCREMENT_N(DTLSSessionStats, bytes_received, read);
+    DTLS_STAT_INCREMENT(DTLSSessionStats, messages_received);
     // Emit the data to JS via callback.
     Local<Value> argv[] = {
         Buffer::Copy(env(), reinterpret_cast<const char*>(buf), read)
@@ -385,6 +394,8 @@ int DTLSSession::Send(const uint8_t* data, size_t len) {
 
   int written = SSL_write(ssl_.get(), data, len);
   if (written > 0) {
+    DTLS_STAT_INCREMENT_N(DTLSSessionStats, bytes_sent, written);
+    DTLS_STAT_INCREMENT(DTLSSessionStats, messages_sent);
     EncOut();
   }
   return written;
@@ -395,6 +406,7 @@ void DTLSSession::Close() {
 
   closed_ = true;
   state_->closing = 1;
+  DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, closing_at);
 
   // Send close_notify.
   int ret = SSL_shutdown(ssl_.get());
@@ -421,6 +433,7 @@ void DTLSSession::Destroy() {
   closed_ = true;
 
   state_->destroyed = 1;
+  DTLS_STAT_RECORD_TIMESTAMP(DTLSSessionStats, destroyed_at);
   state_->open = 0;
   state_->handshaking = 0;
 
@@ -490,6 +503,12 @@ void DTLSSession::GetState(const FunctionCallbackInfo<Value>& args) {
   DTLSSession* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   args.GetReturnValue().Set(session->state_.GetArrayBuffer());
+}
+
+void DTLSSession::GetStats(const FunctionCallbackInfo<Value>& args) {
+  DTLSSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  args.GetReturnValue().Set(session->stats_.GetArrayBuffer());
 }
 
 void DTLSSession::GetRemoteAddress(const FunctionCallbackInfo<Value>& args) {

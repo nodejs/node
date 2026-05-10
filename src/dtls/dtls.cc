@@ -48,6 +48,24 @@ void CreatePerContextProperties(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, IDX_SESSION_STATE_DESTROYED);
   NODE_DEFINE_CONSTANT(target, IDX_SESSION_STATE_HAS_MESSAGE_LISTENER);
 
+  // Endpoint stats indices (for BigUint64Array access from JS)
+#define V(name, _) IDX_STATS_ENDPOINT_##name,
+  enum IDX_STATS_ENDPOINT { DTLS_ENDPOINT_STATS(V) IDX_STATS_ENDPOINT_COUNT };
+#undef V
+#define V(name, _) NODE_DEFINE_CONSTANT(target, IDX_STATS_ENDPOINT_##name);
+  DTLS_ENDPOINT_STATS(V);
+#undef V
+  NODE_DEFINE_CONSTANT(target, IDX_STATS_ENDPOINT_COUNT);
+
+  // Session stats indices
+#define V(name, _) IDX_STATS_SESSION_##name,
+  enum IDX_STATS_SESSION { DTLS_SESSION_STATS(V) IDX_STATS_SESSION_COUNT };
+#undef V
+#define V(name, _) NODE_DEFINE_CONSTANT(target, IDX_STATS_SESSION_##name);
+  DTLS_SESSION_STATS(V);
+#undef V
+  NODE_DEFINE_CONSTANT(target, IDX_STATS_SESSION_COUNT);
+
   // SSL verify mode constants
   constexpr auto SSL_VERIFY_NONE_VALUE = SSL_VERIFY_NONE;
   constexpr auto SSL_VERIFY_PEER_VALUE = SSL_VERIFY_PEER;
