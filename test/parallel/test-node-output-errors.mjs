@@ -25,6 +25,7 @@ describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
     { name: 'errors/events_unhandled_error_sameline.js' },
     { name: 'errors/events_unhandled_error_subclass.js' },
     { name: 'errors/if-error-has-good-stack.js' },
+    { name: 'errors/nexttick_throw.js' },
     { name: 'errors/throw_custom_error.js' },
     { name: 'errors/throw_error_with_getter_throw.js' },
     { name: 'errors/throw_in_eval_anonymous.js' },

@@ -1,0 +1,9 @@
+<project-root>/test/fixtures/errors/nexttick_throw.js:30
+        undefined_reference_error_maker;
+        ^
+
+ReferenceError: undefined_reference_error_maker is not defined
+    at <project-root>/test/fixtures/errors/nexttick_throw.js:30:9
+    at <node-internal-frames>
+
+Node.js <node-version>

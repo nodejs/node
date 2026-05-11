@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+require('../../common');
 
 process.nextTick(function() {
   process.nextTick(function() {
