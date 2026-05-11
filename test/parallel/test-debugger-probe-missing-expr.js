@@ -13,7 +13,7 @@ spawnSyncAndExit(process.execPath, [
   probeScript,
 ], {
   signal: null,
-  status: 1,
+  status: 9,
   stderr: /Each --probe must be followed immediately by --expr/,
   trim: true,
 });

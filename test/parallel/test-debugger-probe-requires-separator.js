@@ -15,7 +15,7 @@ spawnSyncAndExit(process.execPath, [
   probeScript,
 ], {
   signal: null,
-  status: 1,
+  status: 9,
   stderr: /Use -- before child Node\.js flags in probe mode/,
   trim: true,
 });

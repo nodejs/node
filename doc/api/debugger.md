@@ -10,6 +10,14 @@ Node.js includes a command-line debugging utility. The Node.js debugger client
 is not a full-featured debugger, but simple stepping and inspection are
 possible.
 
+The debugger supports two modes of operation: [interactive mode][] and [non-interactive probe mode][].
+
+## Interactive mode
+
+```console
+$ node inspect [--port=<port>] [<node-option> ...] [<script> [<script-args>] | <host>:<port> | -p <pid>]
+```
+
 To use it, start Node.js with the `inspect` argument followed by the path to the
 script to debug.
 
@@ -90,6 +98,138 @@ steps to the next line. Type `help` to see what other commands are available.
 Pressing `enter` without typing a command will repeat the previous debugger
 command.
 
+### Watchers
+
+It is possible to watch expression and variable values while debugging. On
+every breakpoint, each expression from the watchers list will be evaluated
+in the current context and displayed immediately before the breakpoint's
+source code listing.
+
+To begin watching an expression, type `watch('my_expression')`. The command
+`watchers` will print the active watchers. To remove a watcher, type
+`unwatch('my_expression')`.
+
+## Command reference
+
+### Stepping
+
+* `cont`, `c`: Continue execution
+* `next`, `n`: Step next
+* `step`, `s`: Step in
+* `out`, `o`: Step out
+* `pause`: Pause running code (like pause button in Developer Tools)
+
+#### Breakpoints
+
+* `setBreakpoint()`, `sb()`: Set breakpoint on current line
+* `setBreakpoint(line)`, `sb(line)`: Set breakpoint on specific line
+* `setBreakpoint('fn()')`, `sb(...)`: Set breakpoint on a first statement in
+  function's body
+* `setBreakpoint('script.js', 1)`, `sb(...)`: Set breakpoint on first line of
+  `script.js`
+* `setBreakpoint('script.js', 1, 'num < 4')`, `sb(...)`: Set conditional
+  breakpoint on first line of `script.js` that only breaks when `num < 4`
+  evaluates to `true`
+* `clearBreakpoint('script.js', 1)`, `cb(...)`: Clear breakpoint in `script.js`
+  on line 1
+
+It is also possible to set a breakpoint in a file (module) that
+is not loaded yet:
+
+```console
+$ node inspect main.js
+< Debugger listening on ws://127.0.0.1:9229/48a5b28a-550c-471b-b5e1-d13dd7165df9
+< For help, see: https://nodejs.org/learn/getting-started/debugging
+<
+connecting to 127.0.0.1:9229 ... ok
+< Debugger attached.
+<
+Break on start in main.js:1
+> 1 const mod = require('./mod.js');
+  2 mod.hello();
+  3 mod.hello();
+debug> setBreakpoint('mod.js', 22)
+Warning: script 'mod.js' was not loaded yet.
+debug> c
+break in mod.js:22
+ 20 // USE OR OTHER DEALINGS IN THE SOFTWARE.
+ 21
+>22 exports.hello = function() {
+ 23   return 'hello from module';
+ 24 };
+debug>
+```
+
+It is also possible to set a conditional breakpoint that only breaks when a
+given expression evaluates to `true`:
+
+```console
+$ node inspect main.js
+< Debugger listening on ws://127.0.0.1:9229/ce24daa8-3816-44d4-b8ab-8273c8a66d35
+< For help, see: https://nodejs.org/learn/getting-started/debugging
+<
+connecting to 127.0.0.1:9229 ... ok
+< Debugger attached.
+Break on start in main.js:7
+  5 }
+  6
+> 7 addOne(10);
+  8 addOne(-1);
+  9
+debug> setBreakpoint('main.js', 4, 'num < 0')
+  1 'use strict';
+  2
+  3 function addOne(num) {
+> 4   return num + 1;
+  5 }
+  6
+  7 addOne(10);
+  8 addOne(-1);
+  9
+debug> cont
+break in main.js:4
+  2
+  3 function addOne(num) {
+> 4   return num + 1;
+  5 }
+  6
+debug> exec('num')
+-1
+debug>
+```
+
+#### Information
+
+* `backtrace`, `bt`: Print backtrace of current execution frame
+* `list(5)`: List scripts source code with 5 line context (5 lines before and
+  after)
+* `watch(expr)`: Add expression to watch list
+* `unwatch(expr)`: Remove expression from watch list
+* `unwatch(index)`: Remove expression at specific index from watch list
+* `watchers`: List all watchers and their values (automatically listed on each
+  breakpoint)
+* `repl`: Open debugger's repl for evaluation in debugging script's context
+* `exec expr`, `p expr`: Execute an expression in debugging script's context and
+  print its value
+* `profile`: Start CPU profiling session
+* `profileEnd`: Stop current CPU profiling session
+* `profiles`: List all completed CPU profiling sessions
+* `profiles[n].save(filepath = 'node.cpuprofile')`: Save CPU profiling session
+  to disk as JSON
+* `takeHeapSnapshot(filepath = 'node.heapsnapshot')`: Take a heap snapshot
+  and save to disk as JSON
+
+#### Execution control
+
+* `run`: Run script (automatically runs on debugger's start)
+* `restart`: Restart script
+* `kill`: Kill script
+
+#### Various
+
+* `scripts`: List all loaded scripts
+* `version`: Display V8's version
+
 ## Probe mode
 
 <!-- YAML
@@ -100,30 +240,39 @@ added:
 > Stability: 1 - Experimental
 
 `node inspect` supports a non-interactive probe mode for inspecting runtime values
-in an application via the flag `--probe`. Probe mode launches the application,
-sets one or more source breakpoints, evaluates one expression whenever a
-matching breakpoint is hit, and prints one final report when the session ends
-(either on normal completion or timeout). This allows developers to perform
+in an application via the flag `--probe`.
+
+Currently, probe mode only supports launching a new process from the entry point
+script specified on the command line.
+
+The probe mode sets one or more source breakpoints, evaluates specified
+expressions whenever the execution reaches a breakpoint, and prints one
+final report of all the evaluated expressions when the session ends
+(either on normal completion, error, or timeout). This allows developers to perform
 printf-style debugging without having to modify the application code and
-clean up afterwards, and it supports structured output for tool use.
+clean up afterwards. It also supports structured JSON output for tool use.
 
 ```console
-$ node inspect [--json] [--preview] [--timeout=<ms>] [--port=<port>] \
-    --probe app.js:10 --expr 'x' \
-    [--probe app.js:20 --expr 'y' ...] \
-    [--] [<node-option> ...] <script.js> [args...]
+$ node inspect --probe <file>:<line>[:<col>] --expr <expr>
+              [--probe <file>:<line>[:<col>] --expr <expr> ...]
+              [--json] [--preview] [--timeout=<ms>] [--port=<port>]
+              [--] [<node-option> ...] <script> [<script-args> ...]
 ```
 
-* `--probe <file>:<line>[:<col>]`: Source location to probe. Line and column number
-  are 1-based.
+* `--probe <file>:<line>[:<col>]`: Source location of the probe. When execution
+  reaches the location, the provided expressions are evaluated and printed in
+  the output. Line and column numbers are 1-based. When omitted, column defaults to 1.
+* `--expr <expr>`: JavaScript expression to evaluate whenever execution reaches
+  the location specified by the preceding `--probe`.
+  Must immediately follow the `--probe` it belongs to.
 * `--timeout=<ms>`: A global wall-clock deadline for the entire probe session.
   The default is `30000`. This can be used to probe a long-running application
   that can be terminated externally.
 * `--json`: If used, prints a structured JSON report instead of the default text report.
 * `--preview`: If used, non-primitive values will include CDP property previews for
   object-like JSON probe values.
-* `--port=<port>`: Selects the local inspector port used for the `--inspect-brk`
-  launch path. Probe mode defaults to `0`, which requests a random port.
+* `--port=<port>`: Selects the local inspector port where the probing session
+  will listen. Defaults to `0`, which requests a random port.
 * `--` is optional unless the child needs its own Node.js flags.
 
 Additional rules about the `--probe` and `--expr` arguments:
@@ -133,18 +282,21 @@ Additional rules about the `--probe` and `--expr` arguments:
 * `--timeout`, `--json`, `--preview`, and `--port` are global probe options
   for the whole probe session. They may appear before or between probe pairs,
   but not between a `--probe` and its matching `--expr`.
+* If additional Node.js execution arguments need to be passed to the child
+  script, `--` must be used to separate the probe options from the Node.js
+  options for the child script.
 
-If a single probe needs to evaluate more than one value,
-evaluate a structured value in `--expr`, for example `--expr "{ foo, bar }"`
-or `--expr "[foo, bar]"`, and use `--preview` to include property previews for
-any object-like values in the output.
+Example:
 
-Probe mode only prints the final probe report to stdout, and otherwise silences
-stdout/stderr from the child process. If the child exits with an error after the
-probe session starts, the final report records a terminal `error` event with the
-exit code and captured child stderr. Invalid arguments and fatal launch or
-connect failures may still print diagnostics to stderr without a final probe
-result.
+```console
+$ node inspect --probe app.js:10 --expr "user"
+               --probe src/utils.js:5:15 --expr "config.options"
+               --json --preview -- --no-warnings app.js --arg-for-app=foo
+```
+
+### Probe output format
+
+When the probe session ends, the probing process prints a final report of all the probe hits and results.
 
 Consider this script:
 
@@ -157,7 +309,7 @@ for (let i = 0; i < 2; i++) {
 }
 ```
 
-If `--json` is not used, the output is printed in a human-readable text format:
+Without `--json`, by default the output is printed in a human-readable text format:
 
 ```console
 $ node inspect --probe cli.js:5 --expr 'rss' cli.js
@@ -241,137 +393,102 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
 }
 ```
 
-## Watchers
+### Output and exit codes from the probed process
 
-It is possible to watch expression and variable values while debugging. On
-every breakpoint, each expression from the watchers list will be evaluated
-in the current context and displayed immediately before the breakpoint's
-source code listing.
+Probe mode only prints the final probe report to stdout, and otherwise silences
+stdout/stderr from the child process. When the probing session ends,
+`node inspect` typically exits with code `0` and prints a final report to
+stdout. If the child process exits with a non-zero code before the
+probe session ends, the final report records a terminal `error` event along
+with the exit code and captured child stderr. The probing process itself
+still exits with code `0` in this case.
 
-To begin watching an expression, type `watch('my_expression')`. The command
-`watchers` will print the active watchers. To remove a watcher, type
-`unwatch('my_expression')`.
+Invalid arguments and fatal launch or connect failures may cause the
+probing process to exit with a non-zero code and print an error message
+to stderr without a final probe report.
 
-## Command reference
+### Probing multiple expressions at the same execution point
 
-### Stepping
+When multiple `--probe`/`--expr` pairs share the same `--probe`, the
+expressions will be evaluated on the same pause in the order they appear
+on the command line.
 
-* `cont`, `c`: Continue execution
-* `next`, `n`: Step next
-* `step`, `s`: Step in
-* `out`, `o`: Step out
-* `pause`: Pause running code (like pause button in Developer Tools)
-
-### Breakpoints
-
-* `setBreakpoint()`, `sb()`: Set breakpoint on current line
-* `setBreakpoint(line)`, `sb(line)`: Set breakpoint on specific line
-* `setBreakpoint('fn()')`, `sb(...)`: Set breakpoint on a first statement in
-  function's body
-* `setBreakpoint('script.js', 1)`, `sb(...)`: Set breakpoint on first line of
-  `script.js`
-* `setBreakpoint('script.js', 1, 'num < 4')`, `sb(...)`: Set conditional
-  breakpoint on first line of `script.js` that only breaks when `num < 4`
-  evaluates to `true`
-* `clearBreakpoint('script.js', 1)`, `cb(...)`: Clear breakpoint in `script.js`
-  on line 1
-
-It is also possible to set a breakpoint in a file (module) that
-is not loaded yet:
-
-```console
-$ node inspect main.js
-< Debugger listening on ws://127.0.0.1:9229/48a5b28a-550c-471b-b5e1-d13dd7165df9
-< For help, see: https://nodejs.org/learn/getting-started/debugging
-<
-connecting to 127.0.0.1:9229 ... ok
-< Debugger attached.
-<
-Break on start in main.js:1
-> 1 const mod = require('./mod.js');
-  2 mod.hello();
-  3 mod.hello();
-debug> setBreakpoint('mod.js', 22)
-Warning: script 'mod.js' was not loaded yet.
-debug> c
-break in mod.js:22
- 20 // USE OR OTHER DEALINGS IN THE SOFTWARE.
- 21
->22 exports.hello = function() {
- 23   return 'hello from module';
- 24 };
-debug>
+```js
+// app.js
+const x = { x: 42 };       // line 2
+const y = { y: 35 };       // line 3
+const z = { ...x, ...y };  // line 4
 ```
 
-It is also possible to set a conditional breakpoint that only breaks when a
-given expression evaluates to `true`:
-
 ```console
-$ node inspect main.js
-< Debugger listening on ws://127.0.0.1:9229/ce24daa8-3816-44d4-b8ab-8273c8a66d35
-< For help, see: https://nodejs.org/learn/getting-started/debugging
-<
-connecting to 127.0.0.1:9229 ... ok
-< Debugger attached.
-Break on start in main.js:7
-  5 }
-  6
-> 7 addOne(10);
-  8 addOne(-1);
-  9
-debug> setBreakpoint('main.js', 4, 'num < 0')
-  1 'use strict';
-  2
-  3 function addOne(num) {
-> 4   return num + 1;
-  5 }
-  6
-  7 addOne(10);
-  8 addOne(-1);
-  9
-debug> cont
-break in main.js:4
-  2
-  3 function addOne(num) {
-> 4   return num + 1;
-  5 }
-  6
-debug> exec('num')
--1
-debug>
+$ node inspect --probe app.js:4 --expr 'x' --probe app.js:4 --expr 'y' -- app.js
 ```
 
-### Information
+Prints
 
-* `backtrace`, `bt`: Print backtrace of current execution frame
-* `list(5)`: List scripts source code with 5 line context (5 lines before and
-  after)
-* `watch(expr)`: Add expression to watch list
-* `unwatch(expr)`: Remove expression from watch list
-* `unwatch(index)`: Remove expression at specific index from watch list
-* `watchers`: List all watchers and their values (automatically listed on each
-  breakpoint)
-* `repl`: Open debugger's repl for evaluation in debugging script's context
-* `exec expr`, `p expr`: Execute an expression in debugging script's context and
-  print its value
-* `profile`: Start CPU profiling session
-* `profileEnd`: Stop current CPU profiling session
-* `profiles`: List all completed CPU profiling sessions
-* `profiles[n].save(filepath = 'node.cpuprofile')`: Save CPU profiling session
-  to disk as JSON
-* `takeHeapSnapshot(filepath = 'node.heapsnapshot')`: Take a heap snapshot
-  and save to disk as JSON
+```text
+Hit 1 at app.js:4
+  x = {x: 42}
+Hit 1 at app.js:4
+  y = {y: 35}
+Completed
+```
 
-### Execution control
+```console
+$ node inspect --probe app.js:4 --expr 'x' --probe app.js:4 --expr 'y' --json --preview -- app.js
+```
 
-* `run`: Run script (automatically runs on debugger's start)
-* `restart`: Restart script
-* `kill`: Kill script
+Prints
 
-### Various
+```json
+{"v":1,"probes":[{"expr":"x","target":["app.js",4]},{"expr":"y","target":["app.js",4]}],"results":[{"probe":0,"event":"hit","hit":1,"result":{"type":"object","description":"Object","preview":{"type":"object","description":"Object","overflow":false,"properties":[{"name":"x","type":"number","value":"42"}]}}},{"probe":1,"event":"hit","hit":1,"result":{"type":"object","description":"Object","preview":{"type":"object","description":"Object","overflow":false,"properties":[{"name":"y","type":"number","value":"35"}]}}},{"event":"completed"}]}
+```
 
-* `scripts`: List all loaded scripts
-* `version`: Display V8's version
+### Selecting the probe location
+
+The expressions are evaluated in the lexical scope of the probe location when
+execution reaches it. Avoid probing a variable declared by `let` or `const` at its
+declaration site, as this leads to a `ReferenceError` caused by
+accessing the variable in its temporal dead zone (TDZ).
+
+```js
+// app.js
+const x = 42;        // line 2
+console.log(x);      // line 3
+```
+
+```console
+$ node inspect --probe app.js:1 --expr 'x' app.js
+Hit 1 at app.js:1
+  [error] x = ReferenceError: Cannot access 'x' from debugger
+  ...
+Completed
+```
+
+Instead, probe at a location where the variable is already initialized:
+
+```console
+$ node inspect --probe app.js:3 --expr 'x' app.js
+Hit 1 at app.js:3
+  x = 42
+Completed
+```
+
+Probe paths are matched against loaded script URLs by basename, similar to how
+native debuggers typically match breakpoints. Given:
+
+```text
+project/
+  - src/utils.js
+  - lib/utils.js
+```
+
+`--probe utils.js:10` binds to _both_ files and produces one hit per match.
+To disambiguate, specify a fuller path that only matches the intended file:
+
+```console
+$ node inspect --probe src/utils.js:10 --expr 'x' main.js   # matches only src/utils.js
+```
 
 ## Advanced usage
 
@@ -413,3 +530,5 @@ debugging sessions.)
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [`debugger`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger
+[interactive mode]: #interactive-mode
+[non-interactive probe mode]: #probe-mode
