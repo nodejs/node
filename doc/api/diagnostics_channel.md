@@ -1588,8 +1588,7 @@ Emitted when a chunk of the client request body is being sent.
 
 * `request` {http.ClientRequest}
 
-Emitted after the client request body has been fully sent, if a request body
-was written.
+Emitted after the client request body has been fully sent, if a request body was written.
 
 ##### Event: `'http.client.request.error'`
 
