@@ -4,18 +4,21 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { assertProbeText, probeScript } = require('../common/debugger-probe');
+const { assertProbeText } = require('../common/debugger-probe');
+const cwd = fixtures.path('debugger');
+const probeUrl = fixtures.fileURL('debugger', 'probe.js').href;
 
 spawnSyncAndAssert(process.execPath, [
   'inspect',
-  '--probe', `${probeScript}:12`,
+  '--probe', 'probe.js:12',
   '--expr', 'finalValue',
-  probeScript,
-], {
+  'probe.js',
+], { cwd }, {
   stdout(output) {
     assertProbeText(output,
-                    `Hit 1 at ${probeScript}:12\n` +
+                    `Hit 1 at ${probeUrl}:12:1\n` +
                     '  finalValue = 81\n' +
                     'Completed');
   },
