@@ -1347,13 +1347,10 @@ void FunctionTemplate::SetCallHandler(
     i::DirectHandle<i::FixedArray> function_overloads =
         i_isolate->factory()->NewFixedArray(function_count);
     for (uint32_t i = 0; i < function_count; i++) {
-      const CFunction& c_function = c_function_overloads.data()[i];
-      i::DirectHandle<i::Managed<i::CFunctionWithSignature>> overload =
-          i::Managed<i::CFunctionWithSignature>::From(
-              i_isolate, sizeof(i::CFunctionWithSignature),
-              std::make_shared<i::CFunctionWithSignature>(
-                  reinterpret_cast<const i::Address>(c_function.GetAddress()),
-                  c_function.GetTypeInfo()));
+      const CFunction* c_function = &c_function_overloads.data()[i];
+      i::DirectHandle<i::Foreign> overload =
+          i_isolate->factory()->NewForeign<i::kCFunctionTag>(
+              reinterpret_cast<i::Address>(c_function));
       function_overloads->set(i, *overload);
     }
     i::FunctionTemplateInfo::SetCFunctionOverloads(i_isolate, info,

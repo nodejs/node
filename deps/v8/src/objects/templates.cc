@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/common/assert-scope.h"
@@ -180,9 +181,12 @@ uint32_t FunctionTemplateInfo::GetCFunctionsCount() const {
 CFunctionWithSignature FunctionTemplateInfo::GetCFunction(
     uint32_t index) const {
   i::DisallowGarbageCollection no_gc;
-  return *Cast<Managed<CFunctionWithSignature>>(
-              Cast<FixedArray>(GetCFunctionOverloads())->get(index))
-              ->raw(no_gc);
+  const CFunction* c_function = reinterpret_cast<const CFunction*>(
+      Cast<Foreign>(Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+          ->template foreign_address<kCFunctionTag>());
+  return CFunctionWithSignature(
+      reinterpret_cast<Address>(c_function->GetAddress()),
+      c_function->GetTypeInfo());
 }
 
 // static

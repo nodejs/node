@@ -32,7 +32,6 @@ class FunctionTemplateRareData;
 #include "torque-generated/src/objects/templates-tq.inc"
 
 struct CFunctionWithSignature {
-  static constexpr ExternalPointerTag kManagedTag = kCFunctionWithSignatureTag;
   const Address address;
   const CFunctionInfo* signature;
 

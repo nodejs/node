@@ -220,10 +220,12 @@ ZoneVector<CFunctionInfoWithDetails> GetCFunctionsWithSignatures(
   const uint32_t len = function_overloads->ulength().value();
   ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures(len, zone);
   for (uint32_t i = 0; i < len; i++) {
-    auto overload =
-        Cast<Managed<CFunctionWithSignature>>(function_overloads->get(i))
-            ->raw(no_gc);
-    c_functions_with_signatures[i] = {overload->address, overload->signature};
+    const CFunction* c_function = reinterpret_cast<const CFunction*>(
+        Cast<Foreign>(function_overloads->get(i))
+            ->foreign_address<kCFunctionTag>());
+    c_functions_with_signatures[i] = {
+        reinterpret_cast<Address>(c_function->GetAddress()),
+        c_function->GetTypeInfo()};
   }
   return c_functions_with_signatures;
 }
