@@ -13,7 +13,7 @@ const server = h2.createServer();
 server.listen(0, common.mustCall(function() {
   const port = server.address().port;
   server.once('request', common.mustCall(function(request, response) {
-    response.on('finish', common.mustCall(() => {
+    response.on('close', common.mustCall(() => {
       assert.strictEqual(response.headersSent, false);
       response.setHeader('test', 'value');
       response.removeHeader('test', 'value');

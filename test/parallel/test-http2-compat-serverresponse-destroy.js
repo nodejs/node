@@ -16,10 +16,13 @@ const errors = [
 let nextError;
 
 const server = http2.createServer(common.mustCall((req, res) => {
-  req.on('error', common.mustNotCall());
+  if (req.url !== '/')
+    req.on('error', common.mustCall());
+  else
+    req.on('error', common.mustNotCall());
   res.on('error', common.mustNotCall());
 
-  res.on('finish', common.mustCall(() => {
+  res.on('close', common.mustCall(() => {
     res.destroy(nextError);
     process.nextTick(() => {
       res.destroy(nextError);
