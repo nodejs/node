@@ -187,7 +187,7 @@ A good commit message should describe what changed and why.
    `Fixes:` and `Refs:` trailers get automatically added to your commit message
    when the Pull Request lands as long as they are included in the
    Pull Request's description. If the Pull Request lands in several commits,
-   by default the trailers found in the description are added to each commit.
+   by default the trailers found in the description are added to each commits.
 
    Examples:
 
@@ -288,6 +288,9 @@ git push origin my-branch
 From within GitHub, opening a new pull request will present you with a
 [pull request template][]. Please try to do your best at filling out the
 details, but feel free to skip parts if you're not sure what to put.
+
+If your pull request exceeds 5000 lines of changes, see the
+[large pull requests][] guide for additional requirements.
 
 Once opened, pull requests are usually reviewed within a few days.
 
@@ -611,6 +614,7 @@ More than one subsystem may be valid for any particular issue or pull request.
 [guide for writing tests in Node.js]: writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
+[large pull requests]: large-pull-requests.md
 [maintaining dependencies]: ./maintaining/maintaining-dependencies.md
 [nodejs/core-validate-commit]: https://github.com/nodejs/core-validate-commit/blob/main/lib/rules/subsystem.js
 [pull request template]: https://raw.githubusercontent.com/nodejs/node/HEAD/.github/PULL_REQUEST_TEMPLATE.md
