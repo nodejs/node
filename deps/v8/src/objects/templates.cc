@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
 #include "src/common/globals.h"
@@ -177,9 +178,12 @@ int FunctionTemplateInfo::GetCFunctionsCount() const {
 CFunctionWithSignature FunctionTemplateInfo::GetCFunction(Isolate* isolate,
                                                           int index) const {
   i::DisallowHeapAllocation no_gc;
-  return *Cast<Managed<CFunctionWithSignature>>(
-              Cast<FixedArray>(GetCFunctionOverloads())->get(index))
-              ->raw();
+  const CFunction* c_function = reinterpret_cast<const CFunction*>(
+      Cast<Foreign>(Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+          ->template foreign_address<kCFunctionTag>());
+  return CFunctionWithSignature(
+      reinterpret_cast<Address>(c_function->GetAddress()),
+      c_function->GetTypeInfo());
 }
 
 // static

@@ -28588,33 +28588,30 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
     try_catch.emplace(isolate);
   }
 
-  v8::CFunction c_func;
-  if (has_options) {
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    c_func =
-        v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback,
-                            FastCallbackPatch<Value, Impl, Ret>);
+  static v8::CFunction c_func_options =
+      v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback,
+                          FastCallbackPatch<Value, Impl, Ret>);
+  static v8::CFunction c_func_no_options = v8::CFunction::Make(
+      BasicApiChecker<Value, Impl, Ret>::FastCallbackNoOptions,
+      FastCallbackNoOptionsWrapper<Value, Impl, Ret>);
 #else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    c_func =
-        v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback);
+  static v8::CFunction c_func_options =
+      v8::CFunction::Make(BasicApiChecker<Value, Impl, Ret>::FastCallback);
+  static v8::CFunction c_func_no_options = v8::CFunction::Make(
+      BasicApiChecker<Value, Impl, Ret>::FastCallbackNoOptions);
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  } else {
-#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    c_func = v8::CFunction::Make(
-        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoOptions,
-        FastCallbackNoOptionsWrapper<Value, Impl, Ret>);
-#else   // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-    c_func = v8::CFunction::Make(
-        BasicApiChecker<Value, Impl, Ret>::FastCallbackNoOptions);
-#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-  }
-  CHECK_EQ(c_func.ArgumentInfo(0).GetType(), v8::CTypeInfo::Type::kV8Value);
+
+  v8::CFunction* c_func_ptr =
+      has_options ? &c_func_options : &c_func_no_options;
+  CHECK_EQ(c_func_ptr->ArgumentInfo(0).GetType(),
+           v8::CTypeInfo::Type::kV8Value);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl, Ret>::SlowCallback,
       v8::Number::New(isolate, 42.5), v8::Local<v8::Signature>(), 1,
       v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect,
-      &c_func);
+      c_func_ptr);
   if (!accept_any_receiver) {
     checker_templ->SetAcceptAnyReceiver(false);
   }
@@ -28857,7 +28854,7 @@ void CheckFastCallsWithConstructor() {
 
   CHECK_NULL(fast_calls_error_message);
 
-  v8::CFunction c_func_ctor =
+  static v8::CFunction c_func_ctor =
       v8::CFunction::Make(ApiObjectChecker::FastCallback);
   v8::FunctionTemplate::New(isolate, ApiObjectChecker::SlowCallback,
                             Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
@@ -28871,7 +28868,7 @@ void CheckFastCallsWithConstructor() {
   CHECK_EQ(0, strcmp(fast_calls_error_location, "FunctionTemplate::New"));
 
   fast_calls_error_message = nullptr;
-  const v8::CFunction c_func_ctor_overloads[] = {c_func_ctor};
+  static const v8::CFunction c_func_ctor_overloads[] = {c_func_ctor};
   v8::FunctionTemplate::NewWithCFunctionOverloads(
       isolate, ApiObjectChecker::SlowCallback, Local<v8::Value>(),
       v8::Local<v8::Signature>(), 1, v8::ConstructorBehavior::kAllow,

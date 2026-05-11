@@ -545,7 +545,6 @@ struct TagRange {
   V(WasmManagedDataTag)              \
   V(WasmNativeModuleTag)             \
   V(BackingStoreTag)                 \
-  V(CFunctionWithSignatureTag)       \
   V(IcuBreakIteratorTag)             \
   V(IcuListFormatterTag)             \
   V(IcuLocaleTag)                    \
@@ -572,6 +571,7 @@ struct TagRange {
   V(GenericForeignTag)                                    \
   V(ApiAccessCheckCallbackTag)                            \
   V(ApiAbortScriptExecutionCallbackTag)                   \
+  V(CFunctionTag)                                         \
   V(SyntheticModuleTag)                                   \
   V(MicrotaskCallbackTag)                                 \
   V(MicrotaskCallbackDataTag)                             \
