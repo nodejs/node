@@ -381,6 +381,15 @@ const tests = [
     error: 'Host: localhost. is not in the cert\'s altnames: ' +
            'DNS:a.com'
   },
+  {
+    host: 'foo。bar.example.com',
+    cert: {
+      subjectaltname: 'DNS:*.example.com',
+      subject: {}
+    },
+    error: 'Host: foo。bar.example.com. is not in the cert\'s altnames: ' +
+           'DNS:*.example.com'
+  },
   // IDNA
   {
     host: 'xn--bcher-kva.example.com',
