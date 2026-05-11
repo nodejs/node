@@ -1,0 +1,29 @@
+node:assert:<line>
+      throw err;
+      ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ Comparison {}
+- Comparison {
+-   bar: true
+- }
+
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/assert_throws_stack.js:6:8)
+    at <node-internal-frames>
+    at <node-internal-frames> {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: Error: foo
+      at assert.throws.bar (<project-root>/test/fixtures/errors/assert_throws_stack.js:6:29)
+      at <node-internal-frames>
+      at Object.<anonymous> (<project-root>/test/fixtures/errors/assert_throws_stack.js:6:8)
+      at <node-internal-frames>
+      at wrapModuleLoad (node:internal/modules/cjs/loader:245:24),
+  expected: { bar: true },
+  operator: 'throws',
+  diff: 'simple'
+}
+
+Node.js <node-version>

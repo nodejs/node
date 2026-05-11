@@ -14,6 +14,7 @@ describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
     { name: 'errors/async_error_microtask_main.js' },
     { name: 'errors/async_error_nexttick_main.js' },
     { name: 'errors/async_error_sync_main.js' },
+    { name: 'errors/assert_throws_stack.js' },
     { name: 'errors/core_line_numbers.js' },
     { name: 'errors/async_error_sync_esm.mjs' },
     { name: 'errors/test-no-extra-info-on-fatal-exception.js' },
