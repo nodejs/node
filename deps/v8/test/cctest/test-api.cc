@@ -16432,6 +16432,7 @@ void PromiseRejectCallback(v8::PromiseRejectMessage reject_message) {
       CHECK(reject_message.GetValue().IsEmpty());
       break;
     }
+      START_ALLOW_USE_DEPRECATED();
     case v8::kPromiseRejectAfterResolved: {
       promise_reject_after_resolved_counter++;
       break;
@@ -16440,6 +16441,7 @@ void PromiseRejectCallback(v8::PromiseRejectMessage reject_message) {
       promise_resolve_after_resolved_counter++;
       break;
     }
+      END_ALLOW_USE_DEPRECATED();
   }
 }
 

@@ -158,8 +158,10 @@ using PromiseHook = void (*)(PromiseHookType type, Local<Promise> promise,
 enum PromiseRejectEvent {
   kPromiseRejectWithNoHandler = 0,
   kPromiseHandlerAddedAfterReject = 1,
-  kPromiseRejectAfterResolved = 2,
-  kPromiseResolveAfterResolved = 3,
+  kPromiseRejectAfterResolved V8_DEPRECATED("These events are being removed") =
+      2,
+  kPromiseResolveAfterResolved V8_DEPRECATED("These events are being removed") =
+      3,
 };
 
 class PromiseRejectMessage {
