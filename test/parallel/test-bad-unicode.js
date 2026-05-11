@@ -21,13 +21,17 @@
 
 'use strict';
 require('../common');
+const { test } = require('node:test');
 const assert = require('assert');
-let exception = null;
 
-try {
-  eval('"\\uc/ef"');
-} catch (e) {
-  exception = e;
-}
+test('invalid unicode escape throws SyntaxError', () => {
+  let exception = null;
 
-assert(exception instanceof SyntaxError);
+  try {
+    eval('"\\uc/ef"');
+  } catch (e) {
+    exception = e;
+  }
+
+  assert(exception instanceof SyntaxError);
+});
