@@ -2103,19 +2103,21 @@ void Session::SetLastError(QuicError&& error) {
 
 bool Session::Receive(Store&& store,
                       const SocketAddress& local_address,
-                      const SocketAddress& remote_address) {
+                      const SocketAddress& remote_address,
+                      const PacketInfo& pkt_info) {
   // Convenience wrapper: reads the packet and immediately triggers
   // SendPendingData. Used by paths that need an immediate response
   // (e.g., Endpoint::Connect for client Initial packets).
   // The hot receive path uses ReadPacket() directly with deferred
   // flush via BindingData's uv_check callback.
   SendPendingDataScope send_scope(this);
-  return ReadPacket(std::move(store), local_address, remote_address);
+  return ReadPacket(std::move(store), local_address, remote_address, pkt_info);
 }
 
 bool Session::ReadPacket(Store&& store,
                          const SocketAddress& local_address,
-                         const SocketAddress& remote_address) {
+                         const SocketAddress& remote_address,
+                         const PacketInfo& pkt_info) {
   DCHECK(!is_destroyed());
   impl_->remote_address_ = remote_address;
 
@@ -2137,12 +2139,12 @@ bool Session::ReadPacket(Store&& store,
   int err;
   {
     NgTcp2CallbackScope callback_scope(this);
-    // ECN codepoint (ngtcp2_pkt_info.ecn) is not yet populated because
-    // libuv does not currently deliver per-packet ECN metadata. When
-    // libuv gains ECN receive reporting, the pkt_info should be
-    // populated from the per-packet metadata and passed through here.
+    // The PacketInfo carries per-packet metadata (currently ECN codepoint).
+    // When libuv gains per-packet ECN reporting, the caller should
+    // populate pkt_info from the receive metadata before calling
+    // ReadPacket().
     err = ngtcp2_conn_read_pkt(
-        *this, &path, nullptr, vec.base, vec.len, uv_hrtime());
+        *this, &path, pkt_info, vec.base, vec.len, uv_hrtime());
   }
   if (is_destroyed()) return false;
 
