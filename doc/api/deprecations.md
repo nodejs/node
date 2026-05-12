@@ -4579,14 +4579,54 @@ will throw an error in a future version.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/000000
+    pr-url: https://github.com/nodejs/node/pull/63249
     description: Documentation-only deprecation.
 -->
 
 Type: Documentation-only
 
-Use the standard {Stream} API: check `stream.destroyed` and listen for
-`'close'` and `'error'`. Parallels [DEP0156][] for `http`.
+Use standard stream events and state checks instead. Read-side aborts
+(peer cancelled before sending `END_STREAM`) now surface as `'error'`
+with code `ERR_HTTP2_STREAM_ABORTED` (clean peer reset code) or
+`ERR_HTTP2_STREAM_ERROR` (non-clean code). Write-side aborts (peer
+cancelled while we still had writes in flight) are detectable from
+`'close'` by checking `writableFinished`. Parallels [DEP0156][] for
+`http`.
+
+```cjs
+// Deprecated
+server.on('stream', (stream) => {
+  stream.on('aborted', () => {
+    // Stream was closed while the writable was still open.
+  });
+});
+```
+
+```cjs
+// Use this instead
+server.on('stream', (stream) => {
+  // Read-side abort: peer cancelled before sending END_STREAM.
+  stream.on('error', (err) => {
+    if (err.code === 'ERR_HTTP2_STREAM_ABORTED' ||
+        err.code === 'ERR_HTTP2_STREAM_ERROR') {
+      // Peer cancelled the request mid-stream.
+    }
+  });
+  // Write-side abort: our response didn't fully send before close.
+  stream.on('close', () => {
+    if (!stream.writableFinished) {
+      // Writes were aborted (peer cancel, local destroy, etc.).
+    }
+  });
+});
+```
+
+The same patterns apply to the compatibility API (`req` / `res` on
+`http2.createServer((req, res) => …)`). On the read-side, errors on the
+underlying stream are emitted from `req`. On the write-side you can use
+`res.on('close', …)` to hear about client aborts by checking
+`res.writableFinished` to confirm whether the response was written
+successfully before the response closed.
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http

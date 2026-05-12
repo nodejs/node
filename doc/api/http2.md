@@ -1265,7 +1265,7 @@ destroyed.
 added: v8.4.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/000000
+    pr-url: https://github.com/nodejs/node/pull/63249
     description: Documentation-only deprecation.
 -->
 
@@ -1294,7 +1294,7 @@ the `http2stream.rstCode` property.
 added: v8.4.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/000000
+    pr-url: https://github.com/nodejs/node/pull/63249
     description: >-
       Also emitted on peer-initiated resets that arrive before
       `END_STREAM` (`ERR_HTTP2_STREAM_ABORTED` for clean codes,
@@ -1736,7 +1736,7 @@ stream.on('push', (headers, flags) => {
 added: v8.4.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/000000
+    pr-url: https://github.com/nodejs/node/pull/63249
     description: >-
       If no `'response'` listener is attached when the response headers
       arrive, the response body is now silently discarded - matching
