@@ -353,7 +353,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     bool early = false;
   };
 
-  bool Receive(Store&& store,
+  bool Receive(const uint8_t* data,
+               size_t len,
                const SocketAddress& local_address,
                const SocketAddress& remote_address,
                const PacketInfo& pkt_info = PacketInfo(),
@@ -367,10 +368,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Receive() is kept as a convenience wrapper that calls ReadPacket()
   // then triggers SendPendingData (for paths like Connect that need
   // immediate response).
+  // The data pointer is used synchronously — ngtcp2_conn_read_pkt does
+  // not retain a reference after returning, so the caller's buffer can
+  // be reused immediately.
   // When ts is 0 (the default), uv_hrtime() is called internally.
   // The batched receive path caches a timestamp and passes it to all
   // ReadPacket() calls in the same I/O burst.
-  bool ReadPacket(Store&& store,
+  bool ReadPacket(const uint8_t* data,
+                  size_t len,
                   const SocketAddress& local_address,
                   const SocketAddress& remote_address,
                   const PacketInfo& pkt_info = PacketInfo(),
