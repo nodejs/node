@@ -29,7 +29,6 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBufferView;
-using v8::BackingStore;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
