@@ -19,6 +19,40 @@ namespace node::quic {
 template <typename T>
 concept OneByteType = sizeof(T) == 1;
 
+// Lightweight wrapper around ngtcp2_pkt_info. Insulates the Node.js QUIC
+// code from the ngtcp2 struct layout and provides a clean API boundary
+// for per-packet metadata (currently ECN codepoint; may grow as ngtcp2
+// and libuv evolve).
+//
+// Default-constructed PacketInfo is zero-initialized, which ngtcp2 treats
+// as ECN Not-ECT — identical to passing nullptr for the pkt_info parameter.
+class PacketInfo final {
+ public:
+  // ECN codepoints as defined by RFC 3168.
+  enum class Ecn : uint32_t {
+    NOT_ECT = 0,  // Not ECN-Capable Transport
+    ECT_1 = 1,    // ECN-Capable Transport(1)
+    ECT_0 = 2,    // ECN-Capable Transport(0)
+    CE = 3,       // Congestion Experienced
+  };
+
+  PacketInfo() : info_{} {}
+  explicit PacketInfo(const ngtcp2_pkt_info& info) : info_(info) {}
+
+  // ECN codepoint for this packet. When libuv gains per-packet ECN
+  // reporting, populate via set_ecn() from the receive metadata
+  // before passing to ReadPacket().
+  Ecn ecn() const { return static_cast<Ecn>(info_.ecn); }
+  void set_ecn(Ecn ecn) { info_.ecn = static_cast<uint32_t>(ecn); }
+
+  // Conversion operators for ngtcp2 API calls.
+  operator const ngtcp2_pkt_info*() const { return &info_; }
+  operator ngtcp2_pkt_info*() { return &info_; }
+
+ private:
+  ngtcp2_pkt_info info_;
+};
+
 struct Path final : public ngtcp2_path {
   explicit Path(const SocketAddress& local, const SocketAddress& remote);
   Path(Path&& other) noexcept = default;
