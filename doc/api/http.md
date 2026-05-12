@@ -3030,7 +3030,9 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 ### `message.signal`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {AbortSignal}

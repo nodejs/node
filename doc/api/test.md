@@ -706,7 +706,9 @@ node --test "**/*.test.js" "**/*.spec.js"
 ### Randomizing tests execution order
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3833,7 +3835,9 @@ with.
 ## Test instrumentation and OpenTelemetry
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 The test runner publishes test execution events through the Node.js
@@ -4610,7 +4614,9 @@ Can be used to abort test subtasks when the test has been aborted.
 ### `context.passed`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {boolean}
@@ -4620,7 +4626,9 @@ Indicates whether the suite and all of its subtests have passed.
 ### `context.attempt`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {number}
@@ -4632,7 +4640,9 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * `message` {string} A diagnostic message to output.

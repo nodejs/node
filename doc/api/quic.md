@@ -577,7 +577,9 @@ The valid range is `0` to `65535`.
 ### `endpoint.setSNIContexts(entries[, options])`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * `entries` {object} An object mapping host names to TLS identity options.
@@ -2396,7 +2398,9 @@ added: v23.8.0
 #### `sessionOptions.alpn`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {string} (client) | {string\[]} (server)
@@ -2725,7 +2729,9 @@ The peer server name to target (SNI). Defaults to `'localhost'`.
 #### `sessionOptions.sni` (server only)
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {Object}
