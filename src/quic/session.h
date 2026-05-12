@@ -374,6 +374,13 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // bindingdata.cc doesn't need the full Application type definition.
   void FlushPendingData();
 
+  // Send a batch of packets accumulated by SendPendingData. Uses
+  // Endpoint::SendBatch (uv_udp_try_send2 / sendmmsg) for synchronous
+  // batched delivery when called from the deferred flush path.
+  // Handles per-packet path updates and cross-endpoint redirects.
+  // All Ptr entries are consumed (released or moved) on return.
+  void SendBatch(Packet::Ptr* packets, PathStorage* paths, size_t count);
+
   void Send(Packet::Ptr packet);
   void Send(Packet::Ptr packet, const PathStorage& path);
   datagram_id SendDatagram(Store&& data);

@@ -492,12 +492,22 @@ int Endpoint::UDP::Send(Packet::Ptr packet) {
   return err;
 }
 
-int Endpoint::UDP::TrySend(Packet* packet) {
-  DCHECK_NOT_NULL(packet);
+int Endpoint::UDP::TrySend(const Packet::Ptr& packet) {
+  DCHECK(packet);
   if (is_closed_or_closing()) return UV_EBADF;
   uv_buf_t buf = *packet;
   return uv_udp_try_send(
       &impl_->handle_, &buf, 1, packet->destination().data());
+}
+
+int Endpoint::UDP::TrySendBatch(uv_buf_t* bufs[],
+                                unsigned int nbufs[],
+                                struct sockaddr* addrs[],
+                                size_t count) {
+  DCHECK_GT(count, 0);
+  if (is_closed_or_closing()) return UV_EBADF;
+  return uv_udp_try_send2(
+      &impl_->handle_, static_cast<unsigned int>(count), bufs, nbufs, addrs, 0);
 }
 
 void Endpoint::UDP::MemoryInfo(MemoryTracker* tracker) const {
@@ -827,20 +837,19 @@ void Endpoint::SendOrTrySend(Packet::Ptr packet) {
   }
 #endif
 
-  if (is_closed() || is_closing() || packet->length() == 0) {
+  if (is_closed() || is_closing() || !packet || packet->length() == 0) {
     return;
   }
 
   Debug(this, "TrySend %s", packet->ToString());
-  size_t packet_length = packet->length();
 
   // Attempt synchronous send. On success (returns number of bytes sent),
   // the packet is delivered immediately — no callback overhead, no
   // waiting for the next poll cycle.
-  int err = udp_.TrySend(packet.get());
+  int err = udp_.TrySend(packet);
   if (err >= 0) {
-    // Synchronous send succeeded. Release the packet immediately.
-    STAT_INCREMENT_N(Stats, bytes_sent, packet_length);
+    // Synchronous send succeeded.
+    STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
     STAT_INCREMENT(Stats, packets_sent);
     // Ptr destructor releases back to arena pool.
     return;
@@ -857,6 +866,73 @@ void Endpoint::SendOrTrySend(Packet::Ptr packet) {
   // Other errors are fatal.
   Debug(this, "TrySend failed with error %d", err);
   Destroy(CloseContext::SEND_FAILURE, err);
+}
+
+void Endpoint::SendBatch(Packet::Ptr* packets, size_t count) {
+  if (count == 0) return;
+
+#ifdef DEBUG
+  if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
+    for (size_t i = 0; i < count; i++) packets[i].reset();
+    return;
+  }
+#endif
+
+  if (is_closed() || is_closing()) {
+    for (size_t i = 0; i < count; i++) packets[i].reset();
+    return;
+  }
+
+  static constexpr size_t kMaxBatch = 64;
+  DCHECK_LE(count, kMaxBatch);
+
+  // Build libuv argument arrays directly from the Ptr array.
+  // Packets with zero length are released and skipped.
+  uv_buf_t bufs[kMaxBatch];
+  uv_buf_t* buf_ptrs[kMaxBatch];
+  unsigned int nbufs[kMaxBatch];
+  struct sockaddr* addrs[kMaxBatch];
+  // Map from valid-index back to the original packets[] index.
+  size_t index_map[kMaxBatch];
+  size_t valid_count = 0;
+
+  for (size_t i = 0; i < count; i++) {
+    if (!packets[i] || packets[i]->length() == 0) {
+      packets[i].reset();
+      continue;
+    }
+    bufs[valid_count] = *packets[i];
+    buf_ptrs[valid_count] = &bufs[valid_count];
+    nbufs[valid_count] = 1;
+    addrs[valid_count] =
+        const_cast<struct sockaddr*>(packets[i]->destination().data());
+    index_map[valid_count] = i;
+    valid_count++;
+  }
+
+  if (valid_count == 0) return;
+
+  // Attempt synchronous batched send via sendmmsg.
+  int sent = udp_.TrySendBatch(buf_ptrs, nbufs, addrs, valid_count);
+
+  if (sent > 0) {
+    // Packets [0, sent) were delivered synchronously.
+    // Release them immediately — no async callback needed.
+    for (size_t i = 0; i < static_cast<size_t>(sent); i++) {
+      size_t idx = index_map[i];
+      STAT_INCREMENT_N(Stats, bytes_sent, packets[idx]->length());
+      STAT_INCREMENT(Stats, packets_sent);
+      packets[idx].reset();
+    }
+  }
+
+  // Any unsent packets (EAGAIN, partial send, or total failure) fall
+  // back to async uv_udp_send.
+  size_t start = (sent > 0) ? static_cast<size_t>(sent) : 0;
+  for (size_t i = start; i < valid_count; i++) {
+    size_t idx = index_map[i];
+    Send(std::move(packets[idx]));
+  }
 }
 
 void Endpoint::SendRetry(const PathDescriptor& options) {
