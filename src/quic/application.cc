@@ -448,9 +448,13 @@ void Session::Application::SendPendingData() {
 
     // Awesome, let's write our packet!
     PacketInfo pi;
-    ssize_t nwrite = WriteVStream(
-        &path, &pi, packet->data(), &ndatalen, packet->length(),
-        stream_data, ts);
+    ssize_t nwrite = WriteVStream(&path,
+                                  &pi,
+                                  packet->data(),
+                                  &ndatalen,
+                                  packet->length(),
+                                  stream_data,
+                                  ts);
 
     // When ndatalen is > 0, that's our indication that stream data was accepted
     // in to the packet. Yay!
