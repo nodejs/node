@@ -222,6 +222,10 @@ Disable support for loading ECMAScript modules with require().
 .It Fl -no-strip-types
 Disable type-stripping for TypeScript files.
 .
+.It Fl -experimental-test-tag-filter Ar tag
+Run only tests whose tag set contains \fItag\fR. May be specified multiple
+times; tests must contain every filter to run.
+.
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
 .
