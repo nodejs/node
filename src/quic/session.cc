@@ -2101,7 +2101,8 @@ void Session::SetLastError(QuicError&& error) {
   impl_->last_error_ = std::move(error);
 }
 
-bool Session::Receive(Store&& store,
+bool Session::Receive(const uint8_t* data,
+                      size_t len,
                       const SocketAddress& local_address,
                       const SocketAddress& remote_address,
                       const PacketInfo& pkt_info,
@@ -2112,11 +2113,11 @@ bool Session::Receive(Store&& store,
   // The hot receive path uses ReadPacket() directly with deferred
   // flush via BindingData's uv_check callback.
   SendPendingDataScope send_scope(this);
-  return ReadPacket(
-      std::move(store), local_address, remote_address, pkt_info, ts);
+  return ReadPacket(data, len, local_address, remote_address, pkt_info, ts);
 }
 
-bool Session::ReadPacket(Store&& store,
+bool Session::ReadPacket(const uint8_t* data,
+                         size_t len,
                          const SocketAddress& local_address,
                          const SocketAddress& remote_address,
                          const PacketInfo& pkt_info,
@@ -2124,12 +2125,11 @@ bool Session::ReadPacket(Store&& store,
   DCHECK(!is_destroyed());
   impl_->remote_address_ = remote_address;
 
-  ngtcp2_vec vec = store;
   Path path(local_address, remote_address);
 
   Debug(this,
         "Session is receiving %zu-byte packet received along path %s",
-        vec.len,
+        len,
         path);
 
   // It is important to understand that reading the packet will cause
@@ -2150,19 +2150,18 @@ bool Session::ReadPacket(Store&& store,
     // receive path caches a timestamp and passes it to all ReadPacket()
     // calls in the same I/O burst.
     if (ts == 0) ts = uv_hrtime();
-    err = ngtcp2_conn_read_pkt(
-        *this, &path, pkt_info, vec.base, vec.len, ts);
+    err = ngtcp2_conn_read_pkt(*this, &path, pkt_info, data, len, ts);
   }
   if (is_destroyed()) return false;
 
-  Debug(this, "Session receiving %zu-byte packet with result %d", vec.len, err);
+  Debug(this, "Session receiving %zu-byte packet with result %d", len, err);
 
   switch (err) {
     case 0: {
-      Debug(this, "Session successfully received %zu-byte packet", vec.len);
+      Debug(this, "Session successfully received %zu-byte packet", len);
       if (!is_destroyed()) [[likely]] {
         auto& stats_ = impl_->stats_;
-        STAT_INCREMENT_N(Stats, bytes_received, vec.len);
+        STAT_INCREMENT_N(Stats, bytes_received, len);
         // Process deferred operations that couldn't run inside callback
         // scopes (e.g., HTTP/3 GOAWAY handling that calls into JS).
         application().PostReceive();
