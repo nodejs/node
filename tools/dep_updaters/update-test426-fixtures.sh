@@ -32,4 +32,5 @@ mv "$TMP_FILE" "$README"
 
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$(echo "$SHA" | head -c 39)"
+NEW_VERSION=$(echo "$SHA" | head -c 39)
+echo "NEW_VERSION=$NEW_VERSION"
