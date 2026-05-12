@@ -1321,8 +1321,8 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // will return false.
   if (env->can_call_into_js()) {
     Local<Value> argv[2] = {
-      Integer::NewFromUnsigned(isolate, code),
-      Boolean::New(isolate, stream->peer_reset()),
+        Integer::NewFromUnsigned(isolate, code),
+        Boolean::New(isolate, stream->peer_reset()),
     };
     MaybeLocal<Value> answer = stream->MakeCallback(
         env->http2session_on_stream_close_function(), arraysize(argv), argv);

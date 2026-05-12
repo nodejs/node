@@ -353,13 +353,9 @@ class Http2Stream : public AsyncWrap,
   // onStreamClose to distinguish a peer-initiated reset from a clean
   // bidirectional END_STREAM exchange (both surface to JS with the same
   // nghttp2 close code when the peer sent RST_STREAM(NO_ERROR)).
-  bool peer_reset() const {
-    return flags_ & kStreamStatePeerReset;
-  }
+  bool peer_reset() const { return flags_ & kStreamStatePeerReset; }
 
-  void set_peer_reset() {
-    flags_ |= kStreamStatePeerReset;
-  }
+  void set_peer_reset() { flags_ |= kStreamStatePeerReset; }
 
   bool has_trailers() const {
     return flags_ & kStreamStateTrailers;
