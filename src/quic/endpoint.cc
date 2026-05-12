@@ -492,6 +492,14 @@ int Endpoint::UDP::Send(Packet::Ptr packet) {
   return err;
 }
 
+int Endpoint::UDP::TrySend(Packet* packet) {
+  DCHECK_NOT_NULL(packet);
+  if (is_closed_or_closing()) return UV_EBADF;
+  uv_buf_t buf = *packet;
+  return uv_udp_try_send(
+      &impl_->handle_, &buf, 1, packet->destination().data());
+}
+
 void Endpoint::UDP::MemoryInfo(MemoryTracker* tracker) const {
   if (impl_) tracker->TrackField("impl", impl_);
 }
@@ -810,6 +818,45 @@ void Endpoint::Send(Packet::Ptr packet) {
   }
   STAT_INCREMENT_N(Stats, bytes_sent, packet_length);
   STAT_INCREMENT(Stats, packets_sent);
+}
+
+void Endpoint::SendOrTrySend(Packet::Ptr packet) {
+#ifdef DEBUG
+  if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
+    return;
+  }
+#endif
+
+  if (is_closed() || is_closing() || packet->length() == 0) {
+    return;
+  }
+
+  Debug(this, "TrySend %s", packet->ToString());
+  size_t packet_length = packet->length();
+
+  // Attempt synchronous send. On success (returns number of bytes sent),
+  // the packet is delivered immediately — no callback overhead, no
+  // waiting for the next poll cycle.
+  int err = udp_.TrySend(packet.get());
+  if (err >= 0) {
+    // Synchronous send succeeded. Release the packet immediately.
+    STAT_INCREMENT_N(Stats, bytes_sent, packet_length);
+    STAT_INCREMENT(Stats, packets_sent);
+    // Ptr destructor releases back to arena pool.
+    return;
+  }
+
+  if (err == UV_EAGAIN) {
+    // Socket not writable or async sends are queued. Fall back to the
+    // async path — the packet will be queued and flushed on the next
+    // POLLOUT cycle.
+    Debug(this, "TrySend got EAGAIN, falling back to async Send");
+    return Send(std::move(packet));
+  }
+
+  // Other errors are fatal.
+  Debug(this, "TrySend failed with error %d", err);
+  Destroy(CloseContext::SEND_FAILURE, err);
 }
 
 void Endpoint::SendRetry(const PathDescriptor& options) {
@@ -1152,9 +1199,21 @@ void Endpoint::Receive(const uv_buf_t& buf,
     DCHECK_NOT_NULL(session);
     if (session->is_destroyed()) return;
     size_t len = store.length();
-    if (session->Receive(std::move(store), local_address, remote_address)) {
+    // Use ReadPacket (no SendPendingDataScope) so that multiple packets
+    // received in the same I/O burst are processed before any responses
+    // are generated. The deferred flush via BindingData's uv_check
+    // callback calls SendPendingData once per dirty session after all
+    // packets in the burst have been read.
+    if (session->ReadPacket(std::move(store), local_address, remote_address)) {
       STAT_INCREMENT_N(Stats, bytes_received, len);
       STAT_INCREMENT(Stats, packets_received);
+    }
+    // Schedule the session for deferred SendPendingData if it hasn't
+    // been scheduled already in this burst.
+    if (!session->is_destroyed() && !session->pending_flush_) {
+      session->pending_flush_ = true;
+      BindingData::Get(env()).ScheduleSessionFlush(
+          BaseObjectPtr<Session>(session));
     }
   };
 

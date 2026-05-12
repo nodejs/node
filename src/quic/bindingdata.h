@@ -10,9 +10,11 @@
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <node.h>
 #include <node_mem.h>
+#include <uv.h>
 #include <v8.h>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 #include "defs.h"
 
 namespace node::quic {
@@ -202,6 +204,13 @@ class BindingData final
   // routing so that any endpoint can route packets to any session.
   SessionManager& session_manager();
 
+  // Schedule a session for deferred SendPendingData. Sessions are accumulated
+  // during the I/O poll phase (via Endpoint::Receive -> Session::ReadPacket)
+  // and flushed in a uv_check callback immediately after poll completes.
+  // This batches multiple received packets before generating responses,
+  // allowing ngtcp2 to make better ACK coalescing decisions.
+  void ScheduleSessionFlush(const BaseObjectPtr<Session>& session);
+
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
   size_t current_ngtcp2_memory_ = 0;
@@ -248,6 +257,17 @@ class BindingData final
 #undef V
 
   std::unique_ptr<SessionManager> session_manager_;
+
+  // Deferred send flush state. The uv_check_t fires immediately after
+  // the I/O poll phase in the same event loop tick, allowing batched
+  // receive processing: all packets are read during poll, then
+  // SendPendingData is called once per dirty session in the check callback.
+  uv_check_t flush_check_;
+  std::vector<BaseObjectPtr<Session>> pending_flush_sessions_;
+  bool flush_check_started_ = false;
+  bool flush_check_initialized_ = false;
+
+  static void OnFlushCheck(uv_check_t* handle);
 };
 
 JS_METHOD_IMPL(IllegalConstructor);
