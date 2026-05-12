@@ -2704,7 +2704,7 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 > Stability: 1 - Experimental.

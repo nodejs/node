@@ -94,7 +94,7 @@ command.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 > Stability: 1 - Experimental

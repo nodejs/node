@@ -629,7 +629,7 @@ node --test "**/*.test.js" "**/*.spec.js"
 ### Randomizing tests execution order
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3676,7 +3676,7 @@ Emitted when one or more tests are restarted due to a file change in watch mode.
 ## Test instrumentation and OpenTelemetry
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 The test runner publishes test execution events through the Node.js
@@ -4430,7 +4430,7 @@ Can be used to abort test subtasks when the test has been aborted.
 ### `context.passed`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 * Type: {boolean}
@@ -4440,7 +4440,7 @@ Indicates whether the suite and all of its subtests have passed.
 ### `context.attempt`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 * Type: {number}
@@ -4452,7 +4452,7 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.diagnostic(message)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 * `message` {string} A diagnostic message to output.

@@ -681,7 +681,7 @@ For more details, see the official CDP documentation: [Network.loadNetworkResour
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -702,7 +702,7 @@ This event indicates that a new item has been added to the storage.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -722,7 +722,7 @@ This event indicates that an item has been removed from the storage.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -744,7 +744,7 @@ This event indicates that a storage item has been updated.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 * `params` {Object}
@@ -764,7 +764,7 @@ storage.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 * `params` {Object}

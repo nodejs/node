@@ -520,7 +520,7 @@ the constructor. An exception is thrown if the database is already open.
 ### `database.serialize([dbName])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 * `dbName` {string} Name of the database to serialize. This can be `'main'`
@@ -555,7 +555,7 @@ console.log(buffer.length); // Prints the byte length of the database
 ### `database.deserialize(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 * `buffer` {Uint8Array} A binary representation of a database, such as the

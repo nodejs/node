@@ -1143,7 +1143,7 @@ top-level awaits, and print their location to help users find them.
 ### `--experimental-quic`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1176,7 +1176,7 @@ Use this flag to enable [ShadowRealm][] support.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.16.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -2672,7 +2672,7 @@ option set. This flag is not necessary when test isolation is disabled.
 ### `--test-random-seed`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 Set the seed used to randomize test execution order. This applies to both test
@@ -2686,7 +2686,7 @@ This flag cannot be used with `--watch` or `--test-rerun-failures`.
 ### `--test-randomize`
 
 <!-- YAML
-added: REPLACEME
+added: v24.16.0
 -->
 
 Randomize test execution order. This applies to both test file execution order
