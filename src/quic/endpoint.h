@@ -235,6 +235,13 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // the one-tick latency of async uv_udp_send.
   void SendOrTrySend(Packet::Ptr packet);
 
+  // Send a batch of packets using uv_udp_try_send2 (sendmmsg) for
+  // synchronous batched delivery. Packets successfully sent are released
+  // immediately. On EAGAIN or partial send, remaining packets fall back
+  // to async uv_udp_send. The Packet::Ptr array is consumed: all entries
+  // will be empty (released or moved) on return.
+  void SendBatch(Packet::Ptr* packets, size_t count);
+
   // Acquire a Packet from the pool. length sets the initial working
   // size (must be <= pool capacity). The slot is always allocated at
   // full capacity to avoid fragmentation.
@@ -308,11 +315,19 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     void Close();
     int Send(Packet::Ptr packet);
 
-    // Synchronous send using uv_udp_try_send. Returns 0 on success,
-    // UV_EAGAIN if the socket is not writable or the send queue is
-    // non-empty, or another negative error code on failure.
-    // On success, the caller is responsible for releasing the packet.
-    int TrySend(Packet* packet);
+    // Synchronous send using uv_udp_try_send. Returns the number of
+    // bytes sent on success, UV_EAGAIN if the socket is not writable
+    // or the send queue is non-empty, or another negative error code.
+    // The Ptr is not consumed — the caller manages the lifecycle.
+    int TrySend(const Packet::Ptr& packet);
+
+    // Synchronous batched send using uv_udp_try_send2 (sendmmsg).
+    // Takes pre-built libuv argument arrays. Returns the number of
+    // messages successfully sent (>= 0), or a negative error code.
+    int TrySendBatch(uv_buf_t* bufs[],
+                     unsigned int nbufs[],
+                     struct sockaddr* addrs[],
+                     size_t count);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.

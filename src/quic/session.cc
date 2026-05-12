@@ -2141,12 +2141,8 @@ bool Session::ReadPacket(Store&& store,
     // libuv does not currently deliver per-packet ECN metadata. When
     // libuv gains ECN receive reporting, the pkt_info should be
     // populated from the per-packet metadata and passed through here.
-    err = ngtcp2_conn_read_pkt(*this,
-                               &path,
-                               nullptr,
-                               vec.base,
-                               vec.len,
-                               uv_hrtime());
+    err = ngtcp2_conn_read_pkt(
+        *this, &path, nullptr, vec.base, vec.len, uv_hrtime());
   }
   if (is_destroyed()) return false;
 
@@ -2253,6 +2249,61 @@ bool Session::ReadPacket(Store&& store,
     Close();
   }
   return false;
+}
+
+void Session::SendBatch(Packet::Ptr* packets,
+                        PathStorage* paths,
+                        size_t count) {
+  DCHECK(!is_destroyed());
+  if (count == 0) return;
+
+  // Separate packets into those going to the primary endpoint and those
+  // redirected to other endpoints (rare: path validation, preferred address).
+  // Redirected packets are sent individually via the target endpoint.
+  static constexpr size_t kMaxBatch = 64;
+  DCHECK_LE(count, kMaxBatch);
+  Packet::Ptr primary_packets[kMaxBatch];
+  size_t primary_count = 0;
+
+  for (size_t i = 0; i < count; i++) {
+    if (!packets[i] || !can_send_packets()) {
+      packets[i].reset();
+      continue;
+    }
+
+    UpdatePath(paths[i]);
+
+    // Check for cross-endpoint redirect.
+    bool redirected = false;
+    if (paths[i].path.local.addrlen > 0) {
+      SocketAddress local_addr(paths[i].path.local.addr);
+      auto& mgr = BindingData::Get(env()).session_manager();
+      Endpoint* target = mgr.FindEndpointForAddress(local_addr);
+      if (target != nullptr && target != &endpoint()) {
+        SocketAddress remote_addr(paths[i].path.remote.addr);
+        packets[i]->Redirect(static_cast<Packet::Listener*>(target),
+                             remote_addr);
+        target->Send(std::move(packets[i]));
+        redirected = true;
+      }
+    }
+
+    if (!redirected) {
+      primary_packets[primary_count++] = std::move(packets[i]);
+    }
+  }
+
+  if (primary_count == 0) return;
+
+  // Use batched send for the primary endpoint.
+  if (prefer_try_send_) {
+    endpoint().SendBatch(primary_packets, primary_count);
+  } else {
+    // Non-flush path: send individually via async uv_udp_send.
+    for (size_t i = 0; i < primary_count; i++) {
+      Send(std::move(primary_packets[i]));
+    }
+  }
 }
 
 void Session::FlushPendingData() {

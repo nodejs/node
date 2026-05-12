@@ -329,14 +329,35 @@ void Session::Application::SendPendingData() {
   if (!session().can_send_packets()) [[unlikely]] {
     return;
   }
-  static constexpr size_t kMaxPackets = 32;
+  // Upper bound on packets per SendPendingData call. ngtcp2's send quantum
+  // is typically 64 KB, which at 1200-byte minimum packet size is ~53
+  // packets. 64 covers the worst case with headroom. The actual count per
+  // call is dynamically capped by ngtcp2_conn_get_send_quantum().
+  static constexpr size_t kMaxPackets = 64;
   Debug(session_, "Application sending pending data");
   PathStorage path;
   StreamData stream_data;
 
   bool closed = false;
+
+  // Batch accumulation: packets are collected here and flushed via
+  // Session::SendBatch when the loop exits, the batch is full, or
+  // on early return. This enables synchronous batched delivery via
+  // uv_udp_try_send2 (sendmmsg) from the deferred flush path.
+  Packet::Ptr batch[kMaxPackets];
+  PathStorage batch_paths[kMaxPackets];
+  size_t batch_count = 0;
+
+  auto flush_batch = [&] {
+    if (batch_count == 0) return;
+    session_->SendBatch(batch, batch_paths, batch_count);
+    batch_count = 0;
+  };
+
   auto update_stats = OnScopeLeave([&] {
     if (closed) return;
+    // Flush any remaining accumulated packets before updating stats.
+    flush_batch();
     auto& s = session();
     if (!s.is_destroyed()) [[likely]] {
       s.UpdatePacketTxTime();
@@ -353,7 +374,7 @@ void Session::Application::SendPendingData() {
       kMaxPackets, ngtcp2_conn_get_send_quantum(*session_) / max_packet_size);
   if (max_packet_count == 0) return;
 
-  // The number of packets that have been sent in this call to SendPendingData.
+  // The number of packets that have been prepared in this call.
   size_t packet_send_count = 0;
 
   Packet::Ptr packet;
@@ -366,6 +387,14 @@ void Session::Application::SendPendingData() {
     }
     DCHECK(packet);
     return true;
+  };
+
+  // Accumulate a completed packet into the batch.
+  auto enqueue_packet = [&](Packet::Ptr& pkt, size_t len) {
+    Debug(session_, "Enqueuing packet with %zu bytes into batch", len);
+    pkt->Truncate(len);
+    path.CopyTo(&batch_paths[batch_count]);
+    batch[batch_count++] = std::move(pkt);
   };
 
   // We're going to enter a loop here to prepare and send no more than
@@ -502,8 +531,7 @@ void Session::Application::SendPendingData() {
             if (result > 0) {
               size_t len = result;
               Debug(session_, "Sending packet with %zu bytes", len);
-              packet->Truncate(len);
-              session_->Send(std::move(packet), path);
+              enqueue_packet(packet, len);
               if (++packet_send_count == max_packet_count) return;
             } else if (result < 0) {
               // Any negative result other than NGTCP2_ERR_WRITE_MORE
@@ -540,8 +568,7 @@ void Session::Application::SendPendingData() {
     // is the size of the packet we are sending.
     size_t len = nwrite;
     Debug(session_, "Sending packet with %zu bytes", len);
-    packet->Truncate(len);
-    session_->Send(std::move(packet), path);
+    enqueue_packet(packet, len);
     if (++packet_send_count == max_packet_count) return;
 
     // If there are pending datagrams, try sending them in a fresh packet.
@@ -560,8 +587,7 @@ void Session::Application::SendPendingData() {
           TryWritePendingDatagram(&path, packet->data(), packet->length());
       if (result > 0) {
         Debug(session_, "Sending datagram packet with %zd bytes", result);
-        packet->Truncate(static_cast<size_t>(result));
-        session_->Send(std::move(packet), path);
+        enqueue_packet(packet, static_cast<size_t>(result));
         if (++packet_send_count == max_packet_count) return;
       } else if (result < 0 && result != NGTCP2_ERR_WRITE_MORE) {
         // Fatal error — session already closed by TryWritePendingDatagram.
