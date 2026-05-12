@@ -4,9 +4,10 @@
 // (matching every other Writable), not the moment respondWithFD was called.
 //
 //  - Clean EOF: 'finish' fires, writableFinished=true.
-//  - Peer aborts mid-pipe: 'finish' does NOT fire, writableFinished stays
-//    false. ('aborted' is preserved per its legacy criterion: writable was
-//    'ending' at close, so it doesn't fire here either way.)
+//  - Aborted before pipe completes: 'finish' does NOT fire,
+//    writableFinished stays false. ('aborted' is preserved per its
+//    legacy criterion: writable was 'ending' at close, so it doesn't
+//    fire either way.)
 
 const common = require('../common');
 if (!common.hasCrypto)
@@ -16,12 +17,8 @@ const fs = require('fs');
 const path = require('path');
 const http2 = require('http2');
 const tmpdir = require('../common/tmpdir');
-const { NGHTTP2_CANCEL } = http2.constants;
 
 tmpdir.refresh();
-const bigPath = path.join(tmpdir.path, 'big.bin');
-const bigSize = 1024 * 1024; // 1 MiB - well over initial flow-control window
-fs.writeFileSync(bigPath, Buffer.alloc(bigSize));
 
 function testCleanCompletion(next) {
   const smallPath = path.join(tmpdir.path, 'small.bin');
@@ -59,7 +56,11 @@ function testCleanCompletion(next) {
   }));
 }
 
-function testPeerAbort() {
+function testAbortBeforeCompletion() {
+  const smallPath = path.join(tmpdir.path, 'small-abort.bin');
+  const smallSize = 64;
+  fs.writeFileSync(smallPath, Buffer.alloc(smallSize));
+
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream) => {
     stream.on('finish', common.mustNotCall(
@@ -71,9 +72,11 @@ function testPeerAbort() {
       // writableFinished must reflect actual pipe completion.
       assert.strictEqual(stream.writableFinished, false);
     }));
-    const fd = fs.openSync(bigPath, 'r');
+    const fd = fs.openSync(smallPath, 'r');
     stream.ownsFd = true;
-    stream.respondWithFD(fd, { 'content-length': bigSize });
+    stream.respondWithFD(fd, { 'content-length': smallSize });
+    // Synchronously interrupt the pipe before it can read EOF.
+    stream.destroy();
   }));
 
   // Compat 'finish' must not fire on aborted pipe either.
@@ -87,12 +90,6 @@ function testPeerAbort() {
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const req = client.request();
     req.on('error', () => {});
-    // Don't consume data - once response headers arrive, RST. The
-    // initial flow-control window means the server's pipe will have
-    // read at most ~64 KiB of the 1 MiB file, so EOF won't be reached.
-    req.on('response', common.mustCall(() => {
-      setImmediate(() => req.close(NGHTTP2_CANCEL));
-    }));
     req.on('close', common.mustCall(() => {
       client.close();
       server.close();
@@ -100,4 +97,4 @@ function testPeerAbort() {
   }));
 }
 
-testCleanCompletion(testPeerAbort);
+testCleanCompletion(testAbortBeforeCompletion);
