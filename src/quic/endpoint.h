@@ -228,6 +228,13 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   void Send(Packet::Ptr packet);
 
+  // Attempt synchronous send via uv_udp_try_send. If the socket is
+  // writable, the packet is sent immediately and the Ptr is released.
+  // If the socket is not writable (UV_EAGAIN), falls back to the
+  // async Send path. Used by the deferred flush callback to avoid
+  // the one-tick latency of async uv_udp_send.
+  void SendOrTrySend(Packet::Ptr packet);
+
   // Acquire a Packet from the pool. length sets the initial working
   // size (must be <= pool capacity). The slot is always allocated at
   // full capacity to avoid fragmentation.
@@ -300,6 +307,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     void Stop();
     void Close();
     int Send(Packet::Ptr packet);
+
+    // Synchronous send using uv_udp_try_send. Returns 0 on success,
+    // UV_EAGAIN if the socket is not writable or the send queue is
+    // non-empty, or another negative error code on failure.
+    // On success, the caller is responsible for releasing the packet.
+    int TrySend(Packet* packet);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.
