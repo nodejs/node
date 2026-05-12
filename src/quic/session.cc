@@ -464,7 +464,12 @@ Session::Config::Config(Environment* env,
     settings.log_printf = ngtcp2_debug_log;
   }
 
-  settings.handshake_timeout = options.handshake_timeout;
+  // The handshake_timeout option is in milliseconds; ngtcp2 expects
+  // nanoseconds (ngtcp2_duration). UINT64_MAX means no timeout.
+  settings.handshake_timeout =
+      options.handshake_timeout == UINT64_MAX
+          ? UINT64_MAX
+          : options.handshake_timeout * NGTCP2_MILLISECONDS;
   settings.max_stream_window = options.max_stream_window;
   settings.max_window = options.max_window;
   settings.ack_thresh = options.unacknowledged_packet_threshold;
@@ -3639,6 +3644,10 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MIN);
+
+  static constexpr auto DEFAULT_HANDSHAKE_TIMEOUT =
+      Session::Options::DEFAULT_HANDSHAKE_TIMEOUT;
+  NODE_DEFINE_CONSTANT(target, DEFAULT_HANDSHAKE_TIMEOUT);
 
   NODE_DEFINE_STRING_CONSTANT(
       target, "DEFAULT_CIPHERS", TLSContext::DEFAULT_CIPHERS);

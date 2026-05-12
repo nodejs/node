@@ -27,9 +27,11 @@ const endpoint = new QuicEndpoint({ maxConnectionsTotal: 1 });
 
 // Verify the limits are readable and mutable.
 strictEqual(endpoint.maxConnectionsTotal, 1);
-strictEqual(endpoint.maxConnectionsPerHost, 0);
-endpoint.maxConnectionsPerHost = 100;
+// The default maxConnectionsPerHost is 100 — a non-zero default that
+// prevents a single host from exhausting server resources.
 strictEqual(endpoint.maxConnectionsPerHost, 100);
+endpoint.maxConnectionsPerHost = 50;
+strictEqual(endpoint.maxConnectionsPerHost, 50);
 endpoint.maxConnectionsPerHost = 0;
 
 let sessionCount = 0;
