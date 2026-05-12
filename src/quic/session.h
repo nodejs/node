@@ -355,7 +355,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   bool Receive(Store&& store,
                const SocketAddress& local_address,
-               const SocketAddress& remote_address);
+               const SocketAddress& remote_address,
+               const PacketInfo& pkt_info = PacketInfo());
 
   // ReadPacket processes a single inbound packet through ngtcp2 without
   // triggering SendPendingData. This is the building block for batched
@@ -367,7 +368,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // immediate response).
   bool ReadPacket(Store&& store,
                   const SocketAddress& local_address,
-                  const SocketAddress& remote_address);
+                  const SocketAddress& remote_address,
+                  const PacketInfo& pkt_info = PacketInfo());
 
   // Called by BindingData's flush callback to trigger SendPendingData
   // on this session. Encapsulates the application() access so that
