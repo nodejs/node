@@ -28,12 +28,20 @@ const tests = [
 ];
 
 const server = http2.createServer();
-server.on('stream', (stream, headers) => {
-  // Server is the one initiating the reset; swallow any error the local
-  // close path surfaces — peer-side behavior is what this test covers.
-  stream.on('error', () => {});
-  stream.close(headers.rstcode | 0);
-});
+server.on('stream', common.mustCall((stream, headers) => {
+  const code = headers.rstcode | 0;
+  // Locally-initiated close synthesizes 'error' iff the code isn't clean
+  // (NO_ERROR/CANCEL). Assert exactly that.
+  if (code === NGHTTP2_NO_ERROR || code === NGHTTP2_CANCEL) {
+    stream.on('error', common.mustNotCall(
+      "'error' must not fire on locally-initiated close with a clean code"));
+  } else {
+    stream.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_HTTP2_STREAM_ERROR');
+    }));
+  }
+  stream.close(code);
+}, tests.length));
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
