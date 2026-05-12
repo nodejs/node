@@ -262,11 +262,17 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   void BeginShutdown() override {
-    if (conn_) nghttp3_conn_submit_shutdown_notice(*this);
+    // Only submit a shutdown notice if the H3 connection was fully
+    // started (control streams bound). If the TLS handshake failed
+    // before Start() was called, conn_ exists but its control streams
+    // are unbound, and nghttp3_conn_submit_shutdown_notice would crash.
+    if (conn_ && started_) nghttp3_conn_submit_shutdown_notice(*this);
   }
 
   void CompleteShutdown() override {
-    if (conn_) nghttp3_conn_shutdown(*this);
+    // Same guard as BeginShutdown — nghttp3_conn_shutdown asserts
+    // that the control stream is bound (conn->tx.ctrl != NULL).
+    if (conn_ && started_) nghttp3_conn_shutdown(*this);
   }
 
   bool ReceiveStreamData(stream_id id,
