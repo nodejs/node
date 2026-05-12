@@ -357,6 +357,23 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                const SocketAddress& local_address,
                const SocketAddress& remote_address);
 
+  // ReadPacket processes a single inbound packet through ngtcp2 without
+  // triggering SendPendingData. This is the building block for batched
+  // receive processing: the caller (Endpoint::Receive) accumulates
+  // dirty sessions and a uv_check callback flushes them after all
+  // packets in the I/O burst have been read.
+  // Receive() is kept as a convenience wrapper that calls ReadPacket()
+  // then triggers SendPendingData (for paths like Connect that need
+  // immediate response).
+  bool ReadPacket(Store&& store,
+                  const SocketAddress& local_address,
+                  const SocketAddress& remote_address);
+
+  // Called by BindingData's flush callback to trigger SendPendingData
+  // on this session. Encapsulates the application() access so that
+  // bindingdata.cc doesn't need the full Application type definition.
+  void FlushPendingData();
+
   void Send(Packet::Ptr packet);
   void Send(Packet::Ptr packet, const PathStorage& path);
   datagram_id SendDatagram(Store&& data);
@@ -572,11 +589,22 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool in_ngtcp2_callback_scope_ = false;
   bool in_nghttp3_callback_scope_ = false;
   bool destroy_deferred_ = false;
+  // Set when this session is in BindingData's pending_flush_sessions_ vector.
+  // Cleared by the flush callback before calling SendPendingData.
+  // Provides O(1) dedup so a session receiving multiple packets in one I/O
+  // burst is only scheduled for flush once.
+  bool pending_flush_ = false;
+  // When true, Session::Send prefers synchronous delivery via
+  // Endpoint::SendOrTrySend (uv_udp_try_send with async fallback).
+  // Set during FlushPendingData to avoid the one-tick latency of
+  // async-only sends from the uv_check callback.
+  bool prefer_try_send_ = false;
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
   friend struct NgTcp2CallbackScope;
   friend struct NgHttp3CallbackScope;
   friend class Application;
+  friend class BindingData;
   friend class DefaultApplication;
   friend class Http3ApplicationImpl;
   friend class Endpoint;

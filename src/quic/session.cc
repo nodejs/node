@@ -2104,12 +2104,20 @@ void Session::SetLastError(QuicError&& error) {
 bool Session::Receive(Store&& store,
                       const SocketAddress& local_address,
                       const SocketAddress& remote_address) {
+  // Convenience wrapper: reads the packet and immediately triggers
+  // SendPendingData. Used by paths that need an immediate response
+  // (e.g., Endpoint::Connect for client Initial packets).
+  // The hot receive path uses ReadPacket() directly with deferred
+  // flush via BindingData's uv_check callback.
+  SendPendingDataScope send_scope(this);
+  return ReadPacket(std::move(store), local_address, remote_address);
+}
+
+bool Session::ReadPacket(Store&& store,
+                         const SocketAddress& local_address,
+                         const SocketAddress& remote_address) {
   DCHECK(!is_destroyed());
   impl_->remote_address_ = remote_address;
-
-  // When we are done processing this packet, we arrange to send any
-  // pending data for this session.
-  SendPendingDataScope send_scope(this);
 
   ngtcp2_vec vec = store;
   Path path(local_address, remote_address);
@@ -2125,14 +2133,16 @@ bool Session::Receive(Store&& store,
   // ensures that any deferred destroy waits until all callbacks for this
   // packet have completed. After calling ngtcp2_conn_read_pkt here, we
   // will need to double check that the session is not destroyed before
-  // we try doing anything with it (like updating stats, sending pending
-  // data, etc).
+  // we try doing anything with it (like updating stats, etc).
   int err;
   {
     NgTcp2CallbackScope callback_scope(this);
+    // ECN codepoint (ngtcp2_pkt_info.ecn) is not yet populated because
+    // libuv does not currently deliver per-packet ECN metadata. When
+    // libuv gains ECN receive reporting, the pkt_info should be
+    // populated from the per-packet metadata and passed through here.
     err = ngtcp2_conn_read_pkt(*this,
                                &path,
-                               // TODO(@jasnell): ECN pkt_info blocked on libuv
                                nullptr,
                                vec.base,
                                vec.len,
@@ -2245,6 +2255,17 @@ bool Session::Receive(Store&& store,
   return false;
 }
 
+void Session::FlushPendingData() {
+  DCHECK(!is_destroyed());
+  if (impl_->application_) {
+    // Prefer synchronous sends during the deferred flush to avoid the
+    // one-tick latency of async uv_udp_send from the uv_check callback.
+    prefer_try_send_ = true;
+    application().SendPendingData();
+    prefer_try_send_ = false;
+  }
+}
+
 void Session::Send(Packet::Ptr packet) {
   // Sending a Packet is generally best effort. If we're not in a state
   // where we can send a packet, it's ok to drop it on the floor. The
@@ -2258,6 +2279,16 @@ void Session::Send(Packet::Ptr packet) {
 
   if (!can_send_packets()) [[unlikely]] {
     // Ptr destructor releases the packet back to the pool.
+    return;
+  }
+
+  // When called from the deferred flush path (uv_check callback),
+  // prefer synchronous send to avoid the one-tick latency of async
+  // uv_udp_send. SendOrTrySend uses uv_udp_try_send first, falling
+  // back to uv_udp_send on EAGAIN.
+  if (prefer_try_send_) {
+    Debug(this, "Session is sending (try_send) %s", packet->ToString());
+    endpoint().SendOrTrySend(std::move(packet));
     return;
   }
 

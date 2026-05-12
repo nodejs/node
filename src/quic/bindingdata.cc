@@ -22,6 +22,7 @@ namespace node {
 using mem::kReserveSizeAndAlign;
 using v8::Function;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -154,6 +155,16 @@ BindingData& BindingData::Get(Environment* env) {
 
 BindingData::~BindingData() {
   quic_alloc_state.binding = nullptr;
+  if (flush_check_initialized_) {
+    uv_check_stop(&flush_check_);
+    flush_check_started_ = false;
+    // The check handle is closed inline here. Because BindingData destruction
+    // happens during Environment cleanup, the handle will be finalized by
+    // libuv's close phase.
+    uv_close(reinterpret_cast<uv_handle_t*>(&flush_check_), nullptr);
+    flush_check_initialized_ = false;
+  }
+  pending_flush_sessions_.clear();
 }
 
 ngtcp2_mem* BindingData::ngtcp2_allocator() {
@@ -221,6 +232,11 @@ void BindingData::RegisterExternalReferences(
 BindingData::BindingData(Realm* realm, Local<Object> object)
     : BaseObject(realm, object) {
   MakeWeak();
+  CHECK_EQ(uv_check_init(env()->event_loop(), &flush_check_), 0);
+  flush_check_.data = this;
+  // Unref so the check handle doesn't keep the event loop alive on its own.
+  uv_unref(reinterpret_cast<uv_handle_t*>(&flush_check_));
+  flush_check_initialized_ = true;
 }
 
 SessionManager& BindingData::session_manager() {
@@ -228,6 +244,45 @@ SessionManager& BindingData::session_manager() {
     session_manager_ = std::make_unique<SessionManager>();
   }
   return *session_manager_;
+}
+
+void BindingData::ScheduleSessionFlush(const BaseObjectPtr<Session>& session) {
+  pending_flush_sessions_.push_back(session);
+  if (!flush_check_started_) {
+    uv_check_start(&flush_check_, OnFlushCheck);
+    flush_check_started_ = true;
+  }
+}
+
+void BindingData::OnFlushCheck(uv_check_t* handle) {
+  auto* binding = static_cast<BindingData*>(handle->data);
+  if (binding->pending_flush_sessions_.empty()) {
+    uv_check_stop(&binding->flush_check_);
+    binding->flush_check_started_ = false;
+    return;
+  }
+
+  HandleScope scope(binding->env()->isolate());
+
+  // Swap to a local vector before iterating. SendPendingData may trigger
+  // MakeCallback which runs JS that could cause more packet receives via
+  // re-entry (e.g., a stream data callback that synchronously writes to
+  // another session). Any sessions added during the flush remain in
+  // pending_flush_sessions_ and are picked up on the next check tick.
+  auto sessions = std::move(binding->pending_flush_sessions_);
+  for (auto& session : sessions) {
+    session->pending_flush_ = false;
+    if (!session->is_destroyed()) {
+      session->FlushPendingData();
+    }
+  }
+
+  // If no new sessions were added during the flush, stop the check
+  // to avoid per-tick callback overhead when idle.
+  if (binding->pending_flush_sessions_.empty()) {
+    uv_check_stop(&binding->flush_check_);
+    binding->flush_check_started_ = false;
+  }
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
