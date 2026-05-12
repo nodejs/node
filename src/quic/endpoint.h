@@ -47,6 +47,20 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // intentionally triggering generation of a large number of retries.
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
+  // Maximum number of version negotiation packets that will be sent to a
+  // given remote host within the LRU tracking window. Version negotiation
+  // packets are cheap to generate but can be used as an amplification
+  // vector with spoofed source addresses.
+  // TODO(@jasnell): Consider making this configurable via Endpoint::Options.
+  static constexpr uint64_t kMaxVersionNegotiations = 10;
+
+  // Maximum number of immediate connection close packets that will be sent
+  // to a given remote host within the LRU tracking window. These are sent
+  // when the server is busy or a token is invalid — a malicious peer could
+  // trigger a large number of them.
+  // TODO(@jasnell): Consider making this configurable via Endpoint::Options.
+  static constexpr uint64_t kMaxImmediateCloses = 10;
+
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
     // The local socket address to which the UDP port will be bound. The port
@@ -454,6 +468,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     struct Type final {
       size_t reset_count;
       size_t retry_count;
+      size_t version_negotiation_count;
+      size_t immediate_close_count;
       uint64_t timestamp;
       bool validated;
     };
