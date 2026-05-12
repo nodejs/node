@@ -356,7 +356,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool Receive(Store&& store,
                const SocketAddress& local_address,
                const SocketAddress& remote_address,
-               const PacketInfo& pkt_info = PacketInfo());
+               const PacketInfo& pkt_info = PacketInfo(),
+               uint64_t ts = 0);
 
   // ReadPacket processes a single inbound packet through ngtcp2 without
   // triggering SendPendingData. This is the building block for batched
@@ -366,10 +367,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Receive() is kept as a convenience wrapper that calls ReadPacket()
   // then triggers SendPendingData (for paths like Connect that need
   // immediate response).
+  // When ts is 0 (the default), uv_hrtime() is called internally.
+  // The batched receive path caches a timestamp and passes it to all
+  // ReadPacket() calls in the same I/O burst.
   bool ReadPacket(Store&& store,
                   const SocketAddress& local_address,
                   const SocketAddress& remote_address,
-                  const PacketInfo& pkt_info = PacketInfo());
+                  const PacketInfo& pkt_info = PacketInfo(),
+                  uint64_t ts = 0);
 
   // Called by BindingData's flush callback to trigger SendPendingData
   // on this session. Encapsulates the application() access so that
