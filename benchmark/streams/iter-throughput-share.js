@@ -3,7 +3,7 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  consumers: [8, 32, 128],
+  consumers: [2, 8, 32],
   batches: [1e4],
   backpressure: ['block'],
   n: [5],
