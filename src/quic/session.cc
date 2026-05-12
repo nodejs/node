@@ -2104,20 +2104,23 @@ void Session::SetLastError(QuicError&& error) {
 bool Session::Receive(Store&& store,
                       const SocketAddress& local_address,
                       const SocketAddress& remote_address,
-                      const PacketInfo& pkt_info) {
+                      const PacketInfo& pkt_info,
+                      uint64_t ts) {
   // Convenience wrapper: reads the packet and immediately triggers
   // SendPendingData. Used by paths that need an immediate response
   // (e.g., Endpoint::Connect for client Initial packets).
   // The hot receive path uses ReadPacket() directly with deferred
   // flush via BindingData's uv_check callback.
   SendPendingDataScope send_scope(this);
-  return ReadPacket(std::move(store), local_address, remote_address, pkt_info);
+  return ReadPacket(
+      std::move(store), local_address, remote_address, pkt_info, ts);
 }
 
 bool Session::ReadPacket(Store&& store,
                          const SocketAddress& local_address,
                          const SocketAddress& remote_address,
-                         const PacketInfo& pkt_info) {
+                         const PacketInfo& pkt_info,
+                         uint64_t ts) {
   DCHECK(!is_destroyed());
   impl_->remote_address_ = remote_address;
 
@@ -2143,8 +2146,12 @@ bool Session::ReadPacket(Store&& store,
     // When libuv gains per-packet ECN reporting, the caller should
     // populate pkt_info from the receive metadata before calling
     // ReadPacket().
+    // When ts is 0 (the default), call uv_hrtime() here. The batched
+    // receive path caches a timestamp and passes it to all ReadPacket()
+    // calls in the same I/O burst.
+    if (ts == 0) ts = uv_hrtime();
     err = ngtcp2_conn_read_pkt(
-        *this, &path, pkt_info, vec.base, vec.len, uv_hrtime());
+        *this, &path, pkt_info, vec.base, vec.len, ts);
   }
   if (is_destroyed()) return false;
 
