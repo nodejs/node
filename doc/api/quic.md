@@ -304,6 +304,24 @@ When a `QuicError` is passed to [`stream.destroy()`][] or
 `STOP_SENDING` frame sent to the peer. Any other error type falls back to
 the negotiated protocol's generic internal error code.
 
+### Permission model
+
+When using the [Permission Model][], the `--allow-net` flag must be passed to
+allow QUIC network operations. Without it, calling [`quic.connect()`][] or
+[`quic.listen()`][] will throw an `ERR_ACCESS_DENIED` error.
+
+```console
+$ node --permission --allow-fs-read=* --experimental-quic index.mjs
+Error: Access to this API has been restricted. Use --allow-net to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+  permission: 'Net',
+}
+```
+
+Creating a [`QuicEndpoint`][] instance without connecting or listening
+is permitted even without `--allow-net`, since no network I/O occurs until
+[`quic.connect()`][] or [`quic.listen()`][] is called.
+
 ## `quic.connect(address[, options])`
 
 <!-- YAML
@@ -3853,6 +3871,7 @@ throughput issues caused by flow control.
 [Callback error handling]: #callback-error-handling
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
+[Permission Model]: permissions.md#permission-model
 [RFC 8999]: https://www.rfc-editor.org/rfc/rfc8999
 [RFC 9000]: https://www.rfc-editor.org/rfc/rfc9000
 [RFC 9001]: https://www.rfc-editor.org/rfc/rfc9001
@@ -3872,6 +3891,7 @@ throughput issues caused by flow control.
 [RFC 9443]: https://www.rfc-editor.org/rfc/rfc9443
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceObserver`]: perf_hooks.md#class-performanceobserver
+[`QuicEndpoint`]: #class-quicendpoint
 [`QuicError`]: #class-quicerror
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication

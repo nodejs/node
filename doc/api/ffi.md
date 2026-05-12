@@ -30,15 +30,17 @@ const ffi = require('node:ffi');
 This module is only available under the `node:` scheme in builds with FFI
 support and is gated by the `--experimental-ffi` flag.
 
-Bundled libffi support currently targets:
+Building Node.js with `node:ffi` support is available via the bundled `libffi` on
+platforms where `libffi` provides a compatible static backend, or via a
+shared `libffi` using the `--shared-ffi` configure flag.
+The unofficial GN build does not support `node:ffi`.
 
-* macOS on `arm64` and `x64`
-* Windows on `arm64` and `x64`
-* FreeBSD on `arm`, `arm64`, and `x64`
-* Linux on `arm`, `arm64`, and `x64`
+The following targets are not supported by bundled libffi:
 
-Other targets require building Node.js against a shared libffi with
-`--shared-ffi`. The unofficial GN build does not support `node:ffi`.
+* `s390x`.
+* `mips`, `mipsel`, and `mips64el` on targets other than FreeBSD, Linux, and
+  OpenBSD.
+* `ppc64` on Android, CloudABI, iOS, OpenHarmony, OS/400, Solaris, and Windows.
 
 When using the [Permission Model][], FFI APIs are
 restricted unless the [`--allow-ffi`][] flag is provided.

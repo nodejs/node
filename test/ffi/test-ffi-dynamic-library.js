@@ -4,6 +4,7 @@ const common = require('../common');
 common.skipIfFFIMissing();
 const { gcUntil } = require('../common/gc');
 const assert = require('node:assert');
+const { endianness } = require('node:os');
 const { test } = require('node:test');
 const ffi = require('node:ffi');
 const { fixtureSymbols, libraryPath } = require('./ffi-test-common');
@@ -54,8 +55,11 @@ test('dlopen resolves functions from definitions', () => {
     // Shared-buffer wrapper sets `length` to the FFI signature's arity
     // (see `inheritMetadata` in lib/internal/ffi-shared-buffer.js). The raw
     // native function has length 0, but the wrapper exposes the parameter
-    // count so `fn.length` is useful for introspection.
-    assert.strictEqual(functions.add_i32.length, 2);
+    // count so `fn.length` is useful for introspection. The shared-buffer
+    // wrapper is disabled on big-endian hosts.
+    assert.strictEqual(
+      functions.add_i32.length,
+      endianness() === 'BE' ? 0 : 2);
     assert.strictEqual(typeof functions.add_i32.pointer, 'bigint');
     assert.strictEqual(Object.getPrototypeOf(functions), null);
   } finally {
