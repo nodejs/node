@@ -239,7 +239,8 @@ void Session::Application::ReceiveStreamReset(Stream* stream,
 //   < 0 (other): fatal error, session already closed
 ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
                                                       uint8_t* dest,
-                                                      size_t destlen) {
+                                                      size_t destlen,
+                                                      uint64_t ts) {
   CHECK(session_->HasPendingDatagrams());
   auto max_attempts = session_->config().options.max_datagram_send_attempts;
 
@@ -275,7 +276,7 @@ ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
                                                   dg.id,
                                                   &dgvec,
                                                   1,
-                                                  uv_hrtime());
+                                                  ts);
 
   if (accepted) {
     // Nice, the datagram was accepted!
@@ -338,6 +339,13 @@ void Session::Application::SendPendingData() {
   // call is dynamically capped by ngtcp2_conn_get_send_quantum().
   static constexpr size_t kMaxPackets = 64;
   Debug(session_, "Application sending pending data");
+  // Cache the timestamp once for the entire send loop. ngtcp2 does not
+  // require nanosecond-accurate monotonicity within a single burst —
+  // a single timestamp per SendPendingData call is what other QUIC
+  // implementations use (e.g., quiche, msquic). When kernel-level
+  // packet pacing becomes available via libuv, this timestamp becomes
+  // the base for computing per-packet transmit timestamps.
+  const uint64_t ts = uv_hrtime();
   PathStorage path;
   StreamData stream_data;
 
@@ -441,7 +449,8 @@ void Session::Application::SendPendingData() {
     // Awesome, let's write our packet!
     PacketInfo pi;
     ssize_t nwrite = WriteVStream(
-        &path, &pi, packet->data(), &ndatalen, packet->length(), stream_data);
+        &path, &pi, packet->data(), &ndatalen, packet->length(),
+        stream_data, ts);
 
     // When ndatalen is > 0, that's our indication that stream data was accepted
     // in to the packet. Yay!
@@ -528,7 +537,7 @@ void Session::Application::SendPendingData() {
           // if there is one. Otherwise just loop around and keep going.
           if (session_->HasPendingDatagrams()) {
             auto result = TryWritePendingDatagram(
-                &path, packet->data(), packet->length());
+                &path, packet->data(), packet->length(), ts);
             // When result is 0, either the datagram was congestion controlled,
             // didn't fit in the packet, or was abandoned. Skip and continue.
 
@@ -590,7 +599,7 @@ void Session::Application::SendPendingData() {
         return session_->Close(CloseMethod::SILENT);
       }
       auto result =
-          TryWritePendingDatagram(&path, packet->data(), packet->length());
+          TryWritePendingDatagram(&path, packet->data(), packet->length(), ts);
       if (result > 0) {
         Debug(session_, "Sending datagram packet with %zd bytes", result);
         enqueue_packet(packet, static_cast<size_t>(result), PacketInfo());
@@ -610,7 +619,8 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
                                            uint8_t* dest,
                                            ssize_t* ndatalen,
                                            size_t max_packet_size,
-                                           const StreamData& stream_data) {
+                                           const StreamData& stream_data,
+                                           uint64_t ts) {
   DCHECK_LE(stream_data.count, kMaxVectorCount);
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
@@ -627,7 +637,7 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
                                    stream_data.id,
                                    stream_data,
                                    stream_data.count,
-                                   uv_hrtime());
+                                   ts);
 }
 
 // ============================================================================
