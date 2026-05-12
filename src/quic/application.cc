@@ -262,9 +262,12 @@ ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
   int accepted = 0;
   int dg_flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
 
+  // PacketInfo for the datagram path. When libuv gains per-socket ECN
+  // marking, the value from ngtcp2 should be forwarded to the send path.
+  PacketInfo dg_pi;
   ssize_t dg_nwrite = ngtcp2_conn_writev_datagram(*session_,
                                                   &path->path,
-                                                  nullptr,
+                                                  dg_pi,
                                                   dest,
                                                   destlen,
                                                   &accepted,
@@ -390,12 +393,14 @@ void Session::Application::SendPendingData() {
   };
 
   // Accumulate a completed packet into the batch.
-  auto enqueue_packet = [&](Packet::Ptr& pkt, size_t len) {
-    Debug(session_, "Enqueuing packet with %zu bytes into batch", len);
-    pkt->Truncate(len);
-    path.CopyTo(&batch_paths[batch_count]);
-    batch[batch_count++] = std::move(pkt);
-  };
+  auto enqueue_packet =
+      [&](Packet::Ptr& pkt, size_t len, const PacketInfo& pi) {
+        Debug(session_, "Enqueuing packet with %zu bytes into batch", len);
+        pkt->Truncate(len);
+        pkt->set_pkt_info(pi);
+        path.CopyTo(&batch_paths[batch_count]);
+        batch[batch_count++] = std::move(pkt);
+      };
 
   // We're going to enter a loop here to prepare and send no more than
   // max_packet_count packets.
@@ -434,8 +439,9 @@ void Session::Application::SendPendingData() {
     }
 
     // Awesome, let's write our packet!
+    PacketInfo pi;
     ssize_t nwrite = WriteVStream(
-        &path, packet->data(), &ndatalen, packet->length(), stream_data);
+        &path, &pi, packet->data(), &ndatalen, packet->length(), stream_data);
 
     // When ndatalen is > 0, that's our indication that stream data was accepted
     // in to the packet. Yay!
@@ -531,7 +537,7 @@ void Session::Application::SendPendingData() {
             if (result > 0) {
               size_t len = result;
               Debug(session_, "Sending packet with %zu bytes", len);
-              enqueue_packet(packet, len);
+              enqueue_packet(packet, len, pi);
               if (++packet_send_count == max_packet_count) return;
             } else if (result < 0) {
               // Any negative result other than NGTCP2_ERR_WRITE_MORE
@@ -568,7 +574,7 @@ void Session::Application::SendPendingData() {
     // is the size of the packet we are sending.
     size_t len = nwrite;
     Debug(session_, "Sending packet with %zu bytes", len);
-    enqueue_packet(packet, len);
+    enqueue_packet(packet, len, pi);
     if (++packet_send_count == max_packet_count) return;
 
     // If there are pending datagrams, try sending them in a fresh packet.
@@ -587,7 +593,7 @@ void Session::Application::SendPendingData() {
           TryWritePendingDatagram(&path, packet->data(), packet->length());
       if (result > 0) {
         Debug(session_, "Sending datagram packet with %zd bytes", result);
-        enqueue_packet(packet, static_cast<size_t>(result));
+        enqueue_packet(packet, static_cast<size_t>(result), PacketInfo());
         if (++packet_send_count == max_packet_count) return;
       } else if (result < 0 && result != NGTCP2_ERR_WRITE_MORE) {
         // Fatal error — session already closed by TryWritePendingDatagram.
@@ -600,6 +606,7 @@ void Session::Application::SendPendingData() {
 }
 
 ssize_t Session::Application::WriteVStream(PathStorage* path,
+                                           PacketInfo* pi,
                                            uint8_t* dest,
                                            ssize_t* ndatalen,
                                            size_t max_packet_size,
@@ -607,10 +614,12 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   DCHECK_LE(stream_data.count, kMaxVectorCount);
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+  // The PacketInfo out-param is populated by ngtcp2 with the ECN codepoint
+  // to apply when sending this packet. When libuv gains per-socket ECN
+  // marking, the value should be forwarded to the send path.
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
-                                   // TODO(@jasnell): ECN blocked on libuv
-                                   nullptr,
+                                   *pi,
                                    dest,
                                    max_packet_size,
                                    ndatalen,
