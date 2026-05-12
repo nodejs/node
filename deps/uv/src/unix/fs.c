@@ -460,27 +460,28 @@ static ssize_t uv__preadv_or_pwritev(int fd,
                                      off_t off,
                                      _Atomic uintptr_t* cache,
                                      int is_pread) {
-  ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
-  void* p;
+  union {
+    ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
+    void* p;
+  } u;
 
-  p = (void*) atomic_load_explicit(cache, memory_order_relaxed);
-  if (p == NULL) {
+  u.p = (void*) atomic_load_explicit(cache, memory_order_relaxed);
+  if (u.p == NULL) {
 #ifdef RTLD_DEFAULT
     /* Try _LARGEFILE_SOURCE version of preadv/pwritev first,
      * then fall back to the plain version, for libcs like musl.
      */
-    p = dlsym(RTLD_DEFAULT, is_pread ? "preadv64" : "pwritev64");
-    if (p == NULL)
-      p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
+    u.p = dlsym(RTLD_DEFAULT, is_pread ? "preadv64" : "pwritev64");
+    if (u.p == NULL)
+      u.p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
     dlerror();  /* Clear errors. */
 #endif  /* RTLD_DEFAULT */
-    if (p == NULL)
-      p = is_pread ? uv__preadv_emul : uv__pwritev_emul;
-    atomic_store_explicit(cache, (uintptr_t) p, memory_order_relaxed);
+    if (u.p == NULL)
+      u.f = is_pread ? uv__preadv_emul : uv__pwritev_emul;
+    atomic_store_explicit(cache, (uintptr_t) u.p, memory_order_relaxed);
   }
 
-  f = p;
-  return f(fd, bufs, nbufs, off);
+  return u.f(fd, bufs, nbufs, off);
 }
 
 
