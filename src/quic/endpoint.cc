@@ -978,7 +978,8 @@ void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
   };
 
   if (exceeds_limits()) {
-    Debug(this, "Version negotiation rate limit exceeded for %s",
+    Debug(this,
+          "Version negotiation rate limit exceeded for %s",
           options.remote_address);
     return;
   }
@@ -1047,7 +1048,8 @@ void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
   };
 
   if (exceeds_limits()) {
-    Debug(this, "Immediate connection close rate limit exceeded for %s",
+    Debug(this,
+          "Immediate connection close rate limit exceeded for %s",
           options.remote_address);
     return;
   }
