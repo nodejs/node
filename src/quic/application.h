@@ -269,8 +269,11 @@ class Session::Application : public MemoryRetainer {
                                   uint8_t* dest,
                                   size_t destlen);
 
-  // Write the given stream_data into the buffer.
+  // Write the given stream_data into the buffer. The PacketInfo out-param
+  // is populated by ngtcp2 with per-packet metadata (e.g., ECN codepoint)
+  // that should be applied when sending the packet.
   ssize_t WriteVStream(PathStorage* path,
+                       PacketInfo* pi,
                        uint8_t* buf,
                        ssize_t* ndatalen,
                        size_t max_packet_size,
