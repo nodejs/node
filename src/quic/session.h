@@ -153,8 +153,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     bool qlog = false;
 
     // The amount of time (in milliseconds) that the endpoint will wait for the
-    // completion of the tls handshake.
-    uint64_t handshake_timeout = UINT64_MAX;
+    // completion of the TLS handshake. If the handshake does not complete
+    // within this time, the session is closed. This prevents a peer from
+    // holding a session open indefinitely in the handshake state, consuming
+    // server resources (ngtcp2 connection, TLS state, JS objects) without
+    // ever completing the connection. The default of 10 seconds is generous
+    // enough to accommodate slow networks with retransmissions while still
+    // bounding resource exposure. Set to UINT64_MAX to disable.
+    static constexpr uint64_t DEFAULT_HANDSHAKE_TIMEOUT = 10'000;
+    uint64_t handshake_timeout = DEFAULT_HANDSHAKE_TIMEOUT;
 
     // The keep-alive timeout in milliseconds. When set to a non-zero value,
     // ngtcp2 will automatically send PING frames to keep the connection alive
