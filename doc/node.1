@@ -776,6 +776,10 @@ collecting code coverage from tests for more details.
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
 .
+.It Fl -experimental-test-tag-filter Ar tag
+Run only tests whose tag set contains \fItag\fR. May be specified multiple
+times; tests must contain every filter to run.
+.
 .It Fl -experimental-vm-modules
 Enable experimental ES Module support in the \fBnode:vm\fR module.
 .
