@@ -41,8 +41,5 @@ await clientSession.opened;
 await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
 
 await serverDone.promise;
-// The server session was destroyed abruptly (no CONNECTION_CLOSE sent).
-// The client may receive a stateless reset if it sends any packet
-// before its idle timeout fires, so closed may reject.
-await rejects(clientSession.closed, { code: 'ERR_QUIC_TRANSPORT_ERROR' });
+await clientSession.closed;
 await serverEndpoint.close();
