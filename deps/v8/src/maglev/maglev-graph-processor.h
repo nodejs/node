@@ -138,7 +138,7 @@ class GraphProcessor {
       }
     };
     // LINT.IfChange(maglev_constant_nodes)
-    process_constants(graph->constants());
+    process_constants(graph->heap_constants());
     process_constants(graph->root());
     process_constants(graph->smi());
     process_constants(graph->tagged_index());
@@ -383,7 +383,7 @@ class GraphBackwardProcessor {
         }
       }
     };
-    process_constants(graph->constants());
+    process_constants(graph->heap_constants());
     process_constants(graph->root());
     process_constants(graph->smi());
     process_constants(graph->tagged_index());

@@ -20,16 +20,6 @@ class MarkingStateBase {
  public:
   explicit MarkingStateBase(const Isolate* isolate);
 
-  // The pointer compression cage base value used for decompression of all
-  // tagged values except references to InstructionStream objects.
-  V8_INLINE PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
-    return cage_base_;
-#else
-    return PtrComprCageBase{};
-#endif  // V8_COMPRESS_POINTERS
-  }
-
   V8_INLINE bool TryMark(Tagged<HeapObject> obj);
   // Helper method for fully marking an object and accounting its live bytes.
   // Should be used to mark individual objects in one-off cases.
@@ -41,9 +31,6 @@ class MarkingStateBase {
   V8_INLINE bool IsUnmarked(const Tagged<HeapObject> obj) const;
 
  private:
-#if V8_COMPRESS_POINTERS
-  const PtrComprCageBase cage_base_;
-#endif  // V8_COMPRESS_POINTERS
   const Isolate* isolate_;
 };
 

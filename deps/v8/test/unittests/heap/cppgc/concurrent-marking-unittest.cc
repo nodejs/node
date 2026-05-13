@@ -158,8 +158,9 @@ struct NotConcurrentlyTraceable
             [](Visitor*, const void*) {
               ++NotConcurrentlyTraceable::trace_counter;
             },
-            sizeof(NotConcurrentlyTraceable)))
+            sizeof(NotConcurrentlyTraceable))) {
       return;
+    }
     ++trace_counter;
   }
 };

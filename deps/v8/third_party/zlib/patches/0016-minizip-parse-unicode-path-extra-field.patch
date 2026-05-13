@@ -68,11 +68,33 @@ Date:   Fri Jul 11 13:04:30 2025 +0200
     Change-Id: Ib06e1009b6e25d2d14e36858385df46d72b7bc3e
     Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6725677
 
+commit 8188181a34a48914bab22f0bc26b740fbdb38bd0
+Author: Hans Wennborg <hans@chromium.org>
+Date:   Mon Apr 27 13:24:27 2026 +0200
+
+    [minizip] Store the filename from Unicode Path Extra Field separately
+    
+    Instead of overriding unz_file_info64's size_filename and writing it to
+    szFileName, store the Unicode filename and its size in new fields.
+    
+    Overriding size_filename could cause unzGoToNextFile() to jump to the
+    wrong offset, potentially skipping a file in the central directory,
+    as demonstrated by a newly added test.
+    
+    Storing the Unicode filename and its size separately avoids that
+    problem and lets the caller decide what to do with the filename. Besides
+    fixing the problem above, that seems like a safer way of bolting on
+    support for this functionality.
+    
+    Bug: 40623474, 500521311
+    Change-Id: I06e6c8a8ff8baa729b10a67a998f8804803ae6cd
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/7797172
+
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index c8a01b23efd42..42677cff82c96 100644
+index 56f1468cd8d22..0264f7ac570f7 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
-@@ -64,6 +64,7 @@
+@@ -63,6 +63,7 @@
  */
  
  
@@ -80,7 +102,7 @@ index c8a01b23efd42..42677cff82c96 100644
  #include <stdio.h>
  #include <stdlib.h>
  #include <string.h>
-@@ -193,6 +193,26 @@ typedef struct
+@@ -195,6 +196,26 @@ typedef struct
     Reads a long in LSB order from the given gz_stream. Sets
  */
  
@@ -107,15 +129,18 @@ index c8a01b23efd42..42677cff82c96 100644
  local int unz64local_getShort(const zlib_filefunc64_32_def* pzlib_filefunc_def,
                                voidpf filestream,
                                uLong *pX) {
-@@ -777,6 +838,7 @@ local int unz64local_GetCurrentFileInfoI
+@@ -836,6 +857,10 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
      uLong uMagic;
      long lSeek=0;
      uLong uL;
 +    uLong uFileNameCrc;
++
++    file_info.size_utf8_filename = 0;
++    file_info.utf8_filename[0] = '\0';
  
      if (file==NULL)
          return UNZ_PARAMERROR;
-@@ -848,21 +910,34 @@ local int unz64local_GetCurrentFileInfoI
+@@ -907,21 +932,34 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
      file_info_internal.offset_curfile = uL;
  
      lSeek+=file_info.size_filename;
@@ -160,8 +185,8 @@ index c8a01b23efd42..42677cff82c96 100644
 +        lSeek -= file_info.size_filename;
      }
  
-     // Read extrafield
-@@ -948,6 +1023,76 @@ local int unz64local_GetCurrentFileInfoI
+     /* Read extrafield */
+@@ -1007,6 +1045,62 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
                  }
  
              }
@@ -190,51 +215,82 @@ index c8a01b23efd42..42677cff82c96 100644
 +                }
 +                else
 +                {
-+                    uLong uCrc, fileNameSize;
++                    uLong uCrc, utf8FileNameSize;
 +
 +                    if (unz64local_getLong(&s->z_filefunc, s->filestream, &uCrc) != UNZ_OK)
 +                    {
 +                        err = UNZ_ERRNO;
 +                    }
-+                    fileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
++                    utf8FileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
 +
 +                    /* Check CRC against file name in the header. */
 +                    if (uCrc != uFileNameCrc)
 +                    {
-+                        if (ZSEEK64(s->z_filefunc, s->filestream, fileNameSize, ZLIB_FILEFUNC_SEEK_CUR) != 0)
++                        if (ZSEEK64(s->z_filefunc, s->filestream, utf8FileNameSize, ZLIB_FILEFUNC_SEEK_CUR) != 0)
 +                        {
 +                            err = UNZ_ERRNO;
 +                        }
 +                    }
 +                    else
 +                    {
-+                        file_info.size_filename = fileNameSize;
++                        file_info.size_utf8_filename = utf8FileNameSize;
 +
-+                        char szCurrentFileName[UINT16_MAX] = {0};
-+
-+                        if (file_info.size_filename > 0)
++                        if (file_info.size_utf8_filename > 0)
 +                        {
-+                            if (ZREAD64(s->z_filefunc, s->filestream, szCurrentFileName, file_info.size_filename) != file_info.size_filename)
++                            if (ZREAD64(s->z_filefunc, s->filestream, file_info.utf8_filename, file_info.size_utf8_filename) != file_info.size_utf8_filename)
 +                            {
 +                                err = UNZ_ERRNO;
 +                            }
 +                        }
-+
-+                        if (szFileName != NULL)
-+                        {
-+                            if (fileNameBufferSize <= file_info.size_filename)
-+                            {
-+                                memcpy(szFileName, szCurrentFileName, fileNameBufferSize);
-+                            }
-+                            else
-+                            {
-+                                memcpy(szFileName, szCurrentFileName, file_info.size_filename);
-+                                szFileName[file_info.size_filename] = '\0';
-+                            }
-+                        }
++                        file_info.utf8_filename[file_info.size_utf8_filename] = '\0';
 +                    }
 +                }
 +            }
              else
              {
                  if (ZSEEK64(s->z_filefunc, s->filestream,dataSize,ZLIB_FILEFUNC_SEEK_CUR)!=0)
+@@ -1106,6 +1200,9 @@ extern int ZEXPORT unzGetCurrentFileInfo(unzFile file,
+         pfile_info->compressed_size = (uLong)file_info64.compressed_size;
+         pfile_info->uncompressed_size = (uLong)file_info64.uncompressed_size;
+ 
++        pfile_info->size_utf8_filename = file_info64.size_utf8_filename;
++        memcpy(pfile_info->utf8_filename, file_info64.utf8_filename, file_info64.size_utf8_filename + 1);
++
+     }
+     return err;
+ }
+diff --git a/third_party/zlib/contrib/minizip/unzip.h b/third_party/zlib/contrib/minizip/unzip.h
+index 9c98b608c7342..05efa64ea477e 100644
+--- a/third_party/zlib/contrib/minizip/unzip.h
++++ b/third_party/zlib/contrib/minizip/unzip.h
+@@ -42,6 +42,8 @@
+ #ifndef _unz64_H
+ #define _unz64_H
+ 
++#include <stdint.h>
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+@@ -128,6 +130,10 @@ typedef struct unz_file_info64_s
+     uLong external_fa;          /* external file attributes        4 bytes */
+ 
+     tm_unz tmu_date;
++
++    /* Info-ZIP Unicode Path Extra Field */
++    char utf8_filename[UINT16_MAX + 1]; /* UTF-8 Filename, null terminated */
++    uLong size_utf8_filename;           /* Length, excluding null terminator */
+ } unz_file_info64;
+ 
+ typedef struct unz_file_info_s
+@@ -149,6 +155,10 @@ typedef struct unz_file_info_s
+     uLong external_fa;          /* external file attributes        4 bytes */
+ 
+     tm_unz tmu_date;
++
++    /* Info-ZIP Unicode Path Extra Field */
++    char utf8_filename[UINT16_MAX + 1]; /* UTF-8 Filename, null terminated */
++    uLong size_utf8_filename;           /* Length, excluding null terminator */
+ } unz_file_info;
+ 
+ extern int ZEXPORT unzStringFileNameCompare(const char* fileName1,

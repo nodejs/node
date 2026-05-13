@@ -253,10 +253,10 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
                                     mark_compact_epoch_,
                                     should_keep_ages_unchanged_);
     } else {
-      TRACE_GC_EPOCH_WITH_FLOW(concurrent_marking_->heap_->tracer(),
-                               GCTracer::Scope::MC_BACKGROUND_MARKING,
-                               ThreadKind::kBackground, trace_id_,
-                               TRACE_EVENT_FLAG_FLOW_IN);
+      TRACE_GC_EPOCH_WITH_FLOW(
+          concurrent_marking_->heap_->tracer(),
+          GCTracer::Scope::MC_BACKGROUND_MARKING, ThreadKind::kBackground,
+          perfetto::TerminatingFlow::ProcessScoped(trace_id_));
       concurrent_marking_->RunMajor(delegate, code_flush_mode_,
                                     mark_compact_epoch_,
                                     should_keep_ages_unchanged_);
@@ -296,15 +296,15 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
 
     if (delegate->IsJoiningThread()) {
       TRACE_GC_WITH_FLOW(concurrent_marking_->heap_->tracer(),
-                         GCTracer::Scope::MINOR_MS_MARK_PARALLEL, trace_id_,
-                         TRACE_EVENT_FLAG_FLOW_IN);
+                         GCTracer::Scope::MINOR_MS_MARK_PARALLEL,
+                         perfetto::TerminatingFlow::ProcessScoped(trace_id_));
       // TRACE_GC is not needed here because the caller opens the right scope.
       concurrent_marking_->RunMinor(delegate);
     } else {
-      TRACE_GC_EPOCH_WITH_FLOW(concurrent_marking_->heap_->tracer(),
-                               GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
-                               ThreadKind::kBackground, trace_id_,
-                               TRACE_EVENT_FLAG_FLOW_IN);
+      TRACE_GC_EPOCH_WITH_FLOW(
+          concurrent_marking_->heap_->tracer(),
+          GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, ThreadKind::kBackground,
+          perfetto::TerminatingFlow::ProcessScoped(trace_id_));
       concurrent_marking_->RunMinor(delegate);
     }
   }
@@ -439,7 +439,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Tagged<Map> map = object->map(cage_base, kAcquireLoad);
+          Tagged<Map> map = object->map(kAcquireLoad);
           // The marking worklist should never contain filler objects.
           CHECK(!IsFreeSpaceOrFillerMap(map));
           if (is_per_context_mode) {
@@ -544,7 +544,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
       if (IsYoungObjectInLab(new_space_allocator, new_lo_space, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {
-        Tagged<Map> map = heap_object->map(isolate);
+        Tagged<Map> map = heap_object->map();
         const auto visited_size = visitor.Visit(map, heap_object);
         if (visited_size) {
           current_marked_bytes += visited_size;
@@ -708,8 +708,8 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
         heap_->mark_compact_collector()->code_flush_mode(),
         heap_->ShouldCurrentGCKeepAgesUnchanged());
     current_job_trace_id_.emplace(job->trace_id());
-    TRACE_GC_NOTE_WITH_FLOW("Major concurrent marking started", job->trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC_NOTE_WITH_FLOW("Major concurrent marking started",
+                            perfetto::Flow::ProcessScoped(job->trace_id()));
     job_handle_ = V8::GetCurrentPlatform()->PostJob(priority, std::move(job));
   } else {
     DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER);
@@ -719,8 +719,8 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
         heap_->minor_mark_sweep_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMinor>(this);
     current_job_trace_id_.emplace(job->trace_id());
-    TRACE_GC_NOTE_WITH_FLOW("Minor concurrent marking started", job->trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC_NOTE_WITH_FLOW("Minor concurrent marking started",
+                            perfetto::Flow::ProcessScoped(job->trace_id()));
     job_handle_ = V8::GetCurrentPlatform()->PostJob(priority, std::move(job));
   }
   DCHECK(job_handle_->IsValid());
@@ -770,15 +770,15 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
       heap_->minor_mark_sweep_collector()->local_marking_worklists()->Publish();
     }
     if (!IsWorkLeft()) return;
-    if (priority != TaskPriority::kUserVisible)
+    if (priority != TaskPriority::kUserVisible) {
       job_handle_->UpdatePriority(priority);
+    }
     DCHECK(current_job_trace_id_.has_value());
     TRACE_GC_NOTE_WITH_FLOW(
         garbage_collector_ == GarbageCollector::MARK_COMPACTOR
             ? "Major concurrent marking rescheduled"
             : "Minor concurrent marking rescheduled",
-        current_job_trace_id_.value(),
-        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+        perfetto::Flow::ProcessScoped(current_job_trace_id_.value()));
     job_handle_->NotifyConcurrencyIncrease();
   }
 }
@@ -816,11 +816,11 @@ bool ConcurrentMarking::Pause() {
 
   job_handle_->Cancel();
   DCHECK(current_job_trace_id_.has_value());
-  TRACE_GC_NOTE_WITH_FLOW(garbage_collector_ == GarbageCollector::MARK_COMPACTOR
-                              ? "Major concurrent marking paused"
-                              : "Minor concurrent marking paused",
-                          current_job_trace_id_.value(),
-                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_GC_NOTE_WITH_FLOW(
+      garbage_collector_ == GarbageCollector::MARK_COMPACTOR
+          ? "Major concurrent marking paused"
+          : "Minor concurrent marking paused",
+      perfetto::Flow::ProcessScoped(current_job_trace_id_.value()));
   return true;
 }
 
@@ -833,11 +833,11 @@ bool ConcurrentMarking::IsStopped() {
 void ConcurrentMarking::Resume() {
   DCHECK(garbage_collector_.has_value());
   DCHECK(current_job_trace_id_.has_value());
-  TRACE_GC_NOTE_WITH_FLOW(garbage_collector_ == GarbageCollector::MARK_COMPACTOR
-                              ? "Major concurrent marking resumed"
-                              : "Minor concurrent marking resumed",
-                          current_job_trace_id_.value(),
-                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_GC_NOTE_WITH_FLOW(
+      garbage_collector_ == GarbageCollector::MARK_COMPACTOR
+          ? "Major concurrent marking resumed"
+          : "Minor concurrent marking resumed",
+      perfetto::Flow::ProcessScoped(current_job_trace_id_.value()));
   RescheduleJobIfNeeded(garbage_collector_.value());
 }
 

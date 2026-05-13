@@ -131,6 +131,79 @@ absl_cc_test(
     GTest::gmock_main
 )
 
+absl_cc_library(
+  NAME
+    clock_interface
+  HDRS
+    "clock_interface.h"
+  SRCS
+    "clock_interface.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::time
+    absl::config
+    absl::core_headers
+    absl::no_destructor
+    absl::nullability
+    absl::raw_logging_internal
+    absl::synchronization
+)
+
+absl_cc_test(
+  NAME
+    clock_interface_test
+  SRCS
+    "clock_interface_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::clock_interface
+    absl::time
+    absl::config
+    absl::bind_front
+    absl::synchronization
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
+    simulated_clock
+  HDRS
+    "simulated_clock.h"
+  SRCS
+    "simulated_clock.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::clock_interface
+    absl::time
+    absl::config
+    absl::core_headers
+    absl::nullability
+    absl::synchronization
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME
+    simulated_clock_test
+  SRCS
+    "simulated_clock_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::clock_interface
+    absl::simulated_clock
+    absl::time
+    absl::config
+    absl::bind_front
+    absl::random_random
+    absl::raw_logging_internal
+    absl::synchronization
+    GTest::gmock_main
+)
+
 absl_cc_test(
   NAME
     flag_test

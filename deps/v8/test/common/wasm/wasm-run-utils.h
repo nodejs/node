@@ -98,7 +98,7 @@ bool IsSameNan(uint16_t expected, uint16_t actual);
 bool IsSameNan(float expected, float actual);
 bool IsSameNan(double expected, double actual);
 
-// A  Wasm module builder. Globals are pre-set, however, memory and code may be
+// A Wasm module builder. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject} and {WasmModuleObject}.
 class TestingModuleBuilder {
@@ -109,7 +109,7 @@ class TestingModuleBuilder {
 
   WasmModule* module() const { return module_.get(); }
 
-  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
+  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNo,
                      AddressType address_type = wasm::AddressType::kI32,
                      std::optional<size_t> max_size = {});
 
@@ -118,21 +118,42 @@ class TestingModuleBuilder {
   template <typename T>
   T* AddMemoryElems(uint32_t count,
                     AddressType address_type = wasm::AddressType::kI32) {
-    AddMemory(count * sizeof(T), SharedFlag::kNotShared, address_type);
+    AddMemory(count * sizeof(T), SharedFlag::kNo, address_type);
     return raw_mem_start<T>();
   }
 
+  const WasmGlobal* AddGlobal(ValueType type);
+
   template <typename T>
-  T* AddGlobal(ValueType type = ValueType::For(MachineTypeForC<T>())) {
-    const WasmGlobal* global = AddGlobal(type);
-    return reinterpret_cast<T*>(globals_data_ + global->offset);
+  const WasmGlobal* AddGlobal() {
+    return AddGlobal(MachineTypeForC<T>());
+  }
+
+  WasmValue ReadGlobal(const WasmGlobal& g) const {
+    return trusted_instance_data_->GetGlobalValue(isolate_, g);
+  }
+
+  void WriteGlobal(const WasmGlobal& g, WasmValue value) const {
+    DCHECK(!g.type.is_ref());
+    DisallowGarbageCollection no_gc;
+    Address storage = trusted_instance_data_->GetGlobalStorage(g, no_gc);
+    switch (g.type.kind()) {
+#define CASE_TYPE(valuetype, ctype)                               \
+  case wasm::valuetype:                                           \
+    base::WriteUnalignedValue<ctype>(storage, value.to<ctype>()); \
+    return;
+      FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
+#undef CASE_TYPE
+      default:
+        UNREACHABLE();
+    }
   }
 
   // TODO(14034): Allow selecting type finality.
   ModuleTypeIndex AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
-    const bool is_shared = false;
-    module_->AddSignatureForTesting(sig, kNoSuperType, is_final, is_shared);
+    module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
+                                    SharedFlag::kNo);
     GetTypeCanonicalizer()->AddRecursiveGroup(module_.get(), 1);
     size_t size = module_->types.size();
     // The {ModuleTypeIndex} can handle more, but users of this class
@@ -199,7 +220,7 @@ class TestingModuleBuilder {
 
   void SetMemoryShared() {
     CHECK_EQ(1, module_->memories.size());
-    module_->memories[0].is_shared = true;
+    module_->memories[0].is_shared = SharedFlag::kYes;
   }
 
   enum FunctionType { kImport, kWasm };
@@ -236,9 +257,6 @@ class TestingModuleBuilder {
   }
   WasmCode* GetFunctionCode(uint32_t index) const {
     return native_module_->GetCode(index);
-  }
-  Address globals_start() const {
-    return reinterpret_cast<Address>(globals_data_);
   }
 
   void SetDebugState() {
@@ -278,6 +296,8 @@ class TestingModuleBuilder {
   }
 
  private:
+  DirectHandle<WasmInstanceObject> InitInstanceObject();
+
   std::shared_ptr<WasmModule> module_;
   Isolate* isolate_;
   WasmEnabledFeatures enabled_features_;
@@ -285,16 +305,11 @@ class TestingModuleBuilder {
   // The TestingModuleBuilder only supports one memory currently.
   uint8_t* mem0_start_ = nullptr;
   uint32_t mem0_size_ = 0;
-  uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
   DirectHandle<WasmInstanceObject> instance_object_;
   DirectHandle<WasmTrustedInstanceData> trusted_instance_data_;
   NativeModule* native_module_ = nullptr;
   int32_t max_steps_ = kMaxNumSteps;
-
-  const WasmGlobal* AddGlobal(ValueType type);
-
-  DirectHandle<WasmInstanceObject> InitInstanceObject();
 };
 
 // A helper for compiling wasm functions for testing.
@@ -312,16 +327,19 @@ class WasmFunctionCompiler {
   }
   void Build(base::Vector<const uint8_t> bytes);
 
-  uint8_t AllocateLocal(ValueType type) {
-    uint32_t index = local_decls_.AddLocals(1, type);
+  uint8_t AllocateLocals(uint32_t count, ValueType type) {
+    uint32_t index = local_decls_.AddLocals(count, type);
     uint8_t result = static_cast<uint8_t>(index);
     DCHECK_EQ(index, result);
     return result;
   }
+  uint8_t AllocateLocal(ValueType type) { return AllocateLocals(1, type); }
 
   void SetSigIndex(ModuleTypeIndex sig_index) {
     function_->sig_index = sig_index;
   }
+
+  Zone* zone() { return zone_; }
 
  private:
   friend class WasmRunnerBase;
@@ -384,6 +402,9 @@ class WasmRunnerBase {
 
   uint8_t AllocateLocal(ValueType type) {
     return functions_[0]->AllocateLocal(type);
+  }
+  uint8_t AllocateLocals(uint32_t count, ValueType type) {
+    return functions_[0]->AllocateLocals(count, type);
   }
 
   uint32_t function_index() { return functions_[0]->function_index(); }

@@ -54,8 +54,6 @@ cc_test(
         ":compressed_tuple",
         ":test_instance_tracker",
         "//absl/memory",
-        "//absl/types:any",
-        "//absl/types:optional",
         "//absl/utility",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -73,6 +71,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:dynamic_annotations",
+        "//absl/base:hardening",
         "//absl/base:iterator_traits_internal",
         "//absl/base:throw_delegate",
         "//absl/hash:weakly_mixed_integer",
@@ -135,6 +134,7 @@ cc_library(
         "//absl/base:base_internal",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/types:span",
@@ -150,6 +150,7 @@ cc_library(
         ":inlined_vector_internal",
         "//absl/algorithm",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/base:iterator_traits_internal",
         "//absl/base:throw_delegate",
         "//absl/hash:weakly_mixed_integer",
@@ -227,6 +228,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "//absl:friends",
     ],
     deps = ["//absl/types:compare"],
 )
@@ -283,7 +285,6 @@ cc_test(
         "//absl/base:config",
         "//absl/log:check",
         "//absl/meta:type_traits",
-        "//absl/types:any",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -444,7 +445,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
-        "//visibility:private",
+        "//absl:friends",
     ],
     deps = [
         ":common",
@@ -779,6 +780,9 @@ cc_test(
     copts = ABSL_TEST_COPTS,
     linkstatic = 1,
     tags = NOTEST_TAGS_MOBILE + [
+        "no_test_chromiumos_arm",
+        "no_test_chromiumos_armv7",
+        "no_test_chromiumos_x86_64",
         "no_test_loonix",
         # TODO(b/237097643): investigate race and remove
         "noarm_gemu",
@@ -810,7 +814,6 @@ cc_test(
         "//absl/numeric:int128",
         "//absl/random",
         "//absl/strings",
-        "//absl/types:optional",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -855,7 +858,6 @@ cc_binary(
         "//absl/random:distributions",
         "//absl/strings",
         "//absl/strings:str_format",
-        "//absl/types:optional",
     ],
 )
 
@@ -944,6 +946,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -961,6 +964,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -977,6 +981,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -993,6 +998,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1011,6 +1017,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1026,6 +1033,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1041,6 +1049,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1057,6 +1066,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1137,6 +1147,7 @@ cc_library(
         ":layout",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/base:raw_logging_internal",
         "//absl/base:throw_delegate",
         "//absl/hash:weakly_mixed_integer",
@@ -1193,7 +1204,6 @@ cc_test(
         "//absl/random",
         "//absl/strings",
         "//absl/types:compare",
-        "//absl/types:optional",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -1235,6 +1245,7 @@ cc_library(
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/container:__pkg__",
     ],
     deps = [
@@ -1358,6 +1369,7 @@ cc_library(
         ":layout",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:hardening",
         "//absl/base:iterator_traits_internal",
     ],
 )

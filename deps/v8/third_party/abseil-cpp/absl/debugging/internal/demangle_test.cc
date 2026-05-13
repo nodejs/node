@@ -15,6 +15,7 @@
 #include "absl/debugging/internal/demangle.h"
 
 #include <cstdlib>
+#include <memory>
 #include <string>
 
 #include "gmock/gmock.h"
@@ -2000,7 +2001,7 @@ TEST(Demangle, DemangleStackConsumption) {
 
 static void TestOnInput(const char* input) {
   static const int kOutSize = 1048576;
-  auto out = absl::make_unique<char[]>(kOutSize);
+  auto out = std::make_unique<char[]>(kOutSize);
   Demangle(input, out.get(), kOutSize);
 }
 

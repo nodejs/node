@@ -45,7 +45,7 @@ class SyntheticBinary {
                            const size_t max_sites_per_tu,
                            const int num_shuffles) {
     per_tu_data_.reserve(num_tus);
-    auto sites = absl::make_unique<VLogSite *[]>(num_tus * max_sites_per_tu);
+    auto sites = std::make_unique<VLogSite*[]>(num_tus * max_sites_per_tu);
     for (size_t i = 0; i < num_tus; i++) {
       const std::string filename =
           absl::StrCat("directory-", i / 100, "/subdirectory-", i % 100 / 10,
@@ -55,7 +55,7 @@ class SyntheticBinary {
           absl::LogUniform<size_t>(bitgen_, 1, max_sites_per_tu),
           absl::LogUniform<size_t>(bitgen_, 0,
                                    max_extra_static_data_bytes_per_tu));
-      auto buf = absl::make_unique<char[]>(layout.AllocSize());
+      auto buf = std::make_unique<char[]>(layout.AllocSize());
       layout.PoisonPadding(buf.get());
       memcpy(layout.Pointer<0>(buf.get()), filename.c_str(),
              filename.size() + 1);
@@ -78,7 +78,7 @@ class SyntheticBinary {
                        std::memory_order_seq_cst);
     }
     // Now do some shufflin'.
-    auto new_sites = absl::make_unique<VLogSite *[]>(num_sites_);
+    auto new_sites = std::make_unique<VLogSite*[]>(num_sites_);
     for (int shuffle_num = 0; shuffle_num < num_shuffles; shuffle_num++) {
       // Each shuffle cuts the ring into three pieces and rearranges them.
       const size_t cut_a = absl::Uniform(bitgen_, size_t{0}, num_sites_);

@@ -319,16 +319,16 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   DCHECK_NE(data_pointer, object);
   LoadExternalPointerField(
       data_pointer,
-      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+      FieldMemOperand(object, offsetof(JSTypedArray, external_pointer_)));
   if (JSTypedArray::kMaxSizeInHeap == 0) return;
   TemporaryRegisterScope temps(this);
   Register base = temps.AcquireScratch();
   if (COMPRESS_POINTERS_BOOL) {
-    LoadU32(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset),
-            r0);
+    LoadU32(base,
+            FieldMemOperand(object, offsetof(JSTypedArray, base_pointer_)), r0);
   } else {
-    LoadU64(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset),
-            r0);
+    LoadU64(base,
+            FieldMemOperand(object, offsetof(JSTypedArray, base_pointer_)), r0);
   }
   AddS64(data_pointer, data_pointer, base);
 }
@@ -564,8 +564,16 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   AddS32(reg, reg, other);
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  AddS32(dst, src, Operand(amount), r0);
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   AndU32(reg, reg, Operand(mask), r0);
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  AndU32(dst, src, Operand(mask), r0);
 }
 
 inline void MaglevAssembler::OrInt32(Register reg, int mask) {
@@ -586,6 +594,37 @@ inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   ShiftLeftU32(reg, reg, Operand(amount));
 }
 
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  ShiftRightU32(dst, dst, Operand(value));
+}
+
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                                 int32_t value) {
+  ShiftRightU32(dst, src, Operand(value));
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src) {
+  SubS32(dst, dst, src);
+}
+
+inline void MaglevAssembler::SubInt32(Register dst, Register src1,
+                                      Register src2) {
+  SubS32(dst, src1, src2);
+}
+
+inline void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src,
+                                                int width, int shift) {
+  if (dst != src) {
+    mr(dst, src);
+  }
+  if (shift != 0) {
+    ShiftRightU32(dst, dst, Operand(shift));
+  }
+  if (shift + width < 32) {
+    AndU32(dst, dst, Operand((1 << width) - 1), r0);
+  }
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   CHECK(is_int20(delta));
   AddS64(reg, reg, Operand(delta), r0);
@@ -601,6 +640,10 @@ inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
     AddS64(dst, location.rb(), location.ra());
     AddS64(dst, dst, Operand(location.offset()), r0);
   }
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  OrU64(dst, src, Operand(kWeakHeapObjectTag), r0);
 }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
@@ -775,9 +818,9 @@ inline void MaglevAssembler::DeoptIfBufferNotValid(Register array,
   // loop if we deopt here.
   CHECK_NE(scratch, r0);
   LoadTaggedField(scratch,
-                  FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
-  LoadU32(scratch, FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset),
-          r0);
+                  FieldMemOperand(array, offsetof(JSArrayBufferView, buffer_)));
+  LoadU32(scratch,
+          FieldMemOperand(scratch, offsetof(JSArrayBuffer, bit_field_)), r0);
   AndU32(scratch, scratch, Operand(JSArrayBuffer::NotValidMask(mode)), r0,
          SetRC);
   EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
@@ -790,7 +833,7 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
 inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
     Register map, Register scratch) {
   CHECK_NE(scratch, r0);
-  LoadU8(scratch, FieldMemOperand(map, Map::kBitFieldOffset), r0);
+  LoadU8(scratch, FieldMemOperand(map, offsetof(Map, bit_field_)), r0);
   AndU32(scratch, scratch,
          Operand(Map::Bits1::IsUndetectableBit::kMask |
                  Map::Bits1::IsCallableBit::kMask),
@@ -801,7 +844,7 @@ inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
 
 inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
     Register map, Register scratch) {
-  LoadU8(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
+  LoadU8(scratch, FieldMemOperand(map, offsetof(Map, bit_field_)));
   AndU32(scratch, scratch,
          Operand(Map::Bits1::IsUndetectableBit::kMask |
                  Map::Bits1::IsCallableBit::kMask),
@@ -814,7 +857,7 @@ inline void MaglevAssembler::LoadInstanceType(Register instance_type,
                                               Register heap_object) {
   LoadMap(instance_type, heap_object);
   LoadU16(instance_type,
-          FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+          FieldMemOperand(instance_type, offsetof(Map, instance_type_)));
 }
 
 inline void MaglevAssembler::JumpIfObjectType(Register heap_object,

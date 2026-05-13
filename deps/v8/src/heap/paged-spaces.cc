@@ -353,7 +353,6 @@ void PagedSpaceBase::Verify(Isolate* isolate,
                             SpaceVerificationVisitor* visitor) const {
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
-  PtrComprCageBase cage_base(isolate);
   for (const NormalPage* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
@@ -370,7 +369,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       visitor->VerifyObject(object);
 
       // All the interior pointers should be contained in the heap.
-      int size = object->Size(cage_base);
+      int size = object->Size();
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
     }
@@ -385,14 +384,13 @@ void PagedSpaceBase::Verify(Isolate* isolate,
 
 void PagedSpaceBase::VerifyLiveBytes() const {
   MarkingState* marking_state = heap()->marking_state();
-  PtrComprCageBase cage_base(heap()->isolate());
   for (const NormalPage* page : *this) {
     CHECK(page->SweepingDone());
     int black_size = 0;
     for (Tagged<HeapObject> object : HeapObjectRange(page)) {
       // All the interior pointers should be contained in the heap.
       if (marking_state->IsMarked(object)) {
-        black_size += object->Size(cage_base);
+        black_size += object->Size();
       }
     }
     CHECK_LE(black_size, page->live_bytes());
@@ -404,15 +402,13 @@ void PagedSpaceBase::VerifyLiveBytes() const {
 void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
-  PtrComprCageBase cage_base(heap->isolate());
   for (const NormalPage* page : *this) {
     DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
     size_t real_allocated = 0;
     for (Tagged<HeapObject> object : HeapObjectRange(page)) {
       if (!IsFreeSpaceOrFiller(object)) {
-        real_allocated +=
-            ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base));
+        real_allocated += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
       }
     }
     total_allocated += page->allocated_bytes();

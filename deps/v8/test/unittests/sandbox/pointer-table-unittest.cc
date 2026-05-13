@@ -63,8 +63,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
 
       // TODO(saelo): maybe it'd be nice to also automatically generate
       // accessors for the underlying table handles.
-      ExternalPointerHandle original_handle =
-          obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
+      ExternalPointerHandle original_handle = obj->value_.load_encoded();
 
       // Free one entry in the array so that the table entry can be reclaimed.
       array->set(0, *iso->factory()->undefined_value());
@@ -73,8 +72,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       // compacted during the first GC.
       InvokeMajorGC();
       CHECK_EQ(2, space->NumSegmentsForTesting());
-      ExternalPointerHandle current_handle =
-          obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
+      ExternalPointerHandle current_handle = obj->value_.load_encoded();
       CHECK_EQ(original_handle, current_handle);
       CHECK_EQ(obj->value(kLastExternalTypeTag), external_2);
 
@@ -83,8 +81,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       // to be deallocated.
       InvokeMajorGC();
       CHECK_EQ(1, space->NumSegmentsForTesting());
-      current_handle =
-          obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
+      current_handle = obj->value_.load_encoded();
       CHECK_NE(original_handle, current_handle);
       CHECK_EQ(obj->value(kLastExternalTypeTag), external_2);
     }

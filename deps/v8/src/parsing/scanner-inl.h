@@ -424,8 +424,9 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         case Token::kNot:
           // ! != !==
           Advance();
-          if (c0_ == '=')
+          if (c0_ == '=') {
             return Select('=', Token::kNotEqStrict, Token::kNotEq);
+          }
           return Token::kNot;
 
         case Token::kAdd:

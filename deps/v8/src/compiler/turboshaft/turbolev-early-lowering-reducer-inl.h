@@ -47,16 +47,39 @@ class TurbolevEarlyLoweringReducer : public Next {
 
     if (first_instance_type == last_instance_type) {
 #if V8_STATIC_ROOTS_BOOL
-      // If this DCHECK fails, then we could special-case for this and just do a
-      // single map compare rather than loading the instance type.
-      DCHECK(
-          !InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type));
+      if (auto root_index = InstanceTypeChecker::UniqueMapOfInstanceType(
+              first_instance_type)) {
+        __ DeoptimizeIfNot(__ RootEqual(map, *root_index, isolate_),
+                           frame_state, DeoptimizeReason::kWrongInstanceType,
+                           feedback);
+        return;
+      }
 #endif  // V8_STATIC_ROOTS_BOOL
       V<Word32> instance_type = __ LoadInstanceTypeField(map);
       __ DeoptimizeIfNot(__ Word32Equal(instance_type, first_instance_type),
                          frame_state, DeoptimizeReason::kWrongInstanceType,
                          feedback);
     } else {
+#if V8_STATIC_ROOTS_BOOL
+      if (auto map_range =
+              InstanceTypeChecker::UniqueMapRangeOfInstanceTypeRange(
+                  first_instance_type, last_instance_type)) {
+        V<Word32> compressed_map =
+            __ TruncateWordPtrToWord32(__ BitcastHeapObjectToWordPtr(map));
+        V<Word32> map_check;
+        if (map_range->first == 0) {
+          map_check =
+              __ Uint32LessThanOrEqual(compressed_map, map_range->second);
+        } else {
+          map_check = __ Uint32LessThanOrEqual(
+              __ Word32Sub(compressed_map, map_range->first),
+              map_range->second - map_range->first);
+        }
+        __ DeoptimizeIfNot(map_check, frame_state,
+                           DeoptimizeReason::kWrongInstanceType, feedback);
+        return;
+      }
+#endif  // V8_STATIC_ROOTS_BOOL
       __ DeoptimizeIfNot(CheckInstanceTypeIsInRange(map, first_instance_type,
                                                     last_instance_type),
                          frame_state, DeoptimizeReason::kWrongInstanceType,
@@ -181,7 +204,7 @@ class TurbolevEarlyLoweringReducer : public Next {
       V<Smi> new_length_tagged = __ TagSmi(new_length_raw);
       __ Store(object, new_length_tagged, StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::TaggedSigned(),
-               WriteBarrierKind::kNoWriteBarrier, JSArray::kLengthOffset);
+               WriteBarrierKind::kNoWriteBarrier, offsetof(JSArray, length_));
       GOTO(done, new_length_tagged);
     }
 
@@ -339,7 +362,7 @@ class TurbolevEarlyLoweringReducer : public Next {
       }
       // Skip over in-object fields.
       // TODO(leszeks): We could make this smarter, like a binary search.
-      if (details.field_index() < in_object_length) {
+      if (details.is_in_object()) {
         continue;
       }
       first_out_of_object_descriptor = i;
@@ -363,9 +386,10 @@ class TurbolevEarlyLoweringReducer : public Next {
         ++descriptor;
         details = descs.GetPropertyDetails(descriptor);
       }
-      DCHECK_EQ(i, details.field_index() - in_object_length);
-
+      DCHECK(!details.is_in_object());
+      DCHECK_EQ(i, PropertyArray::OffsetInWordsToIndex(details.field_offset()));
       Representation repr = details.representation();
+
       MapRef field_owner_map = old_map.FindFieldOwner(broker_, descriptor);
       broker_->dependencies()->DependOnFieldRepresentation(
           old_map, field_owner_map, descriptor, repr);
@@ -429,7 +453,7 @@ class TurbolevEarlyLoweringReducer : public Next {
                       base::SmallVector<OpIndex, 32> parameters_and_registers,
                       int suspend_id, int bytecode_offset) {
     V<FixedArray> array = __ template LoadTaggedField<FixedArray>(
-        generator, JSGeneratorObject::kParametersAndRegistersOffset);
+        generator, offsetof(JSGeneratorObject, parameters_and_registers_));
     for (int i = 0; static_cast<size_t>(i) < parameters_and_registers.size();
          i++) {
       __ Store(array, parameters_and_registers[i], StoreOp::Kind::TaggedBase(),
@@ -440,16 +464,16 @@ class TurbolevEarlyLoweringReducer : public Next {
     __ Store(generator, __ SmiConstant(Smi::FromInt(suspend_id)),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
              WriteBarrierKind::kNoWriteBarrier,
-             JSGeneratorObject::kContinuationOffset);
+             offsetof(JSGeneratorObject, continuation_));
     __ Store(generator, __ SmiConstant(Smi::FromInt(bytecode_offset)),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
              WriteBarrierKind::kNoWriteBarrier,
-             JSGeneratorObject::kInputOrDebugPosOffset);
+             offsetof(JSGeneratorObject, input_or_debug_pos_));
 
     __ Store(generator, context, StoreOp::Kind::TaggedBase(),
              MemoryRepresentation::AnyTagged(),
              WriteBarrierKind::kFullWriteBarrier,
-             JSGeneratorObject::kContextOffset);
+             offsetof(JSGeneratorObject, context_));
   }
 
   V<Boolean> ObjectIsArray(V<Object> value, V<FrameState> frame_state,

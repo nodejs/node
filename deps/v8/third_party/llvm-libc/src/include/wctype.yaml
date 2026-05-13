@@ -1,0 +1,90 @@
+header: wctype.h
+types:
+  - type_name: wint_t
+  - type_name: wctype_t
+functions:
+  - name: iswalpha
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswupper
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswcntrl
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswgraph
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswdigit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswlower
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswspace
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswblank
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswxdigit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswalnum
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswpunct
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswprint
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+  - name: iswctype
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: wint_t
+      - type: wctype_t
+  - name: wctype
+    standards:
+      - stdc
+    return_type: wctype_t
+    arguments:
+      - type: const char*

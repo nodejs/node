@@ -82,8 +82,9 @@ std::vector<const Item*> Item::Children() const {
 
 std::string Item::SplitByChildren(const LexerResult& tokens) const {
   if (right().size() == 1) {
-    if (const Item* child = Children()[0])
+    if (const Item* child = Children()[0]) {
       return child->SplitByChildren(tokens);
+    }
   }
   std::stringstream s;
   bool first = true;

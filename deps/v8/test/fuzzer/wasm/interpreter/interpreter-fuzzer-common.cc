@@ -14,6 +14,7 @@
 #include "include/v8-metrics.h"
 #include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/utils/ostreams.h"
@@ -113,7 +114,7 @@ WasmInterpretationResult FastInterpretWasmModule(
           instance);
 
   // Assume an instance can run in only one thread.
-  wasm::InterpreterHandle* handle =
+  DirectHandle<Managed<wasm::InterpreterHandle>> handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
 
   for (const WasmValue& arg : args) {
@@ -122,7 +123,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       CHECK(!IsNull(*arg.to_ref(), isolate));
     }
   }
-  bool success = handle->wasm::InterpreterHandle::Execute(
+  bool success = handle->ptr()->Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
 
   // Returned values should not be the hole value.
@@ -235,8 +236,9 @@ Handle<JSObject> CreateImportObjectInternal(
 
     switch (import.kind) {
       case kExternalFunction: {
-        // TODO: Support other types of external functions such as wasm?
-        // It currently supports only external JS function.
+        // TODO(paolosev@microsoft.com): Support other types of external
+        // functions such as wasm? It currently supports only external JS
+        // function.
         Handle<JSFunction> fn_obj = GenerateJSFunction(isolate);
         JSObject::DefinePropertyOrElementIgnoreAttributes(module_namespace,
                                                           field_name, fn_obj)
@@ -256,7 +258,7 @@ Handle<JSObject> CreateImportObjectInternal(
       }
       case kExternalMemory: {
         // Memory
-        SharedFlag shared = SharedFlag::kNotShared;
+        SharedFlag shared = SharedFlag::kNo;
         int memory_initial = 1;
         int memory_maximum = 32;
         DirectHandle<WasmMemoryObject> memory_obj;
@@ -275,14 +277,14 @@ Handle<JSObject> CreateImportObjectInternal(
         const WasmGlobal& global =
             module_object->native_module()->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
-            WasmTrustedInstanceData::New(isolate, module_object,
-                                         module_object->shared_native_module(),
-                                         false);
+            WasmTrustedInstanceData::New(
+                isolate, module_object,
+                module_object->native_module().as_shared_ptr(),
+                SharedFlag::kNo);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
-                                  MaybeHandle<JSArrayBuffer>(),
-                                  MaybeHandle<FixedArray>(), global.type,
-                                  offset, global.mutability);
+                                  MaybeHandle<WasmGlobalObject::BufferType>(),
+                                  global.type, offset, global.mutability);
         DirectHandle<WasmGlobalObject> global_obj;
         if (maybe_global_obj.ToHandle(&global_obj)) {
           JSObject::DefinePropertyOrElementIgnoreAttributes(

@@ -125,7 +125,7 @@ static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
                      OpIndex node) {
   UNIMPLEMENTED();
@@ -145,7 +145,7 @@ static void VisitUniqueRRR(InstructionSelector* selector, ArchOpcode opcode,
                            OpIndex node) {
   UNIMPLEMENTED();
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
   Mips64OperandGenerator g(selector);
@@ -403,13 +403,13 @@ void EmitLoad(InstructionSelector* selector, OpIndex node,
   }
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 void InstructionSelector::VisitStoreLane(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadLane(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(OpIndex node) { UNIMPLEMENTED(); }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 void InstructionSelector::VisitLoad(OpIndex node) {
   auto load = this->load_view(node);
@@ -459,7 +459,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   EmitLoad(this, node, opcode);
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -562,7 +562,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   }
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -759,6 +759,14 @@ void InstructionSelector::VisitInt64Mul(OpIndex node) {
   VisitBinop(this, node, kMips64Dmul, true, kMips64Dmul);
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitInt32Div(OpIndex node) {
   Mips64OperandGenerator g(this);
 
@@ -870,7 +878,15 @@ void InstructionSelector::VisitChangeFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelector::VisitChangeFloat64ToUint64(OpIndex node) {
-  VisitRR(this, kMips64TruncUlD, node);
+  Mips64OperandGenerator g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  InstructionCode opcode = kMips64TruncUlD;
+
+  if (op.Is<Opmask::kTruncateFloat64ToUint64OverflowToMin>()) {
+    opcode |= MiscField::encode(true);
+  }
+
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(OpIndex node) {
@@ -1044,10 +1060,9 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   switch (op.opcode) {
     // Comparisons only emit 0/1, so the upper 32 bits must be zero.
     case Opcode::kComparison:
-      return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
-    case Opcode::kOverflowCheckedBinop:
-      return op.Cast<OverflowCheckedBinopOp>().rep ==
-             WordRepresentation::Word32();
+      return true;
+    case Opcode::kProjection:
+      return ZeroExtendsWord32ToWord64NoPhis(op.Cast<ProjectionOp>().input());
     case Opcode::kLoad: {
       auto load = this->load_view(node);
       LoadRepresentation load_rep = load.loaded_rep();
@@ -1320,9 +1335,8 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
-                                         call_descriptor->ParameterCount())),
-         0, nullptr, 0, nullptr);
+    int param_count = static_cast<int>(call_descriptor->ParameterCount());
+    Emit(kArchPrepareCallCFunction, g.NoOutput(), g.TempImmediate(param_count));
 
     // Poke any stack arguments.
     int slot = kCArgSlotCount;
@@ -1812,7 +1826,7 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
     inputs[2] = g.UseUniqueRegister(value);
   }
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[3];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
@@ -1841,7 +1855,7 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
   inputs[input_count++] = g.UseUniqueRegister(old_value);
   inputs[input_count++] = g.UseUniqueRegister(new_value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temp[3];
   temp[0] = g.TempRegister();
   temp[1] = g.TempRegister();
@@ -1863,11 +1877,11 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
+  outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[4];
   temps[0] = g.TempRegister();
   temps[1] = g.TempRegister();
@@ -2424,7 +2438,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(OpIndex node) {
   UNREACHABLE();
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 
 #define SIMD_TYPE_LIST(V) \
   V(F64x2)                \
@@ -2730,13 +2744,6 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Swizzle(OpIndex node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::VisitSetStackPointer(OpIndex node) {
-  OperandGenerator g(this);
-  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
-  auto input = g.UseRegister(op.value());
-  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
-}
-
 void InstructionSelector::VisitF32x4Pmin(OpIndex node) {
   VisitUniqueRRR(this, kMips64F32x4Pmin, node);
 }
@@ -2778,6 +2785,15 @@ VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S, MSAS16)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, MSAU16)
 #undef VISIT_EXTADD_PAIRWISE
 
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitSetStackPointer(OpIndex node) {
+  OperandGenerator g(this);
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
+  auto input = g.UseRegister(op.value());
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::VisitSignExtendWord8ToInt32(OpIndex node) {

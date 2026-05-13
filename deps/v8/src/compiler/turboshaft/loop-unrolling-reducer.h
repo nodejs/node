@@ -132,6 +132,7 @@ class V8_EXPORT_PRIVATE StaticCanonicalForLoopMatcher {
   static constexpr BinOp BinopFromOverflowCheckedBinopKind(
       OverflowCheckedBinopOp::Kind kind);
   static constexpr bool BinopKindIsSupported(WordBinopOp::Kind binop_kind);
+  static constexpr bool BinopIsCommutative(BinOp op);
 
  private:
   bool MatchPhiCompareCst(OpIndex cond_idx,
@@ -505,6 +506,8 @@ class LoopUnrollingReducer : public Next {
   // {unrolling_} is true if a loop is currently being unrolled.
   UnrollingStatus unrolling_ = UnrollingStatus::kNotUnrolling;
   bool skip_next_stack_check_ = false;
+  const ZoneAbslFlatHashSet<uint32_t>& stack_checks_to_remove_ =
+      __ input_graph().stack_checks_to_remove();
 
   const Block* current_loop_header_ = nullptr;
   JSHeapBroker* broker_ = __ data() -> broker();
@@ -552,8 +555,11 @@ bool LoopUnrollingReducer<Next>::PartiallyUnrollLoop(const Block* header) {
     // We remove the stack check of all iterations but the last one.
     TRACE("> Emitting iteration " << i);
     bool is_last_iteration = i == unroll_count - 2;
+    bool skip_stack_check =
+        !is_last_iteration ||
+        stack_checks_to_remove_.contains(header->index().id());
     ScopedModification<bool> inner_skip_stack_checks(&skip_next_stack_check_,
-                                                     !is_last_iteration);
+                                                     skip_stack_check);
 
     __ CloneSubGraph(loop_body, /* keep_loop_kinds */ false);
     if (StopUnrollingIfUnreachable(output_graph_header)) {

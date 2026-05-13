@@ -114,8 +114,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   LOAD_IC_HANDLER_LIST(V, GENERATE_BUILTIN_LOAD_IC_DEFINITION)
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
+#define TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OPERATION, TYPE) \
+  V(OPERATION##_##TYPE##_Baseline, Compare_WithEmbeddedFeedbackOffset)
+
 #define TYPED_STRICTEQUAL_HANDLER_HELPER(V, TYPE) \
-  V(StrictEqual_##TYPE##_Baseline, Compare_WithEmbeddedFeedbackOffset)
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, StrictEqual, TYPE)
+
+#define TYPED_EQUAL_HANDLER_HELPER(V, TYPE) \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, Equal, TYPE)
 
 #define GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER(V)     \
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, Any)                \
@@ -126,7 +132,21 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, InternalizedString) \
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, SignedSmall)        \
   TYPED_STRICTEQUAL_HANDLER_HELPER(V, None)
+
+#define GENERATE_BUILTIN_TYPED_EQUAL_HANDLER(V)     \
+  TYPED_EQUAL_HANDLER_HELPER(V, Any)                \
+  TYPED_EQUAL_HANDLER_HELPER(V, Number)             \
+  TYPED_EQUAL_HANDLER_HELPER(V, String)             \
+  TYPED_EQUAL_HANDLER_HELPER(V, InternalizedString) \
+  TYPED_EQUAL_HANDLER_HELPER(V, Receiver)           \
+  TYPED_EQUAL_HANDLER_HELPER(V, SignedSmall)        \
+  TYPED_EQUAL_HANDLER_HELPER(V, None)
 #endif
+
+#define GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER(V, OP) \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OP, Number)          \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OP, SignedSmall)     \
+  TYPED_COMPARE_OPERATION_HANDLER_HELPER(V, OP, None)
 
 /* Tiering related builtins
  *
@@ -192,6 +212,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_TSAN(TFC, TSANSeqCstStore32SaveFP, TSANStore)                             \
   IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                           \
   IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANReleaseStore8IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANReleaseStore8SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANReleaseStore16IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANReleaseStore16SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANReleaseStore32IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANReleaseStore32SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANReleaseStore64IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANReleaseStore64SaveFP, TSANStore)                            \
                                                                                \
   /* TSAN support for loads in generated code. */                              \
   IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                            \
@@ -206,7 +234,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   ASM(CallFunction_ReceiverIsAny, CallTrampoline)                              \
   /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
   ASM(CallBoundFunction, CallTrampoline)                                       \
-  /* #sec-wrapped-function-exotic-objects-call-thisargument-argumentslist */   \
   TFC(CallWrappedFunction, CallTrampoline)                                     \
   /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
@@ -450,13 +477,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, NeedsContext::kYes, kMicrotask)                        \
+  TFJ(GlobalQueueMicrotask, kJSArgcReceiverSlots + 1, kReceiver, kCallback)    \
   ASM(RunMicrotasksTrampoline, RunMicrotasksEntry)                             \
   TFC(RunMicrotasks, RunMicrotasks)                                            \
                                                                                \
   /* Object property helpers */                                                \
   TFS(HasProperty, NeedsContext::kYes, kObject, kKey)                          \
   TFS(DeleteProperty, NeedsContext::kYes, kObject, kKey, kLanguageMode)        \
-  /* ES #sec-copydataproperties */                                             \
   TFS(CopyDataProperties, NeedsContext::kYes, kTarget, kSource)                \
   TFS(SetDataProperties, NeedsContext::kYes, kTarget, kSource)                 \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
@@ -518,9 +545,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       ArraySingleArgumentConstructor)                                          \
   TFC(ArrayNArgumentsConstructor, ArrayNArgumentsConstructor)                  \
   CPP(ArrayConcat, kDontAdaptArgumentsSentinel)                                \
-  /* ES6 #sec-array.prototype.fill */                                          \
   CPP(ArrayPrototypeFill, kDontAdaptArgumentsSentinel)                         \
-  /* ES7 #sec-array.prototype.includes */                                      \
   TFS(ArrayIncludesSmi, NeedsContext::kYes, kElements, kSearchElement,         \
       kLength, kFromIndex)                                                     \
   TFS(ArrayIncludesSmiOrObject, NeedsContext::kYes, kElements, kSearchElement, \
@@ -530,7 +555,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(ArrayIncludesHoleyDoubles, NeedsContext::kYes, kElements,                \
       kSearchElement, kLength, kFromIndex)                                     \
   TFJ(ArrayIncludes, kDontAdaptArgumentsSentinel)                              \
-  /* ES6 #sec-array.prototype.indexof */                                       \
   TFS(ArrayIndexOfSmi, NeedsContext::kYes, kElements, kSearchElement, kLength, \
       kFromIndex)                                                              \
   TFS(ArrayIndexOfSmiOrObject, NeedsContext::kYes, kElements, kSearchElement,  \
@@ -540,15 +564,11 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(ArrayIndexOfHoleyDoubles, NeedsContext::kYes, kElements, kSearchElement, \
       kLength, kFromIndex)                                                     \
   TFJ(ArrayIndexOf, kDontAdaptArgumentsSentinel)                               \
-  /* ES6 #sec-array.prototype.pop */                                           \
   CPP(ArrayPop, kDontAdaptArgumentsSentinel)                                   \
   TFJ(ArrayPrototypePop, kDontAdaptArgumentsSentinel)                          \
-  /* ES6 #sec-array.prototype.push */                                          \
   CPP(ArrayPush, kDontAdaptArgumentsSentinel)                                  \
   TFJ(ArrayPrototypePush, kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-array.prototype.shift */                                         \
   CPP(ArrayShift, kDontAdaptArgumentsSentinel)                                 \
-  /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift, kDontAdaptArgumentsSentinel)                               \
   /* Support for Array.from and other array-copying idioms */                  \
   TFS(CloneFastJSArray, NeedsContext::kYes, kSource)                           \
@@ -560,26 +580,18 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       kSlot, kBoilerplateDescriptor, kFlags)                                   \
   TFC(CreateArrayFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)   \
   TFC(CreateObjectFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)  \
-  /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                  \
-  /* ES6 #sec-array.prototype.keys */                                          \
   TFJ(ArrayPrototypeKeys, kJSArgcReceiverSlots, kReceiver)                     \
-  /* ES6 #sec-array.prototype.values */                                        \
   TFJ(ArrayPrototypeValues, kJSArgcReceiverSlots, kReceiver)                   \
-  /* ES6 #sec-%arrayiteratorprototype%.next */                                 \
   TFJ(ArrayIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)             \
                                                                                \
   /* ArrayBuffer */                                                            \
-  /* ES #sec-arraybuffer-constructor */                                        \
   CPP(ArrayBufferConstructor, JSParameterCount(1))                             \
   CPP(ArrayBufferConstructor_DoNotInitialize, kDontAdaptArgumentsSentinel)     \
   CPP(ArrayBufferPrototypeSlice, JSParameterCount(2))                          \
-  /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(ArrayBufferPrototypeResize, JSParameterCount(1))                         \
-  /* https://tc39.es/proposal-arraybuffer-transfer/ */                         \
   CPP(ArrayBufferPrototypeTransfer, kDontAdaptArgumentsSentinel)               \
   CPP(ArrayBufferPrototypeTransferToFixedLength, kDontAdaptArgumentsSentinel)  \
-  /* https://tc39.es/proposal-immutable-arraybuffer/ */                        \
   CPP(ArrayBufferPrototypeTransferToImmutable, kDontAdaptArgumentsSentinel)    \
   CPP(ArrayBufferPrototypeSliceToImmutable, JSParameterCount(2))               \
                                                                                \
@@ -652,51 +664,29 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(ConsoleContext, kDontAdaptArgumentsSentinel)                             \
                                                                                \
   /* DataView */                                                               \
-  /* ES #sec-dataview-constructor */                                           \
   CPP(DataViewConstructor, kDontAdaptArgumentsSentinel)                        \
                                                                                \
   /* Date */                                                                   \
-  /* ES #sec-date-constructor */                                               \
   CPP(DateConstructor, kDontAdaptArgumentsSentinel)                            \
-  /* ES6 #sec-date.prototype.getdate */                                        \
   TFJ(DatePrototypeGetDate, kJSArgcReceiverSlots, kReceiver)                   \
-  /* ES6 #sec-date.prototype.getday */                                         \
   TFJ(DatePrototypeGetDay, kJSArgcReceiverSlots, kReceiver)                    \
-  /* ES6 #sec-date.prototype.getfullyear */                                    \
   TFJ(DatePrototypeGetFullYear, kJSArgcReceiverSlots, kReceiver)               \
-  /* ES6 #sec-date.prototype.gethours */                                       \
   TFJ(DatePrototypeGetHours, kJSArgcReceiverSlots, kReceiver)                  \
-  /* ES6 #sec-date.prototype.getmilliseconds */                                \
   TFJ(DatePrototypeGetMilliseconds, kJSArgcReceiverSlots, kReceiver)           \
-  /* ES6 #sec-date.prototype.getminutes */                                     \
   TFJ(DatePrototypeGetMinutes, kJSArgcReceiverSlots, kReceiver)                \
-  /* ES6 #sec-date.prototype.getmonth */                                       \
   TFJ(DatePrototypeGetMonth, kJSArgcReceiverSlots, kReceiver)                  \
-  /* ES6 #sec-date.prototype.getseconds */                                     \
   TFJ(DatePrototypeGetSeconds, kJSArgcReceiverSlots, kReceiver)                \
-  /* ES6 #sec-date.prototype.gettime */                                        \
   TFJ(DatePrototypeGetTime, kJSArgcReceiverSlots, kReceiver)                   \
-  /* ES6 #sec-date.prototype.gettimezoneoffset */                              \
   TFJ(DatePrototypeGetTimezoneOffset, kJSArgcReceiverSlots, kReceiver)         \
-  /* ES6 #sec-date.prototype.getutcdate */                                     \
   TFJ(DatePrototypeGetUTCDate, kJSArgcReceiverSlots, kReceiver)                \
-  /* ES6 #sec-date.prototype.getutcday */                                      \
   TFJ(DatePrototypeGetUTCDay, kJSArgcReceiverSlots, kReceiver)                 \
-  /* ES6 #sec-date.prototype.getutcfullyear */                                 \
   TFJ(DatePrototypeGetUTCFullYear, kJSArgcReceiverSlots, kReceiver)            \
-  /* ES6 #sec-date.prototype.getutchours */                                    \
   TFJ(DatePrototypeGetUTCHours, kJSArgcReceiverSlots, kReceiver)               \
-  /* ES6 #sec-date.prototype.getutcmilliseconds */                             \
   TFJ(DatePrototypeGetUTCMilliseconds, kJSArgcReceiverSlots, kReceiver)        \
-  /* ES6 #sec-date.prototype.getutcminutes */                                  \
   TFJ(DatePrototypeGetUTCMinutes, kJSArgcReceiverSlots, kReceiver)             \
-  /* ES6 #sec-date.prototype.getutcmonth */                                    \
   TFJ(DatePrototypeGetUTCMonth, kJSArgcReceiverSlots, kReceiver)               \
-  /* ES6 #sec-date.prototype.getutcseconds */                                  \
   TFJ(DatePrototypeGetUTCSeconds, kJSArgcReceiverSlots, kReceiver)             \
-  /* ES6 #sec-date.prototype.valueof */                                        \
   TFJ(DatePrototypeValueOf, kJSArgcReceiverSlots, kReceiver)                   \
-  /* ES6 #sec-date.prototype-@@toprimitive */                                  \
   TFJ(DatePrototypeToPrimitive, kJSArgcReceiverSlots + 1, kReceiver, kHint)    \
   CPP(DatePrototypeGetYear, JSParameterCount(0))                               \
   CPP(DatePrototypeSetYear, kDontAdaptArgumentsSentinel)                       \
@@ -756,11 +746,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(FunctionConstructor, kDontAdaptArgumentsSentinel)                        \
   ASM(FunctionPrototypeApply, JSTrampoline)                                    \
   CPP(FunctionPrototypeBind, kDontAdaptArgumentsSentinel)                      \
-  IF_WASM(CPP, WebAssemblyFunctionPrototypeBind, kDontAdaptArgumentsSentinel)  \
   IF_WASM(TFJ, WasmConstructorWrapper, kDontAdaptArgumentsSentinel)            \
   IF_WASM(TFJ, WasmMethodWrapper, kDontAdaptArgumentsSentinel)                 \
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
-  /* ES6 #sec-function.prototype.tostring */                                   \
   CPP(FunctionPrototypeToString, kDontAdaptArgumentsSentinel)                  \
   IF_FUNCTION_ARGUMENTS_CALLER_ARE_ON_PROTOTYPE(                               \
       CPP, FunctionPrototypeLegacyArgumentsGetter, JSParameterCount(0))        \
@@ -777,11 +765,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* Generator and Async */                                                    \
   TFS(CreateGeneratorObject, NeedsContext::kYes, kClosure, kReceiver)          \
   CPP(GeneratorFunctionConstructor, kDontAdaptArgumentsSentinel)               \
-  /* ES6 #sec-generator.prototype.next */                                      \
   TFJ(GeneratorPrototypeNext, kDontAdaptArgumentsSentinel)                     \
-  /* ES6 #sec-generator.prototype.return */                                    \
   TFJ(GeneratorPrototypeReturn, kDontAdaptArgumentsSentinel)                   \
-  /* ES6 #sec-generator.prototype.throw */                                     \
   TFJ(GeneratorPrototypeThrow, kDontAdaptArgumentsSentinel)                    \
   CPP(AsyncFunctionConstructor, kDontAdaptArgumentsSentinel)                   \
   TFC(SuspendGeneratorBaseline, SuspendGeneratorBaseline)                      \
@@ -790,6 +775,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* Iterator Protocol */                                                      \
   TFC(GetIteratorWithFeedbackLazyDeoptContinuation, GetIteratorStackParameter) \
   TFC(CallIteratorWithFeedbackLazyDeoptContinuation, SingleParameterOnStack)   \
+  TFC(ForOfNextResultDeoptContinuation, ForOfNextResultDeoptContinuation)      \
+  TFC(ForOfNextLoadDoneLazyDeoptContinuation,                                  \
+      ForOfNextLoadDoneLazyDeoptContinuation)                                  \
+  TFC(ForOfNextLoadValueEagerDeoptContinuation,                                \
+      ForOfNextLoadValueEagerDeoptContinuation)                                \
+  TFC(ForOfNextLoadValueLazyDeoptContinuation,                                 \
+      ForOfNextLoadValueLazyDeoptContinuation)                                 \
                                                                                \
   /* Global object */                                                          \
   CPP(GlobalDecodeURI, kDontAdaptArgumentsSentinel)                            \
@@ -799,9 +791,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(GlobalEscape, kDontAdaptArgumentsSentinel)                               \
   CPP(GlobalUnescape, kDontAdaptArgumentsSentinel)                             \
   CPP(GlobalEval, kDontAdaptArgumentsSentinel)                                 \
-  /* ES6 #sec-isfinite-number */                                               \
   TFJ(GlobalIsFinite, kJSArgcReceiverSlots + 1, kReceiver, kNumber)            \
-  /* ES6 #sec-isnan-number */                                                  \
   TFJ(GlobalIsNaN, kJSArgcReceiverSlots + 1, kReceiver, kNumber)               \
                                                                                \
   /* JSON */                                                                   \
@@ -882,7 +872,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       AddStringConstantInternalizeTrampoline)                                  \
                                                                                \
   /* IterableToList */                                                         \
-  /* ES #sec-iterabletolist */                                                 \
   TFS(IterableToList, NeedsContext::kYes, kIterable, kIteratorFn)              \
   TFS(IterableToFixedArray, NeedsContext::kYes, kIterable, kIteratorFn)        \
   TFS(IterableToListWithSymbolLookup, NeedsContext::kYes, kIterable)           \
@@ -893,7 +882,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(TFS, IterableToFixedArrayForWasm, NeedsContext::kYes, kIterable,     \
           kExpectedLength)                                                     \
                                                                                \
-  /* #sec-createstringlistfromiterable */                                      \
   TFS(StringListFromIterable, NeedsContext::kYes, kIterable)                   \
                                                                                \
   /* Map */                                                                    \
@@ -908,21 +896,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       kValue)                                                                  \
   TFJ(MapPrototypeGetOrInsertComputed, kJSArgcReceiverSlots + 2, kReceiver,    \
       kKey, kCallbackfn)                                                       \
-  /* ES #sec-map.prototype.entries */                                          \
   TFJ(MapPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                    \
-  /* ES #sec-get-map.prototype.size */                                         \
   TFJ(MapPrototypeGetSize, kJSArgcReceiverSlots, kReceiver)                    \
-  /* ES #sec-map.prototype.forEach */                                          \
   TFJ(MapPrototypeForEach, kDontAdaptArgumentsSentinel)                        \
-  /* ES #sec-map.prototype.keys */                                             \
   TFJ(MapPrototypeKeys, kJSArgcReceiverSlots, kReceiver)                       \
-  /* ES #sec-map.prototype.values */                                           \
   TFJ(MapPrototypeValues, kJSArgcReceiverSlots, kReceiver)                     \
-  /* ES #sec-%mapiteratorprototype%.next */                                    \
   TFJ(MapIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)               \
   TFS(MapIteratorToList, NeedsContext::kYes, kSource)                          \
                                                                                \
-  /* ES #sec-number-constructor */                                             \
   CPP(NumberPrototypeToExponential, kDontAdaptArgumentsSentinel)               \
   CPP(NumberPrototypeToFixed, kDontAdaptArgumentsSentinel)                     \
   CPP(NumberPrototypeToLocaleString, kDontAdaptArgumentsSentinel)              \
@@ -977,18 +958,33 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(Add_RhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
   TFC(Add_RhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
-  /* Compare ops with feedback collection */                                   \
-  TFC(Equal_Baseline, Compare_WithEmbeddedFeedbackOffset)                      \
-  TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
+  /* Typed Comparison baseline stubs */                                        \
+  TFC(Equal_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)              \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_EQUAL_HANDLER, TFC)                 \
+  IF_SPARKPLUG_PLUS(TFC, EqualAndTryPatchCode, CompareAndTryPatchCode)         \
                                                                                \
-  /* Typed StirctEqual baseline stubs */                                       \
+  TFC(StrictEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
   IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_STRICTEQUAL_HANDLER, TFC)           \
   IF_SPARKPLUG_PLUS(TFC, StrictEqualAndTryPatchCode, CompareAndTryPatchCode)   \
                                                                                \
-  TFC(LessThan_Baseline, Compare_WithEmbeddedFeedbackOffset)                   \
-  TFC(GreaterThan_Baseline, Compare_WithEmbeddedFeedbackOffset)                \
-  TFC(LessThanOrEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)            \
-  TFC(GreaterThanOrEqual_Baseline, Compare_WithEmbeddedFeedbackOffset)         \
+  TFC(LessThan_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)           \
+  TFC(GreaterThan_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)        \
+  TFC(LessThanOrEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset)    \
+  TFC(GreaterThanOrEqual_Generic_Baseline, Compare_WithEmbeddedFeedbackOffset) \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    LessThan)                                                  \
+  IF_SPARKPLUG_PLUS(TFC, LessThanAndTryPatchCode, CompareAndTryPatchCode)      \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    GreaterThan)                                               \
+  IF_SPARKPLUG_PLUS(TFC, GreaterThanAndTryPatchCode, CompareAndTryPatchCode)   \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    LessThanOrEqual)                                           \
+  IF_SPARKPLUG_PLUS(TFC, LessThanOrEqualAndTryPatchCode,                       \
+                    CompareAndTryPatchCode)                                    \
+  IF_SPARKPLUG_PLUS(GENERATE_BUILTIN_TYPED_RELATIONAL_COMPARE_HANDLER, TFC,    \
+                    GreaterThanOrEqual)                                        \
+  IF_SPARKPLUG_PLUS(TFC, GreaterThanOrEqualAndTryPatchCode,                    \
+                    CompareAndTryPatchCode)                                    \
                                                                                \
   TFC(Equal_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)                \
   TFC(StrictEqual_WithEmbeddedFeedback, Compare_WithEmbeddedFeedback)          \
@@ -1008,9 +1004,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \
                                                                                \
   /* Object */                                                                 \
-  /* ES #sec-object-constructor */                                             \
   TFJ(ObjectAssign, kDontAdaptArgumentsSentinel)                               \
-  /* ES #sec-object.create */                                                  \
   TFJ(ObjectCreate, kDontAdaptArgumentsSentinel)                               \
   CPP(ObjectDefineGetter, JSParameterCount(2))                                 \
   CPP(ObjectDefineProperties, JSParameterCount(2))                             \
@@ -1029,7 +1023,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(ObjectKeys, kJSArgcReceiverSlots + 1, kReceiver, kObject)                \
   CPP(ObjectLookupGetter, JSParameterCount(1))                                 \
   CPP(ObjectLookupSetter, JSParameterCount(1))                                 \
-  /* ES6 #sec-object.prototype.hasownproperty */                               \
   TFJ(ObjectPrototypeHasOwnProperty, kJSArgcReceiverSlots + 1, kReceiver,      \
       kKey)                                                                    \
   TFJ(ObjectPrototypeIsPrototypeOf, kJSArgcReceiverSlots + 1, kReceiver,       \
@@ -1069,7 +1062,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(RegExpCapture7Getter, JSParameterCount(0))                               \
   CPP(RegExpCapture8Getter, JSParameterCount(0))                               \
   CPP(RegExpCapture9Getter, JSParameterCount(0))                               \
-  /* ES #sec-regexp-pattern-flags */                                           \
   TFJ(RegExpConstructor, kJSArgcReceiverSlots + 2, kReceiver, kPattern,        \
       kFlags)                                                                  \
   CPP(RegExpInputGetter, JSParameterCount(0))                                  \
@@ -1077,12 +1069,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(RegExpLastMatchGetter, JSParameterCount(0))                              \
   CPP(RegExpLastParenGetter, JSParameterCount(0))                              \
   CPP(RegExpLeftContextGetter, JSParameterCount(0))                            \
-  /* ES #sec-regexp.prototype.compile */                                       \
   TFJ(RegExpPrototypeCompile, kJSArgcReceiverSlots + 2, kReceiver, kPattern,   \
       kFlags)                                                                  \
   CPP(RegExpPrototypeToString, kDontAdaptArgumentsSentinel)                    \
   CPP(RegExpRightContextGetter, JSParameterCount(0))                           \
-  /* ES #sec-regexp.escape */                                                  \
   CPP(RegExpEscape, JSParameterCount(1))                                       \
                                                                                \
   /* RegExp helpers */                                                         \
@@ -1098,15 +1088,10 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFJ(SetPrototypeAdd, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
   TFJ(SetPrototypeDelete, kJSArgcReceiverSlots + 1, kReceiver, kKey)           \
   CPP(SetPrototypeClear, JSParameterCount(0))                                  \
-  /* ES #sec-set.prototype.entries */                                          \
   TFJ(SetPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                    \
-  /* ES #sec-get-set.prototype.size */                                         \
   TFJ(SetPrototypeGetSize, kJSArgcReceiverSlots, kReceiver)                    \
-  /* ES #sec-set.prototype.foreach */                                          \
   TFJ(SetPrototypeForEach, kDontAdaptArgumentsSentinel)                        \
-  /* ES #sec-set.prototype.values */                                           \
   TFJ(SetPrototypeValues, kJSArgcReceiverSlots, kReceiver)                     \
-  /* ES #sec-%setiteratorprototype%.next */                                    \
   TFJ(SetIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)               \
   TFS(SetOrSetIteratorToList, NeedsContext::kYes, kSource)                     \
                                                                                \
@@ -1125,7 +1110,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength, kDontAdaptArgumentsSentinel)    \
   CPP(SharedArrayBufferPrototypeSlice, JSParameterCount(2))                    \
-  /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(SharedArrayBufferPrototypeGrow, JSParameterCount(1))                     \
                                                                                \
   TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedObject,  \
@@ -1148,75 +1132,48 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(AtomicsPause, kDontAdaptArgumentsSentinel)                               \
                                                                                \
   /* String */                                                                 \
-  /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint, kDontAdaptArgumentsSentinel)                        \
-  /* ES6 #sec-string.fromcharcode */                                           \
   IF_TSA(TFJ_TSA, TFJ, StringFromCharCode, kDontAdaptArgumentsSentinel)        \
-  /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf, kDontAdaptArgumentsSentinel)                 \
-  /* ES #sec-string.prototype.matchAll */                                      \
   TFJ(StringPrototypeMatchAll, kJSArgcReceiverSlots + 1, kReceiver, kRegexp)   \
-  /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, kJSArgcReceiverSlots + 2, kReceiver, kSearch,    \
       kReplace)                                                                \
-  /* ES6 #sec-string.prototype.split */                                        \
   TFJ(StringPrototypeSplit, kDontAdaptArgumentsSentinel)                       \
-  /* ES6 #sec-string.raw */                                                    \
   CPP(StringRaw, kDontAdaptArgumentsSentinel)                                  \
   /*SELECT_TSA_LEVEL(IGNORE_BUILTIN, TFC_TSA, IGNORE_BUILTIN, ToString,        \
    * ToString)*/                                                               \
                                                                                \
   /* Symbol */                                                                 \
-  /* ES #sec-symbol-constructor */                                             \
   CPP(SymbolConstructor, kDontAdaptArgumentsSentinel)                          \
-  /* ES6 #sec-symbol.for */                                                    \
   CPP(SymbolFor, kDontAdaptArgumentsSentinel)                                  \
-  /* ES6 #sec-symbol.keyfor */                                                 \
   CPP(SymbolKeyFor, kDontAdaptArgumentsSentinel)                               \
                                                                                \
   /* TypedArray */                                                             \
-  /* ES #sec-typedarray-constructors */                                        \
   TFJ(TypedArrayBaseConstructor, kJSArgcReceiverSlots, kReceiver)              \
   TFJ(TypedArrayConstructor, kDontAdaptArgumentsSentinel)                      \
   CPP(TypedArrayPrototypeBuffer, kDontAdaptArgumentsSentinel)                  \
-  /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, kJSArgcReceiverSlots, kReceiver)          \
-  /* ES6 #sec-get-%typedarray%.prototype.byteoffset */                         \
   TFJ(TypedArrayPrototypeByteOffset, kJSArgcReceiverSlots, kReceiver)          \
-  /* ES6 #sec-get-%typedarray%.prototype.length */                             \
   TFJ(TypedArrayPrototypeLength, kJSArgcReceiverSlots, kReceiver)              \
-  /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
   CPP(TypedArrayPrototypeCopyWithin, kDontAdaptArgumentsSentinel)              \
-  /* ES6 #sec-%typedarray%.prototype.fill */                                   \
   CPP(TypedArrayPrototypeFill, kDontAdaptArgumentsSentinel)                    \
-  /* ES7 #sec-%typedarray%.prototype.includes */                               \
   CPP(TypedArrayPrototypeIncludes, kDontAdaptArgumentsSentinel)                \
-  /* ES6 #sec-%typedarray%.prototype.indexof */                                \
   CPP(TypedArrayPrototypeIndexOf, kDontAdaptArgumentsSentinel)                 \
-  /* ES6 #sec-%typedarray%.prototype.lastindexof */                            \
   CPP(TypedArrayPrototypeLastIndexOf, kDontAdaptArgumentsSentinel)             \
-  /* ES6 #sec-%typedarray%.prototype.reverse */                                \
   CPP(TypedArrayPrototypeReverse, kDontAdaptArgumentsSentinel)                 \
-  /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
   TFJ(TypedArrayPrototypeToStringTag, kJSArgcReceiverSlots, kReceiver)         \
   /* ES6 %TypedArray%.prototype.map */                                         \
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
-  /* proposal-arraybuffer-base64 #sec-uint8array.frombase64 */                 \
   CPP(Uint8ArrayFromBase64, kDontAdaptArgumentsSentinel)                       \
-  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.setfrombase64 */    \
   CPP(Uint8ArrayPrototypeSetFromBase64, kDontAdaptArgumentsSentinel)           \
-  /* proposal-arraybuffer-base64 #sec-uint8array.fromhex */                    \
   CPP(Uint8ArrayFromHex, kDontAdaptArgumentsSentinel)                          \
-  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.setfromhex */       \
   CPP(Uint8ArrayPrototypeSetFromHex, kDontAdaptArgumentsSentinel)              \
-  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tobase64 */         \
   CPP(Uint8ArrayPrototypeToBase64, kDontAdaptArgumentsSentinel)                \
-  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tohex */            \
   CPP(Uint8ArrayPrototypeToHex, kDontAdaptArgumentsSentinel)                   \
                                                                                \
   /* Wasm */                                                                   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
-  IF_WASM_DRUMBRAKE(ASM, GenericJSToWasmInterpreterWrapper, JSTrampoline)      \
+  IF_WASM_DRUMBRAKE(ASM, JSToWasmInterpreterWrapperAsm, WasmJSToWasmWrapper)   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterCWasmEntry, WasmDummy)                 \
   IF_WASM_DRUMBRAKE(ASM, GenericWasmToJSInterpreterWrapper, WasmDummy)         \
                                                                                \
@@ -1436,7 +1393,9 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   IF_WASM(ASM, WasmResume, JSTrampoline)                                       \
   IF_WASM(ASM, WasmFXResume, WasmFXResume)                                     \
   IF_WASM(ASM, WasmFXResumeThrow, WasmFXResumeThrow)                           \
+  IF_WASM(ASM, WasmFXResumeThrowRef, WasmFXResumeThrowRef)                     \
   IF_WASM(ASM, WasmFXSuspend, WasmFXSuspend)                                   \
+  IF_WASM(ASM, WasmFXSwitch, WasmFXSwitch)                                     \
   IF_WASM(ASM, WasmFXReturn, WasmFXReturn)                                     \
   IF_WASM(ASM, WasmReject, JSTrampoline)                                       \
   IF_WASM(ASM, WasmTrapHandlerLandingPad, WasmDummy)                           \
@@ -1498,19 +1457,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFS(AsyncGeneratorResumeNext, NeedsContext::kYes, kGenerator)                \
                                                                                \
   /* AsyncGeneratorFunction( p1, p2, ... pn, body ) */                         \
-  /* proposal-async-iteration/#sec-asyncgeneratorfunction-constructor */       \
   CPP(AsyncGeneratorFunctionConstructor, kDontAdaptArgumentsSentinel)          \
   /* AsyncGenerator.prototype.next ( value ) */                                \
-  /* proposal-async-iteration/#sec-asyncgenerator-prototype-next */            \
   TFJ(AsyncGeneratorPrototypeNext, kDontAdaptArgumentsSentinel)                \
   /* AsyncGenerator.prototype.return ( value ) */                              \
-  /* proposal-async-iteration/#sec-asyncgenerator-prototype-return */          \
   TFJ(AsyncGeneratorPrototypeReturn, kDontAdaptArgumentsSentinel)              \
   /* AsyncGenerator.prototype.throw ( exception ) */                           \
-  /* proposal-async-iteration/#sec-asyncgenerator-prototype-throw */           \
   TFJ(AsyncGeneratorPrototypeThrow, kDontAdaptArgumentsSentinel)               \
                                                                                \
-  /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \
   TFS(AsyncGeneratorAwait, NeedsContext::kYes, kAsyncGeneratorObject, kValue)  \
   TFJ(AsyncGeneratorAwaitResolveClosure, kJSArgcReceiverSlots + 1, kReceiver,  \
@@ -1529,17 +1483,11 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* Async-from-Sync Iterator */                                               \
                                                                                \
   /* %AsyncFromSyncIteratorPrototype% */                                       \
-  /* See tc39.github.io/proposal-async-iteration/ */                           \
-  /* #sec-%asyncfromsynciteratorprototype%-object) */                          \
   TFJ(AsyncFromSyncIteratorPrototypeNext, kDontAdaptArgumentsSentinel)         \
-  /* #sec-%asyncfromsynciteratorprototype%.throw */                            \
   TFJ(AsyncFromSyncIteratorPrototypeThrow, kDontAdaptArgumentsSentinel)        \
-  /* #sec-%asyncfromsynciteratorprototype%.return */                           \
   TFJ(AsyncFromSyncIteratorPrototypeReturn, kDontAdaptArgumentsSentinel)       \
-  /* #sec-asyncfromsynciteratorcontinuation */                                 \
   TFJ(AsyncFromSyncIteratorCloseSyncAndRethrow, kJSArgcReceiverSlots + 1,      \
       kReceiver, kError)                                                       \
-  /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, kJSArgcReceiverSlots + 1, kReceiver, kValue)   \
                                                                                \
   /* CEntry */                                                                 \
@@ -1567,7 +1515,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
   TFS(OrdinaryGetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)   \
-  TFS(CheckMaglevType, NeedsContext::kNo, kObject, kType)                      \
+  TFS(CheckMaglevType, NeedsContext::kNo, kObject, kType,                      \
+      kAllowWideningSmiToInt32)                                                \
   IF_SHADOW_STACK(ASM, AdaptShadowStackForDeopt, Void)                         \
                                                                                \
   /* Trace */                                                                  \
@@ -1592,499 +1541,265 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                        \
                                                                                \
   /* Temporal */                                                               \
-  /* Temporal #sec-temporal.now.instant */                                     \
   CPP(TemporalNowInstant, kDontAdaptArgumentsSentinel)                         \
-  /* Temporal #sec-temporal.now.timezoneid */                                  \
   CPP(TemporalNowTimeZoneId, kDontAdaptArgumentsSentinel)                      \
-  /* Temporal #sec-temporal.now.plaindatetimeiso */                            \
   CPP(TemporalNowPlainDateTimeISO, kDontAdaptArgumentsSentinel)                \
-  /* Temporal #sec-temporal.now.zoneddatetimeiso */                            \
   CPP(TemporalNowZonedDateTimeISO, kDontAdaptArgumentsSentinel)                \
-  /* Temporal #sec-temporal.now.plaindateiso */                                \
   CPP(TemporalNowPlainDateISO, kDontAdaptArgumentsSentinel)                    \
-  /* Temporal #sec-temporal.now.plaintimeiso */                                \
   CPP(TemporalNowPlainTimeISO, kDontAdaptArgumentsSentinel)                    \
                                                                                \
   /* Temporal.PlaneDate */                                                     \
-  /* Temporal #sec-temporal.plaindate */                                       \
   CPP(TemporalPlainDateConstructor, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-temporal.plaindate.from */                                  \
   CPP(TemporalPlainDateFrom, kDontAdaptArgumentsSentinel)                      \
-  /* Temporal #sec-temporal.plaindate.compare */                               \
   CPP(TemporalPlainDateCompare, kDontAdaptArgumentsSentinel)                   \
-  /* Temporal #sec-get-temporal.plaindate.calendarid */                        \
   CPP(TemporalPlainDatePrototypeCalendarId, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindate.prototype.era */                     \
   CPP(TemporalPlainDatePrototypeEra, JSParameterCount(0))                      \
-  /* Temporal #sec-get-temporal.plaindate.prototype.erayear */                 \
   CPP(TemporalPlainDatePrototypeEraYear, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.plaindate.prototype.year */                    \
   CPP(TemporalPlainDatePrototypeYear, JSParameterCount(0))                     \
-  /* Temporal #sec-get-temporal.plaindate.prototype.month */                   \
   CPP(TemporalPlainDatePrototypeMonth, JSParameterCount(0))                    \
-  /* Temporal #sec-get-temporal.plaindate.prototype.monthcode */               \
   CPP(TemporalPlainDatePrototypeMonthCode, JSParameterCount(0))                \
-  /* Temporal #sec-get-temporal.plaindate.prototype.day */                     \
   CPP(TemporalPlainDatePrototypeDay, JSParameterCount(0))                      \
-  /* Temporal #sec-get-temporal.plaindate.prototype.dayofweek */               \
   CPP(TemporalPlainDatePrototypeDayOfWeek, JSParameterCount(0))                \
-  /* Temporal #sec-get-temporal.plaindate.prototype.dayofyear */               \
   CPP(TemporalPlainDatePrototypeDayOfYear, JSParameterCount(0))                \
-  /* Temporal #sec-get-temporal.plaindate.prototype.weekofyear */              \
   CPP(TemporalPlainDatePrototypeWeekOfYear, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindate.prototype.yearofweek */              \
   CPP(TemporalPlainDatePrototypeYearOfWeek, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindate.prototype.daysinweek */              \
   CPP(TemporalPlainDatePrototypeDaysInWeek, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindate.prototype.daysinmonth */             \
   CPP(TemporalPlainDatePrototypeDaysInMonth, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plaindate.prototype.daysinyear */              \
   CPP(TemporalPlainDatePrototypeDaysInYear, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindate.prototype.monthsinyear */            \
   CPP(TemporalPlainDatePrototypeMonthsInYear, JSParameterCount(0))             \
-  /* Temporal #sec-get-temporal.plaindate.prototype.inleapyear */              \
   CPP(TemporalPlainDatePrototypeInLeapYear, JSParameterCount(0))               \
-  /* Temporal #sec-temporal.plaindate.prototype.toplainyearmonth */            \
   CPP(TemporalPlainDatePrototypeToPlainYearMonth, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.plaindate.prototype.toplainmonthday */             \
   CPP(TemporalPlainDatePrototypeToPlainMonthDay, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindate.prototype.add */                         \
   CPP(TemporalPlainDatePrototypeAdd, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.plaindate.prototype.substract */                   \
   CPP(TemporalPlainDatePrototypeSubtract, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plaindate.prototype.with */                        \
   CPP(TemporalPlainDatePrototypeWith, kDontAdaptArgumentsSentinel)             \
-  /* Temporal #sec-temporal.plaindate.prototype.withcalendar */                \
   CPP(TemporalPlainDatePrototypeWithCalendar, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.plaindate.prototype.until */                       \
   CPP(TemporalPlainDatePrototypeUntil, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.plaindate.prototype.since */                       \
   CPP(TemporalPlainDatePrototypeSince, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.plaindate.prototype.equals */                      \
   CPP(TemporalPlainDatePrototypeEquals, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaindate.prototype.toplaindatetime */             \
   CPP(TemporalPlainDatePrototypeToPlainDateTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindate.prototype.tozoneddatetime */             \
   CPP(TemporalPlainDatePrototypeToZonedDateTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindate.prototype.tostring */                    \
   CPP(TemporalPlainDatePrototypeToString, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plaindate.prototype.tolocalestring */              \
   CPP(TemporalPlainDatePrototypeToLocaleString, kDontAdaptArgumentsSentinel)   \
-  /* Temporal #sec-temporal.plaindate.prototype.tojson */                      \
   CPP(TemporalPlainDatePrototypeToJSON, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaindate.prototype.valueof */                     \
   CPP(TemporalPlainDatePrototypeValueOf, kDontAdaptArgumentsSentinel)          \
                                                                                \
   /* Temporal.PlaneTime */                                                     \
-  /* Temporal #sec-temporal.plaintime */                                       \
   CPP(TemporalPlainTimeConstructor, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-temporal.plaintime.from */                                  \
   CPP(TemporalPlainTimeFrom, kDontAdaptArgumentsSentinel)                      \
-  /* Temporal #sec-temporal.plaintime.compare */                               \
   CPP(TemporalPlainTimeCompare, kDontAdaptArgumentsSentinel)                   \
-  /* Temporal #sec-get-temporal.plaintime.prototype.hour */                    \
   CPP(TemporalPlainTimePrototypeHour, JSParameterCount(0))                     \
-  /* Temporal #sec-get-temporal.plaintime.prototype.minute */                  \
   CPP(TemporalPlainTimePrototypeMinute, JSParameterCount(0))                   \
-  /* Temporal #sec-get-temporal.plaintime.prototype.second */                  \
   CPP(TemporalPlainTimePrototypeSecond, JSParameterCount(0))                   \
-  /* Temporal #sec-get-temporal.plaintime.prototype.millisecond */             \
   CPP(TemporalPlainTimePrototypeMillisecond, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plaintime.prototype.microsecond */             \
   CPP(TemporalPlainTimePrototypeMicrosecond, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plaintime.prototype.nanosecond */              \
   CPP(TemporalPlainTimePrototypeNanosecond, JSParameterCount(0))               \
-  /* Temporal #sec-temporal.plaintime.prototype.add */                         \
   CPP(TemporalPlainTimePrototypeAdd, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.plaintime.prototype.subtract */                    \
   CPP(TemporalPlainTimePrototypeSubtract, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plaintime.prototype.with */                        \
   CPP(TemporalPlainTimePrototypeWith, kDontAdaptArgumentsSentinel)             \
-  /* Temporal #sec-temporal.plaintime.prototype.until */                       \
   CPP(TemporalPlainTimePrototypeUntil, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.plaintime.prototype.since */                       \
   CPP(TemporalPlainTimePrototypeSince, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.plaintime.prototype.round */                       \
   CPP(TemporalPlainTimePrototypeRound, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.plaintime.prototype.equals */                      \
   CPP(TemporalPlainTimePrototypeEquals, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaintime.prototype.tostring */                    \
   CPP(TemporalPlainTimePrototypeToString, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plaintime.prototype.tolocalestring */              \
   CPP(TemporalPlainTimePrototypeToLocaleString, kDontAdaptArgumentsSentinel)   \
-  /* Temporal #sec-temporal.plaindtimeprototype.tojson */                      \
   CPP(TemporalPlainTimePrototypeToJSON, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaintime.prototype.valueof */                     \
   CPP(TemporalPlainTimePrototypeValueOf, kDontAdaptArgumentsSentinel)          \
                                                                                \
   /* Temporal.PlainDateTime */                                                 \
-  /* Temporal #sec-temporal.plaindatetime */                                   \
   CPP(TemporalPlainDateTimeConstructor, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plaindatetime.from */                              \
   CPP(TemporalPlainDateTimeFrom, kDontAdaptArgumentsSentinel)                  \
-  /* Temporal #sec-temporal.plaindatetime.compare */                           \
   CPP(TemporalPlainDateTimeCompare, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-get-temporal.plaindatetime.calendarid */                    \
   CPP(TemporalPlainDateTimePrototypeCalendarId, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.era */                 \
   CPP(TemporalPlainDateTimePrototypeEra, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.erayear */             \
   CPP(TemporalPlainDateTimePrototypeEraYear, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.year */                \
   CPP(TemporalPlainDateTimePrototypeYear, JSParameterCount(0))                 \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.month */               \
   CPP(TemporalPlainDateTimePrototypeMonth, JSParameterCount(0))                \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.monthcode */           \
   CPP(TemporalPlainDateTimePrototypeMonthCode, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.day */                 \
   CPP(TemporalPlainDateTimePrototypeDay, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.hour */                \
   CPP(TemporalPlainDateTimePrototypeHour, JSParameterCount(0))                 \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.minute */              \
   CPP(TemporalPlainDateTimePrototypeMinute, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.second */              \
   CPP(TemporalPlainDateTimePrototypeSecond, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.millisecond */         \
   CPP(TemporalPlainDateTimePrototypeMillisecond, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.microsecond */         \
   CPP(TemporalPlainDateTimePrototypeMicrosecond, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.nanosecond */          \
   CPP(TemporalPlainDateTimePrototypeNanosecond, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.dayofweek */           \
   CPP(TemporalPlainDateTimePrototypeDayOfWeek, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.dayofyear */           \
   CPP(TemporalPlainDateTimePrototypeDayOfYear, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.weekofyear */          \
   CPP(TemporalPlainDateTimePrototypeWeekOfYear, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.yearofweek */          \
   CPP(TemporalPlainDateTimePrototypeYearOfWeek, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.daysinweek */          \
   CPP(TemporalPlainDateTimePrototypeDaysInWeek, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.daysinmonth */         \
   CPP(TemporalPlainDateTimePrototypeDaysInMonth, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.daysinyear */          \
   CPP(TemporalPlainDateTimePrototypeDaysInYear, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.monthsinyear */        \
   CPP(TemporalPlainDateTimePrototypeMonthsInYear, JSParameterCount(0))         \
-  /* Temporal #sec-get-temporal.plaindatetime.prototype.inleapyear */          \
   CPP(TemporalPlainDateTimePrototypeInLeapYear, JSParameterCount(0))           \
-  /* Temporal #sec-temporal.plaindatetime.prototype.with */                    \
   CPP(TemporalPlainDateTimePrototypeWith, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plaindatetime.prototype.withplainTime */           \
   CPP(TemporalPlainDateTimePrototypeWithPlainTime,                             \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.plaindatetime.prototype.withcalendar */            \
   CPP(TemporalPlainDateTimePrototypeWithCalendar, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.plaindatetime.prototype.add */                     \
   CPP(TemporalPlainDateTimePrototypeAdd, kDontAdaptArgumentsSentinel)          \
-  /* Temporal #sec-temporal.plaindatetime.prototype.subtract */                \
   CPP(TemporalPlainDateTimePrototypeSubtract, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.plaindatetime.prototype.until */                   \
   CPP(TemporalPlainDateTimePrototypeUntil, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.plaindatetime.prototype.since */                   \
   CPP(TemporalPlainDateTimePrototypeSince, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.plaindatetime.prototype.round */                   \
   CPP(TemporalPlainDateTimePrototypeRound, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.plaindatetime.prototype.equals */                  \
   CPP(TemporalPlainDateTimePrototypeEquals, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.plaindatetime.prototype.tostring */                \
   CPP(TemporalPlainDateTimePrototypeToString, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.plainddatetimeprototype.tojson */                  \
   CPP(TemporalPlainDateTimePrototypeToJSON, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.plaindatetime.prototype.tolocalestring */          \
   CPP(TemporalPlainDateTimePrototypeToLocaleString,                            \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.plaindatetime.prototype.valueof */                 \
   CPP(TemporalPlainDateTimePrototypeValueOf, kDontAdaptArgumentsSentinel)      \
-  /* Temporal #sec-temporal.plaindatetime.prototype.tozoneddatetime */         \
   CPP(TemporalPlainDateTimePrototypeToZonedDateTime,                           \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.plaindatetime.prototype.toplaindate */             \
   CPP(TemporalPlainDateTimePrototypeToPlainDate, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.plaindatetime.prototype.toplaintime */             \
   CPP(TemporalPlainDateTimePrototypeToPlainTime, kDontAdaptArgumentsSentinel)  \
                                                                                \
   /* Temporal.ZonedDateTime */                                                 \
-  /* Temporal #sec-temporal.zoneddatetime */                                   \
   CPP(TemporalZonedDateTimeConstructor, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.zoneddatetime.from */                              \
   CPP(TemporalZonedDateTimeFrom, kDontAdaptArgumentsSentinel)                  \
-  /* Temporal #sec-temporal.zoneddatetime.compare */                           \
   CPP(TemporalZonedDateTimeCompare, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.timezoneid */          \
   CPP(TemporalZonedDateTimePrototypeTimeZoneId, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.calendarid */                    \
   CPP(TemporalZonedDateTimePrototypeCalendarId, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.era */                 \
   CPP(TemporalZonedDateTimePrototypeEra, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.erayear */             \
   CPP(TemporalZonedDateTimePrototypeEraYear, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.year */                \
   CPP(TemporalZonedDateTimePrototypeYear, JSParameterCount(0))                 \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.month */               \
   CPP(TemporalZonedDateTimePrototypeMonth, JSParameterCount(0))                \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.monthcode */           \
   CPP(TemporalZonedDateTimePrototypeMonthCode, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.day */                 \
   CPP(TemporalZonedDateTimePrototypeDay, JSParameterCount(0))                  \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.hour */                \
   CPP(TemporalZonedDateTimePrototypeHour, JSParameterCount(0))                 \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.minute */              \
   CPP(TemporalZonedDateTimePrototypeMinute, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.second */              \
   CPP(TemporalZonedDateTimePrototypeSecond, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.millisecond */         \
   CPP(TemporalZonedDateTimePrototypeMillisecond, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.microsecond */         \
   CPP(TemporalZonedDateTimePrototypeMicrosecond, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.nanosecond */          \
   CPP(TemporalZonedDateTimePrototypeNanosecond, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochmilliseconds */   \
   CPP(TemporalZonedDateTimePrototypeEpochMilliseconds, JSParameterCount(0))    \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.epochnanoseconds */    \
   CPP(TemporalZonedDateTimePrototypeEpochNanoseconds, JSParameterCount(0))     \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofweek */           \
   CPP(TemporalZonedDateTimePrototypeDayOfWeek, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.dayofyear */           \
   CPP(TemporalZonedDateTimePrototypeDayOfYear, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.weekofyear */          \
   CPP(TemporalZonedDateTimePrototypeWeekOfYear, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.yearofweek */          \
   CPP(TemporalZonedDateTimePrototypeYearOfWeek, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.hoursinday */          \
   CPP(TemporalZonedDateTimePrototypeHoursInDay, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinweek */          \
   CPP(TemporalZonedDateTimePrototypeDaysInWeek, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinmonth */         \
   CPP(TemporalZonedDateTimePrototypeDaysInMonth, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.daysinyear */          \
   CPP(TemporalZonedDateTimePrototypeDaysInYear, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.monthsinyear */        \
   CPP(TemporalZonedDateTimePrototypeMonthsInYear, JSParameterCount(0))         \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.inleapyear */          \
   CPP(TemporalZonedDateTimePrototypeInLeapYear, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.offsetnanoseconds */   \
   CPP(TemporalZonedDateTimePrototypeOffsetNanoseconds, JSParameterCount(0))    \
-  /* Temporal #sec-get-temporal.zoneddatetime.prototype.offset */              \
   CPP(TemporalZonedDateTimePrototypeOffset, JSParameterCount(0))               \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.with */                    \
   CPP(TemporalZonedDateTimePrototypeWith, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.withplaintime */           \
   CPP(TemporalZonedDateTimePrototypeWithPlainTime,                             \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.withtimezone */            \
   CPP(TemporalZonedDateTimePrototypeWithTimeZone, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.withcalendar*/             \
   CPP(TemporalZonedDateTimePrototypeWithCalendar, kDontAdaptArgumentsSentinel) \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.add */                     \
   CPP(TemporalZonedDateTimePrototypeAdd, kDontAdaptArgumentsSentinel)          \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.subtract */                \
   CPP(TemporalZonedDateTimePrototypeSubtract, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.until */                   \
   CPP(TemporalZonedDateTimePrototypeUntil, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.since */                   \
   CPP(TemporalZonedDateTimePrototypeSince, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.round */                   \
   CPP(TemporalZonedDateTimePrototypeRound, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.equals */                  \
   CPP(TemporalZonedDateTimePrototypeEquals, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.tostring */                \
   CPP(TemporalZonedDateTimePrototypeToString, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.zonedddatetimeprototype.tojson */                  \
   CPP(TemporalZonedDateTimePrototypeToJSON, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */          \
   CPP(TemporalZonedDateTimePrototypeToLocaleString,                            \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.valueof */                 \
   CPP(TemporalZonedDateTimePrototypeValueOf, kDontAdaptArgumentsSentinel)      \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.startofday */              \
   CPP(TemporalZonedDateTimePrototypeStartOfDay, kDontAdaptArgumentsSentinel)   \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.gettimezonetransition */   \
   CPP(TemporalZonedDateTimePrototypeGetTimeZoneTransition,                     \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.toinstant */               \
   CPP(TemporalZonedDateTimePrototypeToInstant, kDontAdaptArgumentsSentinel)    \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.toplaindate */             \
   CPP(TemporalZonedDateTimePrototypeToPlainDate, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.toplaintime */             \
   CPP(TemporalZonedDateTimePrototypeToPlainTime, kDontAdaptArgumentsSentinel)  \
-  /* Temporal #sec-temporal.zoneddatetime.prototype.toplaindatetime */         \
   CPP(TemporalZonedDateTimePrototypeToPlainDateTime,                           \
       kDontAdaptArgumentsSentinel)                                             \
                                                                                \
   /* Temporal.Duration */                                                      \
-  /* Temporal #sec-temporal.duration */                                        \
   CPP(TemporalDurationConstructor, kDontAdaptArgumentsSentinel)                \
-  /* Temporal #sec-temporal.duration.from */                                   \
   CPP(TemporalDurationFrom, kDontAdaptArgumentsSentinel)                       \
-  /* Temporal #sec-temporal.duration.compare */                                \
   CPP(TemporalDurationCompare, kDontAdaptArgumentsSentinel)                    \
-  /* Temporal #sec-get-temporal.duration.prototype.years */                    \
   CPP(TemporalDurationPrototypeYears, JSParameterCount(0))                     \
-  /* Temporal #sec-get-temporal.duration.prototype.months */                   \
   CPP(TemporalDurationPrototypeMonths, JSParameterCount(0))                    \
-  /* Temporal #sec-get-temporal.duration.prototype.weeks */                    \
   CPP(TemporalDurationPrototypeWeeks, JSParameterCount(0))                     \
-  /* Temporal #sec-get-temporal.duration.prototype.days */                     \
   CPP(TemporalDurationPrototypeDays, JSParameterCount(0))                      \
-  /* Temporal #sec-get-temporal.duration.prototype.hours */                    \
   CPP(TemporalDurationPrototypeHours, JSParameterCount(0))                     \
-  /* Temporal #sec-get-temporal.duration.prototype.minutes */                  \
   CPP(TemporalDurationPrototypeMinutes, JSParameterCount(0))                   \
-  /* Temporal #sec-get-temporal.duration.prototype.seconds */                  \
   CPP(TemporalDurationPrototypeSeconds, JSParameterCount(0))                   \
-  /* Temporal #sec-get-temporal.duration.prototype.milliseconds */             \
   CPP(TemporalDurationPrototypeMilliseconds, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.duration.prototype.microseconds */             \
   CPP(TemporalDurationPrototypeMicroseconds, JSParameterCount(0))              \
-  /* Temporal #sec-get-temporal.duration.prototype.nanoseconds */              \
   CPP(TemporalDurationPrototypeNanoseconds, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.duration.prototype.sign */                     \
   CPP(TemporalDurationPrototypeSign, JSParameterCount(0))                      \
-  /* Temporal #sec-get-temporal.duration.prototype.blank */                    \
   CPP(TemporalDurationPrototypeBlank, JSParameterCount(0))                     \
-  /* Temporal #sec-temporal.duration.prototype.with */                         \
   CPP(TemporalDurationPrototypeWith, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.duration.prototype.negated */                      \
   CPP(TemporalDurationPrototypeNegated, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.duration.prototype.abs */                          \
   CPP(TemporalDurationPrototypeAbs, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-temporal.duration.prototype.add */                          \
   CPP(TemporalDurationPrototypeAdd, kDontAdaptArgumentsSentinel)               \
-  /* Temporal #sec-temporal.duration.prototype.subtract */                     \
   CPP(TemporalDurationPrototypeSubtract, kDontAdaptArgumentsSentinel)          \
-  /* Temporal #sec-temporal.duration.prototype.round */                        \
   CPP(TemporalDurationPrototypeRound, kDontAdaptArgumentsSentinel)             \
-  /* Temporal #sec-temporal.duration.prototype.total */                        \
   CPP(TemporalDurationPrototypeTotal, kDontAdaptArgumentsSentinel)             \
-  /* Temporal #sec-temporal.duration.prototype.tostring */                     \
   CPP(TemporalDurationPrototypeToString, kDontAdaptArgumentsSentinel)          \
-  /* Temporal #sec-temporal.duration.tojson */                                 \
   CPP(TemporalDurationPrototypeToJSON, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.duration.prototype.tolocalestring */               \
   CPP(TemporalDurationPrototypeToLocaleString, kDontAdaptArgumentsSentinel)    \
-  /* Temporal #sec-temporal.duration.prototype.valueof */                      \
   CPP(TemporalDurationPrototypeValueOf, kDontAdaptArgumentsSentinel)           \
                                                                                \
   /* Temporal.Instant */                                                       \
-  /* Temporal #sec-temporal.instant */                                         \
   CPP(TemporalInstantConstructor, kDontAdaptArgumentsSentinel)                 \
-  /* Temporal #sec-temporal.instant.from */                                    \
   CPP(TemporalInstantFrom, kDontAdaptArgumentsSentinel)                        \
-  /* Temporal #sec-temporal.instant.fromepochmilliseconds */                   \
   CPP(TemporalInstantFromEpochMilliseconds, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.instant.fromepochnanoseconds */                    \
   CPP(TemporalInstantFromEpochNanoseconds, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.instant.compare */                                 \
   CPP(TemporalInstantCompare, kDontAdaptArgumentsSentinel)                     \
-  /* Temporal #sec-get-temporal.instant.prototype.epochmilliseconds */         \
   CPP(TemporalInstantPrototypeEpochMilliseconds, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.instant.prototype.epochnanoseconds */          \
   CPP(TemporalInstantPrototypeEpochNanoseconds, JSParameterCount(0))           \
-  /* Temporal #sec-temporal.instant.prototype.add */                           \
   CPP(TemporalInstantPrototypeAdd, kDontAdaptArgumentsSentinel)                \
-  /* Temporal #sec-temporal.instant.prototype.subtract */                      \
   CPP(TemporalInstantPrototypeSubtract, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.instant.prototype.until */                         \
   CPP(TemporalInstantPrototypeUntil, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.instant.prototype.since */                         \
   CPP(TemporalInstantPrototypeSince, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.instant.prototype.round */                         \
   CPP(TemporalInstantPrototypeRound, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-temporal.instant.prototype.equals */                        \
   CPP(TemporalInstantPrototypeEquals, kDontAdaptArgumentsSentinel)             \
-  /* Temporal #sec-temporal.instant.prototype.tostring */                      \
   CPP(TemporalInstantPrototypeToString, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.instant.tojson */                                  \
   CPP(TemporalInstantPrototypeToJSON, kDontAdaptArgumentsSentinel)             \
-  /* Temporal #sec-temporal.instant.prototype.tolocalestring */                \
   CPP(TemporalInstantPrototypeToLocaleString, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.instant.prototype.valueof */                       \
   CPP(TemporalInstantPrototypeValueOf, kDontAdaptArgumentsSentinel)            \
-  /* Temporal #sec-temporal.instant.prototype.tozoneddatetimeiso */            \
   CPP(TemporalInstantPrototypeToZonedDateTimeISO, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.PlainYearMonth */                                                \
-  /* Temporal #sec-temporal.plainyearmonth */                                  \
   CPP(TemporalPlainYearMonthConstructor, kDontAdaptArgumentsSentinel)          \
-  /* Temporal #sec-temporal.plainyearmonth.from */                             \
   CPP(TemporalPlainYearMonthFrom, kDontAdaptArgumentsSentinel)                 \
-  /* Temporal #sec-temporal.plainyearmonth.compare */                          \
   CPP(TemporalPlainYearMonthCompare, kDontAdaptArgumentsSentinel)              \
-  /* Temporal #sec-get-temporal.plainyearmonth.calendarid */                   \
   CPP(TemporalPlainYearMonthPrototypeCalendarId, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.era */                \
   CPP(TemporalPlainYearMonthPrototypeEra, JSParameterCount(0))                 \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.erayear */            \
   CPP(TemporalPlainYearMonthPrototypeEraYear, JSParameterCount(0))             \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.year */               \
   CPP(TemporalPlainYearMonthPrototypeYear, JSParameterCount(0))                \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.month */              \
   CPP(TemporalPlainYearMonthPrototypeMonth, JSParameterCount(0))               \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.monthcode */          \
   CPP(TemporalPlainYearMonthPrototypeMonthCode, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.daysinyear */         \
   CPP(TemporalPlainYearMonthPrototypeDaysInYear, JSParameterCount(0))          \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.daysinmonth */        \
   CPP(TemporalPlainYearMonthPrototypeDaysInMonth, JSParameterCount(0))         \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.monthsinyear */       \
   CPP(TemporalPlainYearMonthPrototypeMonthsInYear, JSParameterCount(0))        \
-  /* Temporal #sec-get-temporal.plainyearmonth.prototype.inleapyear */         \
   CPP(TemporalPlainYearMonthPrototypeInLeapYear, JSParameterCount(0))          \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.with */                   \
   CPP(TemporalPlainYearMonthPrototypeWith, kDontAdaptArgumentsSentinel)        \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.add */                    \
   CPP(TemporalPlainYearMonthPrototypeAdd, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.subtract */               \
   CPP(TemporalPlainYearMonthPrototypeSubtract, kDontAdaptArgumentsSentinel)    \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.until */                  \
   CPP(TemporalPlainYearMonthPrototypeUntil, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.since */                  \
   CPP(TemporalPlainYearMonthPrototypeSince, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.equals */                 \
   CPP(TemporalPlainYearMonthPrototypeEquals, kDontAdaptArgumentsSentinel)      \
-  /* Temporal #sec-temporal.plainyearmonth.tostring */                         \
   CPP(TemporalPlainYearMonthPrototypeToString, kDontAdaptArgumentsSentinel)    \
-  /* Temporal #sec-temporal.plainyearmonth.tojson */                           \
   CPP(TemporalPlainYearMonthPrototypeToJSON, kDontAdaptArgumentsSentinel)      \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.tolocalestring */         \
   CPP(TemporalPlainYearMonthPrototypeToLocaleString,                           \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.valueof */                \
   CPP(TemporalPlainYearMonthPrototypeValueOf, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.plainyearmonth.prototype.toplaindate */            \
   CPP(TemporalPlainYearMonthPrototypeToPlainDate, kDontAdaptArgumentsSentinel) \
                                                                                \
   /* Temporal.PlainMonthDay */                                                 \
-  /* Temporal #sec-temporal.plainmonthday */                                   \
   CPP(TemporalPlainMonthDayConstructor, kDontAdaptArgumentsSentinel)           \
-  /* Temporal #sec-temporal.plainmonthday.from */                              \
   CPP(TemporalPlainMonthDayFrom, kDontAdaptArgumentsSentinel)                  \
   /* There are no compare for PlainMonthDay */                                 \
-  /* See https://github.com/tc39/proposal-temporal/issues/1547 */              \
-  /* Temporal #sec-get-temporal.plainmonthday.calendarid */                    \
   CPP(TemporalPlainMonthDayPrototypeCalendarId, JSParameterCount(0))           \
-  /* Temporal #sec-get-temporal.plainmonthday.prototype.monthcode */           \
   CPP(TemporalPlainMonthDayPrototypeMonthCode, JSParameterCount(0))            \
-  /* Temporal #sec-get-temporal.plainmonthday.prototype.day */                 \
   CPP(TemporalPlainMonthDayPrototypeDay, JSParameterCount(0))                  \
-  /* Temporal #sec-temporal.plainmonthday.prototype.with */                    \
   CPP(TemporalPlainMonthDayPrototypeWith, kDontAdaptArgumentsSentinel)         \
-  /* Temporal #sec-temporal.plainmonthday.prototype.equals */                  \
   CPP(TemporalPlainMonthDayPrototypeEquals, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.plainmonthday.prototype.tostring */                \
   CPP(TemporalPlainMonthDayPrototypeToString, kDontAdaptArgumentsSentinel)     \
-  /* Temporal #sec-temporal.plainmonthday.tojson */                            \
   CPP(TemporalPlainMonthDayPrototypeToJSON, kDontAdaptArgumentsSentinel)       \
-  /* Temporal #sec-temporal.plainmonthday.prototype.tolocalestring */          \
   CPP(TemporalPlainMonthDayPrototypeToLocaleString,                            \
       kDontAdaptArgumentsSentinel)                                             \
-  /* Temporal #sec-temporal.plainmonthday.prototype.valueof */                 \
   CPP(TemporalPlainMonthDayPrototypeValueOf, kDontAdaptArgumentsSentinel)      \
-  /* Temporal #sec-temporal.plainmonthday.prototype.toplaindate */             \
   CPP(TemporalPlainMonthDayPrototypeToPlainDate, kDontAdaptArgumentsSentinel)  \
                                                                                \
-  /* Temporal #sec-date.prototype.totemporalinstant */                         \
   CPP(DatePrototypeToTemporalInstant, kDontAdaptArgumentsSentinel)
 #else  // V8_TEMPORAL_SUPPORT
 #define BUILTIN_LIST_TEMPORAL(CPP, TFJ)
@@ -2092,177 +1807,91 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                       \
-  /* ecma402 #sec-intl.collator */                                             \
   CPP(CollatorConstructor, kDontAdaptArgumentsSentinel)                        \
-  /* ecma 402 #sec-collator-compare-functions*/                                \
   CPP(CollatorInternalCompare, JSParameterCount(2))                            \
-  /* ecma402 #sec-intl.collator.prototype.compare */                           \
   CPP(CollatorPrototypeCompare, kDontAdaptArgumentsSentinel)                   \
-  /* ecma402 #sec-intl.collator.supportedlocalesof */                          \
   CPP(CollatorSupportedLocalesOf, kDontAdaptArgumentsSentinel)                 \
-  /* ecma402 #sec-intl.collator.prototype.resolvedoptions */                   \
   CPP(CollatorPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)           \
-  /* ecma402 #sup-date.prototype.tolocaledatestring */                         \
   CPP(DatePrototypeToLocaleDateString, kDontAdaptArgumentsSentinel)            \
-  /* ecma402 #sup-date.prototype.tolocalestring */                             \
   CPP(DatePrototypeToLocaleString, kDontAdaptArgumentsSentinel)                \
-  /* ecma402 #sup-date.prototype.tolocaletimestring */                         \
   CPP(DatePrototypeToLocaleTimeString, kDontAdaptArgumentsSentinel)            \
-  /* ecma402 #sec-intl.datetimeformat */                                       \
   CPP(DateTimeFormatConstructor, kDontAdaptArgumentsSentinel)                  \
-  /* ecma402 #sec-datetime-format-functions */                                 \
   CPP(DateTimeFormatInternalFormat, JSParameterCount(1))                       \
-  /* ecma402 #sec-intl.datetimeformat.prototype.format */                      \
   CPP(DateTimeFormatPrototypeFormat, kDontAdaptArgumentsSentinel)              \
-  /* ecma402 #sec-intl.datetimeformat.prototype.formatrange */                 \
   CPP(DateTimeFormatPrototypeFormatRange, kDontAdaptArgumentsSentinel)         \
-  /* ecma402 #sec-intl.datetimeformat.prototype.formatrangetoparts */          \
   CPP(DateTimeFormatPrototypeFormatRangeToParts, kDontAdaptArgumentsSentinel)  \
-  /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */               \
   CPP(DateTimeFormatPrototypeFormatToParts, kDontAdaptArgumentsSentinel)       \
-  /* ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions */             \
   CPP(DateTimeFormatPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)     \
-  /* ecma402 #sec-intl.datetimeformat.supportedlocalesof */                    \
   CPP(DateTimeFormatSupportedLocalesOf, kDontAdaptArgumentsSentinel)           \
-  /* ecma402 #sec-Intl.DisplayNames */                                         \
   CPP(DisplayNamesConstructor, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-Intl.DisplayNames.prototype.of */                            \
   CPP(DisplayNamesPrototypeOf, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-Intl.DisplayNames.prototype.resolvedOptions */               \
   CPP(DisplayNamesPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)       \
-  /* ecma402 #sec-Intl.DisplayNames.supportedLocalesOf */                      \
   CPP(DisplayNamesSupportedLocalesOf, kDontAdaptArgumentsSentinel)             \
-  /* ecma402 #sec-intl-durationformat-constructor */                           \
   CPP(DurationFormatConstructor, kDontAdaptArgumentsSentinel)                  \
-  /* ecma402 #sec-Intl.DurationFormat.prototype.format */                      \
   CPP(DurationFormatPrototypeFormat, kDontAdaptArgumentsSentinel)              \
-  /* ecma402 #sec-Intl.DurationFormat.prototype.formatToParts */               \
   CPP(DurationFormatPrototypeFormatToParts, kDontAdaptArgumentsSentinel)       \
-  /* ecma402 #sec-Intl.DurationFormat.prototype.resolvedOptions */             \
   CPP(DurationFormatPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)     \
-  /* ecma402 #sec-Intl.DurationFormat.supportedLocalesOf */                    \
   CPP(DurationFormatSupportedLocalesOf, kDontAdaptArgumentsSentinel)           \
-  /* ecma402 #sec-intl.getcanonicallocales */                                  \
   CPP(IntlGetCanonicalLocales, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-intl.supportedvaluesof */                                    \
   CPP(IntlSupportedValuesOf, kDontAdaptArgumentsSentinel)                      \
-  /* ecma402 #sec-intl-listformat-constructor */                               \
   CPP(ListFormatConstructor, kDontAdaptArgumentsSentinel)                      \
-  /* ecma402 #sec-intl-list-format.prototype.format */                         \
   TFJ(ListFormatPrototypeFormat, kDontAdaptArgumentsSentinel)                  \
-  /* ecma402 #sec-intl-list-format.prototype.formattoparts */                  \
   TFJ(ListFormatPrototypeFormatToParts, kDontAdaptArgumentsSentinel)           \
-  /* ecma402 #sec-intl.listformat.prototype.resolvedoptions */                 \
   CPP(ListFormatPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)         \
-  /* ecma402 #sec-intl.ListFormat.supportedlocalesof */                        \
   CPP(ListFormatSupportedLocalesOf, kDontAdaptArgumentsSentinel)               \
-  /* ecma402 #sec-intl-locale-constructor */                                   \
   CPP(LocaleConstructor, kDontAdaptArgumentsSentinel)                          \
-  /* ecma402 #sec-Intl.Locale.prototype.baseName */                            \
   CPP(LocalePrototypeBaseName, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.calendar */                            \
   CPP(LocalePrototypeCalendar, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.caseFirst */                           \
   CPP(LocalePrototypeCaseFirst, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.collation */                           \
   CPP(LocalePrototypeCollation, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.firstDayOfWeek */                      \
   CPP(LocalePrototypeFirstDayOfWeek, JSParameterCount(0))                      \
-  /* ecma402 #sec-Intl.Locale.prototype.getCalendars */                        \
   CPP(LocalePrototypeGetCalendars, kDontAdaptArgumentsSentinel)                \
-  /* ecma402 #sec-Intl.Locale.prototype.getCollations */                       \
   CPP(LocalePrototypeGetCollations, kDontAdaptArgumentsSentinel)               \
-  /* ecma402 #sec-Intl.Locale.prototype.getHourCycles */                       \
   CPP(LocalePrototypeGetHourCycles, kDontAdaptArgumentsSentinel)               \
-  /* ecma402 #sec-Intl.Locale.prototype.getNumberingSystems */                 \
   CPP(LocalePrototypeGetNumberingSystems, kDontAdaptArgumentsSentinel)         \
-  /* ecma402 #sec-Intl.Locale.prototype.getTimeZones */                        \
   CPP(LocalePrototypeGetTimeZones, kDontAdaptArgumentsSentinel)                \
-  /* ecma402 #sec-Intl.Locale.prototype.getTextInfo */                         \
   CPP(LocalePrototypeGetTextInfo, kDontAdaptArgumentsSentinel)                 \
-  /* ecma402 #sec-Intl.Locale.prototype.getWeekInfo */                         \
   CPP(LocalePrototypeGetWeekInfo, kDontAdaptArgumentsSentinel)                 \
-  /* ecma402 #sec-Intl.Locale.prototype.hourCycle */                           \
   CPP(LocalePrototypeHourCycle, JSParameterCount(0))                           \
-  /* ecma402 #sec-Intl.Locale.prototype.language */                            \
   CPP(LocalePrototypeLanguage, JSParameterCount(0))                            \
-  /* ecma402 #sec-Intl.Locale.prototype.maximize */                            \
   CPP(LocalePrototypeMaximize, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-Intl.Locale.prototype.minimize */                            \
   CPP(LocalePrototypeMinimize, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-Intl.Locale.prototype.numeric */                             \
   CPP(LocalePrototypeNumeric, JSParameterCount(0))                             \
-  /* ecma402 #sec-Intl.Locale.prototype.numberingSystem */                     \
   CPP(LocalePrototypeNumberingSystem, JSParameterCount(0))                     \
-  /* ecma402 #sec-Intl.Locale.prototype.region */                              \
   CPP(LocalePrototypeRegion, JSParameterCount(0))                              \
-  /* ecma402 #sec-Intl.Locale.prototype.script */                              \
   CPP(LocalePrototypeScript, JSParameterCount(0))                              \
-  /* ecma402 #sec-Intl.Locale.prototype.toString */                            \
   CPP(LocalePrototypeToString, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-Intl.Locale.prototype.variants */                            \
   CPP(LocalePrototypeVariants, JSParameterCount(0))                            \
-  /* ecma402 #sec-intl.numberformat */                                         \
   CPP(NumberFormatConstructor, kDontAdaptArgumentsSentinel)                    \
-  /* ecma402 #sec-number-format-functions */                                   \
   CPP(NumberFormatInternalFormatNumber, JSParameterCount(1))                   \
-  /* ecma402 #sec-intl.numberformat.prototype.format */                        \
   CPP(NumberFormatPrototypeFormatNumber, kDontAdaptArgumentsSentinel)          \
-  /* ecma402 #sec-intl.numberformat.prototype.formatrange */                   \
   CPP(NumberFormatPrototypeFormatRange, kDontAdaptArgumentsSentinel)           \
-  /* ecma402 #sec-intl.numberformat.prototype.formatrangetoparts */            \
   CPP(NumberFormatPrototypeFormatRangeToParts, kDontAdaptArgumentsSentinel)    \
-  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */                 \
   CPP(NumberFormatPrototypeFormatToParts, kDontAdaptArgumentsSentinel)         \
-  /* ecma402 #sec-intl.numberformat.prototype.resolvedoptions */               \
   CPP(NumberFormatPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)       \
-  /* ecma402 #sec-intl.numberformat.supportedlocalesof */                      \
   CPP(NumberFormatSupportedLocalesOf, kDontAdaptArgumentsSentinel)             \
-  /* ecma402 #sec-intl.pluralrules */                                          \
   CPP(PluralRulesConstructor, kDontAdaptArgumentsSentinel)                     \
-  /* ecma402 #sec-intl.pluralrules.prototype.resolvedoptions */                \
   CPP(PluralRulesPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)        \
-  /* ecma402 #sec-intl.pluralrules.prototype.select */                         \
   CPP(PluralRulesPrototypeSelect, kDontAdaptArgumentsSentinel)                 \
-  /* ecma402 #sec-intl.pluralrules.prototype.selectrange */                    \
   CPP(PluralRulesPrototypeSelectRange, kDontAdaptArgumentsSentinel)            \
-  /* ecma402 #sec-intl.pluralrules.supportedlocalesof */                       \
   CPP(PluralRulesSupportedLocalesOf, kDontAdaptArgumentsSentinel)              \
-  /* ecma402 #sec-intl.RelativeTimeFormat.constructor */                       \
   CPP(RelativeTimeFormatConstructor, kDontAdaptArgumentsSentinel)              \
-  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.format */                  \
   CPP(RelativeTimeFormatPrototypeFormat, kDontAdaptArgumentsSentinel)          \
-  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.formatToParts */           \
   CPP(RelativeTimeFormatPrototypeFormatToParts, kDontAdaptArgumentsSentinel)   \
-  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.resolvedOptions */         \
   CPP(RelativeTimeFormatPrototypeResolvedOptions, kDontAdaptArgumentsSentinel) \
-  /* ecma402 #sec-intl.RelativeTimeFormat.supportedlocalesof */                \
   CPP(RelativeTimeFormatSupportedLocalesOf, kDontAdaptArgumentsSentinel)       \
-  /* ecma402 #sec-Intl.Segmenter */                                            \
   CPP(SegmenterConstructor, kDontAdaptArgumentsSentinel)                       \
-  /* ecma402 #sec-Intl.Segmenter.prototype.resolvedOptions */                  \
   CPP(SegmenterPrototypeResolvedOptions, kDontAdaptArgumentsSentinel)          \
-  /* ecma402 #sec-Intl.Segmenter.prototype.segment  */                         \
   CPP(SegmenterPrototypeSegment, kDontAdaptArgumentsSentinel)                  \
-  /* ecma402  #sec-Intl.Segmenter.supportedLocalesOf */                        \
   CPP(SegmenterSupportedLocalesOf, kDontAdaptArgumentsSentinel)                \
-  /* ecma402 #sec-segment-iterator-prototype-next */                           \
   CPP(SegmentIteratorPrototypeNext, kDontAdaptArgumentsSentinel)               \
-  /* ecma402 #sec-%segmentsprototype%.containing */                            \
   CPP(SegmentsPrototypeContaining, kDontAdaptArgumentsSentinel)                \
-  /* ecma402 #sec-%segmentsprototype%-@@iterator */                            \
   CPP(SegmentsPrototypeIterator, JSParameterCount(0))                          \
-  /* ecma402 #sup-properties-of-the-string-prototype-object */                 \
   CPP(StringPrototypeLocaleCompareIntl, kDontAdaptArgumentsSentinel)           \
-  /* ES #sec-string.prototype.normalize */                                     \
   CPP(StringPrototypeNormalizeIntl, kDontAdaptArgumentsSentinel)               \
-  /* ecma402 #sup-string.prototype.tolocalelowercase */                        \
   TFJ(StringPrototypeToLocaleLowerCase, kDontAdaptArgumentsSentinel)           \
-  /* ecma402 #sup-string.prototype.tolocaleuppercase */                        \
   CPP(StringPrototypeToLocaleUpperCase, kDontAdaptArgumentsSentinel)           \
-  /* ES #sec-string.prototype.tolowercase */                                   \
   TFJ(StringPrototypeToLowerCaseIntl, kJSArgcReceiverSlots, kReceiver)         \
-  /* ES #sec-string.prototype.touppercase */                                   \
   CPP(StringPrototypeToUpperCaseIntl, kDontAdaptArgumentsSentinel)             \
   TFS(StringToLowerCaseIntl, NeedsContext::kYes, kString)                      \
   IF_WASM(TFS, WasmStringToLowerCaseIntl, NeedsContext::kYes, kString)         \
@@ -2282,7 +1911,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(V8BreakIteratorSupportedLocalesOf, kDontAdaptArgumentsSentinel)
 #else
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                             \
-  /* ES6 #sec-string.prototype.localecompare */                      \
   /* non-locale specific fallback version */                         \
   CPP(StringPrototypeLocaleCompare, JSParameterCount(1))             \
   /* no-op fallback version */                                       \
@@ -2306,7 +1934,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, \
                      ASM)                                                     \
   BUILTIN_LIST_BASE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)             \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                            \
   BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                             \
   BUILTIN_LIST_DUMPLING(ASM)                                                  \
@@ -2320,7 +1948,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
 #define BUILTIN_LIST_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, BCH_TSA, BCH, \
                            ASM)                                            \
   BUILTIN_LIST_BASE_TIER1(CPP, TFJ_TSA, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, ASM)          \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, ASM) \
   BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                         \
   BUILTIN_LIST_TEMPORAL(CPP, TFJ)                                          \
   BUILTIN_LIST_DUMPLING(ASM)                                               \

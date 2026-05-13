@@ -43,6 +43,13 @@
 // Floating point numbers are formatted with six-digit precision, which is
 // the default for "std::cout <<" or printf "%g" (the same as "%.6g").
 //
+// Floating point values can also be converted to a string which, if passed to
+// `strtod()`, would produce the exact same original double (except in case of
+// NaN; all NaNs are considered the same value) by passing the number to
+// absl::HighPrecision. HighPrecision tries to keep the string short but
+// it's not guaranteed to be as short as possible.
+// See http://go/faster-double-strcat
+//
 // You can convert to hexadecimal output rather than decimal output using the
 // `Hex` type contained here. To do so, pass `Hex(my_int)` as a parameter to
 // `StrCat()` or `StrAppend()`. You may specify a minimum hex field width using
@@ -106,7 +113,6 @@
 #include "absl/base/port.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/has_absl_stringify.h"
-#include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/internal/stringify_sink.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/resize_and_overwrite.h"
@@ -304,6 +310,35 @@ struct Dec {
     sink.Append(absl::string_view(writer, static_cast<size_t>(end - writer)));
   }
 };
+
+// -----------------------------------------------------------------------------
+// HighPrecision
+// -----------------------------------------------------------------------------
+//
+// Converts floating point values to a string which, if passed to
+// `absl::SimpleAtof`/`absl::SimpleAtod`, would produce the exact same original
+// floating point value (except in case of NaN; all NaNs are considered the same
+// value). Tries to keep the string short but it's not guaranteed to be as short
+// as possible.
+//
+// HighPrecision is conisderably slower than the default formatting, so only use
+// it if you need the string to convert back to the same floating-point value.
+
+inline strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(float f) {
+  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
+  result.size =
+      strlen(numbers_internal::RoundTripFloatToBuffer(f, &result.data[0]));
+  return result;
+}
+
+inline strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(double d) {
+  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
+  result.size =
+      strlen(numbers_internal::RoundTripDoubleToBuffer(d, &result.data[0]));
+  return result;
+}
 
 // -----------------------------------------------------------------------------
 // AlphaNum

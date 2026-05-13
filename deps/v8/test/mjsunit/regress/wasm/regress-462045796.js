@@ -4,6 +4,7 @@
 
 // Flags: --allow-natives-syntax
 // Flags: --turboshaft-wasm-in-js-inlining --wasm-inlining-ignore-call-counts
+// Flags: --turbolev
 // Flags: --turboshaft-verify-reductions
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');

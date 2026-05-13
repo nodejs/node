@@ -19,6 +19,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/wasm/effect-handler.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -95,11 +96,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
 #if V8_ENABLE_WEBASSEMBLY
   base::OwnedVector<uint8_t> GenerateWasmDeoptimizationData();
-  base::OwnedVector<wasm::WasmCode::EffectHandler> GenerateWasmEffectHandler();
+  base::OwnedVector<uint8_t> GenerateWasmEffectHandlers();
 #endif
 
   base::OwnedVector<uint8_t> GetSourcePositionTable();
-  base::OwnedVector<uint8_t> GetProtectedInstructionsData();
+  base::OwnedVector<uint8_t> GetTrappingInstructionsData();
 
   InstructionSequence* instructions() const { return instructions_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
@@ -109,7 +110,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
 
-  void RecordProtectedInstruction(uint32_t instr_offset);
+  void RecordTrappingInstruction(uint32_t instr_offset);
 
   SourcePosition start_source_position() const {
     return start_source_position_;
@@ -399,9 +400,15 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   };
 
   struct EffectHandlerInfo {
-    int tag_index;
+    wasm::EffectHandlerTagIndex tag_and_kind;
     Label* handler;
     int pc_offset;
+
+    bool is_switch() const { return tag_and_kind.is_switch(); }
+
+    EffectHandlerInfo(wasm::EffectHandlerTagIndex tag_index, Label* handler,
+                      int pc_offset)
+        : tag_and_kind(tag_index), handler(handler), pc_offset(pc_offset) {}
   };
 
   friend class OutOfLineCode;
@@ -471,7 +478,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   SourcePositionTableBuilder source_position_table_builder_;
 #if V8_ENABLE_WEBASSEMBLY
-  ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;
+  ZoneVector<trap_handler::TrappingInstructionData> trapping_instructions_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   CodeGenResult result_;
   ZoneVector<int> block_starts_;

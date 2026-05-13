@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 function foo() {
   "use asm";
   const v = -0;
@@ -15,4 +13,3 @@ function foo() {
 
 var m = foo();
 assertEquals(-Infinity, 1 / m.d());
-assertTrue(%IsAsmWasmCode(foo));

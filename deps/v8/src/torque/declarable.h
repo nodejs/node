@@ -624,8 +624,9 @@ class GenericDeclarable : public Declarable {
   }
 
   const std::vector<TypeConstraint>& Constraints() {
-    if (!constraints_)
+    if (!constraints_) {
       constraints_ = {ComputeConstraints(ParentScope(), generic_parameters())};
+    }
     return *constraints_;
   }
 

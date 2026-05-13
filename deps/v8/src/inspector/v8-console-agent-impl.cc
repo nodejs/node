@@ -44,8 +44,9 @@ Response V8ConsoleAgentImpl::disable() {
 Response V8ConsoleAgentImpl::clearMessages() { return Response::Success(); }
 
 void V8ConsoleAgentImpl::restore() {
-  if (!m_state->booleanProperty(ConsoleAgentState::consoleEnabled, false))
+  if (!m_state->booleanProperty(ConsoleAgentState::consoleEnabled, false)) {
     return;
+  }
   enable();
 }
 

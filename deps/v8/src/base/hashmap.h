@@ -316,7 +316,7 @@ Value TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Remove(
     }
 
     // Find the initial position for the entry at position q.
-    Entry* r = impl_.map_ + (q->hash & (capacity() - 1));
+    Entry* r = impl_.map_ + (q->hash() & (capacity() - 1));
 
     // If the entry at position q has its initial position outside the range
     // between p and q it can be moved forward to position p and will still be
@@ -378,7 +378,7 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
   DCHECK(occupancy() < capacity());  // Guarantees loop termination.
   Entry* map = impl_.map_;
   while (map[i].exists() &&
-         !impl_.match()(hash, map[i].hash, key, map[i].key)) {
+         !impl_.match()(hash, map[i].hash(), key, map[i].key)) {
     i = (i + 1) & (capacity() - 1);
   }
 
@@ -392,6 +392,9 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::FillEmptyEntry(
     Entry* entry, const Key& key, const Value& value, uint32_t hash) {
   DCHECK(!entry->exists());
 
+  // The entry stores hash in 31 bits; mask the top bit to match Probe's
+  // masking and avoid base::BitField's CHECK on overflow.
+  hash &= Entry::kHashValueMask;
   new (entry) Entry(key, value, hash);
   impl_.occupancy_++;
 
@@ -431,9 +434,9 @@ void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Resize() {
   // Rehash all current entries.
   for (Entry* entry = old_map; n > 0; entry++) {
     if (entry->exists()) {
-      Entry* new_entry = Probe(entry->key, entry->hash);
+      Entry* new_entry = Probe(entry->key, entry->hash());
       new_entry =
-          FillEmptyEntry(new_entry, entry->key, entry->value, entry->hash);
+          FillEmptyEntry(new_entry, entry->key, entry->value, entry->hash());
       n--;
     }
   }

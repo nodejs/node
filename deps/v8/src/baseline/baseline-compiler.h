@@ -90,7 +90,7 @@ class BaselineCompiler {
   uint32_t CoverageSlot(int operand_index);
   uint32_t Flag8(int operand_index);
   uint32_t Flag16(int operand_index);
-  uint32_t EmbeddedFeedback(int operand_index);
+  uint8_t EmbeddedFeedback(int operand_index);
   uint32_t RegisterCount(int operand_index);
   Tagged<TaggedIndex> ConstantPoolIndexAsTagged(int operand_index);
   Tagged<TaggedIndex> FeedbackSlotAsTagged(int operand_index);
@@ -183,6 +183,7 @@ class BaselineCompiler {
   BaselineAssembler basm_;
   interpreter::BytecodeArrayIterator iterator_;
   BytecodeOffsetTableBuilder bytecode_offset_table_builder_;
+  bool allow_sparkplug_plus_;
 
   // Mark location as a jump target reachable via indirect branches, required
   // for CFI.

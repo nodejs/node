@@ -75,7 +75,7 @@ assertEquals("1.00",
 // 1) convert the argument using ToInteger
 // 2) check for non-finite receiver, on which it returns,
 // 3) check argument range and throw exception if out of range.
-// Note that the the last two steps are reversed for toFixed.
+// Note that the last two steps are reversed for toFixed.
 // Luckily, the receiver is expected to be a number or number
 // wrapper, so that getting its value is not observable.
 

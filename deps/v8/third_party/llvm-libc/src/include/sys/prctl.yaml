@@ -1,0 +1,17 @@
+header: sys/prctl.h
+header_template: prctl.h.def
+macros: []
+types: []
+enums: []
+objects: []
+functions:
+  - name: prctl
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: unsigned long
+      - type: unsigned long
+      - type: unsigned long
+      - type: unsigned long

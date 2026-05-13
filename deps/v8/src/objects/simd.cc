@@ -4,7 +4,7 @@
 
 #include "src/objects/simd.h"
 
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/cpu-features.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/fixed-array-inl.h"
@@ -37,7 +37,7 @@ namespace internal {
 
 namespace {
 
-enum class SimdKinds { kSSE, kNeon, kAVX2, kNone };
+enum class SimdKinds { kSSE, kNeon, kAVX2, kSVE, kNone };
 
 inline SimdKinds get_vectorization_kind() {
 #ifdef __SSE3__
@@ -54,6 +54,12 @@ inline SimdKinds get_vectorization_kind() {
     return SimdKinds::kSSE;
   }
 #elif defined(NEON64)
+#if V8_TARGET_ARCH_ARM64
+  if (CpuFeatures::IsSupported(SVE)) {
+    return SimdKinds::kSVE;
+  }
+#endif  // V8_TARGET_ARCH_ARM64
+
   // No need for a runtime check since all Arm64 CPUs have Neon.
   return SimdKinds::kNeon;
 #else
@@ -341,6 +347,287 @@ uintptr_t fast_search_avx(T* array, uintptr_t array_len, uintptr_t index,
 }
 #endif  // ifdef __SSE3__
 
+#ifdef NEON64
+
+template <typename ScalarType>
+struct SVEOperations {
+  class VectorType;
+
+  // Compare vector with scalar for equality, subject to a governing predicate.
+  static __SVBool_t compare_equal_vector_scalar(
+      const __SVBool_t& governing_predicate, const VectorType& vector,
+      const ScalarType& scalar);
+
+  // Load a vector from an array, subject to a governing predicate.
+  //
+  // Vector loads expect that the base address is aligned on the element size,
+  // not the vector one, even if strict alignment checks are enabled.
+  static VectorType load_vector(const __SVBool_t& governing_predicate,
+                                const ScalarType* array);
+
+  static uint64_t vector_length();
+
+  // Predicate operations
+
+  static __SVBool_t all_true_predicate();
+
+  // Checks if any predicate element is true, subject to a governing predicate.
+  static bool predicate_any_true(const __SVBool_t& governing_predicate,
+                                 const __SVBool_t& predicate);
+
+  // Returns a predicate with all true elements up to, but not including, the
+  // first position in the input predicate that corresponds to a true element,
+  // subject to a governing predicate.
+  static __SVBool_t predicate_break_before(
+      const __SVBool_t& governing_predicate, const __SVBool_t& predicate);
+
+  // Returns the number of true predicate elements, subject to a governing
+  // predicate.
+  static uint64_t predicate_count_true(const __SVBool_t& governing_predicate,
+                                       const __SVBool_t& predicate);
+
+  // Returns a predicate based on an index comparison. If the index is lower
+  // than an end index, then the corresponding predicate element is true. The
+  // first predicate element is associated with the starting index and the index
+  // for each successive element is the previous one incremented by 1.
+  static __SVBool_t predicate_while_lower(uint64_t start_index,
+                                          uint64_t end_index);
+};
+
+#define TARGET_SVE __attribute__((target("sve")))
+
+template <typename ScalarType>
+TARGET_SVE std::optional<uint64_t> find_match_in_vector(
+    const __SVBool_t& governing_predicate, const ScalarType* array,
+    uint64_t index, const ScalarType& search_element) {
+  using SVEOps = SVEOperations<ScalarType>;
+
+  const auto vector = SVEOps::load_vector(governing_predicate, array + index);
+  const auto matches = SVEOps::compare_equal_vector_scalar(
+      governing_predicate, vector, search_element);
+
+  return SVEOps::predicate_any_true(governing_predicate, matches)
+             ? std::optional<uint64_t>{index +
+                                       SVEOps::predicate_count_true(
+                                           governing_predicate,
+                                           SVEOps::predicate_break_before(
+                                               governing_predicate, matches))}
+             : std::nullopt;
+}
+
+constexpr uint64_t no_match = -1;
+
+// This function is vector length-agnostic (VLA), i.e. it works correctly for
+// any scalable vector register size permitted by the 64-bit Arm architecture.
+template <typename ScalarType>
+TARGET_SVE uint64_t search_loop_sve(const ScalarType* array,
+                                    uint64_t array_length, uint64_t start_index,
+                                    const ScalarType& search_element) {
+  using SVEOps = SVEOperations<ScalarType>;
+
+  uint64_t number_of_elements = array_length - start_index;
+  const uint64_t vector_length = SVEOps::vector_length();
+
+  if (number_of_elements <= vector_length) {
+    return find_match_in_vector(
+               SVEOps::predicate_while_lower(0, number_of_elements), array,
+               start_index, search_element)
+        .value_or(no_match);
+  }
+
+  const auto all_true_predicate = SVEOps::all_true_predicate();
+
+  if (auto match_index = find_match_in_vector(all_true_predicate, array,
+                                              start_index, search_element)) {
+    return *match_index;
+  }
+
+  static_assert(base::bits::IsPowerOfTwo(sizeof(ScalarType)));
+  DCHECK(base::bits::IsPowerOfTwo(vector_length));
+  DCHECK(IsAlignedAddress(array, sizeof(ScalarType)));
+
+  // Calculate a starting index for the vector loop that is aligned on the
+  // vector size.
+  start_index = AlignedAddress(array + start_index + vector_length,
+                               vector_length * sizeof(ScalarType)) -
+                array;
+  number_of_elements = array_length - start_index;
+
+  uint64_t i = number_of_elements >>
+               base::bits::CountTrailingZeros(
+                   vector_length);  // number_of_elements / vector_length
+
+  for (; i != 0; start_index += vector_length, i--) {
+    if (auto match_index = find_match_in_vector(all_true_predicate, array,
+                                                start_index, search_element)) {
+      return *match_index;
+    }
+  }
+
+  return IsAligned(number_of_elements, vector_length)
+             ? no_match
+             : find_match_in_vector(all_true_predicate, array,
+                                    array_length - vector_length,
+                                    search_element)
+                   .value_or(no_match);
+}
+
+// Pattern for all predicate elements being active.
+constexpr unsigned sv_all = 31;
+
+template <>
+struct SVEOperations<uint32_t> {
+  TARGET_SVE static __SVBool_t compare_equal_vector_scalar(
+      const __SVBool_t& pg, const __SVUint32_t& v, const uint32_t& x) {
+    return __builtin_sve_svcmpeq_n_u32(pg, v, x);
+  }
+
+  TARGET_SVE static __SVUint32_t load_vector(const __SVBool_t& pg,
+                                             const uint32_t* a) {
+    return __builtin_sve_svld1_u32(pg, a);
+  }
+
+  TARGET_SVE static uint64_t vector_length() {
+    return __builtin_sve_svcntw_pat(sv_all);
+  }
+
+  TARGET_SVE static __SVBool_t all_true_predicate() {
+    return __builtin_sve_svptrue_pat_b32(sv_all);
+  }
+
+  TARGET_SVE static bool predicate_any_true(const __SVBool_t& pg,
+                                            const __SVBool_t& p) {
+    return __builtin_sve_svptest_any(pg, p);
+  }
+
+  TARGET_SVE static __SVBool_t predicate_break_before(const __SVBool_t& pg,
+                                                      const __SVBool_t& p) {
+    return __builtin_sve_svbrkb_b_z(pg, p);
+  }
+
+  TARGET_SVE static uint64_t predicate_count_true(const __SVBool_t& pg,
+                                                  const __SVBool_t& p) {
+    return __builtin_sve_svcntp_b32(pg, p);
+  }
+
+  TARGET_SVE static __SVBool_t predicate_while_lower(uint64_t start_index,
+                                                     uint64_t end_index) {
+    return __builtin_sve_svwhilelt_b32_u64(start_index, end_index);
+  }
+};
+
+template <>
+struct SVEOperations<uint64_t> {
+  TARGET_SVE static __SVBool_t compare_equal_vector_scalar(
+      const __SVBool_t& pg, const __SVUint64_t& v, const uint64_t& x) {
+    return __builtin_sve_svcmpeq_n_u64(pg, v, x);
+  }
+
+  TARGET_SVE static __SVUint64_t load_vector(const __SVBool_t& pg,
+                                             const uint64_t* a) {
+    return __builtin_sve_svld1_u64(pg, a);
+  }
+
+  TARGET_SVE static uint64_t vector_length() {
+    return __builtin_sve_svcntd_pat(sv_all);
+  }
+
+  TARGET_SVE static __SVBool_t all_true_predicate() {
+    return __builtin_sve_svptrue_pat_b64(sv_all);
+  }
+
+  TARGET_SVE static bool predicate_any_true(const __SVBool_t& pg,
+                                            const __SVBool_t& p) {
+    return __builtin_sve_svptest_any(pg, p);
+  }
+
+  TARGET_SVE static __SVBool_t predicate_break_before(const __SVBool_t& pg,
+                                                      const __SVBool_t& p) {
+    return __builtin_sve_svbrkb_b_z(pg, p);
+  }
+
+  TARGET_SVE static uint64_t predicate_count_true(const __SVBool_t& pg,
+                                                  const __SVBool_t& p) {
+    return __builtin_sve_svcntp_b64(pg, p);
+  }
+
+  TARGET_SVE static __SVBool_t predicate_while_lower(uint64_t start_index,
+                                                     uint64_t end_index) {
+    return __builtin_sve_svwhilelt_b64_u64(start_index, end_index);
+  }
+};
+
+template <>
+struct SVEOperations<float64_t> {
+  TARGET_SVE static __SVBool_t compare_equal_vector_scalar(
+      const __SVBool_t& pg, const __SVFloat64_t& v, const float64_t& x) {
+    return __builtin_sve_svcmpeq_n_f64(pg, v, x);
+  }
+
+  TARGET_SVE static __SVFloat64_t load_vector(const __SVBool_t& pg,
+                                              const float64_t* a) {
+    return __builtin_sve_svld1_f64(pg, a);
+  }
+
+  TARGET_SVE static uint64_t vector_length() {
+    return __builtin_sve_svcntd_pat(sv_all);
+  }
+
+  TARGET_SVE static __SVBool_t all_true_predicate() {
+    return __builtin_sve_svptrue_pat_b64(sv_all);
+  }
+
+  TARGET_SVE static bool predicate_any_true(const __SVBool_t& pg,
+                                            const __SVBool_t& p) {
+    return __builtin_sve_svptest_any(pg, p);
+  }
+
+  TARGET_SVE static __SVBool_t predicate_break_before(const __SVBool_t& pg,
+                                                      const __SVBool_t& p) {
+    return __builtin_sve_svbrkb_b_z(pg, p);
+  }
+
+  TARGET_SVE static uint64_t predicate_count_true(const __SVBool_t& pg,
+                                                  const __SVBool_t& p) {
+    return __builtin_sve_svcntp_b64(pg, p);
+  }
+
+  TARGET_SVE static __SVBool_t predicate_while_lower(uint64_t start_index,
+                                                     uint64_t end_index) {
+    return __builtin_sve_svwhilelt_b64_u64(start_index, end_index);
+  }
+};
+
+template <typename T>
+TARGET_SVE inline uintptr_t fast_search_sve(T* array, uintptr_t array_len,
+                                            uintptr_t index, T search_element) {
+  static constexpr bool is_double =
+      sizeof(T) == sizeof(float64_t) && std::is_floating_point_v<T>;
+  static constexpr bool is_uint32 =
+      sizeof(T) == sizeof(uint32_t) && std::is_integral_v<T>;
+  static constexpr bool is_uint64 =
+      sizeof(T) == sizeof(uint64_t) && std::is_integral_v<T>;
+
+  static_assert(is_double || is_uint32 || is_uint64);
+  static_assert(sizeof(double) == sizeof(float64_t));
+  static_assert(sizeof(uint64_t) == sizeof(uintptr_t));
+
+  if constexpr (is_uint32) {
+    return search_loop_sve<uint32_t>(reinterpret_cast<const uint32_t*>(array),
+                                     array_len, index, search_element);
+  } else if constexpr (is_uint64) {
+    return search_loop_sve<uint64_t>(reinterpret_cast<const uint64_t*>(array),
+                                     array_len, index, search_element);
+  } else if constexpr (is_double) {
+    return search_loop_sve<float64_t>(reinterpret_cast<const float64_t*>(array),
+                                      array_len, index, search_element);
+  }
+
+  return no_match;
+}
+
+#endif  // NEON64
+
 #undef IS_CLANG_WIN
 #undef VECTORIZED_LOOP_Neon
 #undef VECTORIZED_LOOP_x86
@@ -348,11 +635,17 @@ uintptr_t fast_search_avx(T* array, uintptr_t array_len, uintptr_t index,
 template <typename T>
 inline uintptr_t search(T* array, uintptr_t array_len, uintptr_t index,
                         T search_element) {
+#ifdef NEON64
+  if (get_vectorization_kind() == SimdKinds::kSVE) {
+    return fast_search_sve(array, array_len, index, search_element);
+  }
+#else
   if (get_vectorization_kind() == SimdKinds::kAVX2) {
     return fast_search_avx(array, array_len, index, search_element);
-  } else {
-    return fast_search_noavx(array, array_len, index, search_element);
   }
+#endif  // NEON64
+
+  return fast_search_noavx(array, array_len, index, search_element);
 }
 
 enum class ArrayIndexOfIncludesKind { DOUBLE, OBJECTORSMI };
@@ -637,8 +930,11 @@ Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length, bool is_shared,
 #endif
 
 #ifdef NEON64
-  if (!is_shared && get_vectorization_kind() == SimdKinds::kNeon) {
+  if (!is_shared) {
     {
+      DCHECK(get_vectorization_kind() == SimdKinds::kNeon ||
+             get_vectorization_kind() == SimdKinds::kSVE);
+
       DisallowGarbageCollection no_gc;
       Uint8ArrayToHexFastWithNeon(bytes, string_output->GetChars(no_gc),
                                   length);
@@ -1074,7 +1370,9 @@ bool ArrayBufferFromHex(const base::Vector<T>& input_vector, bool is_shared,
 #endif
 
 #ifdef NEON64
-  if (!is_shared && get_vectorization_kind() == SimdKinds::kNeon) {
+  if (!is_shared) {
+    DCHECK(get_vectorization_kind() == SimdKinds::kNeon ||
+           get_vectorization_kind() == SimdKinds::kSVE);
     return Uint8ArrayFromHexWithNeon(input_vector, buffer, output_length);
   }
 #endif

@@ -12,6 +12,7 @@
 #include "include/v8-local-handle.h"
 #include "src/base/macros.h"
 #include "src/debug/interface-types.h"
+#include "v8-isolate.h"
 
 namespace v8 {
 class ObjectTemplate;
@@ -50,30 +51,25 @@ class V8Console : public v8::debug::ConsoleDelegate {
     CommandLineAPIScope& operator=(const CommandLineAPIScope&) = delete;
 
    private:
+    constexpr static uint32_t kCommandLineAPIIndex = 0;
+    constexpr static uint32_t kFirstInstalledMethodIndex = 1;
+    constexpr static uint32_t kHeaderLength = kFirstInstalledMethodIndex;
+
     static void accessorGetterCallback(
         v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
-    static void accessorSetterCallback(v8::Local<v8::Name>,
-                                       v8::Local<v8::Value>,
-                                       const v8::PropertyCallbackInfo<void>&);
+    static void accessorSetterCallback(
+        v8::Local<v8::Name>, v8::Local<v8::Value>,
+        const v8::PropertyCallbackInfo<v8::Boolean>&);
 
-    v8::Local<v8::Context> context() const { return m_context.Get(m_isolate); }
-    v8::Local<v8::Object> commandLineAPI() const {
-      return m_commandLineAPI.Get(m_isolate);
-    }
-    v8::Local<v8::Object> global() const { return m_global.Get(m_isolate); }
-    v8::Local<v8::PrimitiveArray> installedMethods() const {
-      return m_installedMethods.Get(m_isolate);
-    }
-    v8::Local<v8::ArrayBuffer> thisReference() const {
-      return m_thisReference.Get(m_isolate);
-    }
+    v8::Isolate* isolate() const { return m_isolate; }
+    v8::Local<v8::Context> context() const { return m_context.Get(isolate()); }
+    v8::Local<v8::Array> data() const { return m_data.Get(isolate()); }
+    v8::Local<v8::Object> global() const { return m_global.Get(isolate()); }
 
     v8::Isolate* m_isolate;
     v8::Global<v8::Context> m_context;
-    v8::Global<v8::Object> m_commandLineAPI;
+    v8::Global<v8::Array> m_data;
     v8::Global<v8::Object> m_global;
-    v8::Global<v8::PrimitiveArray> m_installedMethods;
-    v8::Global<v8::ArrayBuffer> m_thisReference;
   };
 
   explicit V8Console(V8InspectorImpl* inspector);

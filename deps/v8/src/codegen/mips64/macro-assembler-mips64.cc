@@ -2218,9 +2218,13 @@ void MacroAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   Branch(&msb_clear, ge, rs, Operand(zero_reg));
 
   // Rs >= 2^63
-  andi(t9, rs, 1);
-  dsrl(rs, rs, 1);
-  or_(t9, t9, rs);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    andi(t9, rs, 1);
+    dsrl(scratch, rs, 1);
+    or_(t9, t9, scratch);
+  }
   dmtc1(t9, fd);
   cvt_d_l(fd, fd);
   Branch(USE_DELAY_SLOT, &conversion_done);
@@ -2272,9 +2276,13 @@ void MacroAssembler::Cvt_s_ul(FPURegister fd, Register rs) {
   Branch(&positive, ge, rs, Operand(zero_reg));
 
   // Rs >= 2^31.
-  andi(t9, rs, 1);
-  dsrl(rs, rs, 1);
-  or_(t9, t9, rs);
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    andi(t9, rs, 1);
+    dsrl(scratch, rs, 1);
+    or_(t9, t9, scratch);
+  }
   dmtc1(t9, fd);
   cvt_s_l(fd, fd);
   Branch(USE_DELAY_SLOT, &conversion_done);
@@ -5082,12 +5090,10 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
   bind(&regular_invoke);
 }
 
-void MacroAssembler::CheckDebugHook(
-    Register fun, Register new_target,
-    Register expected_parameter_count_or_dispatch_handle,
-    Register actual_parameter_count) {
-  DCHECK(!AreAliased(t0, fun, new_target,
-                     expected_parameter_count_or_dispatch_handle,
+void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
+                                    Register dispatch_handle,
+                                    Register actual_parameter_count) {
+  DCHECK(!AreAliased(t0, fun, new_target, dispatch_handle,
                      actual_parameter_count));
   Label skip_hook;
 
@@ -5099,23 +5105,28 @@ void MacroAssembler::CheckDebugHook(
     LoadReceiver(t0);
     FrameScope frame(
         this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
-    SmiTag(expected_parameter_count_or_dispatch_handle);
+    // We don't need to Smi-tag the dispatch handle, because its low bits are
+    // zero.
+    static_assert(kJSDispatchHandleShift >= 1);
     SmiTag(actual_parameter_count);
-    Push(expected_parameter_count_or_dispatch_handle, actual_parameter_count);
+
     if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun, fun, t0);
-    CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
+      Push(dispatch_handle, actual_parameter_count, new_target, fun);
+    } else {
+      Push(dispatch_handle, actual_parameter_count, fun);
     }
 
-    Pop(expected_parameter_count_or_dispatch_handle, actual_parameter_count);
+    Push(fun, t0);
+    CallRuntime(Runtime::kDebugOnFunctionCall);
+
+    if (new_target.is_valid()) {
+      Pop(dispatch_handle, actual_parameter_count, new_target, fun);
+    } else {
+      Pop(dispatch_handle, actual_parameter_count, fun);
+    }
+
     SmiUntag(actual_parameter_count);
 
-    SmiUntag(expected_parameter_count_or_dispatch_handle);
   }
   bind(&skip_hook);
 }
@@ -5132,7 +5143,7 @@ void MacroAssembler::InvokeFunction(
   DCHECK_EQ(function, a1);
 
   // Set up the context.
-  Ld(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  Ld(cp, FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, no_reg, actual_parameter_count, type,
                      argument_adaption_mode);
@@ -5149,7 +5160,7 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   // (See FullCodeGenerator::Generate().)
   DCHECK_EQ(function, a1);
 
-  Ld(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  Ld(cp, FieldMemOperand(function, offsetof(JSFunction, context_)));
 
   InvokeFunctionCode(function, new_target, actual_parameter_count, type);
 }
@@ -5165,7 +5176,7 @@ void MacroAssembler::InvokeFunctionCode(
 
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Lw(dispatch_handle,
-     FieldMemOperand(function, JSFunction::kDispatchHandleOffset));
+     FieldMemOperand(function, offsetof(JSFunction, dispatch_handle_)));
 
   // On function call, call into the debugger if necessary.
   Label debug_hook, continue_after_hook;
@@ -5218,13 +5229,13 @@ void MacroAssembler::InvokeFunctionCode(
 void MacroAssembler::GetObjectType(Register object, Register map,
                                    Register type_reg) {
   LoadMap(map, object);
-  Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
 }
 
 void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
                                           InstanceType lower_limit,
                                           Register range) {
-  Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  Lhu(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
   Dsubu(range, type_reg, Operand(lower_limit));
 }
 
@@ -5508,19 +5519,23 @@ void MacroAssembler::Abort(AbortReason reason) {
 }
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
-  Ld(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+  Ld(destination, FieldMemOperand(object, offsetof(HeapObject, map_)));
 }
 
-void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
-                                        Register scratch, Label* fbv_undef) {
+void MacroAssembler::LoadFeedbackCell(Register dst, Register closure) {
+  Ld(dst, FieldMemOperand(closure, offsetof(JSFunction, feedback_cell_)));
+}
+
+void MacroAssembler::LoadFeedbackVectorFromCell(Register dst,
+                                                Register feedback_cell,
+                                                Register scratch,
+                                                Label* fbv_undef) {
   Label done;
-  // Load the feedback vector from the closure.
-  Ld(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  Ld(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset));
+  Ld(dst, FieldMemOperand(feedback_cell, offsetof(FeedbackCell, value_)));
 
   // Check if feedback vector is valid.
-  Ld(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
-  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Ld(scratch, FieldMemOperand(dst, offsetof(HeapObject, map_)));
+  Lhu(scratch, FieldMemOperand(scratch, offsetof(Map, instance_type_)));
   Branch(&done, eq, scratch, Operand(FEEDBACK_VECTOR_TYPE));
 
   // Not valid, load undefined.
@@ -5530,10 +5545,17 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   bind(&done);
 }
 
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
+  LoadFeedbackCell(dst, closure);
+  LoadFeedbackVectorFromCell(dst, dst, scratch, fbv_undef);
+}
+
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   LoadMap(dst, cp);
   Ld(dst,
-     FieldMemOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+     FieldMemOperand(
+         dst, offsetof(Map, constructor_or_back_pointer_or_native_context_)));
   Ld(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
@@ -5754,6 +5776,19 @@ void MacroAssembler::AssertSmi(Register object) {
   }
 }
 
+void MacroAssembler::AssertMap(Register object) {
+  if (v8_flags.debug_code) {
+    ASM_CODE_COMMENT(this);
+    AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+
+    GetObjectType(object, scratch, scratch);
+    Check(eq, AbortReason::kOperandIsNotAMap, scratch, Operand(MAP_TYPE));
+  }
+}
+
 void MacroAssembler::AssertStackIsAligned() {
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(this);
@@ -5786,7 +5821,7 @@ void MacroAssembler::AssertConstructor(Register object) {
           Operand(zero_reg));
 
     LoadMap(t8, object);
-    Lbu(t8, FieldMemOperand(t8, Map::kBitFieldOffset));
+    Lbu(t8, FieldMemOperand(t8, offsetof(Map, bit_field_)));
     And(t8, t8, Operand(Map::Bits1::IsConstructorBit::kMask));
     Check(ne, AbortReason::kOperandIsNotAConstructor, t8, Operand(zero_reg));
   }
@@ -6364,7 +6399,7 @@ void MacroAssembler::CallJSFunction(Register function_object,
   Register scratch = s2;
 
   Lw(dispatch_handle,
-     FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
+     FieldMemOperand(function_object, offsetof(JSFunction, dispatch_handle_)));
   LoadEntrypointAndParameterCountFromJSDispatchTable(code, parameter_count,
                                                      dispatch_handle, scratch);
 
@@ -6426,15 +6461,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   }
 }
 #endif  // V8_ENABLE_DEBUG_CODE
-
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register scratch1,
-    Register scratch2) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(optimized_code, closure, scratch1, scratch2));
-
-  UNREACHABLE();
-}
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {

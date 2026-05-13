@@ -94,11 +94,11 @@ class NumberBuiltinsAssemblerTS
 
     BIND(if_int);
     {
-      // Check if AdditiveSafeInteger: (value - kMinAdditiveSafeInteger) >> 53
-      // == 0
-      V<Word64> shifted_value =
-          Word64ShiftRightLogical(Word64Sub(value_i64, kMinAdditiveSafeInteger),
-                                  kAdditiveSafeIntegerBitLength);
+      // Check if AdditiveSafeIntegerFeedback: (value -
+      // kMinAdditiveSafeIntegerFeedback) >> 51 == 0
+      V<Word64> shifted_value = Word64ShiftRightLogical(
+          Word64Sub(value_i64, kMinAdditiveSafeIntegerFeedback),
+          kAdditiveSafeIntegerFeedbackBitLength);
       GOTO_IF_NOT(Word64Equal(shifted_value, 0), if_fail);
       return value_i64;
     }

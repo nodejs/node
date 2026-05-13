@@ -1,0 +1,17 @@
+TODO: crbug.com/500291117 - Remove this patch when fuzztest is updated.
+diff --git a/third_party/abseil-cpp/absl/random/bit_gen_ref.h b/third_party/abseil-cpp/absl/random/bit_gen_ref.h
+index 262eb9a9c6cc4..817b21e22cb63 100644
+--- a/third_party/abseil-cpp/absl/random/bit_gen_ref.h
++++ b/third_party/abseil-cpp/absl/random/bit_gen_ref.h
+@@ -36,6 +36,11 @@
+ #include "absl/random/internal/traits.h"
+ #include "absl/random/mocking_access.h"
+ 
++// TODO: crbug.com/500291117 - Remove when fuzztest is updated not to rely on
++// random internal symbols.
++#include "absl/random/internal/distribution_caller.h"
++#include "absl/random/internal/mock_helpers.h"
++
+ namespace absl {
+ ABSL_NAMESPACE_BEGIN
+ 

@@ -129,8 +129,9 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
     FreelistHead empty_freelist;
     from_space->freelist_head_.store(empty_freelist, std::memory_order_relaxed);
 
-    for (Address field : from_space->invalidated_fields_)
+    for (Address field : from_space->invalidated_fields_) {
       space->invalidated_fields_.push_back(field);
+    }
     from_space->ClearInvalidatedFields();
   }
 
@@ -275,6 +276,27 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
 uint32_t ExternalPointerTable::Sweep(Space* space, Counters* counters) {
   DCHECK(!space->IsCompacting());
   return SweepAndCompact(space, counters);
+}
+
+void ExternalPointerTable::Verify(Isolate* isolate, Space* space) {
+  IterateEntriesIn(space, [&](uint32_t index) {
+    auto payload = at(index).GetRawPayload();
+    ExternalPointerTag tag = payload.ExtractTag();
+    if (tag == kExternalPointerFreeEntryTag ||
+        tag == kExternalPointerEvacuationEntryTag ||
+        tag == kExternalPointerZappedEntryTag) {
+      return;
+    }
+
+    Address pointer = payload.Untag(tag);
+    if (pointer == kNullAddress) return;
+
+    // We don't know the C++ type of the referenced object, so we cannot do
+    // much verification on it. What we can do is try to load the first byte of
+    // the object (we assume we don't have zero-sized objects). This way, we
+    // can at least detect issues like use-after-free on ASan builds.
+    USE(*reinterpret_cast<const uint8_t*>(pointer));
+  });
 }
 
 void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(

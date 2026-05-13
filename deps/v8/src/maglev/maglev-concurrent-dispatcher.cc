@@ -89,9 +89,8 @@ MaglevPipelineStatistics* CreatePipelineStatistics(
     Isolate* isolate, MaglevCompilationInfo* compilation_info,
     compiler::ZoneStats* zone_stats) {
   MaglevPipelineStatistics* pipeline_stats = nullptr;
-  bool tracing_enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.maglev"),
-                                     &tracing_enabled);
+  bool tracing_enabled =
+      TRACE_EVENT_CATEGORY_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.maglev"));
   if (tracing_enabled || v8_flags.maglev_stats || v8_flags.maglev_stats_nvp) {
     pipeline_stats = new MaglevPipelineStatistics(
         compilation_info, isolate->GetMaglevStatistics(), zone_stats);
@@ -266,7 +265,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     if (incoming_queue()->IsEmpty() && destruction_queue()->IsEmpty()) {
       return;
     }
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
     base::FlushDenormalsScope flush_denormals_scope(
         isolate()->flush_denormals());
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
@@ -277,10 +276,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       std::unique_ptr<MaglevCompilationJob> job;
       if (incoming_queue()->Dequeue(&job)) {
         DCHECK_NOT_NULL(job);
-        TRACE_EVENT_WITH_FLOW0(
-            TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
-            job->trace_id(),
-            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+        TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                    "V8.MaglevBackground",
+                    perfetto::Flow::ProcessScoped(job->trace_id()));
         RCS_SCOPE(&local_isolate,
                   RuntimeCallCounterId::kOptimizeBackgroundMaglev);
         CompilationJob::Status status =
@@ -296,9 +294,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
         // Maglev jobs aren't cheap to destruct, so destroy them here in the
         // background thread rather than on the main thread.
         DCHECK_NOT_NULL(job);
-        TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                               "V8.MaglevDestructBackground", job->trace_id(),
-                               TRACE_EVENT_FLAG_FLOW_IN);
+        TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                    "V8.MaglevDestructBackground",
+                    perfetto::TerminatingFlow::ProcessScoped(job->trace_id()));
         UnparkedScope unparked_scope(&local_isolate);
         job.reset();
       } else {
@@ -331,7 +329,8 @@ MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)
   bool enable = v8_flags.concurrent_recompilation && maglev::IsMaglevEnabled();
   if (enable) {
     if (FlagsMightEnableMaglevTracing()) {
-      PrintF("Concurrent maglev has been disabled for tracing.\n");
+      base::OS::PrintError(
+          "Concurrent maglev has been disabled for tracing.\n");
       enable = false;
     }
   }
@@ -367,9 +366,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
-    TRACE_EVENT_WITH_FLOW0(
-        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevConcurrentFinalize",
-        job->trace_id(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                "V8.MaglevConcurrentFinalize",
+                perfetto::Flow::ProcessScoped(job->trace_id()));
     RCS_SCOPE(isolate_,
               RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
@@ -380,9 +379,8 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
       destruction_queue_.Enqueue(std::move(job));
       job_handle_->NotifyConcurrencyIncrease();
     } else {
-      TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                             "V8.MaglevDestruct", job->trace_id(),
-                             TRACE_EVENT_FLAG_FLOW_IN);
+      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevDestruct",
+                  perfetto::TerminatingFlow::ProcessScoped(job->trace_id()));
       job.reset();
     }
   }

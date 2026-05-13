@@ -12,7 +12,6 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise.h"
-#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -43,14 +42,33 @@ using DisposeCallTypeBit =
     base::BitField<DisposeMethodCallType, 0, 1, uint32_t>;
 using DisposeHintBit = DisposeCallTypeBit::Next<DisposeMethodHint, 1>;
 
-class JSDisposableStackBase
-    : public TorqueGeneratedJSDisposableStackBase<JSDisposableStackBase,
-                                                  JSObject> {
+V8_OBJECT class JSDisposableStackBase : public JSObject {
  public:
+  inline Tagged<FixedArray> stack() const;
+  inline void set_stack(Tagged<FixedArray> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int status() const;
+  inline void set_status(int value);
+
+  inline Tagged<UnionOf<Object, Hole>> error() const;
+  inline void set_error(Tagged<UnionOf<Object, Hole>> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<Object, Hole>> error_message() const;
+  inline void set_error_message(Tagged<UnionOf<Object, Hole>> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(JSDisposableStackBase)
   DECL_VERIFIER(JSDisposableStackBase)
 
-  DEFINE_TORQUE_GENERATED_DISPOSABLE_STACK_STATUS()
+  // Bit layout for status_.
+  using StateBit = base::BitField<DisposableStackState, 0, 1>;
+  using NeedsAwaitBit = base::BitField<bool, 1, 1>;
+  using HasAwaitedBit = base::BitField<bool, 2, 1>;
+  using SuppressedErrorCreatedBit = base::BitField<bool, 3, 1>;
+  using LengthBits = base::BitField<int32_t, 4, 27>;
+
   inline DisposableStackState state() const;
   inline void set_state(DisposableStackState value);
   DECL_BOOLEAN_ACCESSORS(needs_await)
@@ -87,21 +105,21 @@ class JSDisposableStackBase
       DirectHandle<Object> current_error,
       DirectHandle<Object> current_error_message);
 
-  TQ_OBJECT_CONSTRUCTORS(JSDisposableStackBase)
-};
-
-class JSSyncDisposableStack
-    : public TorqueGeneratedJSSyncDisposableStack<JSSyncDisposableStack,
-                                                  JSDisposableStackBase> {
  public:
+  TaggedMember<FixedArray> stack_;
+  // SmiTagged<DisposableStackStatus>.
+  TaggedMember<Smi> status_;
+  TaggedMember<UnionOf<Object, Hole>> error_;
+  TaggedMember<UnionOf<Object, Hole>> error_message_;
+} V8_OBJECT_END;
+
+V8_OBJECT class JSSyncDisposableStack final : public JSDisposableStackBase {
+ public:
+  DECL_PRINTER(JSSyncDisposableStack)
   DECL_VERIFIER(JSSyncDisposableStack)
+} V8_OBJECT_END;
 
-  TQ_OBJECT_CONSTRUCTORS(JSSyncDisposableStack)
-};
-
-class JSAsyncDisposableStack
-    : public TorqueGeneratedJSAsyncDisposableStack<JSAsyncDisposableStack,
-                                                   JSDisposableStackBase> {
+V8_OBJECT class JSAsyncDisposableStack final : public JSDisposableStackBase {
  public:
   DECL_PRINTER(JSAsyncDisposableStack)
   DECL_VERIFIER(JSAsyncDisposableStack)
@@ -110,9 +128,7 @@ class JSAsyncDisposableStack
       Isolate* isolate,
       DirectHandle<JSDisposableStackBase> async_disposable_stack,
       DirectHandle<JSPromise> outer_promise);
-
-  TQ_OBJECT_CONSTRUCTORS(JSAsyncDisposableStack)
-};
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

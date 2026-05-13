@@ -21,6 +21,8 @@ class Utf16CharacterStream;
 
 namespace wasm {
 
+class WasmInitExpr;
+
 // A custom parser + validator + wasm converter for asm.js:
 // http://asmjs.org/spec/latest/
 // This parser intentionally avoids the portion of JavaScript parsing

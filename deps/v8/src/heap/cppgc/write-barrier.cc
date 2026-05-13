@@ -109,8 +109,10 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
   auto& heap = HeapBase::From(*heap_handle);
   if (heap.in_atomic_pause()) return;
 
-  if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
+  if (value_offset > 0 &&
+      age_table.GetAge(value_offset) == AgeTable::Age::kOld) {
     return;
+  }
 
   // Record slot.
   heap.remembered_set().AddSlot((const_cast<void*>(slot)));
@@ -129,8 +131,10 @@ void WriteBarrier::GenerationalBarrierForUncompressedSlotSlow(
   auto& heap = HeapBase::From(*heap_handle);
   if (heap.in_atomic_pause()) return;
 
-  if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
+  if (value_offset > 0 &&
+      age_table.GetAge(value_offset) == AgeTable::Age::kOld) {
     return;
+  }
 
   // Record slot.
   heap.remembered_set().AddUncompressedSlot((const_cast<void*>(slot)));

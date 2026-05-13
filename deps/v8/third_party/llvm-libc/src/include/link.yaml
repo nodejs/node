@@ -1,0 +1,21 @@
+header: link.h
+header_template: link.h.def
+standards:
+  - svid
+macros:
+  - macro_name: ElfW
+    standards:
+      - gnu
+    macro_header: link-macros.h
+types:
+  - type_name: struct_dl_phdr_info
+    standards:
+      - gnu
+functions:
+  - name: dl_iterate_phdr
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: __dl_iterate_phdr_callback_t
+      - type: void *

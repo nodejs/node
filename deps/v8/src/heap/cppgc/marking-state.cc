@@ -65,8 +65,9 @@ void MutatorMarkingState::FlushNotFullyConstructedObjects() {
   absl::flat_hash_set<HeapObjectHeader*> objects =
       not_fully_constructed_worklist_.Extract<AccessMode::kAtomic>();
   for (HeapObjectHeader* object : objects) {
-    if (MarkNoPush(*object))
+    if (MarkNoPush(*object)) {
       previously_not_fully_constructed_worklist_.Push(object);
+    }
   }
 }
 

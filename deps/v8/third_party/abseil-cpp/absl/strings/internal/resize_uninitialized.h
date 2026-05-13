@@ -22,8 +22,9 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
-#include "absl/meta/type_traits.h"  //  for void_t
+#include "absl/strings/resize_and_overwrite.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -41,8 +42,8 @@ struct ResizeUninitializedTraits {
 // __resize_default_init is provided by libc++ >= 8.0
 template <typename string_type>
 struct ResizeUninitializedTraits<
-    string_type, absl::void_t<decltype(std::declval<string_type&>()
-                                           .__resize_default_init(237))> > {
+    string_type, std::void_t<decltype(std::declval<string_type&>()
+                                          .__resize_default_init(237))> > {
   using HasMember = std::true_type;
   static void Resize(string_type* s, size_t new_size) {
     s->__resize_default_init(new_size);
@@ -68,33 +69,39 @@ inline void STLStringResizeUninitialized(string_type* s, size_t new_size) {
   ResizeUninitializedTraits<string_type>::Resize(s, new_size);
 }
 
-// In this type trait, we look for an __append_default_init member function, and
-// we use it if available, otherwise, we use append.
-template <typename string_type, typename = void>
-struct AppendUninitializedTraits {
-  static void Append(string_type* s, size_t n) {
-    s->append(n, typename string_type::value_type());
-  }
-};
-
-template <typename string_type>
-struct AppendUninitializedTraits<
-    string_type, absl::void_t<decltype(std::declval<string_type&>()
-                                           .__append_default_init(237))> > {
-  static void Append(string_type* s, size_t n) {
-    s->__append_default_init(n);
-  }
-};
-
 // Like STLStringResizeUninitialized(str, new_size), except guaranteed to use
 // exponential growth so that the amortized complexity of increasing the string
 // size by a small amount is O(1), in contrast to O(str->size()) in the case of
 // precise growth.
+//
+// TODO: b/446221957 - Delete this function.
 template <typename string_type>
+[[deprecated]]
 void STLStringResizeUninitializedAmortized(string_type* s, size_t new_size) {
-  const size_t size = s->size();
-  if (new_size > size) {
-    AppendUninitializedTraits<string_type>::Append(s, new_size - size);
+  if (new_size > s->size()) {
+    if (new_size > s->capacity()) {
+      // Make sure to always grow by at least a factor of 2x. Change min_growth
+      // if you want to experiment with other growth strategies.
+      const auto min_growth = s->capacity();
+      if (ABSL_PREDICT_FALSE(s->capacity() > s->max_size() - min_growth)) {
+        s->reserve(s->max_size());
+      } else if (new_size < s->capacity() + min_growth) {
+        s->reserve(s->capacity() + min_growth);
+      }
+    }
+    // This calls absl::strings_internal::StringResizeAndOverwriteImpl() because
+    // the public API absl::StringResizeAndOverwrite() verifies that the
+    // required range has been initialized. No other code should be calling
+    // absl::strings_internal::StringResizeAndOverwriteImpl(). Instead it should
+    // be implemented correctly with absl::StringResizeAndOverwrite().
+    absl::strings_internal::StringResizeAndOverwriteImpl(
+        *s, new_size, [](typename string_type::value_type*, size_t buf_size) {
+          // TODO: b/446221957 - It is undefined behavior if any character in
+          // the range [0, return_value) is uninitialized, but we rely on this
+          // here to implement the old STLStringResizeUninitializedAmortized()
+          // API.
+          return buf_size;
+        });
   } else {
     s->erase(new_size);
   }

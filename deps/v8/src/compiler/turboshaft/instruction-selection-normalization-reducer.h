@@ -86,7 +86,7 @@ class InstructionSelectionNormalizationReducer : public Next {
       case Opcode::kTaggedBitcast:
         return IsComplexConstant(op.Cast<TaggedBitcastOp>().input());
       case Opcode::kTryChange:
-        return IsComplexConstant(op.Cast<ChangeOp>().input());
+        return IsComplexConstant(op.Cast<TryChangeOp>().input());
       default:
         return false;
     }

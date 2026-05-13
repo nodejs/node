@@ -42,8 +42,9 @@ struct DijkstraWriteBarrierPolicy {
     V8_INLINE static void AssigningBarrier(const void* slot,
                                            const void* value) {
 #ifdef CPPGC_SLIM_WRITE_BARRIER
-    if (V8_UNLIKELY(WriteBarrier::IsEnabled()))
-      WriteBarrier::CombinedWriteBarrierSlow<SlotType>(slot);
+      if (V8_UNLIKELY(WriteBarrier::IsEnabled())) {
+        WriteBarrier::CombinedWriteBarrierSlow<SlotType>(slot);
+      }
 #else   // !CPPGC_SLIM_WRITE_BARRIER
     WriteBarrier::Params params;
     const WriteBarrier::Type type =
@@ -58,8 +59,9 @@ struct DijkstraWriteBarrierPolicy {
         SlotType == WriteBarrierSlotType::kUncompressed,
         "Assigning storages of Member and UncompressedMember is not supported");
 #ifdef CPPGC_SLIM_WRITE_BARRIER
-    if (V8_UNLIKELY(WriteBarrier::IsEnabled()))
+    if (V8_UNLIKELY(WriteBarrier::IsEnabled())) {
       WriteBarrier::CombinedWriteBarrierSlow<SlotType>(slot);
+    }
 #else   // !CPPGC_SLIM_WRITE_BARRIER
     WriteBarrier::Params params;
     const WriteBarrier::Type type =
@@ -76,8 +78,9 @@ struct DijkstraWriteBarrierPolicy {
         SlotType == WriteBarrierSlotType::kCompressed,
         "Assigning storages of Member and UncompressedMember is not supported");
 #ifdef CPPGC_SLIM_WRITE_BARRIER
-    if (V8_UNLIKELY(WriteBarrier::IsEnabled()))
+    if (V8_UNLIKELY(WriteBarrier::IsEnabled())) {
       WriteBarrier::CombinedWriteBarrierSlow<SlotType>(slot);
+    }
 #else   // !CPPGC_SLIM_WRITE_BARRIER
     WriteBarrier::Params params;
     const WriteBarrier::Type type =

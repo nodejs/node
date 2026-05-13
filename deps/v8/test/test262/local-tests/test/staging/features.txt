@@ -43,13 +43,6 @@ decorators
 # https://github.com/tc39/proposal-duplicate-named-capturing-groups
 regexp-duplicate-named-groups
 
-# https://tc39.es/proposal-array-from-async/
-Array.fromAsync
-
-# JSON.parse with source
-# https://github.com/tc39/proposal-json-parse-with-source
-json-parse-with-source
-
 # Explicit Resource Management
 # https://github.com/tc39/proposal-explicit-resource-management
 explicit-resource-management
@@ -68,21 +61,25 @@ Atomics.pause
 # https://tc39.es/proposal-defer-import-eval
 import-defer
 
-# Iterator Sequencing
-# https://github.com/tc39/proposal-iterator-sequencing
-iterator-sequencing
+# Deferred re-exports
+# https://tc39.es/proposal-deferred-reexports/
+export-defer
+
+# Import Text
+# https://github.com/tc39/proposal-import-text
+import-text
 
 # Time Zone Canonicalization
 # https://github.com/tc39/proposal-canonical-tz
 canonical-tz
 
-# Upsert
-# https://github.com/tc39/proposal-upsert
-upsert
-
 # Immutable Array Buffer
 # https://github.com/tc39/proposal-immutable-arraybuffer
 immutable-arraybuffer
+
+# Import Bytes
+# https://github.com/tc39/proposal-import-bytes
+import-bytes
 
 # Non-extensible Applies to Private
 # https://github.com/tc39/proposal-nonextensible-applies-to-private
@@ -91,6 +88,10 @@ nonextensible-applies-to-private
 # Joint Iteration
 # https://github.com/tc39/proposal-joint-iteration
 joint-iteration
+
+# Await Dictionary
+# https://github.com/tc39/proposal-await-dictionary
+await-dictionary
 
 ## Standard language features
 #
@@ -104,6 +105,7 @@ align-detached-buffer-semantics-with-web-reality  # https://github.com/tc39/ecma
 arbitrary-module-namespace-names  # https://github.com/tc39/ecma262/pull/2154
 ArrayBuffer
 array-find-from-last
+Array.fromAsync
 Array.prototype.at
 Array.prototype.flat
 Array.prototype.flatMap
@@ -161,6 +163,7 @@ hashbang
 import-attributes
 import.meta
 iterator-helpers
+iterator-sequencing
 Int8Array
 Int16Array
 Int32Array
@@ -180,6 +183,7 @@ Intl.NumberFormat-unified
 Intl.RelativeTimeFormat
 Intl.Segmenter
 json-modules
+json-parse-with-source
 json-superset
 let
 logical-assignment-operators
@@ -260,6 +264,7 @@ uint8array-base64
 Uint16Array
 Uint32Array
 Uint8ClampedArray
+upsert
 WeakMap
 WeakRef
 WeakSet

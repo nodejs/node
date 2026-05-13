@@ -154,6 +154,7 @@ void ExternalEntityTable<Entry, size>::DetachSpaceFromReadOnlySegments(
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::UnsealReadOnlySegments() {
   DCHECK(this->is_initialized());
+  if constexpr (!ExternalEntityTable::kUseContiguousMemory) return;
   bool success = this->vas_->SetPagePermissions(
       this->vas_->base(), kSegmentSize * kNumReadOnlySegments,
       PagePermissions::kReadWrite);
@@ -163,6 +164,7 @@ void ExternalEntityTable<Entry, size>::UnsealReadOnlySegments() {
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::SealReadOnlySegments() {
   DCHECK(this->is_initialized());
+  if constexpr (!ExternalEntityTable::kUseContiguousMemory) return;
   bool success = this->vas_->SetPagePermissions(
       this->vas_->base(), kSegmentSize * kNumReadOnlySegments,
       PagePermissions::kRead);

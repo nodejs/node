@@ -26,14 +26,21 @@
 #include <optional>
 
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-using std::bad_optional_access;
+
+using bad_optional_access ABSL_REFACTOR_INLINE
+    = std::bad_optional_access;
+
 using std::make_optional;
 using std::nullopt;
-using std::nullopt_t;
+
+using nullopt_t ABSL_REFACTOR_INLINE
+    = std::nullopt_t;
+
 using std::optional;
 ABSL_NAMESPACE_END
 }  // namespace absl

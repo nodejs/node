@@ -189,8 +189,9 @@ bool FreeList::ContainsForTesting(Block block) const {
     for (Entry* entry = list; entry; entry = entry->Next()) {
       if (entry <= block.address &&
           (reinterpret_cast<Address>(block.address) + block.size <=
-           reinterpret_cast<Address>(entry) + entry->AllocatedSize()))
+           reinterpret_cast<Address>(entry) + entry->AllocatedSize())) {
         return true;
+      }
     }
   }
   return false;

@@ -9,6 +9,7 @@ bitfield struct JSPromiseFlags extends uint31 {
   async_task_id: uint32: 27 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSPromise extends JSObjectWithEmbedderSlots {
   macro Status(): PromiseState {
     return this.flags.status;
@@ -36,5 +37,5 @@ extern class JSPromise extends JSObjectWithEmbedderSlots {
 }
 
 @doNotGenerateCast
-extern class JSPromiseConstructor extends JSFunction
+extern class JSPromiseConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';

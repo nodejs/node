@@ -360,7 +360,8 @@ using TestShadowRealmWithContext =                     //
 
 class PrintExtension : public v8::Extension {
  public:
-  PrintExtension() : v8::Extension("v8/print", "native function print();") {}
+  static constexpr const char* kName = "v8/print";
+  PrintExtension() : v8::Extension(kName, "native function print();") {}
   v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) override {
     return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
@@ -376,24 +377,6 @@ class PrintExtension : public v8::Extension {
     }
     printf("\n");
   }
-};
-
-template <typename TMixin>
-class WithPrintExtensionMixin : public TMixin {
- public:
-  WithPrintExtensionMixin() = default;
-  ~WithPrintExtensionMixin() override = default;
-  WithPrintExtensionMixin(const WithPrintExtensionMixin&) = delete;
-  WithPrintExtensionMixin& operator=(const WithPrintExtensionMixin&) = delete;
-
-  static void SetUpTestSuite() {
-    v8::RegisterExtension(std::make_unique<PrintExtension>());
-    TMixin::SetUpTestSuite();
-  }
-
-  static void TearDownTestSuite() { TMixin::TearDownTestSuite(); }
-
-  static constexpr const char* kPrintExtensionName = "v8/print";
 };
 
 // Run a ScriptStreamingTask in a separate thread.

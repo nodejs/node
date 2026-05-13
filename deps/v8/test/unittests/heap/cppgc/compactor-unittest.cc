@@ -47,8 +47,9 @@ struct CompactableHolder
     : public GarbageCollected<CompactableHolder<kNumObjects>> {
  public:
   explicit CompactableHolder(cppgc::AllocationHandle& allocation_handle) {
-    for (int i = 0; i < kNumObjects; ++i)
+    for (int i = 0; i < kNumObjects; ++i) {
       objects[i] = MakeGarbageCollected<CompactableGCed>(allocation_handle);
+    }
   }
 
   void Trace(Visitor* visitor) const {

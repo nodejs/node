@@ -257,8 +257,9 @@ WordType<Bits> LeastUpperBoundFromRanges(word_t l_from, word_t l_to,
     return result;
   }
 
-  if (rhs_wrapping)
+  if (rhs_wrapping) {
     return LeastUpperBoundFromRanges<Bits>(r_from, r_to, l_from, l_to, zone);
+  }
   DCHECK(lhs_wrapping);
   DCHECK(!rhs_wrapping);
   // Case 3 & 4: lhs is wrapping, rhs is not
@@ -266,15 +267,17 @@ WordType<Bits> LeastUpperBoundFromRanges(word_t l_from, word_t l_to,
   // rhs -------|XX|-   -|XX|-------   ----|XXXXX|-   ---|XX|-----
   // ==> XXX|---|XXXX   XXXX|---|XXX   XXXXXXXXXXXX   XXXXXX|--|XX
   if (r_from <= l_to) {
-    if (r_to <= l_to)
+    if (r_to <= l_to) {
       return WordType<Bits>::Range(l_from, l_to, zone);       // y covered by x
+    }
     if (r_to >= l_from) return WordType<Bits>::Any();         // ex3
     auto result = WordType<Bits>::Range(l_from, r_to, zone);  // ex 1
     DCHECK(result.is_wrapping());
     return result;
   } else if (r_to >= l_from) {
-    if (r_from >= l_from)
+    if (r_from >= l_from) {
       return WordType<Bits>::Range(l_from, l_to, zone);       // y covered by x
+    }
     DCHECK_GT(r_from, l_to);                                  // handled above
     auto result = WordType<Bits>::Range(r_from, l_to, zone);  // ex 2
     DCHECK(result.is_wrapping());

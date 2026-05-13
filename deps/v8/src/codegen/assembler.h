@@ -332,6 +332,10 @@ std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size);
 
 class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  public:
+  static constexpr int kMaximalBufferSize = 512 * MB;
+
+  enum class BufferGrowthStrategy { kDouble, kDoubleCapped1MB };
+
   AssemblerBase(const AssemblerOptions& options,
                 std::unique_ptr<AssemblerBuffer>);
   virtual ~AssemblerBase();
@@ -410,6 +414,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     return buffer;
   }
 
+  int ComputeNewBufferSize(BufferGrowthStrategy strategy);
+
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
   virtual void AbortedCodeGeneration() {}
@@ -432,6 +438,12 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
       code_comments_writer_.Add(pc_offset(), std::move(comment_str));
     }
+  }
+
+  V8_INLINE void RecordCfi(std::string_view comment) {
+    // TODO(olivf): Have a dedicated table for CFI instead of putting it into
+    // the code comments.
+    code_comments_writer_.Add(pc_offset(), "CFI:" + std::string(comment));
   }
 
 #ifdef V8_CODE_COMMENTS

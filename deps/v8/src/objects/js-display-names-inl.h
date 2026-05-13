@@ -20,11 +20,19 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-display-names-tq-inl.inc"
+Tagged<Managed<DisplayNamesInternal>> JSDisplayNames::internal() const {
+  return Cast<Managed<DisplayNamesInternal>>(internal_.load());
+}
 
-ACCESSORS(JSDisplayNames, internal, Tagged<Managed<DisplayNamesInternal>>,
-          kInternalOffset)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisplayNames)
+void JSDisplayNames::set_internal(Tagged<Managed<DisplayNamesInternal>> value,
+                                  WriteBarrierMode mode) {
+  internal_.store(this, value, mode);
+}
+
+int JSDisplayNames::flags() const { return flags_.load().value(); }
+void JSDisplayNames::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
 
 inline void JSDisplayNames::set_style(Style style) {
   DCHECK(StyleBits::is_valid(style));

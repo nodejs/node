@@ -7,9 +7,9 @@
 
 #include <algorithm>
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
-#include "src/bigint/vector-arithmetic.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -72,7 +72,7 @@ void ProcessorImpl::Toom3Main(RWDigits Z, Digits X, Digits Y) {
   // Temporary storage.
   uint32_t p_len = i + 1;      // For all px, qx below.
   uint32_t r_len = 2 * p_len;  // For all r_x, Rx below.
-  Storage temp_storage(4 * r_len);
+  Storage temp_storage(4 * r_len, platform());
   // We will use the same variable names as the Wikipedia article, as much as
   // C++ lets us: our "p_m1" is their "p(-1)" etc. For consistency with other
   // algorithms, we use X and Y where Wikipedia uses m and n.
@@ -208,7 +208,7 @@ void ProcessorImpl::MultiplyToomCook(RWDigits Z, Digits X, Digits Y) {
   Digits X0(X, 0, k);
   Toom3Main(Z, X0, Y);
   if (X.len() > Y.len()) {
-    ScratchDigits T(2 * k);
+    ScratchDigits T(2 * k, platform());
     for (uint32_t i = k; i < X.len(); i += k) {
       Digits Xi(X, i, k);
       // TODO(jkummerow): would it be a measurable improvement to craft a

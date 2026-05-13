@@ -1757,7 +1757,8 @@ int CountBuiltins() {
   int counter = 0;
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (Tagged<Code> code; TryCast(obj, &code)) {
+    if (Is<Code>(obj)) {
+      Tagged<Code> code = TrustedCast<Code>(obj);
       if (code->kind() == CodeKind::BUILTIN) counter++;
     }
   }
@@ -4578,12 +4579,13 @@ UNINITIALIZED_TEST(SerializeContextData) {
         // provided), but in the wide pointer case we don't actually know
         // whether it's a pointer or a Smi, so we just let these values pass
         // through.
-        if (V8_ENABLE_SANDBOX_BOOL)
+        if (V8_ENABLE_SANDBOX_BOOL) {
           CHECK_NULL(
               context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
-        else
+        } else {
           CHECK_EQ(raw_data,
                    context->GetAlignedPointerFromEmbedderData(1, kRawDataTag));
+        }
       }
       isolate->Dispose();
     }
@@ -6070,9 +6072,10 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
 }
 
 void CheckInfosAreWeak(Tagged<WeakFixedArray> sfis, Isolate* isolate) {
-  CHECK_GT(sfis->length(), 0);
+  const uint32_t sfis_len = sfis->length().value();
+  CHECK_GT(sfis_len, 0);
   int no_of_weak = 0;
-  for (int i = 0; i < sfis->length(); ++i) {
+  for (uint32_t i = 0; i < sfis_len; ++i) {
     Tagged<MaybeObject> maybe_object = sfis->get(i);
     Tagged<HeapObject> heap_object;
     CHECK(!maybe_object.GetHeapObjectIfWeak(isolate, &heap_object) ||

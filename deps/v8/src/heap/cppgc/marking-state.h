@@ -246,8 +246,9 @@ void BasicMarkingState::RegisterWeakReferenceIfNeeded(
   const HeapObjectHeader& header =
       HeapObjectHeader::FromObject(desc.base_object_payload);
   if (!header.IsInConstruction<AccessMode::kAtomic>() &&
-      header.IsMarked<AccessMode::kAtomic>())
+      header.IsMarked<AccessMode::kAtomic>()) {
     return;
+  }
   parallel_weak_callback_worklist_.Push({weak_callback, parameter});
 }
 
@@ -464,10 +465,11 @@ bool MutatorMarkingState::RecentlyRetracedWeakContainers::Contains(
 void MutatorMarkingState::RecentlyRetracedWeakContainers::Insert(
     const HeapObjectHeader* header) {
   last_used_index_ = (last_used_index_ + 1) % kMaxCacheSize;
-  if (recently_retraced_cache_.size() <= last_used_index_)
+  if (recently_retraced_cache_.size() <= last_used_index_) {
     recently_retraced_cache_.push_back(header);
-  else
+  } else {
     recently_retraced_cache_[last_used_index_] = header;
+  }
 }
 
 class ConcurrentMarkingState final : public BasicMarkingState {

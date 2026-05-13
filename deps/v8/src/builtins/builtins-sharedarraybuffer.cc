@@ -69,8 +69,9 @@ V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTypedArray> ValidateIntegerTypedArray(
     } else {
       if (typed_array->type() != kExternalFloat32Array &&
           typed_array->type() != kExternalFloat64Array &&
-          typed_array->type() != kExternalUint8ClampedArray)
+          typed_array->type() != kExternalUint8ClampedArray) {
         return typed_array;
+      }
     }
   }
 
@@ -115,7 +116,7 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
 
 }  // namespace
 
-// ES #sec-atomics.notify
+// https://tc39.es/ecma262/#sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
 BUILTIN(AtomicsNotify) {
   // TODO(clemensb): This builtin only allocates (an exception) in the case of
@@ -218,11 +219,12 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
     timeout_number = Object::NumberValue(*timeout);
-    if (std::isnan(timeout_number))
+    if (std::isnan(timeout_number)) {
       timeout_number =
           Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
-    else if (timeout_number < 0)
+    } else if (timeout_number < 0) {
       timeout_number = 0;
+    }
   }
 
   // 9. If mode is sync, then

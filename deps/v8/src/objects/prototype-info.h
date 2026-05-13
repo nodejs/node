@@ -21,9 +21,51 @@ class PrototypeSharedClosureInfo;
 #include "torque-generated/src/objects/prototype-info-tq.inc"
 
 // Container for metadata stored on each prototype map.
-class PrototypeInfo
-    : public TorqueGeneratedPrototypeInfo<PrototypeInfo, Struct> {
+V8_OBJECT class PrototypeInfo : public Struct {
  public:
+  // Accessors
+  inline Tagged<UnionOf<JSModuleNamespace, Undefined>> module_namespace() const;
+  inline void set_module_namespace(
+      Tagged<UnionOf<JSModuleNamespace, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<WeakArrayList, Zero>> prototype_users() const;
+  inline void set_prototype_users(Tagged<UnionOf<WeakArrayList, Zero>> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<FixedArray, Zero, Undefined>>
+  prototype_chain_enum_cache() const;
+  inline void set_prototype_chain_enum_cache(
+      Tagged<UnionOf<FixedArray, Zero, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline int registry_slot() const;
+  inline void set_registry_slot(int value);
+
+  inline int bit_field() const;
+  inline void set_bit_field(int value);
+
+  // For caching derived maps for Object.create, Reflect.construct and proxies.
+  inline Tagged<UnionOf<WeakArrayList, Undefined>> derived_maps() const;
+  inline Tagged<UnionOf<WeakArrayList, Undefined>> derived_maps(
+      AcquireLoadTag) const;
+  inline void set_derived_maps(Tagged<UnionOf<WeakArrayList, Undefined>> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set_derived_maps(Tagged<UnionOf<WeakArrayList, Undefined>> value,
+                               ReleaseStoreTag,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<PrototypeSharedClosureInfo, Undefined>>
+  prototype_shared_closure_info() const;
+  inline void set_prototype_shared_closure_info(
+      Tagged<UnionOf<PrototypeSharedClosureInfo, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<LoadHandler, Zero>> cached_handler(int index) const;
+  inline void set_cached_handler(int index,
+                                 Tagged<UnionOf<LoadHandler, Zero>> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Cached most commonly used load-non-existent handlers.
   enum CachedHandlerIndex {
     // No access check, no lookup on receiver.
@@ -33,14 +75,7 @@ class PrototypeInfo
     kCachedHandlerCount,
   };
 
-  static constexpr int kSize =
-      kCachedHandlerOffset + kCachedHandlerCount * kTaggedSize;
-
   static const int UNREGISTERED = -1;
-
-  // For caching derived maps for Object.create, Reflect.construct and proxies.
-  DECL_GETTER(derived_maps, Tagged<HeapObject>)
-  DECL_RELEASE_ACQUIRE_ACCESSORS(derived_maps, Tagged<HeapObject>)
 
   static inline void SetObjectCreateMap(DirectHandle<PrototypeInfo> info,
                                         DirectHandle<Map> map,
@@ -51,8 +86,6 @@ class PrototypeInfo
   static inline void AddDerivedMap(DirectHandle<PrototypeInfo> info,
                                    DirectHandle<Map> to, Isolate* isolate);
   inline Tagged<MaybeObject> GetDerivedMap(DirectHandle<Map> from);
-
-  static inline bool IsPrototypeInfoFast(Tagged<Object> object);
 
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
 
@@ -65,8 +98,18 @@ class PrototypeInfo
 
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(PrototypeInfo)
-};
+ public:
+  TaggedMember<UnionOf<JSModuleNamespace, Undefined>> module_namespace_;
+  TaggedMember<UnionOf<WeakArrayList, Zero>> prototype_users_;
+  TaggedMember<UnionOf<FixedArray, Zero, Undefined>>
+      prototype_chain_enum_cache_;
+  TaggedMember<Smi> registry_slot_;
+  TaggedMember<Smi> bit_field_;
+  TaggedMember<UnionOf<WeakArrayList, Undefined>> derived_maps_;
+  TaggedMember<UnionOf<PrototypeSharedClosureInfo, Undefined>>
+      prototype_shared_closure_info_;
+  TaggedMember<UnionOf<LoadHandler, Zero>> cached_handler_[kCachedHandlerCount];
+} V8_OBJECT_END;
 
 // A growing array with an additional API for marking slots "empty". When adding
 // new elements, we reuse the empty slots instead of growing the array.

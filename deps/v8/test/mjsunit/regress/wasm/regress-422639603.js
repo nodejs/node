@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turboshaft-wasm-in-js-inlining
+// Flags: --turbolev
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

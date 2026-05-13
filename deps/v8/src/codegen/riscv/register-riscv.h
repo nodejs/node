@@ -22,7 +22,7 @@ namespace internal {
 // s3: scratch register s4: scratch register 2 used in code-generator-riscv64
 // s6: roots in Javascript code s7: context register
 // s11: PtrComprCageBaseRegister
-// t3 t5 : scratch register used in scratch_register_list
+// t3 t5 : scratch register used in scratch_register_list (in the assembler).
 // t6 : call reg.
 // t0 t1 t2 t4:caller saved scratch register can be used in macroassembler and
 // t2: kMaglevExtraScratchRegister
@@ -56,22 +56,33 @@ namespace internal {
 #define C_CALL_CALLEE_SAVE_FP_REGISTERS \
   fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
 
+
+// ft0, ft11 are used in DefaultFPTmpList
+#define ALLOCATABLE_DOUBLE_REGISTERS(V)                           \
+  V(ft1) V(ft2) V(ft3) V(ft4) V(ft5) V(ft6) V(ft7) V(fa0) V(fa1)  \
+  V(fa2) V(fa3) V(fa4) V(fa5) V(fa6) V(fa7) V(ft8) V(ft9) V(ft10)
+
+
+// v0      Argument
+// v1-v7   Callee-saved
+// v8-v23  Argument
+// v24-v31 Callee-saved
 #define VECTOR_REGISTERS(V)                               \
   V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
   V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) \
   V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
   V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
 
+
+// kSimd128ScratchReg = v24;
+// kSimd128ScratchReg2 = v25;
+// kSimd128ScratchReg3 = v2;
+// kSimd128ScratchReg4 = v26;
 #define ALLOCATABLE_SIMD128_REGISTERS(V)            \
-  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)   \
+  V(v1)  V(v4)  V(v5)  V(v6)  V(v7)  V(v8)  V(v9)   \
   V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) V(v16)  \
   V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23)  \
   V(v27) V(v28) V(v29) V(v30) V(v31)
-
-#define ALLOCATABLE_DOUBLE_REGISTERS(V)                              \
-  V(ft1)  V(ft2) V(ft3) V(ft4)  V(ft5) V(ft6) V(ft7) V(ft8)          \
-  V(ft9)  V(ft10) V(ft11) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
-  V(fa6)  V(fa7)
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -218,14 +229,6 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
     return FPURegister::from_code(code() + 1);
   }
 
-  // FIXME(riscv64): In Rvv, Vector regs is different from Float Regs. But in
-  // this cl, in order to facilitate modification, it is assumed that the vector
-  // register and floating point register are shared.
-  VRegister toV() const {
-    DCHECK(base::IsInRange(static_cast<int>(code()), 0, kVRAfterLast - 1));
-    return VRegister(code());
-  }
-
  private:
   friend class RegisterBase;
   explicit constexpr FPURegister(int code) : RegisterBase(code) {}
@@ -330,7 +333,7 @@ constexpr VRegister kSimd128ScratchReg2 = v25;
 // kSimd128ScratchReg3 and kSimd128ScratchReg4 are on even indices and can
 // be used as a register group as long as v9 and v27 are not overwritten,
 // as is the case for some `vcompress` operations.
-constexpr VRegister kSimd128ScratchReg3 = v8;
+constexpr VRegister kSimd128ScratchReg3 = v2;
 constexpr VRegister kSimd128ScratchReg4 = v26;
 constexpr VRegister kSimd128RegZero = kSimd128ScratchReg4;
 

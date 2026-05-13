@@ -68,6 +68,7 @@ class IC {
   static inline bool IsHandler(Tagged<MaybeObject> object);
 
   Builtin GetHandlerPolymorphic();
+  Builtin GetHandlerHomomorphic();
   Builtin GetHandlerMegamorphic();
 
   // Notify the IC system that a feedback has changed.
@@ -112,6 +113,8 @@ class IC {
                            DirectHandle<Name> name);
   bool UpdateMegaDOMIC(const MaybeObjectDirectHandle& handler,
                        DirectHandle<Name> name);
+  bool UpdateHomomorphicIC(const MaybeObjectDirectHandle& handler,
+                           DirectHandle<Name> name);
   bool UpdateOneMapManyNamesIC(DirectHandle<Name> new_name);
   bool UpdatePolymorphicIC(DirectHandle<Name> name,
                            const MaybeObjectDirectHandle& handler);
@@ -159,7 +162,7 @@ class IC {
 
   Tagged<Map> FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>();
+    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>{};
   }
 
   const FeedbackNexus* nexus() const { return &nexus_; }
@@ -168,6 +171,9 @@ class IC {
   CallerFrameType caller_frame_type() const { return caller_frame_type_; }
 
  private:
+  bool TryHealMonomorphicIC(const MaybeObjectHandle& handler);
+  Builtin GetCurrentBaselineBuiltin(Address* out_pc = nullptr) const;
+
   void FindTargetMaps() {
     if (target_maps_set_) return;
     target_maps_set_ = true;

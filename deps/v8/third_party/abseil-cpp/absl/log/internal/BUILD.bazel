@@ -39,6 +39,9 @@ licenses(["notice"])
 
 package_group(
     name = "internal_users",
+    includes = [
+        "//absl:friends",
+    ],
     packages = [
         "//absl/log",
     ],
@@ -105,6 +108,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/log:__pkg__",
     ],
     deps = [
@@ -150,6 +154,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/log:__pkg__",
     ],
     deps = [
@@ -182,6 +187,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/log:__pkg__",
     ],
     deps = [
@@ -210,6 +216,7 @@ cc_library(
         "//absl/strings",
         "//absl/strings:internal",
         "//absl/time",
+        "//absl/types:source_location",
         "//absl/types:span",
     ],
 )
@@ -458,6 +465,7 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
+        "//absl:friends",
         "//absl/log:__subpackages__",
     ],
     deps = [
@@ -470,7 +478,6 @@ cc_library(
         "//absl/memory",
         "//absl/strings",
         "//absl/synchronization",
-        "//absl/types:optional",
     ],
 )
 
@@ -556,6 +563,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",
+        "//absl:friends",
     ],
     deps = [
         "//absl/base:config",

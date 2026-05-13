@@ -1,0 +1,200 @@
+header: ctype.h
+standards:
+  - stdc
+enums: []
+objects: []
+functions:
+  - name: isalnum
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isalpha
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isascii
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+  - name: isblank
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: iscntrl
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isdigit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isgraph
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: islower
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isprint
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: ispunct
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isspace
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isupper
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isxdigit
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: toascii
+    standards:
+      - GNUExtensions
+    return_type: int
+    arguments:
+      - type: int
+  - name: tolower
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: toupper
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: isalnum_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isalpha_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isblank_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: iscntrl_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isdigit_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isgraph_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: islower_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isprint_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: ispunct_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isspace_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isupper_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: isxdigit_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: tolower_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t
+  - name: toupper_l
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: locale_t

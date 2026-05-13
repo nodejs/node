@@ -73,6 +73,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   StackTracePrinter GetStackTracePrinter() override;
   v8::PageAllocator* GetPageAllocator() override;
   v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
+  size_t GetZeroSegmentSize() override;
 
   void NotifyIsolateShutdown(Isolate* isolate);
 

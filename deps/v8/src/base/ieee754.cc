@@ -22,11 +22,23 @@
 #include "src/base/macros.h"
 #include "src/base/overflowing-math.h"
 
+// TODO(thakis): Remove diagnostic pragmas once these are merged and upstream
+// builds with -Wshadow:
+// * https://github.com/llvm/llvm-project/pull/196337
+// * https://github.com/llvm/llvm-project/pull/196342
+// * https://github.com/llvm/llvm-project/pull/196346
+#pragma GCC diagnostic push
+#if defined(__has_warning)
+#if __has_warning("-Wshadow")
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
+#endif
+#include "third_party/llvm-libc/src/shared/math.h"
+#pragma GCC diagnostic pop
+
 namespace v8 {
 namespace base {
 namespace ieee754 {
-
-namespace {
 
 /*
  * The original fdlibm code used statements like:
@@ -96,738 +108,6 @@ namespace {
     (d) = base::bit_cast<double>(bits);          \
   } while (false)
 
-int32_t __ieee754_rem_pio2(double x, double* y) V8_WARN_UNUSED_RESULT;
-int __kernel_rem_pio2(double* x, double* y, int e0, int nx, int prec,
-                      const int32_t* ipio2) V8_WARN_UNUSED_RESULT;
-double __kernel_cos(double x, double y) V8_WARN_UNUSED_RESULT;
-double __kernel_sin(double x, double y, int iy) V8_WARN_UNUSED_RESULT;
-
-/* __ieee754_rem_pio2(x,y)
- *
- * return the remainder of x rem pi/2 in y[0]+y[1]
- * use __kernel_rem_pio2()
- */
-int32_t __ieee754_rem_pio2(double x, double *y) {
-  /*
-   * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
-   */
-  static const int32_t two_over_pi[] = {
-      0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62, 0x95993C,
-      0x439041, 0xFE5163, 0xABDEBB, 0xC561B7, 0x246E3A, 0x424DD2, 0xE00649,
-      0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129, 0xA73EE8, 0x8235F5, 0x2EBB44,
-      0x84E99C, 0x7026B4, 0x5F7E41, 0x3991D6, 0x398353, 0x39F49C, 0x845F8B,
-      0xBDF928, 0x3B1FF8, 0x97FFDE, 0x05980F, 0xEF2F11, 0x8B5A0A, 0x6D1F6D,
-      0x367ECF, 0x27CB09, 0xB74F46, 0x3F669E, 0x5FEA2D, 0x7527BA, 0xC7EBE5,
-      0xF17B3D, 0x0739F7, 0x8A5292, 0xEA6BFB, 0x5FB11F, 0x8D5D08, 0x560330,
-      0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3, 0x91615E, 0xE61B08,
-      0x659985, 0x5F14A0, 0x68408D, 0xFFD880, 0x4D7327, 0x310606, 0x1556CA,
-      0x73A8C9, 0x60E27B, 0xC08C6B,
-  };
-
-  static const int32_t npio2_hw[] = {
-      0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C,
-      0x4025FDBB, 0x402921FB, 0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C,
-      0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB, 0x403AB41B, 0x403C463A,
-      0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C,
-      0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB,
-      0x404858EB, 0x404921FB,
-  };
-
-  /*
-   * invpio2:  53 bits of 2/pi
-   * pio2_1:   first  33 bit of pi/2
-   * pio2_1t:  pi/2 - pio2_1
-   * pio2_2:   second 33 bit of pi/2
-   * pio2_2t:  pi/2 - (pio2_1+pio2_2)
-   * pio2_3:   third  33 bit of pi/2
-   * pio2_3t:  pi/2 - (pio2_1+pio2_2+pio2_3)
-   */
-
-  static const double
-      zero = 0.00000000000000000000e+00,    /* 0x00000000, 0x00000000 */
-      half = 5.00000000000000000000e-01,    /* 0x3FE00000, 0x00000000 */
-      two24 = 1.67772160000000000000e+07,   /* 0x41700000, 0x00000000 */
-      invpio2 = 6.36619772367581382433e-01, /* 0x3FE45F30, 0x6DC9C883 */
-      pio2_1 = 1.57079632673412561417e+00,  /* 0x3FF921FB, 0x54400000 */
-      pio2_1t = 6.07710050650619224932e-11, /* 0x3DD0B461, 0x1A626331 */
-      pio2_2 = 6.07710050630396597660e-11,  /* 0x3DD0B461, 0x1A600000 */
-      pio2_2t = 2.02226624879595063154e-21, /* 0x3BA3198A, 0x2E037073 */
-      pio2_3 = 2.02226624871116645580e-21,  /* 0x3BA3198A, 0x2E000000 */
-      pio2_3t = 8.47842766036889956997e-32; /* 0x397B839A, 0x252049C1 */
-
-  double z, w, t, r, fn;
-  double tx[3];
-  int32_t e0, i, j, nx, n, ix, hx;
-  uint32_t low;
-
-  z = 0;
-  GET_HIGH_WORD(hx, x); /* high word of x */
-  ix = hx & 0x7FFFFFFF;
-  if (ix <= 0x3FE921FB) { /* |x| ~<= pi/4 , no need for reduction */
-    y[0] = x;
-    y[1] = 0;
-    return 0;
-  }
-  if (ix < 0x4002D97C) { /* |x| < 3pi/4, special case with n=+-1 */
-    if (hx > 0) {
-      z = x - pio2_1;
-      if (ix != 0x3FF921FB) { /* 33+53 bit pi is good enough */
-        y[0] = z - pio2_1t;
-        y[1] = (z - y[0]) - pio2_1t;
-      } else { /* near pi/2, use 33+33+53 bit pi */
-        z -= pio2_2;
-        y[0] = z - pio2_2t;
-        y[1] = (z - y[0]) - pio2_2t;
-      }
-      return 1;
-    } else { /* negative x */
-      z = x + pio2_1;
-      if (ix != 0x3FF921FB) { /* 33+53 bit pi is good enough */
-        y[0] = z + pio2_1t;
-        y[1] = (z - y[0]) + pio2_1t;
-      } else { /* near pi/2, use 33+33+53 bit pi */
-        z += pio2_2;
-        y[0] = z + pio2_2t;
-        y[1] = (z - y[0]) + pio2_2t;
-      }
-      return -1;
-    }
-  }
-  if (ix <= 0x413921FB) { /* |x| ~<= 2^19*(pi/2), medium size */
-    t = fabs(x);
-    n = static_cast<int32_t>(t * invpio2 + half);
-    fn = static_cast<double>(n);
-    r = t - fn * pio2_1;
-    w = fn * pio2_1t; /* 1st round good to 85 bit */
-    if (n < 32 && ix != npio2_hw[n - 1]) {
-      y[0] = r - w; /* quick check no cancellation */
-    } else {
-      uint32_t high;
-      j = ix >> 20;
-      y[0] = r - w;
-      GET_HIGH_WORD(high, y[0]);
-      i = j - ((high >> 20) & 0x7FF);
-      if (i > 16) { /* 2nd iteration needed, good to 118 */
-        t = r;
-        w = fn * pio2_2;
-        r = t - w;
-        w = fn * pio2_2t - ((t - r) - w);
-        y[0] = r - w;
-        GET_HIGH_WORD(high, y[0]);
-        i = j - ((high >> 20) & 0x7FF);
-        if (i > 49) { /* 3rd iteration need, 151 bits acc */
-          t = r;      /* will cover all possible cases */
-          w = fn * pio2_3;
-          r = t - w;
-          w = fn * pio2_3t - ((t - r) - w);
-          y[0] = r - w;
-        }
-      }
-    }
-    y[1] = (r - y[0]) - w;
-    if (hx < 0) {
-      y[0] = -y[0];
-      y[1] = -y[1];
-      return -n;
-    } else {
-      return n;
-    }
-  }
-  /*
-   * all other (large) arguments
-   */
-  if (ix >= 0x7FF00000) { /* x is inf or NaN */
-    y[0] = y[1] = x - x;
-    return 0;
-  }
-  /* set z = scalbn(|x|,ilogb(x)-23) */
-  GET_LOW_WORD(low, x);
-  SET_LOW_WORD(z, low);
-  e0 = (ix >> 20) - 1046; /* e0 = ilogb(z)-23; */
-  SET_HIGH_WORD(z, ix - static_cast<int32_t>(static_cast<uint32_t>(e0) << 20));
-  for (i = 0; i < 2; i++) {
-    tx[i] = static_cast<double>(static_cast<int32_t>(z));
-    z = (z - tx[i]) * two24;
-  }
-  tx[2] = z;
-  nx = 3;
-  while (tx[nx - 1] == zero) nx--; /* skip zero term */
-  n = __kernel_rem_pio2(tx, y, e0, nx, 2, two_over_pi);
-  if (hx < 0) {
-    y[0] = -y[0];
-    y[1] = -y[1];
-    return -n;
-  }
-  return n;
-}
-
-/* __kernel_cos( x,  y )
- * kernel cos function on [-pi/4, pi/4], pi/4 ~ 0.785398164
- * Input x is assumed to be bounded by ~pi/4 in magnitude.
- * Input y is the tail of x.
- *
- * Algorithm
- *      1. Since cos(-x) = cos(x), we need only to consider positive x.
- *      2. if x < 2^-27 (hx<0x3E400000 0), return 1 with inexact if x!=0.
- *      3. cos(x) is approximated by a polynomial of degree 14 on
- *         [0,pi/4]
- *                                       4            14
- *              cos(x) ~ 1 - x*x/2 + C1*x + ... + C6*x
- *         where the remez error is
- *
- *      |              2     4     6     8     10    12     14 |     -58
- *      |cos(x)-(1-.5*x +C1*x +C2*x +C3*x +C4*x +C5*x  +C6*x  )| <= 2
- *      |                                                      |
- *
- *                     4     6     8     10    12     14
- *      4. let r = C1*x +C2*x +C3*x +C4*x +C5*x  +C6*x  , then
- *             cos(x) = 1 - x*x/2 + r
- *         since cos(x+y) ~ cos(x) - sin(x)*y
- *                        ~ cos(x) - x*y,
- *         a correction term is necessary in cos(x) and hence
- *              cos(x+y) = 1 - (x*x/2 - (r - x*y))
- *         For better accuracy when x > 0.3, let qx = |x|/4 with
- *         the last 32 bits mask off, and if x > 0.78125, let qx = 0.28125.
- *         Then
- *              cos(x+y) = (1-qx) - ((x*x/2-qx) - (r-x*y)).
- *         Note that 1-qx and (x*x/2-qx) is EXACT here, and the
- *         magnitude of the latter is at least a quarter of x*x/2,
- *         thus, reducing the rounding error in the subtraction.
- */
-V8_INLINE double __kernel_cos(double x, double y) {
-  static const double
-      one = 1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
-      C1 = 4.16666666666666019037e-02,  /* 0x3FA55555, 0x5555554C */
-      C2 = -1.38888888888741095749e-03, /* 0xBF56C16C, 0x16C15177 */
-      C3 = 2.48015872894767294178e-05,  /* 0x3EFA01A0, 0x19CB1590 */
-      C4 = -2.75573143513906633035e-07, /* 0xBE927E4F, 0x809C52AD */
-      C5 = 2.08757232129817482790e-09,  /* 0x3E21EE9E, 0xBDB4B1C4 */
-      C6 = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
-
-  double a, iz, z, r, qx;
-  int32_t ix;
-  GET_HIGH_WORD(ix, x);
-  ix &= 0x7FFFFFFF;                           /* ix = |x|'s high word*/
-  if (ix < 0x3E400000) {                      /* if x < 2**27 */
-    if (static_cast<int>(x) == 0) return one; /* generate inexact */
-  }
-  z = x * x;
-  r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
-  if (ix < 0x3FD33333) { /* if |x| < 0.3 */
-    return one - (0.5 * z - (z * r - x * y));
-  } else {
-    if (ix > 0x3FE90000) { /* x > 0.78125 */
-      qx = 0.28125;
-    } else {
-      INSERT_WORDS(qx, ix - 0x00200000, 0); /* x/4 */
-    }
-    iz = 0.5 * z - qx;
-    a = one - qx;
-    return a - (iz - (z * r - x * y));
-  }
-}
-
-/* __kernel_rem_pio2(x,y,e0,nx,prec,ipio2)
- * double x[],y[]; int e0,nx,prec; int ipio2[];
- *
- * __kernel_rem_pio2 return the last three digits of N with
- *              y = x - N*pi/2
- * so that |y| < pi/2.
- *
- * The method is to compute the integer (mod 8) and fraction parts of
- * (2/pi)*x without doing the full multiplication. In general we
- * skip the part of the product that are known to be a huge integer (
- * more accurately, = 0 mod 8 ). Thus the number of operations are
- * independent of the exponent of the input.
- *
- * (2/pi) is represented by an array of 24-bit integers in ipio2[].
- *
- * Input parameters:
- *      x[]     The input value (must be positive) is broken into nx
- *              pieces of 24-bit integers in double precision format.
- *              x[i] will be the i-th 24 bit of x. The scaled exponent
- *              of x[0] is given in input parameter e0 (i.e., x[0]*2^e0
- *              match x's up to 24 bits.
- *
- *              Example of breaking a double positive z into x[0]+x[1]+x[2]:
- *                      e0 = ilogb(z)-23
- *                      z  = scalbn(z,-e0)
- *              for i = 0,1,2
- *                      x[i] = floor(z)
- *                      z    = (z-x[i])*2**24
- *
- *
- *      y[]     output result in an array of double precision numbers.
- *              The dimension of y[] is:
- *                      24-bit  precision       1
- *                      53-bit  precision       2
- *                      64-bit  precision       2
- *                      113-bit precision       3
- *              The actual value is the sum of them. Thus for 113-bit
- *              precison, one may have to do something like:
- *
- *              long double t,w,r_head, r_tail;
- *              t = (long double)y[2] + (long double)y[1];
- *              w = (long double)y[0];
- *              r_head = t+w;
- *              r_tail = w - (r_head - t);
- *
- *      e0      The exponent of x[0]
- *
- *      nx      dimension of x[]
- *
- *      prec    an integer indicating the precision:
- *                      0       24  bits (single)
- *                      1       53  bits (double)
- *                      2       64  bits (extended)
- *                      3       113 bits (quad)
- *
- *      ipio2[]
- *              integer array, contains the (24*i)-th to (24*i+23)-th
- *              bit of 2/pi after binary point. The corresponding
- *              floating value is
- *
- *                      ipio2[i] * 2^(-24(i+1)).
- *
- * External function:
- *      double scalbn(), floor();
- *
- *
- * Here is the description of some local variables:
- *
- *      jk      jk+1 is the initial number of terms of ipio2[] needed
- *              in the computation. The recommended value is 2,3,4,
- *              6 for single, double, extended,and quad.
- *
- *      jz      local integer variable indicating the number of
- *              terms of ipio2[] used.
- *
- *      jx      nx - 1
- *
- *      jv      index for pointing to the suitable ipio2[] for the
- *              computation. In general, we want
- *                      ( 2^e0*x[0] * ipio2[jv-1]*2^(-24jv) )/8
- *              is an integer. Thus
- *                      e0-3-24*jv >= 0 or (e0-3)/24 >= jv
- *              Hence jv = max(0,(e0-3)/24).
- *
- *      jp      jp+1 is the number of terms in PIo2[] needed, jp = jk.
- *
- *      q[]     double array with integral value, representing the
- *              24-bits chunk of the product of x and 2/pi.
- *
- *      q0      the corresponding exponent of q[0]. Note that the
- *              exponent for q[i] would be q0-24*i.
- *
- *      PIo2[]  double precision array, obtained by cutting pi/2
- *              into 24 bits chunks.
- *
- *      f[]     ipio2[] in floating point
- *
- *      iq[]    integer array by breaking up q[] in 24-bits chunk.
- *
- *      fq[]    final product of x*(2/pi) in fq[0],..,fq[jk]
- *
- *      ih      integer. If >0 it indicates q[] is >= 0.5, hence
- *              it also indicates the *sign* of the result.
- *
- */
-int __kernel_rem_pio2(double *x, double *y, int e0, int nx, int prec,
-                      const int32_t *ipio2) {
-  /* Constants:
-   * The hexadecimal values are the intended ones for the following
-   * constants. The decimal values may be used, provided that the
-   * compiler will convert from decimal to binary accurately enough
-   * to produce the hexadecimal values shown.
-   */
-  static const int init_jk[] = {2, 3, 4, 6}; /* initial value for jk */
-
-  static const double PIo2[] = {
-      1.57079625129699707031e+00, /* 0x3FF921FB, 0x40000000 */
-      7.54978941586159635335e-08, /* 0x3E74442D, 0x00000000 */
-      5.39030252995776476554e-15, /* 0x3CF84698, 0x80000000 */
-      3.28200341580791294123e-22, /* 0x3B78CC51, 0x60000000 */
-      1.27065575308067607349e-29, /* 0x39F01B83, 0x80000000 */
-      1.22933308981111328932e-36, /* 0x387A2520, 0x40000000 */
-      2.73370053816464559624e-44, /* 0x36E38222, 0x80000000 */
-      2.16741683877804819444e-51, /* 0x3569F31D, 0x00000000 */
-  };
-
-  static const double
-      zero = 0.0,
-      one = 1.0,
-      two24 = 1.67772160000000000000e+07,  /* 0x41700000, 0x00000000 */
-      twon24 = 5.96046447753906250000e-08; /* 0x3E700000, 0x00000000 */
-
-  int32_t jz, jx, jv, jp, jk, carry, n, iq[20], i, j, k, m, q0, ih;
-  double z, fw, f[20], fq[20], q[20];
-
-  /* initialize jk*/
-  jk = init_jk[prec];
-  jp = jk;
-
-  /* determine jx,jv,q0, note that 3>q0 */
-  jx = nx - 1;
-  jv = (e0 - 3) / 24;
-  if (jv < 0) jv = 0;
-  q0 = e0 - 24 * (jv + 1);
-
-  /* set up f[0] to f[jx+jk] where f[jx+jk] = ipio2[jv+jk] */
-  j = jv - jx;
-  m = jx + jk;
-  for (i = 0; i <= m; i++, j++) {
-    f[i] = (j < 0) ? zero : static_cast<double>(ipio2[j]);
-  }
-
-  /* compute q[0],q[1],...q[jk] */
-  for (i = 0; i <= jk; i++) {
-    for (j = 0, fw = 0.0; j <= jx; j++) fw += x[j] * f[jx + i - j];
-    q[i] = fw;
-  }
-
-  jz = jk;
-recompute:
-  /* distill q[] into iq[] reversingly */
-  for (i = 0, j = jz, z = q[jz]; j > 0; i++, j--) {
-    fw = static_cast<double>(static_cast<int32_t>(twon24 * z));
-    iq[i] = static_cast<int32_t>(z - two24 * fw);
-    z = q[j - 1] + fw;
-  }
-
-  /* compute n */
-  z = scalbn(z, q0);           /* actual value of z */
-  z -= 8.0 * floor(z * 0.125); /* trim off integer >= 8 */
-  n = static_cast<int32_t>(z);
-  z -= static_cast<double>(n);
-  ih = 0;
-  if (q0 > 0) { /* need iq[jz-1] to determine n */
-    i = (iq[jz - 1] >> (24 - q0));
-    n += i;
-    iq[jz - 1] -= i << (24 - q0);
-    ih = iq[jz - 1] >> (23 - q0);
-  } else if (q0 == 0) {
-    ih = iq[jz - 1] >> 23;
-  } else if (z >= 0.5) {
-    ih = 2;
-  }
-
-  if (ih > 0) { /* q > 0.5 */
-    n += 1;
-    carry = 0;
-    for (i = 0; i < jz; i++) { /* compute 1-q */
-      j = iq[i];
-      if (carry == 0) {
-        if (j != 0) {
-          carry = 1;
-          iq[i] = 0x1000000 - j;
-        }
-      } else {
-        iq[i] = 0xFFFFFF - j;
-      }
-    }
-    if (q0 > 0) { /* rare case: chance is 1 in 12 */
-      switch (q0) {
-        case 1:
-          iq[jz - 1] &= 0x7FFFFF;
-          break;
-        case 2:
-          iq[jz - 1] &= 0x3FFFFF;
-          break;
-      }
-    }
-    if (ih == 2) {
-      z = one - z;
-      if (carry != 0) z -= scalbn(one, q0);
-    }
-  }
-
-  /* check if recomputation is needed */
-  if (z == zero) {
-    j = 0;
-    for (i = jz - 1; i >= jk; i--) j |= iq[i];
-    if (j == 0) { /* need recomputation */
-      for (k = 1; jk >= k && iq[jk - k] == 0; k++) {
-        /* k = no. of terms needed */
-      }
-
-      for (i = jz + 1; i <= jz + k; i++) { /* add q[jz+1] to q[jz+k] */
-        f[jx + i] = ipio2[jv + i];
-        for (j = 0, fw = 0.0; j <= jx; j++) fw += x[j] * f[jx + i - j];
-        q[i] = fw;
-      }
-      jz += k;
-      goto recompute;
-    }
-  }
-
-  /* chop off zero terms */
-  if (z == 0.0) {
-    jz -= 1;
-    q0 -= 24;
-    while (iq[jz] == 0) {
-      jz--;
-      q0 -= 24;
-    }
-  } else { /* break z into 24-bit if necessary */
-    z = scalbn(z, -q0);
-    if (z >= two24) {
-      fw = static_cast<double>(static_cast<int32_t>(twon24 * z));
-      iq[jz] = z - two24 * fw;
-      jz += 1;
-      q0 += 24;
-      iq[jz] = fw;
-    } else {
-      iq[jz] = z;
-    }
-  }
-
-  /* convert integer "bit" chunk to floating-point value */
-  fw = scalbn(one, q0);
-  for (i = jz; i >= 0; i--) {
-    q[i] = fw * iq[i];
-    fw *= twon24;
-  }
-
-  /* compute PIo2[0,...,jp]*q[jz,...,0] */
-  for (i = jz; i >= 0; i--) {
-    for (fw = 0.0, k = 0; k <= jp && k <= jz - i; k++) fw += PIo2[k] * q[i + k];
-    fq[jz - i] = fw;
-  }
-
-  /* compress fq[] into y[] */
-  switch (prec) {
-    case 0:
-      fw = 0.0;
-      for (i = jz; i >= 0; i--) fw += fq[i];
-      y[0] = (ih == 0) ? fw : -fw;
-      break;
-    case 1:
-    case 2:
-      fw = 0.0;
-      for (i = jz; i >= 0; i--) fw += fq[i];
-      y[0] = (ih == 0) ? fw : -fw;
-      fw = fq[0] - fw;
-      for (i = 1; i <= jz; i++) fw += fq[i];
-      y[1] = (ih == 0) ? fw : -fw;
-      break;
-    case 3: /* painful */
-      for (i = jz; i > 0; i--) {
-        fw = fq[i - 1] + fq[i];
-        fq[i] += fq[i - 1] - fw;
-        fq[i - 1] = fw;
-      }
-      for (i = jz; i > 1; i--) {
-        fw = fq[i - 1] + fq[i];
-        fq[i] += fq[i - 1] - fw;
-        fq[i - 1] = fw;
-      }
-      for (fw = 0.0, i = jz; i >= 2; i--) fw += fq[i];
-      if (ih == 0) {
-        y[0] = fq[0];
-        y[1] = fq[1];
-        y[2] = fw;
-      } else {
-        y[0] = -fq[0];
-        y[1] = -fq[1];
-        y[2] = -fw;
-      }
-  }
-  return n & 7;
-}
-
-/* __kernel_sin( x, y, iy)
- * kernel sin function on [-pi/4, pi/4], pi/4 ~ 0.7854
- * Input x is assumed to be bounded by ~pi/4 in magnitude.
- * Input y is the tail of x.
- * Input iy indicates whether y is 0. (if iy=0, y assume to be 0).
- *
- * Algorithm
- *      1. Since sin(-x) = -sin(x), we need only to consider positive x.
- *      2. if x < 2^-27 (hx<0x3E400000 0), return x with inexact if x!=0.
- *      3. sin(x) is approximated by a polynomial of degree 13 on
- *         [0,pi/4]
- *                               3            13
- *              sin(x) ~ x + S1*x + ... + S6*x
- *         where
- *
- *      |sin(x)         2     4     6     8     10     12  |     -58
- *      |----- - (1+S1*x +S2*x +S3*x +S4*x +S5*x  +S6*x   )| <= 2
- *      |  x                                               |
- *
- *      4. sin(x+y) = sin(x) + sin'(x')*y
- *                  ~ sin(x) + (1-x*x/2)*y
- *         For better accuracy, let
- *                   3      2      2      2      2
- *              r = x *(S2+x *(S3+x *(S4+x *(S5+x *S6))))
- *         then                   3    2
- *              sin(x) = x + (S1*x + (x *(r-y/2)+y))
- */
-V8_INLINE double __kernel_sin(double x, double y, int iy) {
-  static const double
-      half = 5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
-      S1 = -1.66666666666666324348e-01,  /* 0xBFC55555, 0x55555549 */
-      S2 = 8.33333333332248946124e-03,   /* 0x3F811111, 0x1110F8A6 */
-      S3 = -1.98412698298579493134e-04,  /* 0xBF2A01A0, 0x19C161D5 */
-      S4 = 2.75573137070700676789e-06,   /* 0x3EC71DE3, 0x57B1FE7D */
-      S5 = -2.50507602534068634195e-08,  /* 0xBE5AE5E6, 0x8A2B9CEB */
-      S6 = 1.58969099521155010221e-10;   /* 0x3DE5D93A, 0x5ACFD57C */
-
-  double z, r, v;
-  int32_t ix;
-  GET_HIGH_WORD(ix, x);
-  ix &= 0x7FFFFFFF;      /* high word of x */
-  if (ix < 0x3E400000) { /* |x| < 2**-27 */
-    if (static_cast<int>(x) == 0) return x;
-  } /* generate inexact */
-  z = x * x;
-  v = z * x;
-  r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
-  if (iy == 0) {
-    return x + v * (S1 + z * r);
-  } else {
-    return x - ((z * (half * y - v * r) - y) - v * S1);
-  }
-}
-
-/* __kernel_tan( x, y, k )
- * kernel tan function on [-pi/4, pi/4], pi/4 ~ 0.7854
- * Input x is assumed to be bounded by ~pi/4 in magnitude.
- * Input y is the tail of x.
- * Input k indicates whether tan (if k=1) or
- * -1/tan (if k= -1) is returned.
- *
- * Algorithm
- *      1. Since tan(-x) = -tan(x), we need only to consider positive x.
- *      2. if x < 2^-28 (hx<0x3E300000 0), return x with inexact if x!=0.
- *      3. tan(x) is approximated by an odd polynomial of degree 27 on
- *         [0,0.67434]
- *                               3             27
- *              tan(x) ~ x + T1*x + ... + T13*x
- *         where
- *
- *              |tan(x)         2     4            26   |     -59.2
- *              |----- - (1+T1*x +T2*x +.... +T13*x    )| <= 2
- *              |  x                                    |
- *
- *         Note: tan(x+y) = tan(x) + tan'(x)*y
- *                        ~ tan(x) + (1+x*x)*y
- *         Therefore, for better accuracy in computing tan(x+y), let
- *                   3      2      2       2       2
- *              r = x *(T2+x *(T3+x *(...+x *(T12+x *T13))))
- *         then
- *                                  3    2
- *              tan(x+y) = x + (T1*x + (x *(r+y)+y))
- *
- *      4. For x in [0.67434,pi/4],  let y = pi/4 - x, then
- *              tan(x) = tan(pi/4-y) = (1-tan(y))/(1+tan(y))
- *                     = 1 - 2*(tan(y) - (tan(y)^2)/(1+tan(y)))
- */
-double __kernel_tan(double x, double y, int iy) {
-  static const double xxx[] = {
-      3.33333333333334091986e-01,             /* 3FD55555, 55555563 */
-      1.33333333333201242699e-01,             /* 3FC11111, 1110FE7A */
-      5.39682539762260521377e-02,             /* 3FABA1BA, 1BB341FE */
-      2.18694882948595424599e-02,             /* 3F9664F4, 8406D637 */
-      8.86323982359930005737e-03,             /* 3F8226E3, E96E8493 */
-      3.59207910759131235356e-03,             /* 3F6D6D22, C9560328 */
-      1.45620945432529025516e-03,             /* 3F57DBC8, FEE08315 */
-      5.88041240820264096874e-04,             /* 3F4344D8, F2F26501 */
-      2.46463134818469906812e-04,             /* 3F3026F7, 1A8D1068 */
-      7.81794442939557092300e-05,             /* 3F147E88, A03792A6 */
-      7.14072491382608190305e-05,             /* 3F12B80F, 32F0A7E9 */
-      -1.85586374855275456654e-05,            /* BEF375CB, DB605373 */
-      2.59073051863633712884e-05,             /* 3EFB2A70, 74BF7AD4 */
-      /* one */ 1.00000000000000000000e+00,   /* 3FF00000, 00000000 */
-      /* pio4 */ 7.85398163397448278999e-01,  /* 3FE921FB, 54442D18 */
-      /* pio4lo */ 3.06161699786838301793e-17 /* 3C81A626, 33145C07 */
-  };
-#define one xxx[13]
-#define pio4 xxx[14]
-#define pio4lo xxx[15]
-#define T xxx
-
-  double z, r, v, w, s;
-  int32_t ix, hx;
-
-  GET_HIGH_WORD(hx, x);             /* high word of x */
-  ix = hx & 0x7FFFFFFF;             /* high word of |x| */
-  if (ix < 0x3E300000) {            /* x < 2**-28 */
-    if (static_cast<int>(x) == 0) { /* generate inexact */
-      uint32_t low;
-      GET_LOW_WORD(low, x);
-      if (((ix | low) | (iy + 1)) == 0) {
-        return one / fabs(x);
-      } else {
-        if (iy == 1) {
-          return x;
-        } else { /* compute -1 / (x+y) carefully */
-          double a, t;
-
-          z = w = x + y;
-          SET_LOW_WORD(z, 0);
-          v = y - (z - x);
-          t = a = -one / w;
-          SET_LOW_WORD(t, 0);
-          s = one + t * z;
-          return t + a * (s + t * v);
-        }
-      }
-    }
-  }
-  if (ix >= 0x3FE59428) { /* |x| >= 0.6744 */
-    if (hx < 0) {
-      x = -x;
-      y = -y;
-    }
-    z = pio4 - x;
-    w = pio4lo - y;
-    x = z + w;
-    y = 0.0;
-  }
-  z = x * x;
-  w = z * z;
-  /*
-   * Break x^5*(T[1]+x^2*T[2]+...) into
-   * x^5(T[1]+x^4*T[3]+...+x^20*T[11]) +
-   * x^5(x^2*(T[2]+x^4*T[4]+...+x^22*[T12]))
-   */
-  r = T[1] + w * (T[3] + w * (T[5] + w * (T[7] + w * (T[9] + w * T[11]))));
-  v = z *
-      (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w * T[12])))));
-  s = z * x;
-  r = y + z * (s * (r + v) + y);
-  r += T[0] * s;
-  w = x + r;
-  if (ix >= 0x3FE59428) {
-    v = iy;
-    return (1 - ((hx >> 30) & 2)) * (v - 2.0 * (x - (w * w / (w + v) - r)));
-  }
-  if (iy == 1) {
-    return w;
-  } else {
-    /*
-     * if allow error up to 2 ulp, simply return
-     * -1.0 / (x+r) here
-     */
-    /* compute -1.0 / (x+r) accurately */
-    double a, t;
-    z = w;
-    SET_LOW_WORD(z, 0);
-    v = r - (z - x);  /* z+v = r+x */
-    t = a = -1.0 / w; /* a = -1.0/w */
-    SET_LOW_WORD(t, 0);
-    s = 1.0 + t * z;
-    return t + a * (s + t * v);
-  }
-
-#undef one
-#undef pio4
-#undef pio4lo
-#undef T
-}
-
-}  // namespace
-
 /* acos(x)
  * Method :
  *      acos(x)  = pi/2 - asin(x)
@@ -876,10 +156,11 @@ double acos(double x) {
     uint32_t lx;
     GET_LOW_WORD(lx, x);
     if (((ix - 0x3FF00000) | lx) == 0) { /* |x|==1 */
-      if (hx > 0)
+      if (hx > 0) {
         return 0.0; /* acos(1) = 0  */
-      else
+      } else {
         return pi + 2.0 * pio2_lo; /* acos(-1)= pi */
+      }
     }
     return std::numeric_limits<double>::signaling_NaN();  // acos(|x|>1) is NaN
   }
@@ -1041,10 +322,11 @@ double asin(double x) {
     q = pio4_hi - 2.0 * w;
     t = pio4_hi - (p - q);
   }
-  if (hx > 0)
+  if (hx > 0) {
     return t;
-  else
+  } else {
     return -t;
+  }
 }
 /* asinh(x)
  * Method :
@@ -1144,12 +426,14 @@ double atan(double x) {
   if (ix >= 0x44100000) { /* if |x| >= 2^66 */
     uint32_t low;
     GET_LOW_WORD(low, x);
-    if (ix > 0x7FF00000 || (ix == 0x7FF00000 && (low != 0)))
+    if (ix > 0x7FF00000 || (ix == 0x7FF00000 && (low != 0))) {
       return x + x; /* NaN */
-    if (hx > 0)
+    }
+    if (hx > 0) {
       return atanhi[3] + *const_cast<volatile double*>(&atanlo[3]);
-    else
+    } else {
       return -atanhi[3] - *const_cast<volatile double*>(&atanlo[3]);
+    }
   }
   if (ix < 0x3FDC0000) {            /* |x| < 0.4375 */
     if (ix < 0x3E400000) {          /* |x| < 2^-27 */
@@ -1310,68 +594,12 @@ double atan2(double y, double x) {
   }
 }
 
-/* cos(x)
- * Return cosine function of x.
- *
- * kernel function:
- *      __kernel_sin            ... sine function on [-pi/4,pi/4]
- *      __kernel_cos            ... cosine function on [-pi/4,pi/4]
- *      __ieee754_rem_pio2      ... argument reduction routine
- *
- * Method.
- *      Let S,C and T denote the sin, cos and tan respectively on
- *      [-PI/4, +PI/4]. Reduce the argument x to y1+y2 = x-k*pi/2
- *      in [-pi/4 , +pi/4], and let n = k mod 4.
- *      We have
- *
- *          n        sin(x)      cos(x)        tan(x)
- *     ----------------------------------------------------------
- *          0          S           C             T
- *          1          C          -S            -1/T
- *          2         -S          -C             T
- *          3         -C           S            -1/T
- *     ----------------------------------------------------------
- *
- * Special cases:
- *      Let trig be any of sin, cos, or tan.
- *      trig(+-INF)  is NaN, with signals;
- *      trig(NaN)    is that NaN;
- *
- * Accuracy:
- *      TRIG(x) returns trig(x) nearly rounded
- */
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 double fdlibm_cos(double x) {
 #else
 double cos(double x) {
 #endif
-  double y[2], z = 0.0;
-  int32_t n, ix;
-
-  /* High word of x. */
-  GET_HIGH_WORD(ix, x);
-
-  /* |x| ~< pi/4 */
-  ix &= 0x7FFFFFFF;
-  if (ix <= 0x3FE921FB) {
-    return __kernel_cos(x, z);
-  } else if (ix >= 0x7FF00000) {
-    /* cos(Inf or NaN) is NaN */
-    return x - x;
-  } else {
-    /* argument reduction needed */
-    n = __ieee754_rem_pio2(x, y);
-    switch (n & 3) {
-      case 0:
-        return __kernel_cos(y[0], y[1]);
-      case 1:
-        return -__kernel_sin(y[0], y[1], 1);
-      case 2:
-        return -__kernel_cos(y[0], y[1]);
-      default:
-        return __kernel_sin(y[0], y[1], 1);
-    }
-  }
+  return LIBC_NAMESPACE::shared::cos(x);
 }
 
 /* exp(x)
@@ -1472,10 +700,11 @@ double exp(double x) {
     if (hx >= 0x7FF00000) {
       uint32_t lx;
       GET_LOW_WORD(lx, x);
-      if (((hx & 0xFFFFF) | lx) != 0)
+      if (((hx & 0xFFFFF) | lx) != 0) {
         return x + x; /* NaN */
-      else
+      } else {
         return (xsb == 0) ? x : 0.0; /* exp(+-inf)={inf,0} */
+      }
     }
     if (x > o_threshold) return huge * huge;         /* overflow */
     if (x < u_threshold) return twom1000 * twom1000; /* underflow */
@@ -1571,542 +800,17 @@ double atanh(double x) {
   } else {
     t = 0.5 * log1p((x + x) / (one - x));
   }
-  if (hx >= 0)
+  if (hx >= 0) {
     return t;
-  else
-    return -t;
-}
-
-/* log(x)
- * Return the logrithm of x
- *
- * Method :
- *   1. Argument Reduction: find k and f such that
- *     x = 2^k * (1+f),
- *     where  sqrt(2)/2 < 1+f < sqrt(2) .
- *
- *   2. Approximation of log(1+f).
- *  Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
- *     = 2s + 2/3 s**3 + 2/5 s**5 + .....,
- *         = 2s + s*R
- *      We use a special Reme algorithm on [0,0.1716] to generate
- *  a polynomial of degree 14 to approximate R The maximum error
- *  of this polynomial approximation is bounded by 2**-58.45. In
- *  other words,
- *            2      4      6      8      10      12      14
- *      R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
- *    (the values of Lg1 to Lg7 are listed in the program)
- *  and
- *      |      2          14          |     -58.45
- *      | Lg1*s +...+Lg7*s    -  R(z) | <= 2
- *      |                             |
- *  Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
- *  In order to guarantee error in log below 1ulp, we compute log
- *  by
- *    log(1+f) = f - s*(f - R)  (if f is not too large)
- *    log(1+f) = f - (hfsq - s*(hfsq+R)). (better accuracy)
- *
- *  3. Finally,  log(x) = k*ln2 + log(1+f).
- *          = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
- *     Here ln2 is split into two floating point number:
- *      ln2_hi + ln2_lo,
- *     where n*ln2_hi is always exact for |n| < 2000.
- *
- * Special cases:
- *  log(x) is NaN with signal if x < 0 (including -INF) ;
- *  log(+INF) is +INF; log(0) is -INF with signal;
- *  log(NaN) is that NaN with no signal.
- *
- * Accuracy:
- *  according to an error analysis, the error is always less than
- *  1 ulp (unit in the last place).
- *
- * Constants:
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
- * to produce the hexadecimal values shown.
- */
-double log(double x) {
-  static const double                      /* -- */
-      ln2_hi = 6.93147180369123816490e-01, /* 3fe62e42 fee00000 */
-      ln2_lo = 1.90821492927058770002e-10, /* 3dea39ef 35793c76 */
-      two54 = 1.80143985094819840000e+16,  /* 43500000 00000000 */
-      Lg1 = 6.666666666666735130e-01,      /* 3FE55555 55555593 */
-      Lg2 = 3.999999999940941908e-01,      /* 3FD99999 9997FA04 */
-      Lg3 = 2.857142874366239149e-01,      /* 3FD24924 94229359 */
-      Lg4 = 2.222219843214978396e-01,      /* 3FCC71C5 1D8E78AF */
-      Lg5 = 1.818357216161805012e-01,      /* 3FC74664 96CB03DE */
-      Lg6 = 1.531383769920937332e-01,      /* 3FC39A09 D078C69F */
-      Lg7 = 1.479819860511658591e-01;      /* 3FC2F112 DF3E5244 */
-
-  static const double zero = 0.0;
-
-  double hfsq, f, s, z, R, w, t1, t2, dk;
-  int32_t k, hx, i, j;
-  uint32_t lx;
-
-  EXTRACT_WORDS(hx, lx, x);
-
-  k = 0;
-  if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7FFFFFFF) | lx) == 0) {
-      return -std::numeric_limits<double>::infinity(); /* log(+-0)=-inf */
-    }
-    if (hx < 0) {
-      return std::numeric_limits<double>::signaling_NaN(); /* log(-#) = NaN */
-    }
-    k -= 54;
-    x *= two54; /* subnormal number, scale up x */
-    GET_HIGH_WORD(hx, x);
-  }
-  if (hx >= 0x7FF00000) return x + x;
-  k += (hx >> 20) - 1023;
-  hx &= 0x000FFFFF;
-  i = (hx + 0x95F64) & 0x100000;
-  SET_HIGH_WORD(x, hx | (i ^ 0x3FF00000)); /* normalize x or x/2 */
-  k += (i >> 20);
-  f = x - 1.0;
-  if ((0x000FFFFF & (2 + hx)) < 3) { /* -2**-20 <= f < 2**-20 */
-    if (f == zero) {
-      if (k == 0) {
-        return zero;
-      } else {
-        dk = static_cast<double>(k);
-        return dk * ln2_hi + dk * ln2_lo;
-      }
-    }
-    R = f * f * (0.5 - 0.33333333333333333 * f);
-    if (k == 0) {
-      return f - R;
-    } else {
-      dk = static_cast<double>(k);
-      return dk * ln2_hi - ((R - dk * ln2_lo) - f);
-    }
-  }
-  s = f / (2.0 + f);
-  dk = static_cast<double>(k);
-  z = s * s;
-  i = hx - 0x6147A;
-  w = z * z;
-  j = 0x6B851 - hx;
-  t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
-  t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
-  i |= j;
-  R = t2 + t1;
-  if (i > 0) {
-    hfsq = 0.5 * f * f;
-    if (k == 0)
-      return f - (hfsq - s * (hfsq + R));
-    else
-      return dk * ln2_hi - ((hfsq - (s * (hfsq + R) + dk * ln2_lo)) - f);
   } else {
-    if (k == 0)
-      return f - s * (f - R);
-    else
-      return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f);
+    return -t;
   }
 }
 
-/* double log1p(double x)
- *
- * Method :
- *   1. Argument Reduction: find k and f such that
- *      1+x = 2^k * (1+f),
- *     where  sqrt(2)/2 < 1+f < sqrt(2) .
- *
- *      Note. If k=0, then f=x is exact. However, if k!=0, then f
- *  may not be representable exactly. In that case, a correction
- *  term is need. Let u=1+x rounded. Let c = (1+x)-u, then
- *  log(1+x) - log(u) ~ c/u. Thus, we proceed to compute log(u),
- *  and add back the correction term c/u.
- *  (Note: when x > 2**53, one can simply return log(x))
- *
- *   2. Approximation of log1p(f).
- *  Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
- *     = 2s + 2/3 s**3 + 2/5 s**5 + .....,
- *         = 2s + s*R
- *      We use a special Reme algorithm on [0,0.1716] to generate
- *  a polynomial of degree 14 to approximate R The maximum error
- *  of this polynomial approximation is bounded by 2**-58.45. In
- *  other words,
- *            2      4      6      8      10      12      14
- *      R(z) ~ Lp1*s +Lp2*s +Lp3*s +Lp4*s +Lp5*s  +Lp6*s  +Lp7*s
- *    (the values of Lp1 to Lp7 are listed in the program)
- *  and
- *      |      2          14          |     -58.45
- *      | Lp1*s +...+Lp7*s    -  R(z) | <= 2
- *      |                             |
- *  Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
- *  In order to guarantee error in log below 1ulp, we compute log
- *  by
- *    log1p(f) = f - (hfsq - s*(hfsq+R)).
- *
- *  3. Finally, log1p(x) = k*ln2 + log1p(f).
- *           = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
- *     Here ln2 is split into two floating point number:
- *      ln2_hi + ln2_lo,
- *     where n*ln2_hi is always exact for |n| < 2000.
- *
- * Special cases:
- *  log1p(x) is NaN with signal if x < -1 (including -INF) ;
- *  log1p(+INF) is +INF; log1p(-1) is -INF with signal;
- *  log1p(NaN) is that NaN with no signal.
- *
- * Accuracy:
- *  according to an error analysis, the error is always less than
- *  1 ulp (unit in the last place).
- *
- * Constants:
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
- * to produce the hexadecimal values shown.
- *
- * Note: Assuming log() return accurate answer, the following
- *   algorithm can be used to compute log1p(x) to within a few ULP:
- *
- *    u = 1+x;
- *    if(u==1.0) return x ; else
- *         return log(u)*(x/(u-1.0));
- *
- *   See HP-15C Advanced Functions Handbook, p.193.
- */
-double log1p(double x) {
-  static const double                      /* -- */
-      ln2_hi = 6.93147180369123816490e-01, /* 3fe62e42 fee00000 */
-      ln2_lo = 1.90821492927058770002e-10, /* 3dea39ef 35793c76 */
-      two54 = 1.80143985094819840000e+16,  /* 43500000 00000000 */
-      Lp1 = 6.666666666666735130e-01,      /* 3FE55555 55555593 */
-      Lp2 = 3.999999999940941908e-01,      /* 3FD99999 9997FA04 */
-      Lp3 = 2.857142874366239149e-01,      /* 3FD24924 94229359 */
-      Lp4 = 2.222219843214978396e-01,      /* 3FCC71C5 1D8E78AF */
-      Lp5 = 1.818357216161805012e-01,      /* 3FC74664 96CB03DE */
-      Lp6 = 1.531383769920937332e-01,      /* 3FC39A09 D078C69F */
-      Lp7 = 1.479819860511658591e-01;      /* 3FC2F112 DF3E5244 */
-
-  static const double zero = 0.0;
-
-  double hfsq, f, c, s, z, R, u;
-  int32_t k, hx, hu, ax;
-
-  GET_HIGH_WORD(hx, x);
-  ax = hx & 0x7FFFFFFF;
-
-  k = 1;
-  if (hx < 0x3FDA827A) {    /* 1+x < sqrt(2)+ */
-    if (ax >= 0x3FF00000) { /* x <= -1.0 */
-      if (x == -1.0)
-        return -std::numeric_limits<double>::infinity(); /* log1p(-1)=+inf */
-      else
-        return std::numeric_limits<double>::signaling_NaN();  // log1p(x<-1)=NaN
-    }
-    if (ax < 0x3E200000) {    /* |x| < 2**-29 */
-      if (two54 + x > zero    /* raise inexact */
-          && ax < 0x3C900000) /* |x| < 2**-54 */
-        return x;
-      else
-        return x - x * x * 0.5;
-    }
-    if (hx > 0 || hx <= static_cast<int32_t>(0xBFD2BEC4)) {
-      k = 0;
-      f = x;
-      hu = 1;
-    } /* sqrt(2)/2- <= 1+x < sqrt(2)+ */
-  }
-  if (hx >= 0x7FF00000) return x + x;
-  if (k != 0) {
-    if (hx < 0x43400000) {
-      u = 1.0 + x;
-      GET_HIGH_WORD(hu, u);
-      k = (hu >> 20) - 1023;
-      c = (k > 0) ? 1.0 - (u - x) : x - (u - 1.0); /* correction term */
-      c /= u;
-    } else {
-      u = x;
-      GET_HIGH_WORD(hu, u);
-      k = (hu >> 20) - 1023;
-      c = 0;
-    }
-    hu &= 0x000FFFFF;
-    /*
-     * The approximation to sqrt(2) used in thresholds is not
-     * critical.  However, the ones used above must give less
-     * strict bounds than the one here so that the k==0 case is
-     * never reached from here, since here we have committed to
-     * using the correction term but don't use it if k==0.
-     */
-    if (hu < 0x6A09E) {                  /* u ~< sqrt(2) */
-      SET_HIGH_WORD(u, hu | 0x3FF00000); /* normalize u */
-    } else {
-      k += 1;
-      SET_HIGH_WORD(u, hu | 0x3FE00000); /* normalize u/2 */
-      hu = (0x00100000 - hu) >> 2;
-    }
-    f = u - 1.0;
-  }
-  hfsq = 0.5 * f * f;
-  if (hu == 0) { /* |f| < 2**-20 */
-    if (f == zero) {
-      if (k == 0) {
-        return zero;
-      } else {
-        c += k * ln2_lo;
-        return k * ln2_hi + c;
-      }
-    }
-    R = hfsq * (1.0 - 0.66666666666666666 * f);
-    if (k == 0)
-      return f - R;
-    else
-      return k * ln2_hi - ((R - (k * ln2_lo + c)) - f);
-  }
-  s = f / (2.0 + f);
-  z = s * s;
-  R = z * (Lp1 +
-           z * (Lp2 + z * (Lp3 + z * (Lp4 + z * (Lp5 + z * (Lp6 + z * Lp7))))));
-  if (k == 0)
-    return f - (hfsq - s * (hfsq + R));
-  else
-    return k * ln2_hi - ((hfsq - (s * (hfsq + R) + (k * ln2_lo + c))) - f);
-}
-
-/*
- * k_log1p(f):
- * Return log(1+f) - f for 1+f in ~[sqrt(2)/2, sqrt(2)].
- *
- * The following describes the overall strategy for computing
- * logarithms in base e.  The argument reduction and adding the final
- * term of the polynomial are done by the caller for increased accuracy
- * when different bases are used.
- *
- * Method :
- *   1. Argument Reduction: find k and f such that
- *         x = 2^k * (1+f),
- *         where  sqrt(2)/2 < 1+f < sqrt(2) .
- *
- *   2. Approximation of log(1+f).
- *      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
- *            = 2s + 2/3 s**3 + 2/5 s**5 + .....,
- *            = 2s + s*R
- *      We use a special Reme algorithm on [0,0.1716] to generate
- *      a polynomial of degree 14 to approximate R The maximum error
- *      of this polynomial approximation is bounded by 2**-58.45. In
- *      other words,
- *          2      4      6      8      10      12      14
- *          R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
- *      (the values of Lg1 to Lg7 are listed in the program)
- *      and
- *          |      2          14          |     -58.45
- *          | Lg1*s +...+Lg7*s    -  R(z) | <= 2
- *          |                             |
- *      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
- *      In order to guarantee error in log below 1ulp, we compute log
- *      by
- *          log(1+f) = f - s*(f - R)            (if f is not too large)
- *          log(1+f) = f - (hfsq - s*(hfsq+R)). (better accuracy)
- *
- *   3. Finally,  log(x) = k*ln2 + log(1+f).
- *          = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
- *      Here ln2 is split into two floating point number:
- *          ln2_hi + ln2_lo,
- *      where n*ln2_hi is always exact for |n| < 2000.
- *
- * Special cases:
- *      log(x) is NaN with signal if x < 0 (including -INF) ;
- *      log(+INF) is +INF; log(0) is -INF with signal;
- *      log(NaN) is that NaN with no signal.
- *
- * Accuracy:
- *      according to an error analysis, the error is always less than
- *      1 ulp (unit in the last place).
- *
- * Constants:
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
- * to produce the hexadecimal values shown.
- */
-
-static const double Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
-    Lg2 = 3.999999999940941908e-01,                 /* 3FD99999 9997FA04 */
-    Lg3 = 2.857142874366239149e-01,                 /* 3FD24924 94229359 */
-    Lg4 = 2.222219843214978396e-01,                 /* 3FCC71C5 1D8E78AF */
-    Lg5 = 1.818357216161805012e-01,                 /* 3FC74664 96CB03DE */
-    Lg6 = 1.531383769920937332e-01,                 /* 3FC39A09 D078C69F */
-    Lg7 = 1.479819860511658591e-01;                 /* 3FC2F112 DF3E5244 */
-
-/*
- * We always inline k_log1p(), since doing so produces a
- * substantial performance improvement (~40% on amd64).
- */
-static inline double k_log1p(double f) {
-  double hfsq, s, z, R, w, t1, t2;
-
-  s = f / (2.0 + f);
-  z = s * s;
-  w = z * z;
-  t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
-  t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
-  R = t2 + t1;
-  hfsq = 0.5 * f * f;
-  return s * (hfsq + R);
-}
-
-/*
- * Return the base 2 logarithm of x.  See e_log.c and k_log.h for most
- * comments.
- *
- * This reduces x to {k, 1+f} exactly as in e_log.c, then calls the kernel,
- * then does the combining and scaling steps
- *    log2(x) = (f - 0.5*f*f + k_log1p(f)) / ln2 + k
- * in not-quite-routine extra precision.
- */
-double log2(double x) {
-  static const double
-      two54 = 1.80143985094819840000e+16,   /* 0x43500000, 0x00000000 */
-      ivln2hi = 1.44269504072144627571e+00, /* 0x3FF71547, 0x65200000 */
-      ivln2lo = 1.67517131648865118353e-10; /* 0x3DE705FC, 0x2EEFA200 */
-
-  double f, hfsq, hi, lo, r, val_hi, val_lo, w, y;
-  int32_t i, k, hx;
-  uint32_t lx;
-
-  EXTRACT_WORDS(hx, lx, x);
-
-  k = 0;
-  if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7FFFFFFF) | lx) == 0) {
-      return -std::numeric_limits<double>::infinity(); /* log(+-0)=-inf */
-    }
-    if (hx < 0) {
-      return std::numeric_limits<double>::signaling_NaN(); /* log(-#) = NaN */
-    }
-    k -= 54;
-    x *= two54; /* subnormal number, scale up x */
-    GET_HIGH_WORD(hx, x);
-  }
-  if (hx >= 0x7FF00000) return x + x;
-  if (hx == 0x3FF00000 && lx == 0) return 0.0; /* log(1) = +0 */
-  k += (hx >> 20) - 1023;
-  hx &= 0x000FFFFF;
-  i = (hx + 0x95F64) & 0x100000;
-  SET_HIGH_WORD(x, hx | (i ^ 0x3FF00000)); /* normalize x or x/2 */
-  k += (i >> 20);
-  y = static_cast<double>(k);
-  f = x - 1.0;
-  hfsq = 0.5 * f * f;
-  r = k_log1p(f);
-
-  /*
-   * f-hfsq must (for args near 1) be evaluated in extra precision
-   * to avoid a large cancellation when x is near sqrt(2) or 1/sqrt(2).
-   * This is fairly efficient since f-hfsq only depends on f, so can
-   * be evaluated in parallel with R.  Not combining hfsq with R also
-   * keeps R small (though not as small as a true `lo' term would be),
-   * so that extra precision is not needed for terms involving R.
-   *
-   * Compiler bugs involving extra precision used to break Dekker's
-   * theorem for spitting f-hfsq as hi+lo, unless double_t was used
-   * or the multi-precision calculations were avoided when double_t
-   * has extra precision.  These problems are now automatically
-   * avoided as a side effect of the optimization of combining the
-   * Dekker splitting step with the clear-low-bits step.
-   *
-   * y must (for args near sqrt(2) and 1/sqrt(2)) be added in extra
-   * precision to avoid a very large cancellation when x is very near
-   * these values.  Unlike the above cancellations, this problem is
-   * specific to base 2.  It is strange that adding +-1 is so much
-   * harder than adding +-ln2 or +-log10_2.
-   *
-   * This uses Dekker's theorem to normalize y+val_hi, so the
-   * compiler bugs are back in some configurations, sigh.  And I
-   * don't want to used double_t to avoid them, since that gives a
-   * pessimization and the support for avoiding the pessimization
-   * is not yet available.
-   *
-   * The multi-precision calculations for the multiplications are
-   * routine.
-   */
-  hi = f - hfsq;
-  SET_LOW_WORD(hi, 0);
-  lo = (f - hi) - hfsq + r;
-  val_hi = hi * ivln2hi;
-  val_lo = (lo + hi) * ivln2lo + lo * ivln2hi;
-
-  /* spadd(val_hi, val_lo, y), except for not using double_t: */
-  w = y + val_hi;
-  val_lo += (y - w) + val_hi;
-  val_hi = w;
-
-  return val_lo + val_hi;
-}
-
-/*
- * Return the base 10 logarithm of x
- *
- * Method :
- *      Let log10_2hi = leading 40 bits of log10(2) and
- *          log10_2lo = log10(2) - log10_2hi,
- *          ivln10   = 1/log(10) rounded.
- *      Then
- *              n = ilogb(x),
- *              if(n<0)  n = n+1;
- *              x = scalbn(x,-n);
- *              log10(x) := n*log10_2hi + (n*log10_2lo + ivln10*log(x))
- *
- *  Note 1:
- *     To guarantee log10(10**n)=n, where 10**n is normal, the rounding
- *     mode must set to Round-to-Nearest.
- *  Note 2:
- *      [1/log(10)] rounded to 53 bits has error .198 ulps;
- *      log10 is monotonic at all binary break points.
- *
- *  Special cases:
- *      log10(x) is NaN if x < 0;
- *      log10(+INF) is +INF; log10(0) is -INF;
- *      log10(NaN) is that NaN;
- *      log10(10**N) = N  for N=0,1,...,22.
- */
-double log10(double x) {
-  static const double
-      two54 = 1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
-      ivln10 = 4.34294481903251816668e-01,
-      log10_2hi = 3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
-      log10_2lo = 3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
-
-  double y;
-  int32_t i, k, hx;
-  uint32_t lx;
-
-  EXTRACT_WORDS(hx, lx, x);
-
-  k = 0;
-  if (hx < 0x00100000) { /* x < 2**-1022  */
-    if (((hx & 0x7FFFFFFF) | lx) == 0) {
-      return -std::numeric_limits<double>::infinity(); /* log(+-0)=-inf */
-    }
-    if (hx < 0) {
-      return std::numeric_limits<double>::quiet_NaN(); /* log(-#) = NaN */
-    }
-    k -= 54;
-    x *= two54; /* subnormal number, scale up x */
-    GET_HIGH_WORD(hx, x);
-    GET_LOW_WORD(lx, x);
-  }
-  if (hx >= 0x7FF00000) return x + x;
-  if (hx == 0x3FF00000 && lx == 0) return 0.0; /* log(1) = +0 */
-  k += (hx >> 20) - 1023;
-
-  i = (k & 0x80000000) >> 31;
-  hx = (hx & 0x000FFFFF) | ((0x3FF - i) << 20);
-  y = k + i;
-  SET_HIGH_WORD(x, hx);
-  SET_LOW_WORD(x, lx);
-
-  double z = y * log10_2lo + ivln10 * log(x);
-  return z + y * log10_2hi;
-}
+double log(double x) { return LIBC_NAMESPACE::shared::log(x); }
+double log1p(double x) { return LIBC_NAMESPACE::shared::log1p(x); }
+double log2(double x) { return LIBC_NAMESPACE::shared::log2(x); }
+double log10(double x) { return LIBC_NAMESPACE::shared::log10(x); }
 
 /* expm1(x)
  * Returns exp(x)-1, the exponential of x minus 1.
@@ -2234,16 +938,18 @@ double expm1(double x) {
       if (hx >= 0x7FF00000) {
         uint32_t low;
         GET_LOW_WORD(low, x);
-        if (((hx & 0xFFFFF) | low) != 0)
+        if (((hx & 0xFFFFF) | low) != 0) {
           return x + x; /* NaN */
-        else
+        } else {
           return (xsb == 0) ? x : -1.0; /* exp(+-inf)={inf,-1} */
+        }
       }
       if (x > o_threshold) return huge * huge; /* overflow */
     }
     if (xsb != 0) {        /* x < -56*ln2, return -1.0 with inexact */
-      if (x + tiny < 0.0)  /* raise inexact */
+      if (x + tiny < 0.0) { /* raise inexact */
         return tiny - one; /* return -1 */
+      }
     }
   }
 
@@ -2291,20 +997,22 @@ double expm1(double x) {
     e -= hxs;
     if (k == -1) return 0.5 * (x - e) - 0.5;
     if (k == 1) {
-      if (x < -0.25)
+      if (x < -0.25) {
         return -2.0 * (e - (x + 0.5));
-      else
+      } else {
         return one + 2.0 * (x - e);
+      }
     }
     if (k <= -2 || k > 56) { /* suffice to return exp(x)-1 */
       y = one - (e - x);
       // TODO(mvstanton): is this replacement for the hex float
       // sufficient?
       // if (k == 1024) y = y*2.0*0x1p1023;
-      if (k == 1024)
+      if (k == 1024) {
         y = y * 2.0 * 8.98846567431158e+307;
-      else
+      } else {
         y = y * twopk;
+      }
       return y - one;
     }
     t = one;
@@ -2322,204 +1030,17 @@ double expm1(double x) {
   return y;
 }
 
-double cbrt(double x) {
-  static const uint32_t
-      B1 = 715094163, /* B1 = (1023-1023/3-0.03306235651)*2**20 */
-      B2 = 696219795; /* B2 = (1023-1023/3-54/3-0.03306235651)*2**20 */
+double cbrt(double x) { return LIBC_NAMESPACE::shared::cbrt(x); }
 
-  /* |1/cbrt(x) - p(x)| < 2**-23.5 (~[-7.93e-8, 7.929e-8]). */
-  static const double P0 = 1.87595182427177009643, /* 0x3FFE03E6, 0x0F61E692 */
-      P1 = -1.88497979543377169875,                /* 0xBFFE28E0, 0x92F02420 */
-      P2 = 1.621429720105354466140,                /* 0x3FF9F160, 0x4A49D6C2 */
-      P3 = -0.758397934778766047437,               /* 0xBFE844CB, 0xBEE751D9 */
-      P4 = 0.145996192886612446982;                /* 0x3FC2B000, 0xD4E4EDD7 */
-
-  int32_t hx;
-  double r, s, t = 0.0, w;
-  uint32_t sign;
-  uint32_t high, low;
-
-  EXTRACT_WORDS(hx, low, x);
-  sign = hx & 0x80000000; /* sign= sign(x) */
-  hx ^= sign;
-  if (hx >= 0x7FF00000) return (x + x); /* cbrt(NaN,INF) is itself */
-
-  /*
-   * Rough cbrt to 5 bits:
-   *    cbrt(2**e*(1+m) ~= 2**(e/3)*(1+(e%3+m)/3)
-   * where e is integral and >= 0, m is real and in [0, 1), and "/" and
-   * "%" are integer division and modulus with rounding towards minus
-   * infinity.  The RHS is always >= the LHS and has a maximum relative
-   * error of about 1 in 16.  Adding a bias of -0.03306235651 to the
-   * (e%3+m)/3 term reduces the error to about 1 in 32. With the IEEE
-   * floating point representation, for finite positive normal values,
-   * ordinary integer division of the value in bits magically gives
-   * almost exactly the RHS of the above provided we first subtract the
-   * exponent bias (1023 for doubles) and later add it back.  We do the
-   * subtraction virtually to keep e >= 0 so that ordinary integer
-   * division rounds towards minus infinity; this is also efficient.
-   */
-  if (hx < 0x00100000) {             /* zero or subnormal? */
-    if ((hx | low) == 0) return (x); /* cbrt(0) is itself */
-    SET_HIGH_WORD(t, 0x43500000);    /* set t= 2**54 */
-    t *= x;
-    GET_HIGH_WORD(high, t);
-    INSERT_WORDS(t, sign | ((high & 0x7FFFFFFF) / 3 + B2), 0);
-  } else {
-    INSERT_WORDS(t, sign | (hx / 3 + B1), 0);
-  }
-
-  /*
-   * New cbrt to 23 bits:
-   *    cbrt(x) = t*cbrt(x/t**3) ~= t*P(t**3/x)
-   * where P(r) is a polynomial of degree 4 that approximates 1/cbrt(r)
-   * to within 2**-23.5 when |r - 1| < 1/10.  The rough approximation
-   * has produced t such than |t/cbrt(x) - 1| ~< 1/32, and cubing this
-   * gives us bounds for r = t**3/x.
-   *
-   * Try to optimize for parallel evaluation as in k_tanf.c.
-   */
-  r = (t * t) * (t / x);
-  t = t * ((P0 + r * (P1 + r * P2)) + ((r * r) * r) * (P3 + r * P4));
-
-  /*
-   * Round t away from zero to 23 bits (sloppily except for ensuring that
-   * the result is larger in magnitude than cbrt(x) but not much more than
-   * 2 23-bit ulps larger).  With rounding towards zero, the error bound
-   * would be ~5/6 instead of ~4/6.  With a maximum error of 2 23-bit ulps
-   * in the rounded t, the infinite-precision error in the Newton
-   * approximation barely affects third digit in the final error
-   * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
-   * before the final error is larger than 0.667 ulps.
-   */
-  uint64_t bits = base::bit_cast<uint64_t>(t);
-  bits = (bits + 0x80000000) & 0xFFFFFFFFC0000000ULL;
-  t = base::bit_cast<double>(bits);
-
-  /* one step Newton iteration to 53 bits with error < 0.667 ulps */
-  s = t * t;             /* t*t is exact */
-  r = x / s;             /* error <= 0.5 ulps; |r| < |t| */
-  w = t + t;             /* t+t is exact */
-  r = (r - t) / (w + r); /* r-t is exact; w+r ~= 3*t */
-  t = t + t * r;         /* error <= 0.5 + 0.5/3 + epsilon */
-
-  return (t);
-}
-
-/* sin(x)
- * Return sine function of x.
- *
- * kernel function:
- *      __kernel_sin            ... sine function on [-pi/4,pi/4]
- *      __kernel_cos            ... cose function on [-pi/4,pi/4]
- *      __ieee754_rem_pio2      ... argument reduction routine
- *
- * Method.
- *      Let S,C and T denote the sin, cos and tan respectively on
- *      [-PI/4, +PI/4]. Reduce the argument x to y1+y2 = x-k*pi/2
- *      in [-pi/4 , +pi/4], and let n = k mod 4.
- *      We have
- *
- *          n        sin(x)      cos(x)        tan(x)
- *     ----------------------------------------------------------
- *          0          S           C             T
- *          1          C          -S            -1/T
- *          2         -S          -C             T
- *          3         -C           S            -1/T
- *     ----------------------------------------------------------
- *
- * Special cases:
- *      Let trig be any of sin, cos, or tan.
- *      trig(+-INF)  is NaN, with signals;
- *      trig(NaN)    is that NaN;
- *
- * Accuracy:
- *      TRIG(x) returns trig(x) nearly rounded
- */
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 double fdlibm_sin(double x) {
 #else
 double sin(double x) {
 #endif
-  double y[2], z = 0.0;
-  int32_t n, ix;
-
-  /* High word of x. */
-  GET_HIGH_WORD(ix, x);
-
-  /* |x| ~< pi/4 */
-  ix &= 0x7FFFFFFF;
-  if (ix <= 0x3FE921FB) {
-    return __kernel_sin(x, z, 0);
-  } else if (ix >= 0x7FF00000) {
-    /* sin(Inf or NaN) is NaN */
-    return x - x;
-  } else {
-    /* argument reduction needed */
-    n = __ieee754_rem_pio2(x, y);
-    switch (n & 3) {
-      case 0:
-        return __kernel_sin(y[0], y[1], 1);
-      case 1:
-        return __kernel_cos(y[0], y[1]);
-      case 2:
-        return -__kernel_sin(y[0], y[1], 1);
-      default:
-        return -__kernel_cos(y[0], y[1]);
-    }
-  }
+  return LIBC_NAMESPACE::shared::sin(x);
 }
 
-/* tan(x)
- * Return tangent function of x.
- *
- * kernel function:
- *      __kernel_tan            ... tangent function on [-pi/4,pi/4]
- *      __ieee754_rem_pio2      ... argument reduction routine
- *
- * Method.
- *      Let S,C and T denote the sin, cos and tan respectively on
- *      [-PI/4, +PI/4]. Reduce the argument x to y1+y2 = x-k*pi/2
- *      in [-pi/4 , +pi/4], and let n = k mod 4.
- *      We have
- *
- *          n        sin(x)      cos(x)        tan(x)
- *     ----------------------------------------------------------
- *          0          S           C             T
- *          1          C          -S            -1/T
- *          2         -S          -C             T
- *          3         -C           S            -1/T
- *     ----------------------------------------------------------
- *
- * Special cases:
- *      Let trig be any of sin, cos, or tan.
- *      trig(+-INF)  is NaN, with signals;
- *      trig(NaN)    is that NaN;
- *
- * Accuracy:
- *      TRIG(x) returns trig(x) nearly rounded
- */
-double tan(double x) {
-  double y[2], z = 0.0;
-  int32_t n, ix;
-
-  /* High word of x. */
-  GET_HIGH_WORD(ix, x);
-
-  /* |x| ~< pi/4 */
-  ix &= 0x7FFFFFFF;
-  if (ix <= 0x3FE921FB) {
-    return __kernel_tan(x, z, 1);
-  } else if (ix >= 0x7FF00000) {
-    /* tan(Inf or NaN) is NaN */
-    return x - x; /* NaN */
-  } else {
-    /* argument reduction needed */
-    n = __ieee754_rem_pio2(x, y);
-    /* 1 -> n even, -1 -> n odd */
-    return __kernel_tan(y[0], y[1], 1 - ((n & 1) << 1));
-  }
-}
+double tan(double x) { return LIBC_NAMESPACE::shared::tan(x); }
 
 /*
  * ES6 draft 09-27-13, section 20.2.2.12.
@@ -2952,71 +1473,14 @@ double sinh(double x) {
   return x * shuge;
 }
 
-/* Tanh(x)
- * Return the Hyperbolic Tangent of x
- *
- * Method :
- *                                 x    -x
- *                                e  - e
- *  0. tanh(x) is defined to be -----------
- *                                 x    -x
- *                                e  + e
- *  1. reduce x to non-negative by tanh(-x) = -tanh(x).
- *  2.  0      <= x <  2**-28 : tanh(x) := x with inexact if x != 0
- *                                          -t
- *      2**-28 <= x <  1      : tanh(x) := -----; t = expm1(-2x)
- *                                         t + 2
- *                                               2
- *      1      <= x <  22     : tanh(x) := 1 - -----; t = expm1(2x)
- *                                             t + 2
- *      22     <= x <= INF    : tanh(x) := 1.
- *
- * Special cases:
- *      tanh(NaN) is NaN;
- *      only tanh(0)=0 is exact for finite argument.
- */
-double tanh(double x) {
-  static const volatile double tiny = 1.0e-300;
-  static const double one = 1.0, two = 2.0, huge = 1.0e300;
-  double t, z;
-  int32_t jx, ix;
-
-  GET_HIGH_WORD(jx, x);
-  ix = jx & 0x7FFFFFFF;
-
-  /* x is INF or NaN */
-  if (ix >= 0x7FF00000) {
-    if (jx >= 0)
-      return one / x + one; /* tanh(+-inf)=+-1 */
-    else
-      return one / x - one; /* tanh(NaN) = NaN */
-  }
-
-  /* |x| < 22 */
-  if (ix < 0x40360000) {            /* |x|<22 */
-    if (ix < 0x3E300000) {          /* |x|<2**-28 */
-      if (huge + x > one) return x; /* tanh(tiny) = tiny with inexact */
-    }
-    if (ix >= 0x3FF00000) { /* |x|>=1  */
-      t = expm1(two * fabs(x));
-      z = one - two / (t + two);
-    } else {
-      t = expm1(-two * fabs(x));
-      z = -t / (t + two);
-    }
-    /* |x| >= 22, return +-1 */
-  } else {
-    z = one - tiny; /* raise inexact flag */
-  }
-  return (jx >= 0) ? z : -z;
-}
-
 #undef EXTRACT_WORDS
 #undef GET_HIGH_WORD
 #undef GET_LOW_WORD
 #undef INSERT_WORDS
 #undef SET_HIGH_WORD
 #undef SET_LOW_WORD
+
+double tanh(double x) { return std::tanh(x); }
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS) && defined(BUILDING_V8_BASE_SHARED)
 double libm_sin(double x) { return glibc_sin(x); }

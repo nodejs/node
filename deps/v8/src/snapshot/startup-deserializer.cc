@@ -8,10 +8,12 @@
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-inl.h"  // Because spaces-inl.h is disallowed by DEPS.
 #include "src/heap/paged-spaces-inl.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
-#include "src/objects/oddball.h"
+#include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {
@@ -91,9 +93,9 @@ void StartupDeserializer::DeserializeIntoIsolate() {
   if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
     // ATTENTION: The Memory.json benchmark greps for this exact output. Do not
     // change it without also updating Memory.json.
-    const int bytes = source()->length();
+    const size_t bytes = source()->length();
     const double ms = timer.Elapsed().InMillisecondsF();
-    PrintF("[Deserializing isolate (%d bytes) took %0.3f ms]\n", bytes, ms);
+    PrintF("[Deserializing isolate (%zu bytes) took %0.3f ms]\n", bytes, ms);
   }
 }
 
@@ -116,6 +118,9 @@ void StartupDeserializer::LogNewMapEvents() {
 void StartupDeserializer::FlushICache() {
   DCHECK(!deserializing_user_code());
   // The entire isolate is newly deserialized. Simply flush all code pages.
+  // Note: This loop needs PageIterator::operator++, which requires including
+  // heap-inl.h. We could consider moving this implementation elsewhere to
+  // avoid that.
   for (NormalPage* p : *isolate()->heap()->code_space()) {
     FlushInstructionCache(p->area_start(), p->area_end() - p->area_start());
   }

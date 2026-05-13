@@ -104,8 +104,9 @@ void StringStream::Add(base::Vector<const char> format,
     // Skip over the whole control character sequence until the
     // format element type
     temp[format_length++] = format[offset++];
-    while (offset < format.length() && IsControlChar(format[offset]))
+    while (offset < format.length() && IsControlChar(format[offset])) {
       temp[format_length++] = format[offset++];
+    }
     if (offset >= format.length()) return;
     char type = format[offset];
     temp[format_length++] = type;
@@ -122,8 +123,9 @@ void StringStream::Add(base::Vector<const char> format,
       case 'w': {
         DCHECK_EQ(FmtElm::LC_STR, current.type_);
         base::Vector<const base::uc16> value = *current.data_.u_lc_str_;
-        for (int i = 0; i < value.length(); i++)
+        for (int i = 0; i < value.length(); i++) {
           Put(static_cast<char>(value[i]));
+        }
         break;
       }
       case 'o': {
@@ -304,7 +306,7 @@ void StringStream::PrintUsingMap(Isolate* isolate, Tagged<JSObject> js_object) {
   Tagged<Map> map = js_object->map();
   if (map->is_dictionary_map()) return;
 
-  Tagged<DescriptorArray> descs = map->instance_descriptors(isolate);
+  Tagged<DescriptorArray> descs = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     if (details.location() == PropertyLocation::kField) {
@@ -330,10 +332,9 @@ void StringStream::PrintUsingMap(Isolate* isolate, Tagged<JSObject> js_object) {
   }
 }
 
-void StringStream::PrintFixedArray(Tagged<FixedArray> array,
-                                   unsigned int limit) {
+void StringStream::PrintFixedArray(Tagged<FixedArray> array, uint32_t limit) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  for (unsigned int i = 0; i < 10 && i < limit; i++) {
+  for (uint32_t i = 0; i < 10 && i < limit; i++) {
     Tagged<Object> element = array->get(i);
     if (IsTheHole(element, roots)) continue;
     for (int len = 1; len < 18; len++) {
@@ -347,8 +348,8 @@ void StringStream::PrintFixedArray(Tagged<FixedArray> array,
 }
 
 void StringStream::PrintByteArray(Tagged<ByteArray> byte_array) {
-  unsigned int limit = byte_array->length();
-  for (unsigned int i = 0; i < 10 && i < limit; i++) {
+  uint32_t limit = byte_array->ulength().value();
+  for (uint32_t i = 0; i < 10 && i < limit; i++) {
     uint8_t b = byte_array->get(i);
     Add("             %d: %3d 0x%02x", i, b, b);
     if (b >= ' ' && b <= '~') {
@@ -387,8 +388,9 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       if (IsJSArray(printee)) {
         Tagged<JSArray> array = Cast<JSArray>(printee);
         if (array->HasObjectElements()) {
-          unsigned int limit = Cast<FixedArray>(array->elements())->length();
-          unsigned int length = static_cast<uint32_t>(
+          uint32_t limit =
+              Cast<FixedArray>(array->elements())->ulength().value();
+          uint32_t length = static_cast<uint32_t>(
               Object::NumberValue(Cast<JSArray>(array)->length()));
           if (length < limit) limit = length;
           PrintFixedArray(Cast<FixedArray>(array->elements()), limit);
@@ -397,7 +399,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
     } else if (IsByteArray(printee)) {
       PrintByteArray(Cast<ByteArray>(printee));
     } else if (IsFixedArray(printee)) {
-      unsigned int limit = Cast<FixedArray>(printee)->length();
+      uint32_t limit = Cast<FixedArray>(printee)->ulength().value();
       PrintFixedArray(Cast<FixedArray>(printee), limit);
     }
   }

@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include "src/objects/managed.h"
 #include "src/objects/struct.h"
 #include "src/wasm/wasm-value.h"
 
@@ -75,10 +76,11 @@ class WasmInterpreterObject {
 };
 
 namespace wasm {
-V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
+V8_EXPORT_PRIVATE DirectHandle<Managed<InterpreterHandle>> GetInterpreterHandle(
     Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
-V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
-    Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
+V8_EXPORT_PRIVATE DirectHandle<Managed<InterpreterHandle>>
+GetOrCreateInterpreterHandle(Isolate* isolate,
+                             DirectHandle<Tuple2> interpreter_object);
 }  // namespace wasm
 
 }  // namespace internal

@@ -116,7 +116,7 @@ void CcTest::Run(const char* snapshot_directory) {
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   v8::SandboxHardwareSupport::InitializeBeforeThreadCreation();
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
-  v8::V8::InitializeICUDefaultLocation(snapshot_directory);
+  CHECK(v8::V8::InitializeICUDefaultLocation(snapshot_directory));
   std::unique_ptr<v8::Platform> underlying_default_platform(
       v8::platform::NewDefaultPlatform());
   default_platform_ = underlying_default_platform.get();

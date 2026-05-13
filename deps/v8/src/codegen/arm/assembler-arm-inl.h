@@ -93,7 +93,7 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return kPointerSize; }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   return Cast<HeapObject>(
       Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));

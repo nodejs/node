@@ -74,6 +74,9 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(RegexpExecVectorArgument, kSystemPointerSize, regexp_exec_vector_argument) \
   V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
     continuation_preserved_embedder_data)                                      \
+  V(CurrentMicrotaskQueue, kSystemPointerSize, current_microtask_queue)        \
+  V(CurrentMicrotaskNativeContext, kSystemPointerSize,                         \
+    current_microtask_native_context)                                          \
   /* Full tables (arbitrary size, potentially slower access). */               \
   V(RootsTable, RootsTable::kEntriesCount* kSystemPointerSize, roots_table)    \
   V(ExternalReferenceTable, ExternalReferenceTable::kSizeInBytes,              \

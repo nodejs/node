@@ -42,10 +42,11 @@ inline bool FlagsMightEnableMaglevTracing() {
          v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
          v8_flags.trace_maglev_escape_analysis ||
          v8_flags.trace_maglev_graph_building ||
-         v8_flags.trace_maglev_inlining ||
+         v8_flags.trace_maglev_inlining || v8_flags.trace_turbo_inlining ||
          v8_flags.trace_maglev_object_tracking ||
          v8_flags.trace_maglev_phi_untagging ||
-         v8_flags.trace_maglev_regalloc || v8_flags.trace_maglev_truncation;
+         v8_flags.trace_maglev_regalloc || v8_flags.trace_maglev_truncation ||
+         v8_flags.trace_maglev_kna || v8_flags.trace_maglev_graph_optimizer;
 }
 
 struct CompilationFlags {
@@ -69,6 +70,7 @@ struct CompilationFlags {
   const bool trace_inlining;
   const bool is_non_eager_inlining_enabled;
   const bool is_inline_api_calls_enabled;
+  const bool enable_truncated_int32_phis;
   const int max_eager_inlined_bytecode;
   const int max_inlined_bytecode_size;
   const int max_inlined_bytecode_size_small;
@@ -85,6 +87,7 @@ struct CompilationFlags {
         v8_flags.trace_maglev_inlining,
         v8_flags.maglev_non_eager_inlining,
         v8_flags.maglev_inline_api_calls,
+        /* enable_truncated_int32_phis */ false,
         v8_flags.max_maglev_eager_inlined_bytecode_size,
         v8_flags.max_maglev_inlined_bytecode_size,
         v8_flags.max_maglev_inlined_bytecode_size_small,
@@ -107,6 +110,7 @@ struct CompilationFlags {
         // TODO(victorgomes): Inline API calls are still not supported by
         // Turbolev.
         /* is_inline_api_calls_enabled */ false,
+        v8_flags.turbolev_truncated_int32_phis,
         v8_flags.max_turbolev_eager_inlined_bytecode_size,
         v8_flags.max_inlined_bytecode_size,
         v8_flags.max_inlined_bytecode_size_small,
@@ -148,6 +152,7 @@ class MaglevCompilationInfo final {
   IndirectHandle<JSFunction> toplevel_function() const {
     return toplevel_function_;
   }
+  const std::string& function_name() const { return function_name_; }
   BytecodeOffset toplevel_osr_offset() const { return osr_offset_; }
   bool toplevel_is_osr() const { return osr_offset_ != BytecodeOffset::None(); }
   void set_code(IndirectHandle<Code> code) {
@@ -194,6 +199,11 @@ class MaglevCompilationInfo final {
 
   const CompilationFlags& flags() const { return flags_; }
 
+  uint16_t trace_id() const { return trace_id_; }
+
+  int optimization_id() const { return optimization_id_; }
+  void set_optimization_id(int id) { optimization_id_ = id; }
+
   bool could_not_inline_all_candidates() {
     return could_not_inline_all_candidates_;
   }
@@ -222,8 +232,11 @@ class MaglevCompilationInfo final {
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;
   IndirectHandle<JSFunction> toplevel_function_;
+  std::string function_name_;
   IndirectHandle<Code> code_;
   BytecodeOffset osr_offset_;
+  const uint16_t trace_id_;
+  int optimization_id_ = -1;
 
   // True if this MaglevCompilationInfo owns its broker and false otherwise. In
   // particular, when used as Turboshaft front-end, this will use Turboshaft's

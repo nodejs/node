@@ -212,6 +212,17 @@ static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
   stack_info.sig_stack_low = stack_info.stack_low;
   stack_info.sig_stack_high = kUnknownStackEnd;
 
+#if defined(__linux__)
+  // Similarly for the signal stack, retrieve the information into sig_stack and
+  // then pass it down per call. Calling sigaltstack with nullptr as the first
+  // argument doesn't change the signal stack.
+  stack_t sig_stack;
+  if (sigaltstack(nullptr, &sig_stack) == 0) {
+    stack_info.sig_stack_low = reinterpret_cast<uintptr_t>(sig_stack.ss_sp);
+    stack_info.sig_stack_high = stack_info.sig_stack_low + sig_stack.ss_size;
+  }
+#endif
+
   // The frame pointer points to low address of a frame.  The first 64-bit
   // word of a frame points to the next frame up the call chain, which normally
   // is just after the high address of the current frame.  The second word of

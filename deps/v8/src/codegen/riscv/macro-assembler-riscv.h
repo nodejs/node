@@ -81,18 +81,6 @@ inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
-// Generate a MemOperand for storing arguments 5..N on the stack
-// when calling CallCFunction().
-// TODO(plind): Currently ONLY used for O32. Should be fixed for
-//              n64, and used in RegExp code, and other places
-//              with more than 8 arguments.
-inline MemOperand CFunctionArgumentOperand(int index) {
-  DCHECK_GT(index, kCArgSlotCount);
-  // Argument 5 takes the slot just past the four Arg-slots.
-  int offset = (index - 5) * kSystemPointerSize + kCArgsSlotsSize;
-  return MemOperand(sp, offset);
-}
-
 enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
 
 class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
@@ -141,10 +129,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cc, AbortReason reason, Register rs, Operand rt);
+  void Assert(Condition cc, AbortReason reason, Register rs,
+              Operand rt) NOOP_UNLESS_DEBUG_CODE;
+
+  // Abort execution if argument is not a Map, enabled via --debug-code.
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   void AssertJSAny(Register object, Register map_tmp, Register tmp,
-                   AbortReason abort_reason);
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not smi nor in the main pointer
   // compression cage, enabled via --debug-code.
@@ -523,6 +515,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // saved in higher memory addresses.
   void MultiPush(RegList regs);
   void MultiPushFPU(DoubleRegList regs);
+  void RestoreVectorRegisters(const Simd128RegList& reg_list);
+  void SaveVectorRegisters(const Simd128RegList& reg_list);
 
   // Calculate how much stack space (in bytes) are required to store caller
   // registers excluding those specified in the arguments.
@@ -552,7 +546,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   template <typename... Rs>
   void pop_helper(Register r, Rs... rs) {
     pop_helper(rs...);
-    LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
+    if (r != zero_reg) {
+      LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
+    }
   }
 
   void pop_helper() {}
@@ -708,7 +704,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored on the
-  // stack, using helper: CFunctionArgumentOperand().
+  // stack.
   // The argument count assumes all arguments are word sized.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
@@ -914,22 +910,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   template <int NBYTES, bool LOAD_SIGNED>
   void LoadNBytesOverwritingBaseReg(const MemOperand& rs, Register scratch0,
                                     Register scratch1);
-  // load/store macros
-  void Ulh(Register rd, const MemOperand& rs);
-  void Ulhu(Register rd, const MemOperand& rs);
-  void Ush(Register rd, const MemOperand& rs);
-
-  void Ulw(Register rd, const MemOperand& rs);
-  void Usw(Register rd, const MemOperand& rs);
-
-  void Uld(Register rd, const MemOperand& rs);
-  void Usd(Register rd, const MemOperand& rs);
-
-  void ULoadFloat(FPURegister fd, const MemOperand& rs);
-  void UStoreFloat(FPURegister fd, const MemOperand& rs);
-
-  void ULoadDouble(FPURegister fd, const MemOperand& rs);
-  void UStoreDouble(FPURegister fd, const MemOperand& rs);
 
   using Trapper = std::function<void(int)>;
 
@@ -960,6 +940,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef ATOMIC_BINOP32
 #undef ATOMIC_BINOP64
 
+  // load/store macros
   void Lb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Lbu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sb(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -972,7 +953,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Sw(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
 
 #if V8_TARGET_ARCH_RISCV64
-  void Ulwu(Register rd, const MemOperand& rs);
   void Lwu(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Ld(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
   void Sd(Register rd, const MemOperand& rs, Trapper&& trapper = [](int){});
@@ -1098,15 +1078,47 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InsertLowWordF64(FPURegister dst, Register src_low);
 
   void LoadFPRImmediate(FPURegister dst, float imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLIS(imm);
+      if (imm5 >= 0) {
+        fli_s(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, base::bit_cast<uint32_t>(imm));
   }
   void LoadFPRImmediate(FPURegister dst, double imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLID(imm);
+      if (imm5 >= 0) {
+        fli_d(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, base::bit_cast<uint64_t>(imm));
   }
   void LoadFPRImmediate(FPURegister dst, Float32 imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLIS(imm.get_scalar());
+      if (imm5 >= 0) {
+        fli_s(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, imm.get_bits());
   }
   void LoadFPRImmediate(FPURegister dst, Float64 imm) {
+    ASM_CODE_COMMENT(this);
+    if (CpuFeatures::IsSupported(ZFA)) {
+      int imm5 = GetImm5ForFLID(imm.get_scalar());
+      if (imm5 >= 0) {
+        fli_d(dst, static_cast<uint8_t>(imm5));
+        return;
+      }
+    }
     LoadFPRImmediate(dst, imm.get_bits());
   }
   void LoadFPRImmediate(FPURegister dst, uint32_t src);
@@ -1162,6 +1174,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef);
 
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
@@ -1341,12 +1356,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
   // is unknown, so this helper will check for a series of expected types and
   // jump to the given labels if the loaded object has a matching type. If the
-  // object has none of the expected types, the destination register will be
-  // zeroed and execution continues as fall-through.
+  // field is null (with enabled sandbox) or a Smi (with disabled sandbox) and
+  // the provided is_unavailable label is not a nullptr, then the helper will
+  // jump there. If the field is valid and the object has one of the expected
+  // types, then the helper will jump to the corresponding label. In all other
+  // cases, the destination register will be zeroed and execution continues as
+  // fall-through.
   void LoadTrustedUnknownPointerField(
       Register destination, MemOperand field_operand, Register scratch1,
       Register scratch2,
-      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases);
+      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases,
+      Label* is_unavailable = nullptr);
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
   // Load a code pointer field.
@@ -1443,13 +1463,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                    IndirectPointerTagRange tag_range);
   // Retrieve the Code object referenced by the given code pointer handle.
   void ResolveCodePointerHandle(Register destination, Register handle);
-
-  // Load the pointer to a Code's entrypoint via a code pointer.
-  // Only available when the sandbox is enabled as it requires the code pointer
-  // table.
-  void LoadCodeEntrypointViaCodePointer(Register destination,
-                                        MemOperand field_operand,
-                                        CodeEntrypointTag tag);
 
   // Load the value of Code pointer table corresponding to
   // IsolateGroup::current()->code_pointer_table_.
@@ -1657,9 +1670,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // ---------------------------------------------------------------------------
   // Pseudo-instructions.
-
-  void LoadWordPair(Register rd, const MemOperand& rs);
-  void StoreWordPair(Register rd, const MemOperand& rs);
 
   void Madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void Madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);

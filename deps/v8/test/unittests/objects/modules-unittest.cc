@@ -1266,6 +1266,53 @@ TEST_F(ModuleTest, IsGraphAsyncImportSource) {
   CHECK_EQ(module->IsGraphAsync(), false);
 }
 
+// Regression test: ResetGraph must handle source phase imports that store a
+// JSReceiver (not a Module) in requested_modules. Previously a DCHECK assumed
+// entries were either Undefined or WasmModuleObject, which is too narrow.
+TEST_F(ModuleTest, ResetGraphWithSourcePhaseImport) {
+  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+
+  HandleScope scope(isolate());
+
+  // A module with both a source phase import and an evaluation phase import.
+  // The evaluation phase import will fail to resolve, triggering ResetGraph
+  // which must safely skip the source phase entry.
+  Local<String> url = NewString("www.google.com");
+  Local<String> source_text = NewString(
+      "import source modSource from 'source-mod';"
+      "import val from 'eval-mod';");
+
+  ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false, false,
+                      true);
+  ScriptCompiler::Source source(source_text, origin);
+
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  // InstantiateModule should fail because the evaluation callback fails.
+  // The source callback succeeds and returns a plain Object (not a Module).
+  // ResetGraph then walks requested_modules which contains that plain Object.
+  CHECK(module
+            ->InstantiateModule(
+                context(),
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Module> {
+                  // Fail to resolve the evaluation phase import.
+                  return {};
+                },
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Object> {
+                  // Return a plain Object for the source phase import.
+                  return Object::New(Isolate::GetCurrent());
+                })
+            .IsNothing());
+
+  // Module should be back to unlinked after the failed instantiation.
+  CHECK_EQ(module->GetStatus(), Module::kUninstantiated);
+}
+
 TEST_F(ModuleTest, HasTopLevelAwait) {
   HandleScope scope(isolate());
   {

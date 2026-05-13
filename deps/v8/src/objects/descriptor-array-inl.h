@@ -32,8 +32,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
-
 Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
 void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
   keys_.store(this, value, mode);
@@ -44,12 +42,42 @@ void EnumCache::set_indices(Tagged<FixedArray> value, WriteBarrierMode mode) {
   indices_.store(this, value, mode);
 }
 
-RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
-                        kNumberOfAllDescriptorsOffset)
-RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
-                        kNumberOfDescriptorsOffset)
-RELAXED_UINT32_ACCESSORS(DescriptorArray, raw_gc_state, kRawGcStateOffset)
-RELAXED_UINT32_ACCESSORS(DescriptorArray, flags, kFlagsOffset)
+int16_t DescriptorArray::number_of_all_descriptors() const {
+  return static_cast<int16_t>(
+      number_of_all_descriptors_.load(std::memory_order_acquire));
+}
+
+void DescriptorArray::set_number_of_all_descriptors(int16_t value,
+                                                    ReleaseStoreTag) {
+  number_of_all_descriptors_.store(static_cast<uint16_t>(value),
+                                   std::memory_order_release);
+}
+
+int16_t DescriptorArray::number_of_descriptors() const {
+  return static_cast<int16_t>(
+      number_of_descriptors_.load(std::memory_order_relaxed));
+}
+
+void DescriptorArray::set_number_of_descriptors(int16_t value) {
+  number_of_descriptors_.store(static_cast<uint16_t>(value),
+                               std::memory_order_relaxed);
+}
+
+uint32_t DescriptorArray::raw_gc_state(RelaxedLoadTag) const {
+  return raw_gc_state_.load(std::memory_order_relaxed);
+}
+
+void DescriptorArray::set_raw_gc_state(uint32_t value, RelaxedStoreTag) {
+  raw_gc_state_.store(value, std::memory_order_relaxed);
+}
+
+uint32_t DescriptorArray::flags(RelaxedLoadTag) const {
+  return flags_.load(std::memory_order_relaxed);
+}
+
+void DescriptorArray::set_flags(uint32_t value, RelaxedStoreTag) {
+  flags_.store(value, std::memory_order_relaxed);
+}
 
 inline int16_t DescriptorArray::number_of_slack_descriptors() const {
   return number_of_all_descriptors() - number_of_descriptors();
@@ -57,6 +85,15 @@ inline int16_t DescriptorArray::number_of_slack_descriptors() const {
 
 inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
+}
+
+Tagged<EnumCache> DescriptorArray::enum_cache() const {
+  return enum_cache_.load();
+}
+
+void DescriptorArray::set_enum_cache(Tagged<EnumCache> value,
+                                     WriteBarrierMode mode) {
+  enum_cache_.store(this, value, mode);
 }
 
 DescriptorArray::FastIterableState DescriptorArray::fast_iterable() const {
@@ -155,25 +192,6 @@ InternalIndex DescriptorArray::Search(Tagged<Name> name, Tagged<Map> map,
   return Search(name, number_of_own_descriptors, concurrent_search);
 }
 
-InternalIndex DescriptorArray::Search(int field_index, int valid_descriptors) {
-  for (int desc_index = field_index; desc_index < valid_descriptors;
-       ++desc_index) {
-    PropertyDetails details = GetDetails(InternalIndex(desc_index));
-    if (details.location() != PropertyLocation::kField) continue;
-    if (field_index == details.field_index()) {
-      return InternalIndex(desc_index);
-    }
-    DCHECK_LT(details.field_index(), field_index);
-  }
-  return InternalIndex::NotFound();
-}
-
-InternalIndex DescriptorArray::Search(int field_index, Tagged<Map> map) {
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
-  return Search(field_index, number_of_own_descriptors);
-}
-
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate,
                                                Tagged<Name> name,
                                                Tagged<Map> map) {
@@ -194,52 +212,34 @@ InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate,
 }
 
 ObjectSlot DescriptorArray::GetFirstPointerSlot() {
-  static_assert(kEndOfStrongFieldsOffset == kStartOfWeakFieldsOffset,
-                "Weak and strong fields are continuous.");
-  static_assert(kEndOfWeakFieldsOffset == kHeaderSize,
-                "Weak fields extend up to the end of the header.");
-  return RawField(DescriptorArray::kStartOfStrongFieldsOffset);
+  return ObjectSlot(reinterpret_cast<Address>(&enum_cache_));
 }
 
 ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
   // Allow descriptor == number_of_all_descriptors() for computing the slot
   // address that comes after the last descriptor (for iterating).
   DCHECK_LE(descriptor, number_of_all_descriptors());
-  return RawField(OffsetOfDescriptorAt(descriptor));
+  return ObjectSlot(reinterpret_cast<Address>(&entries()[descriptor]));
 }
 
 bool DescriptorArray::IsInitializedDescriptor(
     InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  Tagged<Object> maybe_name =
-      EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset);
-  bool is_initialized = !IsUndefined(maybe_name);
-  DCHECK_IMPLIES(is_initialized,
-                 IsSmi(EntryDetailsField::Relaxed_Load(*this, entry_offset)));
+  const Entry& entry = entries()[descriptor_number.as_int()];
+  bool is_initialized = !IsUndefined(entry.key.Relaxed_Load());
+  DCHECK_IMPLIES(is_initialized, IsSmi(entry.details.Relaxed_Load()));
   return is_initialized;
 }
 
 Tagged<Name> DescriptorArray::GetKey(InternalIndex descriptor_number) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return GetKey(cage_base, descriptor_number);
-}
-
-Tagged<Name> DescriptorArray::GetKey(PtrComprCageBase cage_base,
-                                     InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return Cast<Name>(
-      EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset));
+  return Cast<Name>(entries()[descriptor_number.as_int()].key.Relaxed_Load());
 }
 
 void DescriptorArray::SetKey(InternalIndex descriptor_number,
                              Tagged<Name> key) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  EntryKeyField::Relaxed_Store(*this, entry_offset, key);
-  WRITE_BARRIER(*this, entry_offset + kEntryKeyOffset, key);
+  entries()[descriptor_number.as_int()].key.Relaxed_Store(this, key);
   // Conservatively assume that the new key might break fast iteration.
   // If the key was already known to be slow, it will stay slow.
   set_fast_iterable_if(FastIterableState::kUnknown,
@@ -251,13 +251,7 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
 }
 
 Tagged<Name> DescriptorArray::GetSortedKey(int descriptor_number) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return GetSortedKey(cage_base, descriptor_number);
-}
-
-Tagged<Name> DescriptorArray::GetSortedKey(PtrComprCageBase cage_base,
-                                           int descriptor_number) {
-  return GetKey(cage_base, InternalIndex(GetSortedKeyIndex(descriptor_number)));
+  return GetKey(InternalIndex(GetSortedKeyIndex(descriptor_number)));
 }
 
 void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
@@ -267,68 +261,49 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
 
 Tagged<Object> DescriptorArray::GetStrongValue(
     InternalIndex descriptor_number) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return Cast<Object>(GetStrongValue(cage_base, descriptor_number));
-}
-
-Tagged<Object> DescriptorArray::GetStrongValue(
-    PtrComprCageBase cage_base, InternalIndex descriptor_number) {
-  return Cast<Object>(GetValue(cage_base, descriptor_number));
+  return Cast<Object>(GetValue(descriptor_number));
 }
 
 void DescriptorArray::SetValue(InternalIndex descriptor_number,
                                Tagged<MaybeObject> value) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  EntryValueField::Relaxed_Store(*this, entry_offset, value);
-  WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
+  using ValueT = UnionOf<JSAny, Weak<Map>, AccessorInfo, AccessorPair,
+                         ClassPositions, NumberDictionary>;
+  entries()[descriptor_number.as_int()].value.Relaxed_Store(
+      this, UncheckedCast<ValueT>(value));
 }
 
 Tagged<MaybeObject> DescriptorArray::GetValue(InternalIndex descriptor_number) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return GetValue(cage_base, descriptor_number);
-}
-
-Tagged<MaybeObject> DescriptorArray::GetValue(PtrComprCageBase cage_base,
-                                              InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return EntryValueField::Relaxed_Load(cage_base, *this, entry_offset);
+  return entries()[descriptor_number.as_int()].value.Relaxed_Load();
 }
 
 PropertyDetails DescriptorArray::GetDetails(InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  Tagged<Smi> details = EntryDetailsField::Relaxed_Load(*this, entry_offset);
-  return PropertyDetails(details);
+  return PropertyDetails(
+      Cast<Smi>(entries()[descriptor_number.as_int()].details.Relaxed_Load()));
 }
 
 void DescriptorArray::SetDetails(InternalIndex descriptor_number,
                                  PropertyDetails details) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
-  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  EntryDetailsField::Relaxed_Store(*this, entry_offset, details.AsSmi());
+  entries()[descriptor_number.as_int()].details.Relaxed_Store(this,
+                                                              details.AsSmi());
   // Note: fast_iteration depends on PropertyDetails::location().
   // However we don't reset it here as all path either go through SetKey(),
   // which invalidates fast_iteration, or don't change the location
   // (GeneralizeAllFields()).
 }
 
-int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
+int DescriptorArray::GetOffsetInWords(InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
-  return GetDetails(descriptor_number).field_index();
+  return GetDetails(descriptor_number).field_offset();
 }
 
 Tagged<FieldType> DescriptorArray::GetFieldType(
     InternalIndex descriptor_number) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return GetFieldType(cage_base, descriptor_number);
-}
-
-Tagged<FieldType> DescriptorArray::GetFieldType(
-    PtrComprCageBase cage_base, InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
-  Tagged<MaybeObject> wrapped_type = GetValue(cage_base, descriptor_number);
+  Tagged<MaybeObject> wrapped_type = GetValue(descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 

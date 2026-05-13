@@ -719,22 +719,12 @@ Type OperationTyper::NumberSubtract(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::SpeculativeAdditiveSafeIntegerAdd(Type lhs, Type rhs) {
-  Type result = SpeculativeNumberAdd(lhs, rhs);
-  if (lhs.Is(cache_->kAdditiveSafeInteger) ||
-      rhs.Is(cache_->kAdditiveSafeInteger)) {
-    return Type::Intersect(result, cache_->kAdditiveSafeInteger, zone());
-  }
-  return result;
+  return SpeculativeNumberAdd(lhs, rhs);
 }
 
 Type OperationTyper::SpeculativeAdditiveSafeIntegerSubtract(Type lhs,
                                                             Type rhs) {
-  Type result = SpeculativeNumberSubtract(lhs, rhs);
-  if (lhs.Is(cache_->kAdditiveSafeInteger) ||
-      rhs.Is(cache_->kAdditiveSafeInteger)) {
-    return Type::Intersect(result, cache_->kAdditiveSafeInteger, zone());
-  }
-  return result;
+  return SpeculativeNumberSubtract(lhs, rhs);
 }
 
 Type OperationTyper::SpeculativeSmallIntegerAdd(Type lhs, Type rhs) {

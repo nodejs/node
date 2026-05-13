@@ -239,10 +239,11 @@ class CompactionState final {
   void AddPage(NormalPage* page) {
     DCHECK_EQ(space_, &page->space());
     // If not the first page, add |page| onto the available pages chain.
-    if (!current_page_)
+    if (!current_page_) {
       current_page_ = page;
-    else
+    } else {
       available_pages_.push_back(page);
+    }
   }
 
   void RelocateObject(const NormalPage* page, const Address header,
@@ -262,10 +263,11 @@ class CompactionState final {
     }
     if (V8_LIKELY(compact_frontier != header)) {
       // Use a non-overlapping copy, if possible.
-      if (current_page_ == page)
+      if (current_page_ == page) {
         memmove(compact_frontier, header, size);
-      else
+      } else {
         memcpy(compact_frontier, header, size);
+      }
       movable_references_.Relocate(header + sizeof(HeapObjectHeader),
                                    compact_frontier + sizeof(HeapObjectHeader),
                                    size);

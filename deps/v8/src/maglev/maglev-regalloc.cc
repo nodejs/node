@@ -381,7 +381,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
   }
 
   // LINT.IfChange(maglev_constant_nodes)
-  for (const auto& [ref, constant] : graph_->constants()) {
+  for (const auto& [ref, constant] : graph_->heap_constants()) {
     constant->regalloc_info()->SetConstantLocation();
     USE(ref);
   }
@@ -906,8 +906,9 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
       Input input = node->input(operand.input_index());
       node->result().SetAllocated(ForceAllocate(input, node));
       // Clear any hint that (probably) comes from this constraint.
-      if (node->regalloc_info()->has_hint())
+      if (node->regalloc_info()->has_hint()) {
         input.node()->regalloc_info()->clear_hint();
+      }
       break;
     }
 
@@ -961,8 +962,9 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // Return if the removed value already has another register or is loadable
   // from memory.
   if (node->regalloc_info()->has_register() ||
-      node->regalloc_info()->is_loadable())
+      node->regalloc_info()->is_loadable()) {
     return;
+  }
   // Try to move the value to another register. Do so without blocking that
   // register, as we may still want to use it elsewhere.
   if (!registers.UnblockedFreeIsEmpty() && !force_spill) {
@@ -1841,13 +1843,6 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
 }
 
 namespace {
-template <typename RegisterT>
-static RegisterT GetRegisterHint(const compiler::InstructionOperand& hint) {
-  if (hint.IsInvalid()) return RegisterT::no_reg();
-  DCHECK(hint.IsUnallocated());
-  return RegisterT::from_code(
-      compiler::UnallocatedOperand::cast(hint).fixed_register_index());
-}
 
 }  // namespace
 

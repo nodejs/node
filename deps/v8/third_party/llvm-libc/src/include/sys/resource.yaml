@@ -1,0 +1,26 @@
+header: sys/resource.h
+standards:
+  - posix
+macros:
+  - macro_name: RLIMIT_CPU
+    macro_header: sys-resource-macros.h
+types:
+  - type_name: struct_rlimit
+  - type_name: rlim_t
+enums: []
+objects: []
+functions:
+  - name: getrlimit
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct rlimit *
+  - name: setrlimit
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: const struct rlimit *

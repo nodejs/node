@@ -7,6 +7,9 @@ include_rules = [
 ]
 
 specific_include_rules = {
+  "ieee754.cc": [
+    "+third_party/llvm-libc/src/shared/math.h"
+  ],
   "ieee754.h": [
     "+third_party/glibc/src/sysdeps/ieee754/dbl-64/trig.h"
   ],

@@ -2803,6 +2803,7 @@ TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
     base::Double divisor =
         base::Double(exponent << base::Double::kPhysicalSignificandSize);
     if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
+    if (!std::isnormal(1.0 / divisor.value())) continue;  // Skip denormals.
     Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
                                           Float64Constant(divisor.value())));
     ASSERT_TRUE(r.Changed());

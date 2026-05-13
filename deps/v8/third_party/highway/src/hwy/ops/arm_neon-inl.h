@@ -1,5 +1,5 @@
 // Copyright 2019 Google LLC
-// Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+// Copyright 2024-2026 Arm Limited and/or its affiliates <open-source-office@arm.com>
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: BSD-3-Clause
 //
@@ -2903,15 +2903,15 @@ HWY_API Vec128<T, N> And(const Vec128<T, N> a, const Vec128<T, N> b) {
 // ------------------------------ AndNot
 
 namespace detail {
-// reversed_andnot returns a & ~b.
-HWY_NEON_DEF_FUNCTION_INTS_UINTS(reversed_andnot, vbic, _, 2)
+// AndNotSwap returns a & ~b, whereas AndNot is defined as ~a & b.
+HWY_NEON_DEF_FUNCTION_INTS_UINTS(AndNotSwap, vbic, _, 2)
 }  // namespace detail
 
 // Returns ~not_mask & mask.
 template <typename T, size_t N, HWY_IF_NOT_FLOAT(T)>
 HWY_API Vec128<T, N> AndNot(const Vec128<T, N> not_mask,
                             const Vec128<T, N> mask) {
-  return detail::reversed_andnot(mask, not_mask);
+  return detail::AndNotSwap(mask, not_mask);
 }
 
 // Uses the u32/64 defined above.
@@ -2921,7 +2921,7 @@ HWY_API Vec128<T, N> AndNot(const Vec128<T, N> not_mask,
   const DFromV<decltype(mask)> d;
   const RebindToUnsigned<decltype(d)> du;
   VFromD<decltype(du)> ret =
-      detail::reversed_andnot(BitCast(du, mask), BitCast(du, not_mask));
+      detail::AndNotSwap(BitCast(du, mask), BitCast(du, not_mask));
   return BitCast(d, ret);
 }
 
@@ -2951,6 +2951,13 @@ HWY_API Vec128<T, N> Xor(const Vec128<T, N> a, const Vec128<T, N> b) {
 
 // ------------------------------ Xor3
 #if HWY_ARCH_ARM_A64 && defined(__ARM_FEATURE_SHA3)
+
+#ifdef HWY_NATIVE_XOR3
+#undef HWY_NATIVE_XOR3
+#else
+#define HWY_NATIVE_XOR3
+#endif
+
 HWY_NEON_DEF_FUNCTION_FULL_UI(Xor3, veor3, _, 3)
 
 // Half vectors are not natively supported. Two Xor are likely more efficient
@@ -2968,11 +2975,6 @@ HWY_API Vec128<T, N> Xor3(const Vec128<T, N> x1, const Vec128<T, N> x2,
   return BitCast(d, Xor3(BitCast(du, x1), BitCast(du, x2), BitCast(du, x3)));
 }
 
-#else
-template <typename T, size_t N>
-HWY_API Vec128<T, N> Xor3(Vec128<T, N> x1, Vec128<T, N> x2, Vec128<T, N> x3) {
-  return Xor(x1, Xor(x2, x3));
-}
 #endif
 
 // ------------------------------ Or3
@@ -2986,6 +2988,45 @@ template <typename T, size_t N>
 HWY_API Vec128<T, N> OrAnd(Vec128<T, N> o, Vec128<T, N> a1, Vec128<T, N> a2) {
   return Or(o, And(a1, a2));
 }
+
+// ------------------------------ XorAndNot
+#if HWY_ARCH_ARM_A64 && defined(__ARM_FEATURE_SHA3)
+
+#ifdef HWY_NATIVE_BCAX
+#undef HWY_NATIVE_BCAX
+#else
+#define HWY_NATIVE_BCAX
+#endif
+
+namespace detail {
+HWY_NEON_DEF_FUNCTION_FULL_UI(XorAndNotSwap, vbcax, _, 3)
+}  // namespace detail
+
+// As with AndNot, swap the last two arguments because our "negated first"
+// convention mismatches the intrinsics, which have the negated arg last.
+template <class V, HWY_IF_V_SIZE_V(V, 16), HWY_IF_NOT_FLOAT_V(V)>
+HWY_API V XorAndNot(V x, V a1, V a2) {
+  return detail::XorAndNotSwap(x, a2, a1);
+}
+
+// Half vectors are not natively supported. Two ops are likely more efficient
+// than Combine to 128-bit.
+template <typename T, size_t N, HWY_IF_V_SIZE_LE(T, N, 8), HWY_IF_NOT_FLOAT(T)>
+HWY_API Vec128<T, N> XorAndNot(Vec128<T, N> x, Vec128<T, N> a1,
+                               Vec128<T, N> a2) {
+  return Xor(x, AndNot(a1, a2));
+}
+
+template <typename T, size_t N, HWY_IF_FLOAT(T)>
+HWY_API Vec128<T, N> XorAndNot(const Vec128<T, N> x, const Vec128<T, N> a1,
+                               const Vec128<T, N> a2) {
+  const DFromV<decltype(x)> d;
+  const RebindToUnsigned<decltype(d)> du;
+  return BitCast(d,
+                 XorAndNot(BitCast(du, x), BitCast(du, a1), BitCast(du, a2)));
+}
+
+#endif
 
 // ------------------------------ Operator overloads (internal-only if float)
 
@@ -7352,6 +7393,9 @@ static HWY_INLINE bfloat16x8_t BitCastToRawNeonBF16(bfloat16x8_t raw) {
 // The uint16x4_t or uint16x8_t vector neets to be bitcasted to a bfloat16x4_t
 // or a bfloat16x8_t vector for the vbfdot_f32 and vbfdotq_f32 intrinsics if
 // HWY_NEON_HAVE_F32_TO_BF16C && !HWY_NEON_HAVE_BFLOAT16 is true
+
+// NOTE: vbfdot uses round to odd unless the additional FEAT_EBF16 feature is
+// available and enabled.
 static HWY_INLINE bfloat16x4_t BitCastToRawNeonBF16(uint16x4_t raw) {
   return vreinterpret_bf16_u16(raw);
 }
@@ -7415,6 +7459,12 @@ HWY_API VFromD<D> ReorderWidenMulAccumulate(
     VFromD<D>& /*sum1*/) {
   return VFromD<D>(vbfdot_f32(sum0.raw, detail::BitCastToRawNeonBF16(a.raw),
                               detail::BitCastToRawNeonBF16(b.raw)));
+}
+
+template <size_t N>
+HWY_API Vec128<float, N> RearrangeToOddPlusEven(Vec128<float, N> sum0,
+                                                Vec128<float, N>) {
+  return sum0;
 }
 
 #endif  // HWY_NEON_HAVE_F32_TO_BF16C
@@ -7543,17 +7593,6 @@ HWY_NEON_DEF_PAIRWISE_OPS(Max, vpmax)
 #undef HWY_NEON_DEF_PAIRWISE_OP
 }  // namespace detail
 
-template <size_t N>
-HWY_API Vec128<float, N> RearrangeToOddPlusEven(Vec128<float, N> sum0,
-                                                Vec128<float, N> sum1) {
-#if HWY_NEON_HAVE_BFLOAT16
-  (void)sum1;  // unused by bf16 ReorderWidenMulAccumulate
-  return sum0;
-#else
-  return Add(sum0, sum1);
-#endif
-}
-
 HWY_API Vec128<int32_t> RearrangeToOddPlusEven(Vec128<int32_t> sum0,
                                                Vec128<int32_t> sum1) {
 // vmlal_s16 multiplied the lower half into sum0 and upper into sum1.
@@ -7612,7 +7651,8 @@ HWY_API Vec32<uint32_t> RearrangeToOddPlusEven(Vec32<uint32_t> sum0,
 
 // ------------------------------ SumOfMulQuadAccumulate
 
-#if HWY_TARGET == HWY_NEON_BF16
+
+#if HWY_TARGET == HWY_NEON_BF16 || defined(__ARM_FEATURE_DOTPROD)
 
 #ifdef HWY_NATIVE_I8_I8_SUMOFMULQUADACCUMULATE
 #undef HWY_NATIVE_I8_I8_SUMOFMULQUADACCUMULATE
@@ -7656,18 +7696,38 @@ HWY_API VFromD<DU32> SumOfMulQuadAccumulate(
   return VFromD<DU32>(vdotq_u32(sum.raw, a.raw, b.raw));
 }
 
+#endif //__ARM_FEATURE_DOTPROD || HWY_TARGET == HWY_NEON_BF16
+
 #ifdef HWY_NATIVE_U8_I8_SUMOFMULQUADACCUMULATE
 #undef HWY_NATIVE_U8_I8_SUMOFMULQUADACCUMULATE
 #else
 #define HWY_NATIVE_U8_I8_SUMOFMULQUADACCUMULATE
 #endif
 
+#if defined(__ARM_FEATURE_MATMUL_INT8) ||                               \
+    (HWY_TARGET == HWY_NEON_BF16 && HWY_OS_APPLE && HWY_ARCH_ARM_A64 && \
+     HWY_HAVE_RUNTIME_DISPATCH)
+
+template <class DI32, HWY_IF_I32_D(DI32), HWY_IF_V_SIZE_LE_D(DI32, 8)>
+HWY_API VFromD<DI32> SumOfMulQuadAccumulate(
+    DI32 /*di32*/, VFromD<Repartition<uint8_t, DI32>> a_u,
+    VFromD<Repartition<int8_t, DI32>> b_i, VFromD<DI32> sum) {
+  return VFromD<DI32>(vusdot_s32(sum.raw, a_u.raw, b_i.raw));
+}
+
+template <class DI32, HWY_IF_I32_D(DI32), HWY_IF_V_SIZE_D(DI32, 16)>
+HWY_API VFromD<DI32> SumOfMulQuadAccumulate(
+    DI32 /*di32*/, VFromD<Repartition<uint8_t, DI32>> a_u,
+    VFromD<Repartition<int8_t, DI32>> b_i, VFromD<DI32> sum) {
+  return VFromD<DI32>(vusdotq_s32(sum.raw, a_u.raw, b_i.raw));
+}
+
+#else
+
 template <class DI32, HWY_IF_I32_D(DI32)>
 HWY_API VFromD<DI32> SumOfMulQuadAccumulate(
     DI32 di32, VFromD<Repartition<uint8_t, DI32>> a_u,
     VFromD<Repartition<int8_t, DI32>> b_i, VFromD<DI32> sum) {
-  // TODO: use vusdot[q]_s32 on NEON targets that require support for NEON I8MM
-
   const RebindToUnsigned<decltype(di32)> du32;
   const Repartition<uint8_t, decltype(di32)> du8;
 
@@ -7680,7 +7740,7 @@ HWY_API VFromD<DI32> SumOfMulQuadAccumulate(
   return BitCast(di32, Sub(result_sum0, result_sum1));
 }
 
-#endif  // HWY_TARGET == HWY_NEON_BF16
+#endif  // __ARM_FEATURE_MATMUL_INT8
 
 // ------------------------------ WidenMulPairwiseAdd
 
@@ -8096,6 +8156,17 @@ HWY_API V InterleaveEvenBlocks(D, V a, V /*b*/) {
 // ------------------------------ InterleaveOddBlocks
 template <class D, class V = VFromD<D>>
 HWY_API V InterleaveOddBlocks(D, V a, V /*b*/) {
+  return a;
+}
+
+// ------------------------------ InterleaveLowerBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveLowerBlocks(D, V a, V /*b*/) {
+  return a;
+}
+// ------------------------------ InterleaveUpperBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveUpperBlocks(D, V a, V /*b*/) {
   return a;
 }
 

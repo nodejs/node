@@ -29,14 +29,6 @@
 #include "hwy/tests/test_util-inl.h"
 // clang-format on
 
-// If your project requires C++14 or later, you can ignore this and pass lambdas
-// directly to Transform, without requiring an lvalue as we do here for C++11.
-#if __cplusplus < 201402L
-#define HWY_GENERIC_LAMBDA 0
-#else
-#define HWY_GENERIC_LAMBDA 1
-#endif
-
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
@@ -78,43 +70,6 @@ HWY_NOINLINE void SimpleFMA4(const T* x, const T* y, const T* z, T* out,
     out[i] = ConvertScalarTo<T>(x[i] * y[i] + z[i]);
   }
 }
-
-// In C++14, we can instead define these as generic lambdas next to where they
-// are invoked.
-#if !HWY_GENERIC_LAMBDA
-
-// Generator that returns even numbers by doubling the output indices.
-struct Gen2 {
-  template <class D, class VU>
-  Vec<D> operator()(D d, VU vidx) const {
-    return BitCast(d, Add(vidx, vidx));
-  }
-};
-
-struct SCAL {
-  template <class D, class V>
-  Vec<D> operator()(D d, V v) const {
-    using T = TFromD<D>;
-    return Mul(Set(d, ConvertScalarTo<T>(kAlpha)), v);
-  }
-};
-
-struct AXPY {
-  template <class D, class V>
-  Vec<D> operator()(D d, V v, V v1) const {
-    using T = TFromD<D>;
-    return MulAdd(Set(d, ConvertScalarTo<T>(kAlpha)), v, v1);
-  }
-};
-
-struct FMA4 {
-  template <class D, class V>
-  Vec<D> operator()(D /*d*/, V v, V v1, V v2) const {
-    return MulAdd(v, v1, v2);
-  }
-};
-
-#endif  // !HWY_GENERIC_LAMBDA
 
 // Invokes Test (e.g. TestTransform1) with all arg combinations. T comes from
 // ForFloatTypes.
@@ -172,12 +127,8 @@ struct TestGenerate {
 
     // TODO(janwas): can we update the apply_to in HWY_PUSH_ATTRIBUTES so that
     // the attribute also applies to lambdas? If so, remove HWY_ATTR.
-#if HWY_GENERIC_LAMBDA
     const auto gen2 = [](const auto d2, const auto vidx)
                           HWY_ATTR { return BitCast(d2, Add(vidx, vidx)); };
-#else
-    const Gen2 gen2;
-#endif
     actual[count] = ConvertScalarTo<T>(0);  // sentinel
     Generate(d, actual, count, gen2);
     HWY_ASSERT_EQ(ConvertScalarTo<T>(0), actual[count]);  // no write past end
@@ -244,13 +195,9 @@ struct TestTransform {
 
     // TODO(janwas): can we update the apply_to in HWY_PUSH_ATTRIBUTES so that
     // the attribute also applies to lambdas? If so, remove HWY_ATTR.
-#if HWY_GENERIC_LAMBDA
     const auto scal = [](const auto d2, const auto v) HWY_ATTR {
       return Mul(Set(d2, ConvertScalarTo<T>(kAlpha)), v);
     };
-#else
-    const SCAL scal;
-#endif
     Transform(d, a, count, scal);
 
     const auto info = hwy::detail::MakeTypeInfo<T>();
@@ -289,13 +236,9 @@ struct TestTransform1 {
 
     SimpleAXPY(a, b, expected.get(), count);
 
-#if HWY_GENERIC_LAMBDA
     const auto axpy = [](const auto d2, const auto v, const auto v1) HWY_ATTR {
       return MulAdd(Set(d2, ConvertScalarTo<T>(kAlpha)), v, v1);
     };
-#else
-    const AXPY axpy;
-#endif
     Transform1(d, a, count, b, axpy);
 
     AssertArraySimilar(expected.get(), a, count, hwy::TargetName(HWY_TARGET),
@@ -335,12 +278,8 @@ struct TestTransform2 {
 
     SimpleFMA4(a, b, c, expected.get(), count);
 
-#if HWY_GENERIC_LAMBDA
     const auto fma4 = [](auto /*d*/, auto v, auto v1, auto v2)
                           HWY_ATTR { return MulAdd(v, v1, v2); };
-#else
-    const FMA4 fma4;
-#endif
     Transform2(d, a, count, b, c, fma4);
 
     AssertArraySimilar(expected.get(), a, count, hwy::TargetName(HWY_TARGET),

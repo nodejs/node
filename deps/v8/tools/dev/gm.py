@@ -5,12 +5,21 @@
 """\
 Convenience wrapper for compiling V8 with gn/ninja and running tests.
 Sets up build output directories if they don't exist.
-Produces simulator builds for non-Intel target architectures.
+Produces simulator builds for non-native target architectures.
 Uses reclient by default if it is detected (at output directory setup time).
 Expects to be run from the root of a V8 checkout.
 
 Usage:
-    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...] [--flag]
+    gm.py [<arch>].[<mode>[-<suffix>]].[<target>] [testname...] [options...]
+
+Supported options:
+  --sync:        Runs 'gclient sync -D'
+  --sync=force:  Runs 'gclient sync -D --force --reset' before building.
+  --update-reclient-config: Autodetects remote compilation setup and updates
+                            args.gn accordingly.
+
+All other flags are passed unchanged to the test runner. They must start with
+"--" and must not contain spaces.
 
 All arguments are optional. Most combinations should work, e.g.:
     gm.py ia32.debug x64.release x64.release-my-custom-opts d8
@@ -20,14 +29,11 @@ All arguments are optional. Most combinations should work, e.g.:
 For a less automated experience, pass an existing output directory (which
 must contain an existing args.gn), e.g.:
     gm.py out/foo unittests
-
-Flags are passed unchanged to the test runner. They must start with -- and must
-not contain spaces.
 """
 # See HELP below for additional documentation.
 
 from __future__ import print_function
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from pathlib import Path
 import errno
 import os
@@ -113,6 +119,13 @@ ACTIONS = {
     },
 }
 
+
+class GclientSyncMode(StrEnum):
+  NONE = "none"
+  NORMAL = "normal"
+  FORCE = "force"
+
+
 HELP = """<arch> can be any of: %(arches)s
 <mode> can be any of: %(modes)s
 <target> can be any of:
@@ -124,7 +137,7 @@ HELP = """<arch> can be any of: %(arches)s
 """ % {
     "arches": " ".join(ARCHES),
     "modes": " ".join(MODES.keys()),
-    "targets": ", ".join(TARGETS)
+    "targets": ", ".join(TARGETS),
 }
 
 TESTSUITES_TARGETS = {
@@ -152,14 +165,141 @@ QUIET = sys.argv[0] == "quietgm"  # Overridden by "quiet" keyword.
 build_dir_prefix = os.getenv("V8_GM_BUILD_DIR_PREFIX")
 
 V8_DIR = Path(__file__).resolve().parent.parent.parent
-GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
-RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
 
-if (V8_DIR.parent / "chrome").exists():
-  CHROMIUM_DIR = V8_DIR.parent
-  GCLIENT_FILE_PATH = CHROMIUM_DIR / ".gclient"
+
+def v8_root_dir() -> Path:
+  try:
+    git_dir = subprocess.check_output(["git", "rev-parse", "--git-common-dir"],
+                                      cwd=V8_DIR,
+                                      text=True,
+                                      stderr=subprocess.PIPE).strip()
+    if (V8_DIR / git_dir).exists():
+      return (V8_DIR / git_dir).parent.resolve()
+  except (subprocess.CalledProcessError, FileNotFoundError):
+    pass
+  return V8_DIR
+
+
+V8_ROOT_DIR = v8_root_dir()
+
+
+def get_most_recent_config():
+  out_dir = V8_ROOT_DIR / "out"
+  if not out_dir.exists() or not out_dir.is_dir():
+    return None
+
+  best_config = None
+  best_mtime = 0
+
+  for config_dir in out_dir.iterdir():
+    if not config_dir.is_dir():
+      continue
+    if not (config_dir / "build.ninja").exists():
+      continue
+
+    mtime = 0
+    args_gn = config_dir / "args.gn"
+    d8_file = config_dir / "d8"
+    if d8_file.exists():
+      mtime = d8_file.stat().st_mtime
+    elif args_gn.exists():
+      mtime = args_gn.stat().st_mtime
+    else:
+      mtime = config_dir.stat().st_mtime
+
+    if mtime > best_mtime:
+      best_mtime = mtime
+      best_config = config_dir.name
+
+  return best_config
+
+if V8_DIR != V8_ROOT_DIR:
+  subprocess.run([
+      sys.executable,
+      str(V8_DIR / "tools" / "dev" / "setup_worktree_build.py"),
+      str(V8_ROOT_DIR),
+      str(V8_DIR),
+  ])
+
+
+def check_worktree_changes(config):
+  config_path = config.path
+  args_gn = config_path / "args.gn"
+  snapshot_file = config_path / "snapshot_blob.bin"
+  last_built_commit_file = config_path / "last_built_commit"
+  last_test_run_file = config_path / "last_test_run"
+
+  if not args_gn.exists() or not last_built_commit_file.exists():
+    return True, True
+
+  oldest_binary_mtime = float("inf")
+  snapshot_mtime = float("inf")
+  if snapshot_file.exists():
+    snapshot_mtime = snapshot_file.stat().st_mtime
+  for target in config.targets:
+    binary_file = config_path / target
+    if not binary_file.exists():
+      return True, True
+    binary_mtime = binary_file.stat().st_mtime
+    if binary_mtime < snapshot_mtime:
+      return True, True
+    oldest_binary_mtime = min(oldest_binary_mtime, binary_mtime)
+  if args_gn.stat().st_mtime > oldest_binary_mtime:
+    return True, True
+
+  changed_files = []
+  last_built_commit = last_built_commit_file.read_text().strip()
+  try:
+    git_diff_out = subprocess.check_output(
+        ["git", "diff", "--name-only", last_built_commit],
+        cwd=V8_ROOT_DIR,
+        text=True).strip()
+    if git_diff_out:
+      changed_files = git_diff_out.splitlines()
+    git_untracked_out = subprocess.check_output(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=V8_ROOT_DIR,
+        text=True).strip()
+    if git_untracked_out:
+      changed_files.extend(git_untracked_out.splitlines())
+  except subprocess.CalledProcessError:
+    return True, True
+
+  is_js_test = lambda f: f.startswith("test/") and f.endswith(".js")
+  build_pattern = re.compile(r'\.(cc|h|tq|gn|gni|bazel|S|asm|cc\.tmpl|cpp)$')
+
+  for f in changed_files:
+    if is_js_test(f) or f.startswith(".agents/") or f.startswith("agents/"):
+      continue
+    if build_pattern.search(f):
+      filepath = V8_ROOT_DIR / f
+      if filepath.exists() and filepath.stat().st_mtime > oldest_binary_mtime:
+        return True, True
+
+  if not last_test_run_file.exists():
+    return False, True
+  last_test_mtime = last_test_run_file.stat().st_mtime
+  if oldest_binary_mtime > last_test_mtime:
+    return False, True
+
+  for f in changed_files:
+    if is_js_test(f):
+      filepath = V8_ROOT_DIR / f
+      if filepath.exists() and filepath.stat().st_mtime > last_test_mtime:
+        return False, True
+
+  # Skipping tests is OK if the default test set was requested.
+  return False, set(config.tests) == set(DEFAULT_TESTS)
+
+RECLIENT_CERT_CACHE = V8_ROOT_DIR / ".#gm_reclient_cert_cache"
+
+if (V8_ROOT_DIR.parent / "chrome").exists():
+  CHROMIUM_DIR = V8_ROOT_DIR.parent
 else:
   CHROMIUM_DIR = None
+
+GCLIENT_FILE_PATH = (CHROMIUM_DIR.parent
+                     if CHROMIUM_DIR else V8_ROOT_DIR.parent) / ".gclient"
 
 out_dir_override = os.getenv("V8_GM_OUTDIR")
 if out_dir_override and Path(out_dir_override).is_dir:
@@ -176,17 +316,18 @@ BUILD_DISTRIBUTION_RE = re.compile(r"\nuse_(remoteexec|goma) = (false|true)")
 GOMA_DIR_LINE = re.compile(r"\ngoma_dir = \"[^\"]+\"")
 DEPRECATED_RBE_CFG_RE = re.compile(r"\nrbe_cfg_dir = \"[^\"]+\"")
 RECLIENT_CFG_RE = re.compile(r"\nreclient_cfg_dir = \"[^\"]+\"")
+UPDATE_RECLIENT_CONFIG = False
 
 class Reclient(IntEnum):
   NONE = 0
   GOOGLE = 1
   CUSTOM = 2
 
-
-def get_v8_solution(solutions):
+def get_gclient_solution(solutions):
   for solution in solutions:
-    if (solution["name"] == "v8" or
-        solution["url"] == "https://chromium.googlesource.com/v8/v8.git"):
+    if (solution["name"] in ("v8", "src") or solution["url"]
+        in ("https://chromium.googlesource.com/v8/v8.git",
+            "https://chromium.googlesource.com/chromium/src.git")):
       return solution
   return None
 
@@ -194,7 +335,7 @@ def get_v8_solution(solutions):
 # Note: this function is reused by update-compile-commands.py. When renaming
 # this, please update that file too!
 def detect_reclient():
-  if not GCLIENT_FILE_PATH.exists():
+  if not GCLIENT_FILE_PATH or not GCLIENT_FILE_PATH.exists():
     return Reclient.NONE
   content = GCLIENT_FILE_PATH.read_text()
   try:
@@ -203,11 +344,11 @@ def detect_reclient():
   except SyntaxError as e:
     print("# Can't detect reclient due to .gclient syntax errors.")
     return Reclient.NONE
-  v8_solution = get_v8_solution(config_dict["solutions"])
-  if not v8_solution:
+  gclient_solution = get_gclient_solution(config_dict["solutions"])
+  if not gclient_solution:
     print("# Can't detect reclient due to missing v8 gclient solution.")
     return Reclient.NONE
-  custom_vars = v8_solution.get("custom_vars", {})
+  custom_vars = gclient_solution.get("custom_vars", {})
   if "rbe_instance" in custom_vars:
     return Reclient.CUSTOM
   if "download_remoteexec_cfg" in custom_vars:
@@ -318,10 +459,11 @@ def print_completions_and_exit():
   sys.exit(0)
 
 
-def _call(cmd, silent=False):
+def _call(cmd, silent=False, cwd=None):
   if not silent and not QUIET:
-    print(f"# {cmd}")
-  return subprocess.call(cmd, shell=True)
+    cwd_print = f"cd {cwd} && " if cwd else ""
+    print(f"# {cwd_print}{cmd}")
+  return subprocess.call(cmd, shell=True, cwd=cwd)
 
 
 # Quiet mode means: only print in case of error.
@@ -454,7 +596,8 @@ class RawConfig:
       _write(args_gn, new_gn_args, log=False)
 
   def build(self):
-    self.update_build_distribution_args()
+    if UPDATE_RECLIENT_CONFIG:
+      self.update_build_distribution_args()
     # If the target is to just build args.gn then we are done here; otherwise
     # drop that target because it's not something ninja can build.
     if 'gn_args' in self.targets:
@@ -470,13 +613,24 @@ class RawConfig:
         printable_path = self.path
     else:
       printable_path = self.path
+
+    printable_path_gn = printable_path
+    change_cwd = None
+    if CHROMIUM_DIR:
+      change_cwd = CHROMIUM_DIR
+      try:
+        printable_path_gn = self.path.relative_to(CHROMIUM_DIR)
+      except ValueError:
+        pass
+
     build_ninja = self.path / "build.ninja"
+
     if not build_ninja.exists():
-      code = _call(f"gn gen {printable_path}")
+      code = _call(f"gn gen {printable_path_gn}", cwd=change_cwd)
       if code != 0:
         return code
     elif self.clean:
-      code = _call(f"gn clean {printable_path}")
+      code = _call(f"gn clean {printable_path_gn}", cwd=change_cwd)
       if code != 0:
         return code
     targets = " ".join(self.targets)
@@ -499,6 +653,8 @@ class RawConfig:
         match = csa_trap.search(output)
         extra_opt = match.group(1) if match else ""
         cmdline = re.compile("python3 ../../tools/run.py ./mksnapshot (.*)")
+        if CHROMIUM_DIR:
+          cmdline = re.compile("python3 ../../v8/tools/run.py ./mksnapshot (.*)")
         orig_cmdline = cmdline.search(output).group(1).strip()
         cmdline = (
             prepare_mksnapshot_cmdline(orig_cmdline, self.path) + extra_opt)
@@ -508,12 +664,23 @@ class RawConfig:
       elif "run.py ./torque" in output and not ": Torque Error: " in output:
         # Torque failed/crashed without printing an error message.
         cmdline = re.compile("python3 ../../tools/run.py ./torque (.*)")
+        if CHROMIUM_DIR:
+          cmdline = re.compile("python3 ../../v8/tools/run.py ./torque (.*)")
         orig_cmdline = cmdline.search(output).group(1).strip()
         cmdline = f"gdb --args "
         cmdline = prepare_torque_cmdline(orig_cmdline, self.path)
         _notify("V8 build requires your attention",
                 "Detecting torque failure, re-running in GDB...")
         _call(cmdline)
+    if return_code == 0:
+      try:
+        head_commit = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                              cwd=V8_ROOT_DIR,
+                                              text=True).strip()
+        last_built_commit_file = self.path / "last_built_commit"
+        last_built_commit_file.write_text(head_commit)
+      except subprocess.CalledProcessError:
+        pass
     return return_code
 
   def run_tests(self):
@@ -525,9 +692,16 @@ class RawConfig:
       tests = " ".join(self.tests)
     run_tests = V8_DIR / "tools" / "run-tests.py"
     test_runner_args = " ".join(self.testrunner_args)
-    return _call(
+    return_code = _call(
         f'"{sys.executable }" {run_tests} --outdir={self.path} {tests} {test_runner_args}'
     )
+    if return_code == 0:
+      is_full_run = ("ALL" in self.tests or
+                     set(self.tests) == set(DEFAULT_TESTS))
+      if is_full_run:
+        last_test_run_file = self.path / "last_test_run"
+        last_test_run_file.write_text(str(int(time.time())))
+    return return_code
 
 
 # Contrary to RawConfig, takes arch and mode, and sets everything up
@@ -658,6 +832,8 @@ class ArgumentParser(object):
     self.global_actions = set()
     self.configs = {}
     self.testrunner_args = []
+    self.sync_mode = GclientSyncMode.NONE
+    self.ensure_tests_ran = False
 
   def populate_configs(self, arches, modes, targets, tests, clean):
     for a in arches:
@@ -723,14 +899,37 @@ class ArgumentParser(object):
       self.configs[path].extend(targets, tests, clean)
     return True
 
+  def _parse_sync_arg(self, argstring):
+    if argstring == "--sync":
+      self.sync_mode = GclientSyncMode.NORMAL
+      return True
+    if argstring.startswith("--sync="):
+      mode = argstring[len("--sync="):]
+      try:
+        self.sync_mode = GclientSyncMode(mode)
+        return True
+      except ValueError:
+        print(f"Unknown sync mode: {mode}")
+        sys.exit(1)
+    return False
+
   def parse_arg(self, argstring):
     if argstring in ("-h", "--help", "help"):
       print_help_and_exit()
     if argstring == "--print-completions":
       print_completions_and_exit()
+    if self._parse_sync_arg(argstring):
+      return
+    if argstring == "--ensure-tests-ran":
+      self.ensure_tests_ran = True
+      return
     if argstring == "quiet":
       global QUIET
       QUIET = True
+      return
+    if argstring == "--update-reclient-config":
+      global UPDATE_RECLIENT_CONFIG
+      UPDATE_RECLIENT_CONFIG = True
       return
     arches = []
     modes = []
@@ -803,7 +1002,6 @@ class ArgumentParser(object):
     arches = arches or DEFAULT_ARCHES
     modes = modes or DEFAULT_MODES
     targets = targets or DEFAULT_TARGETS
-    # Produce configs.
     self.populate_configs(arches, modes, targets, tests, clean)
 
   def parse_arguments(self, argv):
@@ -814,6 +1012,14 @@ class ArgumentParser(object):
       sys.exit(code)
     for argstring in argv:
       self.parse_arg(argstring)
+    if (self.ensure_tests_ran and len(self.global_actions) == 0 and
+        len(self.configs) == 0 and len(self.global_targets) == 0 and
+        len(self.global_tests) == 0):
+      most_recent = get_most_recent_config()
+      if most_recent:
+        self.parse_arg(most_recent)
+        self.parse_arg("check")
+
     self.process_global_actions()
     for c in self.configs:
       self.configs[c].extend(self.global_targets, self.global_tests)
@@ -823,6 +1029,16 @@ class ArgumentParser(object):
 def main(argv):
   parser = ArgumentParser()
   configs = parser.parse_arguments(argv[1:])
+
+  if parser.sync_mode == GclientSyncMode.NORMAL:
+    sync_code = _call("gclient sync -D")
+    if sync_code != 0:
+      return sync_code
+  elif parser.sync_mode == GclientSyncMode.FORCE:
+    sync_code = _call("gclient sync -D --force --reset")
+    if sync_code != 0:
+      return sync_code
+
   return_code = 0
   # If we have Reclient with the Google configuration, check for current
   # certificate.
@@ -830,9 +1046,17 @@ def main(argv):
     print("# gcert")
     subprocess.check_call("gcert", shell=True)
   for c in configs:
-    return_code += configs[c].build()
-  if return_code == 0:
-    for c in configs:
+    build_needed, test_needed = check_worktree_changes(configs[c])
+    if not test_needed:
+      print("No changes since last successful test run, skipping.")
+      continue
+    build_code = 0
+    if build_needed:
+      build_code = configs[c].build()
+      return_code += build_code
+    else:
+      print("No source changes since last build, reusing binaries.")
+    if build_code == 0:
       return_code += configs[c].run_tests()
   if return_code == 0:
     _notify('Done!', 'V8 compilation finished successfully.')

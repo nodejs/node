@@ -729,11 +729,11 @@ TEST(MutatingTest, CopyBackward) {
 
 TEST(MutatingTest, Move) {
   std::vector<std::unique_ptr<int>> src;
-  src.emplace_back(absl::make_unique<int>(1));
-  src.emplace_back(absl::make_unique<int>(2));
-  src.emplace_back(absl::make_unique<int>(3));
-  src.emplace_back(absl::make_unique<int>(4));
-  src.emplace_back(absl::make_unique<int>(5));
+  src.emplace_back(std::make_unique<int>(1));
+  src.emplace_back(std::make_unique<int>(2));
+  src.emplace_back(std::make_unique<int>(3));
+  src.emplace_back(std::make_unique<int>(4));
+  src.emplace_back(std::make_unique<int>(5));
 
   std::vector<std::unique_ptr<int>> dest = {};
   absl::c_move(src, std::back_inserter(dest));
@@ -744,11 +744,11 @@ TEST(MutatingTest, Move) {
 
 TEST(MutatingTest, MoveBackward) {
   std::vector<std::unique_ptr<int>> actual;
-  actual.emplace_back(absl::make_unique<int>(1));
-  actual.emplace_back(absl::make_unique<int>(2));
-  actual.emplace_back(absl::make_unique<int>(3));
-  actual.emplace_back(absl::make_unique<int>(4));
-  actual.emplace_back(absl::make_unique<int>(5));
+  actual.emplace_back(std::make_unique<int>(1));
+  actual.emplace_back(std::make_unique<int>(2));
+  actual.emplace_back(std::make_unique<int>(3));
+  actual.emplace_back(std::make_unique<int>(4));
+  actual.emplace_back(std::make_unique<int>(5));
   auto subrange = absl::MakeSpan(actual.data(), 3);
   absl::c_move_backward(subrange, actual.end());
   EXPECT_THAT(actual, ElementsAre(IsNull(), IsNull(), Pointee(1), Pointee(2),
@@ -758,9 +758,9 @@ TEST(MutatingTest, MoveBackward) {
 TEST(MutatingTest, MoveWithRvalue) {
   auto MakeRValueSrc = [] {
     std::vector<std::unique_ptr<int>> src;
-    src.emplace_back(absl::make_unique<int>(1));
-    src.emplace_back(absl::make_unique<int>(2));
-    src.emplace_back(absl::make_unique<int>(3));
+    src.emplace_back(std::make_unique<int>(1));
+    src.emplace_back(std::make_unique<int>(2));
+    src.emplace_back(std::make_unique<int>(3));
     return src;
   };
 

@@ -1,0 +1,47 @@
+header: arpa/inet.h
+standards:
+  - posix
+macros: []
+types:
+  - type_name: in_addr_t
+  - type_name: struct_in_addr
+enums: []
+objects: []
+functions:
+  - name: htonl
+    standards:
+      - POSIX
+    return_type: uint32_t
+    arguments:
+      - type: uint32_t
+  - name: htons
+    standards:
+      - POSIX
+    return_type: uint16_t
+    arguments:
+      - type: uint16_t
+  - name: inet_addr
+    standards:
+      - POSIX
+    return_type: in_addr_t
+    arguments:
+      - type: const char *
+  - name: inet_aton
+    standards:
+      - llvm_libc_ext
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: struct in_addr *
+  - name: ntohl
+    standards:
+      - POSIX
+    return_type: uint32_t
+    arguments:
+      - type: uint32_t
+  - name: ntohs
+    standards:
+      - POSIX
+    return_type: uint16_t
+    arguments:
+      - type: uint16_t

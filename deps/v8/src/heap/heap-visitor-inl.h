@@ -50,17 +50,17 @@ constexpr bool SupportsRightTrim() {
 }
 
 template <VisitorId visitor_id>
-inline bool ContainsReadOnlyMap(PtrComprCageBase, Tagged<HeapObject>) {
+inline bool ContainsReadOnlyMap(Tagged<HeapObject>) {
   return false;
 }
 
 #define DEFINE_READ_ONLY_MAP_SPECIALIZATION(VisitorIdType)                    \
   template <>                                                                 \
   inline bool ContainsReadOnlyMap<VisitorId::kVisit##VisitorIdType>(          \
-      PtrComprCageBase cage_base, Tagged<HeapObject> object) {                \
+      Tagged<HeapObject> object) {                                            \
     /* If you see this DCHECK fail we encountered a Map with a VisitorId that \
      * should have only ever appeared in read-only space. */                  \
-    DCHECK(HeapLayout::InReadOnlySpace(object->map(cage_base)));              \
+    DCHECK(HeapLayout::InReadOnlySpace(object->map()));                       \
     return true;                                                              \
   }
 VISITOR_IDS_WITH_READ_ONLY_MAPS_LIST(DEFINE_READ_ONLY_MAP_SPECIALIZATION)
@@ -94,7 +94,7 @@ template <typename ConcreteVisitor>
 size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<HeapObject> object)
   requires(!ConcreteVisitor::UsePrecomputedObjectSize())
 {
-  return Visit(object->map(cage_base()), object);
+  return Visit(object->map(), object);
 }
 
 template <typename ConcreteVisitor>
@@ -150,7 +150,6 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
         maybe_object_size);
     TYPED_VISITOR_ID_LIST(CASE)
     TYPED_VISITOR_WITH_SLACK_ID_LIST(CASE)
-    TORQUE_VISITOR_ID_LIST(CASE)
 #undef CASE
 #define CASE(TypeName)                                                     \
   case kVisit##TypeName:                                                   \
@@ -203,6 +202,7 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
     Isolate* isolate;
     if (GetIsolateFromHeapObject(object, &isolate)) {
       isolate->PushParamsAndDie(
+          "unknown visitor id in heap object iteration",
           reinterpret_cast<void*>(object.ptr()),
           reinterpret_cast<void*>(map.ptr()),
           reinterpret_cast<void*>(static_cast<intptr_t>(map->visitor_id())));
@@ -219,7 +219,7 @@ void HeapVisitor<ConcreteVisitor>::VisitMapPointerIfNeeded(
     return;
   }
   if constexpr (!ConcreteVisitor::ShouldVisitReadOnlyMapPointer()) {
-    if (ContainsReadOnlyMap<visitor_id>(cage_base(), host)) {
+    if (ContainsReadOnlyMap<visitor_id>(host)) {
       return;
     }
   }
@@ -239,7 +239,6 @@ void HeapVisitor<ConcreteVisitor>::VisitMapPointerIfNeeded(
   }
 
 TYPED_VISITOR_ID_LIST(VISIT)
-TORQUE_VISITOR_ID_LIST(VISIT)
 TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
 

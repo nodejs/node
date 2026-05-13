@@ -267,6 +267,11 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // The value returned is always a computed hash, even if the value stored is
   // a forwarding index.
   inline uint32_t EnsureRawHash();
+  // If `out_one_byte_content` is non-null and the hasher actually scans the
+  // content here, it is set to true iff the content fits in one byte. Stays
+  // untouched on the early-return paths (hash already computed, hashed via
+  // the forwarding table, length > kMaxHashCalcLength).
+  inline uint32_t EnsureRawHash(bool* out_one_byte_content);
   inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
   inline uint32_t RawHash();
 
@@ -300,7 +305,6 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
 } V8_OBJECT_END;
 
 inline bool IsUniqueName(Tagged<Name> obj);
-inline bool IsUniqueName(Tagged<Name> obj, PtrComprCageBase cage_base);
 
 // ES6 symbols.
 V8_OBJECT class Symbol : public Name {

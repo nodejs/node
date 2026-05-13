@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <ios>
 #include <limits>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -28,6 +29,7 @@
 #ifdef __ANDROID__
 #include <android/api-level.h>
 #endif
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
@@ -39,7 +41,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 namespace {
 using ::absl::log_internal::AsString;
@@ -2096,7 +2097,7 @@ size_t MaxLogFieldLengthNoPrefix() {
     }
 
    private:
-    absl::optional<size_t> size_;
+    std::optional<size_t> size_;
   } extractor_sink;
   LOG(INFO).NoPrefix().ToSinkOnly(&extractor_sink)
       << std::string(2 * absl::log_internal::kLogMessageBufferSize, 'x');

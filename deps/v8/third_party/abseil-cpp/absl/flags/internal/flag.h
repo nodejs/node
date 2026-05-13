@@ -135,7 +135,7 @@ inline size_t Sizeof(FlagOpFn op) {
 }
 // Returns fast type id corresponding to the value type.
 inline FlagFastTypeId FastTypeId(FlagOpFn op) {
-  return reinterpret_cast<FlagFastTypeId>(
+  return absl::bit_cast<FlagFastTypeId>(
       op(FlagOp::kFastTypeId, nullptr, nullptr, nullptr));
 }
 // Returns fast type id corresponding to the value type.
@@ -168,7 +168,7 @@ inline const std::type_info* GenRuntimeTypeId() {
 // Flag help auxiliary structs.
 
 // This is help argument for absl::Flag encapsulating the string literal pointer
-// or pointer to function generating it as well as enum descriminating two
+// or pointer to function generating it as well as enum discriminating two
 // cases.
 using HelpGenFunc = std::string (*)();
 
@@ -178,7 +178,7 @@ struct FixedCharArray {
 
   template <size_t... I>
   static constexpr FixedCharArray<N> FromLiteralString(
-      absl::string_view str, absl::index_sequence<I...>) {
+      absl::string_view str, std::index_sequence<I...>) {
     return (void)str, FixedCharArray<N>({{str[I]..., '\0'}});
   }
 };
@@ -186,7 +186,7 @@ struct FixedCharArray {
 template <typename Gen, size_t N = Gen::Value().size()>
 constexpr FixedCharArray<N + 1> HelpStringAsArray(int) {
   return FixedCharArray<N + 1>::FromLiteralString(
-      Gen::Value(), absl::make_index_sequence<N>{});
+      Gen::Value(), std::make_index_sequence<N>{});
 }
 
 template <typename Gen>
@@ -608,7 +608,7 @@ class FlagImpl final : public CommandLineFlag {
     *value = ReadOneBool();
   }
   template <typename T,
-            absl::enable_if_t<flags_internal::StorageKind<T>() ==
+            std::enable_if_t<flags_internal::StorageKind<T>() ==
                                   FlagValueStorageKind::kOneWordAtomic,
                               int> = 0>
   void Read(T* value) const ABSL_LOCKS_EXCLUDED(DataGuard()) {
@@ -901,7 +901,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
     case FlagOp::kSizeof:
       return reinterpret_cast<void*>(static_cast<uintptr_t>(sizeof(T)));
     case FlagOp::kFastTypeId:
-      return const_cast<void*>(absl::FastTypeId<T>());
+      return absl::bit_cast<void*>(absl::FastTypeId<T>());
     case FlagOp::kRuntimeTypeId:
       return const_cast<std::type_info*>(GenRuntimeTypeId<T>());
     case FlagOp::kParse: {

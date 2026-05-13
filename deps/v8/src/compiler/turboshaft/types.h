@@ -217,18 +217,20 @@ class V8_EXPORT_PRIVATE Type {
   template <size_t B>
   inline bool IsWord() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return IsWord32();
-    else
+    } else {
       return IsWord64();
+    }
   }
   template <size_t B>
   inline bool IsFloat() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return IsFloat32();
-    else
+    } else {
       return IsFloat64();
+    }
   }
 
   // Casts
@@ -240,18 +242,20 @@ class V8_EXPORT_PRIVATE Type {
   template <size_t B>
   inline const auto& AsWord() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return AsWord32();
-    else
+    } else {
       return AsWord64();
+    }
   }
   template <size_t B>
   inline const auto& AsFloat() const {
     static_assert(B == 32 || B == 64);
-    if constexpr (B == 32)
+    if constexpr (B == 32) {
       return AsFloat32();
-    else
+    } else {
       return AsFloat64();
+    }
   }
 
   // Comparison

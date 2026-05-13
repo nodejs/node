@@ -321,21 +321,6 @@ const BasePage* BasePage::FromPayload(const void* payload) {
   return static_cast<const BasePage*>(BasePageHandle::FromPayload(payload));
 }
 
-template <AccessMode mode = AccessMode::kNonAtomic>
-const HeapObjectHeader* ObjectHeaderFromInnerAddressImpl(const BasePage* page,
-                                                         const void* address) {
-  if (page->is_large()) {
-    return LargePage::From(page)->ObjectHeader();
-  }
-  const PlatformAwareObjectStartBitmap& bitmap =
-      NormalPage::From(page)->object_start_bitmap();
-  const HeapObjectHeader* header =
-      bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
-  DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
-                         header->AllocatedSize<AccessMode::kAtomic>());
-  return header;
-}
-
 template <AccessMode mode>
 HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(void* address) const {
   return const_cast<HeapObjectHeader&>(
@@ -352,8 +337,15 @@ const HeapObjectHeader& BasePage::ObjectHeaderFromInnerAddress(
   // the page |type_| field). This can occur when tracing a Member holding a
   // reference to a mixin type
   SynchronizedLoad();
+  if (is_large()) {
+    return *LargePage::From(this)->ObjectHeader();
+  }
+  const PlatformAwareObjectStartBitmap& bitmap =
+      NormalPage::From(this)->object_start_bitmap();
   const HeapObjectHeader* header =
-      ObjectHeaderFromInnerAddressImpl<mode>(this, address);
+      bitmap.FindHeader<mode>(static_cast<ConstAddress>(address));
+  DCHECK_LT(address, reinterpret_cast<ConstAddress>(header) +
+                         header->AllocatedSize<AccessMode::kAtomic>());
   DCHECK_NE(kFreeListGCInfoIndex, header->GetGCInfoIndex<mode>());
   return *header;
 }

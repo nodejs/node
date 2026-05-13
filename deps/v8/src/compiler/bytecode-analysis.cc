@@ -332,12 +332,13 @@ void UpdateOutLiveness(BytecodeLiveness& liveness,
         table.LookupHandlerIndexForRange(iterator.current_offset());
 
     if (handler_index != HandlerTable::kNoHandlerFound) {
+      uint32_t index = static_cast<uint32_t>(handler_index);
       EnsureOutLivenessIsNotAlias<IsFirstUpdate>(
           liveness, next_bytecode_in_liveness, zone);
       bool was_accumulator_live = liveness.out->AccumulatorIsLive();
       liveness.out->Union(
-          *liveness_map.GetInLiveness(table.GetRangeHandler(handler_index)));
-      liveness.out->MarkRegisterLive(table.GetRangeData(handler_index));
+          *liveness_map.GetInLiveness(table.GetRangeHandler(index)));
+      liveness.out->MarkRegisterLive(table.GetRangeData(index));
       if (!was_accumulator_live) {
         // The accumulator is reset to the exception on entry into a handler,
         // and so shouldn't be considered live coming out of this bytecode just
@@ -822,8 +823,9 @@ const LoopInfo& BytecodeAnalysis::GetLoopInfoFor(int header_offset) const {
 const LoopInfo* BytecodeAnalysis::TryGetLoopInfoFor(int header_offset) const {
   auto it = std::ranges::lower_bound(loop_infos_, header_offset, {},
                                      &LoopInfo::loop_start);
-  if (it == loop_infos_.end() || it->loop_start() != header_offset)
+  if (it == loop_infos_.end() || it->loop_start() != header_offset) {
     return nullptr;
+  }
   return &*it;
 }
 

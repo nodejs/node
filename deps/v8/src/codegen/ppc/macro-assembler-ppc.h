@@ -9,6 +9,8 @@
 #error This header must be included via macro-assembler.h
 #endif
 
+#include <optional>
+
 #include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/bailout-reason.h"
@@ -667,20 +669,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   int CallCFunction(
       ExternalReference function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
   int CallCFunction(
       Register function, int num_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
   int CallCFunction(
       ExternalReference function, int num_reg_arguments,
       int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
   int CallCFunction(
       Register function, int num_reg_arguments, int num_double_arguments,
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
-      bool has_function_descriptor = true);
+      bool has_function_descriptor = true, Label* return_label = nullptr);
 
   void MovFromFloatParameter(DoubleRegister dst);
   void MovFromFloatResult(DoubleRegister dst);
@@ -736,7 +738,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             Condition cond = al);
   void Call(Label* target);
 
-  void GetLabelAddress(Register dst, Label* target);
+  void GetLabelAddress(Register dst, Label* target, Register scratch);
 
   // Load the builtin given by the Smi in |builtin_index| into |target|.
   void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
@@ -968,6 +970,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFeedbackVector(Register dst, Register closure, Register scratch,
                           Label* fbv_undef);
 
+  void LoadFeedbackCell(Register dst, Register closure);
+  void LoadFeedbackVectorFromCell(Register dst, Register feedback_cell,
+                                  Register scratch, Label* fbv_undef);
+
   void LoadInterpreterDataBytecodeArray(Register destination,
                                         Register interpreter_data);
   void LoadInterpreterDataInterpreterTrampoline(Register destination,
@@ -986,20 +992,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MoveToCrFromXer(CRegister cr) {
       mcrxrx(cr);
   }
-
-  // Compute dst = left + right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void AddAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
-  void AddAndCheckForOverflow(Register dst, Register left, intptr_t right,
-                              Register overflow_dst, Register scratch = r0);
-
-  // Compute dst = left - right, setting condition codes. dst may be same as
-  // either left or right (or a unique register). left and right must not be
-  // the same register.
-  void SubAndCheckForOverflow(Register dst, Register left, Register right,
-                              Register overflow_dst, Register scratch = r0);
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -1645,13 +1637,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // sets the flags and leaves the object type in the type_reg register.
   template <bool use_unsigned_cmp = false>
   void CompareInstanceType(Register map, Register type_reg, InstanceType type) {
-    static_assert(Map::kInstanceTypeOffset < 4096);
+    static_assert(offsetof(Map, instance_type_) < 4096);
     static_assert(LAST_TYPE <= 0xFFFF);
     if (use_unsigned_cmp) {
-      LoadU16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+      LoadU16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
       CmpU64(type_reg, Operand(type), r0);
     } else {
-      LoadS16(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+      LoadS16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
       CmpS64(type_reg, Operand(type), r0);
     }
   }
@@ -1870,6 +1862,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 struct MoveCycleState {
   // Whether a move in the cycle needs a double scratch register.
   bool pending_double_scratch_register_use = false;
+  // Scratch scope that persists across MoveToTempLocation/MoveTempLocationTo,
+  // keeping the acquired register excluded from the scratch pool.
+  std::optional<UseScratchRegisterScope> temps;
+  // InstructionCode of the scratch register picked by MoveToTempLocation.
+  int scratch_reg_code = -1;
 };
 
 // Provides access to exit frame parameters (GC-ed).

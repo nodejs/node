@@ -29,8 +29,7 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-duration-format-tq.inc"
 
-class JSDurationFormat
-    : public TorqueGeneratedJSDurationFormat<JSDurationFormat, JSObject> {
+V8_OBJECT class JSDurationFormat : public JSObject {
  public:
   // Creates duration format object with properties derived from input
   // locales and options.
@@ -172,14 +171,35 @@ class JSDurationFormat
   static_assert(MicrosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
   static_assert(NanosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
 
-  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
-  DECL_ACCESSORS(icu_number_formatter,
-                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
+  inline int style_flags() const;
+  inline void set_style_flags(int value);
+
+  inline int display_flags() const;
+  inline void set_display_flags(int value);
+
+  inline Tagged<Managed<icu::Locale>> icu_locale() const;
+  inline void set_icu_locale(Tagged<Managed<icu::Locale>> value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Managed<icu::number::LocalizedNumberFormatter>>
+  icu_number_formatter() const;
+  inline void set_icu_number_formatter(
+      Tagged<Managed<icu::number::LocalizedNumberFormatter>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(JSDurationFormat)
+  DECL_VERIFIER(JSDurationFormat)
 
-  TQ_OBJECT_CONSTRUCTORS(JSDurationFormat)
-};
+  static const int kHeaderSize;
+
+ public:
+  TaggedMember<Smi> style_flags_;
+  TaggedMember<Smi> display_flags_;
+  TaggedMember<Foreign> icu_locale_;
+  TaggedMember<Foreign> icu_number_formatter_;
+} V8_OBJECT_END;
+
+inline constexpr int JSDurationFormat::kHeaderSize = sizeof(JSDurationFormat);
 
 }  // namespace internal
 }  // namespace v8

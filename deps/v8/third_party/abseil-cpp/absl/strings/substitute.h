@@ -123,9 +123,9 @@ class Arg {
   // probably using them as 8-bit integers and would probably prefer an integer
   // representation. However, we can't really know, so we make the caller decide
   // what to do.
-  Arg(char value)  // NOLINT(google-explicit-constructor)
-      : piece_(scratch_, 1) {
+  Arg(char value) {  // NOLINT(google-explicit-constructor)
     scratch_[0] = value;
+    piece_ = absl::string_view(scratch_, 1);
   }
   Arg(short value)  // NOLINT(*)
       : piece_(scratch_,

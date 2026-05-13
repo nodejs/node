@@ -4,10 +4,7 @@
 
 // Flags: --allow-natives-syntax --sandbox-testing
 
-const kJSFunctionType = Sandbox.getInstanceTypeIdFor('JS_FUNCTION_TYPE');
-const kJSFunctionDispatchHandleOffset = Sandbox.getFieldOffset(kJSFunctionType, 'dispatch_handle');
 
-let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 
 let params = [];
 for (let i = 1; i <= 10000; i++) {
@@ -30,11 +27,9 @@ f2();
 // This should simply result in the execution of different (but valid) code.
 assertEquals(f1(), 42);
 assertEquals(f2(), 43);
-let f1_addr = Sandbox.getAddressOf(f1);
-let f2_addr = Sandbox.getAddressOf(f2);
-let dispatch_handle1 = memory.getUint32(f1_addr + kJSFunctionDispatchHandleOffset, true);
-let dispatch_handle2 = memory.getUint32(f2_addr + kJSFunctionDispatchHandleOffset, true);
-memory.setUint32(f2_addr + kJSFunctionDispatchHandleOffset, dispatch_handle1, true);
-memory.setUint32(f1_addr + kJSFunctionDispatchHandleOffset, dispatch_handle2, true);
+let dispatch_handle1 = Sandbox.readObjectField(f1, 'dispatch_handle');
+let dispatch_handle2 = Sandbox.readObjectField(f2, 'dispatch_handle');
+Sandbox.corruptObjectField(f2, 'dispatch_handle', dispatch_handle1);
+Sandbox.corruptObjectField(f1, 'dispatch_handle', dispatch_handle2);
 assertEquals(f1(), 43);
 assertEquals(f2(), 42);

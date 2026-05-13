@@ -12,15 +12,13 @@
 #include "src/base/atomic-utils.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/objects/compressed-slots.h"
+#include "src/objects/casting.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
-#include "src/objects/maybe-object.h"
-#include "src/objects/objects.h"
 #include "src/objects/tagged.h"
-#include "src/sandbox/cppheap-pointer-inl.h"
-#include "src/sandbox/indirect-pointer-inl.h"
+#include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/isolate-inl.h"
+#include "src/sandbox/trusted-pointer-table-inl.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -372,7 +370,7 @@ void IndirectPointerSlot::Relaxed_Store(
     Tagged<ExposedTrustedObject> value) const {
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
-      ExposedTrustedObject::kSelfIndirectPointerOffset);
+      offsetof(ExposedTrustedObject, self_indirect_pointer_));
   DCHECK_NE(handle, kNullIndirectPointerHandle);
   Relaxed_StoreHandle(handle);
 #else
@@ -384,7 +382,7 @@ void IndirectPointerSlot::Release_Store(
     Tagged<ExposedTrustedObject> value) const {
 #ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = value->ReadField<IndirectPointerHandle>(
-      ExposedTrustedObject::kSelfIndirectPointerOffset);
+      offsetof(ExposedTrustedObject, self_indirect_pointer_));
   Release_StoreHandle(handle);
 #else
   UNREACHABLE();

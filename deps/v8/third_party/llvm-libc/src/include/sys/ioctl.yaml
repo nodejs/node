@@ -1,0 +1,16 @@
+header: sys/ioctl.h
+standards:
+  - linux
+macros:
+  - macro_name: FIONREAD
+    macro_header: sys-ioctl-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: ioctl
+    return_type: int
+    arguments:
+      - type: int
+      - type: unsigned long
+      - type: '...'

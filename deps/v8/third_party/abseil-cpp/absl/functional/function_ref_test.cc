@@ -83,11 +83,11 @@ TEST(FunctionRefTest, NoExceptFunction) {
 TEST(FunctionRefTest, ForwardsArgs) {
   auto l = [](std::unique_ptr<int> i) { return *i; };
   FunctionRef<int(std::unique_ptr<int>)> ref(l);
-  EXPECT_EQ(42, ref(absl::make_unique<int>(42)));
+  EXPECT_EQ(42, ref(std::make_unique<int>(42)));
 }
 
 TEST(FunctionRef, ReturnMoveOnly) {
-  auto l = [] { return absl::make_unique<int>(29); };
+  auto l = [] { return std::make_unique<int>(29); };
   FunctionRef<std::unique_ptr<int>()> ref(l);
   EXPECT_EQ(29, *ref());
 }

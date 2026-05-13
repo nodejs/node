@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 const source = 'function Module() {\n' +
   '  "use asm";\n' +
   '  var x = 0 /* \r */ var y = 0;\n' +
@@ -13,4 +11,3 @@ const source = 'function Module() {\n' +
   'Module();\n';
 
 eval(source);
-assertTrue(%IsAsmWasmCode(Module));

@@ -27,6 +27,12 @@ __attribute__((constructor)) void init() {
 }  // namespace
 
 namespace v8 {
+
+namespace internal {
+// Used in simulator.h for its Associated Data Area pointer in codegen dispatch:
+void ZosFuncForJSEnv() {}
+}  // namespace internal
+
 namespace base {
 
 void OS::Free(void* address, const size_t size) {

@@ -250,6 +250,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadFixedRawData(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadExtendedMapBitfieldEx(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadFixedRepeatRoot(uint8_t data, SlotAccessor slot_accessor);
 
   // A helper function for ReadData for reading external references.
@@ -368,10 +370,10 @@ enum class DeserializingUserCodeOption {
 class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(
-      Isolate* isolate, DirectHandle<String> string,
+      Isolate* isolate, DirectHandle<InternalizedString> string,
       DeserializingUserCodeOption deserializing_user_code);
   explicit StringTableInsertionKey(
-      LocalIsolate* isolate, DirectHandle<String> string,
+      LocalIsolate* isolate, DirectHandle<InternalizedString> string,
       DeserializingUserCodeOption deserializing_user_code);
 
   template <typename IsolateT>
@@ -385,13 +387,13 @@ class StringTableInsertionKey final : public StringTableKey {
                DeserializingUserCodeOption::kIsDeserializingUserCode);
   }
   void PrepareForInsertion(LocalIsolate* isolate) {}
-  V8_WARN_UNUSED_RESULT DirectHandle<String> GetHandleForInsertion(
+  V8_WARN_UNUSED_RESULT DirectHandle<InternalizedString> GetHandleForInsertion(
       Isolate* isolate) {
     return string_;
   }
 
  private:
-  DirectHandle<String> string_;
+  DirectHandle<InternalizedString> string_;
 #ifdef DEBUG
   DeserializingUserCodeOption deserializing_user_code_;
 #endif

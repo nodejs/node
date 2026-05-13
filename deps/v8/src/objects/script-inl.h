@@ -9,10 +9,11 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/managed.h"
-#include "src/objects/objects.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/objects/struct-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -22,39 +23,94 @@ namespace internal {
 
 #include "torque-generated/src/objects/script-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
+Tagged<UnionOf<String, Undefined>> Script::source() const {
+  return source_.load();
+}
+void Script::set_source(Tagged<UnionOf<String, Undefined>> value,
+                        WriteBarrierMode mode) {
+  source_.store(this, value, mode);
+}
 
-#if V8_ENABLE_WEBASSEMBLY
-ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, Tagged<FixedArray>,
-                  kEvalFromSharedOrWrappedArgumentsOffset,
-                  this->type() == Type::kWasm)
-ACCESSORS_CHECKED(Script, wasm_managed_native_module, Tagged<Object>,
-                  kEvalFromPositionOffset, this->type() == Type::kWasm)
-ACCESSORS_CHECKED(Script, wasm_weak_instance_list, Tagged<WeakArrayList>,
-                  kInfosOffset, this->type() == Type::kWasm)
-#define CHECK_SCRIPT_NOT_WASM this->type() != Type::kWasm
-#else
-#define CHECK_SCRIPT_NOT_WASM true
-#endif  // V8_ENABLE_WEBASSEMBLY
+Tagged<Object> Script::name() const { return name_.load(); }
+void Script::set_name(Tagged<Object> value, WriteBarrierMode mode) {
+  name_.store(this, value, mode);
+}
+
+int Script::line_offset() const { return line_offset_.load().value(); }
+void Script::set_line_offset(int value) {
+  line_offset_.store(this, Smi::FromInt(value));
+}
+
+int Script::column_offset() const { return column_offset_.load().value(); }
+void Script::set_column_offset(int value) {
+  column_offset_.store(this, Smi::FromInt(value));
+}
+
+Tagged<UnionOf<Smi, Undefined, Symbol>> Script::context_data() const {
+  return context_data_.load();
+}
+void Script::set_context_data(Tagged<UnionOf<Smi, Undefined, Symbol>> value,
+                              WriteBarrierMode mode) {
+  context_data_.store(this, value, mode);
+}
 
 Script::Type Script::type() const {
-  Tagged<Smi> value = TaggedField<Smi, kScriptTypeOffset>::load(*this);
-  return static_cast<Type>(value.value());
+  return static_cast<Type>(script_type_.load().value());
 }
 void Script::set_type(Type value) {
-  TaggedField<Smi, kScriptTypeOffset>::store(
-      *this, Smi::FromInt(static_cast<int>(value)));
+  script_type_.store(this, Smi::FromInt(static_cast<int>(value)));
 }
 
-ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Tagged<Object>,
-                  kEvalFromSharedOrWrappedArgumentsOffset,
-                  CHECK_SCRIPT_NOT_WASM)
-SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
-                      CHECK_SCRIPT_NOT_WASM)
-#undef CHECK_SCRIPT_NOT_WASM
+Tagged<UnionOf<FixedArray, Smi>> Script::line_ends() const {
+  return line_ends_.load();
+}
+void Script::set_line_ends(Tagged<UnionOf<FixedArray, Smi>> value,
+                           WriteBarrierMode mode) {
+  line_ends_.store(this, value, mode);
+}
 
-ACCESSORS(Script, compiled_lazy_function_positions, Tagged<Object>,
-          kCompiledLazyFunctionPositionsOffset)
+int Script::id() const { return id_.load().value(); }
+void Script::set_id(int value) { id_.store(this, Smi::FromInt(value)); }
+
+Tagged<Object> Script::eval_from_shared_or_wrapped_arguments() const {
+  return eval_from_shared_or_wrapped_arguments_.load();
+}
+void Script::set_eval_from_shared_or_wrapped_arguments(Tagged<Object> value,
+                                                       WriteBarrierMode mode) {
+  eval_from_shared_or_wrapped_arguments_.store(this, value, mode);
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+Tagged<FixedArray> Script::wasm_breakpoint_infos() const {
+  DCHECK_EQ(type(), Type::kWasm);
+  return Cast<FixedArray>(eval_from_shared_or_wrapped_arguments());
+}
+void Script::set_wasm_breakpoint_infos(Tagged<FixedArray> value,
+                                       WriteBarrierMode mode) {
+  DCHECK_EQ(type(), Type::kWasm);
+  set_eval_from_shared_or_wrapped_arguments(value, mode);
+}
+
+Tagged<Object> Script::wasm_managed_native_module() const {
+  DCHECK_EQ(type(), Type::kWasm);
+  return eval_from_position_.load();
+}
+void Script::set_wasm_managed_native_module(Tagged<Object> value,
+                                            WriteBarrierMode mode) {
+  DCHECK_EQ(type(), Type::kWasm);
+  eval_from_position_.store(this, Cast<UnionOf<Smi, Foreign>>(value), mode);
+}
+
+Tagged<WeakArrayList> Script::wasm_weak_instance_list() const {
+  DCHECK_EQ(type(), Type::kWasm);
+  return Cast<WeakArrayList>(infos_.load());
+}
+void Script::set_wasm_weak_instance_list(Tagged<WeakArrayList> value,
+                                         WriteBarrierMode mode) {
+  DCHECK_EQ(type(), Type::kWasm);
+  infos_.store(this, value, mode);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Script::is_wrapped() const {
   return IsFixedArray(eval_from_shared_or_wrapped_arguments());
@@ -86,30 +142,56 @@ Tagged<FixedArray> Script::wrapped_arguments() const {
   return Cast<FixedArray>(eval_from_shared_or_wrapped_arguments());
 }
 
-DEF_GETTER(Script, infos, Tagged<WeakFixedArray>) {
+int Script::eval_from_position() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_NE(type(), Type::kWasm);
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return Cast<Smi>(eval_from_position_.load()).value();
+}
+void Script::set_eval_from_position(int value) {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_NE(type(), Type::kWasm);
+#endif  // V8_ENABLE_WEBASSEMBLY
+  eval_from_position_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Object> Script::eval_from_scope_info() const {
+  return eval_from_scope_info_.load();
+}
+void Script::set_eval_from_scope_info(Tagged<Object> value,
+                                      WriteBarrierMode mode) {
+  eval_from_scope_info_.store(this, Cast<UnionOf<ScopeInfo, Undefined>>(value),
+                              mode);
+}
+
+bool Script::has_eval_from_scope_info() const {
+  return IsScopeInfo(eval_from_scope_info());
+}
+
+Tagged<WeakFixedArray> Script::infos() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Type::kWasm) {
     return GetReadOnlyRoots().empty_weak_fixed_array();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-  return TaggedField<WeakFixedArray, kInfosOffset>::load(*this);
+  return Cast<WeakFixedArray>(infos_.load());
 }
 
 void Script::set_infos(Tagged<WeakFixedArray> value, WriteBarrierMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(Type::kWasm, type());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  TaggedField<WeakFixedArray, kInfosOffset>::store(*this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kInfosOffset, value, mode);
+  infos_.store(this, value, mode);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::has_wasm_breakpoint_infos() const {
-  return type() == Type::kWasm && wasm_breakpoint_infos()->length() > 0;
+  return type() == Type::kWasm &&
+         wasm_breakpoint_infos()->ulength().value() > 0;
 }
 
-wasm::NativeModule* Script::wasm_native_module() const {
-  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->raw();
+Managed<wasm::NativeModule>::Ptr Script::wasm_native_module() const {
+  return Cast<Managed<wasm::NativeModule>>(wasm_managed_native_module())->ptr();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
@@ -123,12 +205,12 @@ uint32_t Script::flags() const {
   // Use a relaxed load since background compile threads read the
   // {compilation_type()} while the foreground thread might update e.g. the
   // {origin_options}.
-  return TaggedField<Smi>::Relaxed_Load(*this, kFlagsOffset).value();
+  return flags_.Relaxed_Load().value();
 }
 
 void Script::set_flags(uint32_t new_flags) {
   DCHECK(is_int31(new_flags));
-  TaggedField<Smi>::Relaxed_Store(*this, kFlagsOffset, Smi::FromInt(new_flags));
+  flags_.Relaxed_Store(this, Smi::FromInt(new_flags));
 }
 
 Script::CompilationType Script::compilation_type() const {
@@ -170,6 +252,65 @@ ScriptOriginOptions Script::origin_options() {
 void Script::set_origin_options(ScriptOriginOptions origin_options) {
   DCHECK(!(origin_options.Flags() & ~((1 << OriginOptionsBits::kSize) - 1)));
   set_flags(OriginOptionsBits::update(flags(), origin_options.Flags()));
+}
+
+Tagged<UnionOf<ArrayList, Undefined>> Script::compiled_lazy_function_positions()
+    const {
+  return compiled_lazy_function_positions_.load();
+}
+void Script::set_compiled_lazy_function_positions(
+    Tagged<UnionOf<ArrayList, Undefined>> value, WriteBarrierMode mode) {
+  compiled_lazy_function_positions_.store(this, value, mode);
+}
+
+Tagged<UnionOf<String, Undefined>> Script::source_url() const {
+  return source_url_.load();
+}
+void Script::set_source_url(Tagged<UnionOf<String, Undefined>> value,
+                            WriteBarrierMode mode) {
+  source_url_.store(this, value, mode);
+}
+
+Tagged<Object> Script::source_mapping_url() const {
+  return source_mapping_url_.load();
+}
+void Script::set_source_mapping_url(Tagged<Object> value,
+                                    WriteBarrierMode mode) {
+  source_mapping_url_.store(this, value, mode);
+}
+
+Tagged<UnionOf<String, Undefined>> Script::debug_id() const {
+  return debug_id_.load();
+}
+void Script::set_debug_id(Tagged<UnionOf<String, Undefined>> value,
+                          WriteBarrierMode mode) {
+  debug_id_.store(this, value, mode);
+}
+
+Tagged<FixedArray> Script::host_defined_options() const {
+  return host_defined_options_.load();
+}
+void Script::set_host_defined_options(Tagged<FixedArray> value,
+                                      WriteBarrierMode mode) {
+  host_defined_options_.store(this, value, mode);
+}
+
+#if V8_SCRIPTORMODULE_LEGACY_LIFETIME
+Tagged<ArrayList> Script::script_or_modules() const {
+  return script_or_modules_.load();
+}
+void Script::set_script_or_modules(Tagged<ArrayList> value,
+                                   WriteBarrierMode mode) {
+  script_or_modules_.store(this, value, mode);
+}
+#endif
+
+Tagged<UnionOf<String, Undefined>> Script::source_hash() const {
+  return source_hash_.load();
+}
+void Script::set_source_hash(Tagged<UnionOf<String, Undefined>> value,
+                             WriteBarrierMode mode) {
+  source_hash_.store(this, value, mode);
 }
 
 bool Script::HasValidSource() {
@@ -224,7 +365,7 @@ bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
 
 Tagged<Script> Script::GetEvalOrigin() {
   DisallowGarbageCollection no_gc;
-  Tagged<Script> origin_script = *this;
+  Tagged<Script> origin_script = this;
   while (origin_script->has_eval_from_shared()) {
     Tagged<HeapObject> maybe_script =
         origin_script->eval_from_shared()->script();

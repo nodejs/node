@@ -182,7 +182,7 @@ class V8_NODISCARD FrameAndConstantPoolScope {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FrameAndConstantPoolScope);
 };
 
-// Class for scoping the the unavailability of constant pool access.
+// Class for scoping the unavailability of constant pool access.
 class V8_NODISCARD ConstantPoolUnavailableScope {
  public:
   explicit ConstantPoolUnavailableScope(Assembler* assembler)

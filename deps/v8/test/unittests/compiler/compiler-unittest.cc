@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "include/v8-extension.h"
 #include "include/v8-function.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-profiler.h"
@@ -137,12 +138,16 @@ TEST_F(CompilerTest, Sum) {
   EXPECT_EQ(5050.0, Sum(i_isolate(), 100));
 }
 
-using CompilerPrintTest = WithPrintExtensionMixin<v8::TestWithIsolate>;
+class CompilerTestWithPrintExtension : public v8::TestWithIsolate {
+ public:
+  CompilerTestWithPrintExtension() {
+    v8::RegisterExtension(std::make_unique<PrintExtension>());
+  }
+};
 
-TEST_F(CompilerPrintTest, Print) {
+TEST_F(CompilerTestWithPrintExtension, Print) {
   v8::HandleScope scope(isolate());
-  const char* extension_names[1] = {
-      WithPrintExtensionMixin::kPrintExtensionName};
+  const char* extension_names[1] = {PrintExtension::kName};
   v8::ExtensionConfiguration config(1, extension_names);
   v8::Local<v8::Context> context = v8::Context::New(isolate(), &config);
   v8::Context::Scope context_scope(context);
@@ -203,19 +208,16 @@ TEST_F(CompilerTest, UncaughtThrow) {
   EXPECT_EQ(42.0, Object::NumberValue(isolate->exception()));
 }
 
-using CompilerC2JSFramesTest = WithPrintExtensionMixin<v8::TestWithIsolate>;
-
 // Tests calling a builtin function from C/C++ code, and the builtin function
 // performs GC. It creates a stack frame looks like following:
 //   | C (PerformGC) |
 //   |   JS-to-C     |
 //   |      JS       |
 //   |   C-to-JS     |
-TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
+TEST_F(CompilerTestWithPrintExtension, C2JSFrames) {
   v8_flags.expose_gc = true;
   v8::HandleScope scope(isolate());
-  const char* extension_names[2] = {
-      "v8/gc", WithPrintExtensionMixin::kPrintExtensionName};
+  const char* extension_names[2] = {"v8/gc", PrintExtension::kName};
   v8::ExtensionConfiguration config(2, extension_names);
   v8::Local<v8::Context> context = v8::Context::New(isolate(), &config);
   v8::Context::Scope context_scope(context);
@@ -261,7 +263,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
   const int buffer_size = max_rows + sizeof(function_f);
-  base::ScopedVector<char> buffer(buffer_size);
+  auto buffer = base::OwnedVector<char>::NewForOverwrite(buffer_size);
   memset(buffer.begin(), '\n', buffer_size - 1);
   buffer[buffer_size - 1] = '\0';
 

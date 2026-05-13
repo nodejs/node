@@ -19,7 +19,7 @@ let illFormedNumberingSystem = [
   "abc-ab",
 ];
 
-// https://tc39.github.io/ecma402/#table-numbering-system-digits
+// https://tc39.es/ecma402/#table-numbering-system-digits
 let validNumberingSystem= [
   "arab",
   "arabext",

@@ -243,44 +243,6 @@ testStackOverflow();
   if (result[2] !== 3) throw new Error("Wrong index 2");
 })();
 
-// Modified Array Iterator -> Slow path
-(function TestModifiedArrayIterator() {
-  let result = [];
-  let arr = [1, 2];
-
-  // Save original
-  const originalIter = Array.prototype[Symbol.iterator];
-
-  // Modify
-  Array.prototype[Symbol.iterator] = function() {
-    let i = 0;
-    return {
-      next() {
-        if (i < 1) {
-            i++;
-            return { value: 99, done: false }; // Inject 99
-        }
-        return { done: true };
-      }
-    };
-  };
-
-  try {
-    // Should use the modified iterator, not fast path
-    // Wait, modifying Array.prototype[Symbol.iterator] invalidates the protector.
-    // So logic should fall back to slow path.
-    // The mock iterator yields 99 once, then finishes.
-    %IterableForEach(arr, (val) => result.push(val));
-  } finally {
-    // Restore
-    Array.prototype[Symbol.iterator] = originalIter;
-  }
-
-  if (result.length !== 1 || result[0] !== 99) {
-    throw new Error(`Expected [99], got [${result}]`);
-  }
-})();
-
 // JSArrayIterator with patched return method
 (function TestArrayIteratorReturnCalled() {
   let arr = [1, 2, 3];
@@ -411,6 +373,77 @@ if (typeof Float16Array !== 'undefined') {
   }
 })();
 
+// TypedArray with offset
+(function TestOffsetTypedArray() {
+  const buffer = new ArrayBuffer(16);
+  const ta = new Uint8Array(buffer, 8, 4); // Offset 8, length 4
+  for (let i = 0; i < 4; i++) {
+    ta[i] = i + 1;
+  }
+  assertIterated([1, 2, 3, 4], ta);
+})();
+
+// Resizing RSAB while iterating
+(function TestResizingAB() {
+  const rab = new ArrayBuffer(16, { maxByteLength: 16 });
+  const ta  = new Float64Array(rab);
+  let i = 0;
+  %IterableForEach(ta, function(val) {
+    ++i;
+    rab.resize(8);
+  });
+  assertEquals(i, 1);
+})();
+
+// Resizing Array while iterating
+(function TestResizingAB() {
+  let arr = new Array(2);
+  let i = 0;
+  %IterableForEach(arr, function(val) {
+    i++;
+    arr.length = 1;
+  });
+  assertEquals(i, 1);
+})();
+
+// Modified Array Iterator -> Slow path
+(function TestModifiedArrayIterator() {
+  let result = [];
+  let arr = [1, 2];
+
+  // Save original
+  const originalIter = Array.prototype[Symbol.iterator];
+
+  // Modify
+  Array.prototype[Symbol.iterator] = function() {
+    let i = 0;
+    return {
+      next() {
+        if (i < 1) {
+            i++;
+            return { value: 99, done: false }; // Inject 99
+        }
+        return { done: true };
+      }
+    };
+  };
+
+  try {
+    // Should use the modified iterator, not fast path
+    // Wait, modifying Array.prototype[Symbol.iterator] invalidates the protector.
+    // So logic should fall back to slow path.
+    // The mock iterator yields 99 once, then finishes.
+    %IterableForEach(arr, (val) => result.push(val));
+  } finally {
+    // Restore
+    Array.prototype[Symbol.iterator] = originalIter;
+  }
+
+  if (result.length !== 1 || result[0] !== 99) {
+    throw new Error(`Expected [99], got [${result}]`);
+  }
+})();
+
 // Modified TypedArray Iterator
 (function TestModifiedTypedArrayIterator() {
   let ta = new Uint8Array([1, 2]);
@@ -440,12 +473,180 @@ if (typeof Float16Array !== 'undefined') {
   }
 })();
 
-// TypedArray with offset
-(function TestOffsetTypedArray() {
-  const buffer = new ArrayBuffer(16);
-  const ta = new Uint8Array(buffer, 8, 4); // Offset 8, length 4
-  for (let i = 0; i < 4; i++) {
-    ta[i] = i + 1;
-  }
-  assertIterated([1, 2, 3, 4], ta);
+// Test that iteration is correct if the array is converted from non-holey to holey mid-iteration.
+(function TestNonHoleyToHoleyMidIteration() {
+  let arr = [1, 2, 3, 4, 5];
+  let result = [];
+  %IterableForEach(arr, (val) => {
+    result.push(val);
+    if (val === 2) {
+      delete arr[3]; // Convert to holey
+    }
+  });
+  assertEquals([1, 2, 3, undefined, 5], result);
+})();
+
+// Test that iteration is correct if the array kind changes mid-iteration (e.g., Smi to Double)
+(function TestSmiToDoubleMidIteration() {
+  let arr = [1, 2, 3, 4];
+  let result = [];
+  %IterableForEach(arr, (val) => {
+    result.push(val);
+    if (val === 2) {
+      arr[3] = 4.4; // Convert to Double elements
+    }
+  });
+  assertEquals([1, 2, 3, 4.4], result);
+})();
+
+// Test that iteration is correct if the array kind changes mid-iteration (e.g., Double to Generic)
+(function TestDoubleToGenericMidIteration() {
+  let arr = [1.1, 2.2, 3.3, 4.4];
+  let result = [];
+  %IterableForEach(arr, (val) => {
+    result.push(val);
+    if (val === 2.2) {
+      arr[3] = "generic"; // Convert to generic elements
+    }
+  });
+  assertEquals([1.1, 2.2, 3.3, "generic"], result);
+})();
+
+// Test that iteration is correct if the array length increases mid-iteration
+(function TestLengthIncreaseMidIteration() {
+  let arr = [1, 2];
+  let result = [];
+  %IterableForEach(arr, (val) => {
+    result.push(val);
+    if (val === 2) {
+      arr.push(3);
+    }
+  });
+  assertEquals([1, 2, 3], result);
+})();
+
+// Test that iteration is correct if the array length decreases mid-iteration
+(function TestLengthDecreaseMidIteration() {
+  let arr = [1, 2, 3, 4];
+  let result = [];
+  %IterableForEach(arr, (val) => {
+    result.push(val);
+    if (val === 2) {
+      arr.length = 2;
+    }
+  });
+  assertEquals([1, 2], result);
+})();
+
+// Test that iteration is correct if the iterator itself is modified mid-iteration
+(function TestIteratorModifiedMidIteration() {
+  let arr = [1, 2, 3, 4];
+  let it = arr.values();
+  let result = [];
+  %IterableForEach(it, (val) => {
+    result.push(val);
+    if (val === 2) {
+      // Manually advance the iterator
+      it.next(); // Should skip 3
+    }
+  });
+  assertEquals([1, 2, 4], result);
+})();
+
+// Test iterator.next() called multiple times in one iteration
+(function TestIteratorNextCalledMultipleTimesInOneIteration() {
+  let arr = [1, 2, 3, 4, 5, 6];
+  let it = arr.values();
+  let result = [];
+  let itNextResults = [];
+  %IterableForEach(it, (val) => {
+    result.push(val);
+    if (val === 1) {
+      itNextResults.push(it.next().value); // Should get 2
+      itNextResults.push(it.next().value); // Should get 3
+    }
+  });
+  // Iteration 1: current_index=0, val=1. next() called twice.
+  // next_index becomes 3. current_index synced to 3 - 1 = 2.
+  // loop ++current_index -> 3.
+  // Iteration 2: current_index=3, val=4.
+  // Iteration 3: current_index=4, val=5.
+  // Iteration 4: current_index=5, val=6.
+  assertEquals([1, 4, 5, 6], result);
+  assertEquals([2, 3], itNextResults);
+})();
+
+// Test iterator.next() called on multiple iterations
+(function TestIteratorNextCalledOnMultipleIterations() {
+  let arr = [1, 2, 3, 4, 5, 6, 7];
+  let it = arr.values();
+  let result = [];
+  %IterableForEach(it, (val) => {
+    result.push(val);
+    if (val === 1 || val === 4) {
+      it.next();
+    }
+  });
+  // Val 1: next() -> next_index=1, current_index+=1, loop++ -> current_index=2 (Val 3)
+  // Val 3: no next() -> next_index=1, current_index=2, loop++ -> current_index=3 (Val 4)
+  // Val 4: next() -> next_index=2, current_index+=1, loop++ -> current_index=5 (Val 6)
+  // Val 6: no next() -> next_index=2, current_index=5, loop++ -> current_index=6 (Val 7)
+  assertEquals([1, 3, 4, 6, 7], result);
+})();
+
+// Test iterator.next() called until done
+(function TestIteratorNextCalledUntilDone() {
+  let arr = [1, 2, 3, 4];
+  let it = arr.values();
+  let result = [];
+  %IterableForEach(it, (val) => {
+    result.push(val);
+    if (val === 2) {
+      while (!it.next().done);
+    }
+  });
+  assertEquals([1, 2], result);
+})();
+
+// Test iterator.next() then array length changed
+(function TestIteratorNextThenLengthChanged() {
+  let arr = [1, 2, 3, 4, 5];
+  let it = arr.values();
+  let result = [];
+  %IterableForEach(it, (val) => {
+    result.push(val);
+    if (val === 1) {
+      it.next(); // current_index jump
+      arr.length = 3; // len change
+    }
+  });
+  // Val 1: next() -> next_index=1, current_index+=1, loop++ -> current_index=2.
+  // arr.length = 3.
+  // Iteration 2: current_index=2, val=3.
+  // Loop ends (current_index=3 == len=3).
+  assertEquals([1, 3], result);
+})();
+
+// Test iterator.next() called until done
+(function TestIteratorNextCalledUntilDone() {
+  let arr = [1, 2, 3, 4];
+  let it = arr.values();
+  let n = it.next;
+  let next_called = 0;
+  let next_lookup = 0;
+  Object.defineProperty(it, "next", {
+    get() {
+      next_lookup++;
+      return function() {
+        next_called++;
+        return n.apply(this);
+      };
+    },
+  });
+  let i = 0;
+  %IterableForEach(it, (val) => {
+    i++;
+    assertEquals(next_lookup, 1);
+    assertEquals(next_called, i);
+  });
 })();

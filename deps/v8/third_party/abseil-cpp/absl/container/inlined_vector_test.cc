@@ -823,7 +823,7 @@ class NotTriviallyDestructible {
       : p_(new int(*other.p_)) {}
 
   NotTriviallyDestructible& operator=(const NotTriviallyDestructible& other) {
-    p_ = absl::make_unique<int>(*other.p_);
+    p_ = std::make_unique<int>(*other.p_);
     return *this;
   }
 
@@ -1995,7 +1995,7 @@ TEST(AllocatorSupportTest, SizeAllocConstructor) {
 TEST(InlinedVectorTest, MinimumAllocatorCompilesUsingTraits) {
   using T = int;
   using A = std::allocator<T>;
-  using ATraits = absl::allocator_traits<A>;
+  using ATraits = std::allocator_traits<A>;
 
   struct MinimumAllocator {
     using value_type = T;

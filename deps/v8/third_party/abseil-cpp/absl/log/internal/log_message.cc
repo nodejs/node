@@ -227,7 +227,8 @@ void LogMessage::LogMessageData::InitializeEncodingAndFormat() {
   EncodeVarint(EventTag::kSeverity,
                ProtoSeverity(entry.log_severity(), entry.verbosity()),
                &encoded_remaining());
-  EncodeVarint(EventTag::kThreadId, entry.tid(), &encoded_remaining());
+  EncodeVarint(EventTag::kThreadId, static_cast<uint64_t>(entry.tid()),
+               &encoded_remaining());
 }
 
 void LogMessage::LogMessageData::FinalizeEncodingAndFormat() {
@@ -278,8 +279,8 @@ LogMessage::LogMessage(const char* absl_nonnull file, int line,
   : LogMessage(absl::string_view(file), line, severity) {}
 LogMessage::LogMessage(absl::string_view file, int line,
                        absl::LogSeverity severity)
-    : data_(absl::make_unique<LogMessageData>(file, line, severity,
-                                              absl::Now())) {
+    : data_(
+          std::make_unique<LogMessageData>(file, line, severity, absl::Now())) {
   data_->first_fatal = false;
   data_->is_perror = false;
   data_->fail_quietly = false;

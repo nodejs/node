@@ -119,8 +119,21 @@ template <typename T, typename... Args>
 AlignedUniquePtr<T> MakeUniqueAlignedWithAlloc(AllocPtr alloc, FreePtr free,
                                                void* opaque, Args&&... args) {
   T* ptr = static_cast<T*>(AllocateAlignedBytes(sizeof(T), alloc, opaque));
+  if (HWY_UNLIKELY(ptr == nullptr)) {
+    return AlignedUniquePtr<T>(nullptr, AlignedDeleter(free, opaque));
+  }
+#ifdef HWY_EXCEPTIONS_ENABLED
+  try {
+    return AlignedUniquePtr<T>(new (ptr) T(std::forward<Args>(args)...),
+                               AlignedDeleter(free, opaque));
+  } catch (...) {
+    FreeAlignedBytes(ptr, free, opaque);
+    throw;
+  }
+#else
   return AlignedUniquePtr<T>(new (ptr) T(std::forward<Args>(args)...),
                              AlignedDeleter(free, opaque));
+#endif
 }
 
 // Similar to MakeUniqueAlignedWithAlloc but using the default alloc/free
@@ -128,8 +141,21 @@ AlignedUniquePtr<T> MakeUniqueAlignedWithAlloc(AllocPtr alloc, FreePtr free,
 template <typename T, typename... Args>
 AlignedUniquePtr<T> MakeUniqueAligned(Args&&... args) {
   T* ptr = static_cast<T*>(AllocateAlignedBytes(sizeof(T)));
+  if (HWY_UNLIKELY(ptr == nullptr)) {
+    return AlignedUniquePtr<T>(nullptr, AlignedDeleter());
+  }
+#ifdef HWY_EXCEPTIONS_ENABLED
+  try {
+    return AlignedUniquePtr<T>(new (ptr) T(std::forward<Args>(args)...),
+                               AlignedDeleter());
+  } catch (...) {
+    FreeAlignedBytes(ptr, nullptr, nullptr);
+    throw;
+  }
+#else
   return AlignedUniquePtr<T>(new (ptr) T(std::forward<Args>(args)...),
                              AlignedDeleter());
+#endif
 }
 
 template <class T>
@@ -147,8 +173,13 @@ struct AlignedAllocator {
                   "AlignedAllocator only supports integer types");
     static_assert(sizeof(V) <= sizeof(std::size_t),
                   "V n must be smaller or equal size_t to avoid overflow");
+    const size_t count = static_cast<std::size_t>(n);
+    if (HWY_LIKELY(count != 0) && sizeof(value_type) > SIZE_MAX / count) {
+      HWY_ABORT("AlignedAllocator: allocation size overflow "
+                 "(%zu * %zu exceeds size_t)", count, sizeof(value_type));
+    }
     return static_cast<value_type*>(
-        AllocateAlignedBytes(static_cast<std::size_t>(n) * sizeof(value_type)));
+        AllocateAlignedBytes(count * sizeof(value_type)));
   }
 
   template <class V>
@@ -208,7 +239,7 @@ AlignedUniquePtr<T[]> MakeUniqueAlignedArrayWithAlloc(
   T* ptr = detail::AllocateAlignedItems<T>(items, alloc, opaque);
   if (ptr != nullptr) {
     for (size_t i = 0; i < items; i++) {
-      new (ptr + i) T(std::forward<Args>(args)...);
+      new (ptr + i) T(args...);
     }
   }
   return AlignedUniquePtr<T[]>(ptr, AlignedDeleter(free, opaque));
@@ -399,6 +430,10 @@ class AlignedNDArray {
     size_t offset = 0;
     size_t shape_index = 0;
     for (const size_t axis_index : indices) {
+      if (HWY_UNLIKELY(axis_index >= shape_[shape_index])) {
+        HWY_ABORT("AlignedNDArray index %zu out of bounds (axis %zu, size %zu)",
+                   axis_index, shape_index, shape_[shape_index]);
+      }
       offset += memory_sizes_[shape_index + 1] * axis_index;
       shape_index++;
     }
@@ -417,6 +452,13 @@ class AlignedNDArray {
     sizes[axis] = 1;
     while (axis > 0) {
       --axis;
+      // Check for integer overflow in dimension multiplication.
+      if (HWY_LIKELY(shape[axis] != 0) &&
+          sizes[axis + 1] > SIZE_MAX / shape[axis]) {
+        HWY_ABORT("AlignedNDArray: dimension overflow at axis %zu "
+                   "(%zu * %zu exceeds size_t)",
+                   axis, sizes[axis + 1], shape[axis]);
+      }
       sizes[axis] = sizes[axis + 1] * shape[axis];
     }
     return sizes;

@@ -607,8 +607,9 @@ void TestInsertMultipleTrivial() {
   EXPECT_LE(size + added, v.capacity());
   for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i]);
   for (int i = ipos; i < ipos + iadded; ++i) EXPECT_EQ(1000, v[i]);
-  for (int i = ipos + iadded; i < isize + iadded; ++i)
+  for (int i = ipos + iadded; i < isize + iadded; ++i) {
     EXPECT_EQ(i - iadded + 1, v[i]);
+  }
 }
 }  // anonymous namespace
 
@@ -648,8 +649,9 @@ void TestInsertListTrivial() {
   EXPECT_LE(size + added, v.capacity());
   for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i]);
   for (int i = ipos; i < ipos + iadded; ++i) EXPECT_EQ(1000 + i - ipos, v[i]);
-  for (int i = ipos + iadded; i < isize + iadded; ++i)
+  for (int i = ipos + iadded; i < isize + iadded; ++i) {
     EXPECT_EQ(i - iadded + 1, v[i]);
+  }
 }
 }  // anonymous namespace
 
@@ -690,8 +692,9 @@ void TestInsertIterTrivial() {
   EXPECT_LE(size + added, v.capacity());
   for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i]);
   for (int i = ipos; i < ipos + iadded; ++i) EXPECT_EQ(1000 + i - ipos, v[i]);
-  for (int i = ipos + iadded; i < isize + iadded; ++i)
+  for (int i = ipos + iadded; i < isize + iadded; ++i) {
     EXPECT_EQ(i - iadded + 1, v[i]);
+  }
 }
 }  // anonymous namespace
 
@@ -1865,8 +1868,9 @@ void TestInsertMultipleNonTrivial() {
     EXPECT_LE(size + added, v.capacity());
     for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i].value());
     for (int i = ipos; i < ipos + iadded; ++i) EXPECT_EQ(1000, v[i].value());
-    for (int i = ipos + iadded; i < isize + iadded; ++i)
+    for (int i = ipos + iadded; i < isize + iadded; ++i) {
       EXPECT_EQ(i - iadded + 1, v[i].value());
+    }
   }
   if (size + added <= real_capacity) {
     EXPECT_EQ(iadded, ElementType::GetCounter(kDefaultConstructor));
@@ -1945,10 +1949,12 @@ void TestInsertListNonTrivial() {
     EXPECT_EQ(size + added, v.size());
     EXPECT_LE(size + added, v.capacity());
     for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i].value());
-    for (int i = ipos; i < ipos + iadded; ++i)
+    for (int i = ipos; i < ipos + iadded; ++i) {
       EXPECT_EQ(1000 + i - ipos, v[i].value());
-    for (int i = ipos + iadded; i < isize + iadded; ++i)
+    }
+    for (int i = ipos + iadded; i < isize + iadded; ++i) {
       EXPECT_EQ(i - iadded + 1, v[i].value());
+    }
   }
   if (size + added <= real_capacity) {
     EXPECT_EQ(iadded, ElementType::GetCounter(kDefaultConstructor));
@@ -2008,10 +2014,12 @@ void TestInsertIterNonTrivial() {
     EXPECT_EQ(size + added, v.size());
     EXPECT_LE(size + added, v.capacity());
     for (int i = 0; i < ipos; ++i) EXPECT_EQ(i + 1, v[i].value());
-    for (int i = ipos; i < ipos + iadded; ++i)
+    for (int i = ipos; i < ipos + iadded; ++i) {
       EXPECT_EQ(1000 + i - ipos, v[i].value());
-    for (int i = ipos + iadded; i < isize + iadded; ++i)
+    }
+    for (int i = ipos + iadded; i < isize + iadded; ++i) {
       EXPECT_EQ(i - iadded + 1, v[i].value());
+    }
   }
   if (size + added <= real_capacity) {
     EXPECT_EQ(iadded, ElementType::GetCounter(kDefaultConstructor));
@@ -2113,8 +2121,9 @@ void TestResizeNonTrivial() {
     } else {
       EXPECT_LE(new_size, v.capacity());
     }
-    for (int i = 0; i < std::min(isize, new_isize); ++i)
+    for (int i = 0; i < std::min(isize, new_isize); ++i) {
       EXPECT_EQ(i + 1, v[i].value());
+    }
   }
   if (new_size <= real_capacity) {
     EXPECT_EQ(size_diff(new_isize, isize),
@@ -2178,8 +2187,9 @@ void TestResizeInitNonTrivial() {
     } else {
       EXPECT_LE(new_size, v.capacity());
     }
-    for (int i = 0; i < std::min(isize, new_isize); ++i)
+    for (int i = 0; i < std::min(isize, new_isize); ++i) {
       EXPECT_EQ(i + 1, v[i].value());
+    }
     for (int i = isize; i < new_isize; ++i) EXPECT_EQ(42, v[i].value());
   }
   if (new_size <= real_capacity) {

@@ -98,18 +98,6 @@ class MacroAssemblerTest : public TestWithIsolate {
   }
 };
 
-static const std::vector<int32_t> unsigned_test_offset() {
-  static const int32_t kValues[] = {// value, offset
-                                    -132 * KB, -21 * KB, 0, 19 * KB, 135 * KB};
-  return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
-}
-
-static const std::vector<int32_t> unsigned_test_offset_increment() {
-  static const int32_t kValues[] = {-7, -6, -5, -4, -3, -2, -1, 0,
-                                    1,  2,  3,  4,  5,  6,  7};
-  return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
-}
-
 TEST_F(MacroAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
@@ -722,287 +710,6 @@ TEST_F(MacroAssemblerTest, min_max_nan) {
   }
 }
 
-TEST_F(MacroAssemblerTest, Ulh) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  auto fn1 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ Ulh(t0, MemOperand(a0, in_offset));
-    __ Ush(t0, MemOperand(a0, out_offset));
-  };
-
-  auto fn2 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ mv(t0, a0);
-    __ Ulh(a0, MemOperand(a0, in_offset));
-    __ Ush(a0, MemOperand(t0, out_offset));
-  };
-
-  auto fn3 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ mv(t0, a0);
-    __ Ulhu(a0, MemOperand(a0, in_offset));
-    __ Ush(a0, MemOperand(t0, out_offset));
-  };
-
-  auto fn4 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ Ulhu(t0, MemOperand(a0, in_offset));
-    __ Ush(t0, MemOperand(a0, out_offset));
-  };
-
-  FOR_UINT16_INPUTS(i) {
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn1));
-
-        // test when loaded value overwrites base-register of load address
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn2));
-
-        // test when loaded value overwrites base-register of load address
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn3));
-
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn4));
-      }
-    }
-  }
-}
-
-TEST_F(MacroAssemblerTest, Ulh_bitextension) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    Label success, fail, end, different;
-    __ Ulh(t0, MemOperand(a0, in_offset));
-    __ Ulhu(t1, MemOperand(a0, in_offset));
-    __ Branch(&different, ne, t0, Operand(t1));
-
-    // If signed and unsigned values are same, check
-    // the upper bits to see if they are zero
-    __ sraiw(t0, t0, 15);
-    __ Branch(&success, eq, t0, Operand(zero_reg));
-    __ Branch(&fail);
-
-    // If signed and unsigned values are different,
-    // check that the upper bits are complementary
-    __ bind(&different);
-    __ sraiw(t1, t1, 15);
-    __ Branch(&fail, ne, t1, Operand(1));
-    __ sraiw(t0, t0, 15);
-    __ addiw(t0, t0, 1);
-    __ Branch(&fail, ne, t0, Operand(zero_reg));
-    // Fall through to success
-
-    __ bind(&success);
-    __ Ulh(t0, MemOperand(a0, in_offset));
-    __ Ush(t0, MemOperand(a0, out_offset));
-    __ Branch(&end);
-    __ bind(&fail);
-    __ Ush(zero_reg, MemOperand(a0, out_offset));
-    __ bind(&end);
-  };
-
-  FOR_UINT16_INPUTS(i) {
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn));
-      }
-    }
-  }
-}
-
-TEST_F(MacroAssemblerTest, Ulw) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  auto fn_1 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ Ulw(t0, MemOperand(a0, in_offset));
-    __ Usw(t0, MemOperand(a0, out_offset));
-  };
-
-  auto fn_2 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ mv(t0, a0);
-    __ Ulw(a0, MemOperand(a0, in_offset));
-    __ Usw(a0, MemOperand(t0, out_offset));
-  };
-
-  auto fn_3 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ Ulwu(t0, MemOperand(a0, in_offset));
-    __ Usw(t0, MemOperand(a0, out_offset));
-  };
-
-  auto fn_4 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ mv(t0, a0);
-    __ Ulwu(a0, MemOperand(a0, in_offset));
-    __ Usw(a0, MemOperand(t0, out_offset));
-  };
-
-  FOR_UINT32_INPUTS(i) {
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn_1));
-        // test when loaded value overwrites base-register of load address
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn_2));
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn_3));
-        // test when loaded value overwrites base-register of load address
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn_4));
-      }
-    }
-  }
-}
-
-TEST_F(MacroAssemblerTest, Ulw_extension) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    Label success, fail, end, different;
-    __ Ulw(t0, MemOperand(a0, in_offset));
-    __ Ulwu(t1, MemOperand(a0, in_offset));
-    __ Branch(&different, ne, t0, Operand(t1));
-
-    // If signed and unsigned values are same, check
-    // the upper bits to see if they are zero
-    __ srai(t0, t0, 31);
-    __ Branch(&success, eq, t0, Operand(zero_reg));
-    __ Branch(&fail);
-
-    // If signed and unsigned values are different,
-    // check that the upper bits are complementary
-    __ bind(&different);
-    __ srai(t1, t1, 31);
-    __ Branch(&fail, ne, t1, Operand(1));
-    __ srai(t0, t0, 31);
-    __ addi(t0, t0, 1);
-    __ Branch(&fail, ne, t0, Operand(zero_reg));
-    // Fall through to success
-
-    __ bind(&success);
-    __ Ulw(t0, MemOperand(a0, in_offset));
-    __ Usw(t0, MemOperand(a0, out_offset));
-    __ Branch(&end);
-    __ bind(&fail);
-    __ Usw(zero_reg, MemOperand(a0, out_offset));
-    __ bind(&end);
-  };
-
-  FOR_UINT32_INPUTS(i) {
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn));
-      }
-    }
-  }
-}
-
-TEST_F(MacroAssemblerTest, Uld) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  auto fn_1 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ Uld(t0, MemOperand(a0, in_offset));
-    __ Usd(t0, MemOperand(a0, out_offset));
-  };
-
-  auto fn_2 = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ mv(t0, a0);
-    __ Uld(a0, MemOperand(a0, in_offset));
-    __ Usd(a0, MemOperand(t0, out_offset));
-  };
-
-  FOR_UINT64_INPUTS(i) {
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn_1));
-
-        // test when loaded value overwrites base-register of load address
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn_2));
-      }
-    }
-  }
-}
-
-auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-  __ ULoadFloat(fa0, MemOperand(a0, in_offset));
-  __ UStoreFloat(fa0, MemOperand(a0, out_offset));
-};
-
-TEST_F(MacroAssemblerTest, ULoadFloat) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  FOR_FLOAT32_INPUTS(i) {
-    // skip nan because CHECK_EQ cannot handle NaN
-    if (std::isnan(i)) continue;
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn));
-      }
-    }
-  }
-}
-
-TEST_F(MacroAssemblerTest, ULoadDouble) {
-  static const int kBufferSize = 300 * KB;
-  char memory_buffer[kBufferSize];
-  char* buffer_middle = memory_buffer + (kBufferSize / 2);
-
-  auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ ULoadDouble(fa0, MemOperand(a0, in_offset));
-    __ UStoreDouble(fa0, MemOperand(a0, out_offset));
-  };
-
-  FOR_FLOAT64_INPUTS(i) {
-    // skip nan because CHECK_EQ cannot handle NaN
-    if (std::isnan(i)) continue;
-    FOR_INT32_TWO_INPUTS(j1, j2, unsigned_test_offset) {
-      FOR_INT32_TWO_INPUTS(k1, k2, unsigned_test_offset_increment) {
-        auto value = i;
-        int32_t in_offset = *j1 + *k1;
-        int32_t out_offset = *j2 + *k2;
-        CHECK_EQ(value, run_Unaligned(buffer_middle, in_offset, out_offset,
-                                      value, fn));
-      }
-    }
-  }
-}
 
 TEST_F(MacroAssemblerTest, Sltu) {
   FOR_UINT64_INPUTS(i) {
@@ -1587,6 +1294,285 @@ TEST_F(MacroAssemblerTest, AddWithImm) {
   Test(Sub64, 4095, -4095);
   Test(Sub32, 4095, -4095);
 #undef Test
+}
+
+// =============================================================================
+// FLI (Floating-Point Load Immediate) Tests - Zfa Extension
+// =============================================================================
+
+// Test data from RISC-V Zfa specification Table 1:
+// Immediate values loaded by the FLI.S instruction
+struct FLISCASE {
+  uint8_t imm5;
+  float expected_float;
+  uint32_t expected_bits;  // IEEE 754 bit representation
+  const char* description;
+};
+
+struct FLIDCASE {
+  uint8_t imm5;
+  double expected_float;
+  uint64_t expected_bits;  // IEEE 754 bit representation
+  const char* description;
+};
+
+// All 32 FLI.S constants from the Zfa specification
+static const FLISCASE kFLISTestCases[] = {
+    {0, -1.0f, 0xBF800000, "-1.0"},
+    {1, 1.17549435082228750796873653722e-38f, 0x00800000,
+     "minimum positive normal"},
+    {2, 1.52587890625e-5f, 0x37800000, "1.0 * 2^-16"},
+    {3, 3.0517578125e-05f, 0x38000000, "1.0 * 2^-15"},
+    {4, 3.90625e-03f, 0x3B800000, "1.0 * 2^-8"},
+    {5, 7.8125e-03f, 0x3C000000, "1.0 * 2^-7"},
+    {6, 0.0625f, 0x3D800000, "0.0625 (2^-4)"},
+    {7, 0.125f, 0x3E000000, "0.125 (2^-3)"},
+    {8, 0.25f, 0x3E800000, "0.25"},
+    {9, 0.3125f, 0x3EA00000, "0.3125"},
+    {10, 0.375f, 0x3EC00000, "0.375"},
+    {11, 0.4375f, 0x3EE00000, "0.4375"},
+    {12, 0.5f, 0x3F000000, "0.5"},
+    {13, 0.625f, 0x3F200000, "0.625"},
+    {14, 0.75f, 0x3F400000, "0.75"},
+    {15, 0.875f, 0x3F600000, "0.875"},
+    {16, 1.0f, 0x3F800000, "1.0"},
+    {17, 1.25f, 0x3FA00000, "1.25"},
+    {18, 1.5f, 0x3FC00000, "1.5"},
+    {19, 1.75f, 0x3FE00000, "1.75"},
+    {20, 2.0f, 0x40000000, "2.0"},
+    {21, 2.5f, 0x40200000, "2.5"},
+    {22, 3.0f, 0x40400000, "3.0"},
+    {23, 4.0f, 0x40800000, "4.0"},
+    {24, 8.0f, 0x41000000, "8.0"},
+    {25, 16.0f, 0x41800000, "16.0"},
+    {26, 128.0f, 0x43000000, "128 (2^7)"},
+    {27, 256.0f, 0x43800000, "256 (2^8)"},
+    {28, 32768.0f, 0x47000000, "2^15"},
+    {29, 65536.0f, 0x47800000, "2^16"},
+    {30, std::numeric_limits<float>::infinity(), 0x7F800000, "+inf"},
+    {31, std::numeric_limits<float>::quiet_NaN(), 0x7FC00000, "Canonical NaN"},
+};
+
+// All 32 FLI.D constants from the Zfa specification
+static const FLIDCASE kFLIDTestCases[] = {
+    {0, -1.0, 0xBFF0000000000000, "-1.0"},
+    {1, 2.2250738585072014e-308, 0x0010000000000000, "minimum positive normal"},
+    {2, 1.52587890625e-5, 0x3EF0000000000000, "1.0 * 2^-16"},
+    {3, 3.0517578125e-05, 0x3F00000000000000, "1.0 * 2^-15"},
+    {4, 3.90625e-03, 0x3F70000000000000, "1.0 * 2^-8"},
+    {5, 7.8125e-03, 0x3F80000000000000, "1.0 * 2^-7"},
+    {6, 0.0625, 0x3FB0000000000000, "0.0625 (2^-4)"},
+    {7, 0.125, 0x3FC0000000000000, "0.125 (2^-3)"},
+    {8, 0.25, 0x3FD0000000000000, "0.25"},
+    {9, 0.3125, 0x3FD4000000000000, "0.3125"},
+    {10, 0.375, 0x3FD8000000000000, "0.375"},
+    {11, 0.4375, 0x3FDC000000000000, "0.4375"},
+    {12, 0.5, 0x3FE0000000000000, "0.5"},
+    {13, 0.625, 0x3FE4000000000000, "0.625"},
+    {14, 0.75, 0x3FE8000000000000, "0.75"},
+    {15, 0.875, 0x3FEC000000000000, "0.875"},
+    {16, 1.0, 0x3FF0000000000000, "1.0"},
+    {17, 1.25, 0x3FF4000000000000, "1.25"},
+    {18, 1.5, 0x3FF8000000000000, "1.5"},
+    {19, 1.75, 0x3FFC000000000000, "1.75"},
+    {20, 2.0, 0x4000000000000000, "2.0"},
+    {21, 2.5, 0x4004000000000000, "2.5"},
+    {22, 3.0, 0x4008000000000000, "3.0"},
+    {23, 4.0, 0x4010000000000000, "4.0"},
+    {24, 8.0, 0x4020000000000000, "8.0"},
+    {25, 16.0, 0x4030000000000000, "16.0"},
+    {26, 128.0, 0x4060000000000000, "128 (2^7)"},
+    {27, 256.0, 0x4070000000000000, "256 (2^8)"},
+    {28, 32768.0, 0x40E0000000000000, "2^15"},
+    {29, 65536.0, 0x40F0000000000000, "2^16"},
+    {30, std::numeric_limits<double>::infinity(), 0x7FF0000000000000, "+inf"},
+    {31, std::numeric_limits<double>::quiet_NaN(), 0x7FF8000000000000,
+     "Canonical NaN"},
+};
+
+TEST_F(MacroAssemblerTest, GetFLISValue_AllConstants) {
+  // Test all 32 FLI.S constants match the specification
+  for (const auto& tc : kFLISTestCases) {
+    float result = GetFLISValue(tc.imm5);
+    uint32_t result_bits = base::bit_cast<uint32_t>(result);
+    CHECK_EQ(tc.expected_bits, result_bits);
+  }
+}
+
+TEST_F(MacroAssemblerTest, GetImm5ForFLIS_AllConstants) {
+  // Test that GetImm5ForFLIS returns the correct imm5 for all encodable values
+  for (const auto& tc : kFLISTestCases) {
+    float value = base::bit_cast<float>(tc.expected_bits);
+    int result = GetImm5ForFLIS(value);
+    CHECK_EQ(static_cast<int>(tc.imm5), result);
+  }
+}
+
+TEST_F(MacroAssemblerTest, GetImm5ForFLIS_NonEncodableValues) {
+  // Test that non-encodable values return -1
+
+  // Zero cannot be encoded
+  CHECK_EQ(-1, GetImm5ForFLIS(0.0f));
+  CHECK_EQ(-1, GetImm5ForFLIS(-0.0f));
+
+  // Negative infinity cannot be encoded (only +inf)
+  CHECK_EQ(-1, GetImm5ForFLIS(-std::numeric_limits<float>::infinity()));
+
+  // Non-canonical NaN cannot be encoded
+  float non_canonical_nan = base::bit_cast<float>(0x7FC00001U);
+  CHECK(std::isnan(non_canonical_nan));
+  CHECK_EQ(-1, GetImm5ForFLIS(non_canonical_nan));
+
+  // Signaling NaN cannot be encoded
+  float signaling_nan = base::bit_cast<float>(0x7F800001U);
+  CHECK(std::isnan(signaling_nan));
+  CHECK_EQ(-1, GetImm5ForFLIS(signaling_nan));
+
+  // Values not in the FLI constant table
+  CHECK_EQ(-1, GetImm5ForFLIS(1.1f));
+  CHECK_EQ(-1, GetImm5ForFLIS(2.71828f));
+  CHECK_EQ(-1, GetImm5ForFLIS(3.14159f));
+  CHECK_EQ(-1, GetImm5ForFLIS(-0.5f));  // Only -1.0 is encodable as negative
+  CHECK_EQ(-1, GetImm5ForFLIS(-2.0f));  // Only -1.0 is encodable as negative
+  CHECK_EQ(-1, GetImm5ForFLIS(0.123f));
+  CHECK_EQ(-1, GetImm5ForFLIS(100.0f));
+
+  // Denormal numbers cannot be encoded (except min positive normal)
+  float denormal = base::bit_cast<float>(0x007FFFFFU);  // Largest denormal
+  CHECK_EQ(-1, GetImm5ForFLIS(denormal));
+}
+
+TEST_F(MacroAssemblerTest, GetFLIDValue_AllConstants) {
+  // Test all 32 FLI.D constants - they should be the same values as FLI.S
+  // but represented as double precision
+  for (const auto& tc : kFLIDTestCases) {
+    double result = GetFLIDValue(tc.imm5);
+    uint64_t result_bits = base::bit_cast<uint64_t>(result);
+    CHECK_WITH_MSG(tc.expected_bits == result_bits, tc.description);
+  }
+}
+
+TEST_F(MacroAssemblerTest, GetImm5ForFLID_AllConstants) {
+  // Test that GetImm5ForFLID returns the correct imm5 for all encodable doubles
+  for (const auto& tc : kFLIDTestCases) {
+    double value = base::bit_cast<double>(tc.expected_bits);
+    int result = GetImm5ForFLID(value);
+    CHECK_WITH_MSG(static_cast<int>(tc.imm5) == result, tc.description);
+  }
+}
+
+TEST_F(MacroAssemblerTest, GetImm5ForFLID_NonEncodableValues) {
+  // Test that non-encodable double values return -1
+
+  // Values that cannot be exactly represented in float (precision loss)
+  CHECK_EQ(-1, GetImm5ForFLID(1.1));  // 1.1 cannot be exactly represented
+  CHECK_EQ(-1, GetImm5ForFLID(3.141592653589793));
+
+  // Zero cannot be encoded
+  CHECK_EQ(-1, GetImm5ForFLID(0.0));
+  CHECK_EQ(-1, GetImm5ForFLID(-0.0));
+
+  // Negative infinity cannot be encoded
+  CHECK_EQ(-1, GetImm5ForFLID(-std::numeric_limits<double>::infinity()));
+
+  // Non-canonical NaN cannot be encoded
+  double non_canonical_nan = base::bit_cast<double>(0x7FF8000000000001ULL);
+  CHECK(std::isnan(non_canonical_nan));
+  CHECK_EQ(-1, GetImm5ForFLID(non_canonical_nan));
+
+  // FLT_MIN (2^-126) is encodable by FLI.S (imm5=1) but NOT by FLI.D.
+  // FLI.D imm5=1 is DBL_MIN (2^-1022), which is a different value.
+  CHECK_EQ(-1, GetImm5ForFLID(std::pow(2.0, -126)));
+  // Also verify that DBL_MIN IS encodable (should return imm5=1)
+  CHECK_EQ(1, GetImm5ForFLID(std::pow(2.0, -1022)));
+}
+
+TEST_F(MacroAssemblerTest, FLI_RoundTrip) {
+  // Test that GetImm5ForFLIS(GetFLISValue(imm5)) returns imm5 for all constants
+  for (const auto& tc : kFLISTestCases) {
+    float value = GetFLISValue(tc.imm5);
+    int recovered_imm5 = GetImm5ForFLIS(value);
+
+    CHECK_EQ(static_cast<int>(tc.imm5), recovered_imm5);
+  }
+
+  // Same for double precision
+  for (const auto& tc : kFLISTestCases) {
+    double value = GetFLIDValue(tc.imm5);
+    int recovered_imm5 = GetImm5ForFLID(value);
+
+    CHECK_EQ(static_cast<int>(tc.imm5), recovered_imm5);
+  }
+}
+
+TEST_F(MacroAssemblerTest, LoadFPRImmediate_Float_UsesFLI) {
+  if (!CpuFeatures::IsSupported(ZFA)) return;
+
+  for (const auto& tc : kFLISTestCases) {
+    auto fn = [&tc](MacroAssembler& masm) {
+      Label start;
+      masm.bind(&start);
+      masm.LoadFPRImmediate(fa0, tc.expected_float);
+      int count = masm.InstructionsGeneratedSince(&start);
+      CHECK_EQ(1, count);
+      masm.fmv_x_w(a0, fa0);
+    };
+    int64_t res = GenAndRunTest(fn);
+    uint32_t result_bits = static_cast<uint32_t>(res);
+    CHECK_EQ(tc.expected_bits, result_bits);
+  }
+}
+
+TEST_F(MacroAssemblerTest, LoadFPRImmediate_Double_UsesFLI) {
+  if (!CpuFeatures::IsSupported(ZFA)) return;
+
+  for (const auto& tc : kFLIDTestCases) {
+    auto fn = [&tc](MacroAssembler& masm) {
+      Label start;
+      masm.bind(&start);
+      masm.LoadFPRImmediate(fa0, tc.expected_float);
+      int count = masm.InstructionsGeneratedSince(&start);
+      CHECK_EQ(1, count);
+      masm.fmv_x_d(a0, fa0);
+    };
+    int64_t res = GenAndRunTest(fn);
+    uint64_t result_bits = base::bit_cast<uint64_t>(res);
+    CHECK_EQ(tc.expected_bits, result_bits);
+  }
+}
+
+TEST_F(MacroAssemblerTest, LoadFPRImmediate_Float_NonEncodable_Fallback) {
+  uint32_t cases[] = {
+      0x00000000,  // 0.0
+      0x80000000,  // -0.0
+      0x3F8CCCCD,  // 1.1
+      0x40490FDB,  // pi
+  };
+  for (auto bits : cases) {
+    auto fn = [bits](MacroAssembler& masm) {
+      masm.LoadFPRImmediate(fa0, bits);
+      masm.fmv_x_w(a0, fa0);
+    };
+    int64_t res = GenAndRunTest(fn);
+    CHECK_EQ(bits, static_cast<uint32_t>(res));
+  }
+}
+
+TEST_F(MacroAssemblerTest, LoadFPRImmediate_Double_NonEncodable_Fallback) {
+  uint64_t cases[] = {
+      0x0000000000000000ULL,  // 0.0
+      0x8000000000000000ULL,  // -0.0
+      0x3FF199999999999AULL,  // 1.1
+      0x400921FB54442D18ULL,  // pi
+  };
+  for (auto bits : cases) {
+    auto fn = [bits](MacroAssembler& masm) {
+      masm.LoadFPRImmediate(fa0, bits);
+      masm.fmv_x_d(a0, fa0);
+    };
+    int64_t res = GenAndRunTest(fn);
+    CHECK_EQ(bits, base::bit_cast<uint64_t>(res));
+  }
 }
 
 #undef __

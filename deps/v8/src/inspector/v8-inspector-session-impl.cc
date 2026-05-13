@@ -54,10 +54,11 @@ Status ConvertToCBOR(StringView state, std::vector<uint8_t>* cbor) {
 std::unique_ptr<protocol::DictionaryValue> ParseState(StringView state) {
   std::vector<uint8_t> converted;
   span<uint8_t> cbor;
-  if (IsCBORMessage(state))
+  if (IsCBORMessage(state)) {
     cbor = span<uint8_t>(state.characters8(), state.length());
-  else if (ConvertToCBOR(state, &converted).ok())
+  } else if (ConvertToCBOR(state, &converted).ok()) {
     cbor = SpanFrom(converted);
+  }
   if (!cbor.empty()) {
     std::unique_ptr<protocol::Value> value =
         protocol::Value::parseBinary(cbor.data(), cbor.size());
@@ -227,26 +228,33 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    int contextId, InjectedScript*& injectedScript) {
+    int contextId, InjectedScript*& injectedScript,
+    std::shared_ptr<InspectedContext>* inspectedContext) {
   injectedScript = nullptr;
-  InspectedContext* context =
+  std::shared_ptr<InspectedContext> context =
       m_inspector->getContext(m_contextGroupId, contextId);
-  if (!context)
+  if (!context) {
     return Response::ServerError("Cannot find context with specified id");
+  }
   injectedScript = context->getInjectedScript(m_sessionId);
   if (!injectedScript) {
     injectedScript = context->createInjectedScript(m_sessionId);
-    if (m_customObjectFormatterEnabled)
+    if (m_customObjectFormatterEnabled) {
       injectedScript->setCustomObjectFormatterEnabled(true);
+    }
   }
+  if (inspectedContext) *inspectedContext = context;
   return Response::Success();
 }
 
 Response V8InspectorSessionImpl::findInjectedScript(
-    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
-  if (objectId->isolateId() != m_inspector->isolateId())
+    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript,
+    std::shared_ptr<InspectedContext>* inspectedContext) {
+  if (objectId->isolateId() != m_inspector->isolateId()) {
     return Response::ServerError("Cannot find context with specified id");
-  return findInjectedScript(objectId->contextId(), injectedScript);
+  }
+  return findInjectedScript(objectId->contextId(), injectedScript,
+                            inspectedContext);
 }
 
 void V8InspectorSessionImpl::releaseObjectGroup(StringView objectGroup) {
@@ -276,8 +284,9 @@ bool V8InspectorSessionImpl::unwrapObject(
     }
     return false;
   }
-  if (objectGroup)
+  if (objectGroup) {
     *objectGroup = StringBufferFrom(std::move(objectGroupString));
+  }
   return true;
 }
 
@@ -289,7 +298,8 @@ Response V8InspectorSessionImpl::unwrapObject(const String16& objectId,
   Response response = RemoteObjectId::parse(objectId, &remoteId);
   if (!response.IsSuccess()) return response;
   InjectedScript* injectedScript = nullptr;
-  response = findInjectedScript(remoteId.get(), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  response = findInjectedScript(remoteId.get(), injectedScript, &inspectedContext);
   if (!response.IsSuccess()) return response;
   response = injectedScript->findObject(*remoteId, object);
   if (!response.IsSuccess()) return response;
@@ -311,7 +321,9 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    const String16& groupName,
                                    bool generatePreview) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(InspectedContext::contextId(context), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  findInjectedScript(InspectedContext::contextId(context), injectedScript,
+                     &inspectedContext);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
   injectedScript->wrapObject(value, groupName,
@@ -326,7 +338,9 @@ V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
                                   v8::Local<v8::Object> table,
                                   v8::MaybeLocal<v8::Array> columns) {
   InjectedScript* injectedScript = nullptr;
-  findInjectedScript(InspectedContext::contextId(context), injectedScript);
+  std::shared_ptr<InspectedContext> inspectedContext;
+  findInjectedScript(InspectedContext::contextId(context), injectedScript,
+                     &inspectedContext);
   if (!injectedScript) return nullptr;
   return injectedScript->wrapTable(table, columns);
 }
@@ -337,8 +351,9 @@ void V8InspectorSessionImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_inspector->forEachContext(
       m_contextGroupId, [&enabled, &sessionId](InspectedContext* context) {
         InjectedScript* injectedScript = context->getInjectedScript(sessionId);
-        if (injectedScript)
+        if (injectedScript) {
           injectedScript->setCustomObjectFormatterEnabled(enabled);
+        }
       });
 }
 
@@ -397,8 +412,9 @@ V8InspectorSessionImpl::supportedDomains() {
   std::vector<std::unique_ptr<protocol::Schema::Domain>> domains =
       supportedDomainsImpl();
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> result;
-  for (size_t i = 0; i < domains.size(); ++i)
+  for (size_t i = 0; i < domains.size(); ++i) {
     result.push_back(std::move(domains[i]));
+  }
   return result;
 }
 
@@ -431,8 +447,9 @@ V8InspectorSessionImpl::supportedDomainsImpl() {
 void V8InspectorSessionImpl::addInspectedObject(
     std::unique_ptr<V8InspectorSession::Inspectable> inspectable) {
   m_inspectedObjects.insert(m_inspectedObjects.begin(), std::move(inspectable));
-  if (m_inspectedObjects.size() > kInspectedObjectBufferSize)
+  if (m_inspectedObjects.size() > kInspectedObjectBufferSize) {
     m_inspectedObjects.resize(kInspectedObjectBufferSize);
+  }
 }
 
 V8InspectorSession::Inspectable* V8InspectorSessionImpl::inspectedObject(
@@ -483,8 +500,9 @@ V8InspectorSessionImpl::searchInTextByLines(StringView text, StringView query,
       searchInTextByLinesImpl(m_inspector, toString16(text), toString16(query),
                               caseSensitive, isRegex);
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>> result;
-  for (size_t i = 0; i < matches.size(); ++i)
+  for (size_t i = 0; i < matches.size(); ++i) {
     result.push_back(std::move(matches[i]));
+  }
   return result;
 }
 

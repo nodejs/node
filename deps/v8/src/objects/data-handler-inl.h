@@ -8,7 +8,7 @@
 #include "src/objects/data-handler.h"
 // Include the non-inl header before the rest of the headers.
 
-#include "src/objects/map.h"
+#include "src/objects/map-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged-field-inl.h"
 

@@ -1,5 +1,6 @@
 bmeurer@chromium.org
 cbruni@chromium.org
+dinfuehr@chromium.org
 yangguo@chromium.org
 
 per-file heap-snapshot-generator*=file:../heap/OWNERS

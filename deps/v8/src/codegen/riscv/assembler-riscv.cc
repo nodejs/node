@@ -35,7 +35,7 @@
 #include "src/codegen/riscv/assembler-riscv.h"
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/common/code-memory-access-inl.h"
@@ -46,6 +46,11 @@
 
 namespace v8 {
 namespace internal {
+
+#ifdef CAN_USE_RVA23U64_INSTRUCTIONS
+static const CpuFeatureSet kRVA23U64 =
+    CpuFeatureSet{} | ZFA | ZBB | ZBS | ZBA | ZICOND;
+#endif
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols __riscv_f and __riscv_d
 // can be defined to enable FPU instructions when building the
@@ -59,6 +64,10 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 #if (defined __riscv_vector) && (__riscv_v >= 1000000)
   features.Add(RISCV_SIMD);
 #endif  // def __riscv_vector && __riscv_v >= 1000000
+
+#ifdef CAN_USE_RVA23U64_INSTRUCTIONS
+  features.Add(kRVA23U64);
+#endif
 
 #if (defined __riscv_zba)
   features.Add(ZBA);
@@ -75,6 +84,10 @@ constexpr CpuFeatureSet CpuFeaturesImpliedByCompiler() {
 #if (defined __riscv_zicond)
   features.Add(ZICOND);
 #endif  // def __riscv_zicond
+
+#if (defined __riscv_zfa)
+  features.Add(ZFA);
+#endif  // def __riscv_zfa
   return features;
 }
 
@@ -89,11 +102,18 @@ static CpuFeatureSet SimulatorFeatures() {
   features.Add(ZICFISS);
   features.Add(FPU);
   features.Add(ZFH);
+  features.Add(ZFA);
   return features;
 }
 #endif
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(RISCV_SIMD); }
+bool CpuFeatures::SupportsSimd128() {
+#if V8_ENABLE_SIMD128
+  return IsSupported(RISCV_SIMD);
+#else
+  return false;
+#endif  // V8_ENABLE_SIMD128
+}
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
@@ -117,6 +137,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_zba()) supported_.Add(ZBA);
   if (cpu.has_zbb()) supported_.Add(ZBB);
   if (cpu.has_zbs()) supported_.Add(ZBS);
+  if (cpu.has_zfa()) supported_.Add(ZFA);
   if (v8_flags.riscv_b_extension) {
     supported_.Add(ZBA);
     supported_.Add(ZBB);
@@ -133,19 +154,20 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
   // CpuFeatures::SupportWasmSimd128().
-  CpuFeatures::supports_wasm_simd_128_ = CpuFeatures::SupportsWasmSimd128();
+  CpuFeatures::supports_simd_128_ = CpuFeatures::SupportsSimd128();
 }
 
 void CpuFeatures::PrintTarget() {}
 void CpuFeatures::PrintFeatures() {
-  printf("supports_wasm_simd_128=%d", CpuFeatures::SupportsWasmSimd128());
-  if (CpuFeatures::SupportsWasmSimd128()) {
+  printf("supports_simd_128=%d", CpuFeatures::SupportsSimd128());
+  if (CpuFeatures::SupportsSimd128()) {
     printf(", vlen=%u", CpuFeatures::vlen());
   }
   printf("\n");
-  printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d\n",
+  printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d, ZFA=%d\n",
          CpuFeatures::IsSupported(ZBA), CpuFeatures::IsSupported(ZBB),
-         CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND));
+         CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND),
+         CpuFeatures::IsSupported(ZFA));
 }
 
 // -----------------------------------------------------------------------------
@@ -1237,13 +1259,7 @@ void Assembler::GrowBuffer() {
   DEBUG_PRINTF("GrowBuffer: %p -> ", buffer_start_);
   // Compute new buffer size.
   int old_size = buffer_->size();
-  int new_size = std::min(2 * old_size, old_size + 1 * MB);
-
-  // Some internal data structures overflow for very large buffers,
-  // they must ensure that kMaximalBufferSize is not too large.
-  if (new_size > kMaximalBufferSize) {
-    V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
-  }
+  int new_size = ComputeNewBufferSize(BufferGrowthStrategy::kDoubleCapped1MB);
 
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
@@ -2024,7 +2040,9 @@ int Assembler::GeneralLiCount(int64_t imm, bool is_get_temp_reg) {
 #endif
 
 RegList Assembler::DefaultTmpList() { return {t3, t5}; }
-DoubleRegList Assembler::DefaultFPTmpList() { return {kScratchDoubleReg}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, ft11};
+}
 
 }  // namespace internal
 }  // namespace v8

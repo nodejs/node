@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 const initial = 2**16;
 const max = 4 * initial;
 
@@ -28,9 +26,6 @@ function builder(stdlib, foreign, heap) {
 
   return {add: add};
 }
-// Check that the asm.js module can be instantiated in the asm.js pipeline.
-builder(globalThis, undefined, new ArrayBuffer(initial));
-assertTrue(%IsAsmWasmCode(builder));
 
 const asm_js_module = builder(globalThis, undefined, heap);
 

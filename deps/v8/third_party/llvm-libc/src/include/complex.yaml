@@ -1,0 +1,151 @@
+header: complex.h
+standards:
+  - stdc
+macros:
+  - macro_name: complex
+    macro_header: complex-macros.h
+  - macro_name: _Complex_I
+    macro_header: complex-macros.h
+  - macro_name: I
+    macro_header: complex-macros.h
+  - macro_name: CMPLX
+    macro_header: complex-macros.h
+  - macro_name: CMPLXF
+    macro_header: complex-macros.h
+  - macro_name: CMPLXL
+    macro_header: complex-macros.h
+types:
+  - type_name: cfloat16
+  - type_name: cfloat128
+  - type_name: float128
+enums: []
+objects: []
+functions:
+  - name: cimag
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: _Complex double
+  - name: cimagf
+    standards:
+      - stdc
+    return_type: float
+    arguments:
+      - type: _Complex float
+  - name: cimagl
+    standards:
+      - stdc
+    return_type: long double
+    arguments:
+      - type: _Complex long double
+  - name: cimagf16
+    standards:
+      - stdc
+    return_type: _Float16
+    arguments:
+      - type: cfloat16
+    guard: LIBC_TYPES_HAS_CFLOAT16
+  - name: cimagf128
+    standards:
+      - stdc
+    return_type: float128
+    arguments:
+      - type: cfloat128
+    guard: LIBC_TYPES_HAS_CFLOAT128
+  - name: creal
+    standards:
+      - stdc
+    return_type: double
+    arguments:
+      - type: _Complex double
+  - name: crealf
+    standards:
+      - stdc
+    return_type: float
+    arguments:
+      - type: _Complex float
+  - name: creall
+    standards:
+      - stdc
+    return_type: long double
+    arguments:
+      - type: _Complex long double
+  - name: crealf16
+    standards:
+      - stdc
+    return_type: _Float16
+    arguments:
+      - type: cfloat16
+    guard: LIBC_TYPES_HAS_CFLOAT16
+  - name: crealf128
+    standards:
+      - stdc
+    return_type: float128
+    arguments:
+      - type: cfloat128
+    guard: LIBC_TYPES_HAS_CFLOAT128
+  - name: conj
+    standards:
+      - stdc
+    return_type: _Complex double
+    arguments:
+      - type: _Complex double
+  - name: conjf
+    standards:
+      - stdc
+    return_type: _Complex float
+    arguments:
+      - type: _Complex float
+  - name: conjl
+    standards:
+      - stdc
+    return_type: _Complex long double
+    arguments:
+      - type: _Complex long double
+  - name: conjf16
+    standards:
+      - stdc
+    return_type: cfloat16
+    arguments:
+      - type: cfloat16
+    guard: LIBC_TYPES_HAS_CFLOAT16
+  - name: conjf128
+    standards:
+      - stdc
+    return_type: cfloat128
+    arguments:
+      - type: cfloat128
+    guard: LIBC_TYPES_HAS_CFLOAT128
+  - name: cproj
+    standards:
+      - stdc
+    return_type: _Complex double
+    arguments:
+      - type: _Complex double
+  - name: cprojf
+    standards:
+      - stdc
+    return_type: _Complex float
+    arguments:
+      - type: _Complex float
+  - name: cprojl
+    standards:
+      - stdc
+    return_type: _Complex long double
+    arguments:
+      - type: _Complex long double
+  - name: cprojf16
+    standards:
+      - stdc
+    return_type: cfloat16
+    arguments:
+      - type: cfloat16
+    guard: LIBC_TYPES_HAS_CFLOAT16
+  - name: cprojf128
+    standards:
+      - stdc
+    return_type: cfloat128
+    arguments:
+      - type: cfloat128
+    guard: LIBC_TYPES_HAS_CFLOAT128

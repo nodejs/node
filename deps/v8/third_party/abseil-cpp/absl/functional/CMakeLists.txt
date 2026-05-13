@@ -52,6 +52,35 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    bind_back
+  SRCS
+    "internal/back_binder.h"
+  HDRS
+    "bind_back.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::compressed_tuple
+    absl::config
+    absl::utility
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    bind_back_test
+  SRCS
+    "bind_back_test.cc"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::bind_back
+    absl::memory
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
     bind_front
   SRCS
     "internal/front_binder.h"
@@ -135,6 +164,5 @@ absl_cc_test(
     absl::overload
     absl::string_view
     absl::strings
-    absl::variant
     GTest::gmock_main
 )

@@ -11,7 +11,7 @@
 #include "src/base/logging.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/instance-type-inl.h"
-#include "src/objects/map-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/primitive-heap-object-inl.h"
 #include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-inl.h"
@@ -174,7 +174,9 @@ uint32_t Name::GetRawHashFromForwardingTable(uint32_t raw_hash) const {
   return isolate->string_forwarding_table()->GetRawHash(isolate, index);
 }
 
-uint32_t Name::EnsureRawHash() {
+uint32_t Name::EnsureRawHash() { return EnsureRawHash(nullptr); }
+
+uint32_t Name::EnsureRawHash(bool* out_one_byte_content) {
   // Fast case: has hash code already been computed?
   uint32_t field = raw_hash_field(kAcquireLoad);
   if (IsHashFieldComputed(field)) return field;
@@ -183,7 +185,7 @@ uint32_t Name::EnsureRawHash() {
     return GetRawHashFromForwardingTable(field);
   }
   // Slow case: compute hash code and set it. Has to be a string.
-  return Cast<String>(this)->ComputeAndSetRawHash();
+  return Cast<String>(this)->ComputeAndSetRawHash(out_one_byte_content);
 }
 
 uint32_t Name::EnsureRawHash(
@@ -254,7 +256,8 @@ bool Name::IsInteresting(Isolate* isolate) {
   // these strings and interesting symbols.
   return (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) ||
          this == *isolate->factory()->toJSON_string() ||
-         this == *isolate->factory()->get_string();
+         this == *isolate->factory()->get_string() ||
+         this == *isolate->factory()->then_string();
 }
 
 bool Name::IsAnyPrivate() {

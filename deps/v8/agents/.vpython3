@@ -1,0 +1,6 @@
+python_version: "3.11"
+
+wheel: <
+  name: "infra/python/wheels/pyyaml/${vpython_platform}"
+  version: "version:5.4.1.chromium.1"
+>

@@ -531,6 +531,42 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_STD_VARIANT 1
 #define ABSL_USES_STD_VARIANT 1
 
+// ABSL_HAVE_STD_SOURCE_LOCATION
+//
+// Checks whether C++20 std::source_location is available.
+#ifdef ABSL_HAVE_STD_SOURCE_LOCATION
+#error "ABSL_HAVE_STD_SOURCE_LOCATION cannot be directly set."
+#elif (defined(__cpp_lib_source_location) &&    \
+       __cpp_lib_source_location >= 201907L) || \
+    (defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&   \
+     ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L)
+#ifdef __has_include
+#if __has_include(<source_location>)
+#define ABSL_HAVE_STD_SOURCE_LOCATION 1
+#endif
+#else
+// No __has_include support, so just assume C++ language version is correct.
+#define ABSL_HAVE_STD_SOURCE_LOCATION 1
+#endif
+#endif
+
+// ABSL_USES_STD_SOURCE_LOCATION
+//
+// Indicates whether absl::SourceLocation is an alias for std::source_location.
+#if !defined(ABSL_OPTION_USE_STD_SOURCE_LOCATION)
+#error options.h is misconfigured.
+#elif ABSL_OPTION_USE_STD_SOURCE_LOCATION == 0 || \
+    (ABSL_OPTION_USE_STD_SOURCE_LOCATION == 2 &&  \
+     !defined(ABSL_HAVE_STD_SOURCE_LOCATION))
+#undef ABSL_USES_STD_SOURCE_LOCATION
+#elif ABSL_OPTION_USE_STD_SOURCE_LOCATION == 1 || \
+    (ABSL_OPTION_USE_STD_SOURCE_LOCATION == 2 &&  \
+     defined(ABSL_HAVE_STD_SOURCE_LOCATION))
+#define ABSL_USES_STD_SOURCE_LOCATION 1
+#else
+#error options.h is misconfigured.
+#endif
+
 // ABSL_HAVE_STD_ORDERING
 //
 // Checks whether C++20 std::{partial,weak,strong}_ordering are available.
@@ -696,7 +732,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Clang standalone LeakSanitizer (-fsanitize=leak)
 #elif ABSL_HAVE_FEATURE(leak_sanitizer)
 #define ABSL_HAVE_LEAK_SANITIZER 1
-#elif defined(ABSL_HAVE_ADDRESS_SANITIZER)
+#elif defined(ABSL_HAVE_ADDRESS_SANITIZER) && !defined(_WIN32)
 // GCC or Clang using the LeakSanitizer integrated into AddressSanitizer.
 #define ABSL_HAVE_LEAK_SANITIZER 1
 #endif
@@ -799,6 +835,14 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_HAVE_ARM_NEON 1
 #endif
 
+#if ABSL_HAVE_BUILTIN(__builtin_LINE) && ABSL_HAVE_BUILTIN(__builtin_FILE)
+#define ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE 1
+#elif defined(__GNUC__) && !defined(__clang__) && 5 <= __GNUC__ && __GNUC__ < 10
+#define ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE 1
+#elif defined(_MSC_VER) && _MSC_VER >= 1926
+#define ABSL_INTERNAL_HAVE_BUILTIN_LINE_FILE 1
+#endif
+
 // ABSL_HAVE_CONSTANT_EVALUATED is used for compile-time detection of
 // constant evaluation support through `absl::is_constant_evaluated`.
 #ifdef ABSL_HAVE_CONSTANT_EVALUATED
@@ -838,16 +882,16 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #endif
 #ifdef __EMSCRIPTEN__
 #include <emscripten/version.h>
-#ifdef __EMSCRIPTEN_major__
-#if __EMSCRIPTEN_minor__ >= 1000
-#error __EMSCRIPTEN_minor__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#ifdef __EMSCRIPTEN_MAJOR__
+#if __EMSCRIPTEN_MINOR__ >= 1000
+#error __EMSCRIPTEN_MINOR__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
 #endif
-#if __EMSCRIPTEN_tiny__ >= 1000
-#error __EMSCRIPTEN_tiny__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
+#if __EMSCRIPTEN_TINY__ >= 1000
+#error __EMSCRIPTEN_TINY__ is too big to fit in ABSL_INTERNAL_EMSCRIPTEN_VERSION
 #endif
 #define ABSL_INTERNAL_EMSCRIPTEN_VERSION                              \
-  ((__EMSCRIPTEN_major__) * 1000000 + (__EMSCRIPTEN_minor__) * 1000 + \
-   (__EMSCRIPTEN_tiny__))
+  ((__EMSCRIPTEN_MAJOR__) * 1000000 + (__EMSCRIPTEN_MINOR__) * 1000 + \
+   (__EMSCRIPTEN_TINY__))
 #endif
 #endif
 

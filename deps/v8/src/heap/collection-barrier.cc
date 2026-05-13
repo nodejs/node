@@ -182,10 +182,9 @@ void CollectionBarrier::StopTimeToCollectionTimer(RequestedGCKind kind) {
     // initialized here already.
     CHECK(timer.IsStarted());
     base::TimeDelta delta = timer.Elapsed();
-    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                         "V8.GC.TimeToCollectionOnBackground",
-                         TRACE_EVENT_SCOPE_THREAD, "duration",
-                         delta.InMillisecondsF(), "kind", kind);
+    TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                        "V8.GC.TimeToCollectionOnBackground", "duration",
+                        delta.InMillisecondsF(), "kind", kind);
     heap_->isolate()
         ->counters()
         ->gc_time_to_collection_on_background()

@@ -407,10 +407,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
          << ")";
       break;
     case FULL_EMBEDDED_OBJECT:
-      os << "  (" << Brief(target_object(isolate)) << ")";
+      os << "  (" << Brief(target_object()) << ")";
       break;
     case COMPRESSED_EMBEDDED_OBJECT:
-      os << "  (" << Brief(target_object(isolate)) << " compressed)";
+      os << "  (" << Brief(target_object()) << " compressed)";
       break;
     case EXTERNAL_REFERENCE:
       if (isolate) {
@@ -469,10 +469,10 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {
 void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case COMPRESSED_EMBEDDED_OBJECT:
-      Object::VerifyPointer(isolate, target_object(isolate));
+      Object::VerifyPointer(isolate, target_object());
       break;
     case FULL_EMBEDDED_OBJECT:
-      Object::VerifyAnyTagged(isolate, target_object(isolate));
+      Object::VerifyAnyTagged(isolate, target_object());
       break;
     case CODE_TARGET:
     case RELATIVE_CODE_TARGET: {

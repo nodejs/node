@@ -8,15 +8,16 @@ bitfield struct JSSegmentIteratorFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class JSSegmentIterator extends JSObject {
-  icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
+  icu_iterator_with_text: Foreign;  // Managed<IcuBreakIteratorWithText>
   raw_string: String;
-  unicode_string: Foreign;  // Managed<icu::UnicodeString>
   flags: SmiTagged<JSSegmentIteratorFlags>;
 }
 
 @doNotGenerateCast
 @hasSameInstanceTypeAsParent
+@cppObjectLayoutDefinition
 extern class JSSegmentDataObject extends JSObject {
   segment: String;
   index: Number;
@@ -25,6 +26,7 @@ extern class JSSegmentDataObject extends JSObject {
 
 @doNotGenerateCast
 @hasSameInstanceTypeAsParent
+@cppObjectLayoutDefinition
 extern class JSSegmentDataObjectWithIsWordLike extends JSSegmentDataObject {
   is_word_like: Boolean;
 }

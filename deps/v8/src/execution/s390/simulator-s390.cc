@@ -4233,7 +4233,6 @@ EVALUATE(VTM) {
 #define VECTOR_FP_BINARY_OP(op)                                    \
   switch (m4) {                                                    \
     case 2:                                                        \
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)); \
       if (m5 == 8) {                                               \
         float src1 = get_simd_register_by_lane<float>(r2, 0);      \
         float src2 = get_simd_register_by_lane<float>(r3, 0);      \
@@ -4307,7 +4306,6 @@ EVALUATE(VFD) {
 #define VECTOR_FP_MULTIPLY_QFMS(op, sign)                               \
   switch (m6) {                                                         \
     case 2:                                                             \
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));      \
       if (m5 == 8) {                                                    \
         VECTOR_FP_MULTIPLY_QFMS_OPERATION(float, op, sign, true, fmaf)  \
       } else {                                                          \
@@ -4445,7 +4443,6 @@ static void FPMinMaxForEachLane(Simulator* sim, Operation Op, int dst, int lhs,
     FPMinMaxForEachLane<type>(this, op<type>, r1, r2, r3, m5, m6); \
     break;
 EVALUATE(VFMIN) {
-  DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMIN);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   switch (m4) {
@@ -4458,7 +4455,6 @@ EVALUATE(VFMIN) {
 }
 
 EVALUATE(VFMAX) {
-  DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   DCHECK_OPCODE(VFMAX);
   DECODE_VRR_C_INSTRUCTION(r1, r2, r3, m6, m5, m4);
   switch (m4) {
@@ -4506,7 +4502,6 @@ void VectorFPCompare(Simulator* sim, int dst, int src1, int src2, int m6,
 #define VECTOR_FP_COMPARE(op)                                               \
   switch (m4) {                                                             \
     case 2:                                                                 \
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));          \
       if (m5 == 8) {                                                        \
         float src1 = get_simd_register_by_lane<float>(r2, 0);               \
         float src2 = get_simd_register_by_lane<float>(r3, 0);               \
@@ -4630,7 +4625,6 @@ EVALUATE(VFI) {
 
   switch (m3) {
     case 2:
-      DCHECK(CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
       for (int i = 0; i < 4; i++) {
         float value = get_simd_register_by_lane<float>(r2, i);
         float n = std::isnan(value) ? NAN : ComputeRounding<float>(value, m5);

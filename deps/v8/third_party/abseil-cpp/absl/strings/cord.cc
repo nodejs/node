@@ -26,6 +26,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -34,10 +35,11 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
-#include "absl/base/optimization.h"
 #include "absl/base/nullability.h"
+#include "absl/base/optimization.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/crc/crc32c.h"
 #include "absl/crc/internal/crc_cord_state.h"
@@ -56,7 +58,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 
 namespace absl {
@@ -886,9 +887,9 @@ const crc_internal::CrcCordState* absl_nullable Cord::MaybeGetCrcCordState()
   return &contents_.tree()->crc()->crc_cord_state;
 }
 
-absl::optional<uint32_t> Cord::ExpectedChecksum() const {
+std::optional<uint32_t> Cord::ExpectedChecksum() const {
   if (!contents_.is_tree() || !contents_.tree()->IsCrc()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return static_cast<uint32_t>(
       contents_.tree()->crc()->crc_cord_state.Checksum());
@@ -1085,9 +1086,27 @@ void Cord::CopyToArraySlowPath(char* absl_nonnull dst) const {
   }
 }
 
+size_t CopyCordToSpan(const Cord& src, absl::Span<char> dst) {
+  if (src.size() <= dst.size()) {
+    src.CopyToArrayImpl(dst.data());
+    return src.size();
+  }
+
+  const size_t result = dst.size();
+  for (absl::string_view chunk : src.Chunks()) {
+    size_t n = std::min(chunk.size(), dst.size());
+    if (n == 0) {
+      break;
+    }
+    memcpy(dst.data(), chunk.data(), n);
+    dst.remove_prefix(n);
+  }
+  return result;
+}
+
 Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
-  ABSL_HARDENING_ASSERT(bytes_remaining_ >= n &&
-                        "Attempted to iterate past `end()`");
+  // Failure of this assertion indicates an attempt to iterate past `end()`.
+  absl::base_internal::HardeningAssertGE(bytes_remaining_, n);
   Cord subcord;
   auto constexpr method = CordzUpdateTracker::kCordReader;
 
@@ -1155,7 +1174,7 @@ Cord Cord::ChunkIterator::AdvanceAndReadBytes(size_t n) {
 }
 
 char Cord::operator[](size_t i) const {
-  ABSL_HARDENING_ASSERT(i < size());
+  absl::base_internal::HardeningAssertLT(i, size());
   size_t offset = i;
   const CordRep* rep = contents_.tree();
   if (rep == nullptr) {

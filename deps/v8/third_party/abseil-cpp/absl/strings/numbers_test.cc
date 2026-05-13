@@ -1780,6 +1780,39 @@ void ExhaustiveFloat(uint32_t cases, R&& runnable) {
   }
 }
 
+TEST_F(SimpleDtoaTest, ExhaustiveFloatToBuffer) {
+  uint64_t test_count = 0;
+  std::vector<float> mismatches;
+  ExhaustiveFloat(kFloatNumCases, [&](float f) {
+    if (f != f) return;  // rule out NaNs
+    ++test_count;
+    char fastbuf[absl::numbers_internal::kFastToBufferSize];
+    absl::numbers_internal::RoundTripFloatToBuffer(f, fastbuf);
+    float round_trip = strtof(fastbuf, nullptr);
+    if (f != round_trip) {
+      mismatches.push_back(f);
+      if (mismatches.size() < 10) {
+        LOG(ERROR) << "Round-trip failure with float.  f=" << f << "="
+                   << ToNineDigits(f) << " fast=" << fastbuf
+                   << " strtof=" << ToNineDigits(round_trip);
+      }
+    }
+  });
+  if (!mismatches.empty()) {
+    EXPECT_EQ(mismatches.size(), 0);
+    for (size_t i = 0; i < mismatches.size(); ++i) {
+      if (i > 100) i = mismatches.size() - 1;
+      float f = mismatches[i];
+      char buf[absl::numbers_internal::kFastToBufferSize];
+      float rt = strtof(buf, nullptr);
+      LOG(ERROR) << "Mismatch #" << i << "  f=" << f << " (" << ToNineDigits(f)
+                 << ") fast='"
+                 << absl::numbers_internal::RoundTripFloatToBuffer(f, buf)
+                 << "' rt=" << ToNineDigits(rt);
+    }
+  }
+}
+
 TEST_F(SimpleDtoaTest, ExhaustiveDoubleToSixDigits) {
   uint64_t test_count = 0;
   std::vector<double> mismatches;

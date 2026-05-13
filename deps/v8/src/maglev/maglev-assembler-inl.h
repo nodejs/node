@@ -852,7 +852,7 @@ inline void MaglevAssembler::SetMapAsRoot(Register object, RootIndex map) {
   TemporaryRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
   LoadTaggedRoot(scratch, map);
-  StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, scratch);
+  StoreTaggedFieldNoWriteBarrier(object, offsetof(HeapObject, map_), scratch);
 }
 
 inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(

@@ -310,7 +310,7 @@ class RelocInfo {
   // can only be called if IsCodeTarget(rmode_)
   V8_INLINE Address target_address();
   // Cage base value is used for decompressing compressed embedded references.
-  V8_INLINE Tagged<HeapObject> target_object(PtrComprCageBase cage_base);
+  V8_INLINE Tagged<HeapObject> target_object();
 
   V8_INLINE DirectHandle<HeapObject> target_object_handle(Assembler* origin);
 

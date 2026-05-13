@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc
+// Flags: --expose-gc
 
 function Module(stdlib, env, heap) {
   "use asm";
@@ -20,4 +20,3 @@ function instantiate() {
   Module(this, {}, buffer).f();
 }
 instantiate();
-assertTrue(%IsAsmWasmCode(Module));

@@ -158,10 +158,11 @@ MemoryRegion FindEnclosingMapping(uintptr_t target_start, size_t size) {
         return region.start <= target_start && target_start + size < region.end;
       },
       true);
-  if (result)
+  if (result) {
     return (*result)[0];
-  else
+  } else {
     return {};
+  }
 }
 }  // namespace
 
@@ -300,12 +301,15 @@ std::optional<MemoryRegion> SignalSafeMapsParser::Next() {
   entry.raw_permissions[4] = '\0';
 
   entry.permissions = PagePermissions::kNoAccess;
-  if (entry.raw_permissions[0] == 'r')
+  if (entry.raw_permissions[0] == 'r') {
     entry.permissions |= PagePermissions::kRead;
-  if (entry.raw_permissions[1] == 'w')
+  }
+  if (entry.raw_permissions[1] == 'w') {
     entry.permissions |= PagePermissions::kWrite;
-  if (entry.raw_permissions[2] == 'x')
+  }
+  if (entry.raw_permissions[2] == 'x') {
     entry.permissions |= PagePermissions::kExecute;
+  }
 
   char c;
   if (!ReadChar(&c)) return std::nullopt;

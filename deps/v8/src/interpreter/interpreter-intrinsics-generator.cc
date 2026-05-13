@@ -176,7 +176,7 @@ TNode<Object> IntrinsicsGenerator::GeneratorGetResumeMode(
   TNode<JSGeneratorObject> generator =
       __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   const TNode<Object> value =
-      __ LoadObjectField(generator, JSGeneratorObject::kResumeModeOffset);
+      __ LoadObjectField(generator, offsetof(JSGeneratorObject, resume_mode_));
 
   return value;
 }
@@ -187,7 +187,7 @@ TNode<Object> IntrinsicsGenerator::GeneratorClose(
   TNode<JSGeneratorObject> generator =
       __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   __ StoreObjectFieldNoWriteBarrier(
-      generator, JSGeneratorObject::kContinuationOffset,
+      generator, offsetof(JSGeneratorObject, continuation_),
       __ SmiConstant(JSGeneratorObject::kGeneratorClosed));
   return __ UndefinedConstant();
 }

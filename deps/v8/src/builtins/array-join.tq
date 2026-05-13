@@ -767,7 +767,7 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.join
+// https://tc39.es/ecma262/#sec-array.prototype.join
 transitioning javascript builtin ArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const sepObj: JSAny = arguments[0];
@@ -859,7 +859,7 @@ transitioning macro ArrayPrototypeToString_Inline(
 }
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.tolocalestring
+// https://tc39.es/ecma262/#sec-array.prototype.tolocalestring
 transitioning javascript builtin ArrayPrototypeToLocaleString(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const locales: JSAny = arguments[0];
@@ -880,7 +880,7 @@ transitioning javascript builtin ArrayPrototypeToLocaleString(
   return CycleProtectedArrayJoin<JSArray>(true, o, len, ',', locales, options);
 }
 
-// https://tc39.github.io/ecma262/#sec-array.prototype.tostring
+// https://tc39.es/ecma262/#sec-array.prototype.tostring
 transitioning javascript builtin ArrayPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let array be ? ToObject(this value).
@@ -900,7 +900,7 @@ transitioning javascript builtin ArrayPrototypeToString(
   }
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.join
 transitioning javascript builtin TypedArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const sepObj: JSAny = arguments[0];
@@ -921,7 +921,7 @@ transitioning javascript builtin TypedArrayPrototypeJoin(
       Undefined);
 }
 
-// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.tolocalestring
+// https://tc39.es/ecma262/#sec-%typedarray%.prototype.tolocalestring
 transitioning javascript builtin TypedArrayPrototypeToLocaleString(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const locales: JSAny = arguments[0];

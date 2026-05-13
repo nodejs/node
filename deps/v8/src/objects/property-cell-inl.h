@@ -20,17 +20,48 @@ namespace internal {
 
 #include "torque-generated/src/objects/property-cell-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyCell)
+Tagged<DependentCode> PropertyCell::dependent_code() const {
+  return dependent_code_.load();
+}
+void PropertyCell::set_dependent_code(Tagged<DependentCode> value,
+                                      WriteBarrierMode mode) {
+  dependent_code_.store(this, value, mode);
+}
 
-ACCESSORS(PropertyCell, dependent_code, Tagged<DependentCode>,
-          kDependentCodeOffset)
-ACCESSORS(PropertyCell, name, Tagged<Name>, kNameOffset)
-ACCESSORS(PropertyCell, property_details_raw, Tagged<Smi>,
-          kPropertyDetailsRawOffset)
-RELEASE_ACQUIRE_ACCESSORS(PropertyCell, property_details_raw, Tagged<Smi>,
-                          kPropertyDetailsRawOffset)
-ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
-RELEASE_ACQUIRE_ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
+Tagged<Name> PropertyCell::name() const { return name_.load(); }
+void PropertyCell::set_name(Tagged<Name> value, WriteBarrierMode mode) {
+  name_.store(this, value, mode);
+}
+
+Tagged<Smi> PropertyCell::property_details_raw() const {
+  return property_details_raw_.load();
+}
+void PropertyCell::set_property_details_raw(Tagged<Smi> value,
+                                            WriteBarrierMode mode) {
+  property_details_raw_.store(this, value, mode);
+}
+
+Tagged<Smi> PropertyCell::property_details_raw(AcquireLoadTag tag) const {
+  return property_details_raw_.Acquire_Load();
+}
+void PropertyCell::set_property_details_raw(Tagged<Smi> value,
+                                            ReleaseStoreTag tag,
+                                            WriteBarrierMode mode) {
+  property_details_raw_.Release_Store(this, value, mode);
+}
+
+Tagged<Object> PropertyCell::value() const { return value_.load(); }
+void PropertyCell::set_value(Tagged<Object> value, WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+Tagged<Object> PropertyCell::value(AcquireLoadTag tag) const {
+  return value_.Acquire_Load();
+}
+void PropertyCell::set_value(Tagged<Object> value, ReleaseStoreTag tag,
+                             WriteBarrierMode mode) {
+  value_.Release_Store(this, value, mode);
+}
 
 PropertyDetails PropertyCell::property_details() const {
   return PropertyDetails(Cast<Smi>(property_details_raw()));
@@ -54,7 +85,8 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = Isolate::Current();
     DependentCode::DeoptimizeDependencyGroups(
-        isolate, *this, DependentCode::kPropertyCellChangedGroup);
+        isolate, Tagged<PropertyCell>(this),
+        DependentCode::kPropertyCellChangedGroup);
   }
 }
 

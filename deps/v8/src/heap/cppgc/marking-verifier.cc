@@ -102,8 +102,9 @@ void MarkingVerifierBase::Run(StackState stack_state,
 void MarkingVerifierBase::VisitInConstructionConservatively(
     HeapObjectHeader& header, TraceConservativelyCallback callback) {
   if (in_construction_objects_->find(&header) !=
-      in_construction_objects_->end())
+      in_construction_objects_->end()) {
     return;
+  }
   in_construction_objects_->insert(&header);
 
   // Stack case: Parent is stack and this is merely ensuring that the object
@@ -191,18 +192,20 @@ void MarkingVerifierBase::ReportDifferences(
       if (page->is_large()) {
         const auto& large_page = *LargePage::From(page);
         const auto& header = *large_page.ObjectHeader();
-        if (header.IsMarked())
+        if (header.IsMarked()) {
           marked_bytes_on_page +=
               ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
+        }
         if (marked_bytes_on_page == large_page.marked_bytes()) continue;
         ReportLargePage(large_page, marked_bytes_on_page);
         ReportHeapObjectHeader(header);
       } else {
         const auto& normal_page = *NormalPage::From(page);
         for (const auto& header : normal_page) {
-          if (header.IsMarked())
+          if (header.IsMarked()) {
             marked_bytes_on_page +=
                 ObjectView<>(header).Size() + sizeof(HeapObjectHeader);
+          }
         }
         if (marked_bytes_on_page == normal_page.marked_bytes()) continue;
         ReportNormalPage(normal_page, marked_bytes_on_page);

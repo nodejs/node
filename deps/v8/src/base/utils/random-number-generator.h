@@ -107,6 +107,7 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
 
   int64_t initial_seed() const { return initial_seed_; }
 
+  // LINT.IfChange(xorshift128+)
   // Static and exposed for external use.
   static inline double ToDouble(uint64_t random) {
     // Get a random [0,2**53) integer value (up to MAX_SAFE_INTEGER) by dropping
@@ -130,6 +131,7 @@ class V8_BASE_EXPORT RandomNumberGenerator final {
     *state1 = s1;
     return s0 + s1;
   }
+  // LINT.ThenChange(/src/builtins/math.tq:xorshift128+)
 
   static uint64_t MurmurHash3(uint64_t);
 

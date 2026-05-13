@@ -516,9 +516,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*uc16_string))
+    if (IsExternalString(*uc16_string)) {
       i::Cast<i::ExternalTwoByteString>(uc16_string)
           ->SetResource(isolate, nullptr);
+    }
   }
 
   // 1-byte external string
@@ -536,9 +537,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, one_byte_stream.get(), length, start,
                         end);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*ext_one_byte_string))
+    if (IsExternalString(*ext_one_byte_string)) {
       i::Cast<i::ExternalOneByteString>(ext_one_byte_string)
           ->SetResource(isolate, nullptr);
+    }
   }
 
   // 1-byte generic i::String
@@ -921,9 +923,10 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     TestCloneCharacterStream(one_byte_source, uc16_stream.get(), length);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*uc16_string))
+    if (IsExternalString(*uc16_string)) {
       i::Cast<i::ExternalTwoByteString>(uc16_string)
           ->SetResource(i_isolate(), nullptr);
+    }
   }
 
   // 1-byte external string
@@ -940,9 +943,10 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
         i::ScannerStream::For(i_isolate(), ext_one_byte_string, 0, length));
     TestCloneCharacterStream(one_byte_source, one_byte_stream.get(), length);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (IsExternalString(*ext_one_byte_string))
+    if (IsExternalString(*ext_one_byte_string)) {
       i::Cast<i::ExternalOneByteString>(ext_one_byte_string)
           ->SetResource(i_isolate(), nullptr);
+    }
   }
 
   // Relocatable streams are't clonable.
@@ -985,4 +989,35 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     CHECK(two_byte_streaming_stream->can_be_cloned());
     TestCloneCharacterStream("12345678", two_byte_streaming_stream.get(), 8);
   }
+}
+
+class OverlongMockSource : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  OverlongMockSource() : returned_(false) {}
+  size_t GetMoreData(const uint8_t** src) override {
+    if (returned_) return 0;
+    size_t size = static_cast<size_t>(v8::String::kMaxLength) + 100;
+    uint8_t* buffer = new uint8_t[size];
+    memset(buffer, 'a', size);
+    buffer[size - 2] = 0xC4;
+    buffer[size - 1] = 0x80;
+    *src = buffer;
+    returned_ = true;
+    return size;
+  }
+
+ private:
+  bool returned_;
+};
+
+TEST_F(ScannerStreamsTest, StreamSizeExceedsMaxBounds) {
+  OverlongMockSource source;
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+            v8::internal::ScannerStream::For(
+                &source, v8::ScriptCompiler::StreamedSource::UTF8));
+        stream->Advance();
+      },
+      "Check failed: length <=");
 }

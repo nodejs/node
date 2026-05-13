@@ -215,6 +215,18 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
                                               parameter2_type)) {
       Init();
     }
+    StreamBuilder(TurboshaftInstructionSelectorTest* test,
+                  MachineType return_type, MachineType parameter0_type,
+                  MachineType parameter1_type, MachineType parameter2_type,
+                  MachineType parameter3_type)
+        : BaseAssembler(test->data(), test->graph(), test->graph(),
+                        test->zone()),
+          test_(test),
+          call_descriptor_(MakeCallDescriptor(
+              test->zone(), return_type, parameter0_type, parameter1_type,
+              parameter2_type, parameter3_type)) {
+      Init();
+    }
 
     Stream Build(CpuFeature feature) { return Build(CpuFeatureSet{feature}); }
     Stream Build(CpuFeature feature1, CpuFeature feature2) {
@@ -481,6 +493,20 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     DECL_SIMD128_EXTRACT_LANE(F32x4, , Float32)
     DECL_SIMD128_EXTRACT_LANE(F64x2, , Float64)
 #undef DECL_SIMD128_EXTRACT_LANE
+
+#define DECL_SIMD128_REPLACE_LANE(Name, Type)                                 \
+  V<Type> Name##ReplaceLane(V<Simd128> into, V<Any> new_lane, uint8_t lane) { \
+    return V<Type>::Cast(Simd128ReplaceLane(                                  \
+        into, new_lane, Simd128ReplaceLaneOp::Kind::k##Name, lane));          \
+  }
+    DECL_SIMD128_REPLACE_LANE(I8x16, Word32)
+    DECL_SIMD128_REPLACE_LANE(I16x8, Word32)
+    DECL_SIMD128_REPLACE_LANE(I32x4, Word32)
+    DECL_SIMD128_REPLACE_LANE(I64x2, Word64)
+    DECL_SIMD128_REPLACE_LANE(F16x8, Float32)
+    DECL_SIMD128_REPLACE_LANE(F32x4, Float32)
+    DECL_SIMD128_REPLACE_LANE(F64x2, Float64)
+#undef DECL_SIMD128_REPLACE_LANE
 
 #define DECL_SIMD128_REDUCE(Name)                                           \
   V<Simd128> Name##AddReduce(V<Simd128> input) {                            \

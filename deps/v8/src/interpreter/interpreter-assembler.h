@@ -383,9 +383,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void CallPrologue();
   void CallEpilogue();
 
-  // Increment the dispatch counter for the (current, next) bytecode pair.
-  void TraceBytecodeDispatch(TNode<WordT> target_bytecode);
-
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
 

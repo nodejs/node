@@ -15,9 +15,9 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// ES #sec-dataview-objects
+// https://tc39.es/ecma262/#sec-dataview-objects
 
-// ES #sec-dataview-constructor
+// https://tc39.es/ecma262/#sec-dataview-constructor
 BUILTIN(DataViewConstructor) {
   const char* const kMethodName = "DataView constructor";
   HandleScope scope(isolate);
@@ -143,8 +143,6 @@ BUILTIN(DataViewConstructor) {
     raw->set_buffer(*array_buffer);
   }
 
-  array_buffer->AttachView(*data_view);
-
   // 13. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   if (array_buffer->was_detached()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -153,6 +151,13 @@ BUILTIN(DataViewConstructor) {
             MessageTemplate::kTypedArrayDetachedErrorOperation,
             isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
   }
+
+  // AttachView only after the detach check, so a detached buffer does not end
+  // up tracking a view that is never returned to script (the orphan view's
+  // WasDetached() would still be true, but the buffer's views list would be
+  // inconsistent with its detached state). The remaining steps below cannot
+  // detach the buffer, so attaching here is safe.
+  array_buffer->AttachView(*data_view);
 
   // 14. Let getBufferByteLength be
   //     MakeIdempotentArrayBufferByteLengthGetter(SeqCst).

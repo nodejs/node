@@ -362,8 +362,9 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Kill(
     if (alias_info.MayAlias(info1.first)) {
       AbstractMaps* that = zone->New<AbstractMaps>(zone);
       for (auto info2 : this->info_for_node_) {
-        if (!alias_info.MayAlias(info2.first))
+        if (!alias_info.MayAlias(info2.first)) {
           that->info_for_node_.insert(info2);
+        }
       }
       return that;
     }
@@ -833,12 +834,12 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   // We know that the resulting elements have the fixed array map.
   state = state->SetMaps(node, fixed_array_maps, zone());
   // Kill the previous elements on {object}.
-  state = state->KillField(object,
-                           FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-                           MaybeHandle<Name>(), zone());
+  state = state->KillField(
+      object, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
+      MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
   state = state->AddField(
-      object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+      object, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
       {node, MachineRepresentation::kTaggedPointer}, zone());
   return UpdateState(node, state);
 }
@@ -861,12 +862,12 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
     state = state->SetMaps(node, fixed_array_maps, zone());
   }
   // Kill the previous elements on {object}.
-  state = state->KillField(object,
-                           FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-                           MaybeHandle<Name>(), zone());
+  state = state->KillField(
+      object, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
+      MaybeHandle<Name>(), zone());
   // Add the new elements on {object}.
   state = state->AddField(
-      object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+      object, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
       {node, MachineRepresentation::kTaggedPointer}, zone());
   return UpdateState(node, state);
 }
@@ -886,7 +887,7 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
       // Kill the elements as well.
       AliasStateInfo alias_info(state, object, source_map);
       state = state->KillField(
-          alias_info, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+          alias_info, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
           MaybeHandle<Name>(), zone());
       break;
   }
@@ -926,7 +927,7 @@ Reduction LoadElimination::ReduceTransitionElementsKindOrCheckMap(Node* node) {
       // Kill the elements as well.
       AliasStateInfo alias_info(state, object, source_map);
       state = state->KillField(
-          alias_info, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+          alias_info, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
           MaybeHandle<Name>(), zone());
     }
   }
@@ -976,9 +977,9 @@ Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
     state = state->SetMaps(object, object_maps, zone());
   }
   // Kill the elements as well.
-  state = state->KillField(object,
-                           FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
-                           MaybeHandle<Name>(), zone());
+  state = state->KillField(
+      object, FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
+      MaybeHandle<Name>(), zone());
   return UpdateState(node, state);
 }
 
@@ -989,7 +990,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
   Node* control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (access.offset == HeapObject::kMapOffset &&
+  if (access.offset == offsetof(HeapObject, map_) &&
       access.base_is_tagged == kTaggedBase) {
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     ZoneRefSet<Map> object_maps;
@@ -1052,7 +1053,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node,
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (access.offset == HeapObject::kMapOffset &&
+  if (access.offset == offsetof(HeapObject, map_) &&
       access.base_is_tagged == kTaggedBase) {
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     // Kill all potential knowledge about the {object}s map.
@@ -1346,7 +1347,7 @@ LoadElimination::ComputeLoopStateForStoreField(
     Node* current, LoadElimination::AbstractState const* state,
     FieldAccess const& access) const {
   Node* const object = NodeProperties::GetValueInput(current, 0);
-  if (access.offset == HeapObject::kMapOffset) {
+  if (access.offset == offsetof(HeapObject, map_)) {
     // Invalidate what we know about the {object}s map.
     state = state->KillMaps(object, zone());
   } else {
@@ -1387,14 +1388,16 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
           case IrOpcode::kEnsureWritableFastElements: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
             state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+                object,
+                FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
                 MaybeHandle<Name>(), zone());
             break;
           }
           case IrOpcode::kMaybeGrowFastElements: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
             state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+                object,
+                FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
                 MaybeHandle<Name>(), zone());
             break;
           }
@@ -1434,7 +1437,8 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             state = state->KillMaps(object, zone());
             // Kill the elements as well.
             state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+                object,
+                FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
                 MaybeHandle<Name>(), zone());
             break;
           }
@@ -1485,7 +1489,7 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
   // matter.
   //
   // To handle the bad case properly, we first kill the maps using all
-  // transitions. We kill the the fields later when all the transitions are
+  // transitions. We kill the fields later when all the transitions are
   // already reflected in the map information.
 
   for (const TransitionElementsKindInfo& t : element_transitions_) {
@@ -1499,7 +1503,8 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
       case ElementsTransition::kSlowTransition: {
         AliasStateInfo alias_info(state, t.object, t.transition.source());
         state = state->KillField(
-            alias_info, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+            alias_info,
+            FieldIndexOf(offsetof(JSObject, elements_), kTaggedSize),
             MaybeHandle<Name>(), zone());
         break;
       }

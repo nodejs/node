@@ -1,0 +1,42 @@
+add_proxy_header_library(
+  aligned_alloc
+  HDRS
+    aligned_alloc.h
+  DEPENDS
+    libc.hdr.stdlib_overlay
+  FULL_BUILD_DEPENDS
+    libc.include.stdlib
+    libc.hdr.types.size_t
+)
+
+add_proxy_header_library(
+  malloc
+  HDRS
+    malloc.h
+  DEPENDS
+    libc.hdr.stdlib_overlay
+  FULL_BUILD_DEPENDS
+    libc.include.stdlib
+    libc.hdr.types.size_t
+)
+
+add_proxy_header_library(
+  realloc
+  HDRS
+    realloc.h
+  DEPENDS
+    libc.hdr.stdlib_overlay
+  FULL_BUILD_DEPENDS
+    libc.include.stdlib
+    libc.hdr.types.size_t
+)
+
+add_proxy_header_library(
+  free
+  HDRS
+    free.h
+  DEPENDS
+    libc.hdr.stdlib_overlay
+  FULL_BUILD_DEPENDS
+    libc.include.stdlib
+)

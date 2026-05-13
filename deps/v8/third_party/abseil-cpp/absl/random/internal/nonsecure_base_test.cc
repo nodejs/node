@@ -77,13 +77,13 @@ TEST(NonsecureURBGBase, StandardInterface) {
   static_assert(!std::is_copy_constructible<E>::value,
                 "NonsecureURBGBase should not be copy constructible");
 
-  static_assert(!absl::is_copy_assignable<E>::value,
+  static_assert(!std::is_copy_assignable<E>::value,
                 "NonsecureURBGBase should not be copy assignable");
 
   static_assert(std::is_move_constructible<E>::value,
                 "NonsecureURBGBase should be move constructible");
 
-  static_assert(absl::is_move_assignable<E>::value,
+  static_assert(std::is_move_assignable<E>::value,
                 "NonsecureURBGBase should be move assignable");
 
   static_assert(std::is_same<decltype(std::declval<E>()()), T>::value,

@@ -498,29 +498,30 @@ class MemoryContentTable
 
 #if V8_ENABLE_SANDBOX
   OpIndex Find(const LoadTrustedPointerOp& load) {
-    OpIndex base = ResolveBase(load.table());
-    OptionalOpIndex index = load.handle();
-    int32_t offset = 0;
-    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
-    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+    OpIndex base = ResolveBase(load.base());
+    int32_t offset = load.offset;
+    uint8_t element_size_log2 = 0;  // Unused;
+    uint8_t size = MemoryRepresentation::Uint32().SizeInBytes();
 
-    MemoryAddress mem{base, index, offset, element_size_log2, size};
+    MemoryAddress mem{base, OpIndex::Invalid(), offset, element_size_log2,
+                      size};
     auto key = all_keys_.find(mem);
     if (key == all_keys_.end()) return OpIndex::Invalid();
     return Get(key->second);
   }
 
   void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
-    OpIndex base = ResolveBase(load.table());
-    OptionalOpIndex index = load.handle();
-    int32_t offset = 0;
-    uint8_t element_size_log2 = kTrustedPointerTableEntrySizeLog2;
-    uint8_t size = MemoryRepresentation::UintPtr().SizeInBytes();
+    OpIndex base = ResolveBase(load.base());
+    int32_t offset = load.offset;
+    uint8_t element_size_log2 = 0;  // Unused.
+    uint8_t size = MemoryRepresentation::Uint32().SizeInBytes();
 
-    if (load.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, size, load_idx);
+    if (load.kind.is_immutable) {
+      InsertImmutable(base, OpIndex::Invalid(), offset, element_size_log2, size,
+                      load_idx);
     } else {
-      Insert(base, index, offset, element_size_log2, size, load_idx);
+      Insert(base, OpIndex::Invalid(), offset, element_size_log2, size,
+             load_idx);
     }
   }
 #endif
@@ -544,6 +545,22 @@ class MemoryContentTable
     }
   }
 #endif
+
+  void InvalidatePotentialLoadedStringMaps() {
+    constexpr int kOffset = 0;
+    auto offset_keys = offset_keys_.find(kOffset);
+    if (offset_keys == offset_keys_.end()) return;
+    for (auto it = offset_keys->second.begin();
+         it != offset_keys->second.end();) {
+      Key key = *it;
+      DCHECK_EQ(kOffset, key.data().mem.offset);
+      // TODO(dmercadier): check known maps for key.data().mem.base and don't
+      // invalidate if maps cannot be string maps.
+      it = offset_keys->second.RemoveAt(it);
+      TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
+      Set(key, OpIndex::Invalid());
+    }
+  }
 
  private:
   // To avoid pathological execution times, we cap the maximum number of
@@ -778,6 +795,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
+  void WipeAllMaps();
+
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
   template <bool for_loop_revisit = false>
@@ -949,7 +968,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                 // NaN.
                 EmitReportLoadEliminationError();
               }
-            } else if (compare_rep == RegisterRepresentation::Tagged()) {
+            } else if (compare_rep == RegisterRepresentation::Tagged() &&
+                       !v8_flags.turbolev) {
               // We are trying to replace a Tagged value by a different Tagged
               // value. This is generally wrong, but there is one exception: we
               // are allowed to replace a string map by a different string map

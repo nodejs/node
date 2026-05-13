@@ -69,8 +69,6 @@ void TestTwoSizeTArguments(Isolate* isolate) {
 class SomeObject : public HeapObject {
  public:
   void Method(Tagged<Object> a) { Print(a); }
-
-  OBJECT_CONSTRUCTORS(SomeObject, HeapObject);
 };
 
 void TestMethodCall(Isolate* isolate) {

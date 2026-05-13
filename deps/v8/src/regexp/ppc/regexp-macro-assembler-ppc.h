@@ -10,6 +10,7 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
 class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
     : public NativeRegExpMacroAssembler {
@@ -62,8 +63,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
   void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
-  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
-                                   RegExpFlags flags) override;
+  DirectHandle<HeapObject> GetCode(DirectHandle<RegExpData> re_data,
+                                   Flags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
@@ -241,6 +242,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
 // Set of non-volatile registers saved/restored by generated regexp code.
 const RegList kRegExpCalleeSaved = {r25, r26, r27, r28, r29, r30, fp};
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8
 

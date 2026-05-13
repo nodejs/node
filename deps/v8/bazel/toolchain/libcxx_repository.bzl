@@ -8,7 +8,11 @@ def _libcxx_repository_impl(ctx):
     ctx.symlink(workspace_root.get_child("third_party").get_child("libc++"), "libc++")
     ctx.symlink(workspace_root.get_child("third_party").get_child("libc++abi"), "libc++abi")
     ctx.symlink(workspace_root.get_child("third_party").get_child("llvm-libc"), "llvm-libc")
-    ctx.symlink(workspace_root.get_child("buildtools").get_child("third_party").get_child("libc++"), "buildtools_libc++")
+
+    # Symlink config files
+    buildtools_libcxx = workspace_root.get_child("buildtools").get_child("third_party").get_child("libc++")
+    ctx.symlink(buildtools_libcxx.get_child("__config_site"), "buildtools_libc++/__config_site")
+    ctx.symlink(buildtools_libcxx.get_child("__assertion_handler"), "buildtools_libc++/__assertion_handler")
 
     # Get the external repository path for include flags
     # In bzlmod, repo names may have prefixes, so we need to determine the actual path
@@ -19,6 +23,8 @@ def _libcxx_repository_impl(ctx):
     # that conflict with the toolchain's absolute paths, breaking #include_next.
     # The toolchain provides the libc++ include paths via -isystem flags.
     build_content = '''
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 LIBCXX_COPTS = [
@@ -30,6 +36,7 @@ LIBCXX_COPTS = [
     "-D_LIBCPP_BUILDING_LIBRARY",
     "-D_LIBCPP_HARDENING_MODE_DEFAULT=_LIBCPP_HARDENING_MODE_NONE",
     "-DLIBC_NAMESPACE=__llvm_libc_cr",
+    "-D_LIBCPP_CONSTINIT=constinit",
 ]
 
 cc_library(
@@ -48,9 +55,8 @@ cc_library(
         "libc++/src/include/**/*",
         "libc++/src/src/include/*.h",
         "libc++abi/src/src/demangle/*.def",
-        "buildtools_libc++/__config_site",
-        "buildtools_libc++/__assertion_handler",
         "llvm-libc/src/**/*.h",
+        "buildtools_libc++/*",
     ]),
     copts = LIBCXX_COPTS + [
         "-DLIBCXXABI_SILENT_TERMINATE",
@@ -73,9 +79,8 @@ cc_library(
     ]) + glob(["libc++/src/src/support/**/*.ipp"], allow_empty = True),
     hdrs = glob([
         "libc++/src/include/**/*",
-        "buildtools_libc++/__config_site",
-        "buildtools_libc++/__assertion_handler",
         "llvm-libc/src/**/*.h",
+        "buildtools_libc++/*",
     ]),
     copts = LIBCXX_COPTS + [
         "-DLIBCXX_BUILDING_LIBCXXABI",
@@ -86,7 +91,9 @@ cc_library(
         "-lpthread",
         "-lm",
     ],
-    deps = [":libc++abi"],
+    deps = [
+        ":libc++abi",
+    ],
     linkstatic = True,
 )
 '''.format(REPO_PATH=repo_path)

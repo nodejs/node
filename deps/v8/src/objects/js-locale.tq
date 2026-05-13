@@ -4,6 +4,7 @@
 
 #include 'src/objects/js-locale.h'
 
+@cppObjectLayoutDefinition
 extern class JSLocale extends JSObject {
   icu_locale: Foreign;  // Managed<icu::Locale>
 }

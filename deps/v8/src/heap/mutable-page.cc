@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
 #include "src/heap/base-page.h"
 #include "src/heap/incremental-marking.h"

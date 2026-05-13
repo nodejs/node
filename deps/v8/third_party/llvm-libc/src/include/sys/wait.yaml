@@ -1,0 +1,37 @@
+header: sys/wait.h
+standards:
+  - posix
+macros:
+  - macro_name: WCOREDUMP
+    macro_header: sys-wait-macros.h
+types:
+  - type_name: siginfo_t
+  - type_name: struct_rusage
+  - type_name: pid_t
+enums: []
+objects: []
+functions:
+  - name: wait
+    standards:
+      - POSIX
+    return_type: pid_t
+    arguments:
+      - type: int *
+  - name: wait4
+    standards:
+      - BSDExtensions
+      - POSIX
+    return_type: pid_t
+    arguments:
+      - type: pid_t
+      - type: int *
+      - type: int
+      - type: struct rusage *
+  - name: waitpid
+    standards:
+      - POSIX
+    return_type: pid_t
+    arguments:
+      - type: pid_t
+      - type: int *
+      - type: int

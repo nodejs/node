@@ -65,9 +65,10 @@ void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
-  ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
-      .Relaxed_Store(value);
-  WRITE_BARRIER(array, slot_offset + kTaggedPayloadOffset, value);
+  Address tagged_addr = FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset);
+  ObjectSlot(tagged_addr).Relaxed_Store(value);
+  WriteBarrier::ForValue(&*array, MaybeObjectSlot(tagged_addr), value,
+                         UPDATE_WRITE_BARRIER);
 #ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
   ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))

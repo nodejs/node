@@ -6,7 +6,6 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turbofan-graph.h"
@@ -444,8 +443,7 @@ Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {
   // can turn sequential strings into thin strings, or move characters
   // off-heap). Currently, that can only happen in JS, so from Wasm's point
   // of view only in calls.
-  return UpdateState(node, node->opcode() == IrOpcode::kCall &&
-                                   !node->op()->HasProperty(Operator::kNoWrite)
+  return UpdateState(node, !node->op()->HasProperty(Operator::kNoWrite)
                                ? zone()->New<AbstractState>(
                                      HalfState(zone()), state->immutable_state)
                                : state);
@@ -551,8 +549,7 @@ WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
         } else {
           // TODO(manoskouk): DCHECK
         }
-      } else if (current->opcode() == IrOpcode::kCall &&
-                 !current->op()->HasProperty(Operator::kNoWrite)) {
+      } else if (!current->op()->HasProperty(Operator::kNoWrite)) {
         return zone()->New<AbstractState>(HalfState(zone()),
                                           state->immutable_state);
       }

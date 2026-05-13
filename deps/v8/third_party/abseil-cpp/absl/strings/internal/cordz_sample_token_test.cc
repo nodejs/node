@@ -187,7 +187,7 @@ TEST(CordzSampleTokenTest, MultiThreaded) {
             }
           } else {
             // 5) Sample
-            token = absl::make_unique<CordzSampleToken>();
+            token = std::make_unique<CordzSampleToken>();
           }
         }
       }

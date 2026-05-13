@@ -71,6 +71,32 @@ cc_test(
 )
 
 cc_library(
+    name = "bind_back",
+    srcs = ["internal/back_binder.h"],
+    hdrs = ["bind_back.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/container:compressed_tuple",
+        "//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "bind_back_test",
+    srcs = ["bind_back_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":bind_back",
+        "//absl/memory",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "bind_front",
     srcs = ["internal/front_binder.h"],
     hdrs = ["bind_front.h"],
@@ -149,7 +175,6 @@ cc_test(
         "//absl/base:config",
         "//absl/strings",
         "//absl/strings:string_view",
-        "//absl/types:variant",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

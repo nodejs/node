@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-scopes.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "src/ast/ast.h"
@@ -44,8 +45,9 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 ScopeIterator::~ScopeIterator() = default;
 
 DirectHandle<Object> ScopeIterator::GetFunctionDebugName() const {
-  if (!function_.is_null())
+  if (!function_.is_null()) {
     return JSFunction::GetDebugName(isolate_, function_);
+  }
 
   if (!IsNativeContext(*context_)) {
     DisallowGarbageCollection no_gc;
@@ -821,7 +823,8 @@ void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
       context_->native_context()->script_context_table(), isolate_);
 
   // Skip the first script since that just declares 'this'.
-  for (int i = 1; i < script_contexts->length(kAcquireLoad); i++) {
+  const uint32_t len = script_contexts->length(kAcquireLoad).value();
+  for (uint32_t i = 1; i < len; i++) {
     DirectHandle<Context> context(script_contexts->get(i), isolate_);
     DirectHandle<ScopeInfo> scope_info(context->scope_info(), isolate_);
     if (VisitContextLocals(visitor, scope_info, context, ScopeTypeScript)) {
@@ -887,8 +890,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
             ? handle(context_->GetNoCell(this_var->index()), isolate_)
         : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
                                       : frame_inspector_->GetReceiver();
-    if (visitor(isolate_->factory()->this_string(), receiver, scope_type))
+    if (visitor(isolate_->factory()->this_string(), receiver, scope_type)) {
       return true;
+    }
   }
 
   if (current_scope_->is_function_scope()) {
@@ -929,11 +933,20 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           DCHECK(!generator_.is_null());
           Tagged<FixedArray> parameters_and_registers =
               generator_->parameters_and_registers();
-          DCHECK_LT(index, parameters_and_registers->length());
+          CHECK_GE(index, 0);
+          CHECK_LT(static_cast<uint32_t>(index),
+                   parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
         } else if (var->IsReceiver()) {
           value = frame_inspector_->GetReceiver();
         } else {
+          JavaScriptFrame* frame = GetFrame();
+          if (frame->is_unoptimized()) {
+            CHECK_GE(index, 0);
+            CHECK_LT(static_cast<uint32_t>(index),
+                     std::max(frame->GetActualArgumentCount(),
+                              frame->ComputeParametersCount()));
+          }
           value = frame_inspector_->GetParameter(index);
         }
         break;
@@ -948,9 +961,16 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           int parameter_count =
               function_->shared()->scope_info()->ParameterCount();
           index += parameter_count;
-          DCHECK_LT(index, parameters_and_registers->length());
+          CHECK_GE(index, 0);
+          CHECK_LT(static_cast<uint32_t>(index),
+                   parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
         } else {
+          JavaScriptFrame* frame = GetFrame();
+          if (frame->is_unoptimized()) {
+            CHECK_GE(index, 0);
+            CHECK_LT(index, frame->ComputeExpressionsCount());
+          }
           value = frame_inspector_->GetExpression(index);
           if (IsOptimizedOut(*value, isolate_)) {
             // We'll rematerialize this later.
@@ -1025,25 +1045,38 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       if (!closure_scope_->has_this_declaration() &&
           !closure_scope_->HasThisReference()) {
         if (visitor(isolate_->factory()->this_string(),
-                    isolate_->factory()->undefined_value(), scope_type))
+                    isolate_->factory()->undefined_value(), scope_type)) {
           return;
+        }
       }
       // Add |arguments| to the function scope even if it wasn't used.
       // Currently we don't yet support materializing the arguments object of
       // suspended generators. We'd need to read the arguments out from the
       // suspended generator rather than from an activation as
       // FunctionGetArguments does.
-      if (frame_inspector_ != nullptr && !closure_scope_->is_arrow_scope() &&
-          (closure_scope_->arguments() == nullptr ||
-           IsOptimizedOut(*frame_inspector_->GetExpression(
-                              closure_scope_->arguments()->index()),
-                          isolate_))) {
+      if (frame_inspector_ != nullptr && !closure_scope_->is_arrow_scope()) {
+        Variable* arguments_var = closure_scope_->arguments();
+        bool arguments_optimized_out = arguments_var == nullptr;
         JavaScriptFrame* frame = GetFrame();
-        Handle<JSObject> arguments = Accessors::FunctionGetArguments(
-            frame, frame_inspector_->inlined_frame_index());
-        if (visitor(isolate_->factory()->arguments_string(), arguments,
-                    scope_type))
-          return;
+        if (!arguments_optimized_out &&
+            arguments_var->location() == VariableLocation::LOCAL) {
+          int index = arguments_var->index();
+          if (frame->is_unoptimized()) {
+            CHECK_GE(index, 0);
+            CHECK_LT(index, frame->ComputeExpressionsCount());
+          }
+          arguments_optimized_out =
+              IsOptimizedOut(*frame_inspector_->GetExpression(index), isolate_);
+        }
+
+        if (arguments_optimized_out) {
+          Handle<JSObject> arguments = Accessors::FunctionGetArguments(
+              frame, frame_inspector_->inlined_frame_index());
+          if (visitor(isolate_->factory()->arguments_string(), arguments,
+                      scope_type)) {
+            return;
+          }
+        }
       }
     }
   } else {
@@ -1064,7 +1097,8 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
                                 KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS)
             .ToHandleChecked();
 
-    for (int i = 0; i < keys->length(); i++) {
+    uint32_t keys_len = keys->ulength().value();
+    for (uint32_t i = 0; i < keys_len; i++) {
       // Names of variables introduced by eval are strings.
       DCHECK(IsString(keys->get(i)));
       Handle<String> key(Cast<String>(keys->get(i)), isolate_);
@@ -1101,7 +1135,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             DCHECK(!generator_.is_null());
             DirectHandle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
-            DCHECK_LT(index, parameters_and_registers->length());
+            CHECK_GE(index, 0);
+            CHECK_LT(static_cast<uint32_t>(index),
+                     parameters_and_registers->ulength().value());
             parameters_and_registers->set(index, *new_value);
           } else {
             JavaScriptFrame* frame = GetFrame();
@@ -1121,13 +1157,17 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             index += parameter_count;
             DirectHandle<FixedArray> parameters_and_registers(
                 generator_->parameters_and_registers(), isolate_);
-            DCHECK_LT(index, parameters_and_registers->length());
+            CHECK_GE(index, 0);
+            CHECK_LT(static_cast<uint32_t>(index),
+                     parameters_and_registers->ulength().value());
             parameters_and_registers->set(index, *new_value);
           } else {
             // Set the variable on the stack.
             JavaScriptFrame* frame = GetFrame();
             if (!frame->is_unoptimized()) return false;
 
+            CHECK_GE(index, 0);
+            CHECK_LT(index, frame->ComputeExpressionsCount());
             frame->SetExpression(index, *new_value);
           }
           return true;
@@ -1176,8 +1216,13 @@ bool ScopeIterator::SetContextExtensionValue(DirectHandle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
-  int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
+  VariableLookupResult lookup_result;
+  int slot_index =
+      context_->scope_info()->ContextSlotIndex(*variable_name, &lookup_result);
   if (slot_index < 0) return false;
+  if (IsPrivateMethodOrAccessorVariableMode(lookup_result.mode)) {
+    return false;
+  }
   Context::Set(context_, slot_index, new_value, isolate_);
   return true;
 }

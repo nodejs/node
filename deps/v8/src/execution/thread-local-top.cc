@@ -20,8 +20,8 @@ void ThreadLocalTop::Clear() {
   isolate_ = nullptr;
   c_entry_fp_ = kNullAddress;
   c_function_ = kNullAddress;
-  context_ = Context();
-  topmost_script_having_context_ = Context();
+  context_ = {};
+  topmost_script_having_context_ = {};
   thread_id_ = ThreadId();
   pending_handler_entrypoint_ = kNullAddress;
   pending_handler_constant_pool_ = kNullAddress;

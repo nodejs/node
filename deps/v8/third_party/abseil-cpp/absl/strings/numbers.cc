@@ -35,6 +35,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
@@ -397,6 +398,411 @@ char* absl_nonnull numbers_internal::FastIntToBuffer(
   }
   buffer = EncodeFullU128(u, buffer);
   *buffer = '\0';
+  return buffer;
+}
+
+// Although DBL_DIG is typically 15, DBL_MAX is normally represented with 17
+// digits of precision. When converted to a string value with fewer digits
+// of precision using strtod(), the result can be bigger than DBL_MAX due to
+// a rounding error. Converting this value back to a double will produce an
+// Inf which will trigger a SIGFPE if FP exceptions are enabled. We skip
+// the precision check for sufficiently large values to avoid the SIGFPE.
+static constexpr double kDoublePrecisionCheckMax =
+    std::numeric_limits<double>::max() / 1.000000000000001;
+
+char* absl_nonnull numbers_internal::RoundTripDoubleToBuffer(
+    double d, char* absl_nonnull buffer) {
+  // DBL_DIG is 15 for IEEE-754 doubles, which are used on almost all
+  // platforms these days.  Just in case some system exists where DBL_DIG
+  // is significantly larger -- and risks overflowing our buffer -- we have
+  // this assert.
+  static_assert(std::numeric_limits<double>::digits10 < 20,
+                "std::numeric_limits<double>::digits10 is too big");
+
+  // We avoid snprintf for NaNs because it inconsistently outputs "-nan"
+  // or "nan" when given a nan with the sign bit set.
+  if (std::isnan(d)) {
+    strcpy(buffer, "nan");  // NOLINT(runtime/printf)
+    return buffer;
+  }
+  bool full_precision_needed = true;
+  if (std::abs(d) <= kDoublePrecisionCheckMax) {
+    int snprintf_result =
+        snprintf(buffer, numbers_internal::kFastToBufferSize, "%.*g",
+                 std::numeric_limits<double>::digits10, d);
+
+    // The snprintf should never overflow because the buffer is significantly
+    // larger than the precision we asked for.
+    ABSL_ASSERT(snprintf_result > 0 &&
+                snprintf_result < numbers_internal::kFastToBufferSize);
+
+    full_precision_needed = strtod(buffer, nullptr) != d;
+  }
+
+  if (full_precision_needed) {
+    int snprintf_result =
+        snprintf(buffer, numbers_internal::kFastToBufferSize, "%.*g",
+                 std::numeric_limits<double>::digits10 + 2, d);
+
+    // Should never overflow; see above.
+    ABSL_ASSERT(snprintf_result > 0 &&
+                snprintf_result < numbers_internal::kFastToBufferSize);
+  }
+  return buffer;
+}
+
+namespace {
+
+// This table is used to quickly calculate the base-ten exponent of a given
+// float, and then to provide a multiplier to bring that number into the
+// range 1-999,999,999, that is, into uint32_t range.  Finally, the exp
+// string is made available so there is one less int-to-string conversion
+// to be done.
+struct Spec {
+  double min_range;
+  double multiplier;
+  const char expstr[5];
+};
+
+// clang-format off
+constexpr Spec kNegExpTable[] = {
+    Spec{1.4e-45f, 1e+55, "e-45"},
+    Spec{1e-44f, 1e+54, "e-44"},
+    Spec{1e-43f, 1e+53, "e-43"},
+    Spec{1e-42f, 1e+52, "e-42"},
+    Spec{1e-41f, 1e+51, "e-41"},
+    Spec{1e-40f, 1e+50, "e-40"},
+    Spec{1e-39f, 1e+49, "e-39"},
+    Spec{1e-38f, 1e+48, "e-38"},
+    Spec{1e-37f, 1e+47, "e-37"},
+    Spec{1e-36f, 1e+46, "e-36"},
+    Spec{1e-35f, 1e+45, "e-35"},
+    Spec{1e-34f, 1e+44, "e-34"},
+    Spec{1e-33f, 1e+43, "e-33"},
+    Spec{1e-32f, 1e+42, "e-32"},
+    Spec{1e-31f, 1e+41, "e-31"},
+    Spec{1e-30f, 1e+40, "e-30"},
+    Spec{1e-29f, 1e+39, "e-29"},
+    Spec{1e-28f, 1e+38, "e-28"},
+    Spec{1e-27f, 1e+37, "e-27"},
+    Spec{1e-26f, 1e+36, "e-26"},
+    Spec{1e-25f, 1e+35, "e-25"},
+    Spec{1e-24f, 1e+34, "e-24"},
+    Spec{1e-23f, 1e+33, "e-23"},
+    Spec{1e-22f, 1e+32, "e-22"},
+    Spec{1e-21f, 1e+31, "e-21"},
+    Spec{1e-20f, 1e+30, "e-20"},
+    Spec{1e-19f, 1e+29, "e-19"},
+    Spec{1e-18f, 1e+28, "e-18"},
+    Spec{1e-17f, 1e+27, "e-17"},
+    Spec{1e-16f, 1e+26, "e-16"},
+    Spec{1e-15f, 1e+25, "e-15"},
+    Spec{1e-14f, 1e+24, "e-14"},
+    Spec{1e-13f, 1e+23, "e-13"},
+    Spec{1e-12f, 1e+22, "e-12"},
+    Spec{1e-11f, 1e+21, "e-11"},
+    Spec{1e-10f, 1e+20, "e-10"},
+    Spec{1e-09f, 1e+19, "e-09"},
+    Spec{1e-08f, 1e+18, "e-08"},
+    Spec{1e-07f, 1e+17, "e-07"},
+    Spec{1e-06f, 1e+16, "e-06"},
+    Spec{1e-05f, 1e+15, "e-05"},
+    Spec{1e-04f, 1e+14, "e-04"},
+};
+// clang-format on
+
+// clang-format off
+constexpr Spec kPosExpTable[] = {
+    Spec{1e+08f, 1e+02, "e+08"},
+    Spec{1e+09f, 1e+01, "e+09"},
+    Spec{1e+10f, 1e+00, "e+10"},
+    Spec{1e+11f, 1e-01, "e+11"},
+    Spec{1e+12f, 1e-02, "e+12"},
+    Spec{1e+13f, 1e-03, "e+13"},
+    Spec{1e+14f, 1e-04, "e+14"},
+    Spec{1e+15f, 1e-05, "e+15"},
+    Spec{1e+16f, 1e-06, "e+16"},
+    Spec{1e+17f, 1e-07, "e+17"},
+    Spec{1e+18f, 1e-08, "e+18"},
+    Spec{1e+19f, 1e-09, "e+19"},
+    Spec{1e+20f, 1e-10, "e+20"},
+    Spec{1e+21f, 1e-11, "e+21"},
+    Spec{1e+22f, 1e-12, "e+22"},
+    Spec{1e+23f, 1e-13, "e+23"},
+    Spec{1e+24f, 1e-14, "e+24"},
+    Spec{1e+25f, 1e-15, "e+25"},
+    Spec{1e+26f, 1e-16, "e+26"},
+    Spec{1e+27f, 1e-17, "e+27"},
+    Spec{1e+28f, 1e-18, "e+28"},
+    Spec{1e+29f, 1e-19, "e+29"},
+    Spec{1e+30f, 1e-20, "e+30"},
+    Spec{1e+31f, 1e-21, "e+31"},
+    Spec{1e+32f, 1e-22, "e+32"},
+    Spec{1e+33f, 1e-23, "e+33"},
+    Spec{1e+34f, 1e-24, "e+34"},
+    Spec{1e+35f, 1e-25, "e+35"},
+    Spec{1e+36f, 1e-26, "e+36"},
+    Spec{1e+37f, 1e-27, "e+37"},
+    Spec{1e+38f, 1e-28, "e+38"},
+    Spec{1e+39,  1e-29, "e+39"},
+};
+// clang-format on
+
+struct ExpCompare {
+  bool operator()(const Spec& spec, double d) const {
+    return spec.min_range < d;
+  }
+};
+
+}  // namespace
+
+// Utility routine(s) for RoundTripFloatToBuffer:
+// OutputNecessaryDigits takes two 11-digit numbers, whose integer portion
+// represents the fractional part of a floating-point number, and outputs a
+// number that is in-between them, with the fewest digits possible. For
+// instance, given 12345678900 and 12345876900, it would output "0123457".
+// When there are multiple final digits that would satisfy this requirement,
+// this routine attempts to use a digit that would represent the average of
+// lower_double and upper_double.
+//
+// Although the routine works using integers, all callers use doubles, so
+// for their convenience this routine accepts doubles.
+static char* absl_nonnull OutputNecessaryDigits(double lower_double,
+                                                double upper_double,
+                                                char* absl_nonnull out) {
+  assert(lower_double > 0);
+  assert(lower_double < upper_double - 10);
+  assert(upper_double < 100000000000.0);
+
+  // Narrow the range a bit; without this bias, an input of lower=87654320010.0
+  // and upper=87654320100.0 would produce an output of 876543201
+  //
+  // We do this in three steps: first, we lower the upper bound and truncate it
+  // to an integer.  Then, we increase the lower bound by exactly the amount we
+  // just decreased the upper bound by - at that point, the midpoint is exactly
+  // where it used to be.  Then we truncate the lower bound.
+
+  uint64_t upper64 = static_cast<uint64_t>(upper_double - (1.0 / 1024));
+  double shrink = upper_double - upper64;
+  uint64_t lower64 = static_cast<uint64_t>(lower_double + shrink);
+
+  // Theory of operation: we convert the lower number to ascii representation,
+  // two digits at a time.  As we go, we remove the same digits from the upper
+  // number.  When we see the upper number does not share those same digits, we
+  // know we can stop converting. When we stop, the last digit we output is
+  // taken from the average of upper and lower values, rounded up.
+  char buf[2];
+  uint32_t lodigits =
+      static_cast<uint32_t>(lower64 / 1000000000);  // 1,000,000,000
+  uint64_t mul64 = lodigits * uint64_t{1000000000};
+
+  numbers_internal::PutTwoDigits(lodigits, out);
+  out += 2;
+  if (upper64 - mul64 >= 1000000000) {  // digit mismatch!
+    numbers_internal::PutTwoDigits(static_cast<uint32_t>(upper64 / 1000000000),
+                                   buf);
+    if (out[-2] != buf[0]) {
+      out[-2] = static_cast<char>('0' + (upper64 + lower64 + 10000000000) /
+                                            20000000000);
+      --out;
+    } else {
+      numbers_internal::PutTwoDigits(
+          static_cast<uint32_t>((upper64 + lower64 + 1000000000) / 2000000000),
+          out - 2);
+    }
+    *out = '\0';
+    return out;
+  }
+  uint32_t lower = static_cast<uint32_t>(lower64 - mul64);
+  uint32_t upper = static_cast<uint32_t>(upper64 - mul64);
+
+  lodigits = lower / 10000000;  // 10,000,000
+  uint32_t mul = lodigits * 10000000;
+  numbers_internal::PutTwoDigits(lodigits, out);
+  out += 2;
+  if (upper - mul >= 10000000) {  // digit mismatch!
+    numbers_internal::PutTwoDigits(upper / 10000000, buf);
+    if (out[-2] != buf[0]) {
+      out[-2] = '0' + (upper + lower + 100000000) / 200000000;
+      --out;
+    } else {
+      numbers_internal::PutTwoDigits((upper + lower + 10000000) / 20000000,
+                                      out - 2);
+    }
+    *out = '\0';
+    return out;
+  }
+  lower -= mul;
+  upper -= mul;
+
+  lodigits = lower / 100000;  // 100,000
+  mul = lodigits * 100000;
+  numbers_internal::PutTwoDigits(lodigits, out);
+  out += 2;
+  if (upper - mul >= 100000) {  // digit mismatch!
+    numbers_internal::PutTwoDigits(upper / 100000, buf);
+    if (out[-2] != buf[0]) {
+      out[-2] = static_cast<char>('0' + (upper + lower + 1000000) / 2000000);
+      --out;
+    } else {
+      numbers_internal::PutTwoDigits((upper + lower + 100000) / 200000,
+                                      out - 2);
+    }
+    *out = '\0';
+    return out;
+  }
+  lower -= mul;
+  upper -= mul;
+
+  lodigits = lower / 1000;
+  mul = lodigits * 1000;
+  numbers_internal::PutTwoDigits(lodigits, out);
+  out += 2;
+  if (upper - mul >= 1000) {  // digit mismatch!
+    numbers_internal::PutTwoDigits(upper / 1000, buf);
+    if (out[-2] != buf[0]) {
+      out[-2] = static_cast<char>('0' + (upper + lower + 10000) / 20000);
+      --out;
+    } else {
+      numbers_internal::PutTwoDigits((upper + lower + 1000) / 2000, out - 2);
+    }
+    *out = '\0';
+    return out;
+  }
+  lower -= mul;
+  upper -= mul;
+
+  numbers_internal::PutTwoDigits(lower / 10, out);
+  out += 2;
+  numbers_internal::PutTwoDigits(upper / 10, buf);
+  if (out[-2] != buf[0]) {
+    out[-2] = static_cast<char>('0' + (upper + lower + 100) / 200);
+    --out;
+  } else {
+    numbers_internal::PutTwoDigits((upper + lower + 10) / 20, out - 2);
+  }
+  *out = '\0';
+  return out;
+}
+
+// RoundTripFloatToBuffer converts the given float into a string which, if
+// passed to strtof, will produce the exact same original float.  It does this
+// by computing the range of possible doubles which map to the given float, and
+// then examining the digits of the doubles in that range.  If all the doubles
+// in the range start with "2.37", then clearly our float does, too.  As soon as
+// they diverge, only one more digit is needed.
+char* absl_nonnull numbers_internal::RoundTripFloatToBuffer(
+    float f, char* absl_nonnull buffer) {
+  static_assert(std::numeric_limits<float>::is_iec559,
+                "IEEE-754/IEC-559 support only");
+
+  // We write data to out, incrementing as we go, but FloatToBuffer always
+  // returns the address of the buffer passed in.
+  char* out = buffer;
+
+  if (std::isnan(f)) {
+    strcpy(out, "nan");  // NOLINT(runtime/printf)
+    return buffer;
+  }
+  if (f == 0) {  // +0 and -0 are handled here
+    if (std::signbit(f)) {
+      strcpy(out, "-0");  // NOLINT(runtime/printf)
+    } else {
+      strcpy(out, "0");  // NOLINT(runtime/printf)
+    }
+    return buffer;
+  }
+  if (f < 0) {
+    *out++ = '-';
+    f = -f;
+  }
+  if (f > std::numeric_limits<float>::max()) {
+    strcpy(out, "inf");  // NOLINT(runtime/printf)
+    return buffer;
+  }
+
+  double next_lower = nextafterf(f, 0.0f);
+  // For all doubles in the range lower_bound < f < upper_bound, the
+  // nearest float is f.
+  double lower_bound = (f + next_lower) * 0.5;
+  double upper_bound = f + (f - lower_bound);
+  // Note: because std::nextafter is slow, we calculate upper_bound
+  // assuming that it is the same distance from f as lower_bound is.
+  // For exact powers of two, upper_bound is actually twice as far
+  // from f as lower_bound is, but this turns out not to matter.
+
+  // Most callers pass floats that are either 0 or within the
+  // range 0.0001 through 100,000,000, so handle those first,
+  // since they don't need exponential notation.
+  const Spec* spec = nullptr;
+  if (f < 1.0) {
+    if (f >= 0.0001f) {
+      // For fractional values, we set up the multiplier at the same
+      // time as we output the leading "0." / "0.0" / "0.00" / "0.000"
+      double multiplier = 1e+11;
+      *out++ = '0';
+      *out++ = '.';
+      if (f < 0.1f) {
+        multiplier = 1e+12;
+        *out++ = '0';
+        if (f < 0.01f) {
+          multiplier = 1e+13;
+          *out++ = '0';
+          if (f < 0.001f) {
+            multiplier = 1e+14;
+            *out++ = '0';
+          }
+        }
+      }
+      OutputNecessaryDigits(lower_bound * multiplier, upper_bound * multiplier,
+                            out);
+      return buffer;
+    }
+    spec = std::lower_bound(std::begin(kNegExpTable), std::end(kNegExpTable),
+                            double{f}, ExpCompare());
+    if (spec == std::end(kNegExpTable)) --spec;
+  } else if (f < 1e8) {
+    // Handling non-exponential format greater than 1.0 is similar to the above,
+    // but instead of 0.0 / 0.00 / 0.000, the prefix is simply the truncated
+    // integer part of f.
+    int32_t as_int = static_cast<int32_t>(f);
+    out = numbers_internal::FastIntToBuffer(as_int, out);
+    // Easy: if the integer part is within (lower_bound, upper_bound), then we
+    // are already done.
+    if (as_int > lower_bound && as_int < upper_bound) {
+      return buffer;
+    }
+    *out++ = '.';
+    OutputNecessaryDigits((lower_bound - as_int) * 1e11,
+                          (upper_bound - as_int) * 1e11, out);
+    return buffer;
+  } else {
+    spec = std::lower_bound(std::begin(kPosExpTable), std::end(kPosExpTable),
+                            double{f}, ExpCompare());
+    if (spec == std::end(kPosExpTable)) --spec;
+  }
+  // Exponential notation from here on.  "spec" was computed using lower_bound,
+  // which means it's the first spec from the table where min_range is greater
+  // or equal to f.
+  // Unfortunately that's not quite what we want; we want a min_range that is
+  // less or equal.  So first thing, if it was greater, back up one entry.
+  if (spec->min_range > f) --spec;
+
+  // The digits might be "237000123", but we want "2.37000123",
+  // so we output the digits one character later, and then move the first
+  // digit back so we can stick the "." in.
+  char* start = out;
+  out = OutputNecessaryDigits(lower_bound * spec->multiplier,
+                              upper_bound * spec->multiplier, start + 1);
+  start[0] = start[1];
+  start[1] = '.';
+
+  // If it turns out there was only one digit output, then back up over the '.'
+  if (out == &start[2]) --out;
+
+  // Now add the "e+NN" part.
+  memcpy(out, spec->expstr, 4);
+  out[4] = '\0';
   return buffer;
 }
 

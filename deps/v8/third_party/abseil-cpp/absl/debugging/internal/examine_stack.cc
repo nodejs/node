@@ -143,6 +143,12 @@ void DumpPCAndFrameSizeAndSymbol(OutputWriter* writer, void* writer_arg,
   writer(buf, writer_arg);
 }
 
+void DebugStackTraceHookLegacyAdapter(void* const stack[], int depth,
+                                      OutputWriter* writer, void* writer_arg) {
+  debug_stack_trace_hook(stack, depth, /*crash_pc=*/nullptr, writer,
+                         writer_arg);
+}
+
 }  // namespace
 
 void RegisterDebugStackTraceHook(SymbolizeUrlEmitter hook) {
@@ -150,7 +156,11 @@ void RegisterDebugStackTraceHook(SymbolizeUrlEmitter hook) {
 }
 
 SymbolizeUrlEmitterLegacy GetDebugStackTraceHookLegacy() {
-  return debug_stack_trace_hook;
+  if (debug_stack_trace_hook == nullptr) {
+    // No prior call to RegisterDebugStackTraceHook.
+    return nullptr;
+  }
+  return &DebugStackTraceHookLegacyAdapter;
 }
 
 SymbolizeUrlEmitter GetDebugStackTraceHook() { return debug_stack_trace_hook; }
@@ -313,7 +323,7 @@ void DumpStackTrace(int min_dropped_frames, int max_num_frames,
 
   auto hook = GetDebugStackTraceHook();
   if (hook != nullptr) {
-    (*hook)(stack, depth, writer, writer_arg);
+    hook(stack, depth, /*crash_pc=*/nullptr, writer, writer_arg);
   }
 
   if (allocated_bytes != 0) Deallocate(stack, allocated_bytes);

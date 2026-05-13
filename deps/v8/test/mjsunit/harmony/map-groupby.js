@@ -66,7 +66,7 @@ assertEquals(result, [
 ]);
 
 
-// check #sec-array.prototype.groupbymap 6.d
+// check https://tc39.es/ecma262/#sec-array.prototype.groupbymap 6.d
 var array = [-0, 0];
 var result = Map.groupBy(array, v => v);
 verifyGroupByResult(result);

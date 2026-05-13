@@ -98,10 +98,6 @@ constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
            LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
           {StaticReadOnlyRoot::kSmallOrderedHashMapMap,
            StaticReadOnlyRoot::kSmallOrderedNameDictionaryMap}},
-         {{FIRST_ABSTRACT_INTERNAL_CLASS_TYPE,
-           LAST_ABSTRACT_INTERNAL_CLASS_TYPE},
-          {StaticReadOnlyRoot::kAbstractInternalClassSubclass1Map,
-           StaticReadOnlyRoot::kAbstractInternalClassSubclass2Map}},
          {{FIRST_TURBOFAN_TYPE_TYPE, LAST_TURBOFAN_TYPE_TYPE},
           {StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
            StaticReadOnlyRoot::kTurbofanOtherNumberConstantTypeMap}}}};
@@ -537,10 +533,6 @@ V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map) {
 #else   // !V8_STATIC_ROOTS_BOOL
   return IsFreeSpaceOrFiller(map->instance_type());
 #endif  // !V8_STATIC_ROOTS_BOOL
-}
-
-V8_INLINE bool IsHole(InstanceType instance_type) {
-  return instance_type == HOLE_TYPE;
 }
 
 // These JSObject types are wrappers around a set of primitive values

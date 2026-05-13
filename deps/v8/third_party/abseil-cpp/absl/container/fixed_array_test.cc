@@ -112,7 +112,7 @@ TEST(FixedArrayTest, CopyCtor) {
 TEST(FixedArrayTest, MoveCtor) {
   absl::FixedArray<std::unique_ptr<int>, 10> on_stack(5);
   for (int i = 0; i < 5; ++i) {
-    on_stack[i] = absl::make_unique<int>(i);
+    on_stack[i] = std::make_unique<int>(i);
   }
 
   absl::FixedArray<std::unique_ptr<int>, 10> stack_copy = std::move(on_stack);
@@ -121,7 +121,7 @@ TEST(FixedArrayTest, MoveCtor) {
 
   absl::FixedArray<std::unique_ptr<int>, 10> allocated(15);
   for (int i = 0; i < 15; ++i) {
-    allocated[i] = absl::make_unique<int>(i);
+    allocated[i] = std::make_unique<int>(i);
   }
 
   absl::FixedArray<std::unique_ptr<int>, 10> alloced_copy =
@@ -307,7 +307,7 @@ static void TestArrayOfArrays(int n) {
     using InnerArray = ConstructionTester[elements_per_inner_array];
     // Heap-allocate the FixedArray to avoid blowing the stack frame.
     auto array_ptr =
-        absl::make_unique<absl::FixedArray<InnerArray, inline_elements>>(n);
+        std::make_unique<absl::FixedArray<InnerArray, inline_elements>>(n);
     auto& array = *array_ptr;
 
     ASSERT_EQ(array.size(), n);

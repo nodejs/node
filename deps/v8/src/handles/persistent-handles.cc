@@ -105,8 +105,9 @@ void PersistentHandles::Iterate(RootVisitor* visitor) {
 
 void PersistentHandlesList::Add(PersistentHandles* persistent_handles) {
   base::MutexGuard guard(&persistent_handles_mutex_);
-  if (persistent_handles_head_)
+  if (persistent_handles_head_) {
     persistent_handles_head_->prev_ = persistent_handles;
+  }
   persistent_handles->prev_ = nullptr;
   persistent_handles->next_ = persistent_handles_head_;
   persistent_handles_head_ = persistent_handles;
@@ -114,12 +115,14 @@ void PersistentHandlesList::Add(PersistentHandles* persistent_handles) {
 
 void PersistentHandlesList::Remove(PersistentHandles* persistent_handles) {
   base::MutexGuard guard(&persistent_handles_mutex_);
-  if (persistent_handles->next_)
+  if (persistent_handles->next_) {
     persistent_handles->next_->prev_ = persistent_handles->prev_;
-  if (persistent_handles->prev_)
+  }
+  if (persistent_handles->prev_) {
     persistent_handles->prev_->next_ = persistent_handles->next_;
-  else
+  } else {
     persistent_handles_head_ = persistent_handles->next_;
+  }
 }
 
 void PersistentHandlesList::Iterate(RootVisitor* visitor, Isolate* isolate) {

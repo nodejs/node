@@ -129,6 +129,8 @@ HeapObjectHeader* ObjectStartBitmap::FindHeader(
     DCHECK_LT(0u, cell_index);
     byte = load<mode>(--cell_index);
   }
+  // Crash safely instead of returning page_base - 8.
+  CHECK_NE(0, byte);
   const int leading_zeroes = v8::base::bits::CountLeadingZeros(byte);
   object_start_number =
       (cell_index * kBitsPerCell) + (kBitsPerCell - 1) - leading_zeroes;
@@ -166,8 +168,11 @@ void ObjectStartBitmap::store(size_t cell_index, uint8_t value) {
     object_start_bit_map_[cell_index] = value;
     return;
   }
+  // Use seq cst here to avoid a situation when a pointer write may be reordered
+  // before the setting of the mark bit, which may lead to the concurrent marker
+  // missing the right object (because the bit is not yet propagated).
   std::atomic_ref<uint8_t>(object_start_bit_map_[cell_index])
-      .store(value, std::memory_order_release);
+      .store(value, std::memory_order_seq_cst);
 }
 
 template <AccessMode mode>

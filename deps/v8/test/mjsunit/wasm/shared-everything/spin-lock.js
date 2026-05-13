@@ -18,8 +18,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                  false, true);
+  let struct = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], shared: true});
   builder.addFunction("producer", makeSig([kWasmI32], [wasmRefType(struct)]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
     .exportFunc();
@@ -40,8 +40,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     function createCountUp() {
       const maxCount = 10;
       let builder = new WasmModuleBuilder();
-      let struct = builder.addStruct([makeField(kWasmI32, true)], kNoSuperType,
-                                      false, true);
+      let struct = builder.addStruct(
+          {fields: [makeField(kWasmI32, true)], shared: true});
       builder.addFunction("countUp",
           makeSig([wasmRefType(struct), kWasmI32], [kWasmI32, kWasmI32]))
         .addLocals(kWasmI32, 3) // current value, new value, iteration count

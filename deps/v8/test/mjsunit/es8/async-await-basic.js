@@ -72,7 +72,7 @@ let AsyncFunction = (async function() {}).constructor;
 
 // The AsyncFunction Constructor is the %AsyncFunction% intrinsic object and
 // is a subclass of Function.
-// (https://tc39.github.io/ecmascript-asyncawait/#async-function-constructor)
+// (https://tc39.es/ecmascript-asyncawait/#async-function-constructor)
 assertEquals(Object.getPrototypeOf(AsyncFunction), Function);
 assertEquals(Object.getPrototypeOf(AsyncFunction.prototype),
              Function.prototype);

@@ -9,6 +9,8 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
+#include <vector>
 
 #include "../../third_party/inspector_protocol/crdtp/protocol_core.h"
 #include "include/v8-inspector.h"
@@ -58,6 +60,9 @@ class V8_EXPORT Binary {
   static Binary fromSpan(v8::MemorySpan<const uint8_t> span) {
     return Binary(
         std::make_shared<std::vector<uint8_t>>(span.begin(), span.end()));
+  }
+  static Binary fromBytes(std::vector<uint8_t> bytes) {
+    return Binary(std::make_shared<std::vector<uint8_t>>(std::move(bytes)));
   }
 
  private:

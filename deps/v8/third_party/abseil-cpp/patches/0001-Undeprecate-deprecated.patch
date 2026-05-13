@@ -1,0 +1,66 @@
+Deprecated abseil api that is still used by some third party libraries.
+When possible, this patch should be reduced!
+This patch is currently relied on by grpc and protobuf libraries.
+---
+diff --git a/third_party/abseil-cpp/absl/synchronization/mutex.h b/third_party/abseil-cpp/absl/synchronization/mutex.h
+index ad156d443d6c5..13e8e3ff58775 100644
+--- a/third_party/abseil-cpp/absl/synchronization/mutex.h
++++ b/third_party/abseil-cpp/absl/synchronization/mutex.h
+@@ -630,7 +630,6 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
+   // Calls `mu->lock()` and returns when that call returns. That is, `*mu` is
+   // guaranteed to be locked when this object is constructed. Requires that
+   // `mu` be dereferenceable.
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+       : MutexLock(*mu) {}
+@@ -672,7 +672,6 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
+     mu.lock_shared();
+   }
+ 
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit ReaderMutexLock(Mutex* absl_nonnull mu) ABSL_SHARED_LOCK_FUNCTION(mu)
+       : ReaderMutexLock(*mu) {}
+@@ -712,7 +711,6 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
+     mu.lock();
+   }
+ 
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit WriterMutexLock(Mutex* absl_nonnull mu)
+       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+@@ -1148,7 +1147,6 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
+     this->mu_->lock();
+   }
+ 
+-  [[deprecated("Use the constructor that takes a reference instead")]]
+   ABSL_REFACTOR_INLINE
+   explicit ReleasableMutexLock(Mutex* absl_nonnull mu)
+       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+diff --git a/third_party/abseil-cpp/absl/strings/escaping.h b/third_party/abseil-cpp/absl/strings/escaping.h
+index aaacc2899a28a..213a0ff23b96e 100644
+--- a/third_party/abseil-cpp/absl/strings/escaping.h
++++ b/third_party/abseil-cpp/absl/strings/escaping.h
+@@ -127,9 +127,7 @@ std::string Utf8SafeCHexEscape(absl::string_view src);
+ // characters. This function conforms with RFC 4648 section 4 (base64) and RFC
+ // 2045.
+ std::string Base64Escape(absl::string_view src);
+-[[deprecated(
+-    "Use the string-returning version of "
+-    "Base64Escape()")]] ABSL_REFACTOR_INLINE inline void
++ABSL_REFACTOR_INLINE inline void
+ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+   *dest = Base64Escape(src);
+ }
+@@ -138,9 +138,7 @@ Base64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+ // outputs '-' instead of '+' and '_' instead of '/', and does not pad 'dest'.
+ // This function conforms with RFC 4648 section 5 (base64url).
+ std::string WebSafeBase64Escape(absl::string_view src);
+-[[deprecated(
+-    "Use the string-returning version of "
+-    "WebSafeBase64Escape()")]] ABSL_REFACTOR_INLINE inline void
++ABSL_REFACTOR_INLINE inline void
+ WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
+   *dest = WebSafeBase64Escape(src);
+ }

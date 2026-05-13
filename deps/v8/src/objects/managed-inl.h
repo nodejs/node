@@ -16,7 +16,7 @@ namespace detail {
 // Called by either isolate shutdown or the {ManagedObjectFinalizer} in order
 // to actually delete the shared pointer and decrement the shared refcount.
 template <typename CppType>
-static void Destructor(void* ptr) {
+void Destructor(void* ptr) {
   auto shared_ptr_ptr = reinterpret_cast<std::shared_ptr<CppType>*>(ptr);
   delete shared_ptr_ptr;
 }
@@ -29,11 +29,15 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
     std::shared_ptr<CppType> shared_ptr, AllocationType allocation_type) {
   static constexpr ExternalPointerTag kTag = TagForManaged<CppType>::value;
   static_assert(IsManagedExternalPointerType(kTag));
+  SharedFlag shared = SharedFlag(IsSharedAllocationType(allocation_type));
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
-      detail::Destructor<CppType>);
+      detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
+      reinterpret_cast<v8::Isolate*>(shared == SharedFlag::kYes
+                                         ? isolate->shared_space_isolate()
+                                         : isolate),
+      estimated_size);
   DirectHandle<Managed<CppType>> handle =
       Cast<Managed<CppType>>(isolate->factory()->NewForeign<kTag>(
           reinterpret_cast<Address>(destructor), allocation_type));
@@ -51,12 +55,15 @@ DirectHandle<Managed<CppType>> Managed<CppType>::From(
 template <class CppType>
 DirectHandle<TrustedManaged<CppType>> TrustedManaged<CppType>::From(
     Isolate* isolate, size_t estimated_size,
-    std::shared_ptr<CppType> shared_ptr, bool shared) {
+    std::shared_ptr<CppType> shared_ptr, SharedFlag shared) {
   auto destructor = new ManagedPtrDestructor(
       estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
-      detail::Destructor<CppType>);
+      detail::Destructor<CppType>, shared);
   destructor->external_memory_accounter_.Increase(
-      reinterpret_cast<v8::Isolate*>(isolate), estimated_size);
+      reinterpret_cast<v8::Isolate*>(shared == SharedFlag::kYes
+                                         ? isolate->shared_space_isolate()
+                                         : isolate),
+      estimated_size);
   DirectHandle<TrustedManaged<CppType>> handle =
       TrustedCast<TrustedManaged<CppType>>(
           isolate->factory()->NewTrustedForeign(

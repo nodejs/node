@@ -222,7 +222,7 @@ class Committee final {
   static PromoRecommendation GetPromoRecommendation(Committee* committee,
                                                     Isolate* isolate,
                                                     Tagged<HeapObject> o) {
-    const InstanceType itype = o->map(isolate)->instance_type();
+    const InstanceType itype = o->map()->instance_type();
 #define V(TYPE)                                                \
   if (InstanceTypeChecker::Is##TYPE(itype)) {                  \
     return GetPromoRecommendation##TYPE(committee, isolate,    \
@@ -357,7 +357,8 @@ class Committee final {
       DCHECK(host->is_builtin());
     }
     void VisitMapPointer(Tagged<HeapObject> host) final {
-      MaybeObjectSlot slot = host->RawMaybeWeakField(HeapObject::kMapOffset);
+      MaybeObjectSlot slot =
+          host->RawMaybeWeakField(offsetof(HeapObject, map_));
       VisitPointers(host, slot, slot + 1);
     }
 
@@ -426,7 +427,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       HeapObjectMap* moves) {
     ReadOnlySpace* rospace = isolate->heap()->read_only_space();
     for (Tagged<HeapObject> src : promotees) {
-      const int size = src->Size(isolate);
+      const int size = src->Size();
       Tagged<HeapObject> dst =
           rospace->AllocateRaw(size, kTaggedAligned).ToObjectChecked();
       Heap::CopyBlock(dst.address(), src.address(), size);
@@ -467,6 +468,10 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       VisitObject(isolate, dst, &v);
     }
 
+#ifdef V8_ENABLE_SANDBOX
+    v.ZapOldCodePointerTableEntries();
+#endif
+
     // Iterate all entries in the JSDispatchTable as they could contain
     // pointers to promoted Code objects.
     JSDispatchTable& jdt = isolate->js_dispatch_table();
@@ -477,10 +482,12 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           if (it == moves.end()) return;
           Tagged<HeapObject> new_code = it->second;
           CHECK(IsCode(new_code));
-          // TODO(saelo): is it worth logging something
-          // in this case?
+          // TODO(saelo): is it worth logging something in this case?
           jdt.SetCodeNoWriteBarrier(handle, TrustedCast<Code>(new_code));
         });
+    // Note the we should technically also update the entries in the
+    // read_only_js_dispatch_table_space but it's currently not needed as we
+    // won't be accessing them.
   }
 
   static void DeleteDeadObjects(Isolate* isolate,
@@ -494,7 +501,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     // verifier would fail on this now-dead object.
     for (auto [src, dst] : moves) {
       CHECK(!HeapLayout::InReadOnlySpace(src));
-      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size(isolate));
+      isolate->heap()->CreateFillerObjectAt(src.address(), src->Size());
     }
   }
 
@@ -531,8 +538,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
 #ifdef V8_ENABLE_SANDBOX
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
-        if (Tagged<Code> code; TryCast(dst, &code)) {
-          PromoteCodePointerEntryFor(code);
+        if (Is<Code>(dst)) {
+          PromoteCodePointerEntryFor(TrustedCast<Code>(dst));
         }
       }
 #endif  // V8_ENABLE_SANDBOX
@@ -562,7 +569,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // InstructionStream objects never move to RO space.
     }
     void VisitMapPointer(Tagged<HeapObject> host) final {
-      ProcessSlot(host, host->RawMaybeWeakField(HeapObject::kMapOffset));
+      ProcessSlot(host, host->RawMaybeWeakField(offsetof(HeapObject, map_)));
     }
     void VisitExternalPointer(Tagged<HeapObject> host,
                               ExternalPointerSlot slot) final {
@@ -625,6 +632,15 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
     }
 
+#ifdef V8_ENABLE_SANDBOX
+    void ZapOldCodePointerTableEntries() {
+      CodePointerTable* cpt = IsolateGroup::current()->code_pointer_table();
+      for (auto [old_handle, _new_handle] : code_pointer_moves_) {
+        cpt->Zap(old_handle);
+      }
+    }
+#endif
+
    private:
     void ProcessSlot(Root root, FullObjectSlot slot) {
       Tagged<Object> old_slot_value_obj = slot.load(isolate_);
@@ -677,7 +693,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       CHECK(HeapLayout::InReadOnlySpace(code));
 
       IndirectPointerSlot slot = code->RawIndirectPointerField(
-          Code::kSelfIndirectPointerOffset, kCodeIndirectPointerTag);
+          offsetof(ExposedTrustedObject, self_indirect_pointer_),
+          kCodeIndirectPointerTag);
       CodeEntrypointTag entrypoint_tag = code->entrypoint_tag();
 
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
@@ -690,8 +707,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
           IsolateForSandbox(isolate_).GetCodePointerTableSpaceFor(
               slot.address());
       IndirectPointerHandle new_handle = cpt->AllocateAndInitializeEntry(
-          space, code.address(), cpt->GetEntrypoint(old_handle, entrypoint_tag),
-          entrypoint_tag);
+          space, code.address(), entrypoint_tag);
 
       code_pointer_moves_.emplace(old_handle, new_handle);
 

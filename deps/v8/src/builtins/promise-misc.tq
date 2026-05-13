@@ -39,8 +39,6 @@ namespace promise {
 const kInvalidAsyncTaskId:
     constexpr uint32 generates 'JSPromise::kInvalidAsyncTaskId';
 
-extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
-
 @export
 macro PromiseHasHandler(promise: JSPromise): bool {
   return promise.HasHandler();
@@ -60,7 +58,7 @@ macro PromiseInit(promise: JSPromise): void {
 
 macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
   const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
-  dcheck(IsFunctionWithPrototypeSlotMap(promiseFun.map));
+  dcheck(Is<JSFunctionWithPrototype>(promiseFun));
   const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
   const promiseHeapObject = promise_internal::AllocateJSPromise(context);
   *UnsafeConstCast(&promiseHeapObject.map) = promiseMap;

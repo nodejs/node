@@ -113,16 +113,18 @@ void ExecuteStringTask::Run(InspectorIsolateData* data) {
                           /* resource_is_opaque */ false,
                           /* is_wasm */ false, is_module_);
   v8::Local<v8::String> source;
-  if (expression_.size() != 0)
+  if (expression_.size() != 0) {
     source = ToV8String(data->isolate(), expression_);
-  else
+  } else {
     source = ToV8String(data->isolate(), expression_utf8_);
+  }
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
   if (!is_module_) {
     v8::Local<v8::Script> script;
-    if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script))
+    if (!v8::ScriptCompiler::Compile(context, &scriptSource).ToLocal(&script)) {
       return;
+    }
     v8::MaybeLocal<v8::Value> result;
     result = script->Run(context);
   } else {

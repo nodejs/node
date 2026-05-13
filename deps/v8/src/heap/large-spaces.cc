@@ -187,10 +187,9 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK(chunk->IsFromPage());
   DCHECK(!chunk->IsToPage());
 #endif  // DEBUG
-  PtrComprCageBase cage_base(heap()->isolate());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   page->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  AddPage(page, static_cast<size_t>(page->GetObject()->Size(cage_base)));
+  AddPage(page, static_cast<size_t>(page->GetObject()->Size()));
   page->SetOldGenerationPageFlags(
       heap()->incremental_marking()->marking_mode());
 }
@@ -217,9 +216,8 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
                                               size_t object_size) {
   MemoryChunk* chunk = page->Chunk();
 #ifdef DEBUG
-  PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
-  DCHECK_EQ(object_size, page->GetObject()->Size(cage_base));
+  DCHECK_EQ(object_size, page->GetObject()->Size());
   DCHECK(!page->is_executable());
 #endif  // DEBUG
 
@@ -293,7 +291,6 @@ std::unique_ptr<ObjectIterator> LargeObjectSpace::GetObjectIterator(
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify(Isolate* isolate,
                               SpaceVerificationVisitor* visitor) const {
-  PtrComprCageBase cage_base(isolate);
   for (const LargePage* page = first_page(); page != nullptr;
        page = page->next_page()) {
     visitor->VerifyPage(page);
@@ -304,14 +301,14 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     CHECK_EQ(object.address(), BasePage::FromHeapObject(object)->area_start());
 
     // Only certain types may be in the large object space:
-#define V(Name) Is##Name(object, cage_base) ||
+#define V(Name) Is##Name(object) ||
     const bool is_valid_lo_space_object =
         DYNAMICALLY_SIZED_HEAP_OBJECT_LIST(V) false;
 #undef V
     if (!is_valid_lo_space_object) {
       i::Print(object);
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
-            object->map(cage_base)->instance_type());
+            object->map()->instance_type());
     }
 
     // Invoke visitor on each object.
@@ -404,7 +401,6 @@ void NewLargeObjectSpace::FreeDeadObjects(
     const std::function<bool(Tagged<HeapObject>)>& is_dead) {
   DCHECK(!heap()->incremental_marking()->IsMarking());
   size_t surviving_object_size = 0;
-  PtrComprCageBase cage_base(heap()->isolate());
   const auto free_mode = v8_flags.large_page_pool
                              ? MemoryAllocator::FreeMode::kDelayThenPool
                              : MemoryAllocator::FreeMode::kImmediately;
@@ -416,7 +412,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
       RemovePage(page);
       heap()->memory_allocator()->Free(free_mode, page);
     } else {
-      surviving_object_size += static_cast<size_t>(object->Size(cage_base));
+      surviving_object_size += static_cast<size_t>(object->Size());
     }
   }
   // Right-trimming does not update the objects_size_ counter. We are lazily

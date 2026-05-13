@@ -253,7 +253,13 @@ struct WordWithBits : public Any {
 
 using Word32 = WordWithBits<32>;
 using Word64 = WordWithBits<64>;
-using WordPtr = std::conditional_t<Is64(), Word64, Word32>;
+#ifdef V8_TARGET_ARCH_64_BIT
+static_assert(Is64());
+using WordPtr = Word64;
+#else
+static_assert(!Is64());
+using WordPtr = Word32;
+#endif
 
 template <size_t Bits>
 struct FloatWithBits : public Any {  // FloatAny {
@@ -483,15 +489,12 @@ struct v_traits<Union<T, Ts...>> {
 
   template <typename U>
   struct implicitly_constructible_from
-      : std::bool_constant<(
-            v_traits<T>::template implicitly_constructible_from<U>::value ||
-            ... ||
-            v_traits<Ts>::template implicitly_constructible_from<U>::value)> {};
-  template <typename... Us>
-  struct implicitly_constructible_from<Union<Us...>>
-      : std::bool_constant<(implicitly_constructible_from<Us>::value && ...)> {
-  };
+      : std::bool_constant<is_subtype<U, Union<T, Ts...>>::value> {};
 };
+
+// Make sure that a simple implicitly_constructible_from works.
+static_assert(
+    v_traits<MaybeObject>::implicitly_constructible_from<Object>::value);
 
 namespace detail {
 template <typename T, bool SameStaticRep>
@@ -587,6 +590,7 @@ using BooleanOrNullOrUndefined = UnionOf<Boolean, Null, Undefined>;
 using NumberOrString = UnionOf<Number, String>;
 using PlainPrimitive = UnionOf<NumberOrString, BooleanOrNullOrUndefined>;
 using StringOrNull = UnionOf<String, Null>;
+using StringOrUndefined = UnionOf<String, Undefined>;
 using NumberOrUndefined = UnionOf<Number, Undefined>;
 using AnyFixedArray = UnionOf<FixedArray, FixedDoubleArray>;
 using NonBigIntPrimitive = UnionOf<Symbol, PlainPrimitive>;
@@ -594,6 +598,7 @@ using Primitive = UnionOf<BigInt, NonBigIntPrimitive>;
 using CallTarget = UntaggedUnion<WordPtr, Code, JSFunction, Word32, BuiltinPtr>;
 using AnyOrNone = UntaggedUnion<Any, None>;
 using Word32Pair = Tuple<Word32, Word32>;
+using Word64Pair = Tuple<Word64, Word64>;
 
 template <typename T>
 concept IsUntagged =
@@ -680,9 +685,22 @@ class V : public OpIndex {
 
   template <typename U>
   static V<T> Cast(V<U> index) {
+    static_assert(!implicitly_constructible_from<U>,
+                  "Redundant explicit V<> cast.");
     return V<T>(OpIndex{index});
   }
   static V<T> Cast(OpIndex index) { return V<T>(index); }
+
+  // The difference between Cast and CastIfNeeded is that Cast disallows
+  // upcasting to avoid redundant Casts, whereas CastIfNeeded doesn't. In the
+  // vast majority of cases, Cast should be preferred. However, in a few cases,
+  // typically within templated functions, upcasting can be necessary, in which
+  // case CastIfNeeded can be used.
+  template <typename U>
+  static V<T> CastIfNeeded(V<U> index) {
+    return V<T>(OpIndex{index});
+  }
+  static V<T> CastIfNeeded(OpIndex index) { return V<T>(index); }
 
   static constexpr bool allows_representation(
       RegisterRepresentation maybe_allowed_rep) {
@@ -734,9 +752,24 @@ class OptionalV : public OptionalOpIndex {
 
   template <typename U>
   static OptionalV<T> Cast(OptionalV<U> index) {
+    static_assert(!implicitly_constructible_from<U>,
+                  "Redundant explicit OptionalV<> cast.");
     return OptionalV<T>(OptionalOpIndex{index});
   }
   static OptionalV<T> Cast(OptionalOpIndex index) {
+    return OptionalV<T>(index);
+  }
+
+  // The difference between Cast and CastIfNeeded is that Cast disallows
+  // upcasting to avoid redundant Casts, whereas CastIfNeeded doesn't. In the
+  // vast majority of cases, Cast should be preferred. However, in a few cases,
+  // typically within templated functions, upcasting can be necessary, in which
+  // case CastIfNeeded can be used.
+  template <typename U>
+  static OptionalV<T> CastIfNeeded(OptionalV<U> index) {
+    return OptionalV<T>(OptionalOpIndex{index});
+  }
+  static OptionalV<T> CastIfNeeded(OptionalOpIndex index) {
     return OptionalV<T>(index);
   }
 

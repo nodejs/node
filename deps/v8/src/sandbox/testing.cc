@@ -115,7 +115,7 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Factory* factory = reinterpret_cast<Isolate*>(isolate)->factory();
   std::unique_ptr<BackingStore> memory = BackingStore::WrapAllocation(
       reinterpret_cast<void*>(sandbox->base() + offset), size,
-      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNotShared);
+      v8::BackingStore::EmptyDeleter, nullptr, SharedFlag::kNo);
   if (!memory) {
     isolate->ThrowError("Out of memory: MemoryView backing store");
     return;
@@ -456,6 +456,40 @@ void SandboxGetBuiltinNames(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(result);
 }
 
+// Returns compressed Code object by a given builtin id.
+//
+// This can be useful for manipulating IC handlers represented by Code objects.
+//
+// Sandbox.getBuiltinCode(Number) -> Number
+void SandboxGetBuiltinCode(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  if (!info[0]->IsInt32()) {
+    isolate->ThrowError("First argument must be an integer");
+    return;
+  }
+
+  int raw_builtin_id = info[0]->Int32Value(context).FromMaybe(-1);
+  if (!Builtins::IsBuiltinId(raw_builtin_id)) {
+    isolate->ThrowError("Invalid builtin id");
+    return;
+  }
+  Builtin builtin = static_cast<Builtin>(raw_builtin_id);
+
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Tagged<Code> code = i_isolate->builtins()->code(builtin);
+  // Update this code once we move builtins' Code objects from the main cage.
+  // The Sandbox Api must not leak addresses outside of the main cage, so this
+  // function should probably return a CodeWrapper or whatever we'll be using
+  // as IC handlers representing builtins. If we decide to encode those
+  // builtins into Smi handlers, then this function should probably be removed.
+  CHECK(code.IsInMainCageBase());
+
+  info.GetReturnValue().Set(V8HeapCompressionScheme::CompressAny(code.ptr()));
+}
+
 // Sets given function's code value to a given builtin's code object.
 //
 // This can be used to shortcut overwriting JSFunction's code in testcases.
@@ -492,38 +526,27 @@ void SandboxSetFunctionCodeToBuiltin(
   info.GetReturnValue().Set(true);
 }
 
-// Corrupt one field of an object without setting up a memory view first.
-//
-//   Sandbox.corruptObjectField(obj, offset, value);
-// is identical to
-//   (new DataView(new Sandbox.MemoryView(0, 0x100000000))).setUint32(
-//      Sandbox.getAddressOf(obj) + offset, value << kSmiTagSize, true);
-//
-// (note the Smi tagging and little endianness)
-//
-// Alternatively, a field name can be passed as the second argument; the effect
-// is identical to calling `Sandbox.getFieldOffset(getInstanceTypeIdOf(obj,
-// offset))` on that argument first.
-//
-// Sandbox.corruptObjectField(Object, Number, Number) -> undefined
-// Sandbox.corruptObjectField(Object, String, Number) -> undefined
-void SandboxCorruptObjectField(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(ValidateCallbackInfo(info));
+namespace {
+struct ResolvedField {
+  Tagged<HeapObject> holder;
+  int offset = -1;
+  int bit_size = 32;
+};
+
+bool ResolveObjectField(const v8::FunctionCallbackInfo<v8::Value>& info,
+                        int bit_size_arg_index, ResolvedField* out) {
   v8::Isolate* isolate = info.GetIsolate();
   Local<v8::Context> context = isolate->GetCurrentContext();
 
   Tagged<HeapObject> obj;
-  if (!GetArgumentObjectPassedAsReference(info, &obj)) return;
+  if (!GetArgumentObjectPassedAsReference(info, &obj)) return false;
 
   int offset;
-  int value;
-
   if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
     v8::String::Utf8Value field_name(isolate, info[1]);
     if (!*field_name) {
       isolate->ThrowError("Second argument must be an integer or a string");
-      return;
+      return false;
     }
 
     InstanceType instance_type = obj->map()->instance_type();
@@ -532,33 +555,171 @@ void SandboxCorruptObjectField(
       offset = offset_from_name.value();
     } else {
       DCHECK(isolate->HasPendingException());
-      return;
+      return false;
+    }
+  }
+
+  int bit_size = 32;
+  if (info.Length() > bit_size_arg_index) {
+    if (!info[bit_size_arg_index]->IsInt32() ||
+        !info[bit_size_arg_index]->Int32Value(context).To(&bit_size)) {
+      if (bit_size_arg_index == 2) {
+        isolate->ThrowError("Third argument (bit size) must be an integer");
+      } else {
+        isolate->ThrowError("Fourth argument (bit size) must be an integer");
+      }
+      return false;
+    }
+    if (bit_size != 8 && bit_size != 16 && bit_size != 32 && bit_size != 64) {
+      if (bit_size_arg_index == 2) {
+        isolate->ThrowError(
+            "Third argument (bit size) must be 8, 16, 32, or 64");
+      } else {
+        isolate->ThrowError(
+            "Fourth argument (bit size) must be 8, 16, 32, or 64");
+      }
+      return false;
     }
   }
 
   int object_size = obj->Size();
   DCHECK_EQ(0, object_size % kTaggedSize);
-  if (offset < 0 || offset >= object_size) {
+  int byte_size = bit_size / 8;
+  if (offset < 0 || offset > object_size - byte_size) {
     std::ostringstream error;
-    error << "Second argument (offset=" << offset << ") is "
-          << "out of bounds of the given object of size " << object_size;
+    error << "Second argument (offset=" << offset << ", size=" << byte_size
+          << ") is out of bounds of the given object of size " << object_size;
     ThrowTypeError(isolate, error.view());
-    return;
+    return false;
   }
-  if ((offset % kTaggedSize) != 0) {
+  // Enforce natural alignment up to kTaggedSize.
+  int required_alignment = std::min(byte_size, kTaggedSize);
+  if ((offset % required_alignment) != 0) {
     std::ostringstream error;
-    error << "Second argument (offset=" << offset << ") is "
-          << "not tagged-size-aligned";
+    error << "Second argument (offset=" << offset << ") is not "
+          << required_alignment << "-byte-aligned";
     ThrowTypeError(isolate, error.view());
-    return;
+    return false;
   }
 
-  if (!info[2]->IsInt32() || !info[2]->Int32Value(context).To(&value)) {
-    isolate->ThrowError("Third argument must be an integer");
-    return;
+  out->holder = obj;
+  out->offset = offset;
+  out->bit_size = bit_size;
+  return true;
+}
+}  // namespace
+
+// Read one field of an object without setting up a memory view first.
+//
+//   let value = Sandbox.readObjectField(obj, offset, bit_size);
+// emits a raw memory read, identical to
+//   (new DataView(new Sandbox.MemoryView(0, 0x100000000))).getUint32(
+//      Sandbox.getAddressOf(obj) + offset, true);
+// (adjusted for the requested bit size)
+//
+// Alternatively, a field name can be passed as the second argument; the effect
+// is identical to calling
+// `Sandbox.getFieldOffset(Sandbox.getInstanceTypeIdOf(obj), field_name)` to
+// resolve the offset first.
+//
+// Sandbox.readObjectField(Object, Number|String, [Number]) -> Number|BigInt
+void SandboxReadObjectField(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+
+  ResolvedField field;
+  if (!ResolveObjectField(info, 2, &field)) return;
+
+  if (field.bit_size == 8) {
+    uint8_t value = field.holder->ReadField<uint8_t>(field.offset);
+    info.GetReturnValue().Set(value);
+  } else if (field.bit_size == 16) {
+    uint16_t value = field.holder->ReadField<uint16_t>(field.offset);
+    info.GetReturnValue().Set(value);
+  } else if (field.bit_size == 32) {
+    uint32_t value = field.holder->ReadField<uint32_t>(field.offset);
+    info.GetReturnValue().Set(v8::Integer::NewFromUnsigned(isolate, value));
+  } else if (field.bit_size == 64) {
+    uint64_t value = field.holder->ReadField<uint64_t>(field.offset);
+    info.GetReturnValue().Set(v8::BigInt::NewFromUnsigned(isolate, value));
+  }
+}
+
+// Corrupt one field of an object without setting up a memory view first.
+//
+//   Sandbox.corruptObjectField(obj, offset, value, bit_size);
+// emits a raw memory write, identical to
+//   (new DataView(new Sandbox.MemoryView(0, 0x100000000))).setUint32(
+//      Sandbox.getAddressOf(obj) + offset, value, true);
+// (adjusted for the requested bit size)
+//
+// Note that values are written directly as raw bytes without Smi tagging.
+// Alternatively, a field name can be passed as the second argument; the effect
+// is identical to calling
+// `Sandbox.getFieldOffset(Sandbox.getInstanceTypeIdOf(obj), field_name)` to
+// resolve the offset first.
+//
+// Sandbox.corruptObjectField(Object, Number|String, Number|BigInt, [Number]) ->
+// undefined
+void SandboxCorruptObjectField(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Context> context = isolate->GetCurrentContext();
+
+  ResolvedField field;
+  if (!ResolveObjectField(info, 3, &field)) return;
+
+  uint64_t value = 0;
+  if (field.bit_size != 64) {
+    if (!info[2]->IsInt32() && !info[2]->IsUint32()) {
+      isolate->ThrowError("Third argument must be an integer");
+      return;
+    }
+    int64_t val64;
+    CHECK(info[2]->IntegerValue(context).To(&val64));
+    if (field.bit_size == 8) {
+      if (val64 < -128 || val64 > 255) {
+        isolate->ThrowError("Third argument must fit in 8-bit integer range");
+        return;
+      }
+    } else if (field.bit_size == 16) {
+      if (val64 < -32768 || val64 > 65535) {
+        isolate->ThrowError("Third argument must fit in 16-bit integer range");
+        return;
+      }
+    }
+    value = static_cast<uint64_t>(val64);
+  } else {
+    if (info[2]->IsBigInt()) {
+      value = info[2].As<v8::BigInt>()->Uint64Value();
+    } else if (info[2]->IsNumber()) {
+      int64_t val64;
+      if (info[2]->IntegerValue(context).To(&val64)) {
+        value = static_cast<uint64_t>(val64);
+      } else {
+        isolate->ThrowError(
+            "Third argument must be a 64-bit integer or BigInt");
+        return;
+      }
+    } else {
+      isolate->ThrowError("Third argument must be a 64-bit integer or BigInt");
+      return;
+    }
   }
 
-  obj->WriteField(offset, value);
+  if (field.bit_size == 8) {
+    field.holder->WriteField<uint8_t>(field.offset,
+                                      static_cast<uint8_t>(value));
+  } else if (field.bit_size == 16) {
+    field.holder->WriteField<uint16_t>(field.offset,
+                                       static_cast<uint16_t>(value));
+  } else if (field.bit_size == 32) {
+    field.holder->WriteField<uint32_t>(field.offset,
+                                       static_cast<uint32_t>(value));
+  } else if (field.bit_size == 64) {
+    field.holder->WriteField<uint64_t>(field.offset, value);
+  }
 }
 
 Handle<FunctionTemplateInfo> NewFunctionTemplate(
@@ -657,8 +818,11 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
   InstallFunction(isolate, sandbox, SandboxGetBuiltinNames, "getBuiltinNames",
                   0);
+  InstallFunction(isolate, sandbox, SandboxGetBuiltinCode, "getBuiltinCode", 1);
   InstallFunction(isolate, sandbox, SandboxSetFunctionCodeToBuiltin,
                   "setFunctionCodeToBuiltin", 2);
+  InstallFunction(isolate, sandbox, SandboxReadObjectField, "readObjectField",
+                  2);
   InstallFunction(isolate, sandbox, SandboxCorruptObjectField,
                   "corruptObjectField", 3);
 
@@ -783,7 +947,8 @@ bool IsCrashInSafeMemoryRegion(Address faultaddr,
   return false;
 }
 
-[[noreturn]] void FilterCrash(const char* reason) {
+[[noreturn]]
+void FilterCrash(const char* reason) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
   PrintToStderr(reason);
@@ -941,8 +1106,8 @@ void CrashFilter(int signal, siginfo_t* info, void* context) {
             "Caught harmless memory access violation (nullptr dereference).");
       }
 
-      size_t padding = 1 * MB;
-      if (faultaddr < 4ULL * GB + padding) {
+      if (faultaddr <
+          (Sandbox::kSmiAddressRange + Sandbox::kSmiAddressRangePadding)) {
         // Currently we also ignore access violations in the first 4GB of the
         // virtual address space. See crbug.com/1470641 for more details.
         // We need to add some "padding" to the 4GB since we might access a
@@ -1155,6 +1320,7 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
   if (!is_initialized) {
     types["JS_OBJECT_TYPE"] = JS_OBJECT_TYPE;
     types["JS_FUNCTION_TYPE"] = JS_FUNCTION_TYPE;
+    types["JS_BOUND_FUNCTION_TYPE"] = JS_BOUND_FUNCTION_TYPE;
     types["JS_ARRAY_TYPE"] = JS_ARRAY_TYPE;
     types["JS_ARRAY_BUFFER_TYPE"] = JS_ARRAY_BUFFER_TYPE;
     types["JS_TYPED_ARRAY_TYPE"] = JS_TYPED_ARRAY_TYPE;
@@ -1170,12 +1336,15 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["PROMISE_REACTION"] = PROMISE_REACTION_TYPE;
     types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
     types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
+    types["FEEDBACK_CELL_TYPE"] = FEEDBACK_CELL_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
     types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
     types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
+    types["WASM_TAG_OBJECT_TYPE"] = WASM_TAG_OBJECT_TYPE;
+    types["WASM_GLOBAL_OBJECT_TYPE"] = WASM_GLOBAL_OBJECT_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -1191,19 +1360,23 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
   bool is_initialized = fields.size() != 0;
   if (!is_initialized) {
     fields[JS_FUNCTION_TYPE]["dispatch_handle"] =
-        JSFunction::kDispatchHandleOffset;
+        offsetof(JSFunction, dispatch_handle_);
     fields[JS_FUNCTION_TYPE]["shared_function_info"] =
-        JSFunction::kSharedFunctionInfoOffset;
-    fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
-    fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
+        offsetof(JSFunction, shared_function_info_);
+    fields[JS_FUNCTION_TYPE]["feedback_cell"] =
+        offsetof(JSFunction, feedback_cell_);
+    fields[JS_BOUND_FUNCTION_TYPE]["bound_arguments"] =
+        offsetof(JSBoundFunction, bound_arguments_);
+    fields[JS_ARRAY_TYPE]["elements"] = offsetof(JSObject, elements_);
+    fields[JS_ARRAY_TYPE]["length"] = offsetof(JSArray, length_);
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
-        JSTypedArray::kRawByteLengthOffset;
+        offsetof(JSArrayBufferView, raw_byte_length_);
     fields[JS_TYPED_ARRAY_TYPE]["byte_offset"] =
-        JSTypedArray::kRawByteOffsetOffset;
+        offsetof(JSArrayBufferView, raw_byte_offset_);
     fields[JS_TYPED_ARRAY_TYPE]["external_pointer"] =
-        JSTypedArray::kExternalPointerOffset;
+        offsetof(JSTypedArray, external_pointer_);
     fields[JS_TYPED_ARRAY_TYPE]["base_pointer"] =
-        JSTypedArray::kBasePointerOffset;
+        offsetof(JSTypedArray, base_pointer_);
     for (std::underlying_type_t<InstanceType> string_type = FIRST_STRING_TYPE;
          string_type <= LAST_STRING_TYPE; ++string_type) {
       InstanceType instance_type = static_cast<InstanceType>(string_type);
@@ -1215,46 +1388,50 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
     fields[CONS_ONE_BYTE_STRING_TYPE]["first"] = offsetof(ConsString, first_);
     fields[CONS_ONE_BYTE_STRING_TYPE]["second"] = offsetof(ConsString, second_);
     fields[SHARED_FUNCTION_INFO_TYPE]["trusted_function_data"] =
-        SharedFunctionInfo::kTrustedFunctionDataOffset;
+        offsetof(SharedFunctionInfo, trusted_function_data_);
     fields[SHARED_FUNCTION_INFO_TYPE]["length"] =
-        SharedFunctionInfo::kLengthOffset;
+        offsetof(SharedFunctionInfo, length_);
     fields[SHARED_FUNCTION_INFO_TYPE]["formal_parameter_count"] =
-        SharedFunctionInfo::kFormalParameterCountOffset;
+        offsetof(SharedFunctionInfo, formal_parameter_count_);
     fields[SHARED_FUNCTION_INFO_TYPE]["function_data"] =
-        SharedFunctionInfo::kUntrustedFunctionDataOffset;
+        offsetof(SharedFunctionInfo, untrusted_function_data_);
     fields[SHARED_FUNCTION_INFO_TYPE]["script"] =
-        SharedFunctionInfo::kScriptOffset;
+        offsetof(SharedFunctionInfo, script_);
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
-        Script::kEvalFromPositionOffset;
+        offsetof(Script, eval_from_position_);
     fields[JS_PROMISE_TYPE]["reactions_or_result"] =
-        JSPromise::kReactionsOrResultOffset;
+        offsetof(JSPromise, reactions_or_result_);
     fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
         offsetof(PromiseReaction, fulfill_handler_);
-    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
-        JSFunction::kSharedFunctionInfoOffset;
+    fields[FEEDBACK_CELL_TYPE]["value"] = offsetof(FeedbackCell, value_);
 #ifdef V8_INTL_SUPPORT
-    fields[JS_SEGMENTS_TYPE]["unicode_string"] =
-        JSSegments::kUnicodeStringOffset;
+    fields[JS_SEGMENTS_TYPE]["icu_iterator_with_text"] =
+        offsetof(JSSegments, icu_iterator_with_text_);
 #endif  // V8_INTL_SUPPORT
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
-        WasmModuleObject::kManagedNativeModuleOffset;
-    fields[WASM_MODULE_OBJECT_TYPE]["script"] = WasmModuleObject::kScriptOffset;
+        offsetof(WasmModuleObject, managed_native_module_);
+    fields[WASM_MODULE_OBJECT_TYPE]["script"] =
+        offsetof(WasmModuleObject, script_);
     fields[WASM_INSTANCE_OBJECT_TYPE]["module_object"] =
-        WasmInstanceObject::kModuleObjectOffset;
+        offsetof(WasmInstanceObject, module_object_);
     fields[WASM_FUNC_REF_TYPE]["trusted_internal"] =
-        WasmFuncRef::kTrustedInternalOffset;
-    fields[WASM_TABLE_OBJECT_TYPE]["entries"] = WasmTableObject::kEntriesOffset;
+        offsetof(WasmFuncRef, trusted_internal_);
+    fields[WASM_TABLE_OBJECT_TYPE]["entries"] =
+        offsetof(WasmTableObject, entries_);
     fields[WASM_TABLE_OBJECT_TYPE]["current_length"] =
-        WasmTableObject::kCurrentLengthOffset;
+        offsetof(WasmTableObject, current_length_);
     fields[WASM_TABLE_OBJECT_TYPE]["maximum_length"] =
-        WasmTableObject::kMaximumLengthOffset;
+        offsetof(WasmTableObject, maximum_length_);
     fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
-        WasmTableObject::kRawTypeOffset;
+        offsetof(WasmTableObject, raw_type_);
+    fields[WASM_TABLE_OBJECT_TYPE]["trusted_dispatch_table"] =
+        offsetof(WasmTableObject, trusted_dispatch_table_);
+    fields[WASM_TAG_OBJECT_TYPE]["tag"] = offsetof(WasmTagObject, tag_);
     fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
-        WasmResumeData::kTrustedSuspenderOffset;
+        offsetof(WasmResumeData, trusted_suspender_);
     fields[WASM_GLOBAL_OBJECT_TYPE]["raw_type"] =
-        WasmGlobalObject::kRawTypeOffset;
+        offsetof(WasmGlobalObject, raw_type_);
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

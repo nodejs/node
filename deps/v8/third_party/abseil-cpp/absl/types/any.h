@@ -30,13 +30,14 @@
 
 // Include-what-you-use cleanup required for these headers.
 #include "absl/base/attributes.h"
+#include "absl/base/macros.h"
 #include "absl/utility/utility.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-using std::any;
+using any ABSL_DEPRECATE_AND_INLINE() = std::any;
 using std::any_cast;
-using std::bad_any_cast;
+using bad_any_cast ABSL_DEPRECATE_AND_INLINE() = std::bad_any_cast;
 using std::make_any;
 ABSL_NAMESPACE_END
 }  // namespace absl

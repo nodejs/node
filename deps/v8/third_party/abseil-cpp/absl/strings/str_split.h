@@ -390,7 +390,7 @@ struct SkipWhitespace {
 template <typename T>
 using EnableSplitIfString =
     typename std::enable_if<std::is_same<T, std::string>::value ||
-                            std::is_same<T, const std::string>::value,
+                                std::is_same<T, const std::string>::value,
                             int>::type;
 
 //------------------------------------------------------------------------------
@@ -399,11 +399,16 @@ using EnableSplitIfString =
 
 // StrSplit()
 //
-// Splits a given string based on the provided `Delimiter` object, returning the
-// elements within the type specified by the caller. Optionally, you may pass a
-// `Predicate` to `StrSplit()` indicating whether to include or exclude the
-// resulting element within the final result set. (See the overviews for
-// Delimiters and Predicates above.)
+// Splits a string into a sequence of substrings identified by `Delimiter`. The
+// input is processed sequentially from beginning to end, and each resulting
+// substring is filtered by an optional `Predicate` before inclusion in the
+// result set. `StrSplit()` returns a lazy range that preserves the substrings
+// original order and is convertible to the collection type specified by the
+// caller.
+//
+// Optionally, you may pass a `Predicate` to `StrSplit()` indicating whether to
+// include or exclude the resulting element within the final result set. (See
+// the overviews for Delimiters and Predicates above.)
 //
 // Example:
 //

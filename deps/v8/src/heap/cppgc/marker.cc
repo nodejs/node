@@ -466,8 +466,9 @@ void MarkerBase::ProcessWeakness() {
     while (custom_callbacks.Pop(&item)) {
       item.callback(broker, item.parameter);
 #if defined(CPPGC_YOUNG_GENERATION)
-      if (heap().generational_gc_supported())
+      if (heap().generational_gc_supported()) {
         heap().remembered_set().AddWeakCallback(item);
+      }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
     }
   }
@@ -586,8 +587,9 @@ void MarkerBase::AdvanceMarkingOnAllocationImpl() {
 
 bool MarkerBase::JoinConcurrentMarkingIfNeeded() {
   if (config_.marking_type != MarkingConfig::MarkingType::kAtomic ||
-      !concurrent_marker().Join())
+      !concurrent_marker().Join()) {
     return false;
+  }
 
   // Concurrent markers may have pushed some "leftover" in-construction objects
   // after flushing in EnterAtomicPause.

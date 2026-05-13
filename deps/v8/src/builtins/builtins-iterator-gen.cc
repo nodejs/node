@@ -14,6 +14,7 @@
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/compiler/code-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -67,6 +68,9 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
     std::optional<TNode<Map>> fast_iterator_result_map) {
   DCHECK_NOT_NULL(if_done);
+  // IteratorStep is used at the top of iterator loops, so check for stack
+  // overflow and process pending interrupts here.
+  PerformStackCheck(context);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   TNode<JSAny> result = Call(context, iterator.next, iterator.object);
 
@@ -239,6 +243,7 @@ void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
           {values->var_array(), values->var_capacity(), values->var_length()});
 }
 
+// https://tc39.es/ecma262/#sec-iterabletolist
 TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<JSAny>(Descriptor::kIterable);
@@ -336,6 +341,7 @@ TNode<FixedArray> IteratorBuiltinsAssembler::StringListFromIterable(
   return list.ToFixedArray();
 }
 
+// https://tc39.es/ecma262/#sec-createstringlistfromiterable
 TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto iterable = Parameter<JSAny>(Descriptor::kIterable);
@@ -516,6 +522,74 @@ TF_BUILTIN(CallIteratorWithFeedbackLazyDeoptContinuation,
   ThrowIfNotJSReceiver(context, iterator,
                        MessageTemplate::kSymbolIteratorInvalid, "");
   Return(iterator);
+}
+
+TF_BUILTIN(ForOfNextResultDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+
+  Label is_jsreceiver(this), if_notjsreceiver(this, Label::kDeferred);
+  BranchIfJSReceiver(result_object, &is_jsreceiver, &if_notjsreceiver);
+  BIND(&is_jsreceiver);
+
+  TNode<Object> var_done =
+      GetProperty(context, CAST(result_object), factory()->done_string());
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(var_done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    Return(TheHoleConstant());
+  }
+
+  BIND(&if_not_done);
+  {
+    TNode<Object> value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Return(value);
+  }
+
+  BIND(&if_notjsreceiver);
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result_object);
+  Unreachable();
+}
+
+TF_BUILTIN(ForOfNextLoadDoneLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+  auto done = Parameter<Object>(Descriptor::kDone);
+
+  Label if_done(this), if_not_done(this);
+  BranchIfToBooleanIsTrue(done, &if_done, &if_not_done);
+
+  BIND(&if_done);
+  {
+    Return(TheHoleConstant());
+  }
+
+  BIND(&if_not_done);
+  {
+    TNode<Object> value =
+        GetProperty(context, CAST(result_object), factory()->value_string());
+    Return(value);
+  }
+}
+
+TF_BUILTIN(ForOfNextLoadValueEagerDeoptContinuation,
+           IteratorBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto result_object = Parameter<Object>(Descriptor::kResultObject);
+
+  TNode<Object> value =
+      GetProperty(context, CAST(result_object), factory()->value_string());
+
+  Return(value);
+}
+
+TF_BUILTIN(ForOfNextLoadValueLazyDeoptContinuation, IteratorBuiltinsAssembler) {
+  auto value = Parameter<Object>(Descriptor::kValue);
+  Return(value);
 }
 
 // This builtin creates a FixedArray based on an Iterable and doesn't have a

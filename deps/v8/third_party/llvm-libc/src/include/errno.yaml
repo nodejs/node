@@ -1,0 +1,12 @@
+header: errno.h
+header_template: errno.h.def
+standards:
+  - stdc
+  - Linux
+  - POSIX
+macros: []
+types:
+  - type_name: errno_t
+enums: []
+objects: []
+functions: []

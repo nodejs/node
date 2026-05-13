@@ -233,7 +233,7 @@ inline T RoundingAverageUnsigned(T a, T b) {
 //   V(kField4Offset, kSystemPointerSize)
 //   V(kSize, 0)
 //
-// DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
+// DEFINE_FIELD_OFFSET_CONSTANTS(sizeof(HeapObject), MAP_FIELDS)
 //
 #define DEFINE_ONE_FIELD_OFFSET(Name, Size, ...) \
   Name, Name##End = Name + (Size)-1,

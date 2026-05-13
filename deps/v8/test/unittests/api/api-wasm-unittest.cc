@@ -124,22 +124,6 @@ void WasmStreamingMoreFunctionsCanBeSerializedCallback(
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
-TEST_F(ApiWasmTest, GetWasmMemoryReservationSizeInBytes) {
-  constexpr size_t kCapacity = 64 * 1024;  // 64 KiB
-  size_t reservation = V8::GetWasmMemoryReservationSizeInBytes(
-      V8::WasmMemoryType::kMemory32, kCapacity);
-  size_t reservation64 = V8::GetWasmMemoryReservationSizeInBytes(
-      V8::WasmMemoryType::kMemory64, kCapacity);
-
-#if V8_TRAP_HANDLER_SUPPORTED
-  EXPECT_GE(reservation, kCapacity);
-  EXPECT_GE(reservation64, kCapacity);
-#else
-  EXPECT_EQ(reservation, kCapacity);
-  EXPECT_EQ(reservation64, kCapacity);
-#endif  // V8_TRAP_HANDLER_SUPPORTED
-}
-
 TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
@@ -273,6 +257,14 @@ TEST_F(ApiWasmTest, WasmEnableDisableCustomDescriptors) {
     EXPECT_TRUE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
     EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
                     .has_custom_descriptors());
+    {
+      // Test that the kill switch overrides any Origin Trial.
+      i::FlagScope<bool> flag_kill_switch(
+          &i::v8_flags.wasm_custom_descriptors_permitted, false);
+      EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
+      EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                       .has_custom_descriptors());
+    }
     isolate()->SetWasmCustomDescriptorsEnabledCallback(
         [](auto) { return false; });
     EXPECT_FALSE(i_isolate()->IsWasmCustomDescriptorsEnabled(context));
@@ -315,6 +307,22 @@ TEST_F(ApiWasmTest, WasmModuleCompilation_Basic) {
   CHECK(!module_object.IsEmpty());
   CHECK(!try_catch.HasCaught());
   CHECK(!isolate()->HasPendingException());
+}
+
+TEST_F(ApiWasmTest, GetWasmMemoryReservationSizeInBytes) {
+  constexpr size_t kCapacity = 64 * 1024;  // 64 KiB
+  size_t reservation = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory32, kCapacity);
+  size_t reservation64 = V8::GetWasmMemoryReservationSizeInBytes(
+      V8::WasmMemoryType::kMemory64, kCapacity);
+
+#if V8_TRAP_HANDLER_SUPPORTED
+  EXPECT_GE(reservation, kCapacity);
+  EXPECT_GE(reservation64, kCapacity);
+#else
+  EXPECT_EQ(reservation, kCapacity);
+  EXPECT_EQ(reservation64, kCapacity);
+#endif  // V8_TRAP_HANDLER_SUPPORTED
 }
 
 TEST_F(ApiWasmTest, WasmModuleCompilation_MultiThreaded) {

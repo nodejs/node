@@ -44,6 +44,10 @@ void ExternalStringsCage::TearDown() {
 }
 
 void ExternalStringsCage::Seal(void* ptr, size_t size) {
+  if (!ptr) {
+    CHECK_EQ(size, 0);
+    return;
+  }
   size_t alloc_size = GetAllocSize(size);
   vm_cage_.page_allocator()->SetPermissions(ptr, alloc_size,
                                             PageAllocator::kRead);

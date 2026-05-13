@@ -1,0 +1,347 @@
+header: inttypes.h
+standards:
+  - stdc
+macros:
+  - macro_name: PRId8
+    macro_header: inttypes-macros.h
+  - macro_name: PRId16
+    macro_header: inttypes-macros.h
+  - macro_name: PRId32
+    macro_header: inttypes-macros.h
+  - macro_name: PRId64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdMAX
+    macro_header: inttypes-macros.h
+  - macro_name: PRIdPTR
+    macro_header: inttypes-macros.h
+  - macro_name: PRIi8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIi16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIi32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIi64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiMAX
+    macro_header: inttypes-macros.h
+  - macro_name: PRIiPTR
+    macro_header: inttypes-macros.h
+  - macro_name: PRIo8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIo16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIo32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIo64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoMAX
+    macro_header: inttypes-macros.h
+  - macro_name: PRIoPTR
+    macro_header: inttypes-macros.h
+  - macro_name: PRIu8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIu16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIu32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIu64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuMAX
+    macro_header: inttypes-macros.h
+    macro_header: inttypes-macros.h
+  - macro_name: PRIuPTR
+    macro_header: inttypes-macros.h
+  - macro_name: PRIx8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIx16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIx32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIx64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxMAX
+    macro_header: inttypes-macros.h
+  - macro_name: PRIxPTR
+    macro_header: inttypes-macros.h
+  - macro_name: PRIX8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIX16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIX32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIX64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXMAX
+    macro_header: inttypes-macros.h
+  - macro_name: PRIXPTR
+    macro_header: inttypes-macros.h
+  - macro_name: SCNd8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNd16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNd32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNd64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdMAX
+    macro_header: inttypes-macros.h
+  - macro_name: SCNdPTR
+    macro_header: inttypes-macros.h
+  - macro_name: SCNi8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNi16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNi32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNi64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiMAX
+    macro_header: inttypes-macros.h
+  - macro_name: SCNiPTR
+    macro_header: inttypes-macros.h
+  - macro_name: SCNo8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNo16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNo32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNo64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoMAX
+    macro_header: inttypes-macros.h
+  - macro_name: SCNoPTR
+    macro_header: inttypes-macros.h
+  - macro_name: SCNu8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNu16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNu32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNu64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuMAX
+    macro_header: inttypes-macros.h
+  - macro_name: SCNuPTR
+    macro_header: inttypes-macros.h
+  - macro_name: SCNx8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNx16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNx32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNx64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxLEAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxLEAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxLEAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxLEAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxFAST8
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxFAST16
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxFAST32
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxFAST64
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxMAX
+    macro_header: inttypes-macros.h
+  - macro_name: SCNxPTR
+    macro_header: inttypes-macros.h
+types:
+  - type_name: imaxdiv_t
+enums: []
+objects: []
+functions:
+  - name: imaxabs
+    standards:
+      - stdc
+    return_type: intmax_t
+    arguments:
+      - type: intmax_t
+  - name: imaxdiv
+    standards:
+      - stdc
+    return_type: imaxdiv_t
+    arguments:
+      - type: intmax_t
+      - type: intmax_t
+  - name: strtoimax
+    standards:
+      - stdc
+    return_type: intmax_t
+    arguments:
+      - type: const char *__restrict
+      - type: char * *__restrict
+      - type: int
+  - name: strtoumax
+    standards:
+      - stdc
+    return_type: uintmax_t
+    arguments:
+      - type: const char *__restrict
+      - type: char * *__restrict
+      - type: int

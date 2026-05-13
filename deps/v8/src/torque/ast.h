@@ -820,8 +820,9 @@ struct ForLoopStatement : Statement {
         test(std::move(test)),
         action(std::move(action)),
         body(std::move(body)) {
-    if (declaration)
+    if (declaration) {
       var_declaration = VarDeclarationStatement::cast(*declaration);
+    }
   }
   std::optional<VarDeclarationStatement*> var_declaration;
   std::optional<Expression*> test;

@@ -234,10 +234,17 @@ class WasmMemoryContentTable
     return all_keys_.find(mem) != all_keys_.end();
   }
 
+  bool LoadLikeMutability(int offset_sentinel) {
+    // While strings themselves are immutable, their heap object representation
+    // could get rewritten into a ThinString or ExternalString, so we need
+    // to consider them mutable (and invalidate such values at calls).
+    if (offset_sentinel == kStringPrepareForGetCodeunitIndex) return true;
+    return false;
+  }
+
   OpIndex FindLoadLike(OpIndex op_idx, int offset_sentinel) {
-    static constexpr bool mutability = false;
     return FindImpl(ResolveBase(op_idx), offset_sentinel, kLoadLikeType,
-                    kLoadLikeSize, mutability);
+                    kLoadLikeSize, LoadLikeMutability(offset_sentinel));
   }
 
   OpIndex FindImpl(OpIndex object, int offset, wasm::ModuleTypeIndex type_index,
@@ -273,9 +280,8 @@ class WasmMemoryContentTable
   void InsertLoadLike(OpIndex base_idx, int offset_sentinel,
                       OpIndex value_idx) {
     OpIndex base = ResolveBase(base_idx);
-    static constexpr bool mutability = false;
-    Insert(base, offset_sentinel, kLoadLikeType, kLoadLikeSize, mutability,
-           value_idx);
+    Insert(base, offset_sentinel, kLoadLikeType, kLoadLikeSize,
+           LoadLikeMutability(offset_sentinel), value_idx);
   }
 
 #ifdef DEBUG
@@ -409,7 +415,8 @@ class WasmLoadEliminationAnalyzer {
         memory_(data, phase_zone, non_aliasing_objects_, replacements_, graph_),
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
-        predecessor_memory_snapshots_(phase_zone) {}
+        predecessor_memory_snapshots_(phase_zone),
+        phi_replacements_backups_(phase_zone, &graph_) {}
 
   void Run() {
     LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
@@ -477,6 +484,7 @@ class WasmLoadEliminationAnalyzer {
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
+  OpIndex MaybeReplacePhi(const PhiOp& phi);
 
 #if V8_ENABLE_WEBASSEMBLY
   void ProcessAtomicRMW(OpIndex op_idx, const StructAtomicRMWOp& op);
@@ -523,6 +531,10 @@ class WasmLoadEliminationAnalyzer {
   // to process a block. We store them as members to avoid reallocation.
   ZoneVector<AliasSnapshot> predecessor_alias_snapshots_;
   ZoneVector<MemorySnapshot> predecessor_memory_snapshots_;
+
+  // When figuring out whether a Phi change should cause a loop revisit, we
+  // need to temporarily store all loop Phis' previous replacements.
+  SparseOpIndexSideTable<OpIndex> phi_replacements_backups_;
 };
 
 template <class Next>
@@ -679,6 +691,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
+      case Opcode::kWasmFXArgBuffer:
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;
@@ -693,6 +706,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kDeoptimizeIf:
       case Opcode::kComparison:
       case Opcode::kTrapIf:
+      case Opcode::kWasmTrap:
         // We explicitly break for these opcodes so that we don't call
         // InvalidateAllNonAliasingInputs on their inputs, since they don't
         // really create aliases. (and also, they don't write so it's
@@ -966,9 +980,7 @@ void WasmLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
   non_aliasing_objects_.Set(op_idx, true);
 }
 
-void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
-  InvalidateAllNonAliasingInputs(phi);
-
+OpIndex WasmLoadEliminationAnalyzer::MaybeReplacePhi(const PhiOp& phi) {
   base::Vector<const OpIndex> inputs = phi.inputs();
   // This copies some of the functionality of {RequiredOptimizationReducer}:
   // Phis whose inputs are all the same value can be replaced by that value.
@@ -976,19 +988,25 @@ void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
   // of load elimination can unlock further optimizations: simplifying Phis
   // can allow elimination of more loads, which can then allow simplification
   // of even more Phis.
-  if (inputs.size() > 0) {
-    bool same_inputs = true;
-    OpIndex first = memory_.ResolveBase(inputs.first());
-    for (const OpIndex& input : inputs.SubVectorFrom(1)) {
-      if (memory_.ResolveBase(input) != first) {
-        same_inputs = false;
-        break;
-      }
-    }
-    if (same_inputs) {
-      replacements_[op_idx] = first;
+  DCHECK_GT(inputs.size(), 0);
+
+  bool same_inputs = true;
+  OpIndex first = memory_.ResolveBase(inputs.first());
+  for (const OpIndex& input : inputs.SubVectorFrom(1)) {
+    if (memory_.ResolveBase(input) != first) {
+      same_inputs = false;
+      break;
     }
   }
+  if (same_inputs) {
+    return first;
+  }
+  return OpIndex::Invalid();
+}
+
+void WasmLoadEliminationAnalyzer::ProcessPhi(OpIndex op_idx, const PhiOp& phi) {
+  InvalidateAllNonAliasingInputs(phi);
+  replacements_[op_idx] = MaybeReplacePhi(phi);
 }
 
 void WasmLoadEliminationAnalyzer::FinishBlock(const Block* block) {
@@ -1094,6 +1112,29 @@ bool WasmLoadEliminationAnalyzer::BeginBlock(const Block* block) {
   };
   memory_.StartNewSnapshot(base::VectorOf(predecessor_memory_snapshots_),
                            merge_memory);
+
+  if constexpr (for_loop_revisit) {
+    phi_replacements_backups_.clear();
+    // Back up and clear all existing loop Phi replacements. Clearing is
+    // necessary because loop Phis can depend on each other, and are
+    // conceptually processed in parallel.
+    for (OpIndex op_idx : graph_.OperationIndices(*block)) {
+      if (graph_.Get(op_idx).Is<PhiOp>() && replacements_[op_idx].valid()) {
+        phi_replacements_backups_[op_idx] = replacements_[op_idx];
+        replacements_[op_idx] = OpIndex::Invalid();
+      }
+    }
+    // Check if any loop Phi replacement would change.
+    for (OpIndex op_idx : graph_.OperationIndices(*block)) {
+      if (const PhiOp* phi = graph_.Get(op_idx).TryCast<PhiOp>()) {
+        OpIndex new_replacement = MaybeReplacePhi(*phi);
+        if (new_replacement != phi_replacements_backups_[op_idx]) {
+          loop_needs_revisit = true;
+        }
+        replacements_[op_idx] = new_replacement;
+      }
+    }
+  }
 
   if (block->IsLoop()) return loop_needs_revisit;
   return false;

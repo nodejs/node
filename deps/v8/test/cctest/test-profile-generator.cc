@@ -804,8 +804,9 @@ TEST(Issue51919) {
   }
   CHECK_EQ(CpuProfilingStatus::kErrorTooManyProfilers,
            collection.StartProfiling("maximum").status);
-  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
+  for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::DeleteArray(titles[i]);
+  }
 }
 
 static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
@@ -885,9 +886,8 @@ int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
   i::DirectHandle<i::JSFunction> func = i::Cast<i::JSFunction>(
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
-  PtrComprCageBase cage_base(isolate);
   CodeEntry* func_entry = instruction_stream_map->FindEntry(
-      func->abstract_code(isolate)->InstructionStart(cage_base));
+      func->abstract_code(isolate)->InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_and_column().line;
 }

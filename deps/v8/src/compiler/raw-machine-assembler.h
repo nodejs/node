@@ -150,11 +150,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   bool IsMapOffsetConstant(Node* node) {
     Int64Matcher m(node);
-    if (m.Is(HeapObject::kMapOffset)) return true;
+    if (m.Is(offsetof(HeapObject, map_))) return true;
     // Test if `node` is a `Phi(Int64Constant(0))`
     if (node->opcode() == IrOpcode::kPhi) {
       for (Node* input : node->inputs()) {
-        if (!Int64Matcher(input).Is(HeapObject::kMapOffset)) return false;
+        if (!Int64Matcher(input).Is(offsetof(HeapObject, map_))) return false;
       }
       return true;
     }
@@ -162,10 +162,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   bool IsMapOffsetConstantMinusTag(Node* node) {
     Int64Matcher m(node);
-    return m.Is(HeapObject::kMapOffset - kHeapObjectTag);
+    return m.Is(static_cast<int>(offsetof(HeapObject, map_)) - kHeapObjectTag);
   }
   bool IsMapOffsetConstantMinusTag(int offset) {
-    return offset == HeapObject::kMapOffset - kHeapObjectTag;
+    return offset ==
+           static_cast<int>(offsetof(HeapObject, map_)) - kHeapObjectTag;
   }
   Node* LoadFromObject(MachineType type, Node* base, Node* offset) {
     DCHECK_IMPLIES(V8_MAP_PACKING_BOOL && IsMapOffsetConstantMinusTag(offset),

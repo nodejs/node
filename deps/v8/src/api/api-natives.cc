@@ -375,8 +375,8 @@ MaybeDirectHandle<Object> GetInstancePrototype(
   // TODO(cbruni): decide what to do here.
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, instance_prototype,
-      JSObject::GetProperty(isolate, parent_instance,
-                            isolate->factory()->prototype_string()));
+      JSReceiver::GetProperty(isolate, parent_instance,
+                              isolate->factory()->prototype_string()));
   return scope.CloseAndEscape(instance_prototype);
 }
 }  // namespace
@@ -470,8 +470,9 @@ void AddPropertyToPropertyList(Isolate* isolate,
   }
   info->set_number_of_properties(info->number_of_properties() + 1);
   for (DirectHandle<Object> value : data) {
-    if (value.is_null())
+    if (value.is_null()) {
       value = Cast<Object>(isolate->factory()->undefined_value());
+    }
     list = ArrayList::Add(isolate, list, value);
   }
   info->set_property_list(*list);
@@ -645,8 +646,34 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   int instance_size = JSObject::GetHeaderSize(type) +
                       kEmbedderDataSlotSize * embedder_field_count;
 
-  DirectHandle<Map> map = isolate->factory()->NewContextfulMap(
-      native_context, type, instance_size, TERMINAL_FAST_ELEMENTS_KIND);
+  DirectHandle<JSInterceptorMap> map =
+      Cast<JSInterceptorMap>(isolate->factory()->NewContextfulMap(
+          native_context, ExtendedMapKind::kJSInterceptorMap, type,
+          instance_size, TERMINAL_FAST_ELEMENTS_KIND));
+  map->clear_extended_padding();
+
+  // Complete initialization of map's interceptor fields and set interceptor
+  // related bits.
+  {
+    Tagged<UnionOf<Undefined, InterceptorInfo>> maybe_interceptor =
+        obj->GetNamedPropertyHandler();
+    if (!IsUndefined(maybe_interceptor, isolate)) {
+      map->set_has_named_interceptor(true);
+      map->set_may_have_interesting_properties(true);
+      map->set_named_interceptor(Cast<InterceptorInfo>(maybe_interceptor));
+    } else {
+      map->set_named_interceptor(
+          ReadOnlyRoots(isolate).noop_named_interceptor_info());
+    }
+    maybe_interceptor = obj->GetIndexedPropertyHandler();
+    if (!IsUndefined(maybe_interceptor, isolate)) {
+      map->set_has_indexed_interceptor(true);
+      map->set_indexed_interceptor(Cast<InterceptorInfo>(maybe_interceptor));
+    } else {
+      map->set_indexed_interceptor(
+          ReadOnlyRoots(isolate).noop_indexed_interceptor_info());
+    }
+  }
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
@@ -667,15 +694,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (obj->needs_access_check()) {
     map->set_is_access_check_needed(true);
     map->set_may_have_interesting_properties(true);
-  }
-
-  // Set interceptor information in the map.
-  if (!IsUndefined(obj->GetNamedPropertyHandler(), isolate)) {
-    map->set_has_named_interceptor(true);
-    map->set_may_have_interesting_properties(true);
-  }
-  if (!IsUndefined(obj->GetIndexedPropertyHandler(), isolate)) {
-    map->set_has_indexed_interceptor(true);
   }
 
   // Mark instance as callable in the map.

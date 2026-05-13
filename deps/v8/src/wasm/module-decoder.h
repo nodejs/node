@@ -37,9 +37,6 @@ inline bool IsValidSectionCode(uint8_t byte) {
 V8_EXPORT_PRIVATE const char* SectionName(SectionCode code);
 
 using ModuleResult = Result<std::shared_ptr<WasmModule>>;
-using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
-using FunctionOffsets = std::vector<std::pair<int, int>>;
-using FunctionOffsetsResult = Result<FunctionOffsets>;
 
 struct AsmJsOffsetEntry {
   int byte_offset;

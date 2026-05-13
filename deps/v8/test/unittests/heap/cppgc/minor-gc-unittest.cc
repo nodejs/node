@@ -583,8 +583,9 @@ class GCedWithInlinedArray
     DCHECK_GT(to, from);
     DCHECK_GT(kNumObjects, from);
 
-    for (; from != to; ++from)
+    for (; from != to; ++from) {
       new (&objects[from]) InlinedObject<Value>(alloc_handle_);
+    }
 
     GenerationalBarrierForSourceObject(&objects[from]);
   }

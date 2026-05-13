@@ -120,8 +120,9 @@ class V8ValueStringBuilder {
         !value->IsNativeError() && !value->IsRegExp()) {
       v8::Local<v8::Object> object = value.As<v8::Object>();
       v8::Local<v8::String> stringValue;
-      if (object->ObjectProtoToString(m_context).ToLocal(&stringValue))
+      if (object->ObjectProtoToString(m_context).ToLocal(&stringValue)) {
         return append(stringValue);
+      }
     }
     v8::Local<v8::String> stringValue;
     if (!value->ToString(m_context).ToLocal(&stringValue)) return false;
@@ -230,15 +231,16 @@ void V8ConsoleMessage::reportToFrontend(
   DCHECK_EQ(V8MessageOrigin::kConsole, m_origin);
   String16 level = protocol::Console::ConsoleMessage::LevelEnum::Log;
   if (m_type == ConsoleAPIType::kDebug || m_type == ConsoleAPIType::kCount ||
-      m_type == ConsoleAPIType::kTimeEnd)
+      m_type == ConsoleAPIType::kTimeEnd) {
     level = protocol::Console::ConsoleMessage::LevelEnum::Debug;
-  else if (m_type == ConsoleAPIType::kError ||
-           m_type == ConsoleAPIType::kAssert)
+  } else if (m_type == ConsoleAPIType::kError ||
+             m_type == ConsoleAPIType::kAssert) {
     level = protocol::Console::ConsoleMessage::LevelEnum::Error;
-  else if (m_type == ConsoleAPIType::kWarning)
+  } else if (m_type == ConsoleAPIType::kWarning) {
     level = protocol::Console::ConsoleMessage::LevelEnum::Warning;
-  else if (m_type == ConsoleAPIType::kInfo)
+  } else if (m_type == ConsoleAPIType::kInfo) {
     level = protocol::Console::ConsoleMessage::LevelEnum::Info;
+  }
   std::unique_ptr<protocol::Console::ConsoleMessage> result =
       protocol::Console::ConsoleMessage::create()
           .setSource(protocol::Console::ConsoleMessage::SourceEnum::ConsoleApi)
@@ -258,7 +260,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   int contextGroupId = session->contextGroupId();
   int contextId = m_contextId;
   if (m_arguments.empty() || !contextId) return nullptr;
-  InspectedContext* inspectedContext =
+  std::shared_ptr<InspectedContext> inspectedContext =
       inspector->getContext(contextGroupId, contextId);
   if (!inspectedContext) return nullptr;
 
@@ -340,8 +342,9 @@ void V8ConsoleMessage::reportToFrontend(protocol::Runtime::Frontend* frontend,
             .setLineNumber(m_lineNumber ? m_lineNumber - 1 : 0)
             .setColumnNumber(m_columnNumber ? m_columnNumber - 1 : 0)
             .build();
-    if (m_scriptId)
+    if (m_scriptId) {
       exceptionDetails->setScriptId(String16::fromInteger(m_scriptId));
+    }
     if (!m_url.isEmpty()) exceptionDetails->setUrl(m_url);
     if (m_stackTrace) {
       exceptionDetails->setStackTrace(
@@ -423,7 +426,7 @@ V8ConsoleMessage::wrapException(V8InspectorSessionImpl* session,
                                 bool generatePreview) const {
   if (m_arguments.empty() || !m_contextId) return nullptr;
   DCHECK_EQ(1u, m_arguments.size());
-  InspectedContext* inspectedContext =
+  std::shared_ptr<InspectedContext> inspectedContext =
       session->inspector()->getContext(session->contextGroupId(), m_contextId);
   if (!inspectedContext) return nullptr;
 
@@ -557,14 +560,11 @@ void TraceV8ConsoleMessageEvent(V8MessageOrigin origin, ConsoleAPIType type) {
   // tracing/tracing/metrics/console_error_metric.html.
   // See https://crbug.com/880432
   if (origin == V8MessageOrigin::kException) {
-    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Exception",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("v8.console", "V8ConsoleMessage::Exception");
   } else if (type == ConsoleAPIType::kError) {
-    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Error",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("v8.console", "V8ConsoleMessage::Error");
   } else if (type == ConsoleAPIType::kAssert) {
-    TRACE_EVENT_INSTANT0("v8.console", "V8ConsoleMessage::Assert",
-                         TRACE_EVENT_SCOPE_THREAD);
+    TRACE_EVENT_INSTANT("v8.console", "V8ConsoleMessage::Assert");
   }
 }
 
@@ -580,8 +580,9 @@ void V8ConsoleMessageStorage::addMessage(
 
   inspector->forEachSession(
       contextGroupId, [&message](V8InspectorSessionImpl* session) {
-        if (message->origin() == V8MessageOrigin::kConsole)
+        if (message->origin() == V8MessageOrigin::kConsole) {
           session->consoleAgent()->messageAdded(message.get());
+        }
         session->runtimeAgent()->messageAdded(message.get());
       });
   if (!inspector->hasConsoleMessageStorage(contextGroupId)) return;

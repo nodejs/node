@@ -29,9 +29,9 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
 
   CHECK_EQ(CcTest::isolate(), v8_isolate);
   CHECK_EQ(v8_isolate, return_value.GetIsolate());
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 
-  Tagged<Object> default_value;
+  Tagged<i::Object> default_value;
   if constexpr (is_int) {
     default_value = Smi::zero();
   } else if constexpr (is_bool) {
@@ -45,7 +45,7 @@ static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
   }
 
   auto CheckValueMap = [=](v8::ReturnValue<T>& return_value) {
-    Tagged<Object> obj = Get(return_value);
+    Tagged<i::Object> obj = Get(return_value);
     if constexpr (is_int) {
       return IsNumber(obj);
     } else if constexpr (is_bool) {

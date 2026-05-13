@@ -36,8 +36,8 @@ class CppHeapObjectWrapper {
                                       CppHeapPointerTagRange tag_range) const;
 
  private:
-  static_assert(JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset ==
-                JSSpecialObject::kCppHeapWrappableOffset);
+  static_assert(offsetof(JSAPIObjectWithEmbedderSlots, cpp_heap_wrappable_) ==
+                offsetof(JSSpecialObject, cpp_heap_wrappable_));
 
   Tagged<CppHeapPointerWrapperObjectT> object_;
   int offset_;

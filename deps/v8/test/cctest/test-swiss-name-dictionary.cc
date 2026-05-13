@@ -188,7 +188,7 @@ TEST(MaxUsableCapacity) {
 }
 
 TEST(SizeFor) {
-  int baseline = HeapObject::kHeaderSize +
+  int baseline = sizeof(HeapObject) +
                  // prefix:
                  4 +
                  // capacity:

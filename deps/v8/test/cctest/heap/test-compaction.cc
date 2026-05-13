@@ -340,7 +340,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
           static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()),
           AllocationType::kOld, &compaction_page_handles, object_size);
       // Sanity check that we have enough space for linking up arrays.
-      CHECK_GE(compaction_page_handles.front()->length(), 2);
+      CHECK_GE(compaction_page_handles.front()->length().value(), 2u);
       to_be_aborted_page =
           NormalPage::FromHeapObject(*compaction_page_handles.front());
       to_be_aborted_page->set_forced_evacuation_candidate_for_testing(true);

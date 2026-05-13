@@ -79,8 +79,10 @@ bool ParseFunction(ParseInfo* info,
   uint32_t start_pos = shared_info->StartPosition();
   uint32_t end_pos = shared_info->EndPosition();
   if (end_pos > source->length()) {
-    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(script->ptr()),
-                                  reinterpret_cast<void*>(source->ptr()));
+    isolate->PushStackTraceAndDie(
+        "shared function end position beyond source length",
+        reinterpret_cast<void*>(script->ptr()),
+        reinterpret_cast<void*>(source->ptr()));
   }
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source, start_pos, end_pos));

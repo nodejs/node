@@ -46,7 +46,7 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
                           int* untagged_return_slots, int* total_return_slots) {
   constexpr int kParamsSlotOffset = 0;
   LinkageLocationAllocator params(kGpParamRegisters, kFpParamRegisters,
-                                  kParamsSlotOffset);
+                                  kSimd128ParamRegisters, kParamsSlotOffset);
   // The instance object.
   locations.AddParamAt(0, params.Next(MachineRepresentation::kTaggedPointer));
   const size_t param_offset = 1;  // Actual params start here.
@@ -92,7 +92,7 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
   // followed by tagged results. That way, we can simply check the size of
   // each section, rather than needing a bit map.
   LinkageLocationAllocator rets(kGpReturnRegisters, kFpReturnRegisters,
-                                params_stack_height);
+                                kSimd128ReturnRegisters, params_stack_height);
 
   const size_t return_count = sig->return_count();
   bool has_tagged_result = false;
@@ -115,6 +115,22 @@ void IterateSignatureImpl(const SigType* sig, bool extra_callable_param,
   }
   *total_return_slots = rets.NumStackSlots();
 }
+
+class VectorSignature {
+ public:
+  VectorSignature(base::Vector<const CanonicalValueType> returns,
+                  base::Vector<const CanonicalValueType> params)
+      : returns_(returns), params_(params) {}
+
+  size_t return_count() const { return returns_.size(); }
+  size_t parameter_count() const { return params_.size(); }
+  CanonicalValueType GetReturn(size_t i) const { return returns_[i]; }
+  CanonicalValueType GetParam(size_t i) const { return params_[i]; }
+
+ private:
+  base::Vector<const CanonicalValueType> returns_;
+  base::Vector<const CanonicalValueType> params_;
+};
 
 #if V8_ENABLE_SANDBOX
 

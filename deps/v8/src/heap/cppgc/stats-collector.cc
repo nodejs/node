@@ -136,8 +136,9 @@ void StatsCollector::NotifyMarkingCompleted(size_t marked_bytes) {
   allocated_bytes_since_safepoint_ = 0;
   explicitly_freed_bytes_since_safepoint_ = 0;
 
-  if (current_.collection_type == CollectionType::kMajor)
+  if (current_.collection_type == CollectionType::kMajor) {
     marked_bytes_so_far_ = 0;
+  }
   marked_bytes_so_far_ += marked_bytes;
 
 #ifdef CPPGC_VERIFY_HEAP

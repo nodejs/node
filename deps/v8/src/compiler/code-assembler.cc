@@ -36,7 +36,6 @@ namespace internal {
 
 constexpr MachineType MachineTypeOf<Smi>::value;
 constexpr MachineType MachineTypeOf<Object>::value;
-constexpr MachineType MachineTypeOf<MaybeObject>::value;
 
 namespace compiler {
 
@@ -656,6 +655,13 @@ void CodeAssembler::ReturnIf(TNode<BoolT> condition, TNode<Object> value) {
 }
 
 void CodeAssembler::AbortCSADcheck(Node* message) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin())) {
+    // We switch to the central stack for AbortCSADcheck because it requires a
+    // large amount of stack space to push the stack trace.
+    SwitchToTheCentralStackIfNeeded();
+  }
+#endif
   raw_assembler()->AbortCSADcheck(message);
 }
 
@@ -829,15 +835,18 @@ TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(TNode<Float64T> value) {
   }
   return UncheckedCast<UintPtrT>(raw_assembler()->ChangeFloat64ToUint32(value));
 }
-
 TNode<Float64T> CodeAssembler::ChangeUintPtrToFloat64(TNode<UintPtrT> value) {
   if (raw_assembler()->machine()->Is64()) {
-    // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
-    // machine operator to TurboFan here?
-    return UncheckedCast<Float64T>(
-        raw_assembler()->RoundUint64ToFloat64(value));
+    return ChangeUint64ToFloat64(ReinterpretCast<Uint64T>(value));
   }
   return UncheckedCast<Float64T>(raw_assembler()->ChangeUint32ToFloat64(value));
+}
+
+TNode<Float64T> CodeAssembler::ChangeUint64ToFloat64(TNode<Uint64T> value) {
+  DCHECK(raw_assembler()->machine()->Is64());
+  // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
+  // machine operator to TurboFan here?
+  return UncheckedCast<Float64T>(raw_assembler()->RoundUint64ToFloat64(value));
 }
 
 TNode<Float64T> CodeAssembler::RoundIntPtrToFloat64(Node* value) {

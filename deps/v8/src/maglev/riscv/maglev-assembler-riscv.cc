@@ -562,6 +562,11 @@ void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
+  if (CpuFeatures::IsSupported(ZFA)) {
+    fcvtmod_w_d(dst, src);
+    return;
+  }
+
   ZoneLabelRef done(this);
   Label* slow_path = MakeDeferredCode(
       [](MaglevAssembler* masm, DoubleRegister src, Register dst,

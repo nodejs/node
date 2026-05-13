@@ -519,25 +519,38 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   const size_t allocate_code_size =
       RoundUp(embedded_blob_code_size, allocate_page_size);
   // Allocate the re-embedded code blob in such a way that it will be reachable
-  // by PC-relative addressing from biggest possible region.
+  // by PC-relative addressing from biggest possible region.  Start near the
+  // end and step downward if the target is already occupied (e.g. by code
+  // compiled before the blob was created, or by a red zone).
   const size_t max_pc_relative_code_range = kMaxPCRelativeCodeRangeInMB * MB;
-  const size_t blob_offset =
+  size_t blob_offset =
       std::min(max_pc_relative_code_range, code_region.size()) -
       allocate_code_size;
-  const Address blob_begin = code_region.begin() + blob_offset;
 
-  red_zones_.TryRemove(base::AddressRegion(blob_begin, allocate_code_size));
-  // TODO(429538831): This should be using AllocatePagesAt() which lacks support
-  // for kRecommitOnly though.
-  embedded_blob_code_copy =
-      reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
-          reinterpret_cast<void*>(blob_begin), allocate_code_size,
-          allocate_page_size, PageAllocator::kNoAccessWillJitLater));
-  if (!embedded_blob_code_copy) {
-    V8::FatalProcessOutOfMemory(
-        isolate, "Can't allocate space for re-embedded builtins");
+  Address blob_begin;
+  while (true) {
+    blob_begin = code_region.begin() + blob_offset;
+    // TODO(429538831): This should be using AllocatePagesAt() which lacks
+    // support for kRecommitOnly though.
+    embedded_blob_code_copy =
+        reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
+            reinterpret_cast<void*>(blob_begin), allocate_code_size,
+            allocate_page_size, PageAllocator::kNoAccessWillJitLater));
+    if (embedded_blob_code_copy == reinterpret_cast<uint8_t*>(blob_begin)) {
+      break;
+    }
+    // The allocation didn't land at the requested address.  Free the
+    // wrongly-placed allocation and try a lower address.
+    if (embedded_blob_code_copy) {
+      page_allocator()->FreePages(embedded_blob_code_copy, allocate_code_size);
+      embedded_blob_code_copy = nullptr;
+    }
+    if (blob_offset < allocate_code_size) {
+      V8::FatalProcessOutOfMemory(
+          isolate, "Can't allocate space for re-embedded builtins");
+    }
+    blob_offset -= allocate_code_size;
   }
-  CHECK_EQ(embedded_blob_code_copy, reinterpret_cast<void*>(blob_begin));
 
   if (code_region.size() > max_pc_relative_code_range) {
     // The re-embedded code blob might not be reachable from the end part of
@@ -622,6 +635,7 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
                                  std::memory_order_release);
   return embedded_blob_code_copy;
 }
+#undef TRACE
 
 }  // namespace internal
 }  // namespace v8

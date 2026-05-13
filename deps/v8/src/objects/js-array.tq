@@ -4,6 +4,7 @@
 
 extern enum IterationKind extends uint31 { kKeys, kValues, kEntries }
 
+@cppObjectLayoutDefinition
 extern class JSArrayIterator extends JSObject {
   iterated_object: JSReceiver;
 
@@ -35,7 +36,7 @@ extern class JSArrayIterator extends JSObject {
   kind: SmiTagged<IterationKind>;
 }
 
-// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+// https://tc39.es/ecma262/#sec-createarrayiterator
 @export
 macro CreateArrayIterator(
     implicit context: NativeContext)(array: JSReceiver,
@@ -50,7 +51,7 @@ macro CreateArrayIterator(
   };
 }
 
-// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+// https://tc39.es/ecma262/#sec-createarrayiterator
 @export
 macro CreateArrayIterator(
     implicit context: NativeContext)(array: JSReceiver,
@@ -58,6 +59,7 @@ macro CreateArrayIterator(
   return CreateArrayIterator(array, kind, 0);
 }
 
+@cppObjectLayoutDefinition
 extern class JSArray extends JSObject {
   macro IsEmpty(): bool {
     return this.length == 0;
@@ -67,6 +69,7 @@ extern class JSArray extends JSObject {
 
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
+@cppObjectLayoutDefinition
 extern class TemplateLiteralObject extends JSArray {
   raw: JSArray;
   function_literal_id: Smi;
@@ -74,7 +77,7 @@ extern class TemplateLiteralObject extends JSArray {
 }
 
 @doNotGenerateCast
-extern class JSArrayConstructor extends JSFunction
+extern class JSArrayConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
 
 macro NewJSArray(
@@ -83,7 +86,7 @@ macro NewJSArray(
     map,
     properties_or_hash: kEmptyFixedArray,
     elements,
-    length: elements.length
+    length: Convert<Smi>(elements.length)
   };
 }
 

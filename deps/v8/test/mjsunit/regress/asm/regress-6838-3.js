@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 (function TestMathAbsReturningUnsigned() {
   function Module(stdlib) {
     "use asm";
@@ -21,7 +19,6 @@
   assertEquals(1, f(-42, 42));
   assertEquals(1, f(-0x7fffffff, 0x7fffffff));
   assertEquals(1, f(-0x80000000, 0x80000000));
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestMathAbsOverflowSignedValue() {
@@ -35,5 +32,4 @@
   }
   var f = Module(this);
   assertEquals(1, f());
-  assertTrue(%IsAsmWasmCode(Module));
 })();

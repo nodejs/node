@@ -1,0 +1,461 @@
+header: stdio.h
+standards:
+  - stdc
+macros:
+  - macro_name: "NULL"
+    macro_header: null-macro.h
+  - macro_name: stdout
+    macro_value: stdout
+  - macro_name: stdin
+    macro_value: stdin
+  - macro_name: stderr
+    macro_value: stderr
+  - macro_name: SEEK_SET
+    macro_header: file-seek-macros.h
+  - macro_name: SEEK_CUR
+    macro_header: file-seek-macros.h
+  - macro_name: SEEK_END
+    macro_header: file-seek-macros.h
+  - macro_name: EOF
+    macro_header: stdio-macros.h
+  - macro_name: BUFSIZ
+    macro_header: stdio-macros.h
+  - macro_name: _IONBF
+    macro_header: stdio-macros.h
+  - macro_name: _IOLBF
+    macro_header: stdio-macros.h
+  - macro_name: _IOFBF
+    macro_header: stdio-macros.h
+types:
+  - type_name: rsize_t
+  - type_name: size_t
+  - type_name: off_t
+  - type_name: cookie_io_functions_t
+  - type_name: FILE
+  - type_name: errno_t
+enums: []
+objects:
+  - object_name: stdin
+    object_type: FILE *
+  - object_name: stdout
+    object_type: FILE *
+  - object_name: stderr
+    object_type: FILE *
+functions:
+  - name: asprintf
+    standards:
+      - GNUExtensions
+    return_type: int
+    arguments:
+      - type: char **__restrict
+      - type: const char *__restrict
+      - type: '...'
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__asprintf_modular)
+  - name: clearerr
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: FILE *
+  - name: clearerr_unlocked
+    standards:
+      - GNUExtensions
+    return_type: void
+    arguments:
+      - type: FILE *
+  - name: fclose
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: fdopen
+    standards:
+      - POSIX
+    return_type: FILE *
+    arguments:
+      - type: int
+      - type: const char *
+  - name: feof
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: feof_unlocked
+    standards:
+      - GNUExtensions
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: ferror
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: ferror_unlocked
+    standards:
+      - GNUExtensions
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: fflush
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: fgetc
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: fgetc_unlocked
+    standards:
+      - GNUExtensions
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: fgets
+    standards:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: char *__restrict
+      - type: int
+      - type: FILE *__restrict
+  - name: fileno
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: flockfile
+    standards:
+      - POSIX
+    return_type: void
+    arguments:
+      - type: FILE *
+  - name: fopen
+    standards:
+      - stdc
+    return_type: FILE *
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: fopencookie
+    standards:
+      - GNUExtensions
+    return_type: FILE *
+    arguments:
+      - type: void *
+      - type: const char *
+      - type: cookie_io_functions_t
+  - name: fprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *__restrict
+      - type: const char *__restrict
+      - type: '...'
+  - name: fputc
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+      - type: FILE *
+  - name: fputs
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: FILE *__restrict
+  - name: fread
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: void *__restrict
+      - type: size_t
+      - type: size_t
+      - type: FILE *__restrict
+  - name: fread_unlocked
+    standards:
+      - GNUExtensions
+    return_type: size_t
+    arguments:
+      - type: void *__restrict
+      - type: size_t
+      - type: size_t
+      - type: FILE *__restrict
+  - name: fscanf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *__restrict
+      - type: const char *__restrict
+      - type: '...'
+  - name: vfscanf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *__restrict
+      - type: const char *__restrict
+      - type: va_list
+  - name: fseek
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+      - type: long
+      - type: int
+  - name: rewind
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: FILE *
+  - name: fseeko
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: FILE *
+      - type: off_t
+      - type: int
+  - name: ftell
+    standards:
+      - stdc
+    return_type: long
+    arguments:
+      - type: FILE *
+  - name: ftello
+    standards:
+      - POSIX
+    return_type: off_t
+    arguments:
+      - type: FILE *
+  - name: funlockfile
+    standards:
+      - POSIX
+    return_type: void
+    arguments:
+      - type: FILE *
+  - name: fwrite
+    standards:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: const void *__restrict
+      - type: size_t
+      - type: size_t
+      - type: FILE *__restrict
+  - name: fwrite_unlocked
+    standards:
+      - GNUExtensions
+    return_type: size_t
+    arguments:
+      - type: const void *__restrict
+      - type: size_t
+      - type: size_t
+      - type: FILE *__restrict
+  - name: getc
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: getc_unlocked
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: FILE *
+  - name: getchar
+    standards:
+      - stdc
+    return_type: int
+    arguments: []
+  - name: getchar_unlocked
+    standards:
+      - POSIX
+    return_type: int
+    arguments: []
+  - name: perror
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: const char *
+  - name: printf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: '...'
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__printf_modular)
+  - name: putc
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+      - type: FILE *
+  - name: putchar
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: puts
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: remove
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: rename
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+  - name: scanf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: '...'
+  - name: vscanf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: va_list
+  - name: setbuf
+    standards:
+      - stdc
+    return_type: void
+    arguments:
+      - type: FILE *__restrict
+      - type: char *__restrict
+  - name: setvbuf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *__restrict
+      - type: char *__restrict
+      - type: int
+      - type: size_t
+  - name: snprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: '...'
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__snprintf_modular)
+  - name: sprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: const char *__restrict
+      - type: '...'
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__sprintf_modular)
+  - name: sscanf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: const char *__restrict
+      - type: '...'
+  - name: ungetc
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+      - type: FILE *
+  - name: vasprintf
+    standards:
+      - GNUExtensions
+    return_type: int
+    arguments:
+      - type: char **__restrict
+      - type: const char *__restrict
+      - type: va_list
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__vasprintf_modular)
+  - name: vfprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: FILE *__restrict
+      - type: const char *__restrict
+      - type: va_list
+  - name: vprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: va_list
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__vprintf_modular)
+  - name: vsnprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: va_list
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__vsnprintf_modular)
+  - name: vsprintf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: char *__restrict
+      - type: const char *__restrict
+      - type: va_list
+    attributes:
+      - _LIBC_MODULAR_FORMAT_PRINTF(__vsprintf_modular)
+  - name: vsscanf
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: const char *__restrict
+      - type: va_list

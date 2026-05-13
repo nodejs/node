@@ -576,17 +576,15 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   InvokeMajorGC();
   InvokeMajorGC();
 
-  PtrComprCageBase cage_base(isolate);
-
   // Test the user-facing reloc interface.
   const int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsCompressedEmbeddedObject(mode)) {
-      CHECK_EQ(*my_array, it.rinfo()->target_object(cage_base));
+      CHECK_EQ(*my_array, it.rinfo()->target_object());
     } else {
       CHECK(RelocInfo::IsFullEmbeddedObject(mode));
-      CHECK_EQ(*old_array, it.rinfo()->target_object(cage_base));
+      CHECK_EQ(*old_array, it.rinfo()->target_object());
     }
   }
 #endif  // V8_COMPRESS_POINTERS

@@ -149,7 +149,7 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc,
   return GetCodeTarget(index);
 }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     return Cast<HeapObject>(

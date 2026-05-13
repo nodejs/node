@@ -805,7 +805,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16Eq();
   const Operator* I8x16BitMask();
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
   // SIMD operators.
   const Operator* F64x2Splat();
   const Operator* F64x2Abs();
@@ -1244,14 +1244,14 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StoreLane(MemoryAccessKind kind, MachineRepresentation rep,
                             uint8_t laneidx);
 
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
   const Operator* TraceInstruction(uint32_t markid);
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);
-  const Operator* ProtectedLoad(LoadRepresentation rep);
+  const Operator* TrappingLoad(LoadRepresentation rep);
   const Operator* LoadTrapOnNull(LoadRepresentation rep);
 
   // store [base + index], value
@@ -1259,7 +1259,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   std::optional<const Operator*> TryStorePair(StoreRepresentation rep1,
                                               StoreRepresentation rep2);
   const Operator* StoreIndirectPointer(WriteBarrierKind write_barrier_kind);
-  const Operator* ProtectedStore(MachineRepresentation rep);
+  const Operator* TrappingStore(MachineRepresentation rep);
   const Operator* StoreTrapOnNull(StoreRepresentation rep);
 
   // unaligned load [base + index]

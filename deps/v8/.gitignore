@@ -40,6 +40,8 @@
 .settings
 .torquelint-cache
 .vscode
+.agents
+.gemini
 
 # Directories added by standalone gclient setup.
 /.cipd
@@ -62,6 +64,7 @@
 /src/inspector/build/closure-compiler
 /src/inspector/build/closure-compiler.tar.gz
 /test/benchmarks/data
+/test/benchmarks/JetStream3
 /test/fuzzer/wasm_corpus/
 /test/fuzzer/wasm_corpus.tar.gz
 !/test/mjsunit/tools/*.log
@@ -76,8 +79,6 @@
 !/third_party/antlr4
 !/third_party/colorama
 /third_party/colorama/src
-!/third_party/cpu_features
-/third_party/cpu_features/src
 !/third_party/dragonbox
 /third_party/dragonbox/src/*
 !/third_party/dragonbox/src/include
@@ -101,7 +102,13 @@
 !/third_party/jsoncpp
 /third_party/jsoncpp/source
 !/third_party/llvm-libc
-/third_party/llvm-libc/src
+/third_party/llvm-libc/src/*
+!/third_party/llvm-libc/src/hdr
+!/third_party/llvm-libc/src/include
+!/third_party/llvm-libc/src/shared
+!/third_party/llvm-libc/src/src
+/third_party/llvm-libc/src/src/*
+!/third_party/llvm-libc/src/src/__support
 !/third_party/rapidhash-v8
 !/third_party/re2
 /third_party/re2/src
@@ -156,6 +163,8 @@ bazel-testlogs
 bazel-v8
 launch.json
 MODULE.bazel.lock
+GEMINI.md
+AGENTS.md
 !/third_party/jinja2
 !/third_party/markupsafe
 !/third_party/zlib

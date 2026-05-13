@@ -176,6 +176,9 @@ namespace interpreter {
   V(GetEnumeratedKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
     OperandType::kFeedbackSlot)                                                \
+  V(GetPrivateField, ImplicitRegisterUse::kWriteAccumulator,                   \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm,          \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Operations on module variables */                                         \
   V(LdaModuleVariable, ImplicitRegisterUse::kWriteAccumulator,                 \
@@ -202,6 +205,9 @@ namespace interpreter {
     OperandType::kFeedbackSlot)                                                \
   V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
     OperandType::kConstantPoolIndex, OperandType::kFeedbackSlot)               \
+  V(SetPrivateField, ImplicitRegisterUse::kReadAndClobberAccumulator,          \
+    OperandType::kReg, OperandType::kContextSlot, OperandType::kUImm,          \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -465,8 +471,8 @@ namespace interpreter {
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
                                                                                \
   /* Optimizing For..of */                                                     \
-  V(ForOfNext, ImplicitRegisterUse::kClobberAccumulator, OperandType::kReg,    \
-    OperandType::kReg, OperandType::kRegOutPair, OperandType::kFeedbackSlot)   \
+  V(ForOfNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
+    OperandType::kReg, OperandType::kFeedbackSlot)                             \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \
@@ -847,10 +853,11 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
 
   // Return true if |bytecode| is a jump without effects,
   // e.g. any jump excluding those that include type coercion like
-  // JumpIfTrueToBoolean, and JumpLoop due to having an implicit StackCheck.
+  // JumpIfToBooleanTrue/False, and JumpLoop due to having an implicit
+  // StackCheck.
   static constexpr bool IsJumpWithoutEffects(Bytecode bytecode) {
-    return IsJump(bytecode) && !IsJumpIfToBoolean(bytecode) &&
-           bytecode != Bytecode::kJumpLoop;
+    return IsJump(bytecode) && bytecode != Bytecode::kJumpLoop &&
+           !IsJumpIfToBoolean(bytecode);
   }
 
   // Returns true if the bytecode is a switch.

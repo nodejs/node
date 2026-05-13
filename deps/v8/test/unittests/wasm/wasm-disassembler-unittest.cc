@@ -173,6 +173,61 @@ TEST_F(WasmDisassemblerTest, Exnref) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
+TEST_F(WasmDisassemblerTest, Atomics) {
+  // This test case was created using:
+  // clang-format off
+  /*
+    d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
+    var builder = new WasmModuleBuilder();
+    let mem0 = builder.addMemory(1, 1, true);
+    let mem1 = builder.addMemory(1, 1, true);
+
+    builder.exportMemoryAs("$myMemory0", mem0);
+    builder.exportMemoryAs("$myMemory1", mem1);
+
+    builder.addFunction('test', kSig_v_v)
+    .addBody([
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        // Both memory indices and acquire release memory order immediate.
+        kAtomicPrefix, kExprI32AtomicLoad, 0x62, mem0, kAtomicAcqRel, 1,
+        kAtomicPrefix, kExprI32AtomicOr, 0x62, mem1, kAtomicAcqRel + (kAtomicAcqRel << 4), 2,
+        kAtomicPrefix, kExprI32AtomicStore, 0x62, mem1, kAtomicAcqRel, 3,
+        // Both immediates present but using the default explicitly.
+        kAtomicPrefix, kExprI32AtomicLoad, 0x62, mem0, kAtomicSeqCst, 1,
+        kAtomicPrefix, kExprI32AtomicOr, 0x62, mem1, kAtomicSeqCst + (kAtomicSeqCst << 4), 2,
+        kAtomicPrefix, kExprI32AtomicStore, 0x62, mem1, kAtomicSeqCst, 3,
+        // Only the memory index immediate present.
+        kAtomicPrefix, kExprI32AtomicLoad, 0x42, mem0, 1,
+        kAtomicPrefix, kExprI32AtomicOr, 0x42, mem1, 2,
+        kAtomicPrefix, kExprI32AtomicStore, 0x42, mem1, 3,
+        // Only the memory order immediate present.
+        kAtomicPrefix, kExprI32AtomicLoad, 0x22, kAtomicAcqRel, 1,
+        kAtomicPrefix, kExprI32AtomicOr, 0x22, kAtomicAcqRel + (kAtomicAcqRel << 4), 2,
+        kAtomicPrefix, kExprI32AtomicStore, 0x22, kAtomicAcqRel, 3,
+    ])
+    .exportFunc();
+    builder.instantiate();
+  */
+  // clang-format on
+  constexpr uint8_t module_bytes[] = {
+#include "wasm-disassembler-unittest-atomics.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-atomics.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
 // TODO(dlehmann): Add tests for the following Wasm features and extensions:
 // - custom name section for Wasm GC constructs (struct and array type names,
 // struct fields).

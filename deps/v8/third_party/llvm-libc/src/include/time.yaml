@@ -1,0 +1,153 @@
+header: time.h
+standards:
+  - stdc
+macros:
+  - macro_name: "NULL"
+    macro_header: null-macro.h
+  - macro_name: CLOCKS_PER_SEC
+    macro_header: time-macros.h
+types:
+  - type_name: struct_timeval
+  - type_name: clockid_t
+  - type_name: errno_t
+  - type_name: struct_timespec
+  - type_name: struct_tm
+  - type_name: time_t
+  - type_name: clock_t
+  - type_name: rsize_t
+  - type_name: size_t
+  - type_name: locale_t
+enums: []
+objects: []
+functions:
+  - name: asctime
+    standard:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: const struct tm *
+  - name: asctime_r
+    standard:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: const struct tm *
+      - type: char *
+  - name: ctime
+    standard:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: const time_t *
+  - name: ctime_r
+    standard:
+      - stdc
+    return_type: char *
+    arguments:
+      - type: const time_t *
+      - type: char *
+  - name: localtime
+    standard:
+      - stdc
+    return_type: struct tm *
+    arguments:
+      - type: const time_t *
+  - name: localtime_r
+    standard:
+      - stdc
+    return_type: struct tm *
+    arguments:
+      - type: const time_t *
+      - type: struct tm *
+  - name: clock
+    standard:
+      - stdc
+    return_type: clock_t
+    arguments:
+      - type: void
+  - name: clock_gettime
+    standard:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: clockid_t
+      - type: struct timespec *
+  - name: clock_settime
+    standard:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: clockid_t
+      - type: const struct timespec *
+  - name: difftime
+    standard:
+      - stdc
+    return_type: double
+    arguments:
+      - type: time_t
+      - type: time_t
+  - name: gettimeofday
+    standard:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: struct timeval *
+      - type: void *
+  - name: gmtime
+    standard:
+      - stdc
+    return_type: struct tm *
+    arguments:
+      - type: const time_t *
+  - name: gmtime_r
+    standard:
+      - stdc
+    return_type: struct tm *
+    arguments:
+      - type: const time_t *
+      - type: struct tm *
+  - name: mktime
+    standard:
+      - stdc
+    return_type: time_t
+    arguments:
+      - type: struct tm *
+  - name: nanosleep
+    standard:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: const struct timespec *
+      - type: struct timespec *
+  - name: strftime
+    standard:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: const struct tm *__restrict
+  - name: strftime_l
+    standard:
+      - stdc
+    return_type: size_t
+    arguments:
+      - type: char *__restrict
+      - type: size_t
+      - type: const char *__restrict
+      - type: const struct tm *__restrict
+      - type: locale_t
+  - name: time
+    standard:
+      - stdc
+    return_type: time_t
+    arguments:
+      - type: time_t *
+  - name: timespec_get
+    standard:
+      - stdc
+    return_type: int
+    arguments:
+      - type: struct timespec *
+      - type: int

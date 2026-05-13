@@ -19,8 +19,26 @@ namespace internal {
 
 #include "torque-generated/src/objects/synthetic-module-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(SyntheticModule)
+Tagged<String> SyntheticModule::name() const { return name_.load(); }
+void SyntheticModule::set_name(Tagged<String> value, WriteBarrierMode mode) {
+  name_.store(this, value, mode);
+}
 
+Tagged<FixedArray> SyntheticModule::export_names() const {
+  return export_names_.load();
+}
+void SyntheticModule::set_export_names(Tagged<FixedArray> value,
+                                       WriteBarrierMode mode) {
+  export_names_.store(this, value, mode);
+}
+
+Tagged<Foreign> SyntheticModule::evaluation_steps() const {
+  return evaluation_steps_.load();
+}
+void SyntheticModule::set_evaluation_steps(Tagged<Foreign> value,
+                                           WriteBarrierMode mode) {
+  evaluation_steps_.store(this, value, mode);
+}
 }  // namespace internal
 }  // namespace v8
 

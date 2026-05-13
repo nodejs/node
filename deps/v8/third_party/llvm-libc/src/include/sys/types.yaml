@@ -1,0 +1,30 @@
+header: sys/types.h
+standards:
+  - posix
+types:
+  - type_name: blkcnt_t
+  - type_name: blksize_t
+  - type_name: clockid_t
+  - type_name: dev_t
+  - type_name: gid_t
+  - type_name: ino_t
+  - type_name: key_t
+  - type_name: mode_t
+  - type_name: nlink_t
+  - type_name: off_t
+  - type_name: pid_t
+  - type_name: pthread_attr_t
+  - type_name: pthread_cond_t
+  - type_name: pthread_condattr_t
+  - type_name: pthread_key_t
+  - type_name: pthread_mutex_t
+  - type_name: pthread_mutexattr_t
+  - type_name: pthread_once_t
+  - type_name: pthread_rwlock_t
+  - type_name: pthread_rwlockattr_t
+  - type_name: pthread_t
+  - type_name: size_t
+  - type_name: ssize_t
+  - type_name: suseconds_t
+  - type_name: time_t
+  - type_name: uid_t

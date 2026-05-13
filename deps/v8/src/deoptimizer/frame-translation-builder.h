@@ -136,12 +136,12 @@ class FrameTranslationBuilder {
   template <typename... T>
   void AddRawBegin(bool update_feedback, T... operands);
 
-  int Size() const {
+  uint32_t Size() const {
     return V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)
-               ? static_cast<int>(contents_for_compression_.size())
-               : static_cast<int>(contents_.size());
+               ? static_cast<uint32_t>(contents_for_compression_.size())
+               : static_cast<uint32_t>(contents_.size());
   }
-  int SizeInBytes() const {
+  uint32_t SizeInBytes() const {
     return V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)
                ? Size() * kInt32Size
                : Size();

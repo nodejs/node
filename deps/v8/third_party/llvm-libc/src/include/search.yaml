@@ -1,0 +1,130 @@
+header: search.h
+standards:
+  - posix
+types:
+  - type_name: ACTION
+  - type_name: ENTRY
+  - type_name: VISIT
+  - type_name: __search_compare_t
+  - type_name: struct_hsearch_data
+  - type_name: posix_tnode
+  - type_name: __action_closure_fn_t
+  - type_name: __action_fn_t
+  - type_name: __free_fn_t
+enums: []
+objects: []
+functions:
+  - name: hcreate
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: size_t
+  - name: hcreate_r
+    standards: gnu
+    return_type: int
+    arguments:
+      - type: size_t
+      - type: struct hsearch_data *
+  - name: hdestroy
+    standards: gnu
+    return_type: void
+    arguments: []
+  - name: hdestroy_r
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: struct hsearch_data *
+  - name: hsearch
+    standards:
+      - posix
+    return_type: ENTRY *
+    arguments:
+      - type: ENTRY
+      - type: ACTION
+  - name: hsearch_r
+    standards: gnu
+    return_type: int
+    arguments:
+      - type: ENTRY
+      - type: ACTION
+      - type: ENTRY * *
+      - type: struct hsearch_data *
+  - name: insque
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: void *
+      - type: void *
+  - name: remque
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: void *
+  - name: lfind
+    standards:
+      - posix
+    return_type: void *
+    arguments:
+      - type: const void *
+      - type: const void *
+      - type: size_t *
+      - type: size_t
+      - type: __search_compare_t
+  - name: lsearch
+    standards:
+      - posix
+    return_type: void *
+    arguments:
+      - type: const void *
+      - type: void *
+      - type: size_t *
+      - type: size_t
+      - type: __search_compare_t
+  - name: tdelete
+    standards:
+      - posix
+    return_type: void *
+    arguments:
+      - type: const void *__restrict
+      - type: posix_tnode **__restrict
+      - type: __search_compare_t
+  - name: tfind
+    standards:
+      - posix
+    return_type: posix_tnode *
+    arguments:
+      - type: const void *
+      - type: posix_tnode * const *
+      - type: __search_compare_t
+  - name: tsearch
+    standards:
+      - posix
+    return_type: posix_tnode *
+    arguments:
+      - type: const void *
+      - type: posix_tnode **
+      - type: __search_compare_t
+  - name: twalk
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: const posix_tnode *
+      - type: __action_fn_t
+  - name: twalk_r
+    standards: gnu
+    return_type: void
+    arguments:
+      - type: const posix_tnode *
+      - type: __action_closure_fn_t
+      - type: void *
+  - name: tdestroy
+    standards: gnu
+    return_type: void
+    arguments:
+      - type: posix_tnode *
+      - type: __free_fn_t

@@ -9,8 +9,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const kHeapObjectTag = 1;
 const kWeakHeapObjectTag = 3;
 
-const kWasmTableObjectMaximumLengthOffset = 0x14;
-const kWasmTableObjectTrustedDispatchTableOffset = 0x1c;
+const kWasmTableType = Sandbox.getInstanceTypeIdFor('WASM_TABLE_OBJECT_TYPE');
+const kWasmTableObjectMaximumLengthOffset =
+    Sandbox.getFieldOffset(kWasmTableType, 'maximum_length');
+const kWasmTableObjectTrustedDispatchTableOffset =
+    Sandbox.getFieldOffset(kWasmTableType, 'trusted_dispatch_table');
 
 let memory = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 

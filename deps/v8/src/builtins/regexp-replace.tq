@@ -112,8 +112,7 @@ transitioning macro RegExpReplaceFastGlobalCallable(
   // The FixedArray will contain holes at the end and we've lost the information
   // of its real length. This is OK because the users iterate it from the
   // beginning.
-  const matchesCapacity: Smi = Cast<Smi>(matches.length) otherwise unreachable;
-  const matchesCapacityInt: intptr = Convert<intptr>(matchesCapacity);
+  const matchesCapacityInt: intptr = matches.length_intptr;
 
   // Reload last match info since it might have changed.
   const nofCaptures: Smi = GetRegExpLastMatchInfo().number_of_capture_registers;
@@ -150,9 +149,7 @@ transitioning macro RegExpReplaceFastString(
     fastRegexp.lastIndex = 0;
 
     const data: RegExpData =
-        UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
-            fastRegexp, kJSRegExpRegExpDataOffset,
-            kRegExpDataIndirectPointerTag));
+        LoadRegExpDataFromObject(fastRegexp, kJSRegExpRegExpDataOffset);
     return RegExpReplaceGlobalSimpleString(regexp, string, data, replaceString);
   }
 

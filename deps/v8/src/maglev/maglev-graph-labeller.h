@@ -24,13 +24,15 @@ class MaglevGraphLabeller {
   struct NodeInfo {
     int label = -1;
     Provenance provenance;
+    int line_number = -1;
   };
 
   void RegisterNode(const NodeBase* node, const MaglevCompilationUnit* unit,
                     BytecodeOffset bytecode_offset, SourcePosition position) {
     if (nodes_
             .emplace(node, NodeInfo{next_node_label_,
-                                    {unit, bytecode_offset, position}})
+                                    {unit, bytecode_offset, position},
+                                    -1})
             .second) {
       next_node_label_++;
     }
@@ -47,6 +49,13 @@ class MaglevGraphLabeller {
   int NodeId(const NodeBase* node) { return nodes_[node].label; }
   const Provenance& GetNodeProvenance(const NodeBase* node) {
     return nodes_[node].provenance;
+  }
+
+  void SetNodeLineNumber(const NodeBase* node, int line_number) {
+    nodes_[node].line_number = line_number;
+  }
+  int GetNodeLineNumber(const NodeBase* node) {
+    return nodes_[node].line_number;
   }
 
   int max_node_id() const { return next_node_label_ - 1; }

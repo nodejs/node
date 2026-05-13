@@ -426,7 +426,7 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
   const JSWasmCallParameters& wasm_call_params = call_node.Parameters();
   wasm::NativeModule* native_module = wasm_call_params.native_module();
   const int fct_index = wasm_call_params.function_index();
-  TRACE("Considering wasm function ["
+  TRACE("Considering Wasm function ["
         << fct_index << "] "
         << WasmFunctionNameForTrace(native_module, fct_index) << " of module "
         << wasm_call_params.native_module() << " for inlining");
@@ -508,15 +508,8 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
     // surrounding exception handler, if present.
     subgraph_min_node_id = graph()->NodeCount();
 
-    // If we inline the body with Turboshaft later (instead of with TurboFan
-    // here), we don't know yet whether we can inline the body or not. Hence,
-    // don't set the thread-in-wasm flag now, and instead do that if _not_
-    // inlining later in Turboshaft.
-    bool set_in_wasm_flag = !(inline_result.can_inline_body ||
-                              v8_flags.turboshaft_wasm_in_js_inlining);
     BuildInlinedJSToWasmWrapper(graph()->zone(), jsgraph(), sig, isolate(),
-                                source_positions_, continuation_frame_state,
-                                set_in_wasm_flag);
+                                source_positions_, continuation_frame_state);
 
     // Extract the inlinee start/end nodes.
     wrapper_start_node = graph()->start();

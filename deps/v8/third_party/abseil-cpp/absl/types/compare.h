@@ -449,7 +449,7 @@ namespace compare_internal {
 // or three-way comparator.
 // SFINAE prevents implicit conversions to bool (such as from int).
 template <typename BoolT,
-          absl::enable_if_t<std::is_same<bool, BoolT>::value, int> = 0>
+          std::enable_if_t<std::is_same<bool, BoolT>::value, int> = 0>
 constexpr bool compare_result_as_less_than(const BoolT r) {
   return r;
 }
@@ -467,7 +467,7 @@ constexpr bool do_less_than_comparison(const Compare& compare, const K& x,
 // three-way comparator.
 // SFINAE prevents implicit conversions to int (such as from bool).
 template <typename Int,
-          absl::enable_if_t<std::is_same<int, Int>::value, int> = 0>
+          std::enable_if_t<std::is_same<int, Int>::value, int> = 0>
 constexpr absl::weak_ordering compare_result_as_ordering(const Int c) {
   return c < 0    ? absl::weak_ordering::less
          : c == 0 ? absl::weak_ordering::equivalent
@@ -479,7 +479,7 @@ constexpr absl::weak_ordering compare_result_as_ordering(
 }
 
 template <typename Compare, typename K, typename LK,
-          absl::enable_if_t<
+          std::enable_if_t<
               !std::is_same<
                   bool, absl::result_of_t<Compare(const K&, const LK&)>>::value,
               int> = 0>
@@ -488,7 +488,7 @@ constexpr absl::weak_ordering do_three_way_comparison(const Compare& compare,
   return compare_result_as_ordering(compare(x, y));
 }
 template <typename Compare, typename K, typename LK,
-          absl::enable_if_t<
+          std::enable_if_t<
               std::is_same<
                   bool, absl::result_of_t<Compare(const K&, const LK&)>>::value,
               int> = 0>

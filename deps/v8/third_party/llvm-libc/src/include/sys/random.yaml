@@ -1,0 +1,25 @@
+header: sys/random.h
+standards:
+  - linux
+macros:
+  - macro_name: GRND_RANDOM
+    macro_header: sys-random-macros.h
+types:
+  - type_name: ssize_t
+  - type_name: size_t
+enums: []
+objects: []
+functions:
+  - name: getrandom
+    return_type: ssize_t
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: unsigned int
+  - name: getentropy
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t

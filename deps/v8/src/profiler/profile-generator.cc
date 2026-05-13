@@ -346,8 +346,9 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
       entry_ == CodeEntry::root_entry()) {
     return CpuProfileNode::kInternal;
   }
-  if (entry_ == CodeEntry::unresolved_entry())
+  if (entry_ == CodeEntry::unresolved_entry()) {
     return CpuProfileNode::kUnresolved;
+  }
 
   // Otherwise, resolve based on logger tag.
   switch (entry_->code_tag()) {
@@ -429,10 +430,11 @@ void ProfileNode::Print(int indent) const {
   base::OS::Print("%5u %*s %s:%d:%d %d %d #%d", self_ticks_, indent, "",
                   entry_->name(), line_and_column.line, line_and_column.column,
                   source_type(), entry_->script_id(), id());
-  if (entry_->resource_name()[0] != '\0')
+  if (entry_->resource_name()[0] != '\0') {
     base::OS::Print(" %s:%d:%d", entry_->resource_name(),
                     entry_->line_and_column().line,
                     entry_->line_and_column().column);
+  }
   base::OS::Print("\n");
   for (const CpuProfileDeoptInfo& info : deopt_infos_) {
     base::OS::Print(
@@ -814,8 +816,9 @@ void FlattenNodesTree(const v8::CpuProfileNode* node,
                       std::vector<const v8::CpuProfileNode*>* nodes) {
   nodes->emplace_back(node);
   const int childrenCount = node->GetChildrenCount();
-  for (int i = 0; i < childrenCount; i++)
+  for (int i = 0; i < childrenCount; i++) {
     FlattenNodesTree(node->GetChild(i), nodes);
+  }
 }
 
 }  // namespace
@@ -846,17 +849,18 @@ void CpuProfileJSONSerializer::SerializePositionTicks(
 
 void CpuProfileJSONSerializer::SerializeCallFrame(
     const v8::CpuProfileNode* node) {
-  writer_->AddString("\"functionName\":\"");
-  writer_->AddString(node->GetFunctionNameStr());
-  writer_->AddString("\",\"lineNumber\":");
+  writer_->AddString("\"functionName\":");
+  writer_->AddJsonEscapedString(
+      reinterpret_cast<const unsigned char*>(node->GetFunctionNameStr()));
+  writer_->AddString(",\"lineNumber\":");
   writer_->AddNumber(node->GetLineNumber() - 1);
   writer_->AddString(",\"columnNumber\":");
   writer_->AddNumber(node->GetColumnNumber() - 1);
   writer_->AddString(",\"scriptId\":");
   writer_->AddNumber(node->GetScriptId());
-  writer_->AddString(",\"url\":\"");
-  writer_->AddString(node->GetScriptResourceNameStr());
-  writer_->AddCharacter('"');
+  writer_->AddString(",\"url\":");
+  writer_->AddJsonEscapedString(
+      reinterpret_cast<const unsigned char*>(node->GetScriptResourceNameStr()));
 }
 
 void CpuProfileJSONSerializer::SerializeChildren(const v8::CpuProfileNode* node,
@@ -888,9 +892,9 @@ void CpuProfileJSONSerializer::SerializeNode(const v8::CpuProfileNode* node) {
 
   const char* deoptReason = node->GetBailoutReason();
   if (deoptReason && deoptReason[0] && strcmp(deoptReason, "no reason")) {
-    writer_->AddString(",\"deoptReason\":\"");
-    writer_->AddString(deoptReason);
-    writer_->AddCharacter('"');
+    writer_->AddString(",\"deoptReason\":");
+    writer_->AddJsonEscapedString(
+        reinterpret_cast<const unsigned char*>(deoptReason));
   }
 
   unsigned lineCount = node->GetHitLineCount();

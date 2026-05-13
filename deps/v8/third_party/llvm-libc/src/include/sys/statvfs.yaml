@@ -1,0 +1,22 @@
+header: sys/statvfs.h
+standards:
+  - posix
+types:
+  - type_name: struct_statvfs
+  - type_name: fsblkcnt_t
+  - type_name: fsfilcnt_t
+functions:
+  - name: fstatvfs
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct statvfs *
+  - name: statvfs
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const char *__restrict
+      - type: struct statvfs *__restrict

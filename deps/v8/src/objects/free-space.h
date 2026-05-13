@@ -31,7 +31,7 @@ namespace internal {
 //    31 bits),
 // b) it's independent of the pointer compression base and pointer compression
 //    scheme.
-class FreeSpace : public HeapObjectLayout {
+class FreeSpace : public HeapObject {
  public:
   static constexpr uint32_t kMaxSizeInBytes =
       uint32_t{Smi::kMaxValue} * kTaggedSize;

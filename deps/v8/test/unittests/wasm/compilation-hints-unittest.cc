@@ -8,6 +8,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-module-builder.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -29,7 +30,7 @@ class WasmCompilationHintsBuilder {
                            ModuleTypeIndex supertype = kNoSuperType,
                            bool is_final = false) {
     return HeapType::Index(builder_.ForceAddSignature(sig, is_final, supertype),
-                           kNotShared, RefTypeKind::kFunction);
+                           SharedFlag::kNo, RefTypeKind::kFunction);
   }
 
   uint8_t DefineFunction(FunctionSig* sig,

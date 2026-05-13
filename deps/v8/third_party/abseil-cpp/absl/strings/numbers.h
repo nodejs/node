@@ -178,6 +178,10 @@ inline constexpr int kFastToBuffer128Size = 41;
 inline constexpr int kFastToBufferSize = 32;
 inline constexpr int kSixDigitsToBufferSize = 16;
 
+// Helper function used to implement absl::HighPrecision().
+char* absl_nonnull RoundTripDoubleToBuffer(double d, char* absl_nonnull buffer);
+char* absl_nonnull RoundTripFloatToBuffer(float f, char* absl_nonnull buffer);
+
 // Helper function for fast formatting of floating-point values.
 // The result is the same as printf's "%g", a.k.a. "%.6g"; that is, six
 // significant digits are returned, trailing zeros are removed, and numbers

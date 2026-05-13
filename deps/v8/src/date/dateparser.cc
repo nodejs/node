@@ -50,10 +50,11 @@ bool DateParser::DayComposer::Write(double* output) {
   }
 
   if (!is_iso_date_) {
-    if (Between(year, 0, 49))
+    if (Between(year, 0, 49)) {
       year += 2000;
-    else if (Between(year, 50, 99))
+    } else if (Between(year, 50, 99)) {
       year += 1900;
+    }
   }
 
   if (!Smi::IsValid(year) || !IsMonth(month) || !IsDay(day)) return false;

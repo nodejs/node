@@ -136,8 +136,9 @@ StandardType UpcastToStandardType(ValueTypeBase type) {
     case RefTypeKind::kCont:
       return StandardType::kCont;
     case RefTypeKind::kOther:
-      UNREACHABLE();
+      break;
   }
+  UNREACHABLE();
 }
 
 // Format: subtype, supertype
@@ -160,7 +161,9 @@ StandardType UpcastToStandardType(ValueTypeBase type) {
   /* exnref hierarchy */                                                       \
   V(NoExn, Exn)                                                                \
   /* cont hierarchy */                                                         \
-  V(NoCont, Cont)
+  V(NoCont, Cont)                                                              \
+  /* waitqueue hierarchy */                                                    \
+  V(NoWaitqueue, Waitqueue)
 
 static constexpr uint32_t kNumStandardTypes =
     value_type_impl::kNumberOfStandardTypes;
@@ -356,7 +359,7 @@ HeapType NullSentinelImpl(HeapType type) {
   if (type.is_string_view()) {
     // TODO(12868): This special case reflects unresolved discussion. If string
     // views aren't nullable, they shouldn't really show up here at all.
-    return HeapType::Generic(GenericKind::kNone, type.is_shared());
+    return type;
   }
   UNREACHABLE();
 }
@@ -399,8 +402,8 @@ std::optional<bool> IsSubtypeOf_CommonImpl(ValueTypeBase subtype,
                                            ValueTypeBase supertype) {
   DCHECK(!subtype.is_numeric() && !supertype.is_numeric());
 
-  if (subtype.is_shared() != supertype.is_shared()) return false;
   if (subtype.is_bottom()) return true;
+  if (subtype.is_shared() != supertype.is_shared()) return false;
   if (supertype.has_index()) {
     if (subtype.has_index()) {
       // Only exact types can possibly be subtypes of other exact types.
@@ -512,7 +515,7 @@ namespace {
 HeapType CommonAncestor(HeapType type1, HeapType type2,
                         const WasmModule* module) {
   DCHECK(type1.has_index() && type2.has_index());
-  bool both_shared = type1.is_shared();
+  SharedFlag both_shared = type1.is_shared();
   if (both_shared != type2.is_shared()) return HeapType{kWasmTop};
 
   ModuleTypeIndex type_index1 = type1.ref_index();
@@ -553,7 +556,7 @@ HeapType CommonAncestor(HeapType type1, HeapType type2,
 // another heap type {type2}.
 HeapType CommonAncestorWithAbstract(HeapType heap1, HeapType heap2) {
   DCHECK(heap1.is_abstract_ref());
-  bool is_shared = heap1.is_shared();
+  SharedFlag is_shared = heap1.is_shared();
   if (is_shared != heap2.is_shared()) return HeapType{kWasmTop};
 
   // If {heap2} is an indexed type, then {heap1} could be a subtype of it if

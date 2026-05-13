@@ -148,6 +148,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         DirectHandle<JSAny> receiver,
                         DirectHandle<Symbol> name);
 
+  inline InternalIndex descriptor_number() const;
+  inline InternalIndex dictionary_entry() const;
+
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;
     IsElement() ? RestartInternal<true>(state) : RestartInternal<false>(state);
@@ -231,11 +234,11 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   void ReconfigureDataProperty(DirectHandle<Object> value,
                                PropertyAttributes attributes);
   void Delete();
-  void TransitionToAccessorProperty(DirectHandle<Object> getter,
-                                    DirectHandle<Object> setter,
-                                    PropertyAttributes attributes);
-  void TransitionToAccessorPair(DirectHandle<Object> pair,
-                                PropertyAttributes attributes);
+  V8_WARN_UNUSED_RESULT Maybe<bool> TransitionToAccessorProperty(
+      DirectHandle<Object> getter, DirectHandle<Object> setter,
+      PropertyAttributes attributes);
+  V8_WARN_UNUSED_RESULT Maybe<bool> TransitionToAccessorPair(
+      DirectHandle<Object> pair, PropertyAttributes attributes);
   PropertyDetails property_details() const {
     DCHECK(has_property_);
     return property_details_;
@@ -252,8 +255,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
   FieldIndex GetFieldIndex() const;
-  int GetFieldDescriptorIndex() const;
-  int GetAccessorIndex() const;
+  InternalIndex GetFieldDescriptorIndex() const;
+  InternalIndex GetAccessorIndex() const;
   DirectHandle<PropertyCell> GetPropertyCell() const;
   DirectHandle<Object> GetAccessors() const;
   inline DirectHandle<InterceptorInfo> GetInterceptor() const;
@@ -319,6 +322,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   enum class InterceptorState {
     kUninitialized,
     kSkipNonMasking,
+    kSkipNonMaskingOwnProperty,
     kProcessNonMasking
   };
 
@@ -366,8 +370,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
   }
-  inline InternalIndex descriptor_number() const;
-  inline InternalIndex dictionary_entry() const;
 
   static inline Configuration ComputeConfiguration(Isolate* isolate,
                                                    Configuration configuration,

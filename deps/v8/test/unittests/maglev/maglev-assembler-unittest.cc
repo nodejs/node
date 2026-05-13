@@ -19,7 +19,13 @@ class MaglevAssemblerTest : public MaglevTest {
   MaglevAssemblerTest()
       : MaglevTest(),
         codegen_state(nullptr, nullptr, nullptr, 0),
-        as(isolate(), zone(), &codegen_state) {}
+        as(isolate(), zone(), &codegen_state) {
+#if V8_TARGET_ARCH_PPC64
+    // Default scratch list {r26, ip} includes callee-saved r26. Since
+    // test-generated code has no prologue, restrict to volatile ip only.
+    *as.GetScratchRegisterList() = RegList{ip};
+#endif
+  }
 
   void FinalizeAndRun(Label* pass, Label* fail) {
     as.bind(pass);

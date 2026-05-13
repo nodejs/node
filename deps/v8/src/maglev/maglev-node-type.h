@@ -137,6 +137,12 @@ inline constexpr NodeType UnionType(NodeType left, NodeType right) {
   return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
                                static_cast<NodeTypeInt>(right));
 }
+inline constexpr NodeType RemoveType(NodeType left, NodeType right) {
+  DCHECK(!NodeTypeIsNeverStandalone(left));
+  DCHECK(!NodeTypeIsNeverStandalone(right));
+  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) &
+                               ~static_cast<NodeTypeInt>(right));
+}
 // TODO(jgruber): Switch the default value back to kDefault once
 // BranchResult/BuildBranchIfFoo can signal an Abort.
 inline constexpr bool NodeTypeIs(

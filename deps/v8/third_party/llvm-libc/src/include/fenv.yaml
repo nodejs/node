@@ -1,0 +1,129 @@
+header: fenv.h
+standards:
+  - stdc
+macros:
+  - macro_name: FE_ALL_EXCEPT
+    macro_header: fenv-macros.h
+  - macro_name: FE_DIVBYZERO
+    macro_header: fenv-macros.h
+  - macro_name: FE_INEXACT
+    macro_header: fenv-macros.h
+  - macro_name: FE_INVALID
+    macro_header: fenv-macros.h
+  - macro_name: FE_OVERFLOW
+    macro_header: fenv-macros.h
+  - macro_name: FE_UNDERFLOW
+    macro_header: fenv-macros.h
+  - macro_name: FE_DOWNWARD
+    macro_header: fenv-macros.h
+  - macro_name: FE_TONEAREST
+    macro_header: fenv-macros.h
+  - macro_name: FE_TOWARDZERO
+    macro_header: fenv-macros.h
+  - macro_name: FE_UPWARD
+    macro_header: fenv-macros.h
+  - macro_name: FE_DFL_ENV
+    macro_header: fenv-macros.h
+types:
+  - type_name: fenv_t
+  - type_name: fexcept_t
+functions:
+  - name: feclearexcept
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: fedisableexcept
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: int
+    guard: null
+  - name: feenableexcept
+    standards:
+      - gnu
+    return_type: int
+    arguments:
+      - type: int
+    attributes: []
+  - name: fegetenv
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: fenv_t *
+  - name: fegetexcept
+    standards:
+      - gnu
+    return_type: int
+    arguments: []
+  - name: fegetexceptflag
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: fexcept_t *
+      - type: int
+  - name: fegetround
+    standards:
+      - stdc
+    return_type: int
+    arguments: []
+  - name: feholdexcept
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: fenv_t *
+  - name: feraiseexcept
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: fesetenv
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const fenv_t *
+  - name: fesetexcept
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: fesetexceptflag
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const fexcept_t *
+      - type: int
+  - name: fesetround
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: fetestexcept
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: fetestexceptflag
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const fexcept_t *
+      - type: int
+  - name: feupdateenv
+    standards:
+      - stdc
+    return_type: int
+    arguments:
+      - type: const fenv_t *

@@ -92,8 +92,9 @@ ConservativeMarkingVisitor::ConservativeMarkingVisitor(
 void ConservativeMarkingVisitor::VisitFullyConstructedConservatively(
     HeapObjectHeader& header) {
   if (header.IsMarked<AccessMode::kAtomic>()) {
-    if (marking_state_.IsMarkedWeakContainer(header))
+    if (marking_state_.IsMarkedWeakContainer(header)) {
       marking_state_.ReTraceMarkedWeakContainer(visitor_, header);
+    }
     return;
   }
   ConservativeTracingVisitor::VisitFullyConstructedConservatively(header);

@@ -184,8 +184,16 @@ int StringTable::NumberOfElements() const {
 // InternalizedStringKey carries a string/internalized-string object as key.
 class InternalizedStringKey final : public StringTableKey {
  public:
-  explicit InternalizedStringKey(DirectHandle<String> string, uint32_t hash)
-      : StringTableKey(hash, string->length()), string_(string) {
+  // `known_one_byte_content` is set by callers that just hashed `string` and
+  // observed via the hasher's IsOnly8Bit pass that the content fits in one
+  // byte. Used to canonicalize a 2-byte representation source string to a
+  // 1-byte internalized copy without a second content scan; false is always
+  // safe.
+  InternalizedStringKey(DirectHandle<String> string, uint32_t hash,
+                        bool known_one_byte_content = false)
+      : StringTableKey(hash, string->length()),
+        string_(string),
+        known_one_byte_content_(known_one_byte_content) {
     DCHECK_NE(0, length());
     // When sharing the string table, it's possible that another thread already
     // internalized the key, in which case StringTable::LookupKey will perform a
@@ -204,7 +212,7 @@ class InternalizedStringKey final : public StringTableKey {
   void PrepareForInsertion(Isolate* isolate) {
     StringTransitionStrategy strategy =
         isolate->factory()->ComputeInternalizationStrategyForString(
-            string_, &maybe_internalized_map_);
+            string_, &maybe_internalized_map_, known_one_byte_content_);
     switch (strategy) {
       case StringTransitionStrategy::kCopy:
         break;
@@ -216,7 +224,7 @@ class InternalizedStringKey final : public StringTableKey {
         // We can see already internalized strings here only when sharing the
         // string table and allowing concurrent internalization.
         DCHECK(v8_flags.shared_string_table);
-        internalized_string_ = string_;
+        internalized_string_ = Cast<InternalizedString>(string_);
         return;
     }
 
@@ -241,12 +249,17 @@ class InternalizedStringKey final : public StringTableKey {
       internalized_string_ =
           isolate->factory()->InternalizeExternalString<ExternalOneByteString>(
               string_);
-    } else if (can_move_resource && shape.IsExternalTwoByte()) {
+    } else if (can_move_resource && shape.IsExternalTwoByte() &&
+               !known_one_byte_content_) {
       // Shared external strings are always in-place internalizable.
       // If this assumption is invalidated in the future, make sure that we
       // fully initialize (copy contents) for shared external strings, as the
       // original string is not transitioned to a ThinString (setting the
       // resource) immediately.
+      // External two-byte strings whose content fits in one byte fall through
+      // to NewInternalizedStringImpl below, which allocates a SeqOneByteString.
+      // The original external resource stays alive on the source string until
+      // it is migrated by MakeThin.
       DCHECK(!shape.IsShared());
       internalized_string_ =
           isolate->factory()->InternalizeExternalString<ExternalTwoByteString>(
@@ -254,11 +267,11 @@ class InternalizedStringKey final : public StringTableKey {
     } else {
       // Otherwise allocate a new internalized string.
       internalized_string_ = isolate->factory()->NewInternalizedStringImpl(
-          string_, length(), raw_hash_field());
+          string_, length(), raw_hash_field(), known_one_byte_content_);
     }
   }
 
-  DirectHandle<String> GetHandleForInsertion(Isolate* isolate) {
+  DirectHandle<InternalizedString> GetHandleForInsertion(Isolate* isolate) {
     DirectHandle<Map> internalized_map;
     // When preparing the string, the strategy was to in-place migrate it.
     if (maybe_internalized_map_.ToHandle(&internalized_map)) {
@@ -268,8 +281,7 @@ class InternalizedStringKey final : public StringTableKey {
       // misses inside the critical section.
       string_->set_map_safe_transition_no_write_barrier(isolate,
                                                         *internalized_map);
-      DCHECK(IsInternalizedString(*string_));
-      return string_;
+      return Cast<InternalizedString>(string_);
     }
     // We prepared an internalized copy for the string or the string was already
     // internalized.
@@ -283,7 +295,7 @@ class InternalizedStringKey final : public StringTableKey {
 
   bool IsThinString() override { return Is<ThinString>(*string_); }
 
-  Tagged<String> UnwrapThinString() override {
+  Tagged<InternalizedString> UnwrapThinString() override {
     return Cast<ThinString>(*string_)->actual();
   }
 
@@ -294,14 +306,15 @@ class InternalizedStringKey final : public StringTableKey {
   // internalized external strings don't set the resource directly (deferred to
   // MakeThin to ensure unique ownership of the resource), and thus would break
   // equality checks in case of hash collisions.
-  MaybeDirectHandle<String> internalized_string_;
+  MaybeDirectHandle<InternalizedString> internalized_string_;
   MaybeDirectHandle<Map> maybe_internalized_map_;
+  bool known_one_byte_content_;
 };
 
 namespace {
 
 void SetInternalizedReference(Isolate* isolate, Tagged<String> string,
-                              Tagged<String> internalized) {
+                              Tagged<InternalizedString> internalized) {
   DCHECK(!IsThinString(string));
   DCHECK(!IsInternalizedString(string));
   DCHECK(IsInternalizedString(internalized));
@@ -349,8 +362,8 @@ void SetInternalizedReference(Isolate* isolate, Tagged<String> string,
 
 }  // namespace
 
-DirectHandle<String> StringTable::LookupString(Isolate* isolate,
-                                               DirectHandle<String> string) {
+DirectHandle<InternalizedString> StringTable::LookupString(
+    Isolate* isolate, DirectHandle<String> string) {
   // When sharing the string table, internalization is allowed to be concurrent
   // from multiple Isolates, assuming that:
   //
@@ -379,10 +392,11 @@ DirectHandle<String> StringTable::LookupString(Isolate* isolate,
   //
   // For lookup hits, we use the StringForwardingTable for shared strings to
   // delay the transition into a ThinString to the next stop-the-world GC.
-  DirectHandle<String> result =
+  DirectHandle<InternalizedString> result;
+  DirectHandle<String> flat_string =
       String::Flatten(isolate, indirect_handle(string, isolate));
-  if (!IsInternalizedString(*result)) {
-    uint32_t raw_hash_field = result->raw_hash_field(kAcquireLoad);
+  if (!TryCast<InternalizedString>(flat_string, &result)) {
+    uint32_t raw_hash_field = flat_string->raw_hash_field(kAcquireLoad);
 
     if (String::IsInternalizedForwardingIndex(raw_hash_field)) {
       const int index =
@@ -391,22 +405,63 @@ DirectHandle<String> StringTable::LookupString(Isolate* isolate,
           isolate->string_forwarding_table()->GetForwardString(isolate, index),
           isolate);
     } else {
+      // Capture whether the hasher's IsOnly8Bit pass observed all-one-byte
+      // content, so the table key can ask for a canonicalized one-byte
+      // internalized copy without a second scan. Only meaningful if we run
+      // the hasher here; for already-hashed strings or strings hashed via a
+      // forwarding-table lookup the value stays false and we fall back to
+      // map-keyed encoding.
+      bool one_byte_content = false;
       if (!Name::IsHashFieldComputed(raw_hash_field)) {
-        raw_hash_field = result->EnsureRawHash();
+        raw_hash_field = flat_string->EnsureRawHash(&one_byte_content);
       }
-      InternalizedStringKey key(result, raw_hash_field);
+      InternalizedStringKey key(flat_string, raw_hash_field, one_byte_content);
       result = LookupKey(isolate, &key);
     }
   }
+
   if (*string != *result && !IsThinString(*string)) {
     SetInternalizedReference(isolate, *string, *result);
   }
   return result;
 }
 
+bool StringTable::HasString(Isolate* isolate, DirectHandle<String> string) {
+  DirectHandle<InternalizedString> result;
+  DirectHandle<String> flat_string =
+      String::Flatten(isolate, indirect_handle(string, isolate));
+  if (TryCast<InternalizedString>(flat_string, &result)) return true;
+
+  uint32_t raw_hash_field = flat_string->raw_hash_field(kAcquireLoad);
+  if (String::IsInternalizedForwardingIndex(raw_hash_field)) return true;
+
+  if (!Name::IsHashFieldComputed(raw_hash_field)) {
+    raw_hash_field = flat_string->EnsureRawHash();
+  }
+  InternalizedStringKey key(flat_string, raw_hash_field);
+  return TryLookupKey(isolate, &key).has_value();
+}
+
 template <typename StringTableKey, typename IsolateT>
-DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
-                                            StringTableKey* key) {
+std::optional<DirectHandle<InternalizedString>> StringTable::TryLookupKey(
+    IsolateT* isolate, StringTableKey* key) {
+  // See LookupKey for the concurrency safety argument.
+  Data* const current_data = data_.load(std::memory_order_acquire);
+  OffHeapStringHashSet& current_table = current_data->table();
+  InternalIndex entry = current_table.FindEntry(isolate, key, key->hash());
+  if (entry.is_not_found()) return std::nullopt;
+  return direct_handle(
+      Cast<InternalizedString>(current_table.GetKey(isolate, entry)), isolate);
+}
+
+template std::optional<DirectHandle<InternalizedString>>
+StringTable::TryLookupKey(Isolate* isolate, OneByteStringKey* key);
+template std::optional<DirectHandle<InternalizedString>>
+StringTable::TryLookupKey(Isolate* isolate, SeqOneByteSubStringKey* key);
+
+template <typename StringTableKey, typename IsolateT>
+DirectHandle<InternalizedString> StringTable::LookupKey(IsolateT* isolate,
+                                                        StringTableKey* key) {
   // String table lookups are allowed to be concurrent, assuming that:
   //
   //   - The Heap access is allowed to be concurrent (using LocalHeap or
@@ -441,23 +496,16 @@ DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
   // allocation if another write also did an allocation. This assumes that
   // writes are rarer than reads.
 
-  // Load the current string table data, in case another thread updates the
-  // data while we're reading.
-  Data* const current_data = data_.load(std::memory_order_acquire);
-  OffHeapStringHashSet& current_table = current_data->table();
-
   // First try to find the string in the table. This is safe to do even if the
   // table is now reallocated; we won't find a stale entry in the old table
   // because the new table won't delete it's corresponding entry until the
   // string is dead, in which case it will die in this table too and worst
   // case we'll have a false miss.
-  InternalIndex entry = current_table.FindEntry(isolate, key, key->hash());
-  if (entry.is_found()) {
-    DirectHandle<String> result(
-        Cast<String>(current_table.GetKey(isolate, entry)), isolate);
+  auto result = TryLookupKey(isolate, key);
+  if (result) {
     DCHECK_IMPLIES(v8_flags.shared_string_table,
-                   HeapLayout::InAnySharedSpace(*result));
-    return result;
+                   HeapLayout::InAnySharedSpace(*result.value()));
+    return result.value();
   }
 
   // No entry found, so adding new string.
@@ -475,52 +523,55 @@ DirectHandle<String> StringTable::LookupKey(IsolateT* isolate,
     // the internalized string. Otherwise it's not a ThinString and we can
     // continue inserting.
     if (key->IsThinString()) {
-      return DirectHandle<String>(key->UnwrapThinString(), isolate);
+      return direct_handle(key->UnwrapThinString(), isolate);
     }
 
     // Check one last time if the key is present in the table, in case it was
     // added after the check.
-    entry = table.FindEntryOrInsertionEntry(isolate, key, key->hash());
+    InternalIndex entry =
+        table.FindEntryOrInsertionEntry(isolate, key, key->hash());
 
     Tagged<Object> element = table.GetKey(isolate, entry);
     if (element == OffHeapStringHashSet::empty_element()) {
       // This entry is empty, so write it and register that we added an
       // element.
-      DirectHandle<String> new_string = key->GetHandleForInsertion(isolate_);
+      DirectHandle<InternalizedString> new_string =
+          key->GetHandleForInsertion(isolate_);
       DCHECK_IMPLIES(v8_flags.shared_string_table, new_string->IsShared());
       table.AddAt(isolate, entry, *new_string);
       return new_string;
     } else if (element == OffHeapStringHashSet::deleted_element()) {
       // This entry was deleted, so overwrite it and register that we
       // overwrote a deleted element.
-      DirectHandle<String> new_string = key->GetHandleForInsertion(isolate_);
+      DirectHandle<InternalizedString> new_string =
+          key->GetHandleForInsertion(isolate_);
       DCHECK_IMPLIES(v8_flags.shared_string_table, new_string->IsShared());
       table.OverwriteDeletedAt(isolate, entry, *new_string);
       return new_string;
     } else {
       // Return the existing string as a handle.
-      return direct_handle(Cast<String>(element), isolate);
+      return direct_handle(Cast<InternalizedString>(element), isolate);
     }
   }
 }
 
-template DirectHandle<String> StringTable::LookupKey(Isolate* isolate,
-                                                     OneByteStringKey* key);
-template DirectHandle<String> StringTable::LookupKey(Isolate* isolate,
-                                                     TwoByteStringKey* key);
-template DirectHandle<String> StringTable::LookupKey(
+template DirectHandle<InternalizedString> StringTable::LookupKey(
+    Isolate* isolate, OneByteStringKey* key);
+template DirectHandle<InternalizedString> StringTable::LookupKey(
+    Isolate* isolate, TwoByteStringKey* key);
+template DirectHandle<InternalizedString> StringTable::LookupKey(
     Isolate* isolate, SeqOneByteSubStringKey* key);
-template DirectHandle<String> StringTable::LookupKey(
+template DirectHandle<InternalizedString> StringTable::LookupKey(
     Isolate* isolate, SeqTwoByteSubStringKey* key);
 
-template DirectHandle<String> StringTable::LookupKey(LocalIsolate* isolate,
-                                                     OneByteStringKey* key);
-template DirectHandle<String> StringTable::LookupKey(LocalIsolate* isolate,
-                                                     TwoByteStringKey* key);
+template DirectHandle<InternalizedString> StringTable::LookupKey(
+    LocalIsolate* isolate, OneByteStringKey* key);
+template DirectHandle<InternalizedString> StringTable::LookupKey(
+    LocalIsolate* isolate, TwoByteStringKey* key);
 
-template DirectHandle<String> StringTable::LookupKey(
+template DirectHandle<InternalizedString> StringTable::LookupKey(
     Isolate* isolate, StringTableInsertionKey* key);
-template DirectHandle<String> StringTable::LookupKey(
+template DirectHandle<InternalizedString> StringTable::LookupKey(
     LocalIsolate* isolate, StringTableInsertionKey* key);
 
 StringTable::Data* StringTable::EnsureCapacity(PtrComprCageBase cage_base,
@@ -553,15 +604,17 @@ template <typename Char>
 class CharBuffer {
  public:
   void Reset(size_t length) {
-    if (length >= kInlinedBufferSize)
+    if (length >= kInlinedBufferSize) {
       outofline_ = std::make_unique<Char[]>(length);
+    }
   }
 
   Char* Data() {
-    if (outofline_)
+    if (outofline_) {
       return outofline_.get();
-    else
+    } else {
       return inlined_;
+    }
   }
 
  private:
@@ -604,7 +657,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   const Char* chars;
 
   SharedStringAccessGuardIfNeeded access_guard(isolate);
-  if (IsConsString(source, isolate)) {
+  if (IsConsString(source)) {
     DCHECK(!source->IsFlat());
     buffer.Reset(length);
     String::WriteToFlat(source, buffer.Data(), 0, length, access_guard);
@@ -617,7 +670,13 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     raw_hash_field =
         StringHasher::HashSequentialString<Char>(chars, length, seed);
   }
-  // TODO(verwaest): Internalize to one-byte when possible.
+  // Note: this is a lookup-only function. When `Char` is uint16_t but the
+  // content is all-ASCII, lookups still hit existing one-byte entries via
+  // cross-encoding equality in SequentialStringKey::IsMatch. On a miss we
+  // return kNotFound; the caller falls back to StringTable::LookupString,
+  // which threads the hasher's IsOnly8Bit answer down to
+  // NewInternalizedStringImpl so the new entry is allocated as a one-byte
+  // internalized string when the content fits.
   SequentialStringKey<Char> key(raw_hash_field,
                                 base::Vector<const Char>(chars, length));
 
@@ -644,8 +703,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     return Smi::FromInt(ResultSentinel::kNotFound).ptr();
   }
 
-  Tagged<String> internalized =
-      Cast<String>(string_table_data->table().GetKey(isolate, entry));
+  Tagged<InternalizedString> internalized = Cast<InternalizedString>(
+      string_table_data->table().GetKey(isolate, entry));
   // string can be internalized here, if another thread internalized it.
   // If we found and entry in the string table and string is not internalized,
   // there is no way that it can transition to internalized later on. So a last
@@ -701,7 +760,8 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
 }
 
 void StringTable::InsertForIsolateDeserialization(
-    Isolate* isolate, const base::Vector<DirectHandle<String>>& strings) {
+    Isolate* isolate,
+    const base::Vector<DirectHandle<InternalizedString>>& strings) {
   DCHECK_EQ(NumberOfElements(), 0);
 
   const int length = static_cast<int>(strings.size());
@@ -710,7 +770,7 @@ void StringTable::InsertForIsolateDeserialization(
 
     Data* const data = EnsureCapacity(isolate, length);
 
-    for (const DirectHandle<String>& s : strings) {
+    for (const DirectHandle<InternalizedString>& s : strings) {
       StringTableInsertionKey key(
           isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
       InternalIndex entry =

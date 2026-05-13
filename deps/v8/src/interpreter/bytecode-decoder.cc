@@ -80,10 +80,8 @@ V8_NOINLINE
 
 DISABLE_TSAN
 #endif
-uint32_t BytecodeDecoder::RacyDecodeEmbeddedFeedback(Address operand_start) {
-  uint16_t value;
-  memcpy(&value, reinterpret_cast<const void*>(operand_start), sizeof(value));
-  return value;
+uint8_t BytecodeDecoder::RacyDecodeEmbeddedFeedback(Address operand_start) {
+  return *reinterpret_cast<const uint8_t*>(operand_start);
 }
 
 namespace {
@@ -183,8 +181,9 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << "]";
         break;
       case interpreter::OperandType::kEmbeddedFeedback:
-        os << "EmbeddedFeedback[0x" << std::hex
-           << RacyDecodeEmbeddedFeedback(operand_start) << std::dec << "]";
+        os << "EmbeddedFeedback["
+           << static_cast<uint32_t>(RacyDecodeEmbeddedFeedback(operand_start))
+           << "]";
         break;
       case interpreter::OperandType::kContextSlot:
         // TODO(leszeks): If we had the Context here we could print the context

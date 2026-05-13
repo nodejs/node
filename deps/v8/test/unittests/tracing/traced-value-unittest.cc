@@ -95,8 +95,9 @@ TEST_F(TracedValueTest, LongStrings) {
   std::string long_string = "supercalifragilisticexpialidocious";
   std::string long_string2 = "0123456789012345678901234567890123456789";
   char long_string3[4096];
-  for (size_t i = 0; i < sizeof(long_string3); ++i)
+  for (size_t i = 0; i < sizeof(long_string3); ++i) {
     long_string3[i] = static_cast<char>('a' + (i % 26));
+  }
   long_string3[sizeof(long_string3) - 1] = '\0';
 
   auto value = TracedValue::Create();

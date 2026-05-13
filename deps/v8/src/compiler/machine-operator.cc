@@ -94,8 +94,8 @@ std::ostream& operator<<(std::ostream& os, MemoryAccessKind kind) {
       return os << "kNormal";
     case MemoryAccessKind::kUnaligned:
       return os << "kUnaligned";
-    case MemoryAccessKind::kProtectedByTrapHandler:
-      return os << "kProtected";
+    case MemoryAccessKind::kTrapping:
+      return os << "kTrapping";
   }
   UNREACHABLE();
 }
@@ -218,7 +218,7 @@ bool operator==(StoreLaneParameters lhs, StoreLaneParameters rhs) {
 
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
-         IrOpcode::kProtectedLoad == op->opcode() ||
+         IrOpcode::kTrappingLoad == op->opcode() ||
          IrOpcode::kLoadTrapOnNull == op->opcode() ||
          IrOpcode::kUnalignedLoad == op->opcode() ||
          IrOpcode::kLoadImmutable == op->opcode());
@@ -238,7 +238,7 @@ AtomicOpParameters AtomicOpParametersOf(Operator const* op) {
 
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
-         IrOpcode::kProtectedStore == op->opcode() ||
+         IrOpcode::kTrappingStore == op->opcode() ||
          IrOpcode::kStoreTrapOnNull == op->opcode() ||
          IrOpcode::kStoreIndirectPointer == op->opcode());
   return OpParameter<StoreRepresentation>(op);
@@ -366,404 +366,406 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
 #define PURE_SIMD_OP_LIST(V)                                                   \
-  IF_WASM(V, F64x2Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F64x2Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F64x2Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F64x2Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F64x2Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F64x2Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F64x2Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F64x2Div, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F64x2Min, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F64x2Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F64x2Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F64x2Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F64x2Lt, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F64x2Le, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F64x2Qfma, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F64x2Pmin, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F64x2Pmax, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F64x2Ceil, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F64x2Floor, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F64x2Trunc, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F64x2NearestInt, Operator::kNoProperties, 1, 0, 1)                \
-  IF_WASM(V, F64x2ConvertLowI32x4S, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, F64x2ConvertLowI32x4U, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, F64x2PromoteLowF32x4, Operator::kNoProperties, 1, 0, 1)           \
-  IF_WASM(V, F32x4Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F32x4Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F32x4Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F32x4Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F32x4Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F32x4Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F32x4Div, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F32x4Min, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F32x4Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F32x4Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F32x4Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F32x4Lt, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F32x4Le, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F32x4Qfma, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F32x4Pmin, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F32x4Pmax, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F32x4Ceil, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F32x4Floor, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F32x4Trunc, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F32x4NearestInt, Operator::kNoProperties, 1, 0, 1)                \
-  IF_WASM(V, F32x4DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)           \
-  IF_WASM(V, F16x8Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F16x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F16x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F16x8Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F16x8Ceil, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F16x8Floor, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F16x8Trunc, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F16x8NearestInt, Operator::kNoProperties, 1, 0, 1)                \
-  IF_WASM(V, F16x8Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F16x8Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F16x8Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F16x8Div, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F16x8Min, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F16x8Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F16x8Pmin, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F16x8Pmax, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F16x8Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F16x8Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F16x8Lt, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F16x8Le, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F16x8SConvertI16x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F16x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I16x8UConvertF16x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I16x8SConvertF16x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F16x8DemoteF32x4Zero, Operator::kNoProperties, 1, 0, 1)           \
-  IF_WASM(V, F16x8DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)           \
-  IF_WASM(V, F32x4PromoteLowF16x8, Operator::kNoProperties, 1, 0, 1)           \
-  IF_WASM(V, F16x8Qfma, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F16x8Qfms, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, I64x4Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, I64x2Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)              \
-  IF_WASM(V, I64x2Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I64x2Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I64x2SConvertI32x4Low, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, I64x2SConvertI32x4High, Operator::kNoProperties, 1, 0, 1)         \
-  IF_WASM(V, I64x2UConvertI32x4Low, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, I64x2UConvertI32x4High, Operator::kNoProperties, 1, 0, 1)         \
-  IF_WASM(V, I64x2BitMask, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I64x2Shl, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I64x2Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I64x2Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I64x2Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I64x2Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I64x2Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I64x2GtS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I64x2GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I64x2ExtMulLowI32x4S, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I64x2ExtMulHighI32x4S, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I64x2ExtMulLowI32x4U, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I64x2ExtMulHighI32x4U, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I32x8Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, I32x4Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)         \
-  IF_WASM(V, I32x4Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I32x4Shl, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x4Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I32x4Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x4Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I32x4MinS, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I32x4MaxS, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I32x4Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I32x4Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I32x4GtS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x4GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)         \
-  IF_WASM(V, I32x4ShrU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x4MinU, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I32x4MaxU, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I32x4GtU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x4GeU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x4Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I32x4BitMask, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I32x4DotI16x8S, Operator::kCommutative, 2, 0, 1)                  \
-  IF_WASM(V, I32x4ExtMulLowI16x8S, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I32x4ExtMulHighI16x8S, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I32x4ExtMulLowI16x8U, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I32x4ExtMulHighI16x8U, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I32x4ExtAddPairwiseI16x8S, Operator::kNoProperties, 1, 0, 1)      \
-  IF_WASM(V, I32x4ExtAddPairwiseI16x8U, Operator::kNoProperties, 1, 0, 1)      \
-  IF_WASM(V, I32x4TruncSatF64x2SZero, Operator::kNoProperties, 1, 0, 1)        \
-  IF_WASM(V, I32x4TruncSatF64x2UZero, Operator::kNoProperties, 1, 0, 1)        \
-  IF_WASM(V, I16x16Splat, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_WASM(V, I16x8Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)         \
-  IF_WASM(V, I16x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I16x8Shl, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)             \
-  IF_WASM(V, I16x8Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I16x8AddSatS, Operator::kCommutative, 2, 0, 1)                    \
-  IF_WASM(V, I16x8Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x8SubSatS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_WASM(V, I16x8Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I16x8MinS, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I16x8MaxS, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I16x8Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I16x8Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I16x8GtS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x8GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)          \
-  IF_WASM(V, I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)         \
-  IF_WASM(V, I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)             \
-  IF_WASM(V, I16x8AddSatU, Operator::kCommutative, 2, 0, 1)                    \
-  IF_WASM(V, I16x8SubSatU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_WASM(V, I16x8MinU, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I16x8MaxU, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I16x8GtU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x8GeU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I16x8Q15MulRSatS, Operator::kCommutative, 2, 0, 1)                \
-  IF_WASM(V, I16x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I16x8BitMask, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I16x8ExtMulLowI8x16S, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I16x8ExtMulHighI8x16S, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I16x8ExtMulLowI8x16U, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I16x8ExtMulHighI8x16U, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I16x8ExtAddPairwiseI8x16S, Operator::kNoProperties, 1, 0, 1)      \
-  IF_WASM(V, I16x8ExtAddPairwiseI8x16U, Operator::kNoProperties, 1, 0, 1)      \
-  IF_WASM(V, I8x32Splat, Operator::kNoProperties, 1, 0, 1)                     \
+  IF_SIMD128(V, F64x2Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F64x2Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, F64x2Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, F64x2Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD128(V, F64x2Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, F64x2Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, F64x2Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, F64x2Div, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, F64x2Min, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD128(V, F64x2Max, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD128(V, F64x2Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, F64x2Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, F64x2Lt, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD128(V, F64x2Le, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD128(V, F64x2Qfma, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD128(V, F64x2Qfms, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD128(V, F64x2Pmin, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, F64x2Pmax, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, F64x2Ceil, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD128(V, F64x2Floor, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F64x2Trunc, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F64x2NearestInt, Operator::kNoProperties, 1, 0, 1)             \
+  IF_SIMD128(V, F64x2ConvertLowI32x4S, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, F64x2ConvertLowI32x4U, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, F64x2PromoteLowF32x4, Operator::kNoProperties, 1, 0, 1)        \
+  IF_SIMD128(V, F32x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F32x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, F32x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, F32x4Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, F32x4Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, F32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD128(V, F32x4Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, F32x4Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, F32x4Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, F32x4Div, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, F32x4Min, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD128(V, F32x4Max, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD128(V, F32x4Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, F32x4Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, F32x4Lt, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD128(V, F32x4Le, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD128(V, F32x4Qfma, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD128(V, F32x4Qfms, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD128(V, F32x4Pmin, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, F32x4Pmax, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, F32x4Ceil, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD128(V, F32x4Floor, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F32x4Trunc, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F32x4NearestInt, Operator::kNoProperties, 1, 0, 1)             \
+  IF_SIMD128(V, F32x4DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)        \
+  IF_SIMD128(V, F16x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F16x8Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, F16x8Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, F16x8Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD128(V, F16x8Ceil, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD128(V, F16x8Floor, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F16x8Trunc, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, F16x8NearestInt, Operator::kNoProperties, 1, 0, 1)             \
+  IF_SIMD128(V, F16x8Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, F16x8Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, F16x8Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, F16x8Div, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, F16x8Min, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD128(V, F16x8Max, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD128(V, F16x8Pmin, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, F16x8Pmax, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, F16x8Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, F16x8Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, F16x8Lt, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD128(V, F16x8Le, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD128(V, F16x8SConvertI16x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, F16x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, I16x8UConvertF16x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, I16x8SConvertF16x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, F16x8DemoteF32x4Zero, Operator::kNoProperties, 1, 0, 1)        \
+  IF_SIMD128(V, F16x8DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)        \
+  IF_SIMD128(V, F32x4PromoteLowF16x8, Operator::kNoProperties, 1, 0, 1)        \
+  IF_SIMD128(V, F16x8Qfma, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD128(V, F16x8Qfms, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD256(V, I64x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, I64x2Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)           \
+  IF_SIMD128(V, I64x2Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I64x2Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I64x2SConvertI32x4Low, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, I64x2SConvertI32x4High, Operator::kNoProperties, 1, 0, 1)      \
+  IF_SIMD128(V, I64x2UConvertI32x4Low, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, I64x2UConvertI32x4High, Operator::kNoProperties, 1, 0, 1)      \
+  IF_SIMD128(V, I64x2BitMask, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I64x2Shl, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I64x2ShrS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I64x2Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I64x2Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I64x2Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I64x2Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I64x2Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I64x2GtS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I64x2GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I64x2ShrU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I64x2ExtMulLowI32x4S, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I64x2ExtMulHighI32x4S, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I64x2ExtMulLowI32x4U, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I64x2ExtMulHighI32x4U, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD256(V, I32x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, I32x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, I32x4SConvertI16x8High, Operator::kNoProperties, 1, 0, 1)      \
+  IF_SIMD128(V, I32x4Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I32x4Shl, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4ShrS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I32x4Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I32x4Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I32x4MinS, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4MaxS, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I32x4Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I32x4GtS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4UConvertF32x4, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD128(V, I32x4UConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, I32x4UConvertI16x8High, Operator::kNoProperties, 1, 0, 1)      \
+  IF_SIMD128(V, I32x4ShrU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I32x4MinU, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4MaxU, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4GtU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4GeU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I32x4Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I32x4BitMask, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I32x4DotI16x8S, Operator::kCommutative, 2, 0, 1)               \
+  IF_SIMD128(V, I32x4ExtMulLowI16x8S, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I32x4ExtMulHighI16x8S, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I32x4ExtMulLowI16x8U, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I32x4ExtMulHighI16x8U, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I32x4ExtAddPairwiseI16x8S, Operator::kNoProperties, 1, 0, 1)   \
+  IF_SIMD128(V, I32x4ExtAddPairwiseI16x8U, Operator::kNoProperties, 1, 0, 1)   \
+  IF_SIMD128(V, I32x4TruncSatF64x2SZero, Operator::kNoProperties, 1, 0, 1)     \
+  IF_SIMD128(V, I32x4TruncSatF64x2UZero, Operator::kNoProperties, 1, 0, 1)     \
+  IF_SIMD256(V, I16x16Splat, Operator::kNoProperties, 1, 0, 1)                 \
+  IF_SIMD128(V, I16x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)      \
+  IF_SIMD128(V, I16x8Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I16x8Shl, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8ShrS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I16x8SConvertI32x4, Operator::kNoProperties, 2, 0, 1)          \
+  IF_SIMD128(V, I16x8Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I16x8AddSatS, Operator::kCommutative, 2, 0, 1)                 \
+  IF_SIMD128(V, I16x8Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8SubSatS, Operator::kNoProperties, 2, 0, 1)                \
+  IF_SIMD128(V, I16x8Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I16x8MinS, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8MaxS, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I16x8Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I16x8GtS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8UConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)       \
+  IF_SIMD128(V, I16x8UConvertI8x16High, Operator::kNoProperties, 1, 0, 1)      \
+  IF_SIMD128(V, I16x8ShrU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I16x8UConvertI32x4, Operator::kNoProperties, 2, 0, 1)          \
+  IF_SIMD128(V, I16x8AddSatU, Operator::kCommutative, 2, 0, 1)                 \
+  IF_SIMD128(V, I16x8SubSatU, Operator::kNoProperties, 2, 0, 1)                \
+  IF_SIMD128(V, I16x8MinU, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8MaxU, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8GtU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8GeU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I16x8Q15MulRSatS, Operator::kCommutative, 2, 0, 1)             \
+  IF_SIMD128(V, I16x8Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I16x8BitMask, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I16x8ExtMulLowI8x16S, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I16x8ExtMulHighI8x16S, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I16x8ExtMulLowI8x16U, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I16x8ExtMulHighI8x16U, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I16x8ExtAddPairwiseI8x16S, Operator::kNoProperties, 1, 0, 1)   \
+  IF_SIMD128(V, I16x8ExtAddPairwiseI8x16U, Operator::kNoProperties, 1, 0, 1)   \
+  IF_SIMD256(V, I8x32Splat, Operator::kNoProperties, 1, 0, 1)                  \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                              \
-  IF_WASM(V, F64x4Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, F32x8Splat, Operator::kNoProperties, 1, 0, 1)                     \
-  IF_WASM(V, I8x16Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I8x16Shl, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)             \
-  IF_WASM(V, I8x16Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I8x16AddSatS, Operator::kCommutative, 2, 0, 1)                    \
-  IF_WASM(V, I8x16Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x16SubSatS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_WASM(V, I8x16MinS, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I8x16MaxS, Operator::kCommutative, 2, 0, 1)                       \
+  IF_SIMD256(V, F64x4Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD256(V, F32x8Splat, Operator::kNoProperties, 1, 0, 1)                  \
+  IF_SIMD128(V, I8x16Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD128(V, I8x16Shl, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I8x16SConvertI16x8, Operator::kNoProperties, 2, 0, 1)          \
+  IF_SIMD128(V, I8x16Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD128(V, I8x16AddSatS, Operator::kCommutative, 2, 0, 1)                 \
+  IF_SIMD128(V, I8x16Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16SubSatS, Operator::kNoProperties, 2, 0, 1)                \
+  IF_SIMD128(V, I8x16MinS, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16MaxS, Operator::kCommutative, 2, 0, 1)                    \
   V(I8x16Eq, Operator::kCommutative, 2, 0, 1)                                  \
-  IF_WASM(V, I8x16Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I8x16GtS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x16GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)             \
-  IF_WASM(V, I8x16AddSatU, Operator::kCommutative, 2, 0, 1)                    \
-  IF_WASM(V, I8x16SubSatU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_WASM(V, I8x16MinU, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I8x16MaxU, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I8x16GtU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x16GeU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I8x16Popcnt, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_WASM(V, I8x16Abs, Operator::kNoProperties, 1, 0, 1)                       \
+  IF_SIMD128(V, I8x16Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD128(V, I8x16GtS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16ShrU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD128(V, I8x16UConvertI16x8, Operator::kNoProperties, 2, 0, 1)          \
+  IF_SIMD128(V, I8x16AddSatU, Operator::kCommutative, 2, 0, 1)                 \
+  IF_SIMD128(V, I8x16SubSatU, Operator::kNoProperties, 2, 0, 1)                \
+  IF_SIMD128(V, I8x16MinU, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16MaxU, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16GtU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16GeU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD128(V, I8x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD128(V, I8x16Popcnt, Operator::kNoProperties, 1, 0, 1)                 \
+  IF_SIMD128(V, I8x16Abs, Operator::kNoProperties, 1, 0, 1)                    \
   V(I8x16BitMask, Operator::kNoProperties, 1, 0, 1)                            \
-  IF_WASM(V, S128Zero, Operator::kNoProperties, 0, 0, 1)                       \
-  IF_WASM(V, S128And, Operator::kAssociative | Operator::kCommutative, 2, 0,   \
-          1)                                                                   \
-  IF_WASM(V, S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  IF_WASM(V, S128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0,   \
-          1)                                                                   \
-  IF_WASM(V, S128Not, Operator::kNoProperties, 1, 0, 1)                        \
-  IF_WASM(V, S128Select, Operator::kNoProperties, 3, 0, 1)                     \
-  IF_WASM(V, S128AndNot, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, V128AnyTrue, Operator::kNoProperties, 1, 0, 1)                    \
-  IF_WASM(V, I64x2AllTrue, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I32x4AllTrue, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I8x16AllTrue, Operator::kNoProperties, 1, 0, 1)                   \
-  IF_WASM(V, I8x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I16x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I32x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I64x2RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, F32x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F32x8RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F32x8RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F64x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, F64x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)                \
-  IF_WASM(V, I32x4RelaxedTruncF32x4S, Operator::kNoProperties, 1, 0, 1)        \
-  IF_WASM(V, I32x4RelaxedTruncF32x4U, Operator::kNoProperties, 1, 0, 1)        \
-  IF_WASM(V, I32x4RelaxedTruncF64x2SZero, Operator::kNoProperties, 1, 0, 1)    \
-  IF_WASM(V, I32x4RelaxedTruncF64x2UZero, Operator::kNoProperties, 1, 0, 1)    \
-  IF_WASM(V, I16x8RelaxedQ15MulRS, Operator::kCommutative, 2, 0, 1)            \
-  IF_WASM(V, I16x8DotI8x16I7x16S, Operator::kNoProperties, 2, 0, 1)            \
-  IF_WASM(V, I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, F64x4Min, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F64x4Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F64x4Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F64x4Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F64x4Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F32x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F32x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, F32x8Sqrt, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, F32x8Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I64x4Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I32x8Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I16x16Add, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I8x32Add, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F64x4Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F32x8Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I64x4Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x8Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x16Sub, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I8x32Sub, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F64x4Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F32x8Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I64x4Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I32x8Mul, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I16x16Mul, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, F64x4Div, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, F32x8Div, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x16AddSatS, Operator::kCommutative, 2, 0, 1)                   \
-  IF_WASM(V, I8x32AddSatS, Operator::kCommutative, 2, 0, 1)                    \
-  IF_WASM(V, I16x16AddSatU, Operator::kCommutative, 2, 0, 1)                   \
-  IF_WASM(V, I8x32AddSatU, Operator::kCommutative, 2, 0, 1)                    \
-  IF_WASM(V, I16x16SubSatS, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_WASM(V, I8x32SubSatS, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_WASM(V, I16x16SubSatU, Operator::kNoProperties, 2, 0, 1)                  \
-  IF_WASM(V, I8x32SubSatU, Operator::kNoProperties, 2, 0, 1)                   \
-  IF_WASM(V, F32x8Min, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F32x8Max, Operator::kAssociative | Operator::kCommutative, 2, 0,  \
-          1)                                                                   \
-  IF_WASM(V, F32x8Pmin, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F32x8Pmax, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F32x8Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F64x4Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I64x4Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I32x8Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I16x16Eq, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I8x32Eq, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F32x8Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, F64x4Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I64x4GtS, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I32x8GtS, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I16x16GtS, Operator::kCommutative, 2, 0, 1)                       \
-  IF_WASM(V, I8x32GtS, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, F64x4Lt, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F32x8Lt, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F64x4Le, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, F32x8Le, Operator::kNoProperties, 2, 0, 1)                        \
-  IF_WASM(V, I32x8MinS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16MinS, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, I8x32MinS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x8MinU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16MinU, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, I8x32MinU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x8MaxS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16MaxS, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, I8x32MaxS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x8MaxU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16MaxU, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, I8x32MaxU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I64x4Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I64x4GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x8Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I32x8GtU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x8GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x8GeU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I16x16Ne, Operator::kCommutative, 2, 0, 1)                        \
-  IF_WASM(V, I16x16GtU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16GeS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16GeU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I8x32Ne, Operator::kCommutative, 2, 0, 1)                         \
-  IF_WASM(V, I8x32GtU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x32GeS, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I8x32GeU, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x8SConvertF32x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I32x8UConvertF32x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F32x8UConvertI32x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, F32x4DemoteF64x4, Operator::kNoProperties, 1, 0, 1)               \
-  IF_WASM(V, I64x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I64x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I32x8SConvertI16x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I32x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)             \
-  IF_WASM(V, I16x16SConvertI8x16, Operator::kNoProperties, 1, 0, 1)            \
-  IF_WASM(V, I16x16UConvertI8x16, Operator::kNoProperties, 1, 0, 1)            \
-  IF_WASM(V, I16x16SConvertI32x8, Operator::kNoProperties, 2, 0, 1)            \
-  IF_WASM(V, I16x16UConvertI32x8, Operator::kNoProperties, 2, 0, 1)            \
-  IF_WASM(V, I8x32SConvertI16x16, Operator::kNoProperties, 2, 0, 1)            \
-  IF_WASM(V, I8x32UConvertI16x16, Operator::kNoProperties, 2, 0, 1)            \
-  IF_WASM(V, I32x8Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I32x8Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I16x16Neg, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, I16x16Abs, Operator::kNoProperties, 1, 0, 1)                      \
-  IF_WASM(V, I8x32Neg, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I8x32Abs, Operator::kNoProperties, 1, 0, 1)                       \
-  IF_WASM(V, I64x4Shl, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I64x4ShrU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x8Shl, Operator::kNoProperties, 2, 0, 1)                       \
-  IF_WASM(V, I32x8ShrS, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I32x8ShrU, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16Shl, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, I16x16ShrS, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, I16x16ShrU, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)                 \
-  IF_WASM(V, I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)          \
-  IF_WASM(V, I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)           \
-  IF_WASM(V, I64x4ExtMulI32x4S, Operator::kCommutative, 2, 0, 1)               \
-  IF_WASM(V, I64x4ExtMulI32x4U, Operator::kCommutative, 2, 0, 1)               \
-  IF_WASM(V, I32x8ExtMulI16x8S, Operator::kCommutative, 2, 0, 1)               \
-  IF_WASM(V, I32x8ExtMulI16x8U, Operator::kCommutative, 2, 0, 1)               \
-  IF_WASM(V, I16x16ExtMulI8x16S, Operator::kCommutative, 2, 0, 1)              \
-  IF_WASM(V, I16x16ExtMulI8x16U, Operator::kCommutative, 2, 0, 1)              \
-  IF_WASM(V, I32x8ExtAddPairwiseI16x16S, Operator::kNoProperties, 1, 0, 1)     \
-  IF_WASM(V, I32x8ExtAddPairwiseI16x16U, Operator::kNoProperties, 1, 0, 1)     \
-  IF_WASM(V, I16x16ExtAddPairwiseI8x32S, Operator::kNoProperties, 1, 0, 1)     \
-  IF_WASM(V, I16x16ExtAddPairwiseI8x32U, Operator::kNoProperties, 1, 0, 1)     \
-  IF_WASM(V, F64x4Pmin, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, F64x4Pmax, Operator::kNoProperties, 2, 0, 1)                      \
-  IF_WASM(V, S256Zero, Operator::kNoProperties, 0, 0, 1)                       \
-  IF_WASM(V, S256And, Operator::kAssociative | Operator::kCommutative, 2, 0,   \
-          1)                                                                   \
-  IF_WASM(V, S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1) \
-  IF_WASM(V, S256Xor, Operator::kAssociative | Operator::kCommutative, 2, 0,   \
-          1)                                                                   \
-  IF_WASM(V, S256Not, Operator::kNoProperties, 1, 0, 1)                        \
-  IF_WASM(V, S256Select, Operator::kNoProperties, 3, 0, 1)                     \
-  IF_WASM(V, S256AndNot, Operator::kNoProperties, 2, 0, 1)                     \
-  IF_WASM(V, F32x8Qfma, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F32x8Qfms, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F64x4Qfma, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, F64x4Qfms, Operator::kNoProperties, 3, 0, 1)                      \
-  IF_WASM(V, I64x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I32x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I16x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)        \
-  IF_WASM(V, I8x32RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I32x8DotI8x32I7x32AddS, Operator::kNoProperties, 3, 0, 1)         \
-  IF_WASM(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)           \
-  IF_WASM(V, I32x8RelaxedTruncF32x8S, Operator::kNoProperties, 1, 0, 1)        \
-  IF_WASM(V, I32x8RelaxedTruncF32x8U, Operator::kNoProperties, 1, 0, 1)
+  IF_SIMD128(V, S128Zero, Operator::kNoProperties, 0, 0, 1)                    \
+  IF_SIMD128(V, S128And, Operator::kAssociative | Operator::kCommutative, 2,   \
+             0, 1)                                                             \
+  IF_SIMD128(V, S128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, \
+             1)                                                                \
+  IF_SIMD128(V, S128Xor, Operator::kAssociative | Operator::kCommutative, 2,   \
+             0, 1)                                                             \
+  IF_SIMD128(V, S128Not, Operator::kNoProperties, 1, 0, 1)                     \
+  IF_SIMD128(V, S128Select, Operator::kNoProperties, 3, 0, 1)                  \
+  IF_SIMD128(V, S128AndNot, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD128(V, V128AnyTrue, Operator::kNoProperties, 1, 0, 1)                 \
+  IF_SIMD128(V, I64x2AllTrue, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I32x4AllTrue, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I8x16AllTrue, Operator::kNoProperties, 1, 0, 1)                \
+  IF_SIMD128(V, I8x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD128(V, I16x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD128(V, I32x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD128(V, I64x2RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD128(V, F32x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD128(V, F32x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD128(V, F64x2RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD128(V, F64x2RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD256(V, F32x8RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD256(V, F32x8RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD256(V, F64x4RelaxedMin, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD256(V, F64x4RelaxedMax, Operator::kNoProperties, 2, 0, 1)             \
+  IF_SIMD128(V, I32x4RelaxedTruncF32x4S, Operator::kNoProperties, 1, 0, 1)     \
+  IF_SIMD128(V, I32x4RelaxedTruncF32x4U, Operator::kNoProperties, 1, 0, 1)     \
+  IF_SIMD128(V, I32x4RelaxedTruncF64x2SZero, Operator::kNoProperties, 1, 0, 1) \
+  IF_SIMD128(V, I32x4RelaxedTruncF64x2UZero, Operator::kNoProperties, 1, 0, 1) \
+  IF_SIMD128(V, I16x8RelaxedQ15MulRS, Operator::kCommutative, 2, 0, 1)         \
+  IF_SIMD128(V, I16x8DotI8x16I7x16S, Operator::kNoProperties, 2, 0, 1)         \
+  IF_SIMD128(V, I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD256(V, F64x4Min, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD256(V, F64x4Max, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD256(V, F64x4Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, F64x4Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, F64x4Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD256(V, F32x8Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, F32x8Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, F32x8Sqrt, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD256(V, F32x8Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I64x4Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I32x8Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I16x16Add, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD256(V, I8x32Add, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, F64x4Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, F32x8Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I64x4Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I32x8Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I16x16Sub, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I8x32Sub, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, F64x4Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, F32x8Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I64x4Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I32x8Mul, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I16x16Mul, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD256(V, F64x4Div, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, F32x8Div, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I16x16AddSatS, Operator::kCommutative, 2, 0, 1)                \
+  IF_SIMD256(V, I8x32AddSatS, Operator::kCommutative, 2, 0, 1)                 \
+  IF_SIMD256(V, I16x16AddSatU, Operator::kCommutative, 2, 0, 1)                \
+  IF_SIMD256(V, I8x32AddSatU, Operator::kCommutative, 2, 0, 1)                 \
+  IF_SIMD256(V, I16x16SubSatS, Operator::kNoProperties, 2, 0, 1)               \
+  IF_SIMD256(V, I8x32SubSatS, Operator::kNoProperties, 2, 0, 1)                \
+  IF_SIMD256(V, I16x16SubSatU, Operator::kNoProperties, 2, 0, 1)               \
+  IF_SIMD256(V, I8x32SubSatU, Operator::kNoProperties, 2, 0, 1)                \
+  IF_SIMD256(V, F32x8Min, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD256(V, F32x8Max, Operator::kAssociative | Operator::kCommutative, 2,  \
+             0, 1)                                                             \
+  IF_SIMD256(V, F32x8Pmin, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, F32x8Pmax, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, F32x8Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, F64x4Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I64x4Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I32x8Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I16x16Eq, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I8x32Eq, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, F32x8Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, F64x4Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I64x4GtS, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I32x8GtS, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I16x16GtS, Operator::kCommutative, 2, 0, 1)                    \
+  IF_SIMD256(V, I8x32GtS, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, F64x4Lt, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD256(V, F32x8Lt, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD256(V, F64x4Le, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD256(V, F32x8Le, Operator::kNoProperties, 2, 0, 1)                     \
+  IF_SIMD256(V, I32x8MinS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16MinS, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, I8x32MinS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I32x8MinU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16MinU, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, I8x32MinU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I32x8MaxS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16MaxS, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, I8x32MaxS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I32x8MaxU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16MaxU, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, I8x32MaxU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I64x4Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I64x4GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I32x8Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I32x8GtU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I32x8GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I32x8GeU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I16x16Ne, Operator::kCommutative, 2, 0, 1)                     \
+  IF_SIMD256(V, I16x16GtU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16GeS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16GeU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I8x32Ne, Operator::kCommutative, 2, 0, 1)                      \
+  IF_SIMD256(V, I8x32GtU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I8x32GeS, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I8x32GeU, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I32x8SConvertF32x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, I32x8UConvertF32x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, F32x8UConvertI32x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, F32x4DemoteF64x4, Operator::kNoProperties, 1, 0, 1)            \
+  IF_SIMD256(V, I64x4SConvertI32x4, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, I64x4UConvertI32x4, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, I32x8SConvertI16x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, I32x8UConvertI16x8, Operator::kNoProperties, 1, 0, 1)          \
+  IF_SIMD256(V, I16x16SConvertI8x16, Operator::kNoProperties, 1, 0, 1)         \
+  IF_SIMD256(V, I16x16UConvertI8x16, Operator::kNoProperties, 1, 0, 1)         \
+  IF_SIMD256(V, I16x16SConvertI32x8, Operator::kNoProperties, 2, 0, 1)         \
+  IF_SIMD256(V, I16x16UConvertI32x8, Operator::kNoProperties, 2, 0, 1)         \
+  IF_SIMD256(V, I8x32SConvertI16x16, Operator::kNoProperties, 2, 0, 1)         \
+  IF_SIMD256(V, I8x32UConvertI16x16, Operator::kNoProperties, 2, 0, 1)         \
+  IF_SIMD256(V, I32x8Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, I32x8Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, I16x16Neg, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD256(V, I16x16Abs, Operator::kNoProperties, 1, 0, 1)                   \
+  IF_SIMD256(V, I8x32Neg, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, I8x32Abs, Operator::kNoProperties, 1, 0, 1)                    \
+  IF_SIMD256(V, I64x4Shl, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I64x4ShrU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I32x8Shl, Operator::kNoProperties, 2, 0, 1)                    \
+  IF_SIMD256(V, I32x8ShrS, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I32x8ShrU, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16Shl, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, I16x16ShrS, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, I16x16ShrU, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)              \
+  IF_SIMD256(V, I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)       \
+  IF_SIMD256(V, I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)        \
+  IF_SIMD256(V, I64x4ExtMulI32x4S, Operator::kCommutative, 2, 0, 1)            \
+  IF_SIMD256(V, I64x4ExtMulI32x4U, Operator::kCommutative, 2, 0, 1)            \
+  IF_SIMD256(V, I32x8ExtMulI16x8S, Operator::kCommutative, 2, 0, 1)            \
+  IF_SIMD256(V, I32x8ExtMulI16x8U, Operator::kCommutative, 2, 0, 1)            \
+  IF_SIMD256(V, I16x16ExtMulI8x16S, Operator::kCommutative, 2, 0, 1)           \
+  IF_SIMD256(V, I16x16ExtMulI8x16U, Operator::kCommutative, 2, 0, 1)           \
+  IF_SIMD256(V, I32x8ExtAddPairwiseI16x16S, Operator::kNoProperties, 1, 0, 1)  \
+  IF_SIMD256(V, I32x8ExtAddPairwiseI16x16U, Operator::kNoProperties, 1, 0, 1)  \
+  IF_SIMD256(V, I16x16ExtAddPairwiseI8x32S, Operator::kNoProperties, 1, 0, 1)  \
+  IF_SIMD256(V, I16x16ExtAddPairwiseI8x32U, Operator::kNoProperties, 1, 0, 1)  \
+  IF_SIMD256(V, F64x4Pmin, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, F64x4Pmax, Operator::kNoProperties, 2, 0, 1)                   \
+  IF_SIMD256(V, S256Zero, Operator::kNoProperties, 0, 0, 1)                    \
+  IF_SIMD256(V, S256And, Operator::kAssociative | Operator::kCommutative, 2,   \
+             0, 1)                                                             \
+  IF_SIMD256(V, S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, \
+             1)                                                                \
+  IF_SIMD256(V, S256Xor, Operator::kAssociative | Operator::kCommutative, 2,   \
+             0, 1)                                                             \
+  IF_SIMD256(V, S256Not, Operator::kNoProperties, 1, 0, 1)                     \
+  IF_SIMD256(V, S256Select, Operator::kNoProperties, 3, 0, 1)                  \
+  IF_SIMD256(V, S256AndNot, Operator::kNoProperties, 2, 0, 1)                  \
+  IF_SIMD256(V, F32x8Qfma, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD256(V, F32x8Qfms, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD256(V, F64x4Qfma, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD256(V, F64x4Qfms, Operator::kNoProperties, 3, 0, 1)                   \
+  IF_SIMD256(V, I64x4RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD256(V, I32x8RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD256(V, I16x16RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)     \
+  IF_SIMD256(V, I8x32RelaxedLaneSelect, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD256(V, I32x8DotI8x32I7x32AddS, Operator::kNoProperties, 3, 0, 1)      \
+  IF_SIMD256(V, I16x16DotI8x32I7x32S, Operator::kNoProperties, 2, 0, 1)        \
+  IF_SIMD256(V, I32x8RelaxedTruncF32x8S, Operator::kNoProperties, 1, 0, 1)     \
+  IF_SIMD256(V, I32x8RelaxedTruncF32x8U, Operator::kNoProperties, 1, 0, 1)
 
 // The format is:
 // V(Name, properties, value_input_count, control_input_count, output_count)
@@ -1290,7 +1292,7 @@ struct MachineOperatorGlobalCache {
   OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
-// ProtectedLoad and LoadTrapOnNull are not marked kNoWrite, so potentially
+// TrappingLoad and LoadTrapOnNull are not marked kNoWrite, so potentially
 // trapping loads are not eliminated if their result is unused.
 #define LOAD(Type)                                                             \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
@@ -1306,12 +1308,12 @@ struct MachineOperatorGlobalCache {
               IrOpcode::kUnalignedLoad, Operator::kEliminatable,               \
               "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
   };                                                                           \
-  struct ProtectedLoad##Type##Operator final                                   \
+  struct TrappingLoad##Type##Operator final                                    \
       : public Operator1<LoadRepresentation> {                                 \
-    ProtectedLoad##Type##Operator()                                            \
+    TrappingLoad##Type##Operator()                                             \
         : Operator1<LoadRepresentation>(                                       \
-              IrOpcode::kProtectedLoad,                                        \
-              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1,  \
+              IrOpcode::kTrappingLoad,                                         \
+              Operator::kNoDeopt | Operator::kNoThrow, "TrappingLoad", 2, 1,   \
               1, 1, 1, 0, MachineType::Type()) {}                              \
   };                                                                           \
   struct LoadTrapOnNull##Type##Operator final                                  \
@@ -1331,7 +1333,7 @@ struct MachineOperatorGlobalCache {
   };                                                                           \
   Load##Type##Operator kLoad##Type;                                            \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                          \
-  ProtectedLoad##Type##Operator kProtectedLoad##Type;                          \
+  TrappingLoad##Type##Operator kTrappingLoad##Type;                            \
   LoadTrapOnNull##Type##Operator kLoadTrapOnNull##Type;                        \
   LoadImmutable##Type##Operator kLoadImmutable##Type;
   MACHINE_TYPE_LIST(LOAD)
@@ -1344,8 +1346,7 @@ struct MachineOperatorGlobalCache {
     KIND##LoadTransform##TYPE##Operator()                              \
         : Operator1<LoadTransformParameters>(                          \
               IrOpcode::kLoadTransform,                                \
-              MemoryAccessKind::k##KIND ==                             \
-                      MemoryAccessKind::kProtectedByTrapHandler        \
+              MemoryAccessKind::k##KIND == MemoryAccessKind::kTrapping \
                   ? Operator::kNoDeopt | Operator::kNoThrow            \
                   : Operator::kEliminatable,                           \
               #KIND "LoadTransform", 2, 1, 1, 1, 1, 0,                 \
@@ -1357,7 +1358,7 @@ struct MachineOperatorGlobalCache {
 #define LOAD_TRANSFORM(TYPE)           \
   LOAD_TRANSFORM_KIND(TYPE, Normal)    \
   LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
-  LOAD_TRANSFORM_KIND(TYPE, ProtectedByTrapHandler)
+  LOAD_TRANSFORM_KIND(TYPE, Trapping)
 
   LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
 #undef LOAD_TRANSFORM
@@ -1429,13 +1430,13 @@ struct MachineOperatorGlobalCache {
               "UnalignedStore", 3, 1, 1, 0, 1, 0,                          \
               MachineRepresentation::Type) {}                              \
   };                                                                       \
-  struct ProtectedStore##Type##Operator                                    \
+  struct TrappingStore##Type##Operator                                     \
       : public Operator1<StoreRepresentation> {                            \
-    explicit ProtectedStore##Type##Operator()                              \
+    explicit TrappingStore##Type##Operator()                               \
         : Operator1<StoreRepresentation>(                                  \
-              IrOpcode::kProtectedStore,                                   \
+              IrOpcode::kTrappingStore,                                    \
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
-              "ProtectedStore", 3, 1, 1, 0, 1, 0,                          \
+              "TrappingStore", 3, 1, 1, 0, 1, 0,                           \
               StoreRepresentation(MachineRepresentation::Type,             \
                                   kNoWriteBarrier)) {}                     \
   };                                                                       \
@@ -1471,7 +1472,7 @@ struct MachineOperatorGlobalCache {
       kStore##Type##EphemeronKeyWriteBarrier;                              \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
   UnalignedStore##Type##Operator kUnalignedStore##Type;                    \
-  ProtectedStore##Type##Operator kProtectedStore##Type;                    \
+  TrappingStore##Type##Operator kTrappingStore##Type;                      \
   StoreTrapOnNull##Type##FullWriteBarrier##Operator                        \
       kStoreTrapOnNull##Type##FullWriteBarrier;                            \
   StoreTrapOnNull##Type##NoWriteBarrier##Operator                          \
@@ -1556,7 +1557,7 @@ struct MachineOperatorGlobalCache {
   Word32SeqCstLoad##Type##Kind##Operator kWord32SeqCstLoad##Type##Kind;
 #define ATOMIC_LOAD(Type)             \
   ATOMIC_LOAD_WITH_KIND(Type, Normal) \
-  ATOMIC_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_TYPE_LIST(ATOMIC_LOAD)
 #undef ATOMIC_LOAD_WITH_KIND
 #undef ATOMIC_LOAD
@@ -1575,7 +1576,7 @@ struct MachineOperatorGlobalCache {
   Word64SeqCstLoad##Type##Kind##Operator kWord64SeqCstLoad##Type##Kind;
 #define ATOMIC_LOAD(Type)             \
   ATOMIC_LOAD_WITH_KIND(Type, Normal) \
-  ATOMIC_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_U64_TYPE_LIST(ATOMIC_LOAD)
 #undef ATOMIC_LOAD_WITH_KIND
 #undef ATOMIC_LOAD
@@ -1596,7 +1597,7 @@ struct MachineOperatorGlobalCache {
   Word32SeqCstStore##Type##Kind##Operator kWord32SeqCstStore##Type##Kind;
 #define ATOMIC_STORE(Type)             \
   ATOMIC_STORE_WITH_KIND(Type, Normal) \
-  ATOMIC_STORE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_STORE_WITH_KIND(Type, Trapping)
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef ATOMIC_STORE_WITH_KIND
 #undef ATOMIC_STORE
@@ -1617,7 +1618,7 @@ struct MachineOperatorGlobalCache {
   Word64SeqCstStore##Type##Kind##Operator kWord64SeqCstStore##Type##Kind;
 #define ATOMIC_STORE(Type)             \
   ATOMIC_STORE_WITH_KIND(Type, Normal) \
-  ATOMIC_STORE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_STORE_WITH_KIND(Type, Trapping)
   ATOMIC64_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef ATOMIC_STORE_WITH_KIND
 #undef ATOMIC_STORE
@@ -1642,7 +1643,7 @@ struct MachineOperatorGlobalCache {
   ATOMIC_OP(Word32AtomicExchange, type, kind)
 #define ATOMIC_OP_LIST(type)             \
   ATOMIC_OP_LIST_WITH_KIND(type, Normal) \
-  ATOMIC_OP_LIST_WITH_KIND(type, ProtectedByTrapHandler)
+  ATOMIC_OP_LIST_WITH_KIND(type, Trapping)
   ATOMIC_TYPE_LIST(ATOMIC_OP_LIST)
 #undef ATOMIC_OP_LIST_WITH_KIND
 #undef ATOMIC_OP_LIST
@@ -1655,7 +1656,7 @@ struct MachineOperatorGlobalCache {
   ATOMIC_OP(Word64AtomicExchange, type, kind)
 #define ATOMIC64_OP_LIST(type)             \
   ATOMIC64_OP_LIST_WITH_KIND(type, Normal) \
-  ATOMIC64_OP_LIST_WITH_KIND(type, ProtectedByTrapHandler)
+  ATOMIC64_OP_LIST_WITH_KIND(type, Trapping)
   ATOMIC_U64_TYPE_LIST(ATOMIC64_OP_LIST)
 #undef ATOMIC64_OP_LIST_WITH_KIND
 #undef ATOMIC64_OP_LIST
@@ -1678,7 +1679,7 @@ struct MachineOperatorGlobalCache {
       kWord32AtomicCompareExchange##Type##Kind;
 #define ATOMIC_COMPARE_EXCHANGE(Type)             \
   ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Normal) \
-  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Trapping)
   ATOMIC_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
 #undef ATOMIC_COMPARE_EXCHANGE_WITH_KIND
 #undef ATOMIC_COMPARE_EXCHANGE
@@ -1700,7 +1701,7 @@ struct MachineOperatorGlobalCache {
       kWord64AtomicCompareExchange##Type##Kind;
 #define ATOMIC_COMPARE_EXCHANGE(Type)             \
   ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Normal) \
-  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Trapping)
   ATOMIC_U64_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
 #undef ATOMIC_COMPARE_EXCHANGE_WITH_KIND
 #undef ATOMIC_COMPARE_EXCHANGE
@@ -2008,10 +2009,10 @@ const Operator* MachineOperatorBuilder::LoadImmutable(LoadRepresentation rep) {
   UNREACHABLE();
 }
 
-const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
-#define LOAD(Type)                       \
-  if (rep == MachineType::Type()) {      \
-    return &cache_.kProtectedLoad##Type; \
+const Operator* MachineOperatorBuilder::TrappingLoad(LoadRepresentation rep) {
+#define LOAD(Type)                      \
+  if (rep == MachineType::Type()) {     \
+    return &cache_.kTrappingLoad##Type; \
   }
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -2039,7 +2040,7 @@ const Operator* MachineOperatorBuilder::LoadTransform(
 #define LOAD_TRANSFORM(TYPE)           \
   LOAD_TRANSFORM_KIND(TYPE, Normal)    \
   LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
-  LOAD_TRANSFORM_KIND(TYPE, ProtectedByTrapHandler)
+  LOAD_TRANSFORM_KIND(TYPE, Trapping)
 
   LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
 #undef LOAD_TRANSFORM
@@ -2050,23 +2051,23 @@ const Operator* MachineOperatorBuilder::LoadTransform(
 const Operator* MachineOperatorBuilder::LoadLane(MemoryAccessKind kind,
                                                  LoadRepresentation rep,
                                                  uint8_t laneidx) {
-#define LOAD_LANE_KIND(TYPE, KIND, LANEIDX)                                    \
-  if (kind == MemoryAccessKind::k##KIND && rep == MachineType::TYPE() &&       \
-      laneidx == LANEIDX) {                                                    \
-    return zone_->New<Operator1<LoadLaneParameters>>(                          \
-        IrOpcode::kLoadLane,                                                   \
-        MemoryAccessKind::k##KIND == MemoryAccessKind::kProtectedByTrapHandler \
-            ? Operator::kNoDeopt | Operator::kNoThrow                          \
-            : Operator::kEliminatable,                                         \
-        "LoadLane", 3, 1, 1, 1, 1, 0,                                          \
-        LoadLaneParameters{MemoryAccessKind::k##KIND,                          \
-                           LoadRepresentation::TYPE(), LANEIDX});              \
+#define LOAD_LANE_KIND(TYPE, KIND, LANEIDX)                              \
+  if (kind == MemoryAccessKind::k##KIND && rep == MachineType::TYPE() && \
+      laneidx == LANEIDX) {                                              \
+    return zone_->New<Operator1<LoadLaneParameters>>(                    \
+        IrOpcode::kLoadLane,                                             \
+        MemoryAccessKind::k##KIND == MemoryAccessKind::kTrapping         \
+            ? Operator::kNoDeopt | Operator::kNoThrow                    \
+            : Operator::kEliminatable,                                   \
+        "LoadLane", 3, 1, 1, 1, 1, 0,                                    \
+        LoadLaneParameters{MemoryAccessKind::k##KIND,                    \
+                           LoadRepresentation::TYPE(), LANEIDX});        \
   }
 
 #define LOAD_LANE_T(T, LANE)         \
   LOAD_LANE_KIND(T, Normal, LANE)    \
   LOAD_LANE_KIND(T, Unaligned, LANE) \
-  LOAD_LANE_KIND(T, ProtectedByTrapHandler, LANE)
+  LOAD_LANE_KIND(T, Trapping, LANE)
 
 #define LOAD_LANE_INT8(LANE) LOAD_LANE_T(Int8, LANE)
 #define LOAD_LANE_INT16(LANE) LOAD_LANE_T(Int16, LANE)
@@ -2103,7 +2104,7 @@ const Operator* MachineOperatorBuilder::StoreLane(MemoryAccessKind kind,
 #define STORE_LANE_T(T, LANE)         \
   STORE_LANE_KIND(T, Normal, LANE)    \
   STORE_LANE_KIND(T, Unaligned, LANE) \
-  STORE_LANE_KIND(T, ProtectedByTrapHandler, LANE)
+  STORE_LANE_KIND(T, Trapping, LANE)
 
 #define STORE_LANE_WORD8(LANE) STORE_LANE_T(kWord8, LANE)
 #define STORE_LANE_WORD16(LANE) STORE_LANE_T(kWord16, LANE)
@@ -2213,12 +2214,12 @@ std::optional<const Operator*> MachineOperatorBuilder::TryStorePair(
   return {};
 }
 
-const Operator* MachineOperatorBuilder::ProtectedStore(
+const Operator* MachineOperatorBuilder::TrappingStore(
     MachineRepresentation rep) {
   switch (rep) {
 #define STORE(kRep)                 \
   case MachineRepresentation::kRep: \
-    return &cache_.kProtectedStore##kRep;
+    return &cache_.kTrappingStore##kRep;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
@@ -2325,7 +2326,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicLoad(
   }
 #define CACHED_LOAD(Type)             \
   CACHED_LOAD_WITH_KIND(Type, Normal) \
-  CACHED_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  CACHED_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_TYPE_LIST(CACHED_LOAD)
 #undef CACHED_LOAD_WITH_KIND
 #undef CACHED_LOAD
@@ -2353,7 +2354,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicStore(
   }
 #define CACHED_STORE(kRep)             \
   CACHED_STORE_WITH_KIND(kRep, Normal) \
-  CACHED_STORE_WITH_KIND(kRep, ProtectedByTrapHandler)
+  CACHED_STORE_WITH_KIND(kRep, Trapping)
   ATOMIC_REPRESENTATION_LIST(CACHED_STORE)
 #undef CACHED_STORE_WITH_KIND
 #undef CACHED_STORE
@@ -2380,7 +2381,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicExchange(
   }
 #define EXCHANGE(kType)             \
   EXCHANGE_WITH_KIND(kType, Normal) \
-  EXCHANGE_WITH_KIND(kType, ProtectedByTrapHandler)
+  EXCHANGE_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(EXCHANGE)
 #undef EXCHANGE_WITH_KIND
 #undef EXCHANGE
@@ -2396,7 +2397,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicCompareExchange(
   }
 #define COMPARE_EXCHANGE(kType)             \
   COMPARE_EXCHANGE_WITH_KIND(kType, Normal) \
-  COMPARE_EXCHANGE_WITH_KIND(kType, ProtectedByTrapHandler)
+  COMPARE_EXCHANGE_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(COMPARE_EXCHANGE)
 #undef COMPARE_EXCHANGE_WITH_KIND
 #undef COMPARE_EXCHANGE
@@ -2412,7 +2413,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicAdd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2428,7 +2429,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicSub(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2444,7 +2445,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicAnd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2460,7 +2461,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicOr(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2476,7 +2477,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicXor(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2493,7 +2494,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicLoad(
   }
 #define CACHED_LOAD(Type)             \
   CACHED_LOAD_WITH_KIND(Type, Normal) \
-  CACHED_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  CACHED_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_U64_TYPE_LIST(CACHED_LOAD)
 #undef CACHED_LOAD_WITH_KIND
 #undef CACHED_LOAD
@@ -2521,7 +2522,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicStore(
   }
 #define CACHED_STORE(kRep)             \
   CACHED_STORE_WITH_KIND(kRep, Normal) \
-  CACHED_STORE_WITH_KIND(kRep, ProtectedByTrapHandler)
+  CACHED_STORE_WITH_KIND(kRep, Trapping)
   ATOMIC64_REPRESENTATION_LIST(CACHED_STORE)
 #undef CACHED_STORE_WITH_KIND
 #undef CACHED_STORE
@@ -2549,7 +2550,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicAdd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2565,7 +2566,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicSub(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2581,7 +2582,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicAnd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2597,7 +2598,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicOr(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2613,7 +2614,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicXor(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2629,7 +2630,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicExchange(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2645,7 +2646,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicCompareExchange(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2705,7 +2706,7 @@ StackCheckKind StackCheckKindOf(Operator const* op) {
   return OpParameter<StackCheckKind>(op);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 #define EXTRACT_LANE_OP(Type, Sign, lane_count)                      \
   const Operator* MachineOperatorBuilder::Type##ExtractLane##Sign(   \
       int32_t lane_index) {                                          \
@@ -2750,22 +2751,10 @@ S128ImmediateParameter const& S128ImmediateParameterOf(Operator const* op) {
   return OpParameter<S128ImmediateParameter>(op);
 }
 
-S256ImmediateParameter const& S256ImmediateParameterOf(Operator const* op) {
-  DCHECK(IrOpcode::kI8x32Shuffle == op->opcode() ||
-         IrOpcode::kS256Const == op->opcode());
-  return OpParameter<S256ImmediateParameter>(op);
-}
-
 const Operator* MachineOperatorBuilder::S128Const(const uint8_t value[16]) {
   return zone_->New<Operator1<S128ImmediateParameter>>(
       IrOpcode::kS128Const, Operator::kPure, "Immediate", 0, 0, 0, 1, 0, 0,
       S128ImmediateParameter(value));
-}
-
-const Operator* MachineOperatorBuilder::S256Const(const uint8_t value[32]) {
-  return zone_->New<Operator1<S256ImmediateParameter>>(
-      IrOpcode::kS256Const, Operator::kPure, "Immediate256", 0, 0, 0, 1, 0, 0,
-      S256ImmediateParameter(value));
 }
 
 const Operator* MachineOperatorBuilder::I8x16Shuffle(
@@ -2781,6 +2770,19 @@ const Operator* MachineOperatorBuilder::I8x16Swizzle(bool relaxed) {
   } else {
     return &cache_.kI8x16Swizzle;
   }
+}
+
+#if V8_ENABLE_SIMD256
+S256ImmediateParameter const& S256ImmediateParameterOf(Operator const* op) {
+  DCHECK(IrOpcode::kI8x32Shuffle == op->opcode() ||
+         IrOpcode::kS256Const == op->opcode());
+  return OpParameter<S256ImmediateParameter>(op);
+}
+
+const Operator* MachineOperatorBuilder::S256Const(const uint8_t value[32]) {
+  return zone_->New<Operator1<S256ImmediateParameter>>(
+      IrOpcode::kS256Const, Operator::kPure, "Immediate256", 0, 0, 0, 1, 0, 0,
+      S256ImmediateParameter(value));
 }
 
 const Operator* MachineOperatorBuilder::I8x32Shuffle(
@@ -2804,7 +2806,10 @@ const Operator* MachineOperatorBuilder::ExtractF128(int32_t lane_index) {
   };
   return zone_->New<ExtractF128Operator>(lane_index);
 }
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
 
+#if V8_ENABLE_WEBASSEMBLY
 const Operator* MachineOperatorBuilder::LoadStackPointer() {
   class LoadStackPointerOperator final : public Operator {
    public:
@@ -2824,7 +2829,7 @@ const Operator* MachineOperatorBuilder::SetStackPointer() {
   };
   return zone_->New<SetStackPointerOperator>();
 }
-#endif
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #undef PURE_BINARY_OP_LIST_32
 #undef PURE_BINARY_OP_LIST_64

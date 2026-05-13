@@ -1,0 +1,173 @@
+header: sys/mman.h
+standards:
+  - posix
+macros:
+  - macro_name: MAP_FAILED
+    macro_header: sys-mman-macros.h
+types:
+  - type_name: mode_t
+  - type_name: size_t
+  - type_name: off_t
+enums: []
+objects: []
+functions:
+  - name: madvise
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+  - name: mincore
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: unsigned char *
+  - name: mlock
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+  - name: mlock2
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: unsigned int
+  - name: mlockall
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+  - name: mmap
+    standards:
+      - POSIX
+    return_type: void *
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+      - type: int
+      - type: int
+      - type: off_t
+  - name: mremap
+    standards:
+      - POSIX
+    return_type: void *
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: size_t
+      - type: int
+      - type: '...'
+  - name: mprotect
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+  - name: msync
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+  - name: munlock
+    standards: POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+  - name: munlockall
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void
+  - name: munmap
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+  - name: pkey_alloc
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: unsigned int
+      - type: unsigned int
+  - name: pkey_free
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: int
+  - name: pkey_get
+    standards:
+      - GNU
+    return_type: int
+    arguments:
+      - type: int
+  - name: pkey_mprotect
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+      - type: int
+  - name: pkey_set
+    standards:
+      - GNU
+    return_type: int
+    arguments:
+      - type: int
+      - type: unsigned int
+  - name: posix_madvise
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+  - name: remap_file_pages
+    standards:
+      - Linux
+    return_type: int
+    arguments:
+      - type: void *
+      - type: size_t
+      - type: int
+      - type: size_t
+      - type: int
+  - name: shm_open
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: int
+      - type: mode_t
+  - name: shm_unlink
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: const char *

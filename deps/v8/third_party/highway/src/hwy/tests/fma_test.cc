@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// For faster build on Arm. We still test SVE2_128, SVE and NEON.
+// For faster Arm builds. We still test SVE2_128, SVE and HWY_NEON_WITHOUT_AES
+// (HWY_NEON may already be disabled, which would leave only EMU128).
 #ifndef HWY_DISABLED_TARGETS
-#define HWY_DISABLED_TARGETS (HWY_SVE_256 | HWY_NEON_WITHOUT_AES | HWY_SVE2)
+#define HWY_DISABLED_TARGETS (HWY_SVE_256 | HWY_NEON | HWY_SVE2)
 #endif
 
 #undef HWY_TARGET_INCLUDE

@@ -56,6 +56,24 @@ auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
 ABSL_NAMESPACE_END
 }  // namespace absl
 
+// ABSL_INTERNAL_UNEVALUATED()
+//
+// Expands into a no-op expression that contains the given expression. Used to
+// avoid unused-variable warnings in configurations that don't need to evaluate
+// the given expression (e.g., NDEBUG).
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+// We use `decltype` here to avoid generating unnecessary code that the
+// optimizer then has to optimize away.
+// This not only improves compilation performance by reducing codegen bloat
+// and optimization work, but also guarantees fast run-time performance without
+// having to rely on the optimizer.
+#define ABSL_INTERNAL_UNEVALUATED(expr) (decltype((void)(expr))())
+#else
+// Pre-C++20, lambdas can't be inside unevaluated operands, so we're forced to
+// rely on the optimizer.
+#define ABSL_INTERNAL_UNEVALUATED(expr) (false ? (void)(expr) : void())
+#endif
+
 // ABSL_BAD_CALL_IF()
 //
 // Used on a function overload to trap bad calls: any call that matches the
@@ -93,33 +111,19 @@ ABSL_NAMESPACE_END
 // This macro is inspired by
 // https://akrzemi1.wordpress.com/2017/05/18/asserts-in-constexpr-functions/
 #if defined(NDEBUG)
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
-// We use `decltype` here to avoid generating unnecessary code that the
-// optimizer then has to optimize away.
-// This not only improves compilation performance by reducing codegen bloat
-// and optimization work, but also guarantees fast run-time performance without
-// having to rely on the optimizer.
-#define ABSL_ASSERT(expr) (decltype((expr) ? void() : void())())
-#else
-// Pre-C++20, lambdas can't be inside unevaluated operands, so we're forced to
-// rely on the optimizer.
-#define ABSL_ASSERT(expr) (false ? ((expr) ? void() : void()) : void())
-#endif
+#define ABSL_ASSERT(expr) ABSL_INTERNAL_UNEVALUATED((expr) ? void() : void())
 #else
 #define ABSL_ASSERT(expr)                           \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { assert(false && #expr); }())  // NOLINT
+                             : assert(false && #expr))  // NOLINT
 #endif
 
 // `ABSL_INTERNAL_HARDENING_ABORT()` controls how `ABSL_HARDENING_ASSERT()`
 // aborts the program in release mode (when NDEBUG is defined). The
 // implementation should abort the program as quickly as possible and ideally it
 // should not be possible to ignore the abort request.
-#define ABSL_INTERNAL_HARDENING_ABORT()   \
-  do {                                    \
-    ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL(); \
-    ABSL_INTERNAL_UNREACHABLE_IMPL();     \
-  } while (false)
+#define ABSL_INTERNAL_HARDENING_ABORT() \
+  ((void)ABSL_INTERNAL_IMMEDIATE_ABORT_IMPL(), ABSL_INTERNAL_UNREACHABLE_IMPL())
 
 // ABSL_HARDENING_ASSERT()
 //
@@ -135,7 +139,7 @@ ABSL_NAMESPACE_END
 #if (ABSL_OPTION_HARDENED == 1 || ABSL_OPTION_HARDENED == 2) && defined(NDEBUG)
 #define ABSL_HARDENING_ASSERT(expr)                 \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+                             : ABSL_INTERNAL_HARDENING_ABORT())
 #else
 #define ABSL_HARDENING_ASSERT(expr) ABSL_ASSERT(expr)
 #endif
@@ -154,7 +158,7 @@ ABSL_NAMESPACE_END
 #if ABSL_OPTION_HARDENED == 1 && defined(NDEBUG)
 #define ABSL_HARDENING_ASSERT_SLOW(expr)            \
   (ABSL_PREDICT_TRUE((expr)) ? static_cast<void>(0) \
-                             : [] { ABSL_INTERNAL_HARDENING_ABORT(); }())
+                             : ABSL_INTERNAL_HARDENING_ABORT())
 #else
 #define ABSL_HARDENING_ASSERT_SLOW(expr) ABSL_ASSERT(expr)
 #endif
@@ -226,7 +230,10 @@ ABSL_NAMESPACE_END
 // `ABSL_REFACTOR_INLINE` is preferred because it provides a more informative
 // deprecation message to developers, especially those that do not have access
 // to the automated refactoring capabilities of go/cpp-inliner.
-#define ABSL_DEPRECATE_AND_INLINE() [[deprecated]] ABSL_REFACTOR_INLINE
+// In chromium this macro doesn't add [[deprecated]] attribute as chromium disallows to
+// use deprecated code. By removing this attribute other third party libraries get more
+// time to migrate from deprecated api to something newer.
+#define ABSL_DEPRECATE_AND_INLINE() ABSL_REFACTOR_INLINE
 
 // Requires the compiler to prove that the size of the given object is at least
 // the expected amount.

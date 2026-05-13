@@ -1,0 +1,566 @@
+header: stdfix.h
+header_template: stdfix.h.def
+macros:
+  - macro_name: absfx
+    macro_header: stdfix-macros.h
+  - macro_name: countlsfx
+    macro_header: stdfix-macros.h
+  - macro_name: roundfx
+    macro_header: stdfix-macros.h
+types:
+  - type_name: int_hk_t
+  - type_name: int_hr_t
+  - type_name: int_k_t
+  - type_name: int_lk_t
+  - type_name: int_lr_t
+  - type_name: int_r_t
+  - type_name: uint_uhk_t
+  - type_name: uint_uhr_t
+  - type_name: uint_uk_t
+  - type_name: uint_ulk_t
+  - type_name: uint_ulr_t
+  - type_name: uint_ur_t
+
+enums: []
+objects: []
+functions:
+  - name: abshk
+    standards:
+      - stdc_ext
+    return_type: short accum
+    arguments:
+      - type: short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: abshr
+    standards:
+      - stdc_ext
+    return_type: short fract
+    arguments:
+      - type: short fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: absk
+    standards:
+      - stdc_ext
+    return_type: accum
+    arguments:
+      - type: accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: abslk
+    standards:
+      - stdc_ext
+    return_type: long accum
+    arguments:
+      - type: long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: abslr
+    standards:
+      - stdc_ext
+    return_type: long fract
+    arguments:
+      - type: long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: absr
+    standards:
+      - stdc_ext
+    return_type: fract
+    arguments:
+      - type: fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: exphk
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: short accum
+    arguments:
+      - type: short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: expk
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: accum
+    arguments:
+      - type: accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: hrbits
+    standards:
+      - stdc_ext
+    return_type: short fract
+    arguments:
+      - type: int_hr_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: uhrbits
+    standards:
+      - stdc_ext
+    return_type: unsigned short fract
+    arguments:
+      - type: uint_uhr_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: rbits
+    standards:
+      - stdc_ext
+    return_type: fract
+    arguments:
+      - type: int_r_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: urbits
+    standards:
+      - stdc_ext
+    return_type: unsigned fract
+    arguments:
+      - type: uint_ur_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: lrbits
+    standards:
+      - stdc_ext
+    return_type: long fract
+    arguments:
+      - type: int_lr_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: ulrbits
+    standards:
+      - stdc_ext
+    return_type: unsigned long fract
+    arguments:
+      - type: uint_ulr_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: hkbits
+    standards:
+      - stdc_ext
+    return_type: short accum
+    arguments:
+      - type: int_hk_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: uhkbits
+    standards:
+      - stdc_ext
+    return_type: unsigned short accum
+    arguments:
+      - type: uint_uhk_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: kbits
+    standards:
+      - stdc_ext
+    return_type: accum
+    arguments:
+      - type: int_k_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: ukbits
+    standards:
+      - stdc_ext
+    return_type: unsigned accum
+    arguments:
+      - type: uint_uk_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: lkbits
+    standards:
+      - stdc_ext
+    return_type: long accum
+    arguments:
+      - type: uint_ulr_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: ulkbits
+    standards:
+      - stdc_ext
+    return_type: unsigned long accum
+    arguments:
+      - type: uint_ulk_t
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitshr
+    standards:
+      - stdc_ext
+    return_type: int_hr_t
+    arguments:
+      - type: short fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsuhr
+    standards:
+      - stdc_ext
+    return_type: uint_uhr_t
+    arguments:
+      - type: unsigned short fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsr
+    standards:
+      - stdc_ext
+    return_type: int_r_t
+    arguments:
+      - type: fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsur
+    standards:
+      - stdc_ext
+    return_type: uint_ur_t
+    arguments:
+      - type: unsigned fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitslr
+    standards:
+      - stdc_ext
+    return_type: int_lr_t
+    arguments:
+      - type: long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsulr
+    standards:
+      - stdc_ext
+    return_type: uint_ulr_t
+    arguments:
+      - type: unsigned long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitshk
+    standards:
+      - stdc_ext
+    return_type: int_hk_t
+    arguments:
+      - type: short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsuhk
+    standards:
+      - stdc_ext
+    return_type: uint_uhk_t
+    arguments:
+      - type: unsigned short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsk
+    standards:
+      - stdc_ext
+    return_type: int_k_t
+    arguments:
+      - type: accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsuk
+    standards:
+      - stdc_ext
+    return_type: uint_uk_t
+    arguments:
+      - type: unsigned accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitslk
+    standards:
+      - stdc_ext
+    return_type: int_lk_t
+    arguments:
+      - type: long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: bitsulk
+    standards:
+      - stdc_ext
+    return_type: uint_ulk_t
+    arguments:
+      - type: unsigned long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivr
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: fract
+      - type: fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivlr
+    standards:
+      - stdc_ext
+    return_type: long int
+    arguments:
+      - type: long fract
+      - type: long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: accum
+      - type: accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivlk
+    standards:
+      - stdc_ext
+    return_type: long int
+    arguments:
+      - type: long accum
+      - type: long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivur
+    standards:
+      - stdc_ext
+    return_type: unsigned int
+    arguments:
+      - type: unsigned fract
+      - type: unsigned fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivulr
+    standards:
+      - stdc_ext
+    return_type: unsigned long int
+    arguments:
+      - type: unsigned long fract
+      - type: unsigned long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivuk
+    standards:
+      - stdc_ext
+    return_type: unsigned int
+    arguments:
+      - type: unsigned accum
+      - type: unsigned accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: idivulk
+    standards:
+      - stdc_ext
+    return_type: unsigned long int
+    arguments:
+      - type: unsigned long accum
+      - type: unsigned long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundhk
+    standards:
+      - stdc_ext
+    return_type: short accum
+    arguments:
+      - type: short accum
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundhr
+    standards:
+      - stdc_ext
+    return_type: short fract
+    arguments:
+      - type: short fract
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundk
+    standards:
+      - stdc_ext
+    return_type: accum
+    arguments:
+      - type: accum
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundlk
+    standards:
+      - stdc_ext
+    return_type: long accum
+    arguments:
+      - type: long accum
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundlr
+    standards:
+      - stdc_ext
+    return_type: long fract
+    arguments:
+      - type: long fract
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundr
+    standards:
+      - stdc_ext
+    return_type: fract
+    arguments:
+      - type: fract
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: rounduhk
+    standards:
+      - stdc_ext
+    return_type: unsigned short accum
+    arguments:
+      - type: unsigned short accum
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: rounduhr
+    standards:
+      - stdc_ext
+    return_type: unsigned short fract
+    arguments:
+      - type: unsigned short fract
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: rounduk
+    standards:
+      - stdc_ext
+    return_type: unsigned accum
+    arguments:
+      - type: unsigned accum
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundulk
+    standards:
+      - stdc_ext
+    return_type: unsigned long accum
+    arguments:
+      - type: unsigned long accum
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundulr
+    standards:
+      - stdc_ext
+    return_type: unsigned long fract
+    arguments:
+      - type: unsigned long fract
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: roundur
+    standards:
+      - stdc_ext
+    return_type: unsigned fract
+    arguments:
+      - type: unsigned fract
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: sqrtuhk
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned short accum
+    arguments:
+      - type: unsigned short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: sqrtuhr
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned short fract
+    arguments:
+      - type: unsigned short fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: sqrtuk
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned accum
+    arguments:
+      - type: unsigned accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: sqrtulk
+    standards: llvm_libc_stdfix_ext
+    return_type: unsigned long accum
+    arguments:
+      - type: unsigned long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: sqrtulr
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned long fract
+    arguments:
+      - type: unsigned long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: sqrtur
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned fract
+    arguments:
+      - type: unsigned fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: uhksqrtus
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned short accum
+    arguments:
+      - type: unsigned short
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: uksqrtui
+    standards:
+      - stdc_ext
+      - llvm_libc_stdfix_ext
+    return_type: unsigned accum
+    arguments:
+      - type: unsigned int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlshr
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: short fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsr
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlslr
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlshk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlslk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsuhr
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: unsigned short fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsur
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: unsigned fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsulr
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: unsigned long fract
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsuhk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: unsigned short accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsuk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: unsigned accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: countlsulk
+    standards:
+      - stdc_ext
+    return_type: int
+    arguments:
+      - type: unsigned long accum
+    guard: LIBC_COMPILER_HAS_FIXED_POINT
+  - name: rdivi
+    standards:
+      - stdc_ext
+    return_type: fract
+    arguments:
+      - type: int
+      - type: int
+    guard: LIBC_COMPILER_HAS_FIXED_POINT

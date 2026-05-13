@@ -126,9 +126,10 @@ void TracedReferenceTest(v8::Isolate* isolate,
 
 TEST_F(EmbedderRootsHandlerTest,
        FullGC_UnreachableTracedReferenceToNonDroppableDies) {
-  if (v8_flags.stress_incremental_marking)
+  if (v8_flags.stress_incremental_marking) {
     GTEST_SKIP() << "When stressing incremental marking, a write barrier may "
                     "keep the object alive.";
+  }
 
   ClearingEmbedderRootsHandler handler(v8_isolate());
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
@@ -188,8 +189,9 @@ TEST_F(EmbedderRootsHandlerTest,
 
 TEST_F(EmbedderRootsHandlerTest,
        YoungGC_UnreachableTracedReferenceToDroppableDies) {
-  if (v8_flags.single_generation || !v8_flags.reclaim_unmodified_wrappers)
+  if (v8_flags.single_generation || !v8_flags.reclaim_unmodified_wrappers) {
     GTEST_SKIP();
+  }
 
   ManualGCScope manual_gc(i_isolate());
   ClearingEmbedderRootsHandler handler(v8_isolate());

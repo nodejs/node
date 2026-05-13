@@ -110,7 +110,7 @@ inline std::string PositionAsString(SourcePosition pos) {
 }
 
 inline std::ostream& operator<<(std::ostream& out, SourcePosition pos) {
-  return out << "https://source.chromium.org/chromium/chromium/src/+/main:v8/"
+  return out << "https://crsrc.org/c/v8/"
              << SourceFileMap::PathFromV8Root(pos.source)
              << "?l=" << (pos.start.line + 1)
              << "&c=" << (pos.start.column + 1);

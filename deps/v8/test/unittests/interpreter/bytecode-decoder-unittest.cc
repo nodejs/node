@@ -64,9 +64,9 @@ TEST_F(BytecodeDecoderTest, DecodeBytecodeAndOperands) {
       {{B(CallJSRuntime), U8(Context::BOOLEAN_FUNCTION_INDEX), R8(0), U8(0)},
        4,
        "      CallJSRuntime [boolean_function], r0-r0"},
-      {{B(TestEqualStrict), R8(0), U16(0x3ff)},
-       4,
-       "      TestEqualStrict r0, EmbeddedFeedback[0x3ff]"},
+      {{B(TestEqualStrict), R8(0), U8(1)},
+       3,
+       "         TestEqualStrict r0, EmbeddedFeedback[1]"},
   };
 
   Handle<TrustedFixedArray> constant_pool =

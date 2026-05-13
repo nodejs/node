@@ -26,11 +26,9 @@ bool TorqueCodeGenerator::IsEmptyInstruction(const Instruction& instruction) {
 
 void TorqueCodeGenerator::EmitInstruction(const Instruction& instruction,
                                           Stack<std::string>* stack) {
-#ifdef DEBUG
-  if (!IsEmptyInstruction(instruction)) {
+  if (GlobalContext::torque_dwarf() && !IsEmptyInstruction(instruction)) {
     EmitSourcePosition(instruction->pos);
   }
-#endif
 
   switch (instruction.kind()) {
 #define ENUM_ITEM(T)                                  \

@@ -399,9 +399,10 @@ TEST_F(ConservativeTracerTest, TraceConservativelyStack) {
   volatile std::array<Member<GCedWithDestructor>, 16u> members =
       [this]() V8_NOINLINE {
         std::array<Member<GCedWithDestructor>, 16u> members;
-        for (auto& member : members)
+        for (auto& member : members) {
           member =
               MakeGarbageCollected<GCedWithDestructor>(GetAllocationHandle());
+        }
         return members;
       }();
   USE(members);

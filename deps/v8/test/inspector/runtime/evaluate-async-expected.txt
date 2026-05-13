@@ -238,6 +238,8 @@ Promise resolved
 
 Running test: testImmediatelyResolvedAfterAfterContextDestroyed
 Destroying context..
+Context destroyed
+Triggering weak callback..
 {
     error : {
         code : -32000
@@ -245,5 +247,3 @@ Destroying context..
     }
     id : <messageId>
 }
-Context destroyed
-Triggering weak callback..

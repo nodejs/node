@@ -38,7 +38,7 @@ ABSL_NAMESPACE_BEGIN
 // A discrete distribution produces random integers i, where 0 <= i < n
 // distributed according to the discrete probability function:
 //
-//     P(i|p0,...,pn−1)=pi
+//     P(i|p0,...,pn-1)=pi
 //
 // This class is an implementation of discrete_distribution (see
 // [rand.dist.samp.discrete]).

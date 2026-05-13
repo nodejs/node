@@ -36,11 +36,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using TodoShape = Shape;
   using Key = typename TodoShape::Key;
   inline Tagged<Object> ValueAt(InternalIndex entry);
-  inline Tagged<Object> ValueAt(PtrComprCageBase cage_base,
-                                InternalIndex entry);
   inline Tagged<Object> ValueAt(InternalIndex entry, SeqCstAccessTag);
-  inline Tagged<Object> ValueAt(PtrComprCageBase cage_base, InternalIndex entry,
-                                SeqCstAccessTag);
   // Returns {} if we would be reading out of the bounds of the object.
   inline std::optional<Tagged<Object>> TryValueAt(InternalIndex entry);
 
@@ -298,7 +294,6 @@ class V8_EXPORT_PRIVATE NameDictionary
   static const int kInitialCapacity = 2;
 
   inline Tagged<Name> NameAt(InternalIndex entry);
-  inline Tagged<Name> NameAt(PtrComprCageBase cage_base, InternalIndex entry);
 
   inline void set_hash(int hash);
   inline int hash() const;
@@ -351,11 +346,7 @@ class V8_EXPORT_PRIVATE GlobalDictionary
   DECL_PRINTER(GlobalDictionary)
 
   inline Tagged<Object> ValueAt(InternalIndex entry);
-  inline Tagged<Object> ValueAt(PtrComprCageBase cage_base,
-                                InternalIndex entry);
   inline Tagged<PropertyCell> CellAt(InternalIndex entry);
-  inline Tagged<PropertyCell> CellAt(PtrComprCageBase cage_base,
-                                     InternalIndex entry);
   inline void SetEntry(InternalIndex entry, Tagged<Object> key,
                        Tagged<Object> value, PropertyDetails details);
   inline void SetEntry(InternalIndex entry, Tagged<Object> key,
@@ -364,7 +355,6 @@ class V8_EXPORT_PRIVATE GlobalDictionary
                        const DisallowGarbageCollection& no_gc);
   inline void ClearEntry(InternalIndex entry);
   inline Tagged<Name> NameAt(InternalIndex entry);
-  inline Tagged<Name> NameAt(PtrComprCageBase cage_base, InternalIndex entry);
   inline void ValueAtPut(InternalIndex entry, Tagged<Object> value);
 
   std::optional<Tagged<PropertyCell>>

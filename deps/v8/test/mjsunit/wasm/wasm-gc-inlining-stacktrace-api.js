@@ -3,63 +3,40 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbofan
-// Flags: --no-always-sparkplug --expose-gc
+// Flags: --no-always-sparkplug
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-function testOptimized(run, fctToOptimize) {
-  fctToOptimize = fctToOptimize ?? run;
-  %PrepareFunctionForOptimization(fctToOptimize);
-  for (let i = 0; i < 10; ++i) {
-    run();
-  }
-  %OptimizeFunctionOnNextCall(fctToOptimize);
-  run();
-  // Re-prepare the function immediately to make sure type feedback isn't
-  // cleared by an untimely gc.
-  %PrepareFunctionForOptimization(fctToOptimize);
-  assertOptimized(fctToOptimize);
-}
+function testOptimized(
+  run, jsWasmCaller, wasmInstance,
+  expectedLineNumber, expectedColumnNumber, expectedOuterFrames
+) {
+  // Check the properties of the structured stack frames.
+  Error.prepareStackTrace = (error, frames) => {
+    assertTrue(error instanceof WebAssembly.RuntimeError);
+    assertEquals("dereferencing a null pointer", error.message);
 
-(function TestInliningTrapStackTrace() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let struct = builder.addStruct([makeField(kWasmI32, true)]);
-
-  builder.addFunction('createStruct', makeSig([kWasmI32], [kWasmExternRef]))
-    .addBody([
-      kExprLocalGet, 0,
-      kGCPrefix, kExprStructNew, struct,
-      kGCPrefix, kExprExternConvertAny,
-    ])
-    .exportFunc();
-
-  builder.addFunction('getElement', makeSig([kWasmExternRef], [kWasmI32]))
-    .addBody([
-      kExprLocalGet, 0,
-      kGCPrefix, kExprAnyConvertExtern,
-      kGCPrefix, kExprRefCast, struct,
-      kGCPrefix, kExprStructGet, struct, 0])
-    .exportFunc();
-
-  let instance = builder.instantiate({});
-  let wasm = instance.exports;
-
-
-  const getTrap = () => {
-    return wasm.getElement(null);
-  };
-
-  Error.prepareStackTrace = (e, frames) => {
+    // Inspect the frame of the inlined Wasm function.
     let frame = frames[0];
-    assertSame(instance, frame.getThis());
+    assertSame(wasmInstance, frame.getThis());
+    // For Wasm frames, there is no JS receiver (no 'this' object with a constructor),
+    // so the type name is null.
     assertSame(null, frame.getTypeName());
-    assertSame(1, frame.getFunction());
-    assertEquals('getElement', frame.getFunctionName());
+    assertEquals('arrayLenNull', frame.getFunctionName());
     assertSame(null, frame.getMethodName());
     assertMatches(/wasm:\/\/wasm\/[0-9a-f]+/,
-                 frame.getFileName());
-    assertEquals(0x53, frame.getColumnNumber());
+      frame.getFileName());
+    // For Wasm, getFunction() returns the Wasm function index.
+    const wasmFunctionIndex = 0;
+    assertSame(wasmFunctionIndex, frame.getFunction());
+    // For Wasm functions, these properties are repurposed:
+    // - the line number is always 1
+    assertEquals(1, frame.getLineNumber());
+    // - the bytecode offset (1-based)
+    const wasmFunctionBytecodeOffset = 0x37;
+    assertEquals(wasmFunctionBytecodeOffset + 1, frame.getColumnNumber());
+    // - the bytecode offset (0-based)
+    assertEquals(wasmFunctionBytecodeOffset, frame.getPosition());
     assertSame(undefined, frame.getEvalOrigin());
     assertFalse(frame.isToplevel());
     assertFalse(frame.isEval());
@@ -69,17 +46,21 @@ function testOptimized(run, fctToOptimize) {
     assertFalse(frame.isPromiseAll());
     assertSame(null, frame.getPromiseIndex());
 
-    // Inspect the outer JS frame.
+    // Inspect the frame of the caller JavaScript function.
     frame = frames[1];
-    assertSame(this, frame.getThis());
+    assertSame(globalThis, frame.getThis());
     assertSame(null, frame.getTypeName());
-    assertSame(getTrap, frame.getFunction());
-    assertEquals(getTrap.name, frame.getFunctionName());
+    assertSame(jsWasmCaller, frame.getFunction());
+    assertEquals(jsWasmCaller.name, frame.getFunctionName());
     assertSame(null, frame.getMethodName());
     assertMatches(/.*wasm-gc-inlining-stacktrace-api\.js/,
-                 frame.getFileName());
-    assertEquals(17, frame.getColumnNumber());
+      frame.getFileName());
+    assertEquals(expectedLineNumber, frame.getLineNumber());
+    assertEquals(expectedColumnNumber, frame.getColumnNumber());
+    assertEquals('number', typeof frame.getPosition());
     assertSame(undefined, frame.getEvalOrigin());
+    // The arrow function inherits 'this' from TestInliningTrapStackTrace,
+    // which is executed in the global context, hence it is toplevel.
     assertTrue(frame.isToplevel());
     assertFalse(frame.isEval());
     assertFalse(frame.isNative());
@@ -88,19 +69,61 @@ function testOptimized(run, fctToOptimize) {
     assertFalse(frame.isPromiseAll());
     assertSame(null, frame.getPromiseIndex());
 
-    // Return 'custom' stack trace.
-    return 'This is a stack trace';
+    // Do shallow tests for the outer JS functions.
+    for (let i = 0; i < expectedOuterFrames.length; ++i) {
+      assertEquals(expectedOuterFrames[i], frames[i + 2].getFunctionName());
+    }
+
+    return 'This is a custom stack trace';
+  };
+
+  // Run once unoptimized and once optimized.
+  %PrepareFunctionForOptimization(jsWasmCaller);
+  run();
+  %OptimizeFunctionOnNextCall(jsWasmCaller);
+  run();
+  // Re-prepare the function immediately to make sure type feedback isn't
+  // cleared by an untimely gc.
+  %PrepareFunctionForOptimization(jsWasmCaller);
+  assertOptimized(jsWasmCaller);
+}
+
+(function TestInliningTrapStackTrace() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  const array = builder.addArray(kWasmI32);
+
+  // Inlined Wasm function that traps (due to null array).
+  builder.addFunction('arrayLenNull', kSig_i_r)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprAnyConvertExtern,
+      kGCPrefix, kExprRefCastNull, array,
+      kGCPrefix, kExprArrayLen,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate({});
+  const wasm = instance.exports;
+
+
+  const getTrap = () => {
+    return wasm.arrayLenNull(null);
   };
 
   const testTrap = () => {
     try {
       getTrap();
       assertUnreachable();
-    } catch(e) {
-      assertEquals('This is a stack trace', e.stack);
+    } catch (e) {
+      assertEquals('This is a custom stack trace', e.stack);
     }
   };
-  testOptimized(testTrap, getTrap);
+
+  testOptimized(testTrap, getTrap, instance, 112, 17, [
+    'testTrap', 'testOptimized', 'TestInliningTrapStackTrace'
+  ]);
 
   {
     print('Test with wasm call within a try catch block');
@@ -110,54 +133,14 @@ function testOptimized(run, fctToOptimize) {
     // future won't break the stack trace API behavior.
     const getTrapTryCatch = () => {
       try {
-        return wasm.getElement(null);
+        return wasm.arrayLenNull(null);
       } catch (e) {
-        assertEquals('This is a stack trace', e.stack);
+        assertEquals('This is a custom stack trace', e.stack);
       }
     };
 
-    Error.prepareStackTrace = (e, frames) => {
-      let frame = frames[0];
-      assertSame(instance, frame.getThis());
-      assertSame(null, frame.getTypeName());
-      assertSame(1, frame.getFunction());
-      assertEquals('getElement', frame.getFunctionName());
-      assertSame(null, frame.getMethodName());
-      assertMatches(/wasm:\/\/wasm\/[0-9a-f]+/,
-                   frame.getFileName());
-      assertEquals(0x53, frame.getColumnNumber());
-      assertSame(undefined, frame.getEvalOrigin());
-      assertFalse(frame.isToplevel());
-      assertFalse(frame.isEval());
-      assertFalse(frame.isNative());
-      assertFalse(frame.isConstructor());
-      assertFalse(frame.isAsync());
-      assertFalse(frame.isPromiseAll());
-      assertSame(null, frame.getPromiseIndex());
-
-      // Inspect the outer JS frame.
-      frame = frames[1];
-      assertSame(this, frame.getThis());
-      assertSame(null, frame.getTypeName());
-      assertSame(getTrapTryCatch, frame.getFunction());
-      assertEquals(getTrapTryCatch.name, frame.getFunctionName());
-      assertSame(null, frame.getMethodName());
-      assertMatches(/.*wasm-gc-inlining-stacktrace-api\.js/,
-                   frame.getFileName());
-      assertEquals(21, frame.getColumnNumber());
-      assertSame(undefined, frame.getEvalOrigin());
-      assertTrue(frame.isToplevel());
-      assertFalse(frame.isEval());
-      assertFalse(frame.isNative());
-      assertFalse(frame.isConstructor());
-      assertFalse(frame.isAsync());
-      assertFalse(frame.isPromiseAll());
-      assertSame(null, frame.getPromiseIndex());
-
-      // Return 'custom' stack trace.
-      return 'This is a stack trace';
-    };
-
-    testOptimized(getTrapTryCatch);
+    testOptimized(getTrapTryCatch, getTrapTryCatch, instance, 136, 21, [
+      'testOptimized', 'TestInliningTrapStackTrace'
+    ]);
   }
 })();

@@ -541,6 +541,10 @@ class Simulator : public SimulatorBase {
   template <typename T>
   T FMaxMinHelper(T a, T b, MaxMinKind kind);
 
+  // IEEE 754-2019 minimum/maximum for Zfa extension (fminm/fmaxm).
+  template <typename T>
+  T FMaxMinMHelper(T a, T b, MaxMinKind kind);
+
   template <typename T>
   bool CompareFHelper(T input1, T input2, FPUCondition cc);
 
@@ -707,7 +711,7 @@ class Simulator : public SimulatorBase {
   // signal which was then handled by the trap handler (also see
   // {trap_handler::ProbeMemory}). If the access raises a signal which is not
   // handled by the trap handler (e.g. because the current PC is not registered
-  // as a protected instruction), the signal will propagate and make the process
+  // as a trapping instruction), the signal will propagate and make the process
   // crash. If no trap handler is available, this always returns true.
   bool ProbeMemory(uintptr_t address, uintptr_t access_size);
 
@@ -923,7 +927,7 @@ class Simulator : public SimulatorBase {
     for (int i = VRegisterValue::kChunks - 1; i >= 0; i--) {
       const char* format =
           i != VRegisterValue::kChunks - 1 ? "_%016" PRIx64 : "%016" PRIx64;
-      int written = SNPrintF(trace_buf_.SubVector(offset, trace_buf_.length()),
+      int written = SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
                              format, value.chunks[i]);
       offset += written;
     }
@@ -933,7 +937,7 @@ class Simulator : public SimulatorBase {
   inline void rvv_trace_vd() {
     if (v8_flags.trace_sim) {
       int offset = snprintf_vreg(rvv_vd_reg());
-      SNPrintF(trace_buf_.SubVector(offset, trace_buf_.length()),
+      SNPrintF(trace_buf_.SubVector(offset, trace_buf_.size()),
                " (%" PRId64 ")", icount_);
     }
   }
@@ -965,11 +969,11 @@ class Simulator : public SimulatorBase {
 
   inline void rvv_trace_status() {
     if (v8_flags.trace_sim) {
-      int i = 0;
-      for (; i < trace_buf_.length(); i++) {
+      size_t i = 0;
+      for (; i < trace_buf_.size(); i++) {
         if (trace_buf_[i] == '\0') break;
       }
-      SNPrintF(trace_buf_.SubVector(i, trace_buf_.length()),
+      SNPrintF(trace_buf_.SubVector(i, trace_buf_.size()),
                "  sew:%s lmul:%s vstart:%" PRId64 " vl:%" PRId64, rvv_sew_s(),
                rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }

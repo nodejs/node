@@ -112,6 +112,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder final : public StreamingDecoder {
                                      std::move(compile_imports_), &thrower,
                                      std::move(bytes_copy));
     if (thrower.error()) {
+      HandleScope scope(isolate_);
       resolver_->OnCompilationFailed(thrower.Reify());
       return;
     }

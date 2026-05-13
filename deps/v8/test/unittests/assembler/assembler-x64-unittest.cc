@@ -3323,6 +3323,10 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F) {
   __ pop2q(rcx, rdx);
   __ pop2pq(rcx, rdx);
 
+  __ setzucc(greater, r8);
+
+  __ jmpabs(Immediate64(0x123456789abcdef));
+
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
 
@@ -3344,7 +3348,12 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F) {
                         // pop2q rcx, rdx
                         0x62, 0xf4, 0x74, 0x18, 0x8f, 0xc2,
                         // pop2pq rcx, rdx
-                        0x62, 0xf4, 0xf4, 0x18, 0x8f, 0xc2};
+                        0x62, 0xf4, 0xf4, 0x18, 0x8f, 0xc2,
+                        // setzunle r8b
+                        0x62, 0xd4, 0x7f, 0x18, 0x4f, 0xc0,
+                        // jmpabs 0x123456789abcdef
+                        0xd5, 0x00, 0xa1, 0xef, 0xcd, 0xab, 0x89, 0x67, 0x45,
+                        0x23, 0x01};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
@@ -3533,6 +3542,175 @@ TEST_F(AssemblerX64Test, AssemblerX64APX_F_CTEST) {
       0x62, 0xf4, 0xc4, 0x00, 0xf7, 0xc0, 0x07, 0x00, 0x00, 0x00,
       // ctestle {dfv=zf} qword ptr [rsp+0x8], 0x7
       0x62, 0xf4, 0x94, 0x0e, 0xf7, 0x44, 0x24, 0x08, 0x07, 0x00, 0x00, 0x00};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST_F(AssemblerX64Test, AssemblerX64APX_F_CMOV) {
+  if (!CpuFeatures::IsSupported(APX_F)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, APX_F);
+
+  Operand mem(rsp, 8);
+
+  // cfcload
+  __ cfcmovw(below, rax, rbx);
+  __ cfcmovw(greater_equal, rax, mem);
+
+  __ cfcmovl(below, rax, r13);
+  __ cfcmovl(greater_equal, r13, mem);
+
+  __ cfcmovq(below, r12, r13);
+  __ cfcmovq(greater_equal, r12, mem);
+
+  // cfcstore
+  __ cfcmovw(greater_equal, mem, rax);
+  __ cfcmovl(greater_equal, mem, r13);
+  __ cfcmovq(below, mem, r12);
+
+  // cfcsel
+  __ cfcmovw(below_equal, r10, r11, r13);
+  __ cfcmovl(below_equal, r11, r12, mem);
+  __ cfcmovq(greater_equal, rax, r10, mem);
+
+  // csel
+  __ cmovw(below_equal, rax, r11, r13);
+  __ cmovl(below_equal, rax, r12, mem);
+  __ cmovq(greater_equal, rax, r10, mem);
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {// cfcmovb ax, bx
+                        0x62, 0xf4, 0x7d, 0x08, 0x42, 0xc3,
+                        // cfcmovnl ax, word ptr [rsp+0x8]
+                        0x62, 0xf4, 0x7d, 0x08, 0x4d, 0x44, 0x24, 0x08,
+                        // cfcmovb eax, r13d
+                        0x62, 0xd4, 0x7c, 0x08, 0x42, 0xc5,
+                        // cfcmovnl r13d, dword ptr [rsp+0x8]
+                        0x62, 0x74, 0x7c, 0x08, 0x4d, 0x6c, 0x24, 0x08,
+                        // cfcmovb r12, r13
+                        0x62, 0x54, 0xfc, 0x08, 0x42, 0xe5,
+                        // cfcmovnl r12, qword ptr [rsp+0x8]
+                        0x62, 0x74, 0xfc, 0x08, 0x4d, 0x64, 0x24, 0x08,
+                        // cmovnl ax, ax, word ptr [rsp+0x8]
+                        0x62, 0xf4, 0x7d, 0x18, 0x4d, 0x44, 0x24, 0x08,
+                        // cmovnl eax, r13d, dword ptr [rsp+0x8]
+                        0x62, 0x74, 0x7c, 0x18, 0x4d, 0x6c, 0x24, 0x08,
+                        // cmovb rax, r12, qword ptr [rsp+0x8]
+                        0x62, 0x74, 0xfc, 0x18, 0x42, 0x64, 0x24, 0x08,
+                        // cfcmovbe r10w, r11w, r13w
+                        0x62, 0x54, 0x2d, 0x1c, 0x46, 0xdd,
+                        // cfcmovbe r11d, r12d, dword ptr [rsp+0x8]
+                        0x62, 0x74, 0x24, 0x1c, 0x46, 0x64, 0x24, 0x08,
+                        // cfcmovnl rax, r10, qword ptr [rsp+0x8]
+                        0x62, 0x74, 0xfc, 0x1c, 0x4d, 0x54, 0x24, 0x08,
+                        // cfcmovbe r13w, r11w
+                        0x62, 0x54, 0x7d, 0x0c, 0x46, 0xdd,
+                        // cfcmovbe dword ptr [rsp+0x8], r12d
+                        0x62, 0x74, 0x7c, 0x0c, 0x46, 0x64, 0x24, 0x08,
+                        // cfcmovnl qword ptr [rsp+0x8], r10
+                        0x62, 0x74, 0xfc, 0x0c, 0x4d, 0x54, 0x24, 0x08};
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST_F(AssemblerX64Test, AssemblerX64APX_F_NDD) {
+  if (!CpuFeatures::IsSupported(APX_F)) return;
+
+  auto buffer = AllocateAssemblerBuffer();
+  Isolate* isolate = i_isolate();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, APX_F);
+
+  __ addq(rax, rcx, r9);
+  __ andl(r15, r11, Operand(r12, r8, times_4, 10000));
+  __ subq(r8, Operand(rcx, rdx, times_8, 10000), r15);
+  __ orl(r15, r11, Immediate(1));
+  __ xorq(r8, Operand(r11, r13, times_4, 10000), Immediate(0x123));
+
+  __ imull(r8, r11, r15);
+  __ imulq(r13, r14, Operand(r12, r15, times_2, 10000));
+
+  __ negl(rcx, rax);
+  __ negq(rcx, Operand(r12, r11, times_4, 10000));
+
+  __ notl(r8, r9);
+  __ notq(rcx, Operand(r13, r11, times_1, 10000));
+
+  __ roll(rax, rcx, Immediate(1));
+  __ rorq(r12, r13, Immediate(0x123));
+  __ rcll(r8, Operand(rcx, rdx, times_1, 10000), Immediate(1));
+  __ rcrq(r8, Operand(r11, r13, times_2, 10000), Immediate(0x123));
+  __ shrq(r15, r11, Immediate(1));
+  __ sarq(r10, r13, Immediate(0x123));
+
+  __ shll_cl(r10, Operand(r8, rdx, times_1, 10000));
+  __ sarq_cl(r13, Operand(r8, rdx, times_1, 10000));
+  __ shll_cl(r12, r13);
+  __ rorl_cl(r8, r13);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  Print(*code, os);
+#endif
+
+  uint8_t expected[] = {
+      // addq rax, rcx, r9
+      0x62, 0xd4, 0xfc, 0x18, 0x03, 0xc9,
+      // andl r15, r11, Operand(r12, r8, times_4, 10000)
+      0x62, 0x14, 0x04, 0x18, 0x23, 0x9c, 0x84, 0x10, 0x27, 0x00, 0x00,
+      // subq r8, Operand(rcx, rdx, times_8, 10000), r15
+      0x62, 0x74, 0xbc, 0x18, 0x29, 0xbc, 0xd1, 0x10, 0x27, 0x00, 0x00,
+      // orl r15, r11, 0x1
+      0x62, 0xd4, 0x04, 0x18, 0x83, 0xcb, 0x01,
+      // xorq r8, Operand(r11, r13, times_4, 10000), 0x123
+      0x62, 0x94, 0xbc, 0x18, 0x81, 0xb4, 0xab, 0x10, 0x27, 0x00, 0x00, 0x23,
+      0x01, 0x00, 0x00,
+      // imull r8, r11, r15
+      0x62, 0x54, 0x3c, 0x18, 0xaf, 0xdf,
+      // imulq r13, r14, Operand(r12, r15, times_2, 10000)
+      0x62, 0x14, 0x94, 0x18, 0xaf, 0xb4, 0x7c, 0x10, 0x27, 0x00, 0x00,
+      // negl rcx, rax
+      0x62, 0xf4, 0x74, 0x18, 0xf7, 0xd8,
+      // negq rcx, Operand(r12, r11, times_4, 10000)
+      0x62, 0x94, 0xf4, 0x18, 0xf7, 0x9c, 0x9c, 0x10, 0x27, 0x00, 0x00,
+      // notl r8, r9
+      0x62, 0xd4, 0x3c, 0x18, 0xf7, 0xd1,
+      // notq rcx, Operand(r13, r11, times_1, 10000)
+      0x62, 0x94, 0xf4, 0x18, 0xf7, 0x94, 0x1d, 0x10, 0x27, 0x00, 0x00,
+      // rol eax, ecx, 0x1
+      0x62, 0xf4, 0x7c, 0x18, 0xd1, 0xc1,
+      // ror r12, r13, 0x23
+      0x62, 0xd4, 0x9c, 0x18, 0xc1, 0xcd, 0x23,
+      // rcl r8d, Operand(rcx, rdx, times_1, 10000), 0x1
+      0x62, 0xf4, 0x3c, 0x18, 0xd1, 0x94, 0x11, 0x10, 0x27, 0x00, 0x00,
+      // rcr r8, Operand(r11, r13, times_2, 10000), 0x23
+      0x62, 0x94, 0xbc, 0x18, 0xc1, 0x9c, 0x6b, 0x10, 0x27, 0x00, 0x00, 0x23,
+      // shr r15, r11, 0x1
+      0x62, 0xd4, 0x84, 0x18, 0xd1, 0xeb,
+      // sar r10, r13, 0x23
+      0x62, 0xd4, 0xac, 0x18, 0xc1, 0xfd, 0x23,
+      // shl r10d, Operand(r8, rdx, times_1, 10000), cl
+      0x62, 0xd4, 0x2c, 0x18, 0xd3, 0xa4, 0x10, 0x10, 0x27, 0x00, 0x00,
+      // sar r13, Operand(r8, rdx, times_1, 10000), cl
+      0x62, 0xd4, 0x94, 0x18, 0xd3, 0xbc, 0x10, 0x10, 0x27, 0x00, 0x00,
+      // shl r12d, r13d, cl
+      0x62, 0xd4, 0x1c, 0x18, 0xd3, 0xe5,
+      // ror r8d, r13d, cl
+      0x62, 0xd4, 0x3c, 0x18, 0xd3, 0xcd};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 #endif  // V8_ENABLE_APX_F

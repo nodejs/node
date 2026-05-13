@@ -722,11 +722,12 @@ class LoopLabel : public LabelBase<true, Ts...> {
       SourceLocation bind_location = SourceLocation::CurrentIfDebug()) {
 #ifdef DEBUG
     if (loop_header_data_.block->IsBound()) {
-      V8_Fatal(bind_location.FileName(), static_cast<int>(bind_location.Line()),
-               "TSA: Trying to BIND a Label that is already bound. The Label "
-               "is defined here: %s, line %d",
-               loop_header_data_.def_location.FileName(),
-               static_cast<int>(loop_header_data_.def_location.Line()));
+      FATAL_WITH_LOC(
+          bind_location,
+          "TSA: Trying to BIND a Label that is already bound. The Label "
+          "is defined here: %s, line %d",
+          loop_header_data_.def_location.FileName(),
+          static_cast<int>(loop_header_data_.def_location.Line()));
     }
 #endif
     if (!assembler.Bind(loop_header_data_.block, bind_location)) {
@@ -1191,6 +1192,15 @@ class GraphEmitter : public Next {
   using node_t = OpIndex;
   using block_t = Block;
 
+  // By default, source positions are copied from the origin operation, but
+  // reducers can override this method to provide custom source position
+  // mapping.
+  SourcePosition GetSourcePositionFor(OpIndex index) {
+    OpIndex origin = Asm().output_graph().operation_origins()[index];
+    return origin.valid() ? Asm().input_graph().source_positions()[origin]
+                          : SourcePosition::Unknown();
+  }
+
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
     static_assert((std::is_base_of_v<Operation, Op>));
@@ -1200,6 +1210,13 @@ class GraphEmitter : public Next {
     Op& op = Asm().output_graph().template Add<Op>(args...);
     Asm().output_graph().operation_origins()[result] =
         Asm().current_operation_origin();
+    // During graph building, the input graph's source positions are empty
+    // and the origin might not be a valid OpIndex. So we only track source
+    // positions if the input graph already has them.
+    if (!Asm().input_graph().source_positions().empty()) {
+      Asm().output_graph().source_positions()[result] =
+          Asm().GetSourcePositionFor(result);
+    }
 #ifdef DEBUG
     if (v8_flags.turboshaft_trace_intermediate_reductions) {
       std::cout << std::setw(Asm().intermediate_tracing_depth()) << ' ' << "["
@@ -1481,7 +1498,9 @@ class ReducerBase : public Next {
       Asm().AddPredecessor(saved_current_block, catch_block, true);
     }
     for (auto& effect_handler : effect_handlers) {
-      Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      if (!effect_handler.is_switch()) {
+        Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      }
     }
     return new_opindex;
   }
@@ -2226,6 +2245,8 @@ class AssemblerOpInterface : public Next {
             k##input_interpretation,                                     \
         CheckForMinusZeroMode::kDontCheckForMinusZero));                 \
   }
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToHeapNumber, HeapNumber, Word32,
+                              Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertIntPtrToNumber, Number, WordPtr, Signed)
@@ -2600,7 +2621,7 @@ class AssemblerOpInterface : public Next {
       return TruncateWord64ToWord32(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<Word32>::Cast(resolve(input));
+      return V<Word32>::CastIfNeeded(resolve(input));
     }
   }
   V<WordPtr> ChangeInt32ToIntPtr(ConstOrV<Word32> input) {
@@ -2608,7 +2629,7 @@ class AssemblerOpInterface : public Next {
       return ChangeInt32ToInt64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(resolve(input));
+      return V<WordPtr>::CastIfNeeded(resolve(input));
     }
   }
   V<WordPtr> ChangeUint32ToUintPtr(V<Word32> input) {
@@ -2616,14 +2637,14 @@ class AssemblerOpInterface : public Next {
       return ChangeUint32ToUint64(input);
     } else {
       DCHECK_EQ(WordPtr::bits, Word32::bits);
-      return V<WordPtr>::Cast(input);
+      return V<WordPtr>::CastIfNeeded(input);
     }
   }
 
   V<Word64> ChangeIntPtrToInt64(V<WordPtr> input) {
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
-      return V<Word64>::Cast(input);
+      return V<Word64>::CastIfNeeded(input);
     } else {
       return ChangeInt32ToInt64(input);
     }
@@ -2632,7 +2653,7 @@ class AssemblerOpInterface : public Next {
   V<Word64> ChangeUintPtrToUint64(V<WordPtr> input) {
     if constexpr (Is64()) {
       DCHECK_EQ(WordPtr::bits, Word64::bits);
-      return V<Word64>::Cast(input);
+      return V<Word64>::CastIfNeeded(input);
     } else {
       return ChangeUint32ToUint64(input);
     }
@@ -2754,6 +2775,14 @@ class AssemblerOpInterface : public Next {
     return V<Word64>::Cast(ChangeOrDeopt(input, frame_state,
                                          ChangeOrDeoptOp::Kind::kFloat64ToInt64,
                                          minus_zero_mode, feedback));
+  }
+  V<Word64> ChangeFloat64ToUint64OrDeopt(V<Float64> input,
+                                         V<turboshaft::FrameState> frame_state,
+                                         CheckForMinusZeroMode minus_zero_mode,
+                                         const FeedbackSource& feedback) {
+    return V<Word64>::Cast(ChangeOrDeopt(
+        input, frame_state, ChangeOrDeoptOp::Kind::kFloat64ToUint64,
+        minus_zero_mode, feedback));
   }
 
   V<Smi> TagSmi(ConstOrV<Word32> input) {
@@ -2916,42 +2945,30 @@ class AssemblerOpInterface : public Next {
   }
 
   // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointer(V<HeapObject> base, OptionalV<Word32> index,
-                               LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range,
-                               int offset = 0) {
+  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range, int offset) {
 #if V8_ENABLE_SANDBOX
     static_assert(COMPRESS_POINTERS_BOOL);
-    V<Word32> handle =
-        Load(base, index, kind, MemoryRepresentation::Uint32(), offset);
     V<WordPtr> table =
         Load(LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
              MemoryRepresentation::UintPtr(),
              IsolateData::trusted_pointer_table_offset() +
                  Internals::kExternalEntityTableBasePointerOffset);
-    return LoadTrustedPointer(table, handle, kind.is_immutable, tag_range);
+    return LoadTrustedPointer(base, table, kind, tag_range, offset);
 #else
-    return Load(base, index, kind, MemoryRepresentation::TaggedPointer(),
-                offset);
+    return Load(base, kind, MemoryRepresentation::TaggedPointer(), offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> LoadTrustedPointer(V<WordPtr> table, V<Word32> handle,
-                               bool is_immutable,
-                               IndirectPointerTagRange tag_range) {
-    return ReduceIfReachableLoadTrustedPointer(table, handle, is_immutable,
-                                               tag_range);
+  V<Object> LoadTrustedPointer(V<HeapObject> base, V<WordPtr> table,
+                               LoadOp::Kind kind,
+                               IndirectPointerTagRange tag_range,
+                               int32_t offset) {
+    return ReduceIfReachableLoadTrustedPointer(base, table, kind, tag_range,
+                                               offset);
   }
 #endif
-
-  // Load a trusted (indirect) pointer. Returns Smi or ExposedTrustedObject.
-  V<Object> LoadTrustedPointer(V<HeapObject> base, LoadOp::Kind kind,
-                               IndirectPointerTagRange tag_range,
-                               int offset = 0) {
-    return LoadTrustedPointer(base, OpIndex::Invalid(), kind, tag_range,
-                              offset);
-  }
 
   V<WordPtr> LoadExternalPointerFromObject(V<Object> object, int offset,
                                            ExternalPointerTag tag) {
@@ -3060,13 +3077,25 @@ class AssemblerOpInterface : public Next {
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+      std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
+      uint8_t element_size_log2 = 0,
+      bool maybe_initializing_or_transitioning = false,
+      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+    DCHECK_EQ(kind.is_atomic, memory_order.has_value());
+    ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
+                           memory_order, offset, element_size_log2,
+                           maybe_initializing_or_transitioning,
+                           maybe_indirect_pointer_tag);
+  }
+  void Store(
+      OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
+      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
-    ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
-                           offset, element_size_log2,
-                           maybe_initializing_or_transitioning,
-                           maybe_indirect_pointer_tag);
+    Store(base, index, value, kind, stored_rep, write_barrier, std::nullopt,
+          offset, element_size_log2, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
@@ -3075,6 +3104,17 @@ class AssemblerOpInterface : public Next {
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           offset, 0, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
+  }
+  void Store(
+      OpIndex base, OpIndex value, StoreOp::Kind kind,
+      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+      std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
+      uint8_t element_size_log2 = 0,
+      bool maybe_initializing_or_transitioning = false,
+      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+    Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
+          memory_order, offset, 0, maybe_initializing_or_transitioning,
           maybe_indirect_pointer_tag);
   }
 
@@ -3150,14 +3190,14 @@ class AssemblerOpInterface : public Next {
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = V<Rep>::Cast(LoadExternalPointer(V<Word32>::Cast(value),
-                                               access.external_pointer_tag));
+      value = V<Rep>::CastIfNeeded(LoadExternalPointer(
+          V<Word32>::CastIfNeeded(value), access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
-      value = V<Rep>::Cast(ShiftRightLogical(V<WordPtr>::Cast(value),
-                                             kBoundedSizeShift,
-                                             WordRepresentation::WordPtr()));
+      value = V<Rep>::CastIfNeeded(
+          ShiftRightLogical(V<WordPtr>::CastIfNeeded(value), kBoundedSizeShift,
+                            WordRepresentation::WordPtr()));
     }
 #endif  // V8_ENABLE_SANDBOX
     return value;
@@ -3755,6 +3795,29 @@ class AssemblerOpInterface : public Next {
              Descriptor::kEffects));
   }
 
+  // Abstracts over calling a builtin from Wasm code. In the Wasm pipeline, it
+  // calls through the Wasm jump table (since builtins may be too far away for a
+  // relative branch on arm64, for example). In the JS pipeline (when inlining
+  // Wasm-into-JS), there is no Wasm jump table, so it dispatches to
+  // CallBuiltin, which emits a direct call to the builtin's code object loaded
+  // as a heap constant.
+  template <typename Descriptor>
+  detail::index_type_for_t<typename Descriptor::results_t> CallWasmBuiltin(
+      const typename Descriptor::arguments_t& args) {
+    const bool is_wasm_in_js_inlining = !Asm().data()->is_wasm();
+    if (is_wasm_in_js_inlining) {
+      // We are in the JS pipeline. Wasm nodes are compiled within the JS
+      // compiler, so there is no Wasm jump table. We use regular builtin
+      // calls instead.
+      Isolate* isolate = Asm().data()->isolate();
+      DCHECK_NOT_NULL(isolate);
+      return CallBuiltin<Descriptor>(isolate, args);
+    } else {
+      // Wasm pipeline: go through the jump table.
+      return WasmCallBuiltinThroughJumptable<Descriptor>(args);
+    }
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   template <typename Desc>
@@ -3839,7 +3902,7 @@ class AssemblerOpInterface : public Next {
     arguments.push_back(context);
     Isolate* isolate = Asm().data()->isolate();
     DCHECK_NOT_NULL(isolate);
-    return result_t::Cast(CallBuiltinImpl(
+    return result_t::CastIfNeeded(CallBuiltinImpl(
         isolate, Desc::kFunction, frame_state, base::VectorOf(arguments),
         Desc::Create(StubCallMode::kCallCodeObject,
                      Asm().output_graph().graph_zone(), lazy_deopt_on_throw,
@@ -3867,7 +3930,7 @@ class AssemblerOpInterface : public Next {
                           Asm().output_graph().graph_zone()),
              Desc::kEffects);
     if constexpr (requires { result_t::Cast(result); }) {
-      return result_t::Cast(result);
+      return result_t::CastIfNeeded(result);
     } else {
       return result;
     }
@@ -3886,12 +3949,12 @@ class AssemblerOpInterface : public Next {
     auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::Cast(Call(call_target,
-                               OptionalV<turboshaft::FrameState>::Nullopt(),
-                               base::VectorOf(arguments),
-                               Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                            Asm().output_graph().graph_zone()),
-                               Desc::kEffects));
+    return result_t::CastIfNeeded(
+        Call(call_target, OptionalV<turboshaft::FrameState>::Nullopt(),
+             base::VectorOf(arguments),
+             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                          Asm().output_graph().graph_zone()),
+             Desc::kEffects));
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3926,8 +3989,9 @@ class AssemblerOpInterface : public Next {
     const TSCallDescriptor* desc =
         Desc::Create(actual_argument_count, Asm().output_graph().graph_zone(),
                      lazy_deopt_on_throw, !compiling_builtins);
-    return returns_t::Cast(Call(CEntryStubConstant(isolate, result_size),
-                                frame_state, base::VectorOf(arguments), desc));
+    return returns_t::CastIfNeeded(
+        Call(CEntryStubConstant(isolate, result_size), frame_state,
+             base::VectorOf(arguments), desc));
   }
 
   template <typename Desc>
@@ -4160,6 +4224,15 @@ class AssemblerOpInterface : public Next {
                  TrapId trap_id) {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
+
+  void WasmTrap(TrapId trap_id) {
+    WasmTrap(OptionalV<turboshaft::FrameState>{}, trap_id);
+  }
+
+  void WasmTrap(OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
+    ReduceIfReachableWasmTrap(frame_state, trap_id);
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void MajorGCForCompilerTesting() {
@@ -4203,7 +4276,7 @@ class AssemblerOpInterface : public Next {
   }
   template <typename... Ts>
   V<turboshaft::Tuple<Ts...>> MakeTuple(V<Ts>... indices) {
-    std::initializer_list<V<Any>> inputs{V<Any>::Cast(indices)...};
+    std::initializer_list<V<Any>> inputs{V<Any>::CastIfNeeded(indices)...};
     return V<turboshaft::Tuple<Ts...>>::Cast(MakeTuple(base::VectorOf(inputs)));
   }
   // TODO(chromium:331100916): Remove this overload once everything is properly
@@ -4222,14 +4295,15 @@ class AssemblerOpInterface : public Next {
     static_assert(v_traits<element_t>::rep != nullrep,
                   "Representation for Projection cannot be inferred. Use "
                   "overload with explicit Representation argument.");
-    return V<element_t>::Cast(Projection(tuple, Index, V<element_t>::rep));
+    return V<element_t>::CastIfNeeded(
+        Projection(tuple, Index, V<element_t>::rep));
   }
   template <uint16_t Index, typename... Ts>
   auto Projection(V<turboshaft::Tuple<Ts...>> tuple,
                   RegisterRepresentation rep) {
     using element_t = base::nth_type_t<Index, Ts...>;
     DCHECK(V<element_t>::allows_representation(rep));
-    return V<element_t>::Cast(Projection(tuple, Index, rep));
+    return V<element_t>::CastIfNeeded(Projection(tuple, Index, rep));
   }
   OpIndex CheckTurboshaftTypeOf(OpIndex input, RegisterRepresentation rep,
                                 Type expected_type, bool successful) {
@@ -4238,9 +4312,10 @@ class AssemblerOpInterface : public Next {
                                                   successful);
   }
 
-  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+  void CheckMaglevType(V<Object> input, maglev::NodeType type,
+                       bool allow_widening_smi_to_int32) {
     CHECK(v8_flags.maglev_assert_types);
-    ReduceIfReachableCheckMaglevType(input, type);
+    ReduceIfReachableCheckMaglevType(input, type, allow_widening_smi_to_int32);
   }
 
   // This is currently only usable during graph building on the main thread.
@@ -4678,6 +4753,30 @@ class AssemblerOpInterface : public Next {
                                             right_high, kind);
   }
 
+  V<Word64Pair> Word64AddSub128Binop(V<Word64> left_low, V<Word64> left_high,
+                                     V<Word64> right_low, V<Word64> right_high,
+                                     Word64AddSub128BinopOp::Kind kind) {
+    return ReduceIfReachableWord64AddSub128Binop(left_low, left_high, right_low,
+                                                 right_high, kind);
+  }
+
+  V<Word64Pair> Add128(V<Word64> a_low, V<Word64> a_high, V<Word64> b_low,
+                       V<Word64> b_high) {
+    return Word64AddSub128Binop(a_low, a_high, b_low, b_high,
+                                Word64AddSub128BinopOp::Kind::kAdd);
+  }
+
+  V<Word64Pair> Sub128(V<Word64> a_low, V<Word64> a_high, V<Word64> b_low,
+                       V<Word64> b_high) {
+    return Word64AddSub128Binop(a_low, a_high, b_low, b_high,
+                                Word64AddSub128BinopOp::Kind::kSub);
+  }
+
+  V<Word64Pair> Word64MulWide(V<Word64> left, V<Word64> right,
+                              Word64MulWideOp::Kind kind) {
+    return ReduceIfReachableWord64MulWide(left, right, kind);
+  }
+
   V<Word32> StringAt(V<String> string, V<WordPtr> position,
                      StringAtOp::Kind kind) {
     return ReduceIfReachableStringAt(string, position, kind);
@@ -4708,6 +4807,16 @@ class AssemblerOpInterface : public Next {
                                   V<Context> context) {
     return StringToCaseIntl(string, frame_state, context,
                             StringToCaseIntlOp::Kind::kUpper);
+  }
+  V<Smi> StringLocaleCompareIntl(V<JSFunction> locale_compare_fn,
+                                 V<Object> left, V<Object> right,
+                                 V<StringOrUndefined> locales,
+                                 V<turboshaft::FrameState> frame_state,
+                                 V<Context> context,
+                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
+    return ReduceIfReachableStringLocaleCompareIntl(
+        locale_compare_fn, left, right, locales, frame_state, context,
+        lazy_deopt_on_throw);
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -4834,6 +4943,16 @@ class AssemblerOpInterface : public Next {
                                feedback);
   }
 
+  void CheckHomomorphic(V<HeapObject> heap_object,
+                        V<turboshaft::FrameState> frame_state, NameRef name,
+                        WeakHomomorphicFixedArrayRef homomorphic_array,
+                        int handler_value, bool check_heap_object,
+                        const FeedbackSource& feedback) {
+    ReduceIfReachableCheckHomomorphic(heap_object, frame_state, name,
+                                      homomorphic_array, handler_value,
+                                      check_heap_object, feedback);
+  }
+
   void AssumeMap(V<HeapObject> heap_object, const ZoneRefSet<Map>& maps) {
     ReduceIfReachableAssumeMap(heap_object, maps);
   }
@@ -4940,6 +5059,10 @@ class AssemblerOpInterface : public Next {
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
 
+  V<Object> WeakCollectionGet(V<JSWeakCollection> receiver, V<Object> key) {
+    return ReduceIfReachableWeakCollectionGet(receiver, key);
+  }
+
   template <RootIndex index>
   V<root_type_t<index>> LoadRoot() {
     using RootObjectType = root_type_t<index>;
@@ -5017,7 +5140,14 @@ class AssemblerOpInterface : public Next {
 
   V<Object> AssertNotNull(V<Object> object, wasm::ValueType type,
                           TrapId trap_id) {
-    return ReduceIfReachableAssertNotNull(object, type, trap_id);
+    return ReduceIfReachableAssertNotNull(
+        object, OptionalV<turboshaft::FrameState>{}, type, trap_id);
+  }
+
+  V<Object> AssertNotNull(V<Object> object,
+                          OptionalV<turboshaft::FrameState> frame_state,
+                          wasm::ValueType type, TrapId trap_id) {
+    return ReduceIfReachableAssertNotNull(object, frame_state, type, trap_id);
   }
 
   V<Map> RttCanon(V<FixedArray> rtts, wasm::ModuleTypeIndex type_index) {
@@ -5032,18 +5162,20 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Object> WasmTypeCast(V<Object> object, OptionalV<Map> rtt,
-                         WasmTypeCheckConfig config) {
+                         WasmTypeCheckConfig config,
+                         OptionalV<turboshaft::FrameState> frame_state = {}) {
     DCHECK(__ generating_unreachable_operations() ||
            rtt.valid() != config.to.is_abstract_ref());
-    return ReduceIfReachableWasmTypeCast(object, rtt, config);
+    return ReduceIfReachableWasmTypeCast(object, rtt, config, frame_state);
   }
 
-  V<Object> AnyConvertExtern(V<Object> input, bool is_shared) {
-    return ReduceIfReachableAnyConvertExtern(input, is_shared);
+  V<Object> AnyConvertExtern(V<Object> input, SharedFlag is_shared,
+                             bool is_nullable) {
+    return ReduceIfReachableAnyConvertExtern(input, is_shared, is_nullable);
   }
 
-  V<Object> ExternConvertAny(V<Object> input) {
-    return ReduceIfReachableExternConvertAny(input);
+  V<Object> ExternConvertAny(V<Object> input, bool is_nullable) {
+    return ReduceIfReachableExternConvertAny(input, is_nullable);
   }
 
   template <typename T>
@@ -5053,20 +5185,52 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableWasmTypeAnnotation(value, type);
   }
 
+  // Identity operation that carries a pre-call FrameState for JS-to-Wasm
+  // wrapper inlining.
+  V<Object> ProcessWasmArgument(V<Object> value,
+                                V<turboshaft::FrameState> frame_state) {
+    return ReduceIfReachableProcessWasmArgument(value, frame_state);
+  }
+
   V<Any> StructGet(V<WasmStructNullable> object, const wasm::StructType* type,
                    wasm::ModuleTypeIndex type_index, int field_index,
                    bool is_signed, CheckForNull null_check,
                    std::optional<AtomicMemoryOrder> memory_order) {
-    return ReduceIfReachableStructGet(object, type, type_index, field_index,
-                                      is_signed, null_check, memory_order);
+    return ReduceIfReachableStructGet(
+        object, OptionalV<turboshaft::FrameState>{}, type, type_index,
+        field_index, is_signed, null_check, memory_order);
+  }
+
+  V<Any> StructGet(V<WasmStructNullable> object,
+                   OptionalV<turboshaft::FrameState> frame_state,
+                   const wasm::StructType* type,
+                   wasm::ModuleTypeIndex type_index, int field_index,
+                   bool is_signed, CheckForNull null_check,
+                   std::optional<AtomicMemoryOrder> memory_order) {
+    return ReduceIfReachableStructGet(object, frame_state, type, type_index,
+                                      field_index, is_signed, null_check,
+                                      memory_order);
   }
 
   void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
-                 std::optional<AtomicMemoryOrder> memory_order) {
-    ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check, memory_order);
+                 std::optional<AtomicMemoryOrder> memory_order,
+                 WriteBarrierKind write_barrier) {
+    ReduceIfReachableStructSet(
+        object, value, OptionalV<turboshaft::FrameState>{}, type, type_index,
+        field_index, null_check, memory_order, write_barrier);
+  }
+
+  void StructSet(V<WasmStructNullable> object,
+                 OptionalV<turboshaft::FrameState> frame_state, V<Any> value,
+                 const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
+                 int field_index, CheckForNull null_check,
+                 std::optional<AtomicMemoryOrder> memory_order,
+                 WriteBarrierKind write_barrier) {
+    ReduceIfReachableStructSet(object, value, frame_state, type, type_index,
+                               field_index, null_check, memory_order,
+                               write_barrier);
   }
 
   V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
@@ -5099,28 +5263,85 @@ class AssemblerOpInterface : public Next {
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type,
-                std::optional<AtomicMemoryOrder> memory_order) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
+                std::optional<AtomicMemoryOrder> memory_order,
+                WriteBarrierKind write_barrier) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
+                              write_barrier);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
-    return ReduceIfReachableArrayLength(array, null_check);
+    return ReduceIfReachableArrayLength(
+        array, OptionalV<turboshaft::FrameState>{}, null_check);
+  }
+
+  V<Word32> ArrayLength(V<WasmArrayNullable> array,
+                        OptionalV<turboshaft::FrameState> frame_state,
+                        CheckForNull null_check) {
+    return ReduceIfReachableArrayLength(array, frame_state, null_check);
+  }
+
+  // Shared between the Wasm pipeline and the Wasm-in-JS body inlining.
+  void WasmBoundsCheckArray(
+      V<WasmArrayNullable> array, V<Word32> index, wasm::ValueType array_type,
+      OptionalV<turboshaft::FrameState> frame_state = {}) {
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+      if (array_type.is_nullable()) {
+        __ AssertNotNull(array, frame_state, array_type,
+                         TrapId::kTrapNullDereference);
+      }
+    } else {
+      V<Word32> length = __ ArrayLength(array, frame_state,
+                                        array_type.is_nullable()
+                                            ? compiler::kWithNullCheck
+                                            : compiler::kWithoutNullCheck);
+      __ TrapIfNot(__ Uint32LessThan(index, length), frame_state,
+                   TrapId::kTrapArrayOutOfBounds);
+    }
+  }
+
+  // Shared between the Wasm pipeline and the Wasm-in-JS body inlining.
+  V<Any> WasmDefaultValue(wasm::ValueType type) {
+    switch (type.kind()) {
+      case wasm::kI8:
+      case wasm::kI16:
+      case wasm::kI32:
+        return __ Word32Constant(int32_t{0});
+      case wasm::kI64:
+        return __ Word64Constant(int64_t{0});
+      case wasm::kF16:
+      case wasm::kF32:
+        return __ Float32Constant(0.0f);
+      case wasm::kF64:
+        return __ Float64Constant(0.0);
+      case wasm::kRefNull:
+        return __ Null(type);
+      case wasm::kS128: {
+        uint8_t value[kSimd128Size] = {};
+        return __ Simd128Constant(value);
+      }
+      case wasm::kVoid:
+      case wasm::kRef:
+      case wasm::kBottom:
+      case wasm::kTop:
+        UNREACHABLE();
+    }
   }
 
   V<WasmArray> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
                                  const wasm::ArrayType* array_type,
-                                 bool is_shared) {
+                                 SharedFlag is_shared) {
     return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type,
                                               is_shared);
   }
 
   V<WasmStruct> WasmAllocateStruct(V<Map> rtt,
                                    const wasm::StructType* struct_type,
-                                   bool is_shared) {
+                                   SharedFlag is_shared) {
     return ReduceIfReachableWasmAllocateStruct(rtt, struct_type, is_shared);
   }
 
-  V<WasmFuncRef> WasmRefFunc(V<Object> wasm_instance, uint32_t function_index) {
+  V<WasmFuncRef> WasmRefFunc(V<WasmTrustedInstanceData> wasm_instance,
+                             uint32_t function_index) {
     return ReduceIfReachableWasmRefFunc(wasm_instance, function_index);
   }
 
@@ -5133,6 +5354,9 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableStringPrepareForGetCodeUnit(string);
   }
 
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_ENABLE_SIMD128
   V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {
     return ReduceIfReachableSimd128Constant(value);
   }
@@ -5220,7 +5444,7 @@ class AssemblerOpInterface : public Next {
   }
 
   // SIMD256
-#if V8_ENABLE_WASM_SIMD256_REVEC
+#if V8_ENABLE_SIMD256
   V<Simd256> Simd256Constant(const uint8_t value[kSimd256Size]) {
     return ReduceIfReachableSimd256Constant(value);
   }
@@ -5242,8 +5466,8 @@ class AssemblerOpInterface : public Next {
   }
 
   V<Simd256> Simd256Unary(V<Simd128> input, Simd256UnaryOp::Kind kind) {
-    DCHECK_GE(kind, Simd256UnaryOp::Kind::kFirstSignExtensionOp);
-    DCHECK_LE(kind, Simd256UnaryOp::Kind::kLastSignExtensionOp);
+    DCHECK_GE(kind, Simd256UnaryOp::Kind::kFirstExtensionOp);
+    DCHECK_LE(kind, Simd256UnaryOp::Kind::kLastExtensionOp);
     return ReduceIfReachableSimd256Unary(input, kind);
   }
 
@@ -5254,8 +5478,8 @@ class AssemblerOpInterface : public Next {
 
   V<Simd256> Simd256Binop(V<Simd128> left, V<Simd128> right,
                           Simd256BinopOp::Kind kind) {
-    DCHECK_GE(kind, Simd256BinopOp::Kind::kFirstSignExtensionOp);
-    DCHECK_LE(kind, Simd256BinopOp::Kind::kLastSignExtensionOp);
+    DCHECK_GE(kind, Simd256BinopOp::Kind::kFirstExtensionOp);
+    DCHECK_LE(kind, Simd256BinopOp::Kind::kLastExtensionOp);
     return ReduceIfReachableSimd256Binop(left, right, kind);
   }
 
@@ -5292,8 +5516,10 @@ class AssemblerOpInterface : public Next {
     return ReduceIfReachableSimd256Unpack(left, right, kind);
   }
 #endif  // V8_TARGET_ARCH_X64
-#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_SIMD256
+#endif  // V8_ENABLE_SIMD128
 
+#ifdef V8_ENABLE_WEBASSEMBLY
   V<WasmTrustedInstanceData> WasmInstanceDataParameter() {
     return Parameter(wasm::kWasmInstanceDataParameterIndex,
                      RegisterRepresentation::Tagged());
@@ -5520,28 +5746,29 @@ class AssemblerOpInterface : public Next {
 
  private:
 #ifdef DEBUG
-#define REDUCE_OP(Op)                                                        \
-  template <class... Args>                                                   \
-  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                    \
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {            \
-      if (V8_UNLIKELY(!Asm().conceptually_in_a_block())) {                   \
-        const auto location = SourceLocation::Current();                     \
-        V8_Fatal(location.FileName(), static_cast<int>(location.Line()),     \
-                 "TSA: Trying to emit an operation while no Block/Label is " \
-                 "bound. Most likely you are missing to Bind/BIND a new "    \
-                 "Block/Label after an unconditional jump.");                \
-      }                                                                      \
-      return OpIndex::Invalid();                                             \
-    }                                                                        \
-    OpIndex result = Asm().Reduce##Op(args...);                              \
-    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                       \
-      if (Asm().current_block() == nullptr) {                                \
-        /* The input operation was not a block terminator, but a reducer     \
-         * lowered it into a block terminator. */                            \
-        Asm().set_conceptually_in_a_block(true);                             \
-      }                                                                      \
-    }                                                                        \
-    return result;                                                           \
+#define REDUCE_OP(Op)                                                    \
+  template <class... Args>                                               \
+  V8_INLINE OpIndex ReduceIfReachable##Op(Args... args) {                \
+    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {        \
+      if (V8_UNLIKELY(!Asm().conceptually_in_a_block())) {               \
+        const auto location = SourceLocation::Current();                 \
+        FATAL_WITH_LOC(                                                  \
+            location,                                                    \
+            "TSA: Trying to emit an operation while no Block/Label is "  \
+            "bound. Most likely you are missing to Bind/BIND a new "     \
+            "Block/Label after an unconditional jump.");                 \
+      }                                                                  \
+      return OpIndex::Invalid();                                         \
+    }                                                                    \
+    OpIndex result = Asm().Reduce##Op(args...);                          \
+    if constexpr (!IsBlockTerminator(Opcode::k##Op)) {                   \
+      if (Asm().current_block() == nullptr) {                            \
+        /* The input operation was not a block terminator, but a reducer \
+         * lowered it into a block terminator. */                        \
+        Asm().set_conceptually_in_a_block(true);                         \
+      }                                                                  \
+    }                                                                    \
+    return result;                                                       \
   }
 #else
 #define REDUCE_OP(Op)                                                        \
@@ -5720,8 +5947,8 @@ class Assembler : public AssemblerData,
 #ifdef DEBUG
     // Did you forget to terminate the previous block?
     if (V8_UNLIKELY(current_block_ != nullptr)) {
-      V8_Fatal(
-          bind_location.FileName(), static_cast<int>(bind_location.Line()),
+      FATAL_WITH_LOC(
+          bind_location,
           "TSA: Cannot bind a new Block/Label without terminating the previous "
           "block. Most likely you are missing an unconditional Goto/GOTO.");
     }

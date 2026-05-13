@@ -338,11 +338,11 @@ TEST(StackTest, GetCurrentStackPosition) {
 #if !defined(V8_OS_FUCHSIA)
 TEST(StackTest, StackVariableInBounds) {
   void* dummy;
-  ASSERT_GT(static_cast<void*>(Stack::GetStackStart()),
+  ASSERT_GE(static_cast<void*>(Stack::GetStackStart()),
             Stack::GetCurrentStackPosition());
-  EXPECT_GT(static_cast<void*>(Stack::GetStackStart()),
+  EXPECT_GE(static_cast<void*>(Stack::GetStackStart()),
             Stack::GetRealStackAddressForSlot(&dummy));
-  EXPECT_LT(static_cast<void*>(Stack::GetCurrentStackPosition()),
+  EXPECT_LE(static_cast<void*>(Stack::GetCurrentStackPosition()),
             Stack::GetRealStackAddressForSlot(&dummy));
 }
 #endif  // !V8_OS_FUCHSIA

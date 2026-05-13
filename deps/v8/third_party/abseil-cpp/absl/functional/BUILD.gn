@@ -31,6 +31,26 @@ absl_test("any_invocable_test") {
   ]
 }
 
+absl_source_set("bind_back") {
+  sources = [ "internal/back_binder.h" ]
+  public = [ "bind_back.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/container:compressed_tuple",
+    "//third_party/abseil-cpp/absl/utility",
+  ]
+}
+
+absl_test("bind_back_test") {
+  sources = [
+    "bind_back_test.cc",
+  ]
+  deps = [
+    ":bind_back",
+    "//third_party/abseil-cpp/absl/memory",
+  ]
+}
+
 absl_source_set("bind_front") {
   sources = [ "internal/front_binder.h" ]
   public = [ "bind_front.h" ]
@@ -80,6 +100,5 @@ absl_test("overload_test") {
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
-    "//third_party/abseil-cpp/absl/types:variant",
   ]
 }

@@ -63,8 +63,6 @@
 #include "absl/log/internal/vlog_config.h"  // IWYU pragma: export
 #include "absl/strings/string_view.h"
 
-// IWYU pragma: private, include "absl/log/log.h"
-
 // This is expanded at the callsite to allow the compiler to optimize
 // always-false cases out of the build.
 // An ABSL_MAX_VLOG_VERBOSITY of 2 means that VLOG(3) and above should never

@@ -81,6 +81,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSCollecton::table() field.
   static FieldAccess ForJSCollectionTable();
 
+  // Provides access to JSWeakCollection::table() field
+  // (an EphemeronHashTable for JSWeakMap/JSWeakSet).
+  static FieldAccess ForJSWeakCollectionTable();
+
   // Provides access to JSCollectionIterator::table() field.
   static FieldAccess ForJSCollectionIteratorTable();
 
@@ -158,6 +162,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
+  static FieldAccess ForJSArrayLength();
 
   // Provides access to JSArrayBuffer::bit_field() field.
   static FieldAccess ForJSArrayBufferBitField();
@@ -218,11 +223,18 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSRegExp::last_index() field.
   static FieldAccess ForJSRegExpLastIndex();
 
-  // Provides access to JSRegExp::source() field.
-  static FieldAccess ForJSRegExpSource();
-
   // Provides access to FixedArray::length() field.
+  // TODO(dmercadier): get rid of ForFixedArrayLengthLegacy once we get rid of
+  // Turbofan. It's currently only used to make Turbofan's escape analysis
+  // happy.
+  static FieldAccess ForFixedArrayLengthLegacy();
   static FieldAccess ForFixedArrayLength();
+#if TAGGED_SIZE_8_BYTES
+  static FieldAccess ForFixedArrayLengthPadding();
+#endif
+
+  // Provides access to Context::length() field.
+  static FieldAccess ForContextLength();
 
   // Provides access to WeakFixedArray::length() field.
   static FieldAccess ForWeakFixedArrayLength();

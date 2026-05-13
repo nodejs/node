@@ -95,8 +95,6 @@ static const char* const ANNOTATION_HAS_SAME_INSTANCE_TYPE_AS_PARENT =
     "@hasSameInstanceTypeAsParent";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CPP_CLASS =
     "@doNotGenerateCppClass";
-static const char* const ANNOTATION_DO_NOT_GENERATE_INSTANCE_TYPE_CHECK =
-    "@doNotGenerateInstanceTypeCheck";
 static const char* const ANNOTATION_CUSTOM_MAP = "@customMap";
 static const char* const ANNOTATION_CUSTOM_CPP_CLASS = "@customCppClass";
 static const char* const ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT =
@@ -109,17 +107,10 @@ static const char* const ANNOTATION_INSTANCE_TYPE_VALUE =
     "@apiExposedInstanceTypeValue";
 static const char* const ANNOTATION_IF = "@if";
 static const char* const ANNOTATION_IFNOT = "@ifnot";
-static const char* const ANNOTATION_GENERATE_BODY_DESCRIPTOR =
-    "@generateBodyDescriptor";
-static const char* const ANNOTATION_GENERATE_UNIQUE_MAP = "@generateUniqueMap";
-static const char* const ANNOTATION_GENERATE_FACTORY_FUNCTION =
-    "@generateFactoryFunction";
 static const char* const ANNOTATION_EXPORT = "@export";
 static const char* const ANNOTATION_DO_NOT_GENERATE_CAST = "@doNotGenerateCast";
 static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
     "@useParentTypeChecker";
-static const char* const ANNOTATION_CPP_OBJECT_DEFINITION =
-    "@cppObjectDefinition";
 static const char* const ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION =
     "@cppObjectLayoutDefinition";
 static const char* const ANNOTATION_SAME_ENUM_VALUE_AS = "@sameEnumValueAs";
@@ -177,14 +168,9 @@ enum class ClassFlag {
   kHighestInstanceTypeWithinParent = 1 << 6,
   kLowestInstanceTypeWithinParent = 1 << 7,
   kUndefinedLayout = 1 << 8,
-  kGenerateBodyDescriptor = 1 << 9,
   kExport = 1 << 10,
   kDoNotGenerateCast = 1 << 11,
-  kGenerateUniqueMap = 1 << 12,
-  kGenerateFactoryFunction = 1 << 13,
-  kCppObjectDefinition = 1 << 14,
-  kCppObjectLayoutDefinition = 1 << 15,
-  kDoNotGenerateInstanceTypeCheck = 1 << 16,
+  kCppObjectLayoutDefinition = 1 << 14,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

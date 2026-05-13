@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-inlining-call-indirect
-// Flags: --experimental-wasm-type-reflection
 // Flags: --no-wasm-tier-up --wasm-dynamic-tiering --allow-natives-syntax
 
 // These tests check if functions are speculatively inlined as expected. We do
@@ -201,9 +200,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function CallRefWasmJsFunction() {
   print(arguments.callee.name);
 
-  let f1 = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let f1 = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                     x => x + 1);
-  let f2 = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let f2 = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                     x => x * 2);
 
   let main = null;
@@ -280,7 +279,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function CallIndirectWasmJsFunction() {
   print(arguments.callee.name);
 
-  let f_js = new WebAssembly.Function({parameters: ["i32"], results: ["i32"]},
+  let f_js = new WebAssemblyFunction({parameters: ["i32"], results: ["i32"]},
                                       x => x + 1);
 
   let instance = function() {

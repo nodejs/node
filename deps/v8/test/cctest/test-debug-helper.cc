@@ -217,19 +217,36 @@ TEST(GetObjectProperties) {
   props = d::GetObjectProperties(elements, &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::FixedArray"));
+#if TAGGED_SIZE_8_BYTES
+  CHECK_EQ(props->num_properties, 4);
+#else
   CHECK_EQ(props->num_properties, 3);
-  CheckProp(*props->properties[0],
-            "v8::internal::TaggedMember<v8::internal::Map>", "map");
-  CheckProp(*props->properties[1],
-            "v8::internal::TaggedMember<v8::internal::Object>", "length",
-            static_cast<i::Tagged_t>(IntToSmi(2)));
-  CheckProp(*props->properties[2],
+#endif  // TAGGED_SIZE_8_BYTES
+
+  auto map_property = props->properties[0];
+  auto length_property = props->properties[1];
+#if TAGGED_SIZE_8_BYTES
+  auto padding_property = props->properties[2];
+#endif  // TAGGED_SIZE_8_BYTES
+#if TAGGED_SIZE_8_BYTES
+  auto objects_property = props->properties[3];
+#else
+  auto objects_property = props->properties[2];
+#endif  // TAGGED_SIZE_8_BYTES
+
+  CheckProp(*map_property, "v8::internal::TaggedMember<v8::internal::Map>",
+            "map");
+  CheckProp(*length_property, "uint32_t", "length", 2u);
+#if TAGGED_SIZE_8_BYTES
+  CheckProp(*padding_property, "uint32_t", "optional_padding", 0u);
+#endif  // TAGGED_SIZE_8_BYTES
+  CheckProp(*objects_property,
             "v8::internal::TaggedMember<v8::internal::Object>", "objects",
             d::PropertyKind::kArrayOfKnownSize, 2);
 
   // Get the second string value from the FixedArray.
   i::Tagged_t second_string_address =
-      reinterpret_cast<i::Tagged_t*>(props->properties[2]->address)[1];
+      reinterpret_cast<i::Tagged_t*>(objects_property->address)[1];
   props = d::GetObjectProperties(second_string_address, &ReadMemory,
                                  heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);

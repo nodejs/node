@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 (function TestTrailingJunkAfterExport() {
   function Module() {
     "use asm";
@@ -12,7 +10,6 @@
     %kaboom;
   }
   assertThrows(() => Module(), ReferenceError);
-  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestExportWithSemicolon() {
@@ -23,7 +20,6 @@
     // appreciate the semicolon
   }
   assertDoesNotThrow(() => Module());
-  assertTrue(%IsAsmWasmCode(Module));
 })();
 
 (function TestExportWithoutSemicolon() {
@@ -34,5 +30,4 @@
     // appreciate the nothingness
   }
   assertDoesNotThrow(() => Module());
-  assertTrue(%IsAsmWasmCode(Module));
 })();

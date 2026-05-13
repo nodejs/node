@@ -95,12 +95,8 @@ class IsolateSafepoint final {
   void LeaveLocalSafepointScope();
 
   // Methods for entering/leaving global safepoint scopes.
-  void TryInitiateGlobalSafepointScope(Isolate* initiator,
-                                       PerClientSafepointData* client_data);
   void InitiateGlobalSafepointScope(Isolate* initiator,
                                     PerClientSafepointData* client_data);
-  void InitiateGlobalSafepointScopeRaw(Isolate* initiator,
-                                       PerClientSafepointData* client_data);
   void LeaveGlobalSafepointScope(Isolate* initiator);
 
   // Blocks until all running threads reached a safepoint.
@@ -141,10 +137,11 @@ class IsolateSafepoint final {
 
     // Remove list from doubly-linked list
     if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
-    if (local_heap->prev_)
+    if (local_heap->prev_) {
       local_heap->prev_->next_ = local_heap->next_;
-    else
+    } else {
       local_heaps_head_ = local_heap->next_;
+    }
   }
 
   Isolate* isolate() const;

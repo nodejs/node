@@ -1,0 +1,15 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Extended map for interceptor objects, it caches named and indexed
+// InterceptorInfo objects in the Map for faster access.
+@cppObjectLayoutDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class JSInterceptorMap extends ExtendedMap {
+  @ifnot(TAGGED_SIZE_8_BYTES) extended_padding[3]: uint8;
+  @if(TAGGED_SIZE_8_BYTES) extended_padding[7]: uint8;
+  named_interceptor: InterceptorInfo;
+  indexed_interceptor: InterceptorInfo;
+}

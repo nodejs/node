@@ -81,8 +81,9 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);
-  if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
+  if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists())) {
     return;
+  }
   ConcurrentMarkingState concurrent_marking_state(
       concurrent_marker_.heap(), concurrent_marker_.marking_worklists(),
       concurrent_marker_.heap().compactor().compaction_worklists());
@@ -196,16 +197,18 @@ void ConcurrentMarkerBase::Start() {
 }
 
 bool ConcurrentMarkerBase::Join() {
-  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid())
+  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid()) {
     return false;
+  }
 
   concurrent_marking_handle_->Join();
   return true;
 }
 
 bool ConcurrentMarkerBase::Cancel() {
-  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid())
+  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid()) {
     return false;
+  }
 
   concurrent_marking_handle_->Cancel();
   return true;

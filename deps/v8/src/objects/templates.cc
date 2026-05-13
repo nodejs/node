@@ -4,12 +4,16 @@
 
 #include "src/objects/templates.h"
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <optional>
 
+#include "include/v8-fast-api-calls.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -17,6 +21,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects.h"
@@ -97,7 +102,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // Iterate through the chain of inheriting function templates to
   // see if the required one occurs.
   while (IsFunctionTemplateInfo(type)) {
-    if (type == *this) return true;
+    if (type == this) return true;
     type = Cast<FunctionTemplateInfo>(type)->GetParentTemplate();
   }
   // Didn't find the required type in the inheritance chain.
@@ -117,9 +122,9 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
   Tagged<Object> constructor_obj = map->GetConstructor();
   if (IsJSFunction(constructor_obj)) {
     Tagged<JSFunction> fun = Cast<JSFunction>(constructor_obj);
-    result = (*this == fun->shared()->api_func_data());
+    result = (this == fun->shared()->api_func_data());
   } else if (IsFunctionTemplateInfo(constructor_obj)) {
-    result = (*this == constructor_obj);
+    result = (this == constructor_obj);
   }
   DCHECK_IMPLIES(result, IsTemplateFor(map));
   return result;
@@ -168,25 +173,20 @@ std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
   return Cast<Name>(maybe_name);
 }
 
-int FunctionTemplateInfo::GetCFunctionsCount() const {
+uint32_t FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
-  return Cast<FixedArray>(GetCFunctionOverloads())->length() /
-         kFunctionOverloadEntrySize;
+  return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value();
 }
 
-Address FunctionTemplateInfo::GetCFunction(Isolate* isolate, int index) const {
-  i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<kCFunctionTag>(
-      isolate, Cast<FixedArray>(GetCFunctionOverloads())
-                   ->get(index * kFunctionOverloadEntrySize));
-}
-
-const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
-                                                         int index) const {
-  i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<CFunctionInfo*, kCFunctionInfoTag>(
-      isolate, Cast<FixedArray>(GetCFunctionOverloads())
-                   ->get(index * kFunctionOverloadEntrySize + 1));
+CFunctionWithSignature FunctionTemplateInfo::GetCFunction(
+    uint32_t index) const {
+  i::DisallowGarbageCollection no_gc;
+  const CFunction* c_function = reinterpret_cast<const CFunction*>(
+      Cast<Foreign>(Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+          ->template foreign_address<kCFunctionTag>());
+  return CFunctionWithSignature(
+      reinterpret_cast<Address>(c_function->GetAddress()),
+      c_function->GetTypeInfo());
 }
 
 // static
@@ -227,7 +227,8 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
   DirectHandle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
       isolate->slow_object_with_object_prototype_map(), num_properties_set,
       AllocationType::kYoung);
-  Handle<Object> properties = handle(object->raw_properties_or_hash(), isolate);
+  Handle<PropertyDictionary> properties = handle(
+      Cast<PropertyDictionary>(object->raw_properties_or_hash()), isolate);
   for (int i = 0; i < static_cast<int>(property_values.size()); ++i) {
     Local<Value> property_value;
     if (!property_values[i].ToLocal(&property_value)) {
@@ -235,7 +236,7 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     }
     properties =
         PropertyDictionary::Add(
-            isolate, Cast<PropertyDictionary>(properties),
+            isolate, properties,
             Cast<String>(handle(property_names->get(i), isolate)),
             Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty())
             .ToHandleChecked();
@@ -254,9 +255,9 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
   Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 
-  const int property_names_len = property_names->length();
-  CHECK_EQ(property_names_len, static_cast<int>(property_values.size()));
-  const int num_properties_set = static_cast<int>(std::count_if(
+  const uint32_t property_names_len = property_names->ulength().value();
+  CHECK_EQ(property_names_len, property_values.size());
+  const uint32_t num_properties_set = static_cast<uint32_t>(std::count_if(
       property_values.begin(), property_values.end(),
       [](const auto& maybe_value) { return !maybe_value.IsEmpty(); }));
 
@@ -349,7 +350,7 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
           isolate, property_names, property_values, num_properties_set);
     }
     JSObject::MigrateToMap(isolate, object, current_map);
-    PropertyDetails details = current_map->GetLastDescriptorDetails(isolate);
+    PropertyDetails details = current_map->GetLastDescriptorDetails();
     object->WriteToField(InternalIndex(current_property_index), details,
                          *value);
     current_property_index++;

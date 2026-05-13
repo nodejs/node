@@ -18,6 +18,7 @@ class CompareOperationFeedback;
 class ElementAccessFeedback;
 class ForInFeedback;
 class GlobalAccessFeedback;
+class HomomorphicPropertyAccessFeedback;
 class InstanceOfFeedback;
 class LiteralFeedback;
 class MegaDOMPropertyAccessFeedback;
@@ -38,6 +39,7 @@ class ProcessedFeedback : public ZoneObject {
     kInstanceOf,
     kTypeOf,
     kLiteral,
+    kHomomorphicPropertyAccess,
     kMegaDOMPropertyAccess,
     kNamedAccess,
     kRegExpLiteral,
@@ -57,6 +59,7 @@ class ProcessedFeedback : public ZoneObject {
   GlobalAccessFeedback const& AsGlobalAccess() const;
   InstanceOfFeedback const& AsInstanceOf() const;
   NamedAccessFeedback const& AsNamedAccess() const;
+  HomomorphicPropertyAccessFeedback const& AsHomomorphicPropertyAccess() const;
   MegaDOMPropertyAccessFeedback const& AsMegaDOMPropertyAccess() const;
   LiteralFeedback const& AsLiteral() const;
   RegExpLiteralFeedback const& AsRegExpLiteral() const;
@@ -174,12 +177,14 @@ class NamedAccessFeedback : public ProcessedFeedback {
  public:
   NamedAccessFeedback(JSHeapBroker* broker, NameRef name,
                       ZoneVector<MapRef> const& maps,
+                      ZoneVector<OptionalObjectRef> const& handlers,
                       FeedbackSlotKind slot_kind,
                       bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
   NameRef original_name_maybe_thin() const { return original_name_maybe_thin_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
+  ZoneVector<OptionalObjectRef> const& handlers() const { return handlers_; }
   bool has_deprecated_map_without_migration_target() const {
     return has_deprecated_map_without_migration_target_;
   }
@@ -193,7 +198,26 @@ class NamedAccessFeedback : public ProcessedFeedback {
   // crucial for checks that rely on object identity.
   NameRef const original_name_maybe_thin_;
   ZoneVector<MapRef> const maps_;
+  ZoneVector<OptionalObjectRef> const handlers_;
   bool has_deprecated_map_without_migration_target_;
+};
+
+class HomomorphicPropertyAccessFeedback : public ProcessedFeedback {
+ public:
+  HomomorphicPropertyAccessFeedback(
+      NameRef name, WeakHomomorphicFixedArrayRef homomorphic_array,
+      Tagged<Smi> handler, FeedbackSlotKind slot_kind);
+
+  NameRef name() const { return name_; }
+  WeakHomomorphicFixedArrayRef homomorphic_array() const {
+    return homomorphic_array_;
+  }
+  Tagged<Smi> handler() const { return handler_; }
+
+ private:
+  NameRef const name_;
+  WeakHomomorphicFixedArrayRef const homomorphic_array_;
+  Tagged<Smi> const handler_;
 };
 
 class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {

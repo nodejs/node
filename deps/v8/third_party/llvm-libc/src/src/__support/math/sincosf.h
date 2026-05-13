@@ -1,0 +1,227 @@
+//===-- Implementation header for sincosf ------------------------*- C++-*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_LIBC_SRC___SUPPORT_MATH_SINCOSF_H
+#define LLVM_LIBC_SRC___SUPPORT_MATH_SINCOSF_H
+
+#include "sincosf_utils.h"
+#include "src/__support/FPUtil/FEnvImpl.h"
+#include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/rounding_mode.h"
+#include "src/__support/common.h"
+#include "src/__support/macros/config.h"
+#include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
+#include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
+
+namespace LIBC_NAMESPACE_DECL {
+
+namespace math {
+
+namespace sincosf_internal {
+
+#ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+// Exceptional values
+LIBC_INLINE_VAR constexpr int N_EXCEPTS = 6;
+
+LIBC_INLINE_VAR constexpr uint32_t EXCEPT_INPUTS[N_EXCEPTS] = {
+    0x46199998, // x = 0x1.33333p13   x
+    0x55325019, // x = 0x1.64a032p43  x
+    0x5922aa80, // x = 0x1.4555p51    x
+    0x5f18b878, // x = 0x1.3170fp63   x
+    0x6115cb11, // x = 0x1.2b9622p67  x
+    0x7beef5ef, // x = 0x1.ddebdep120 x
+};
+
+LIBC_INLINE_VAR constexpr uint32_t EXCEPT_OUTPUTS_SIN[N_EXCEPTS][4] = {
+    {0xbeb1fa5d, 0, 1, 0}, // x = 0x1.33333p13, sin(x) = -0x1.63f4bap-2 (RZ)
+    {0xbf171adf, 0, 1, 1}, // x = 0x1.64a032p43, sin(x) = -0x1.2e35bep-1 (RZ)
+    {0xbf587521, 0, 1, 1}, // x = 0x1.4555p51, sin(x) = -0x1.b0ea42p-1 (RZ)
+    {0x3dad60f6, 1, 0, 1}, // x = 0x1.3170fp63, sin(x) = 0x1.5ac1ecp-4 (RZ)
+    {0xbe7cc1e0, 0, 1, 1}, // x = 0x1.2b9622p67, sin(x) = -0x1.f983cp-3 (RZ)
+    {0xbf587d1b, 0, 1, 1}, // x = 0x1.ddebdep120, sin(x) = -0x1.b0fa36p-1 (RZ)
+};
+
+LIBC_INLINE_VAR constexpr uint32_t EXCEPT_OUTPUTS_COS[N_EXCEPTS][4] = {
+    {0xbf70090b, 0, 1, 0}, // x = 0x1.33333p13, cos(x) = -0x1.e01216p-1 (RZ)
+    {0x3f4ea5d2, 1, 0, 0}, // x = 0x1.64a032p43, cos(x) = 0x1.9d4ba4p-1 (RZ)
+    {0x3f08aebe, 1, 0, 1}, // x = 0x1.4555p51, cos(x) = 0x1.115d7cp-1 (RZ)
+    {0x3f7f14bb, 1, 0, 0}, // x = 0x1.3170fp63, cos(x) = 0x1.fe2976p-1 (RZ)
+    {0x3f78142e, 1, 0, 1}, // x = 0x1.2b9622p67, cos(x) = 0x1.f0285cp-1 (RZ)
+    {0x3f08a21c, 1, 0, 0}, // x = 0x1.ddebdep120, cos(x) = 0x1.114438p-1 (RZ)
+};
+#endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+} // namespace sincosf_internal
+
+LIBC_INLINE void sincosf(float x, float *sinp, float *cosp) {
+  using namespace sincosf_internal;
+  using namespace sincosf_utils_internal;
+  using FPBits = typename fputil::FPBits<float>;
+  FPBits xbits(x);
+
+  uint32_t x_abs = xbits.uintval() & 0x7fff'ffffU;
+  double xd = static_cast<double>(x);
+
+  // Range reduction:
+  // For |x| >= 2^-12, we perform range reduction as follows:
+  // Find k and y such that:
+  //   x = (k + y) * pi/32
+  //   k is an integer
+  //   |y| < 0.5
+  // For small range (|x| < 2^45 when FMA instructions are available, 2^22
+  // otherwise), this is done by performing:
+  //   k = round(x * 32/pi)
+  //   y = x * 32/pi - k
+  // For large range, we will omit all the higher parts of 32/pi such that the
+  // least significant bits of their full products with x are larger than 63,
+  // since:
+  //     sin((k + y + 64*i) * pi/32) = sin(x + i * 2pi) = sin(x), and
+  //     cos((k + y + 64*i) * pi/32) = cos(x + i * 2pi) = cos(x).
+  //
+  // When FMA instructions are not available, we store the digits of 32/pi in
+  // chunks of 28-bit precision.  This will make sure that the products:
+  //   x * THIRTYTWO_OVER_PI_28[i] are all exact.
+  // When FMA instructions are available, we simply store the digits of326/pi in
+  // chunks of doubles (53-bit of precision).
+  // So when multiplying by the largest values of single precision, the
+  // resulting output should be correct up to 2^(-208 + 128) ~ 2^-80.  By the
+  // worst-case analysis of range reduction, |y| >= 2^-38, so this should give
+  // us more than 40 bits of accuracy. For the worst-case estimation of range
+  // reduction, see for instances:
+  //   Elementary Functions by J-M. Muller, Chapter 11,
+  //   Handbook of Floating-Point Arithmetic by J-M. Muller et. al.,
+  //   Chapter 10.2.
+  //
+  // Once k and y are computed, we then deduce the answer by the sine and cosine
+  // of sum formulas:
+  //   sin(x) = sin((k + y)*pi/32)
+  //          = sin(y*pi/32) * cos(k*pi/32) + cos(y*pi/32) * sin(k*pi/32)
+  //   cos(x) = cos((k + y)*pi/32)
+  //          = cos(y*pi/32) * cos(k*pi/32) - sin(y*pi/32) * sin(k*pi/32)
+  // The values of sin(k*pi/32) and cos(k*pi/32) for k = 0..63 are precomputed
+  // and stored using a vector of 32 doubles. Sin(y*pi/32) and cos(y*pi/32) are
+  // computed using degree-7 and degree-6 minimax polynomials generated by
+  // Sollya respectively.
+
+  // |x| < 0x1.0p-12f
+  if (LIBC_UNLIKELY(x_abs < 0x3980'0000U)) {
+    if (LIBC_UNLIKELY(x_abs == 0U)) {
+      // For signed zeros.
+      *sinp = x;
+      *cosp = 1.0f;
+      return;
+    }
+    // When |x| < 2^-12, the relative errors of the approximations
+    //   sin(x) ~ x, cos(x) ~ 1
+    // are:
+    //   |sin(x) - x| / |sin(x)| < |x^3| / (6|x|)
+    //                           = x^2 / 6
+    //                           < 2^-25
+    //                           < epsilon(1)/2.
+    //   |cos(x) - 1| < |x^2 / 2| = 2^-25 < epsilon(1)/2.
+    // So the correctly rounded values of sin(x) and cos(x) are:
+    //   sin(x) = x - sign(x)*eps(x) if rounding mode = FE_TOWARDZERO,
+    //                        or (rounding mode = FE_UPWARD and x is
+    //                        negative),
+    //          = x otherwise.
+    //   cos(x) = 1 - eps(x) if rounding mode = FE_TOWARDZERO or FE_DOWWARD,
+    //          = 1 otherwise.
+    // To simplify the rounding decision and make it more efficient and to
+    // prevent compiler to perform constant folding, we use
+    //   sin(x) = fma(x, -2^-25, x),
+    //   cos(x) = fma(x*0.5f, -x, 1)
+    // instead.
+    // Note: to use the formula x - 2^-25*x to decide the correct rounding, we
+    // do need fma(x, -2^-25, x) to prevent underflow caused by -2^-25*x when
+    // |x| < 2^-125. For targets without FMA instructions, we simply use
+    // double for intermediate results as it is more efficient than using an
+    // emulated version of FMA.
+#if defined(LIBC_TARGET_CPU_HAS_FMA_FLOAT)
+    *sinp = fputil::multiply_add(x, -0x1.0p-25f, x);
+    *cosp = fputil::multiply_add(FPBits(x_abs).get_val(), -0x1.0p-25f, 1.0f);
+#else
+    *sinp = static_cast<float>(fputil::multiply_add(xd, -0x1.0p-25, xd));
+    *cosp = static_cast<float>(fputil::multiply_add(
+        static_cast<double>(FPBits(x_abs).get_val()), -0x1.0p-25, 1.0));
+#endif // LIBC_TARGET_CPU_HAS_FMA_FLOAT
+    return;
+  }
+
+  // x is inf or nan.
+  if (LIBC_UNLIKELY(x_abs >= 0x7f80'0000U)) {
+    if (xbits.is_signaling_nan()) {
+      fputil::raise_except_if_required(FE_INVALID);
+      *sinp = *cosp = FPBits::quiet_nan().get_val();
+      return;
+    }
+
+    if (x_abs == 0x7f80'0000U) {
+      fputil::set_errno_if_required(EDOM);
+      fputil::raise_except_if_required(FE_INVALID);
+    }
+    *sinp = FPBits::quiet_nan().get_val();
+    *cosp = *sinp;
+    return;
+  }
+
+#ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+  // Check exceptional values.
+  for (int i = 0; i < N_EXCEPTS; ++i) {
+    if (LIBC_UNLIKELY(x_abs == EXCEPT_INPUTS[i])) {
+      uint32_t s = EXCEPT_OUTPUTS_SIN[i][0]; // FE_TOWARDZERO
+      uint32_t c = EXCEPT_OUTPUTS_COS[i][0]; // FE_TOWARDZERO
+      bool x_sign = x < 0;
+      switch (fputil::quick_get_round()) {
+      case FE_UPWARD:
+        s += x_sign ? EXCEPT_OUTPUTS_SIN[i][2] : EXCEPT_OUTPUTS_SIN[i][1];
+        c += EXCEPT_OUTPUTS_COS[i][1];
+        break;
+      case FE_DOWNWARD:
+        s += x_sign ? EXCEPT_OUTPUTS_SIN[i][1] : EXCEPT_OUTPUTS_SIN[i][2];
+        c += EXCEPT_OUTPUTS_COS[i][2];
+        break;
+      case FE_TONEAREST:
+        s += EXCEPT_OUTPUTS_SIN[i][3];
+        c += EXCEPT_OUTPUTS_COS[i][3];
+        break;
+      }
+      *sinp = x_sign ? -FPBits(s).get_val() : FPBits(s).get_val();
+      *cosp = FPBits(c).get_val();
+
+      return;
+    }
+  }
+#endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+
+  // Combine the results with the sine and cosine of sum formulas:
+  //   sin(x) = sin((k + y)*pi/32)
+  //          = sin(y*pi/32) * cos(k*pi/32) + cos(y*pi/32) * sin(k*pi/32)
+  //          = sin_y * cos_k + (1 + cosm1_y) * sin_k
+  //          = sin_y * cos_k + (cosm1_y * sin_k + sin_k)
+  //   cos(x) = cos((k + y)*pi/32)
+  //          = cos(y*pi/32) * cos(k*pi/32) - sin(y*pi/32) * sin(k*pi/32)
+  //          = cosm1_y * cos_k + sin_y * sin_k
+  //          = (cosm1_y * cos_k + cos_k) + sin_y * sin_k
+  double sin_k = 0;
+  double cos_k = 0;
+  double sin_y = 0;
+  double cosm1_y = 0;
+
+  sincosf_eval(xd, x_abs, sin_k, cos_k, sin_y, cosm1_y);
+
+  *sinp = static_cast<float>(fputil::multiply_add(
+      sin_y, cos_k, fputil::multiply_add(cosm1_y, sin_k, sin_k)));
+  *cosp = static_cast<float>(fputil::multiply_add(
+      sin_y, -sin_k, fputil::multiply_add(cosm1_y, cos_k, cos_k)));
+}
+
+} // namespace math
+
+} // namespace LIBC_NAMESPACE_DECL
+
+#endif // LLVM_LIBC_SRC___SUPPORT_MATH_SINCOSF_H

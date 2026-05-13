@@ -20,6 +20,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
+#include "src/codegen/source-position.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/handles/global-handles.h"
@@ -904,12 +905,23 @@ class CodeDescription {
 
   CodeDescription(const char* name, base::AddressRegion region,
                   Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
-                  bool is_function)
+                  bool is_function, CodeKind kind, int opt_id = -1)
       : name_(name),
         shared_info_(shared),
         lineinfo_(lineinfo),
         is_function_(is_function),
-        code_region_(region) {}
+        code_region_(region),
+        kind_(kind),
+        opt_id_(opt_id) {}
+
+  void set_maglev_variable_locations(
+      const std::vector<maglev::MaglevVariableInfo>& vars) {
+    maglev_variable_locations_ = vars;
+  }
+  const std::vector<maglev::MaglevVariableInfo>& maglev_variable_locations()
+      const {
+    return maglev_variable_locations_;
+  }
 
   const char* name() const { return name_; }
 
@@ -917,7 +929,11 @@ class CodeDescription {
 
   bool is_function() const { return is_function_; }
 
-  bool has_scope_info() const { return !shared_info_.is_null(); }
+  bool has_scope_info() const {
+    return (kind_ == CodeKind::INTERPRETED_FUNCTION ||
+            kind_ == CodeKind::BASELINE || kind_ == CodeKind::MAGLEV) &&
+           !shared_info_.is_null();
+  }
 
   Tagged<ScopeInfo> scope_info() const {
     DCHECK(has_scope_info());
@@ -927,6 +943,10 @@ class CodeDescription {
   uintptr_t CodeStart() const { return code_region_.begin(); }
 
   uintptr_t CodeEnd() const { return code_region_.end(); }
+
+  CodeKind kind() const { return kind_; }
+
+  Tagged<SharedFunctionInfo> shared_info() const { return shared_info_; }
 
   uintptr_t CodeSize() const { return code_region_.size(); }
 
@@ -953,6 +973,14 @@ class CodeDescription {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
+    if (kind_ == CodeKind::MAGLEV && v8_flags.maglev_gdbjit &&
+        v8_flags.gdbjit_full) {
+      std::string func_name = shared_info_->DebugNameCStr().get();
+      std::string filename = GetMaglevGraphFilename(func_name, opt_id_);
+      std::unique_ptr<char[]> result(new char[filename.length() + 1]);
+      snprintf(result.get(), filename.length() + 1, "%s", filename.c_str());
+      return result;
+    }
     if (!shared_info_.is_null() && IsString(script()->name())) {
       return Cast<String>(script()->name())->ToCString();
     } else {
@@ -976,6 +1004,9 @@ class CodeDescription {
   LineInfo* lineinfo_;
   bool is_function_;
   base::AddressRegion code_region_;
+  CodeKind kind_;
+  int opt_id_;
+  std::vector<maglev::MaglevVariableInfo> maglev_variable_locations_;
 #if V8_TARGET_ARCH_X64
   uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
 #endif
@@ -994,9 +1025,13 @@ static void CreateSymbolsTable(CodeDescription* desc, Zone* zone, ELF* elf,
   symtab->Add(ELFSymbol("V8 Code", 0, 0, ELFSymbol::BIND_LOCAL,
                         ELFSymbol::TYPE_FILE, ELFSection::INDEX_ABSOLUTE));
 
-  symtab->Add(ELFSymbol(desc->name(), 0, desc->CodeSize(),
-                        ELFSymbol::BIND_GLOBAL, ELFSymbol::TYPE_FUNC,
-                        text_section_index));
+  std::string name = desc->name();
+
+  char* zone_name = zone->AllocateArray<char>(name.length() + 1);
+  snprintf(zone_name, name.length() + 1, "%s", name.c_str());
+
+  symtab->Add(ELFSymbol(zone_name, 0, desc->CodeSize(), ELFSymbol::BIND_LOCAL,
+                        ELFSymbol::TYPE_FUNC, text_section_index));
 }
 #endif  // defined(__ELF)
 
@@ -1068,6 +1103,7 @@ class DebugInfoSection : public DebugSection {
     uint32_t ty_offset = static_cast<uint32_t>(w->position() - cu_start);
     w->WriteULEB128(3);
     w->Write<uint8_t>(kSystemPointerSize);
+    w->Write<uint8_t>(DW_ATE_ADDRESS);
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
@@ -1098,15 +1134,12 @@ class DebugInfoSection : public DebugSection {
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
       int params = scope->ParameterCount();
-      int context_slots = scope->ContextLocalCount();
-      // The real slot ID is internal_slots + context_slot_id.
-      int internal_slots = scope->ContextHeaderLength();
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
-        w->WriteString("param");
-        w->Write(std::to_string(param).c_str());
+        std::string param_name = "a" + std::to_string(param);
+        w->WriteString(param_name.c_str());
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1114,26 +1147,6 @@ class DebugInfoSection : public DebugSection {
         w->WriteSLEB128(StandardFrameConstants::kFixedFrameSizeAboveFp +
                         kSystemPointerSize * (params - param - 1));
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
-      }
-
-      // See contexts.h for more information.
-      DCHECK(internal_slots == 2 || internal_slots == 3);
-      DCHECK_EQ(Context::SCOPE_INFO_INDEX, 0);
-      DCHECK_EQ(Context::PREVIOUS_INDEX, 1);
-      DCHECK_EQ(Context::EXTENSION_INDEX, 2);
-      w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".scope_info");
-      w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".previous");
-      if (internal_slots == 3) {
-        w->WriteULEB128(current_abbreviation++);
-        w->WriteString(".extension");
-      }
-
-      for (int context_slot = 0; context_slot < context_slots; ++context_slot) {
-        w->WriteULEB128(current_abbreviation++);
-        w->WriteString("context_slot");
-        w->Write(std::to_string(context_slot + internal_slots).c_str());
       }
 
       {
@@ -1155,6 +1168,20 @@ class DebugInfoSection : public DebugSection {
         uintptr_t block_start = w->position();
         w->Write<uint8_t>(DW_OP_fbreg);
         w->WriteSLEB128(StandardFrameConstants::kContextOffset);
+        block_size.set(static_cast<uint32_t>(w->position() - block_start));
+      }
+
+      for (const auto& info : desc_->maglev_variable_locations()) {
+        w->WriteULEB128(current_abbreviation++);
+        std::string var_name = "n" + std::to_string(info.node_id);
+        w->WriteString(var_name.c_str());
+        w->Write<uint32_t>(ty_offset);
+        Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
+        uintptr_t block_start = w->position();
+        w->Write<uint8_t>(DW_OP_fbreg);
+        int offset = StandardFrameConstants::kExpressionsOffset -
+                     info.spill_slot_index * kSystemPointerSize;
+        w->WriteSLEB128(offset);
         block_size.set(static_cast<uint32_t>(w->position() - block_start));
       }
 
@@ -1204,6 +1231,7 @@ class DebugAbbrevSection : public DebugSection {
     DW_AT_STMT_LIST = 0x10,
     DW_AT_LOW_PC = 0x11,
     DW_AT_HIGH_PC = 0x12,
+    DW_AT_const_value = 0x1c,
     DW_AT_ENCODING = 0x3E,
     DW_AT_FRAME_BASE = 0x40,
     DW_AT_TYPE = 0x49
@@ -1259,11 +1287,6 @@ class DebugAbbrevSection : public DebugSection {
     if (extra_info) {
       Tagged<ScopeInfo> scope = desc_->scope_info();
       int params = scope->ParameterCount();
-      int context_slots = scope->ContextLocalCount();
-      // The real slot ID is internal_slots + context_slot_id.
-      int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      // Total children is params + context_slots + internal_slots + 2
-      // (__function and __context).
 
       // The extra duplication below seems to be necessary to keep
       // gdb from getting upset on OSX.
@@ -1282,9 +1305,11 @@ class DebugAbbrevSection : public DebugSection {
       w->WriteULEB128(0);
 
       w->WriteULEB128(current_abbreviation++);
-      w->WriteULEB128(DW_TAG_STRUCTURE_TYPE);
+      w->WriteULEB128(DW_TAG_BASE_TYPE);
       w->Write<uint8_t>(DW_CHILDREN_NO);
       w->WriteULEB128(DW_AT_BYTE_SIZE);
+      w->WriteULEB128(DW_FORM_DATA1);
+      w->WriteULEB128(DW_AT_ENCODING);
       w->WriteULEB128(DW_FORM_DATA1);
       w->WriteULEB128(DW_AT_NAME);
       w->WriteULEB128(DW_FORM_STRING);
@@ -1295,20 +1320,15 @@ class DebugAbbrevSection : public DebugSection {
         WriteVariableAbbreviation(w, current_abbreviation++, true, true);
       }
 
-      for (int internal_slot = 0; internal_slot < internal_slots;
-           ++internal_slot) {
-        WriteVariableAbbreviation(w, current_abbreviation++, false, false);
-      }
-
-      for (int context_slot = 0; context_slot < context_slots; ++context_slot) {
-        WriteVariableAbbreviation(w, current_abbreviation++, false, false);
-      }
-
       // The function.
       WriteVariableAbbreviation(w, current_abbreviation++, true, false);
 
       // The context.
       WriteVariableAbbreviation(w, current_abbreviation++, true, false);
+
+      for (size_t i = 0; i < desc_->maglev_variable_locations().size(); ++i) {
+        WriteVariableAbbreviation(w, current_abbreviation++, true, false);
+      }
 
       w->WriteULEB128(0);  // Terminate the sibling list.
     }
@@ -1400,7 +1420,11 @@ class DebugLineSection : public DebugSection {
 
       // Reduce bloating in the debug line table by removing duplicate line
       // entries (per DWARF2 standard).
-      intptr_t new_line = desc_->GetScriptLineNumber(info->pos_);
+      DCHECK_NE(info->pos_, kNoSourcePosition);
+      intptr_t new_line = (desc_->kind() == CodeKind::MAGLEV &&
+                           v8_flags.maglev_gdbjit && v8_flags.gdbjit_full)
+                              ? info->pos_
+                              : desc_->GetScriptLineNumber(info->pos_);
       if (new_line == line) {
         continue;
       }
@@ -1610,7 +1634,7 @@ void UnwindInfoSection::WriteFDE(Writer* w, int cie_position) {
 }
 
 void UnwindInfoSection::WriteFDEStateOnEntry(Writer* w) {
-  // The first state, just after the control has been transferred to the the
+  // The first state, just after the control has been transferred to the
   // function.
 
   // RBP for this function will be the value of RSP after pushing the RBP
@@ -1843,6 +1867,21 @@ static CodeMap* GetCodeMap() {
   return code_map;
 }
 
+using MaglevVariablesMap =
+    std::map<uintptr_t, std::vector<maglev::MaglevVariableInfo>>;
+static base::LazyMutex maglev_vars_mutex = LAZY_MUTEX_INITIALIZER;
+static MaglevVariablesMap* GetMaglevVariablesMap() {
+  static MaglevVariablesMap* map = nullptr;
+  if (map == nullptr) map = new MaglevVariablesMap();
+  return map;
+}
+
+void RegisterMaglevVariableLocations(
+    uintptr_t code_start, const std::vector<maglev::MaglevVariableInfo>& vars) {
+  base::MutexGuard lock_guard(maglev_vars_mutex.Pointer());
+  GetMaglevVariablesMap()->emplace(code_start, vars);
+}
+
 static uint32_t HashCodeAddress(Address addr) {
   static const uintptr_t kGoldenRatio = 2654435761u;
   return static_cast<uint32_t>((addr >> kCodeAlignmentBits) * kGoldenRatio);
@@ -1949,8 +1988,9 @@ GetOverlappingRegions(CodeMap* map, const base::AddressRegion region) {
 
   // Return a range containing intersecting regions.
 
-  if (std::distance(start_it, end_it) < 1)
+  if (std::distance(start_it, end_it) < 1) {
     return {};  // No overlapping entries.
+  }
 
   return {{start_it, end_it}};
 }
@@ -1999,9 +2039,21 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
 
 static void AddCode(const char* name, base::AddressRegion region,
                     Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
-                    Isolate* isolate, bool is_function) {
+                    Isolate* isolate, bool is_function, CodeKind kind,
+                    int opt_id) {
   DisallowGarbageCollection no_gc;
-  CodeDescription code_desc(name, region, shared, lineinfo, is_function);
+  CodeDescription code_desc(name, region, shared, lineinfo, is_function, kind,
+                            opt_id);
+
+  if (kind == CodeKind::MAGLEV) {
+    base::MutexGuard lock_guard(maglev_vars_mutex.Pointer());
+    auto map = GetMaglevVariablesMap();
+    auto it = map->find(region.begin());
+    if (it != map->end()) {
+      code_desc.set_maglev_variable_locations(it->second);
+      map->erase(it);
+    }
+  }
 
   CodeMap* code_map = GetCodeMap();
   RemoveJITCodeEntries(code_map, region);
@@ -2055,13 +2107,26 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // prologue that SP generates probably matches that of TP/TF, so we can
       // use event->code_type here instead of finding the Code.
       // TODO(zhin): Rename is_function to be more accurate.
+      CodeKind kind = CodeKind::INTERPRETED_FUNCTION;
+      int opt_id = -1;
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
         Tagged<Code> lookup_result =
             isolate->heap()->FindCodeForInnerPointer(addr);
         is_function = CodeKindIsOptimizedJSFunction(lookup_result->kind());
+        kind = lookup_result->kind();
+        // Skip GDB JIT registration for builtins because it is very slow. Also,
+        // we already emit debug information in the embedded blob.
+        if (kind == CodeKind::BUILTIN || kind == CodeKind::BYTECODE_HANDLER) {
+          delete lineinfo;
+          return;
+        }
+        if (kind == CodeKind::MAGLEV) {
+          opt_id =
+              lookup_result->deoptimization_data()->OptimizationId().value();
+        }
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
-              isolate, is_function);
+              isolate, is_function, kind, opt_id);
       break;
     }
     case v8::JitCodeEvent::CODE_MOVED:

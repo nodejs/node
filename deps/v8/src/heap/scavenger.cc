@@ -218,8 +218,7 @@ class ScavengerWeakObjectsProcessor final {
     JSWeakRefsList::Local local_js_weak_refs(js_weak_refs);
     Tagged<JSWeakRef> js_weak_ref;
     while (local_js_weak_refs.Pop(&js_weak_ref)) {
-      ProcessField(heap, js_weak_ref,
-                   js_weak_ref->RawField(JSWeakRef::kTargetOffset),
+      ProcessField(heap, js_weak_ref, ObjectSlot(&js_weak_ref->target_),
                    on_dead_target_callback);
     }
   }
@@ -764,14 +763,15 @@ void ScavengerJobTask::Run(JobDelegate* delegate) {
   Scavenger* scavenger = (*scavengers_)[delegate->GetTaskId()].get();
   if (delegate->IsJoiningThread()) {
     TRACE_GC_WITH_FLOW(heap_->tracer(),
-                       GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL, trace_id_,
-                       TRACE_EVENT_FLAG_FLOW_IN);
+                       GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL,
+                       perfetto::TerminatingFlow::ProcessScoped(trace_id_));
     ProcessItems(delegate, scavenger);
   } else {
     TRACE_GC_EPOCH_WITH_FLOW(
         heap_->tracer(),
         GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
-        ThreadKind::kBackground, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        ThreadKind::kBackground,
+        perfetto::TerminatingFlow::ProcessScoped(trace_id_));
     ProcessItems(delegate, scavenger);
   }
 }
@@ -1327,15 +1327,15 @@ void ScavengerCollector::QuarantinedPageSweeper::JobTask::Run(
   TRACE_GC_EPOCH_WITH_FLOW(
       heap_->tracer(),
       GCTracer::Scope::SCAVENGER_BACKGROUND_QUARANTINED_PAGE_SWEEPING,
-      is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground, trace_id(),
-      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+      is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
+      perfetto::Flow::ProcessScoped(trace_id()));
   DCHECK(!is_done_.load(std::memory_order_relaxed));
   DCHECK(!pinned_objects_.empty());
   if (pinned_object_per_page_.empty()) {
     // Populate the per page map.
     for (const PinnedObjectEntry& entry : pinned_objects_) {
-      DCHECK(!HeapLayout::IsSelfForwarded(
-          HeapObject::FromAddress(entry.address), heap_->isolate()));
+      DCHECK(
+          !HeapLayout::IsSelfForwarded(HeapObject::FromAddress(entry.address)));
       MemoryChunk* chunk = MemoryChunk::FromAddress(entry.address);
       DCHECK(!chunk->Metadata(heap_->isolate())->is_quarantined());
       ObjectsAndSizes& objects_for_page = pinned_object_per_page_[chunk];
@@ -1439,8 +1439,8 @@ void ScavengerCollector::QuarantinedPageSweeper::StartSweeping(
   DCHECK_NULL(job_handle_);
   DCHECK(!pinned_objects.empty());
   auto job = std::make_unique<JobTask>(heap_, std::move(pinned_objects));
-  TRACE_GC_NOTE_WITH_FLOW("Quarantined page sweeper started", job->trace_id(),
-                          TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_GC_NOTE_WITH_FLOW("Quarantined page sweeper started",
+                          perfetto::Flow::ProcessScoped(job->trace_id()));
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
       v8::TaskPriority::kUserVisible, std::move(job));
 }
@@ -1731,8 +1731,8 @@ void ScavengerCollector::CollectGarbage() {
     auto job = std::make_unique<ScavengerJobTask>(
         heap_, &scavengers, std::move(old_to_new_chunks), copied_list,
         promoted_list, estimate_concurrency);
-    TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started", job->trace_id(),
-                            TRACE_EVENT_FLAG_FLOW_OUT);
+    TRACE_GC_NOTE_WITH_FLOW("Parallel scavenge started",
+                            perfetto::Flow::ProcessScoped(job->trace_id()));
     std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->PostJob(
         v8::TaskPriority::kUserBlocking, std::move(job));
 
@@ -2397,8 +2397,8 @@ void Scavenger::RecordJSWeakRefIfNeeded(Tagged<JSWeakRef> js_weak_ref) {
     return;
   }
 
-  if (ShouldRecordWeakObject<Age>(
-          js_weak_ref, js_weak_ref->RawField(JSWeakRef::kTargetOffset))) {
+  if (ShouldRecordWeakObject<Age>(js_weak_ref,
+                                  ObjectSlot(&js_weak_ref->target_))) {
     local_js_weak_refs_list_.Push(js_weak_ref);
   }
 }
@@ -2466,7 +2466,7 @@ void Scavenger::ScavengePage(MutablePage* page) {
     std::vector<std::tuple<Tagged<HeapObject>, SlotType, Address>> slot_updates;
 
     // The code running write access to executable memory poses CFI attack
-    // surface and needs to be kept to a minimum. So we do the the iteration in
+    // surface and needs to be kept to a minimum. So we do the iteration in
     // two rounds. First we iterate the slots and scavenge objects and in the
     // second round with write access, we only perform the pointer updates.
     const auto typed_slot_count = RememberedSet<OLD_TO_NEW>::IterateTyped(

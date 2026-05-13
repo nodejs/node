@@ -1,0 +1,89 @@
+header: termios.h
+standards:
+  - posix
+macros:
+  - macro_name: NCCS
+    macro_header: termios-macros.h
+types:
+  - type_name: tcflag_t
+  - type_name: struct_termios
+  - type_name: speed_t
+  - type_name: pid_t
+  - type_name: cc_t
+enums: []
+objects: []
+functions:
+  - name: cfgetispeed
+    standards:
+      - POSIX
+    return_type: speed_t
+    arguments:
+      - type: const struct termios *
+  - name: cfgetospeed
+    standards:
+      - POSIX
+    return_type: speed_t
+    arguments:
+      - type: const struct termios *
+  - name: cfsetispeed
+    standards:
+      - POSIX
+    return_type: speed_t
+    arguments:
+      - type: struct termios *
+      - type: speed_t
+  - name: cfsetospeed
+    standards:
+      - POSIX
+    return_type: speed_t
+    arguments:
+      - type: struct termios *
+      - type: speed_t
+  - name: tcdrain
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+  - name: tcflow
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: tcflush
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: tcgetattr
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct termios *
+  - name: tcgetsid
+    standards:
+      - POSIX
+    return_type: pid_t
+    arguments:
+      - type: int
+  - name: tcsendbreak
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: tcsetattr
+    standards:
+      - POSIX
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: struct termios *

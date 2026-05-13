@@ -48,10 +48,10 @@ void MemoryReducer::TimerTask::RunInternal() {
 
   const double time_ms = heap->MonotonicallyIncreasingTimeInMs();
   heap->allocator()->new_space_allocator()->FreeLinearAllocationArea();
-  heap->tracer()->SampleAllocation(base::TimeTicks::Now(),
-                                   heap->NewSpaceAllocationCounter(),
-                                   heap->OldGenerationAllocationCounter(),
-                                   heap->EmbedderAllocationCounter());
+  heap->tracer()->SampleAllocation(
+      base::TimeTicks::Now(), heap->NewSpaceAllocationCounter(),
+      heap->OldGenerationAllocationCounter(), heap->EmbedderAllocationCounter(),
+      heap->ExternalAllocationCounter());
   const bool low_allocation_rate = heap->HasLowAllocationRate();
   const bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
   if (v8_flags.trace_memory_reducer) {

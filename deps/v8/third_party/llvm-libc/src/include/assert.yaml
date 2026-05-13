@@ -1,0 +1,16 @@
+header: assert.h
+header_template: assert.h.def
+macros: []
+types: []
+enums: []
+objects: []
+functions:
+  - name: __assert_fail
+    standards:
+      - llvm_libc_ext
+    return_type: _Noreturn void
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: unsigned
+      - type: const char *

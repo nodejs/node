@@ -16,6 +16,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,11 +24,38 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/js-disposable-stack-tq-inl.inc"
+Tagged<FixedArray> JSDisposableStackBase::stack() const {
+  return stack_.load();
+}
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDisposableStackBase)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSSyncDisposableStack)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncDisposableStack)
+void JSDisposableStackBase::set_stack(Tagged<FixedArray> value,
+                                      WriteBarrierMode mode) {
+  stack_.store(this, value, mode);
+}
+
+int JSDisposableStackBase::status() const { return status_.load().value(); }
+
+void JSDisposableStackBase::set_status(int value) {
+  status_.store(this, Smi::From31BitPattern(value));
+}
+
+Tagged<UnionOf<Object, Hole>> JSDisposableStackBase::error() const {
+  return error_.load();
+}
+
+void JSDisposableStackBase::set_error(Tagged<UnionOf<Object, Hole>> value,
+                                      WriteBarrierMode mode) {
+  error_.store(this, value, mode);
+}
+
+Tagged<UnionOf<Object, Hole>> JSDisposableStackBase::error_message() const {
+  return error_message_.load();
+}
+
+void JSDisposableStackBase::set_error_message(
+    Tagged<UnionOf<Object, Hole>> value, WriteBarrierMode mode) {
+  error_message_.store(this, value, mode);
+}
 
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, state,
                     JSDisposableStackBase::StateBit)
@@ -40,12 +68,33 @@ BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, suppressed_error_created,
 BIT_FIELD_ACCESSORS(JSDisposableStackBase, status, length,
                     JSDisposableStackBase::LengthBits)
 
+// Verify our BitField layout matches the Torque bitfield struct. If the .tq
+// definition changes, these will catch the divergence at compile time.
+namespace torque_asserts {
+struct DisposableStackStatusTqFlags {
+  DEFINE_TORQUE_GENERATED_DISPOSABLE_STACK_STATUS()
+};
+#define CHECK_BITFIELD(f)                                      \
+  static_assert(JSDisposableStackBase::f::kShift ==            \
+                    DisposableStackStatusTqFlags::f::kShift && \
+                JSDisposableStackBase::f::kSize ==             \
+                    DisposableStackStatusTqFlags::f::kSize)
+CHECK_BITFIELD(StateBit);
+CHECK_BITFIELD(NeedsAwaitBit);
+CHECK_BITFIELD(HasAwaitedBit);
+CHECK_BITFIELD(SuppressedErrorCreatedBit);
+CHECK_BITFIELD(LengthBits);
+#undef CHECK_BITFIELD
+}  // namespace torque_asserts
+
 inline void JSDisposableStackBase::Add(
     Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
     DirectHandle<Object> value, DirectHandle<Object> method,
     DisposeMethodCallType type, DisposeMethodHint hint) {
   DCHECK(!IsUndefined(disposable_stack->stack()));
-  int length = disposable_stack->length();
+  const int int_length = disposable_stack->length();
+  DCHECK_GE(int_length, 0);
+  uint32_t length = static_cast<uint32_t>(int_length);
   int stack_type =
       DisposeCallTypeBit::encode(type) | DisposeHintBit::encode(hint);
   DirectHandle<Smi> stack_type_handle(Smi::FromInt(stack_type), isolate);

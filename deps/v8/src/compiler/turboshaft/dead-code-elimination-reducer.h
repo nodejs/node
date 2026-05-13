@@ -240,8 +240,9 @@ class DeadCodeAnalysis {
       }
       control_state = ControlState::LeastUpperBound(control_state, r);
     }
-    if constexpr (trace_analysis)
+    if constexpr (trace_analysis) {
       std::cout << "Combined: " << control_state << "\n";
+    }
 
     // If control_state == ControlState::Block(b), then the merge block b is
     // reachable through every path starting at the current block without any

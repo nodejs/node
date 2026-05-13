@@ -30,8 +30,8 @@ class WasmInternalFunction;
 class WasmSuspenderObject;
 class WasmFunctionData;
 class WasmExportedFunctionData;
-class WasmJSFunctionData;
 class WasmCapiFunctionData;
+class AsmWasmData;
 
 template <typename T, IndirectPointerTagRange kTagRange>
 class TrustedPointerMember;
@@ -55,8 +55,8 @@ namespace detail {
   IF_WASM(V, kWasmFunctionDataIndirectPointerTagRange, WasmFunctionData)    \
   IF_WASM(V, kWasmExportedFunctionDataIndirectPointerTag,                   \
           WasmExportedFunctionData)                                         \
-  IF_WASM(V, kWasmJSFunctionDataIndirectPointerTag, WasmJSFunctionData)     \
-  IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData)
+  IF_WASM(V, kWasmCapiFunctionDataIndirectPointerTag, WasmCapiFunctionData) \
+  IF_WASM(V, kAsmWasmDataIndirectPointerTag, AsmWasmData)
 
 template <IndirectPointerTagRange tag_range>
 struct TrustedPointerType {
@@ -81,7 +81,7 @@ using TrustedTypeFor = typename detail::TrustedPointerType<tag_range>::type;
 // pointers from HeapObjects.
 //
 // A pointer to a trusted object. When the sandbox is enabled, these are
-// indirect pointers using the the TrustedPointerTable (TPT). When the sandbox
+// indirect pointers using the TrustedPointerTable (TPT). When the sandbox
 // is disabled, they are regular tagged pointers. They must always point to an
 // ExposedTrustedObject as (only) these objects can be referenced through the
 // trusted pointer table.
@@ -99,9 +99,9 @@ class TrustedPointerField {
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTagRange tag_range>
-  static inline Tagged<Object> ReadMaybeEmptyTrustedPointerField(
-      Tagged<HeapObject> host, size_t offset, IsolateForSandbox isolate,
-      AcquireLoadTag);
+  static inline Tagged<Union<Smi, TrustedTypeFor<tag_range>>>
+  ReadMaybeEmptyTrustedPointerField(Tagged<HeapObject> host, size_t offset,
+                                    IsolateForSandbox isolate, AcquireLoadTag);
 
   template <IndirectPointerTagRange tag_range>
   static inline void WriteTrustedPointerField(
@@ -128,34 +128,55 @@ class TrustedPointerField {
                                               size_t offset, ReleaseStoreTag);
 };
 
-// TrustedPointerMember is a type wrapping a trusted pointer for
-// HeapObjectLayout objects.
+// TrustedPointerMember is a type wrapping a trusted pointer.
 //
-// This is a HeapObjectLayout version of TrustedPointerField, similar to
-// TaggedMember vs. TaggedField.
+// This is a member version of TrustedPointerField, similar to TaggedMember vs.
+// TaggedField.
 //
 // TODO(leszeks): Remove TrustedPointerField (and update these comments) when
 // all objects are ported.
 template <typename T, IndirectPointerTagRange kTagRange>
-class TrustedPointerMember {
+class TrustedPointerMember
+#ifndef V8_ENABLE_SANDBOX
+    // On non-sandbox builds, TrustedPointerMember is just a TaggedMember with
+    // custom accessors, which allows it to be passed to Slots same as a
+    // TaggedMember.
+    : public TaggedMember<T>
+#endif
+{
  public:
   constexpr TrustedPointerMember() = default;
 
   inline Tagged<T> load(IsolateForSandbox isolate) const;
-  inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate,
-                                         AcquireLoadTag) const;
-  inline void store(HeapObjectLayout* host, Tagged<T> value,
+  inline Tagged<Object> load_maybe_empty(IsolateForSandbox isolate) const;
+  inline void store(HeapObject* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void store_no_write_barrier(HeapObjectLayout* host, Tagged<T> value);
-  inline void clear(HeapObjectLayout* host);
+  inline void store_no_write_barrier(HeapObject* host, Tagged<T> value);
+
+  inline Tagged<T> Acquire_Load(IsolateForSandbox isolate) const;
+  inline Tagged<Object> Acquire_Load_maybe_empty(
+      IsolateForSandbox isolate) const;
+  inline void Release_Store(HeapObject* host, Tagged<T> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void Release_Store_no_write_barrier(HeapObject* host, Tagged<T> value);
+
+  inline bool is_empty() const;
+  inline bool is_unpublished(IsolateForSandbox isolate) const;
+  inline void clear(HeapObject* host);
 
  private:
 #ifdef V8_ENABLE_SANDBOX
+  friend class IndirectPointerSlot;
+
+  inline Address storage_address() const;
+
   std::atomic<IndirectPointerHandle> handle_;
 #else
-  TaggedMember<T> member_;
+  using Base = TaggedMember<T>;
 #endif
 };
+
+using CodePointerMember = TrustedPointerMember<Code, kCodeIndirectPointerTag>;
 
 }  // namespace internal
 }  // namespace v8

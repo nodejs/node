@@ -47,7 +47,7 @@ template <class Container, class = void>
 struct IsMap : std::false_type {};
 
 template <class Map>
-struct IsMap<Map, absl::void_t<typename Map::mapped_type>> : std::true_type {};
+struct IsMap<Map, std::void_t<typename Map::mapped_type>> : std::true_type {};
 
 }  // namespace generator_internal
 
@@ -128,13 +128,13 @@ struct Generator<std::tuple<Ts...>> {
 template <class T>
 struct Generator<std::unique_ptr<T>> {
   std::unique_ptr<T> operator()() const {
-    return absl::make_unique<T>(Generator<T>()());
+    return std::make_unique<T>(Generator<T>()());
   }
 };
 
 template <class U>
-struct Generator<U, absl::void_t<decltype(std::declval<U&>().key()),
-                                 decltype(std::declval<U&>().value())>>
+struct Generator<U, std::void_t<decltype(std::declval<U&>().key()),
+                                decltype(std::declval<U&>().value())>>
     : Generator<std::pair<
           typename std::decay<decltype(std::declval<U&>().key())>::type,
           typename std::decay<decltype(std::declval<U&>().value())>::type>> {};

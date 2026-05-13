@@ -40,7 +40,7 @@ std::vector<std::shared_ptr<StackFrame>> toFramesVector(
   DCHECK(debugger->isolate()->InContext());
   int frameCount = std::min(v8StackTrace->GetFrameCount(), maxStackSize);
 
-  TRACE_EVENT1(
+  TRACE_EVENT(
       TRACE_DISABLED_BY_DEFAULT("v8.inspector") "," TRACE_DISABLED_BY_DEFAULT(
           "v8.stack_trace"),
       "toFramesVector", "frameCount", frameCount);
@@ -68,8 +68,9 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
       std::make_unique<protocol::Array<protocol::Runtime::CallFrame>>();
   for (const std::shared_ptr<StackFrame>& frame : frames) {
     V8InspectorClient* client = nullptr;
-    if (debugger && debugger->inspector())
+    if (debugger && debugger->inspector()) {
       client = debugger->inspector()->client();
+    }
     inspectorFrames->emplace_back(frame->buildInspectorObject(client));
   }
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
@@ -239,7 +240,7 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
     V8Debugger* debugger, int maxStackSize) {
   DCHECK(debugger);
 
-  TRACE_EVENT1(
+  TRACE_EVENT(
       TRACE_DISABLED_BY_DEFAULT("v8.inspector") "," TRACE_DISABLED_BY_DEFAULT(
           "v8.stack_trace"),
       "V8StackTraceImpl::capture", "maxFrameCount", maxStackSize);
@@ -402,7 +403,7 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
   DCHECK(debugger);
 
   int maxStackSize = debugger->maxCallStackSizeToCapture();
-  TRACE_EVENT1(
+  TRACE_EVENT(
       TRACE_DISABLED_BY_DEFAULT("v8.inspector") "," TRACE_DISABLED_BY_DEFAULT(
           "v8.stack_trace"),
       "AsyncStackTrace::capture", "maxFrameCount", maxStackSize);
@@ -425,8 +426,9 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
                              &externalParent);
   }
 
-  if (frames.empty() && !asyncParent && externalParent.IsInvalid())
+  if (frames.empty() && !asyncParent && externalParent.IsInvalid()) {
     return nullptr;
+  }
 
   if (asyncParent && frames.empty() &&
       (asyncParent->m_description == description || description.isEmpty())) {

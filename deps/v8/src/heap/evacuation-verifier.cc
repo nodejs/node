@@ -53,7 +53,7 @@ void EvacuationVerifier::VisitRootPointers(Root root, const char* description,
 }
 
 void EvacuationVerifier::VisitMapPointer(Tagged<HeapObject> object) {
-  VerifyHeapObjectImpl(object->map(cage_base()));
+  VerifyHeapObjectImpl(object->map());
 }
 
 void EvacuationVerifier::VisitCodeTarget(Tagged<InstructionStream> host,
@@ -65,7 +65,7 @@ void EvacuationVerifier::VisitCodeTarget(Tagged<InstructionStream> host,
 
 void EvacuationVerifier::VisitEmbeddedPointer(Tagged<InstructionStream> host,
                                               RelocInfo* rinfo) {
-  VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
+  VerifyHeapObjectImpl(rinfo->target_object());
 }
 
 void EvacuationVerifier::VerifyRoots() {
@@ -78,10 +78,10 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
     Tagged<HeapObject> object = HeapObject::FromAddress(current);
-    if (!IsFreeSpaceOrFiller(object, cage_base())) {
+    if (!IsFreeSpaceOrFiller(object)) {
       VisitObject(heap_->isolate(), object, this);
     }
-    current += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base()));
+    current += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
   }
 }
 

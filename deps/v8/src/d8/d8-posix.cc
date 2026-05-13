@@ -492,23 +492,6 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(accumulator);
 }
 
-void Shell::ChangeDirectory(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  Isolate* isolate = info.GetIsolate();
-  if (info.Length() != 1) {
-    isolate->ThrowError("chdir() takes one argument");
-    return;
-  }
-  String::Utf8Value directory(isolate, info[0]);
-  if (*directory == nullptr) {
-    isolate->ThrowError("os.chdir(): String conversion of argument failed.");
-    return;
-  }
-  if (chdir(*directory) != 0) {
-    isolate->ThrowError(v8_strerror(isolate, errno));
-    return;
-  }
-}
 
 void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
@@ -645,13 +628,13 @@ void Shell::UnsetEnvironment(const v8::FunctionCallbackInfo<v8::Value>& info) {
   unsetenv(*var);
 }
 
-char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
+base::OwnedVector<char> Shell::ReadCharsFromTcpPort(const char* name) {
   DCHECK_GE(Shell::options.read_from_tcp_port, 0);
 
   int sockfd = socket(PF_INET, SOCK_STREAM, 0);
   if (sockfd < 0) {
     fprintf(stderr, "Failed to create IPv4 socket\n");
-    return nullptr;
+    return {};
   }
 
   // Create an address for localhost:PORT where PORT is specified by the shell
@@ -667,7 +650,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Failed to connect to localhost:%d\n",
             Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return nullptr;
+    return {};
   }
 
   // The file server follows the simple protocol for requesting and receiving
@@ -695,7 +678,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
       fprintf(stderr, "Failed to send %s to localhost:%d\n", name,
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
-      return nullptr;
+      return {};
     }
     sent_len += sent_now;
   }
@@ -712,7 +695,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Failed to receive %s's length from localhost:%d\n", name,
             Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return nullptr;
+    return {};
   }
   // Reinterpretet the received file length as a signed big-endian integer.
   int32_t file_length = base::bit_cast<int32_t>(htonl(big_endian_file_length));
@@ -721,7 +704,7 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
     fprintf(stderr, "Received length %d for %s from localhost:%d\n",
             file_length, name, Shell::options.read_from_tcp_port.get());
     close(sockfd);
-    return nullptr;
+    return {};
   }
 
   // Allocate the output array.
@@ -737,22 +720,20 @@ char* Shell::ReadCharsFromTcpPort(const char* name, int* size_out) {
               Shell::options.read_from_tcp_port.get());
       close(sockfd);
       delete[] chars;
-      return nullptr;
+      return {};
     }
     total_received += received;
   }
 
   close(sockfd);
-  *size_out = file_length;
-  return chars;
+  return base::OwnedVector<char>(std::unique_ptr<char[]>(chars), file_length);
 }
 
 void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
   if (options.enable_os_system) {
     os_templ->Set(isolate, "system", FunctionTemplate::New(isolate, System));
   }
-  os_templ->Set(isolate, "chdir",
-                FunctionTemplate::New(isolate, ChangeDirectory));
+
   os_templ->Set(isolate, "setenv",
                 FunctionTemplate::New(isolate, SetEnvironment));
   os_templ->Set(isolate, "unsetenv",
@@ -762,6 +743,36 @@ void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
                 FunctionTemplate::New(isolate, MakeDirectory));
   os_templ->Set(isolate, "rmdir",
                 FunctionTemplate::New(isolate, RemoveDirectory));
+}
+
+void Shell::FileExists(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 1) {
+    isolate->ThrowError("exists() takes one argument");
+    return;
+  }
+  String::Utf8Value file_name(isolate, info[0]);
+  if (*file_name == nullptr) {
+    isolate->ThrowError(
+        "d8.file.exists(): String conversion of argument failed.");
+    return;
+  }
+
+  struct stat stat_buf;
+  bool exists = (stat(*file_name, &stat_buf) == 0);
+
+  info.GetReturnValue().Set(v8::Boolean::New(isolate, exists));
+}
+
+bool Shell::ChangeWorkingDirectory(const std::string& path, bool print_error) {
+  bool success = chdir(path.c_str()) == 0;
+
+  if (!success && print_error) {
+    fprintf(stderr, "Failed to change directory to %s: %s\n", path.c_str(),
+            strerror(errno));
+  }
+  return success;
 }
 
 }  // namespace v8

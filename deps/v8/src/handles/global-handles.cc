@@ -755,7 +755,7 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
   // outermost GC run only.
   GCCallbacksScope scope(isolate()->heap());
   if (scope.CheckReenter()) {
-    TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
+    TRACE_EVENT("v8", "V8.GCPhantomHandleProcessingCallback");
     isolate()->heap()->CallGCPrologueCallbacks(
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags,
         GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);

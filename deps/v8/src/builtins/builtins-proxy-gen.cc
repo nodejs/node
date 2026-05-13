@@ -59,10 +59,11 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   RootIndex empty_dict = V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
                              ? RootIndex::kEmptySwissPropertyDictionary
                              : RootIndex::kEmptyPropertyDictionary;
-  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset, empty_dict);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kFlagsOffset, flags);
+  StoreObjectFieldRoot(proxy, offsetof(JSProxy, properties_or_hash_),
+                       empty_dict);
+  StoreObjectFieldNoWriteBarrier(proxy, offsetof(JSProxy, target_), target);
+  StoreObjectFieldNoWriteBarrier(proxy, offsetof(JSProxy, handler_), handler);
+  StoreObjectFieldNoWriteBarrier(proxy, offsetof(JSProxy, flags_), flags);
 #if TAGGED_SIZE_8_BYTES
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kPaddingOffset,
                                  Int32Constant(0));
@@ -104,7 +105,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   TNode<Union<Null, JSReceiver>> handler =
-      CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
+      CAST(LoadObjectField(proxy, offsetof(JSProxy, handler_)));
 
   // 2. If handler is null, throw a TypeError exception.
   GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
@@ -113,7 +114,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   CSA_DCHECK(this, IsJSReceiver(handler));
 
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  TNode<Object> target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+  TNode<Object> target = LoadObjectField(proxy, offsetof(JSProxy, target_));
 
   // 5. Let trap be ? GetMethod(handler, "apply").
   // 6. If trap is undefined, then
@@ -159,7 +160,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   TNode<Union<Null, JSReceiver>> handler =
-      CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
+      CAST(LoadObjectField(proxy, offsetof(JSProxy, handler_)));
 
   // 2. If handler is null, throw a TypeError exception.
   GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
@@ -168,7 +169,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
   CSA_DCHECK(this, IsJSReceiver(handler));
 
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  TNode<Object> target = LoadObjectField(proxy, JSProxy::kTargetOffset);
+  TNode<Object> target = LoadObjectField(proxy, offsetof(JSProxy, target_));
 
   // 5. Let trap be ? GetMethod(handler, "construct").
   // 6. If trap is undefined, then

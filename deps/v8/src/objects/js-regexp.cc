@@ -17,7 +17,7 @@ namespace v8::internal {
 
 DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
-    DirectHandle<Object> maybe_names) {
+    DirectHandle<RegExpData> re_data) {
   DirectHandle<JSRegExpResultIndices> indices(
       Cast<JSRegExpResultIndices>(isolate->factory()->NewJSObjectFromMap(
           isolate->regexp_result_indices_map())));
@@ -58,7 +58,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   // If there are no capture groups, set the groups property to undefined.
   FieldIndex groups_index = FieldIndex::ForDescriptor(
       indices->map(), InternalIndex(kGroupsDescriptorIndex));
-  if (IsUndefined(*maybe_names, isolate)) {
+  if (re_data->type_tag() != RegExpData::Type::IRREGEXP ||
+      !TrustedCast<IrRegExpData>(re_data)->has_capture_name_map()) {
     indices->FastPropertyAtPut(groups_index,
                                ReadOnlyRoots(isolate).undefined_value());
     return indices;
@@ -66,8 +67,9 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Create a groups property which returns a dictionary of named captures to
   // their corresponding capture indices.
-  auto names = Cast<FixedArray>(maybe_names);
-  int num_names = names->length() >> 1;
+  auto names = direct_handle(
+      TrustedCast<IrRegExpData>(re_data)->capture_name_map(), isolate);
+  const int num_names = static_cast<int>(names->ulength().value() >> 1);
   DirectHandle<HeapObject> group_names;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     group_names = isolate->factory()->NewSwissNameDictionary(num_names);
@@ -128,11 +130,11 @@ std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
   // A longer flags string cannot be valid.
   if (length > JSRegExp::kFlagCount) return {};
 
-  RegExpFlags value;
+  regexp::Flags value;
   FlatStringReader reader(isolate, String::Flatten(isolate, flags));
 
   for (int i = 0; i < length; i++) {
-    std::optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
+    std::optional<regexp::Flag> flag = JSRegExp::FlagFromChar(reader.Get(i));
     if (!flag.has_value()) return {};
     if (value & flag.value()) return {};  // Duplicate.
     value |= flag.value();
@@ -151,7 +153,7 @@ DirectHandle<String> JSRegExp::StringFromFlags(Isolate* isolate,
 
 // static
 MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
-                                          DirectHandle<String> pattern,
+                                          DirectHandle<String> original_source,
                                           Flags flags,
                                           uint32_t backtrack_limit) {
   DirectHandle<JSFunction> constructor = isolate->regexp_function();
@@ -162,13 +164,14 @@ MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
   // during compilation.
   regexp->clear_data();
 
-  return JSRegExp::Initialize(isolate, regexp, pattern, flags, backtrack_limit);
+  return JSRegExp::Initialize(isolate, regexp, original_source, flags,
+                              backtrack_limit);
 }
 
 // static
 MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
     Isolate* isolate, DirectHandle<JSRegExp> regexp,
-    DirectHandle<String> source, DirectHandle<String> flags_string) {
+    DirectHandle<String> original_source, DirectHandle<String> flags_string) {
   std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
@@ -176,195 +179,27 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
-  return Initialize(isolate, regexp, source, flags.value());
+  return Initialize(isolate, regexp, original_source, flags.value());
 }
-
-namespace {
-
-bool IsLineTerminator(int c) {
-  // Expected to return true for '\n', '\r', 0x2028, and 0x2029.
-  return unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c));
-}
-
-// TODO(jgruber): Consider merging CountAdditionalEscapeChars and
-// WriteEscapedRegExpSource into a single function to deduplicate dispatch logic
-// and move related code closer to each other.
-template <typename Char>
-uint32_t CountAdditionalEscapeChars(DirectHandle<String> source,
-                                    bool* needs_escapes_out) {
-  DisallowGarbageCollection no_gc;
-  uint32_t escapes = 0;
-  // The maximum growth-factor is 5 (for \u2028 and \u2029). Make sure that we
-  // won't overflow |escapes| given the current constraints on string length.
-  static_assert(uint64_t{String::kMaxLength} * 5 <
-                std::numeric_limits<decltype(escapes)>::max());
-  bool needs_escapes = false;
-  bool in_character_class = false;
-  base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
-  for (int i = 0; i < src.length(); i++) {
-    const Char c = src[i];
-    if (c == '\\') {
-      if (i + 1 < src.length() && IsLineTerminator(src[i + 1])) {
-        // This '\' is ignored since the next character itself will be escaped.
-        escapes--;
-      } else {
-        // Escape. Skip next character, which will be copied verbatim;
-        i++;
-      }
-    } else if (c == '/' && !in_character_class) {
-      // Not escaped forward-slash needs escape.
-      needs_escapes = true;
-      escapes++;
-    } else if (c == '[') {
-      in_character_class = true;
-    } else if (c == ']') {
-      in_character_class = false;
-    } else if (c == '\n') {
-      needs_escapes = true;
-      escapes++;
-    } else if (c == '\r') {
-      needs_escapes = true;
-      escapes++;
-    } else if (static_cast<int>(c) == 0x2028) {
-      needs_escapes = true;
-      escapes += std::strlen("\\u2028") - 1;
-    } else if (static_cast<int>(c) == 0x2029) {
-      needs_escapes = true;
-      escapes += std::strlen("\\u2029") - 1;
-    } else {
-      DCHECK(!IsLineTerminator(c));
-    }
-  }
-  DCHECK(!in_character_class);
-  DCHECK_IMPLIES(escapes != 0, needs_escapes);
-  *needs_escapes_out = needs_escapes;
-  return escapes;
-}
-
-template <typename Char>
-void WriteStringToCharVector(base::Vector<Char> v, uint32_t* d,
-                             const char* string) {
-  int s = 0;
-  while (string[s] != '\0') v[(*d)++] = string[s++];
-}
-
-template <typename Char, typename StringType>
-DirectHandle<StringType> WriteEscapedRegExpSource(
-    DirectHandle<String> source, DirectHandle<StringType> result) {
-  DisallowGarbageCollection no_gc;
-  base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
-  base::Vector<Char> dst(result->GetChars(no_gc), result->length());
-  uint32_t s = 0;
-  uint32_t d = 0;
-  bool in_character_class = false;
-  while (s < src.size()) {
-    const Char c = src[s];
-    if (c == '\\') {
-      if (s + 1 < src.size() && IsLineTerminator(src[s + 1])) {
-        // This '\' is ignored since the next character itself will be escaped.
-        s++;
-        continue;
-      } else {
-        // Escape. Copy this and next character.
-        dst[d++] = src[s++];
-      }
-      if (s == src.size()) break;
-    } else if (c == '/' && !in_character_class) {
-      // Not escaped forward-slash needs escape.
-      dst[d++] = '\\';
-    } else if (c == '[') {
-      in_character_class = true;
-    } else if (c == ']') {
-      in_character_class = false;
-    } else if (c == '\n') {
-      WriteStringToCharVector(dst, &d, "\\n");
-      s++;
-      continue;
-    } else if (c == '\r') {
-      WriteStringToCharVector(dst, &d, "\\r");
-      s++;
-      continue;
-    } else if (static_cast<int>(c) == 0x2028) {
-      WriteStringToCharVector(dst, &d, "\\u2028");
-      s++;
-      continue;
-    } else if (static_cast<int>(c) == 0x2029) {
-      WriteStringToCharVector(dst, &d, "\\u2029");
-      s++;
-      continue;
-    } else {
-      DCHECK(!IsLineTerminator(c));
-    }
-    dst[d++] = src[s++];
-  }
-  DCHECK_EQ(result->length(), d);
-  DCHECK(!in_character_class);
-  return result;
-}
-
-MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
-                                             DirectHandle<String> source) {
-  DCHECK(source->IsFlat());
-  if (source->length() == 0) return isolate->factory()->query_colon_string();
-  bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
-  bool needs_escapes = false;
-  uint32_t additional_escape_chars =
-      one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
-               : CountAdditionalEscapeChars<base::uc16>(source, &needs_escapes);
-  if (!needs_escapes) return source;
-  uint32_t original_length = source->length();
-  uint32_t length = original_length + additional_escape_chars;
-  // The maximum |additional_escape_chars| is 5 * String::kMaxLength, so the
-  // maximum |length| is 6 * String::kMaxLength.
-  // It is guaranteed that 6 * String::kMaxLength doesn't overflow an uint32_t,
-  // therefore (signed) |length| will never be both: positive and less than
-  // |original_length|.
-  // Note that |length| as signed integer can be negative. This case is handled
-  // in the factory method and we raise an exception.
-  static_assert(uint64_t{String::kMaxLength} * 6 <
-                std::numeric_limits<decltype(length)>::max());
-  DCHECK_LE(additional_escape_chars, 5 * String::kMaxLength);
-  DCHECK_LE(length, 6 * String::kMaxLength);
-  DCHECK_LE(static_cast<uint64_t>(original_length) + additional_escape_chars,
-            std::numeric_limits<uint32_t>::max());
-  DCHECK(static_cast<int>(length) < 0 || length >= original_length);
-  if (one_byte) {
-    DirectHandle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawOneByteString(length));
-    return WriteEscapedRegExpSource<uint8_t>(source, result);
-  } else {
-    DirectHandle<SeqTwoByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawTwoByteString(length));
-    return WriteEscapedRegExpSource<base::uc16>(source, result);
-  }
-}
-
-}  // namespace
 
 // static
-MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
-                                                 DirectHandle<JSRegExp> regexp,
-                                                 DirectHandle<String> source,
-                                                 Flags flags,
-                                                 uint32_t backtrack_limit) {
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
+    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    DirectHandle<String> original_source, Flags flags,
+    uint32_t backtrack_limit) {
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = factory->query_colon_string();
+  if (original_source->length() == 0) {
+    original_source = factory->query_colon_string();
+  }
 
-  source = String::Flatten(isolate, source);
+  original_source = String::Flatten(isolate, original_source);
 
-  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source,
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, original_source,
                                                JSRegExp::AsRegExpFlags(flags),
                                                backtrack_limit));
 
-  DirectHandle<String> escaped_source;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
-                             EscapeRegExpSource(isolate, source));
-
-  regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
 
   Tagged<Map> map = regexp->map();
@@ -372,9 +207,9 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
   if (IsJSFunction(constructor) &&
       Cast<JSFunction>(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                                  Smi::FromInt(kInitialLastIndexValue),
-                                  SKIP_WRITE_BARRIER);
+    regexp->InObjectPropertyPutAtOffset(JSRegExp::kLastIndexOffset,
+                                        Smi::FromInt(kInitialLastIndexValue),
+                                        SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(
@@ -389,7 +224,7 @@ MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(Isolate* isolate,
 
 bool RegExpData::HasCompiledCode() const {
   if (type_tag() != Type::IRREGEXP) return false;
-  Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(*this);
+  Tagged<IrRegExpData> re_data = TrustedCast<IrRegExpData>(this);
   return re_data->has_latin1_code() || re_data->has_uc16_code();
 }
 

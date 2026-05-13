@@ -105,7 +105,7 @@ void VisitRRR(InstructionSelector* selector, InstructionCode opcode,
                  g.UseRegister(op.input(1)));
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
                        OpIndex node, int width) {
   ArmOperandGenerator g(selector);
@@ -155,7 +155,7 @@ void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, OpIndex node) {
   selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.into()),
                  g.UseImmediate(op.lane), g.UseUniqueRegister(op.new_lane()));
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 template <typename OpmaskT, int kImmMin, int kImmMax, AddressingMode kImmMode,
           AddressingMode kRegMode>
@@ -537,7 +537,7 @@ void InstructionSelector::VisitAbortCSADcheck(OpIndex node) {
        g.UseFixed(Cast<AbortCSADcheckOp>(node).message(), r1));
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 namespace {
 MachineRepresentation MachineRepresentationOf(
     Simd128LaneMemoryOp::LaneKind lane_kind) {
@@ -646,7 +646,7 @@ void InstructionSelector::VisitLoadTransform(OpIndex node) {
   EmitAddBeforeS128LoadStore(this, &opcode, &input_count, &inputs[0]);
   Emit(opcode, 1, &output, input_count, inputs);
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 void InstructionSelector::VisitLoad(OpIndex node) {
   LoadView load = load_view(node);
@@ -698,7 +698,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
   EmitLoad(this, opcode, &output, base, index);
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -888,7 +888,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitStoreCommon(this, node, store_view(node).stored_rep(), std::nullopt);
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1657,6 +1657,14 @@ void InstructionSelector::VisitInt32Mul(OpIndex node) {
   VisitRRR(this, kArmMul, node);
 }
 
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint64Add128(OpIndex node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint64Sub128(OpIndex node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitUint32MulHigh(OpIndex node) {
   auto [left, right] = Inputs<WordBinopOp>(node);
   ArmOperandGenerator g(this);
@@ -1706,24 +1714,24 @@ void InstructionSelector::VisitUint32Mod(OpIndex node) {
   V(Float64Sqrt, kArmVsqrtF64)                       \
   V(Word32Clz, kArmClz)
 
-#define RR_OP_T_LIST_V8(V)                         \
-  V(Float32RoundDown, kArmVrintmF32)               \
-  V(Float64RoundDown, kArmVrintmF64)               \
-  V(Float32RoundUp, kArmVrintpF32)                 \
-  V(Float64RoundUp, kArmVrintpF64)                 \
-  V(Float32RoundTruncate, kArmVrintzF32)           \
-  V(Float64RoundTruncate, kArmVrintzF64)           \
-  V(Float64RoundTiesAway, kArmVrintaF64)           \
-  V(Float32RoundTiesEven, kArmVrintnF32)           \
-  V(Float64RoundTiesEven, kArmVrintnF64)           \
-  IF_WASM(V, F64x2Ceil, kArmF64x2Ceil)             \
-  IF_WASM(V, F64x2Floor, kArmF64x2Floor)           \
-  IF_WASM(V, F64x2Trunc, kArmF64x2Trunc)           \
-  IF_WASM(V, F64x2NearestInt, kArmF64x2NearestInt) \
-  IF_WASM(V, F32x4Ceil, kArmVrintpF32)             \
-  IF_WASM(V, F32x4Floor, kArmVrintmF32)            \
-  IF_WASM(V, F32x4Trunc, kArmVrintzF32)            \
-  IF_WASM(V, F32x4NearestInt, kArmVrintnF32)
+#define RR_OP_T_LIST_V8(V)                            \
+  V(Float32RoundDown, kArmVrintmF32)                  \
+  V(Float64RoundDown, kArmVrintmF64)                  \
+  V(Float32RoundUp, kArmVrintpF32)                    \
+  V(Float64RoundUp, kArmVrintpF64)                    \
+  V(Float32RoundTruncate, kArmVrintzF32)              \
+  V(Float64RoundTruncate, kArmVrintzF64)              \
+  V(Float64RoundTiesAway, kArmVrintaF64)              \
+  V(Float32RoundTiesEven, kArmVrintnF32)              \
+  V(Float64RoundTiesEven, kArmVrintnF64)              \
+  IF_SIMD128(V, F64x2Ceil, kArmF64x2Ceil)             \
+  IF_SIMD128(V, F64x2Floor, kArmF64x2Floor)           \
+  IF_SIMD128(V, F64x2Trunc, kArmF64x2Trunc)           \
+  IF_SIMD128(V, F64x2NearestInt, kArmF64x2NearestInt) \
+  IF_SIMD128(V, F32x4Ceil, kArmVrintpF32)             \
+  IF_SIMD128(V, F32x4Floor, kArmVrintmF32)            \
+  IF_SIMD128(V, F32x4Trunc, kArmVrintzF32)            \
+  IF_SIMD128(V, F32x4NearestInt, kArmVrintnF32)
 
 #define RRR_OP_T_LIST(V)        \
   V(Float64Div, kArmVdivF64)    \
@@ -2893,7 +2901,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(OpIndex node) {
   V(S128Xor, kArmS128Xor)                             \
   V(S128AndNot, kArmS128AndNot)
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 void InstructionSelector::VisitI32x4DotI16x8S(OpIndex node) {
   ArmOperandGenerator g(this);
   const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
@@ -2956,13 +2964,13 @@ void InstructionSelector::VisitI32x4Splat(OpIndex node) {
 void InstructionSelector::VisitI16x8Splat(OpIndex node) {
   VisitRR(this, kArmI16x8Splat, node);
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 void InstructionSelector::VisitI8x16Splat(OpIndex node) {
   VisitRR(this, kArmI8x16Splat, node);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                                \
   void InstructionSelector::Visit##Type##ExtractLane##Sign(OpIndex node) { \
     VisitRRI(this, kArm##Type##ExtractLane##Sign, node);                   \
@@ -3076,48 +3084,59 @@ UNIMPLEMENTED_SIMD_BINOP_LIST(SIMD_VISIT_UNIMPL_BINOP)
 #undef SIMD_VISIT_UNIMPL_BINOP
 #undef UNIMPLEMENTED_SIMD_BINOP_LIST
 
-// TODO(mliedtke): This macro has only two uses. Maybe this could be refactored
-// into some helpers instead of the huge macro.
-#define VISIT_SIMD_ADD(Type, PairwiseType, NeonWidth)                          \
-  void InstructionSelector::Visit##Type##Add(OpIndex node) {                   \
-    ArmOperandGenerator g(this);                                               \
-    const Simd128BinopOp& add_op = Get(node).Cast<Simd128BinopOp>();           \
-    const Operation& left = Get(add_op.left());                                \
-    const Operation& right = Get(add_op.right());                              \
-    if (left.Is<Opmask::kSimd128##Type##ExtAddPairwise##PairwiseType##S>() &&  \
-        CanCover(node, add_op.left())) {                                       \
-      Emit(kArmVpadal | MiscField::encode(NeonS##NeonWidth),                   \
-           g.DefineSameAsFirst(node), g.UseRegister(add_op.right()),           \
-           g.UseRegister(left.input(0)));                                      \
-      return;                                                                  \
-    }                                                                          \
-    if (left.Is<Opmask::kSimd128##Type##ExtAddPairwise##PairwiseType##U>() &&  \
-        CanCover(node, add_op.left())) {                                       \
-      Emit(kArmVpadal | MiscField::encode(NeonU##NeonWidth),                   \
-           g.DefineSameAsFirst(node), g.UseRegister(add_op.right()),           \
-           g.UseRegister(left.input(0)));                                      \
-      return;                                                                  \
-    }                                                                          \
-    if (right.Is<Opmask::kSimd128##Type##ExtAddPairwise##PairwiseType##S>() && \
-        CanCover(node, add_op.right())) {                                      \
-      Emit(kArmVpadal | MiscField::encode(NeonS##NeonWidth),                   \
-           g.DefineSameAsFirst(node), g.UseRegister(add_op.left()),            \
-           g.UseRegister(right.input(0)));                                     \
-      return;                                                                  \
-    }                                                                          \
-    if (right.Is<Opmask::kSimd128##Type##ExtAddPairwise##PairwiseType##U>() && \
-        CanCover(node, add_op.right())) {                                      \
-      Emit(kArmVpadal | MiscField::encode(NeonU##NeonWidth),                   \
-           g.DefineSameAsFirst(node), g.UseRegister(add_op.left()),            \
-           g.UseRegister(right.input(0)));                                     \
-      return;                                                                  \
-    }                                                                          \
-    VisitRRR(this, kArm##Type##Add, node);                                     \
+template <typename SignedAddMask, typename UnsignedAddMask>
+bool TryEmitExtAddPairwise(InstructionSelector* selector, OpIndex node,
+                           const Simd128BinopOp& add_op, NeonSize neon_size_s,
+                           NeonSize neon_size_u) {
+  ArmOperandGenerator g(selector);
+  const Operation& left = selector->Get(add_op.left());
+  const Operation& right = selector->Get(add_op.right());
+  if (left.Is<SignedAddMask>() && selector->CanCover(node, add_op.left())) {
+    selector->Emit(kArmVpadal | MiscField::encode(neon_size_s),
+                   g.DefineSameAsFirst(node), g.UseRegister(add_op.right()),
+                   g.UseRegister(left.input(0)));
+    return true;
   }
+  if (left.Is<UnsignedAddMask>() && selector->CanCover(node, add_op.left())) {
+    selector->Emit(kArmVpadal | MiscField::encode(neon_size_u),
+                   g.DefineSameAsFirst(node), g.UseRegister(add_op.right()),
+                   g.UseRegister(left.input(0)));
+    return true;
+  }
+  if (right.Is<SignedAddMask>() && selector->CanCover(node, add_op.right())) {
+    selector->Emit(kArmVpadal | MiscField::encode(neon_size_s),
+                   g.DefineSameAsFirst(node), g.UseRegister(add_op.left()),
+                   g.UseRegister(right.input(0)));
+    return true;
+  }
+  if (right.Is<UnsignedAddMask>() && selector->CanCover(node, add_op.right())) {
+    selector->Emit(kArmVpadal | MiscField::encode(neon_size_u),
+                   g.DefineSameAsFirst(node), g.UseRegister(add_op.left()),
+                   g.UseRegister(right.input(0)));
+    return true;
+  }
+  return false;
+}
 
-VISIT_SIMD_ADD(I16x8, I8x16, 8)
-VISIT_SIMD_ADD(I32x4, I16x8, 16)
-#undef VISIT_SIMD_ADD
+void InstructionSelector::VisitI16x8Add(OpIndex node) {
+  const Simd128BinopOp& add_op = Get(node).Cast<Simd128BinopOp>();
+  if (TryEmitExtAddPairwise<Opmask::kSimd128I16x8ExtAddPairwiseI8x16S,
+                            Opmask::kSimd128I16x8ExtAddPairwiseI8x16U>(
+          this, node, add_op, NeonS8, NeonU8)) {
+    return;
+  }
+  VisitRRR(this, kArmI16x8Add, node);
+}
+
+void InstructionSelector::VisitI32x4Add(OpIndex node) {
+  const Simd128BinopOp& add_op = Get(node).Cast<Simd128BinopOp>();
+  if (TryEmitExtAddPairwise<Opmask::kSimd128I32x4ExtAddPairwiseI16x8S,
+                            Opmask::kSimd128I32x4ExtAddPairwiseI16x8U>(
+          this, node, add_op, NeonS16, NeonU16)) {
+    return;
+  }
+  VisitRRR(this, kArmI32x4Add, node);
+}
 
 void InstructionSelector::VisitI64x2SplatI32Pair(OpIndex node) {
   // In turboshaft it gets lowered to an I32x4Splat.
@@ -3302,12 +3321,12 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   uint8_t shuffle32x4[4];
   ArmOperandGenerator g(this);
   int index = 0;
-  if (wasm::SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
-    if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
+  if (SimdShuffle::TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+    if (SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
       DCHECK_GT(4, index);
       Emit(kArmS128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(Neon32), g.UseImmediate(index % 4));
-    } else if (wasm::SimdShuffle::TryMatchIdentity(shuffle)) {
+    } else if (SimdShuffle::TryMatchIdentity(shuffle)) {
       // Bypass normal shuffle code generation in this case.
       // EmitIdentity
       MarkAsUsed(input0);
@@ -3319,17 +3338,17 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
       InstructionOperand src0 = g.UseUniqueRegister(input0);
       InstructionOperand src1 = is_swizzle ? src0 : g.UseUniqueRegister(input1);
       Emit(kArmS32x4Shuffle, g.DefineAsRegister(node), src0, src1,
-           g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle32x4)));
+           g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle32x4)));
     }
     return;
   }
-  if (wasm::SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
+  if (SimdShuffle::TryMatchSplat<8>(shuffle, &index)) {
     DCHECK_GT(8, index);
     Emit(kArmS128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseImmediate(Neon16), g.UseImmediate(index % 8));
     return;
   }
-  if (wasm::SimdShuffle::TryMatchSplat<16>(shuffle, &index)) {
+  if (SimdShuffle::TryMatchSplat<16>(shuffle, &index)) {
     DCHECK_GT(16, index);
     Emit(kArmS128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseImmediate(Neon8), g.UseImmediate(index % 16));
@@ -3342,7 +3361,7 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
     return;
   }
   uint8_t offset;
-  if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
+  if (SimdShuffle::TryMatchConcat(shuffle, &offset)) {
     Emit(kArmS8x16Concat, g.DefineAsRegister(node), g.UseRegister(input0),
          g.UseRegister(input1), g.UseImmediate(offset));
     return;
@@ -3351,16 +3370,10 @@ void InstructionSelector::VisitI8x16Shuffle(OpIndex node) {
   InstructionOperand src0, src1;
   ArrangeShuffleTable(&g, input0, input1, &src0, &src1);
   Emit(kArmI8x16Shuffle, g.DefineAsRegister(node), src0, src1,
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle + 12)));
-}
-
-void InstructionSelector::VisitSetStackPointer(OpIndex node) {
-  OperandGenerator g(this);
-  auto input = g.UseRegister(Cast<SetStackPointerOp>(node).value());
-  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 4)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 8)),
+       g.UseImmediate(SimdShuffle::Pack4Lanes(shuffle + 12)));
 }
 
 void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
@@ -3370,6 +3383,15 @@ void InstructionSelector::VisitI8x16Swizzle(OpIndex node) {
   // modify output twice (low and high), and need to keep the table the same.
   Emit(kArmI8x16Swizzle, g.DefineAsRegister(node),
        g.UseUniqueRegister(binop.left()), g.UseRegister(binop.right()));
+}
+
+#endif  // V8_ENABLE_SIMD128
+
+#if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitSetStackPointer(OpIndex node) {
+  OperandGenerator g(this);
+  auto input = g.UseRegister(Cast<SetStackPointerOp>(node).value());
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3409,7 +3431,7 @@ void InstructionSelector::VisitI8x16BitMask(OpIndex node) {
   VisitBitMask<kArmI8x16BitMask>(this, node);
 }
 
-#if V8_ENABLE_WEBASSEMBLY
+#if V8_ENABLE_SIMD128
 void InstructionSelector::VisitI16x8BitMask(OpIndex node) {
   VisitBitMask<kArmI16x8BitMask>(this, node);
 }
@@ -3547,7 +3569,7 @@ void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(OpIndex node) {
 void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(OpIndex node) {
   VisitI32x4TruncSatF64x2UZero(node);
 }
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_SIMD128
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(OpIndex node) {
   ArmOperandGenerator g(this);

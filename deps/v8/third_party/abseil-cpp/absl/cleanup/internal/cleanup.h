@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/utility/utility.h"
@@ -49,13 +50,13 @@ class Storage {
   explicit Storage(Callback callback) {
     // Placement-new into a character buffer is used for eager destruction when
     // the cleanup is invoked or cancelled. To ensure this optimizes well, the
-    // behavior is implemented locally instead of using an absl::optional.
+    // behavior is implemented locally instead of using a std::optional.
     ::new (GetCallbackBuffer()) Callback(std::move(callback));
     is_callback_engaged_ = true;
   }
 
   Storage(Storage&& other) {
-    ABSL_HARDENING_ASSERT(other.IsCallbackEngaged());
+    absl::base_internal::HardeningAssert(other.IsCallbackEngaged());
 
     ::new (GetCallbackBuffer()) Callback(std::move(other.GetCallback()));
     is_callback_engaged_ = true;

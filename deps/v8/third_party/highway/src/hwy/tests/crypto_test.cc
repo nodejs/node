@@ -660,8 +660,8 @@ struct TestCLMul {
     CopyBytes<kCLMulNum * sizeof(T)>(kCLMulLower, expected_lower.get());
     CopyBytes<kCLMulNum * sizeof(T)>(kCLMulUpper, expected_upper.get());
     const size_t padding_size = (padded - kCLMulNum) * sizeof(T);
-    memset(expected_lower.get() + kCLMulNum, 0, padding_size);
-    memset(expected_upper.get() + kCLMulNum, 0, padding_size);
+    ZeroBytes(expected_lower.get() + kCLMulNum, padding_size);
+    ZeroBytes(expected_upper.get() + kCLMulNum, padding_size);
 
     // Random inputs in each lane
     RandomState rng;

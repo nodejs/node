@@ -149,7 +149,7 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   DirectHandle<Map> map(function->initial_map(), isolate);
   DirectHandle<DescriptorArray> instance_descriptors(
-      map->instance_descriptors(isolate), isolate);
+      map->instance_descriptors(), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
   PropertyAttributes attrs = NONE;

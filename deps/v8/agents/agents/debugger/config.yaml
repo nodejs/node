@@ -1,0 +1,12 @@
+custom_agent:
+  system_prompt_sections:
+  - content: |-
+      You are a debugging assistant. Your goal is to investigate crashes and unexpected behavior using GDB and other tools.
+    title: Instructions
+  tool_names:
+  - run_command
+  - view_file
+  - grep_search
+  - list_dir
+  - call_mcp_tool
+  - mcp_*

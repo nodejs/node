@@ -32,6 +32,8 @@
 #include "src/objects/allocation-site.h"
 #include "src/objects/casting.h"
 #include "src/objects/deoptimization-data.h"
+#include "src/objects/field-type.h"
+#include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole.h"
@@ -40,8 +42,10 @@
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/map-word-inl.h"
 #include "src/objects/number-string-cache-inl.h"
 #include "src/objects/object-list-macros.h"
+#include "src/objects/object-predicates-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/property.h"
@@ -58,7 +62,6 @@
 #include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
-#include "src/sandbox/code-pointer-inl.h"
 #include "src/sandbox/cppheap-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
@@ -91,203 +94,6 @@ int PropertyDetails::field_width_in_words() const {
   return 1;
 }
 
-bool IsTaggedIndex(Tagged<Object> obj) {
-  return IsSmi(obj) &&
-         TaggedIndex::IsValid(Tagged<TaggedIndex>(obj.ptr()).value());
-}
-
-#define IS_TYPE_FUNCTION_DEF(type_)                               \
-  bool Is##type_(Tagged<Object> obj) {                            \
-    Tagged<HeapObject> ho;                                        \
-    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho);        \
-  }                                                               \
-  bool Is##type_(Tagged<Object> obj, PtrComprCageBase) {          \
-    Tagged<HeapObject> ho;                                        \
-    return TryCast<HeapObject>(obj, &ho) && Is##type_(ho);        \
-  }                                                               \
-  bool Is##type_(HeapObject obj) {                                \
-    static_assert(kTaggedCanConvertToRawObjects);                 \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(HeapObject obj, PtrComprCageBase) {              \
-    static_assert(kTaggedCanConvertToRawObjects);                 \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(const HeapObjectLayout* obj) {                   \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }                                                               \
-  bool Is##type_(const HeapObjectLayout* obj, PtrComprCageBase) { \
-    return Is##type_(Tagged<HeapObject>(obj));                    \
-  }
-HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(HashTableBase)
-IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
-IS_TYPE_FUNCTION_DEF(PropertyDictionary)
-IS_TYPE_FUNCTION_DEF(AnyHole)
-#undef IS_TYPE_FUNCTION_DEF
-
-#define IS_TYPE_FUNCTION_DEF(Type, ...)                                      \
-  bool Is##Type(Tagged<Object> obj, Isolate*) { return Is##Type(obj); }      \
-  bool Is##Type(Tagged<Object> obj, LocalIsolate*) { return Is##Type(obj); } \
-  bool Is##Type(Tagged<Object> obj, ReadOnlyRoots) { return Is##Type(obj); } \
-  bool Is##Type(Tagged<HeapObject> obj) {                                    \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(HeapObject obj) {                                            \
-    static_assert(kTaggedCanConvertToRawObjects);                            \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(const HeapObjectLayout* obj, Isolate*) {                     \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }                                                                          \
-  bool Is##Type(const HeapObjectLayout* obj) {                               \
-    return Is##Type(Tagged<Object>(obj));                                    \
-  }
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
-#undef IS_TYPE_FUNCTION_DEF
-
-#if V8_STATIC_ROOTS_BOOL
-#define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                           \
-  bool Is##Type(Tagged<Object> obj) {                                          \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(                                  \
-        obj.ptr(), GetReadOnlyRoots().Value().ptr()));                         \
-    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                                   \
-  }                                                                            \
-  bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots) {                \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(obj.ptr(), roots.Value().ptr())); \
-    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                                   \
-  }
-#else
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                    \
-  bool Is##Type(Tagged<Object> obj) {                           \
-    return obj == GetReadOnlyRoots().Value();                   \
-  }                                                             \
-  bool Is##Type(Tagged<Object> obj, EarlyReadOnlyRoots roots) { \
-    return obj == roots.Value();                                \
-  }
-#endif
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
-                     UndefinedContextCell)
-#undef IS_TYPE_FUNCTION_DEF
-
-namespace detail {
-#if V8_STATIC_ROOTS_BOOL
-#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
-constexpr Tagged_t kMinStaticHoleValue = std::min({HOLE_LIST(GET_HOLE_ROOT)});
-constexpr Tagged_t kMaxStaticHoleValue = std::max({HOLE_LIST(GET_HOLE_ROOT)});
-#undef GET_HOLE_ROOT
-#endif
-
-// Helper for IsAnyHole and SafeIsAnyHole which doesn't check whether we're
-// doing a sane comparison for the space of the object -- callers are expected
-// to verify the space of the object, either before or after this call.
-inline bool IsAnyHoleNoSpaceCheck(Tagged<HeapObject> obj) {
-#if V8_STATIC_ROOTS_BOOL
-  // Use a direct cast to Tagged_t rather than CompressObject to allow
-  // space-indepenedent comparisons in here.
-  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinStaticHoleValue,
-                         kMaxStaticHoleValue);
-#else
-  return obj->map()->instance_type() == HOLE_TYPE;
-#endif
-}
-}  // namespace detail
-
-bool IsAnyHole(Tagged<HeapObject> obj) {
-  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
-#if V8_STATIC_ROOTS_BOOL
-    // Compressed object tests need to be done on a matching compression scheme.
-    // Holes are always in the main cage's RO space. If the object is in a
-    // different cage, IsAnyHoleNoSpaceCheck may have returned a false positive
-    // due to address aliasing.
-    //
-    // Only check this after the hole check succeeds, to make it cheaper in the
-    // common case that things aren't holes.
-    if (V8_UNLIKELY(!obj.IsInMainCageBase())) {
-#if defined(DEBUG) && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-      // When contiguous compressed RO space is enabled, the trusted space guard
-      // region is large enough (kContiguousReadOnlyReservationSize) to prevent
-      // aliasing with hole values. This DCHECK verifies that assumption.
-      DCHECK(obj.IsInTrustedCageBase());
-      DCHECK_GT(TrustedSpaceCompressionScheme::CompressObject(obj.ptr()),
-                detail::kMaxStaticHoleValue);
-#endif
-      // Object is not in main cage, so it can't be a hole (holes are in RO
-      // space which is in the main cage).
-      return false;
-    }
-#endif
-    return true;
-  }
-  return false;
-}
-
-bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
-  return IsAnyHole(obj);
-}
-
-bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
-
-bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
-
-bool IsNullOrUndefined(Tagged<Object> obj, Isolate*) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, LocalIsolate*) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, ReadOnlyRoots) {
-  return IsNullOrUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj, EarlyReadOnlyRoots roots) {
-  return IsNull(obj, roots) || IsUndefined(obj, roots);
-}
-
-bool IsNullOrUndefined(Tagged<Object> obj) {
-  // TODO(leszeks): For static roots, we could do the below range check for
-  // this, but we'd need to also do a Smi check. Two compares against static
-  // values are probably just as good or better.
-  return IsNull(obj) || IsUndefined(obj);
-}
-
-bool IsNullOrUndefined(Tagged<HeapObject> obj) {
-#if V8_STATIC_ROOTS_BOOL
-  // This range check relies on undefined and null being the first two RO roots.
-  static_assert(StaticReadOnlyRoot::kUndefinedValue ==
-                StaticReadOnlyRoot::kFirstAllocatedRoot);
-  static_assert(StaticReadOnlyRoot::kNullValue ==
-                StaticReadOnlyRoot::kUndefinedValue + sizeof(Undefined));
-  return V8HeapCompressionScheme::CompressObject(obj.ptr()) <=
-         StaticReadOnlyRoot::kNullValue;
-#else
-  return IsNull(obj) || IsUndefined(obj);
-#endif
-}
-
-bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
-
-bool IsPublicSymbol(Tagged<Object> obj) {
-  Tagged<Symbol> symbol;
-  return TryCast<Symbol>(obj, &symbol) && !symbol->is_any_private();
-}
-bool IsPrivateSymbol(Tagged<Object> obj) {
-  Tagged<Symbol> symbol;
-  return TryCast<Symbol>(obj, &symbol) && symbol->is_any_private();
-}
-
-bool IsNoSharedNameSentinel(Tagged<Object> obj) {
-  return obj == SharedFunctionInfo::kNoSharedNameSentinel;
-}
-
 // TODO(leszeks): Expand Is<T> to all types.
 #define IS_HELPER_DEF(Type, ...)                             \
   template <>                                                \
@@ -312,15 +118,6 @@ STRUCT_LIST(IS_HELPER_DEF_STRUCT)
 IS_HELPER_DEF(Number)
 #undef IS_HELPER_DEF
 
-template <typename... T>
-struct CastTraits<Union<T...>> {
-  static inline bool AllowFrom(Tagged<Object> value) {
-    return (Is<T>(value) || ...);
-  }
-  static inline bool AllowFrom(Tagged<HeapObject> value) {
-    return (Is<T>(value) || ...);
-  }
-};
 template <>
 struct CastTraits<JSPrimitive> {
   static inline bool AllowFrom(Tagged<Object> value) {
@@ -369,8 +166,9 @@ template <typename T>
 struct CastTraits<TrustedPodArray<T>> : public CastTraits<TrustedByteArray> {};
 template <typename T, typename Base>
 struct CastTraits<FixedIntegerArrayBase<T, Base>> : public CastTraits<Base> {};
-template <typename Base>
-struct CastTraits<FixedAddressArrayBase<Base>> : public CastTraits<Base> {};
+template <>
+struct CastTraits<TrustedFixedAddressArray>
+    : public CastTraits<TrustedByteArray> {};
 
 template <>
 struct CastTraits<JSRegExpResultIndices> : public CastTraits<JSArray> {};
@@ -490,234 +288,170 @@ bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
 #endif
 }
 
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsJSObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
-bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
-  // Do not optimize objects in the shared heap because it is not
-  // threadsafe. Objects in the shared heap have fixed layouts and their maps
-  // never change.
-  return IsJSObject(obj) && !HeapLayout::InWritableSharedSpace(*obj);
-}
-
-bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
-  return IsHeapObject(obj) &&
-         IsAnyObjectThatCanBeTrackedAsPrototype(Cast<HeapObject>(obj));
-}
-
-bool IsAnyObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
-  // Do not optimize objects in the shared heap because it is not
-  // threadsafe. Objects in the shared heap have fixed layouts and their maps
-  // never change.
-  return (IsJSObject(obj) || IsWasmObject(obj)) &&
-         !HeapLayout::InWritableSharedSpace(*obj);
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
-  return IsInternalizedString(obj, cage_base) || IsSymbol(obj, cage_base);
+  return IsInternalizedString(obj) || IsSymbol(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallable) {
-  return obj->map(cage_base)->is_callable();
+  return obj->map()->is_callable();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableJSProxy) {
-  return IsCallable(obj, cage_base) && IsJSProxy(obj, cage_base);
+  return IsCallable(obj) && IsJSProxy(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableApiObject) {
-  InstanceType type = obj->map(cage_base)->instance_type();
-  return IsCallable(obj, cage_base) &&
+  InstanceType type = obj->map()->instance_type();
+  return IsCallable(obj) &&
          (type == JS_API_OBJECT_TYPE || type == JS_SPECIAL_API_OBJECT_TYPE);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNonNullForeign) {
-  return IsForeign(obj, cage_base) &&
+  return IsForeign(obj) &&
          Cast<Foreign>(obj)->foreign_address_unchecked() != kNullAddress;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConstructor) {
-  return obj->map(cage_base)->is_constructor();
+  return obj->map()->is_constructor();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSourceTextModuleInfo) {
-  return obj->map(cage_base) == GetReadOnlyRoots().module_info_map();
+  return obj->map() == GetReadOnlyRoots().module_info_map();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConsString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsCons();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsThinString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsThin();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSlicedString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsSliced();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsSequential();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqOneByteString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsSequentialOneByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqTwoByteString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsSequentialTwoByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalOneByteString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsExternalOneByte();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalTwoByteString) {
-  if (!IsString(obj, cage_base)) return false;
+  if (!IsString(obj)) return false;
   return StringShape(Cast<String>(obj)->map()).IsExternalTwoByte();
 }
 
-bool IsNumber(Tagged<Object> obj) {
-  if (IsSmi(obj)) return true;
-  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
-  return IsHeapNumber(heap_object, cage_base);
-}
-
-bool IsNumber(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsHeapNumber(obj, cage_base);
-}
-
-bool IsNumeric(Tagged<Object> obj) {
-  if (IsSmi(obj)) return true;
-  Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
-  return IsHeapNumber(heap_object, cage_base) ||
-         IsBigInt(heap_object, cage_base);
-}
-
-bool IsNumeric(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return IsNumber(obj, cage_base) || IsBigInt(obj, cage_base);
-}
-
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
-  return IsJSArray(obj, cage_base);
+  return IsJSArray(obj);
 }
 
 #if V8_INTL_SUPPORT
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObject) {
-  return IsJSObject(obj, cage_base);
+  return IsJSObject(obj);
 }
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
-  return IsJSObject(obj, cage_base);
+  return IsJSObject(obj);
 }
 #endif  // V8_INTL_SUPPORT
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
-  Tagged<ProtectedFixedArray> array;
-  if (!TryCast(obj, &array)) return false;
+  if (!Is<ProtectedFixedArray>(obj)) return false;
+  Tagged<ProtectedFixedArray> array = TrustedCast<ProtectedFixedArray>(obj);
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = array->length();
+  uint32_t length = array->ulength().value();
   if (length == 0) return true;
 
+  if (length < DeoptimizationData::kFirstDeoptEntryIndex) return false;
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
-  return length >= 0 && length % DeoptimizationData::kDeoptEntrySize == 0;
+  return length % DeoptimizationData::kDeoptEntrySize == 0;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHandlerTable) {
-  return IsFixedArrayExact(obj, cage_base);
+  return IsFixedArrayExact(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDependentCode) {
-  return IsWeakArrayList(obj, cage_base);
+  return IsWeakArrayList(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsOSROptimizedCodeCache) {
-  return IsWeakFixedArray(obj, cage_base);
+  return IsWeakFixedArray(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringWrapper) {
-  return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsString(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
+  return IsJSPrimitiveWrapper(obj) &&
+         IsString(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBooleanWrapper) {
-  return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsBoolean(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
+  return IsJSPrimitiveWrapper(obj) &&
+         IsBoolean(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsScriptWrapper) {
-  return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsScript(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
+  return IsJSPrimitiveWrapper(obj) &&
+         IsScript(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNumberWrapper) {
-  return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsNumber(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
+  return IsJSPrimitiveWrapper(obj) &&
+         IsNumber(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBigIntWrapper) {
-  return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsBigInt(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
+  return IsJSPrimitiveWrapper(obj) &&
+         IsBigInt(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSymbolWrapper) {
-  return IsJSPrimitiveWrapper(obj, cage_base) &&
-         IsSymbol(Cast<JSPrimitiveWrapper>(obj)->value(), cage_base);
+  return IsJSPrimitiveWrapper(obj) &&
+         IsSymbol(Cast<JSPrimitiveWrapper>(obj)->value());
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringSet) {
-  return IsHashTable(obj, cage_base);
-}
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringSet) { return IsHashTable(obj); }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashSet) {
-  return IsHashTable(obj, cage_base);
+  return IsHashTable(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCompilationCacheTable) {
-  return IsHashTable(obj, cage_base);
+  return IsHashTable(obj);
 }
 
-DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) {
-  return IsHashTable(obj, cage_base);
-}
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) { return IsHashTable(obj); }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashTable) {
-  return IsHashTable(obj, cage_base);
+  return IsHashTable(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectTwoHashTable) {
-  return IsHashTable(obj, cage_base);
+  return IsHashTable(obj);
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHashTableBase) {
-  return IsHashTable(obj, cage_base);
-}
-
-// static
-bool IsPrimitive(Tagged<Object> obj) {
-  if (obj.IsSmi()) return true;
-  Tagged<HeapObject> this_heap_object = Cast<HeapObject>(obj);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
-  return IsPrimitiveMap(this_heap_object->map(cage_base));
-}
-
-// static
-bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return obj.IsSmi() || IsPrimitiveMap(Cast<HeapObject>(obj)->map(cage_base));
+  return IsHashTable(obj);
 }
 
 // static
@@ -730,11 +464,11 @@ Maybe<bool> Object::IsArray(DirectHandle<Object> object) {
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUndetectable) {
-  return obj->map(cage_base)->is_undetectable();
+  return obj->map()->is_undetectable();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
-  if (IsJSGlobalProxy(obj, cage_base)) {
+  if (IsJSGlobalProxy(obj)) {
     const Tagged<JSGlobalProxy> proxy = Cast<JSGlobalProxy>(obj);
     Isolate* isolate = Isolate::Current();
     // TODO(ishell): compare security tokens here in order to allow ICs to
@@ -742,37 +476,12 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
     Tagged<JSGlobalObject> global = isolate->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
-  return obj->map(cage_base)->is_access_check_needed();
+  return obj->map()->is_access_check_needed();
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSmiStringCache) {
   return IsFixedArray(obj);
 }
-
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                             \
-  bool Is##Name(Tagged<Object> obj) {                                       \
-    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj));            \
-  }                                                                         \
-  bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base) {           \
-    return IsHeapObject(obj) && Is##Name(Cast<HeapObject>(obj), cage_base); \
-  }                                                                         \
-  bool Is##Name(HeapObject obj) {                                           \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    return Is##Name(Tagged<HeapObject>(obj));                               \
-  }                                                                         \
-  bool Is##Name(HeapObject obj, PtrComprCageBase cage_base) {               \
-    static_assert(kTaggedCanConvertToRawObjects);                           \
-    return Is##Name(Tagged<HeapObject>(obj), cage_base);                    \
-  }                                                                         \
-  bool Is##Name(const HeapObjectLayout* obj) {                              \
-    return Is##Name(Tagged<HeapObject>(obj));                               \
-  }                                                                         \
-  bool Is##Name(const HeapObjectLayout* obj, PtrComprCageBase cage_base) {  \
-    return Is##Name(Tagged<HeapObject>(obj), cage_base);                    \
-  }
-// static
-STRUCT_LIST(MAKE_STRUCT_PREDICATE)
-#undef MAKE_STRUCT_PREDICATE
 
 // static
 double Object::NumberValue(Tagged<Number> obj) {
@@ -852,27 +561,34 @@ bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
 }
 
 // static
-Representation Object::OptimalRepresentation(Tagged<Object> obj,
-                                             PtrComprCageBase cage_base) {
+std::pair<Representation, PropertyConstness> Object::OptimalRepresentation(
+    Tagged<Object> obj, PropertyConstness constness) {
   if (IsSmi(obj)) {
-    return Representation::Smi();
+    return {Representation::Smi(), constness};
   }
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsUninitializedHole(heap_object)) {
-    return Representation::None();
+    return {Representation::None(), constness};
   }
-  if (IsHeapNumber(heap_object, cage_base)) {
-    return Representation::Double();
+  if (IsHeapNumber(heap_object)) {
+    if (constness == PropertyConstness::kConst &&
+        Cast<HeapNumber>(heap_object)->is_the_hole()) {
+      // Make sure that even an initializing store of a double value with
+      // the hole NaN pattern removes constness, otherwise it wouldn't be
+      // possible to distinguish whether subsequent stores to a double field
+      // is initializing or not.
+      constness = PropertyConstness::kMutable;
+    }
+    return {Representation::Double(), constness};
   }
-  return Representation::HeapObject();
+  return {Representation::HeapObject(), constness};
 }
 
 // static
-ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
-                                         PtrComprCageBase cage_base) {
+ElementsKind Object::OptimalElementsKind(Tagged<Object> obj) {
   if (IsSmi(obj)) return PACKED_SMI_ELEMENTS;
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
-  if (IsHeapNumber(heap_object, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  if (IsHeapNumber(heap_object)) return PACKED_DOUBLE_ELEMENTS;
   // if (IsUninitializedHole(heap_object)) {
   //   return PACKED_SMI_ELEMENTS;
   // }
@@ -1087,7 +803,7 @@ void HeapObject::InitExternalPointerField(size_t offset,
                                           WriteBarrierMode mode) {
   i::InitExternalPointerField<tag>(address(), field_address(offset), isolate,
                                    value);
-  CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(*this, static_cast<int>(offset),
+  CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset),
                                              tag, mode);
 }
 
@@ -1097,7 +813,7 @@ void HeapObject::InitExternalPointerField(size_t offset,
                                           WriteBarrierMode mode) {
   i::InitExternalPointerField(address(), field_address(offset), isolate, tag,
                               value);
-  CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(*this, static_cast<int>(offset),
+  CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset),
                                              tag, mode);
 }
 
@@ -1185,7 +901,7 @@ void HeapObject::WriteLazilyInitializedExternalPointerField(
     base::AsAtomic32::Release_Store(location, handle);
     // In this case, we're adding a reference from an existing object to a new
     // table entry, so we always require a write barrier.
-    EXTERNAL_POINTER_WRITE_BARRIER(*this, static_cast<int>(offset), tag);
+    EXTERNAL_POINTER_WRITE_BARRIER(this, static_cast<int>(offset), tag);
   } else {
     table.Set(handle, value, tag);
   }
@@ -1205,122 +921,11 @@ void HeapObject::WriteLazilyInitializedCppHeapPointerField(
                                                value, tag);
 }
 
-#if V8_ENABLE_SANDBOX
-
-void HeapObject::InitSelfIndirectPointerField(
-    size_t offset, IsolateForSandbox isolate,
-    TrustedPointerPublishingScope* opt_publishing_scope) {
-  DCHECK(IsExposedTrustedObject(*this));
-  InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(*this);
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, shared);
-  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this, tag,
-                                  opt_publishing_scope);
-}
-
-void HeapObject::InitSelfIndirectPointerFieldWithoutPublishing(
-    size_t offset, IsolateForSandbox isolate) {
-  DCHECK(IsExposedTrustedObject(*this));
-  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this,
-                                  kUnpublishedIndirectPointerTag, nullptr);
-}
-
-void HeapObjectLayout::InitSelfIndirectPointerField(
-    std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
-    TrustedPointerPublishingScope* opt_publishing_scope) {
-  DCHECK(IsExposedTrustedObject(this));
-  InstanceType instance_type = map()->instance_type();
-  bool shared = HeapLayout::InAnySharedSpace(this);
-  IndirectPointerTag tag =
-      IndirectPointerTagFromInstanceType(instance_type, shared);
-  i::InitSelfIndirectPointerField(reinterpret_cast<Address>(field_ptr), isolate,
-                                  this, tag, opt_publishing_scope);
-}
-#endif  // V8_ENABLE_SANDBOX
-
-template <IndirectPointerTagRange tag_range>
-inline auto HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate) const {
-  return TrustedPointerField::ReadTrustedPointerField<tag_range>(*this, offset,
-                                                                 isolate);
-}
-
-template <IndirectPointerTagRange tag_range>
-inline auto HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate,
-    AcquireLoadTag acquire_load) const {
-  return TrustedPointerField::ReadTrustedPointerField<tag_range>(
-      *this, offset, isolate, acquire_load);
-}
-
-template <IndirectPointerTagRange tag_range>
-Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate,
-    AcquireLoadTag acquire_load) const {
-  return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<tag_range>(
-      *this, offset, isolate, acquire_load);
-}
-
-template <IndirectPointerTagRange tag_range>
-void HeapObject::WriteTrustedPointerField(size_t offset,
-                                          Tagged<ExposedTrustedObject> value) {
-  TrustedPointerField::WriteTrustedPointerField<tag_range>(*this, offset,
-                                                           value);
-}
-
-bool HeapObject::IsTrustedPointerFieldEmpty(size_t offset) const {
-  return TrustedPointerField::IsTrustedPointerFieldEmpty(*this, offset);
-}
-
-bool HeapObject::IsTrustedPointerFieldUnpublished(
-    size_t offset, IndirectPointerTagRange tag_range,
-    IsolateForSandbox isolate) const {
-  return TrustedPointerField::IsTrustedPointerFieldUnpublished(
-      *this, offset, tag_range, isolate);
-}
-
-void HeapObject::ClearTrustedPointerField(size_t offset) {
-  TrustedPointerField::ClearTrustedPointerField(*this, offset);
-}
-
-void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
-  TrustedPointerField::ClearTrustedPointerField(*this, offset, kReleaseStore);
-}
-
-Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
-                                              IsolateForSandbox isolate) const {
-  return ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate);
-}
-
-void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {
-  WriteTrustedPointerField<kCodeIndirectPointerTag>(offset, value);
-}
-
-bool HeapObject::IsCodePointerFieldEmpty(size_t offset) const {
-  return IsTrustedPointerFieldEmpty(offset);
-}
-
-void HeapObject::ClearCodePointerField(size_t offset) {
-  ClearTrustedPointerField(offset);
-}
-
-Address HeapObject::ReadCodeEntrypointViaCodePointerField(
-    size_t offset, CodeEntrypointTag tag) const {
-  return i::ReadCodeEntrypointViaCodePointerField(field_address(offset), tag);
-}
-
-void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
-                                                        Address value,
-                                                        CodeEntrypointTag tag) {
-  i::WriteCodeEntrypointViaCodePointerField(field_address(offset), value, tag);
-}
-
 // static
 template <typename ObjectType>
 JSDispatchHandle HeapObject::AllocateAndInstallJSDispatchHandle(
-    ObjectType host, size_t offset, Isolate* isolate, uint16_t parameter_count,
-    DirectHandle<Code> code, WriteBarrierMode mode) {
+    DirectHandle<ObjectType> host, size_t offset, Isolate* isolate,
+    uint16_t parameter_count, DirectHandle<Code> code, WriteBarrierMode mode) {
   JSDispatchTable::Space* space =
       isolate->GetJSDispatchTableSpaceFor(host->field_address(offset));
   JSDispatchHandle handle =
@@ -1364,84 +969,22 @@ IndirectPointerSlot HeapObject::RawIndirectPointerField(
   return IndirectPointerSlot(field_address(byte_offset), tag_range);
 }
 
-MapWord MapWord::FromMap(const Tagged<Map> map) {
-  DCHECK(map.is_null() || !MapWord::IsPacked(map.ptr()));
-#ifdef V8_MAP_PACKING
-  return MapWord(Pack(map.ptr()));
-#else
-  return MapWord(map.ptr());
-#endif
-}
 
-Tagged<Map> MapWord::ToMap() const {
-#ifdef V8_MAP_PACKING
-  return UncheckedCast<Map>(Tagged<Object>(Unpack(value_)));
-#else
-  return UncheckedCast<Map>(Tagged<Object>(value_));
-#endif
-}
-
-bool MapWord::IsForwardingAddress() const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // When external code space is enabled forwarding pointers are encoded as
-  // Smi representing a diff from the source object address in kObjectAlignment
-  // chunks.
-  return HAS_SMI_TAG(value_);
-#else
-  return (value_ & kForwardingTagMask) == kForwardingTag;
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-
-MapWord MapWord::FromForwardingAddress(Tagged<HeapObject> map_word_host,
-                                       Tagged<HeapObject> object) {
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // When external code space is enabled forwarding pointers are encoded as
-  // Smi representing a diff from the source object address in kObjectAlignment
-  // chunks.
-  intptr_t diff = static_cast<intptr_t>(object.ptr() - map_word_host.ptr());
-  DCHECK(IsAligned(diff, kObjectAlignment));
-  MapWord map_word(Smi::FromIntptr(diff / kObjectAlignment).ptr());
-  DCHECK(map_word.IsForwardingAddress());
-  return map_word;
-#else
-  return MapWord(object.ptr() - kHeapObjectTag);
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
-
-Tagged<HeapObject> MapWord::ToForwardingAddress(
-    Tagged<HeapObject> map_word_host) const {
-  DCHECK(IsForwardingAddress());
-#ifdef V8_EXTERNAL_CODE_SPACE
-  // When the sandbox or the external code space is enabled, forwarding
-  // pointers are encoded as Smi representing a diff from the source object
-  // address in kObjectAlignment chunks. This is required as we are using
-  // multiple pointer compression cages in these scenarios.
-  intptr_t diff =
-      static_cast<intptr_t>(Tagged<Smi>(value_).value()) * kObjectAlignment;
-  Address address = map_word_host.address() + diff;
-  return HeapObject::FromAddress(address);
-#else
-  // The sandbox requires the external code space.
-  DCHECK(!V8_ENABLE_SANDBOX_BOOL);
-  return HeapObject::FromAddress(value_);
-#endif  // V8_EXTERNAL_CODE_SPACE
-}
 
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
-  Object::VerifyPointer(isolate,
-                        TaggedField<Object>::load(isolate, *this, offset));
+  Object::VerifyPointer(isolate, TaggedField<Object>::load(this, offset));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
   Object::VerifyMaybeObjectPointer(
-      isolate, TaggedField<MaybeObject>::load(isolate, *this, offset));
+      isolate, TaggedField<MaybeObject>::load(this, offset));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
 void HeapObject::VerifySmiField(int offset) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, offset)));
+  CHECK(IsSmi(TaggedField<Object>::load(this, offset)));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
@@ -1475,56 +1018,7 @@ bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
 }
 
 EarlyReadOnlyRoots HeapObject::EarlyGetReadOnlyRoots() const {
-  return ReadOnlyHeap::EarlyGetReadOnlyRoots(*this);
-}
-
-EarlyReadOnlyRoots HeapObjectLayout::EarlyGetReadOnlyRoots() const {
-  return ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged(this));
-}
-
-Tagged<Map> HeapObject::map() const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase();
-  return HeapObject::map(cage_base);
-}
-
-Tagged<Map> HeapObject::map(PtrComprCageBase cage_base) const {
-  return map_word(cage_base, kRelaxedLoad).ToMap();
-}
-
-Tagged<Map> HeapObjectLayout::map() const {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->map();
-}
-
-Tagged<Map> HeapObjectLayout::map(AcquireLoadTag) const {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->map(kAcquireLoad);
-}
-
-MapWord HeapObjectLayout::map_word(RelaxedLoadTag) const {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->map_word(kRelaxedLoad);
-}
-
-void HeapObjectLayout::set_map(Isolate* isolate, Tagged<Map> value) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map(isolate, value);
-}
-
-template <typename IsolateT>
-void HeapObjectLayout::set_map(IsolateT* isolate, Tagged<Map> value,
-                               ReleaseStoreTag) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map(isolate, value, kReleaseStore);
-}
-
-template <typename IsolateT>
-void HeapObjectLayout::set_map_safe_transition(IsolateT* isolate,
-                                               Tagged<Map> value,
-                                               ReleaseStoreTag) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map_safe_transition(isolate, value,
-                                                           kReleaseStore);
+  return ReadOnlyHeap::EarlyGetReadOnlyRoots(this);
 }
 
 void HeapObject::set_map(Isolate* isolate, Tagged<Map> value) {
@@ -1552,13 +1046,6 @@ void HeapObject::set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
                                   VerificationMode::kSafeMapTransition);
 }
 
-void HeapObjectLayout::set_map_safe_transition_no_write_barrier(
-    Isolate* isolate, Tagged<Map> value, RelaxedStoreTag tag) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  return Tagged<HeapObject>(this)->set_map_safe_transition_no_write_barrier(
-      isolate, value, tag);
-}
-
 void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
                                                           Tagged<Map> value,
                                                           RelaxedStoreTag tag) {
@@ -1571,13 +1058,6 @@ void HeapObject::set_map_safe_transition_no_write_barrier(Isolate* isolate,
                                                           ReleaseStoreTag tag) {
   set_map<EmitWriteBarrier::kNo>(isolate, value, kReleaseStore,
                                  VerificationMode::kSafeMapTransition);
-}
-
-void HeapObjectLayout::set_map_no_write_barrier(Isolate* isolate,
-                                                Tagged<Map> value,
-                                                RelaxedStoreTag tag) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  Tagged<HeapObject>(this)->set_map_no_write_barrier(isolate, value, tag);
 }
 
 // Unsafe accessor omitting write barrier.
@@ -1604,33 +1084,27 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
 #endif
   if (v8_flags.verify_heap) {
     if (mode == VerificationMode::kSafeMapTransition) {
-      HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), *this,
+      HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), this,
                                             value);
     } else {
       DCHECK_EQ(mode, VerificationMode::kPotentialLayoutChange);
-      HeapVerifier::VerifyObjectLayoutChange(isolate->heap()->AsHeap(), *this,
+      HeapVerifier::VerifyObjectLayoutChange(isolate->heap()->AsHeap(), this,
                                              value);
     }
   }
   set_map_word(value, order);
-  Heap::NotifyObjectLayoutChangeDone(*this);
+  Heap::NotifyObjectLayoutChangeDone(this);
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (emit_write_barrier == EmitWriteBarrier::kYes) {
-    WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value,
+    WriteBarrier::ForValue(this, MaybeObjectSlot(map_slot()), value,
                            UPDATE_WRITE_BARRIER);
   } else {
     DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
-    DCHECK(!WriteBarrier::IsRequired(*this, value));
+#if V8_VERIFY_WRITE_BARRIERS
+    DCHECK(!WriteBarrier::IsRequired(this, value));
+#endif
   }
 #endif
-}
-
-template <typename IsolateT>
-void HeapObjectLayout::set_map_after_allocation(IsolateT* isolate,
-                                                Tagged<Map> value,
-                                                WriteBarrierMode mode) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  Tagged<HeapObject>(this)->set_map_after_allocation(isolate, value, mode);
 }
 
 template <typename IsolateT>
@@ -1640,12 +1114,12 @@ void HeapObject::set_map_after_allocation(IsolateT* isolate, Tagged<Map> value,
 #ifndef V8_DISABLE_WRITE_BARRIERS
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(!value.is_null());
-    WriteBarrier::ForValue(*this, MaybeObjectSlot(map_slot()), value, mode);
+    WriteBarrier::ForValue(this, MaybeObjectSlot(map_slot()), value, mode);
   } else {
     SLOW_DCHECK(
         // We allow writes of a null map before root initialisation.
         value.is_null() ? !isolate->read_only_heap()->roots_init_complete()
-                        : !WriteBarrier::IsRequired(*this, value));
+                        : !WriteBarrier::IsRequired(this, value));
   }
 #endif
 }
@@ -1653,110 +1127,40 @@ void HeapObject::set_map_after_allocation(IsolateT* isolate, Tagged<Map> value,
 // static
 void HeapObject::SetFillerMap(const WritableFreeSpace& writable_space,
                               Tagged<Map> value) {
-  writable_space.WriteHeaderSlot<Map, kMapOffset>(value, kRelaxedStore);
-}
-
-DEF_ACQUIRE_GETTER(HeapObject, map, Tagged<Map>) {
-  return map_word(cage_base, kAcquireLoad).ToMap();
-}
-
-ObjectSlot HeapObjectLayout::map_slot() const {
-  return Tagged<HeapObject>(this)->map_slot();
+  writable_space.WriteHeaderSlot<Map, offsetof(HeapObject, map_)>(
+      value, kRelaxedStore);
 }
 
 ObjectSlot HeapObject::map_slot() const {
-  return ObjectSlot(MapField::address(*this));
-}
-
-MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
-  // This method is never used for objects located in code space
-  // (InstructionStream and free space fillers) and thus it is fine to use
-  // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !TrustedHeapLayout::InCodeSpace(*this));
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map_word(cage_base, tag);
-}
-MapWord HeapObject::map_word(PtrComprCageBase cage_base,
-                             RelaxedLoadTag tag) const {
-  return MapField::Relaxed_Load_Map_Word(cage_base, *this);
+  return ObjectSlot(MapField::address(this));
 }
 
 void HeapObject::set_map_word(Tagged<Map> map, RelaxedStoreTag) {
-  MapField::Relaxed_Store_Map_Word(*this, MapWord::FromMap(map));
+  MapField::Relaxed_Store_Map_Word(this, MapWord::FromMap(map));
 }
 
 void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         RelaxedStoreTag) {
   MapField::Relaxed_Store_Map_Word(
-      *this, MapWord::FromForwardingAddress(*this, target_object));
-}
-
-MapWord HeapObject::map_word(AcquireLoadTag tag) const {
-  // This method is never used for objects located in code space
-  // (InstructionStream and free space fillers) and thus it is fine to use
-  // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !TrustedHeapLayout::InCodeSpace(*this));
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::map_word(cage_base, tag);
-}
-MapWord HeapObject::map_word(PtrComprCageBase cage_base,
-                             AcquireLoadTag tag) const {
-  return MapField::Acquire_Load_No_Unpack(cage_base, *this);
+      this, MapWord::FromForwardingAddress(this, target_object));
 }
 
 void HeapObject::set_map_word(Tagged<Map> map, ReleaseStoreTag) {
-  MapField::Release_Store_Map_Word(*this, MapWord::FromMap(map));
-}
-
-void HeapObjectLayout::set_map_word_forwarded(Tagged<HeapObject> target_object,
-                                              ReleaseStoreTag tag) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  Tagged<HeapObject>(this)->set_map_word_forwarded(target_object, tag);
-}
-
-void HeapObjectLayout::set_map_word_forwarded(Tagged<HeapObject> target_object,
-                                              RelaxedStoreTag tag) {
-  // TODO(leszeks): Support MapWord members and access via that instead.
-  Tagged<HeapObject>(this)->set_map_word_forwarded(target_object, tag);
+  MapField::Release_Store_Map_Word(this, MapWord::FromMap(map));
 }
 
 void HeapObject::set_map_word_forwarded(Tagged<HeapObject> target_object,
                                         ReleaseStoreTag) {
   MapField::Release_Store_Map_Word(
-      *this, MapWord::FromForwardingAddress(*this, target_object));
+      this, MapWord::FromForwardingAddress(this, target_object));
 }
 
 bool HeapObject::relaxed_compare_and_swap_map_word_forwarded(
     MapWord old_map_word, Tagged<HeapObject> new_target_object) {
   Tagged_t result = MapField::Relaxed_CompareAndSwap(
-      *this, old_map_word,
-      MapWord::FromForwardingAddress(*this, new_target_object));
+      this, old_map_word,
+      MapWord::FromForwardingAddress(this, new_target_object));
   return result == static_cast<Tagged_t>(old_map_word.ptr());
-}
-
-int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
-
-// TODO(v8:11880): consider dropping parameterless version.
-int HeapObject::Size() const {
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !TrustedHeapLayout::InCodeSpace(*this));
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::Size(cage_base);
-}
-int HeapObject::Size(PtrComprCageBase cage_base) const {
-  return SizeFromMap(map(cage_base));
-}
-
-SafeHeapObjectSize HeapObject::SafeSize() const {
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
-                 !TrustedHeapLayout::InCodeSpace(*this));
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return HeapObject::SafeSize(cage_base);
-}
-SafeHeapObjectSize HeapObject::SafeSize(PtrComprCageBase cage_base) const {
-  return SafeSizeFromMap(map(cage_base));
 }
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
@@ -1816,14 +1220,9 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
   return false;
 }
 
-WriteBarrierModeScope HeapObjectLayout::GetWriteBarrierMode(
-    const DisallowGarbageCollection& promise) {
-  return WriteBarrier::GetWriteBarrierModeForObject(Tagged(this), promise);
-}
-
 WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
-  return WriteBarrier::GetWriteBarrierModeForObject(*this, promise);
+  return WriteBarrier::GetWriteBarrierModeForObject(this, promise);
 }
 
 // static
@@ -1871,12 +1270,12 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
   return kTaggedAligned;
 }
 
-bool HeapObject::CheckRequiredAlignment(PtrComprCageBase cage_base) const {
-  const InSharedSpace in_shared_space = HeapLayout::InWritableSharedSpace(*this)
+bool HeapObject::CheckRequiredAlignment() const {
+  const InSharedSpace in_shared_space = HeapLayout::InWritableSharedSpace(this)
                                             ? kInSharedSpace
                                             : kNotInSharedSpace;
   AllocationAlignment alignment =
-      HeapObject::RequiredAlignment(in_shared_space, map(cage_base));
+      HeapObject::RequiredAlignment(in_shared_space, map());
   CHECK_EQ(0, Heap::GetFillToAlign(address(), alignment));
   return true;
 }
@@ -2146,12 +1545,12 @@ Relocatable::~Relocatable() {
 
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
-static inline uint32_t ObjectAddressForHashing(Address object) {
+inline uint32_t ObjectAddressForHashing(Address object) {
   return MemoryChunk::AddressToOffset(object);
 }
 
-static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
-                                                 DirectHandle<Object> value) {
+inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
+                                          DirectHandle<Object> value) {
   DirectHandle<Object> key = isolate->factory()->SizeToString(index);
   DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
@@ -2162,9 +1561,9 @@ static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate, size_t index,
                                                     PACKED_ELEMENTS, 2);
 }
 
-static inline DirectHandle<Object> MakeEntryPair(Isolate* isolate,
-                                                 DirectHandle<Object> key,
-                                                 DirectHandle<Object> value) {
+inline DirectHandle<Object> MakeEntryPair(Isolate* isolate,
+                                          DirectHandle<Object> key,
+                                          DirectHandle<Object> value) {
   DirectHandle<FixedArray> entry_storage = isolate->factory()->NewFixedArray(2);
   {
     entry_storage->set(0, *key, SKIP_WRITE_BARRIER);

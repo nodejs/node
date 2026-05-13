@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 
+#include "include/v8config.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
@@ -35,7 +36,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
 
 BytecodeArrayIterator::BytecodeArrayIterator(
     Handle<BytecodeArray> bytecode_array, int initial_offset,
-    DisallowGarbageCollection& no_gc)
+    DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
     : bytecode_array_(bytecode_array),
       start_(reinterpret_cast<uint8_t*>(
           bytecode_array_->GetFirstBytecodeAddress())),
@@ -317,8 +318,9 @@ AbortReason BytecodeArrayIterator::GetAbortReasonOperand(
 
 Tagged<Object> BytecodeArrayIterator::GetConstantAtIndex(int index) const {
   Tagged<TrustedFixedArray> constant_pool = bytecode_array()->constant_pool();
-  CHECK_WITH_MSG(base::IsInHalfOpenRange(index, 0, constant_pool->length()),
-                 "Constant pool index out of bounds");
+  CHECK_WITH_MSG(
+      base::IsInHalfOpenRange(index, 0u, constant_pool->ulength().value()),
+      "Constant pool index out of bounds");
   return constant_pool->get(index);
 }
 
@@ -412,7 +414,7 @@ void BytecodeArrayIterator::UpdatePointers() {
   }
 }
 
-uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
+uint8_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
   DCHECK_GE(operand_index, 0);
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
   DCHECK_EQ(OperandType::kEmbeddedFeedback,
@@ -424,7 +426,8 @@ uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
 
 CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
   DCHECK(Bytecodes::IsCompareWithEmbeddedFeedback(current_bytecode()));
-  uint32_t type_feedback = GetEmbeddedFeedback(1);
+  uint32_t type_feedback = CompareOperationFeedback::DecodeTypeIndex(
+      static_cast<CompareOperationFeedback::TypeIndex>(GetEmbeddedFeedback(1)));
   return v8::internal::CompareOperationHintFromFeedback(type_feedback);
 }
 

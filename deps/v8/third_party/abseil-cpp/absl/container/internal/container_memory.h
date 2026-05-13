@@ -63,8 +63,8 @@ void* Allocate(Alloc* alloc, size_t n) {
   static_assert(Alignment > 0, "");
   assert(n && "n must be positive");
   using M = AlignedType<Alignment>;
-  using A = typename absl::allocator_traits<Alloc>::template rebind_alloc<M>;
-  using AT = typename absl::allocator_traits<Alloc>::template rebind_traits<M>;
+  using A = typename std::allocator_traits<Alloc>::template rebind_alloc<M>;
+  using AT = typename std::allocator_traits<Alloc>::template rebind_traits<M>;
   // On macOS, "mem_alloc" is a #define with one argument defined in
   // rpc/types.h, so we can't name the variable "mem_alloc" and initialize it
   // with the "foo(bar)" syntax.
@@ -81,7 +81,7 @@ template <class Allocator, class ValueType>
 constexpr auto IsDestructionTrivial() {
   constexpr bool result =
       std::is_trivially_destructible<ValueType>::value &&
-      std::is_same<typename absl::allocator_traits<
+      std::is_same<typename std::allocator_traits<
                        Allocator>::template rebind_alloc<char>,
                    std::allocator<char>>::value;
   return std::integral_constant<bool, result>();
@@ -94,8 +94,8 @@ void Deallocate(Alloc* alloc, void* p, size_t n) {
   static_assert(Alignment > 0, "");
   assert(n && "n must be positive");
   using M = AlignedType<Alignment>;
-  using A = typename absl::allocator_traits<Alloc>::template rebind_alloc<M>;
-  using AT = typename absl::allocator_traits<Alloc>::template rebind_traits<M>;
+  using A = typename std::allocator_traits<Alloc>::template rebind_alloc<M>;
+  using AT = typename std::allocator_traits<Alloc>::template rebind_traits<M>;
   // On macOS, "mem_alloc" is a #define with one argument defined in
   // rpc/types.h, so we can't name the variable "mem_alloc" and initialize it
   // with the "foo(bar)" syntax.
@@ -110,8 +110,8 @@ namespace memory_internal {
 // specified in the tuple.
 template <class Alloc, class T, class Tuple, size_t... I>
 void ConstructFromTupleImpl(Alloc* alloc, T* ptr, Tuple&& t,
-                            absl::index_sequence<I...>) {
-  absl::allocator_traits<Alloc>::construct(
+                            std::index_sequence<I...>) {
+  std::allocator_traits<Alloc>::construct(
       *alloc, ptr, std::get<I>(std::forward<Tuple>(t))...);
 }
 
@@ -127,13 +127,13 @@ struct WithConstructedImplF {
 
 template <class T, class Tuple, size_t... Is, class F>
 decltype(std::declval<F>()(std::declval<T>())) WithConstructedImpl(
-    Tuple&& t, absl::index_sequence<Is...>, F&& f) {
+    Tuple&& t, std::index_sequence<Is...>, F&& f) {
   return WithConstructedImplF<T, F>{std::forward<F>(f)}(
       std::get<Is>(std::forward<Tuple>(t))...);
 }
 
 template <class T, size_t... Is>
-auto TupleRefImpl(T&& t, absl::index_sequence<Is...>)
+auto TupleRefImpl(T&& t, std::index_sequence<Is...>)
     -> decltype(std::forward_as_tuple(std::get<Is>(std::forward<T>(t))...)) {
   // NOLINTNEXTLINE(bugprone-use-after-move)
   return std::forward_as_tuple(std::get<Is>(std::forward<T>(t))...);
@@ -144,11 +144,11 @@ auto TupleRefImpl(T&& t, absl::index_sequence<Is...>)
 template <class T>
 auto TupleRef(T&& t) -> decltype(TupleRefImpl(
     std::forward<T>(t),
-    absl::make_index_sequence<
+    std::make_index_sequence<
         std::tuple_size<typename std::decay<T>::type>::value>())) {
   return TupleRefImpl(
       std::forward<T>(t),
-      absl::make_index_sequence<
+      std::make_index_sequence<
           std::tuple_size<typename std::decay<T>::type>::value>());
 }
 
@@ -169,7 +169,7 @@ template <class Alloc, class T, class Tuple>
 void ConstructFromTuple(Alloc* alloc, T* ptr, Tuple&& t) {
   memory_internal::ConstructFromTupleImpl(
       alloc, ptr, std::forward<Tuple>(t),
-      absl::make_index_sequence<
+      std::make_index_sequence<
           std::tuple_size<typename std::decay<Tuple>::type>::value>());
 }
 
@@ -180,7 +180,7 @@ decltype(std::declval<F>()(std::declval<T>())) WithConstructed(Tuple&& t,
                                                                F&& f) {
   return memory_internal::WithConstructedImpl<T>(
       std::forward<Tuple>(t),
-      absl::make_index_sequence<
+      std::make_index_sequence<
           std::tuple_size<typename std::decay<Tuple>::type>::value>(),
       std::forward<F>(f));
 }
@@ -350,11 +350,11 @@ union map_slot_type {
   ~map_slot_type() = delete;
   using value_type = std::pair<const K, V>;
   using mutable_value_type =
-      std::pair<absl::remove_const_t<K>, absl::remove_const_t<V>>;
+      std::pair<std::remove_const_t<K>, std::remove_const_t<V>>;
 
   value_type value;
   mutable_value_type mutable_value;
-  absl::remove_const_t<K> key;
+  std::remove_const_t<K> key;
 };
 
 template <class K, class V>
@@ -362,7 +362,7 @@ struct map_slot_policy {
   using slot_type = map_slot_type<K, V>;
   using value_type = std::pair<const K, V>;
   using mutable_value_type =
-      std::pair<absl::remove_const_t<K>, absl::remove_const_t<V>>;
+      std::pair<std::remove_const_t<K>, std::remove_const_t<V>>;
 
  private:
   static void emplace(slot_type* slot) {
@@ -397,11 +397,11 @@ struct map_slot_policy {
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
     emplace(slot);
     if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(*alloc, &slot->mutable_value,
-                                                   std::forward<Args>(args)...);
+      std::allocator_traits<Allocator>::construct(*alloc, &slot->mutable_value,
+                                                  std::forward<Args>(args)...);
     } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
-                                                   std::forward<Args>(args)...);
+      std::allocator_traits<Allocator>::construct(*alloc, &slot->value,
+                                                  std::forward<Args>(args)...);
     }
   }
 
@@ -410,11 +410,11 @@ struct map_slot_policy {
   static void construct(Allocator* alloc, slot_type* slot, slot_type* other) {
     emplace(slot);
     if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(
+      std::allocator_traits<Allocator>::construct(
           *alloc, &slot->mutable_value, std::move(other->mutable_value));
     } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
-                                                   std::move(other->value));
+      std::allocator_traits<Allocator>::construct(*alloc, &slot->value,
+                                                  std::move(other->value));
     }
   }
 
@@ -423,16 +423,16 @@ struct map_slot_policy {
   static void construct(Allocator* alloc, slot_type* slot,
                         const slot_type* other) {
     emplace(slot);
-    absl::allocator_traits<Allocator>::construct(*alloc, &slot->value,
-                                                 other->value);
+    std::allocator_traits<Allocator>::construct(*alloc, &slot->value,
+                                                other->value);
   }
 
   template <class Allocator>
   static auto destroy(Allocator* alloc, slot_type* slot) {
     if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
+      std::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
     } else {
-      absl::allocator_traits<Allocator>::destroy(*alloc, &slot->value);
+      std::allocator_traits<Allocator>::destroy(*alloc, &slot->value);
     }
     return IsDestructionTrivial<Allocator, value_type>();
   }
@@ -460,11 +460,11 @@ struct map_slot_policy {
     }
 
     if (kMutableKeys::value) {
-      absl::allocator_traits<Allocator>::construct(
+      std::allocator_traits<Allocator>::construct(
           *alloc, &new_slot->mutable_value, std::move(old_slot->mutable_value));
     } else {
-      absl::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
-                                                   std::move(old_slot->value));
+      std::allocator_traits<Allocator>::construct(*alloc, &new_slot->value,
+                                                  std::move(old_slot->value));
     }
     destroy(alloc, old_slot);
     return is_relocatable;

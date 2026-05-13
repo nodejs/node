@@ -83,8 +83,9 @@ class LoadStoreSimplificationReducer : public Next,
 
   OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     SimplifyLoadStore(base, index, kind, offset, element_size_log2,
@@ -104,10 +105,10 @@ class LoadStoreSimplificationReducer : public Next,
         return OpIndex::Invalid();
       }
     }
-    return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_size_log2,
-                             maybe_initializing_or_transitioning,
-                             maybe_indirect_pointer_tag);
+    return Next::ReduceStore(
+        base, index, value, kind, stored_rep, write_barrier, memory_order,
+        offset, element_size_log2, maybe_initializing_or_transitioning,
+        maybe_indirect_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicWord32Pair)(V<WordPtr> base, OptionalV<WordPtr> index,
@@ -133,9 +134,10 @@ class LoadStoreSimplificationReducer : public Next,
   }
 
 #if V8_ENABLE_SANDBOX
-  V<Object> REDUCE(LoadTrustedPointer)(V<WordPtr> table, V<Word32> handle,
-                                       bool is_immutable,
-                                       IndirectPointerTagRange tag_range) {
+  V<Object> REDUCE(LoadTrustedPointer)(V<HeapObject> base, V<WordPtr> table,
+                                       LoadOp::Kind kind,
+                                       IndirectPointerTagRange tag_range,
+                                       int32_t offset) {
     // We need to disable GVN in this function so that the `Load` isn't GVNed
     // (because it's actually load a pointer but isn't marked as such (because
     // the pointer it loads needs to be decoded before it can be used, so the GC
@@ -150,14 +152,16 @@ class LoadStoreSimplificationReducer : public Next,
     // back. Cleaner solutions are mentioned in
     // https://crbug.com/471363817#comment8.
     DisableValueNumbering disabled_gvn(this);
+    V<Word32> handle = __ Load(base, OpIndex::Invalid(), kind,
+                               MemoryRepresentation::Uint32(), offset);
     V<Word32> table_index =
         __ Word32ShiftRightLogical(handle, kTrustedPointerHandleShift);
     V<Word64> table_offset = __ ChangeUint32ToUint64(
         __ Word32ShiftLeft(table_index, kTrustedPointerTableEntrySizeLog2));
-    LoadOp::Kind kind = LoadOp::Kind::RawAligned();
-    if (is_immutable) kind = kind.Immutable();
-    V<WordPtr> decoded_ptr =
-        __ Load(table, table_offset, kind, MemoryRepresentation::UintPtr());
+    LoadOp::Kind table_load_kind = LoadOp::Kind::RawAligned();
+    if (kind.is_immutable) table_load_kind = table_load_kind.Immutable();
+    V<WordPtr> decoded_ptr = __ Load(table, table_offset, table_load_kind,
+                                     MemoryRepresentation::UintPtr());
 
     if (IsFastIndirectPointerTagRange(tag_range)) {
       uint64_t mask = ComputeUntaggingMaskForFastIndirectPointerTag(tag_range);

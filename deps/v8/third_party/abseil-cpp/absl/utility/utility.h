@@ -21,9 +21,12 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 
 // TODO(b/290784225): Include what you use cleanup required.
 #include "absl/meta/type_traits.h"
+
+// TODO(b/509512528): Deprecate the C++14/C++17 symbols publicly, in all files.
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -35,18 +38,47 @@ ABSL_NAMESPACE_BEGIN
 using std::apply;
 using std::exchange;
 using std::forward;
-using std::in_place;
-using std::in_place_index;
-using std::in_place_index_t;
-using std::in_place_t;
-using std::in_place_type;
-using std::in_place_type_t;
-using std::index_sequence;
-using std::index_sequence_for;
-using std::integer_sequence;
+
+inline constexpr const std::in_place_t& in_place ABSL_DEPRECATE_AND_INLINE() =
+    std::in_place;
+
+template <size_t I>
+inline constexpr const std::in_place_index_t<I>& in_place_index
+ABSL_DEPRECATE_AND_INLINE() = std::in_place_index<I>;
+
+template <size_t I>
+using in_place_index_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_index_t<I>;
+
+using in_place_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_t;
+
+template <class T>
+inline constexpr const std::in_place_type_t<T>& in_place_type
+ABSL_DEPRECATE_AND_INLINE() = std::in_place_type<T>;
+
+template <class T>
+using in_place_type_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_type_t<T>;
+
+template <size_t... I>
+using index_sequence ABSL_DEPRECATE_AND_INLINE() = std::index_sequence<I...>;
+
+template <class T, T... I>
+using integer_sequence ABSL_DEPRECATE_AND_INLINE() =
+    std::integer_sequence<T, I...>;
+
+template <class... T>
+using index_sequence_for ABSL_DEPRECATE_AND_INLINE() =
+    std::index_sequence_for<T...>;
+
 using std::make_from_tuple;
-using std::make_index_sequence;
-using std::make_integer_sequence;
+
+template <size_t N>
+using make_index_sequence ABSL_DEPRECATE_AND_INLINE() =
+    std::make_index_sequence<N>;
+
+template <class T, T N>
+using make_integer_sequence ABSL_DEPRECATE_AND_INLINE() =
+    std::make_integer_sequence<T, N>;
+
 using std::move;
 
 #if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L

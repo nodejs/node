@@ -252,7 +252,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
   jit_allocation.WriteUnalignedValue<Address>(pc, target);
 }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     return Cast<HeapObject>(
