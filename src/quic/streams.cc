@@ -151,6 +151,44 @@ struct Stream::State {
 
 STAT_STRUCT(Stream, STREAM)
 
+// Stream uses arena-allocated stats, not AliasedStruct, so override the
+// STAT_* macros to use the stats() accessor instead of stats_.Data().
+#undef STAT_INCREMENT
+#undef STAT_INCREMENT_N
+#undef STAT_RECORD_TIMESTAMP
+#undef STAT_SET
+#undef STAT_GET
+#define STAT_INCREMENT(Type, name) IncrementStat<Type, &Type::name>(stats());
+#define STAT_INCREMENT_N(Type, name, amt)                                      \
+  IncrementStat<Type, &Type::name>(stats(), amt);
+#define STAT_RECORD_TIMESTAMP(Type, name)                                      \
+  RecordTimestampStat<Type, &Type::name>(stats());
+#define STAT_SET(Type, name, val) SetStat<Type, &Type::name>(stats(), val)
+#define STAT_GET(Type, name) GetStat<Type, &Type::name>(stats())
+
+using StreamStateArena = AliasedStructArena<Stream::State>;
+using StreamStatsArena = AliasedStructArena<Stream::Stats>;
+
+namespace {
+StreamStateArena& GetStreamStateArena(BindingData& binding) {
+  if (!binding.stream_state_arena_) {
+    auto* arena = new StreamStateArena();
+    binding.stream_state_arena_ = BindingData::ArenaPtr(
+        arena, +[](void* p) { delete static_cast<StreamStateArena*>(p); });
+  }
+  return *static_cast<StreamStateArena*>(binding.stream_state_arena_.get());
+}
+
+StreamStatsArena& GetStreamStatsArena(BindingData& binding) {
+  if (!binding.stream_stats_arena_) {
+    auto* arena = new StreamStatsArena();
+    binding.stream_stats_arena_ = BindingData::ArenaPtr(
+        arena, +[](void* p) { delete static_cast<StreamStatsArena*>(p); });
+  }
+  return *static_cast<StreamStatsArena*>(binding.stream_stats_arena_.get());
+}
+}  // namespace
+
 // ============================================================================
 
 namespace {
@@ -382,14 +420,14 @@ struct Stream::Impl {
       code = args[0].As<BigInt>()->Uint64Value(&lossless);
     }
 
-    if (stream->state_->reset == 1) return;
+    if (stream->state()->reset == 1) return;
 
     stream->EndWritable();
     // We can release our outbound here now. Since the stream is being reset
     // on the ngtcp2 side, we do not need to keep any of the data around
     // waiting for acknowledgement that will never come.
     stream->outbound_.reset();
-    stream->state_->reset = 1;
+    stream->state()->reset = 1;
 
     if (!stream->is_pending()) {
       if (stream->is_remote_unidirectional()) return;
@@ -993,30 +1031,56 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
                stream_id id,
                std::shared_ptr<DataQueue> source)
     : AsyncWrap(session->env(), object, PROVIDER_QUIC_STREAM),
-      stats_(env()->isolate()),
-      state_(env()->isolate()),
       session_(std::move(session)),
       inbound_(DataQueue::Create()),
       headers_(env()->isolate()) {
+  auto& binding = BindingData::Get(env());
+  stats_slot_ = GetStreamStatsArena(binding).Allocate(env()->isolate());
+  state_slot_ = GetStreamStateArena(binding).Allocate(env()->isolate());
   MakeWeak();
   DCHECK(id < kMaxStreamId);
-  state_->id = id;
-  state_->pending = 0;
+  state()->id = id;
+  state()->pending = 0;
   // Allows us to be notified when data is actually read from the
   // inbound queue so that we can update the stream flow control.
   inbound_->addBackpressureListener(this);
 
-  JS_DEFINE_READONLY_PROPERTY(
-      env(), object, env()->state_string(), state_.GetArrayBuffer());
-  JS_DEFINE_READONLY_PROPERTY(
-      env(), object, env()->stats_string(), stats_.GetArrayBuffer());
+  {
+    const v8::HandleScope handle_scope(env()->isolate());
+    // Pass the page's shared views and this slot's byte offset. JS uses
+    // the offset to index into the shared view — no per-stream V8 object
+    // creation.
+    JS_DEFINE_READONLY_PROPERTY(env(),
+                                object,
+                                env()->state_string(),
+                                state_slot_.GetPageDataView(env()->isolate()));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "stateByteOffset"),
+        v8::Integer::NewFromUnsigned(
+            env()->isolate(),
+            static_cast<uint32_t>(state_slot_.GetByteOffset())));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        env()->stats_string(),
+        stats_slot_.GetPageBigUint64Array(env()->isolate()));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "statsByteOffset"),
+        v8::Integer::NewFromUnsigned(
+            env()->isolate(),
+            static_cast<uint32_t>(stats_slot_.GetByteOffset())));
+  }
 
   set_outbound(std::move(source));
 
   STAT_RECORD_TIMESTAMP(Stats, created_at);
   auto params = ngtcp2_conn_get_local_transport_params(this->session());
   STAT_SET(Stats, max_offset, params->initial_max_data);
-  STAT_SET(Stats, opened_at, stats_->created_at);
+  STAT_SET(Stats, opened_at, stats()->created_at);
 }
 
 Stream::Stream(BaseObjectWeakPtr<Session> session,
@@ -1024,25 +1088,48 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
                Direction direction,
                std::shared_ptr<DataQueue> source)
     : AsyncWrap(session->env(), object, PROVIDER_QUIC_STREAM),
-      stats_(env()->isolate()),
-      state_(env()->isolate()),
       session_(std::move(session)),
       inbound_(DataQueue::Create()),
       maybe_pending_stream_(
           std::make_unique<PendingStream>(direction, this, session_)),
       headers_(env()->isolate()) {
+  auto& binding = BindingData::Get(env());
+  stats_slot_ = GetStreamStatsArena(binding).Allocate(env()->isolate());
+  state_slot_ = GetStreamStateArena(binding).Allocate(env()->isolate());
   MakeWeak();
-  state_->id = kMaxStreamId;
-  state_->pending = 1;
+  state()->id = kMaxStreamId;
+  state()->pending = 1;
 
   // Allows us to be notified when data is actually read from the
   // inbound queue so that we can update the stream flow control.
   inbound_->addBackpressureListener(this);
 
-  JS_DEFINE_READONLY_PROPERTY(
-      env(), object, env()->state_string(), state_.GetArrayBuffer());
-  JS_DEFINE_READONLY_PROPERTY(
-      env(), object, env()->stats_string(), stats_.GetArrayBuffer());
+  {
+    const v8::HandleScope handle_scope(env()->isolate());
+    JS_DEFINE_READONLY_PROPERTY(env(),
+                                object,
+                                env()->state_string(),
+                                state_slot_.GetPageDataView(env()->isolate()));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "stateByteOffset"),
+        v8::Integer::NewFromUnsigned(
+            env()->isolate(),
+            static_cast<uint32_t>(state_slot_.GetByteOffset())));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        env()->stats_string(),
+        stats_slot_.GetPageBigUint64Array(env()->isolate()));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "statsByteOffset"),
+        v8::Integer::NewFromUnsigned(
+            env()->isolate(),
+            static_cast<uint32_t>(stats_slot_.GetByteOffset())));
+  }
 
   set_outbound(std::move(source));
 
@@ -1053,15 +1140,24 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
 
 Stream::~Stream() {
   // Make sure that Destroy() was called before Stream is actually destructed.
-  DCHECK_NE(stats_->destroyed_at, 0);
+  DCHECK_NE(stats()->destroyed_at, 0);
+
+  // Release arena slots back to the freelist.
+  auto& binding = BindingData::Get(env());
+  if (stats_slot_) {
+    GetStreamStatsArena(binding).ReleaseSlot(stats_slot_);
+  }
+  if (state_slot_) {
+    GetStreamStateArena(binding).ReleaseSlot(state_slot_);
+  }
 }
 
 void Stream::NotifyStreamOpened(stream_id id) {
   CHECK(is_pending());
   DCHECK(id < kMaxStreamId);
   Debug(this, "Pending stream opened with id %" PRIi64, id);
-  state_->pending = 0;
-  state_->id = id;
+  state()->pending = 0;
+  state()->id = id;
   STAT_RECORD_TIMESTAMP(Stats, opened_at);
   // Now that the stream is actually opened, add it to the sessions
   // list of known open streams.
@@ -1132,26 +1228,26 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
 }
 
 bool Stream::is_pending() const {
-  return state_->pending;
+  return state()->pending;
 }
 
 stream_id Stream::id() const {
-  return state_->id;
+  return state()->id;
 }
 
 Side Stream::origin() const {
   CHECK(!is_pending());
-  return (state_->id & 0b01) ? Side::SERVER : Side::CLIENT;
+  return (state()->id & 0b01) ? Side::SERVER : Side::CLIENT;
 }
 
 Direction Stream::direction() const {
-  if (state_->pending) {
+  if (state()->pending) {
     CHECK(maybe_pending_stream_.has_value());
     auto& val = maybe_pending_stream_.value();
     return val->direction();
   }
-  return (state_->id & 0b10) ? Direction::UNIDIRECTIONAL
-                             : Direction::BIDIRECTIONAL;
+  return (state()->id & 0b10) ? Direction::UNIDIRECTIONAL
+                              : Direction::BIDIRECTIONAL;
 }
 
 Session& Stream::session() const {
@@ -1169,15 +1265,15 @@ bool Stream::is_remote_unidirectional() const {
 }
 
 bool Stream::is_eos() const {
-  return state_->fin_sent;
+  return state()->fin_sent;
 }
 
 bool Stream::wants_trailers() const {
-  return state_->wants_trailers;
+  return state()->wants_trailers;
 }
 
 void Stream::set_early() {
-  state_->received_early_data = 1;
+  state()->received_early_data = 1;
 }
 
 bool Stream::is_writable() const {
@@ -1187,7 +1283,7 @@ bool Stream::is_writable() const {
       !ngtcp2_conn_is_local_stream(session(), id())) {
     return false;
   }
-  return state_->write_ended == 0;
+  return state()->write_ended == 0;
 }
 
 bool Stream::has_outbound() const {
@@ -1209,21 +1305,21 @@ bool Stream::is_readable() const {
       ngtcp2_conn_is_local_stream(session(), id())) {
     return false;
   }
-  return state_->read_ended == 0;
+  return state()->read_ended == 0;
 }
 
 BaseObjectPtr<Blob::Reader> Stream::get_reader() {
-  if (!is_readable() || state_->has_reader) return {};
-  state_->has_reader = 1;
+  if (!is_readable() || state()->has_reader) return {};
+  state()->has_reader = 1;
   auto reader = Blob::Reader::Create(env(), Blob::Create(env(), inbound_));
   reader_ = reader;
   return reader;
 }
 
 void Stream::set_final_size(uint64_t final_size) {
-  DCHECK_IMPLIES(state_->fin_received == 1,
+  DCHECK_IMPLIES(state()->fin_received == 1,
                  final_size <= STAT_GET(Stats, final_size));
-  state_->fin_received = 1;
+  state()->fin_received = 1;
   STAT_SET(Stats, final_size, final_size);
 }
 
@@ -1232,7 +1328,7 @@ void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
   Debug(this, "Setting the outbound data source");
   DCHECK_NULL(outbound_);
   outbound_ = std::make_unique<Outbound>(this, std::move(source));
-  state_->has_outbound = 1;
+  state()->has_outbound = 1;
   // Note: We intentionally do NOT call ResumeStream here. During
   // construction, the stream has not yet been added to the session's
   // streams map, so FindStream would fail. The caller (CreateStream /
@@ -1251,7 +1347,7 @@ void Stream::InitStreaming() {
   }
   Debug(this, "Initializing streaming outbound source");
   outbound_ = std::make_unique<Outbound>(this);
-  state_->has_outbound = 1;
+  state()->has_outbound = 1;
   if (!is_pending()) session_->ResumeStream(id());
 }
 
@@ -1397,7 +1493,7 @@ void Stream::Commit(size_t datalen, bool fin) {
   Debug(this, "Committing %zu bytes", datalen);
   STAT_INCREMENT_N(Stats, bytes_sent, datalen);
   if (outbound_) outbound_->Commit(datalen);
-  if (fin) state_->fin_sent = 1;
+  if (fin) state()->fin_sent = 1;
 }
 
 void Stream::EndWritable() {
@@ -1407,12 +1503,12 @@ void Stream::EndWritable() {
   // will be a non-op since we're not going to be writing any more data
   // into it anyway.
   if (outbound_) outbound_->Cap();
-  state_->write_ended = 1;
+  state()->write_ended = 1;
 }
 
 void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
   if (!is_readable()) return;
-  state_->read_ended = 1;
+  state()->read_ended = 1;
   set_final_size(maybe_final_size.value_or(STAT_GET(Stats, bytes_received)));
   inbound_->cap(STAT_GET(Stats, final_size));
   // Notify the JS reader so it can see EOS. Pass fin=true so the
@@ -1422,20 +1518,20 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 }
 
 void Stream::Destroy(QuicError error) {
-  if (stats_->destroyed_at != 0) return;
+  if (stats()->destroyed_at != 0) return;
   // Record the destroyed at timestamp before notifying the JavaScript side
   // that the stream is being destroyed.
   STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
 
   DCHECK_NOT_NULL(session_.get());
 
-  if (!state_->pending) {
+  if (!state()->pending) {
     Debug(
         this, "Stream %" PRIi64 " being destroyed with error %s", id(), error);
   } else {
     Debug(this, "Pending stream being destroyed with error %s", error);
   }
-  state_->pending = 0;
+  state()->pending = 0;
 
   maybe_pending_stream_.reset();
 
@@ -1482,12 +1578,12 @@ void Stream::ReceiveData(const uint8_t* data,
   // If reading has ended, or there is no data, there's nothing to do but maybe
   // end the readable side if this is the last bit of data we've received.
   Debug(this, "Receiving %zu bytes of data", len);
-  if (state_->read_ended == 1 || len == 0) {
+  if (state()->read_ended == 1 || len == 0) {
     if (flags.fin) EndReadable();
     return;
   }
 
-  if (flags.early) state_->received_early_data = 1;
+  if (flags.early) state()->received_early_data = 1;
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_SET(Stats, max_offset_received, STAT_GET(Stats, bytes_received));
   STAT_RECORD_TIMESTAMP(Stats, received_at);
@@ -1509,10 +1605,10 @@ void Stream::ReceiveStopSending(QuicError error) {
   // writable side has already been shut down (e.g. we already sent
   // RESET_STREAM ourselves or finished sending with FIN) there is
   // nothing more to do here. The previous guard checked
-  // `state_->read_ended` which is unrelated to the writable side and
+  // `state()->read_ended` which is unrelated to the writable side and
   // suppressed STOP_SENDING handling whenever a sibling RESET_STREAM
   // frame had been processed first within the same packet.
-  if (state_->write_ended) return;
+  if (state()->write_ended) return;
   Debug(this, "Received stop sending with error %s", error);
   ngtcp2_conn_shutdown_stream_write(session(), 0, id(), error.code());
   EndWritable();
@@ -1528,7 +1624,7 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
         "Received stream reset with final size %" PRIu64 " and error %s",
         final_size,
         error);
-  state_->reset_code = error.code();
+  state()->reset_code = error.code();
   EndReadable(final_size);
   EmitReset(error);
 }
@@ -1536,10 +1632,10 @@ void Stream::ReceiveStreamReset(uint64_t final_size, QuicError error) {
 // ============================================================================
 
 void Stream::EmitBlocked() {
-  // state_->wants_block will be set from the javascript side if the
+  // state()->wants_block will be set from the javascript side if the
   // stream object has a handler for the blocked event.
   Debug(this, "Blocked");
-  if (!env()->can_call_into_js() || !state_->wants_block) {
+  if (!env()->can_call_into_js() || !state()->wants_block) {
     return;
   }
   CallbackScope<Stream> cb_scope(this);
@@ -1556,7 +1652,7 @@ void Stream::UpdateWriteDesiredSize() {
   if (!outbound_ || !outbound_->is_streaming()) return;
 
   uint64_t available;
-  uint64_t hwm = state_->high_water_mark;
+  uint64_t hwm = state()->high_water_mark;
 
   if (is_pending()) {
     // Pending streams don't have a stream ID yet, so ngtcp2 can't
@@ -1589,8 +1685,8 @@ void Stream::UpdateWriteDesiredSize() {
   uint32_t clamped = static_cast<uint32_t>(
       std::min<uint64_t>(desired, std::numeric_limits<uint32_t>::max()));
 
-  uint32_t old_size = state_->write_desired_size;
-  state_->write_desired_size = clamped;
+  uint32_t old_size = state()->write_desired_size;
+  state()->write_desired_size = clamped;
 
   // Fire drain when transitioning from 0 to non-zero.
   // writeDesiredSize == 0 means the buffer is full or flow control is
@@ -1609,9 +1705,9 @@ void Stream::EmitClose(const QuicError& error) {
 }
 
 void Stream::EmitHeaders() {
-  // state_->wants_headers will be set from the javascript side if the
+  // state()->wants_headers will be set from the javascript side if the
   // stream object has a handler for the headers event.
-  if (!env()->can_call_into_js() || !state_->wants_headers) {
+  if (!env()->can_call_into_js() || !state()->wants_headers) {
     return;
   }
   CallbackScope<Stream> cb_scope(this);
@@ -1628,9 +1724,9 @@ void Stream::EmitHeaders() {
 }
 
 void Stream::EmitReset(const QuicError& error) {
-  // state_->wants_reset will be set from the javascript side if the
+  // state()->wants_reset will be set from the javascript side if the
   // stream object has a handler for the reset event.
-  if (!env()->can_call_into_js() || !state_->wants_reset) {
+  if (!env()->can_call_into_js() || !state()->wants_reset) {
     return;
   }
   CallbackScope<Stream> cb_scope(this);
@@ -1641,9 +1737,9 @@ void Stream::EmitReset(const QuicError& error) {
 }
 
 void Stream::EmitWantTrailers() {
-  // state_->wants_trailers will be set from the javascript side if the
+  // state()->wants_trailers will be set from the javascript side if the
   // stream object has a handler for the trailers event.
-  if (!env()->can_call_into_js() || !state_->wants_trailers) {
+  if (!env()->can_call_into_js() || !state()->wants_trailers) {
     return;
   }
   CallbackScope<Stream> cb_scope(this);

@@ -197,6 +197,46 @@ struct Session::State final {
 
 STAT_STRUCT(Session, SESSION)
 
+using SessionStateArena = AliasedStructArena<Session::State>;
+using SessionStatsArena = AliasedStructArena<Session::Stats>;
+
+// Session uses arena-allocated stats, not AliasedStruct, so override the
+// STAT_* macros to use impl_->stats() instead of stats_.Data().
+#undef STAT_INCREMENT
+#undef STAT_INCREMENT_N
+#undef STAT_RECORD_TIMESTAMP
+#undef STAT_SET
+#undef STAT_GET
+#define STAT_INCREMENT(Type, name)                                             \
+  IncrementStat<Type, &Type::name>(impl_->stats());
+#define STAT_INCREMENT_N(Type, name, amt)                                      \
+  IncrementStat<Type, &Type::name>(impl_->stats(), amt);
+#define STAT_RECORD_TIMESTAMP(Type, name)                                      \
+  RecordTimestampStat<Type, &Type::name>(impl_->stats());
+#define STAT_SET(Type, name, val)                                              \
+  SetStat<Type, &Type::name>(impl_->stats(), val)
+#define STAT_GET(Type, name) GetStat<Type, &Type::name>(impl_->stats())
+
+namespace {
+SessionStateArena& GetSessionStateArena(BindingData& binding) {
+  if (!binding.session_state_arena_) {
+    auto* arena = new SessionStateArena();
+    binding.session_state_arena_ = BindingData::ArenaPtr(
+        arena, +[](void* p) { delete static_cast<SessionStateArena*>(p); });
+  }
+  return *static_cast<SessionStateArena*>(binding.session_state_arena_.get());
+}
+
+SessionStatsArena& GetSessionStatsArena(BindingData& binding) {
+  if (!binding.session_stats_arena_) {
+    auto* arena = new SessionStatsArena();
+    binding.session_stats_arena_ = BindingData::ArenaPtr(
+        arena, +[](void* p) { delete static_cast<SessionStatsArena*>(p); });
+  }
+  return *static_cast<SessionStatsArena*>(binding.session_stats_arena_.get());
+}
+}  // namespace
+
 // ============================================================================
 
 class Http3Application;
@@ -712,8 +752,8 @@ std::string Session::Options::ToString() const {
 // Session::Impl maintains most of the internal state of an active Session.
 struct Session::Impl final : public MemoryRetainer {
   Session* session_;
-  AliasedStruct<Stats> stats_;
-  AliasedStruct<State> state_;
+  ArenaSlotBase stats_slot_;
+  ArenaSlotBase state_slot_;
   BaseObjectWeakPtr<Endpoint> endpoint_;
   Config config_;
   SocketAddress local_address_;
@@ -741,20 +781,30 @@ struct Session::Impl final : public MemoryRetainer {
   // and the stream/datagram data is included in the 0-RTT flight.
   bool handshake_deferred_ = false;
 
+  Stats* stats() { return static_cast<Stats*>(stats_slot_.ptr); }
+  const Stats* stats() const {
+    return static_cast<const Stats*>(stats_slot_.ptr);
+  }
+  State* state() { return static_cast<State*>(state_slot_.ptr); }
+  const State* state() const {
+    return static_cast<const State*>(state_slot_.ptr);
+  }
+
   Impl(Session* session, Endpoint* endpoint, const Config& config)
       : session_(session),
-        stats_(env()->isolate()),
-        state_(env()->isolate()),
         endpoint_(endpoint),
         config_(config),
         local_address_(config.local_address),
         remote_address_(config.remote_address),
         timer_(session_->env(), [this] { session_->OnTimeout(); }) {
+    auto& binding = BindingData::Get(env());
+    stats_slot_ = GetSessionStatsArena(binding).Allocate(env()->isolate());
+    state_slot_ = GetSessionStateArena(binding).Allocate(env()->isolate());
     timer_.Unref();
   }
   DISALLOW_COPY_AND_MOVE(Impl)
 
-  inline bool is_closing() const { return state_->closing; }
+  inline bool is_closing() const { return state()->closing; }
 
   ~Impl() {
     // Ensure that Close() was called before dropping
@@ -790,6 +840,10 @@ struct Session::Impl final : public MemoryRetainer {
     }
 
     endpoint->RemoveSession(config_.scid, remote_address_);
+
+    auto& binding = BindingData::Get(env());
+    if (stats_slot_) GetSessionStatsArena(binding).ReleaseSlot(stats_slot_);
+    if (state_slot_) GetSessionStateArena(binding).ReleaseSlot(state_slot_);
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override {
@@ -1309,7 +1363,7 @@ struct Session::Impl final : public MemoryRetainer {
     // NGTCP2_ERR_DRAINING. The actual close handling happens in
     // Session::Receive when it processes that return value and
     // checks this flag.
-    session->impl_->state_->stateless_reset = 1;
+    session->impl_->state()->stateless_reset = 1;
     return NGTCP2_SUCCESS;
   }
 
@@ -1634,10 +1688,7 @@ Session::Session(Endpoint* endpoint,
       connection_(InitConnection()),
       tls_session_(tls_context->NewSession(this, session_ticket)) {
   DCHECK(impl_);
-  {
-    auto& stats_ = impl_->stats_;
-    STAT_RECORD_TIMESTAMP(Stats, created_at);
-  }
+  STAT_RECORD_TIMESTAMP(Stats, created_at);
 
   // For clients, select the Application immediately — the ALPN is
   // known upfront from the options. For servers, application_ stays
@@ -1666,10 +1717,33 @@ Session::Session(Endpoint* endpoint,
   MakeWeak();
   Debug(this, "Session created.");
 
-  JS_DEFINE_READONLY_PROPERTY(
-      env(), object, env()->stats_string(), impl_->stats_.GetArrayBuffer());
-  JS_DEFINE_READONLY_PROPERTY(
-      env(), object, env()->state_string(), impl_->state_.GetArrayBuffer());
+  {
+    const v8::HandleScope handle_scope(env()->isolate());
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        env()->state_string(),
+        impl_->state_slot_.GetPageDataView(env()->isolate()));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "stateByteOffset"),
+        v8::Integer::NewFromUnsigned(
+            env()->isolate(),
+            static_cast<uint32_t>(impl_->state_slot_.GetByteOffset())));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        env()->stats_string(),
+        impl_->stats_slot_.GetPageBigUint64Array(env()->isolate()));
+    JS_DEFINE_READONLY_PROPERTY(
+        env(),
+        object,
+        FIXED_ONE_BYTE_STRING(env()->isolate(), "statsByteOffset"),
+        v8::Integer::NewFromUnsigned(
+            env()->isolate(),
+            static_cast<uint32_t>(impl_->stats_slot_.GetByteOffset())));
+  }
 
   UpdateDataStats();
 }
@@ -1737,12 +1811,11 @@ bool Session::is_destroyed() const {
 }
 
 bool Session::is_destroyed_or_closing() const {
-  return !impl_ || impl_->state_->closing;
+  return !impl_ || impl_->state()->closing;
 }
 
 void Session::Close(CloseMethod method) {
   if (is_destroyed()) return;
-  auto& stats_ = impl_->stats_;
 
   // If the handshake was deferred (0-RTT client that never sent),
   // no packets were ever transmitted. Close silently since there is
@@ -1757,7 +1830,7 @@ void Session::Close(CloseMethod method) {
   }
 
   STAT_RECORD_TIMESTAMP(Stats, closing_at);
-  impl_->state_->closing = 1;
+  impl_->state()->closing = 1;
 
   // With both the DEFAULT and SILENT options, we will proceed to closing
   // the session immediately. All open streams will be immediately destroyed
@@ -1773,27 +1846,27 @@ void Session::Close(CloseMethod method) {
   switch (method) {
     case CloseMethod::DEFAULT: {
       Debug(this, "Immediately closing session");
-      impl_->state_->silent_close = 0;
+      impl_->state()->silent_close = 0;
       return FinishClose();
     }
     case CloseMethod::SILENT: {
       Debug(this, "Immediately closing session silently");
-      impl_->state_->silent_close = 1;
+      impl_->state()->silent_close = 1;
       return FinishClose();
     }
     case CloseMethod::GRACEFUL: {
       // If we are already closing gracefully, do nothing.
-      if (impl_->state_->graceful_close) [[unlikely]] {
+      if (impl_->state()->graceful_close) [[unlikely]] {
         return;
       }
-      impl_->state_->graceful_close = 1;
+      impl_->state()->graceful_close = 1;
 
       // application_ may be null for server sessions if close() is called
       // before the TLS handshake selects the ALPN. Without an application
       // we cannot do a graceful shutdown (GOAWAY, CONNECTION_CLOSE etc.),
       // so fall through to a silent close.
       if (!impl_->application_) {
-        impl_->state_->silent_close = 1;
+        impl_->state()->silent_close = 1;
         return FinishClose();
       }
 
@@ -1811,7 +1884,7 @@ void Session::Close(CloseMethod method) {
       // If there are no open streams, then we can close immediately and
       // not worry about waiting around.
       if (impl_->streams_.empty()) {
-        impl_->state_->silent_close = 0;
+        impl_->state()->silent_close = 0;
         return FinishClose();
       }
 
@@ -1855,11 +1928,11 @@ void Session::FinishClose() {
   // trigger MakeCallback (stream destruction, pending queue rejection,
   // SendConnectionClose, EmitClose).
   if (is_destroyed()) return;
-  DCHECK(impl_->state_->closing);
+  DCHECK(impl_->state()->closing);
 
   // Clear the graceful_close flag to prevent RemoveStream() from
   // re-entering FinishClose() when we destroy streams below.
-  impl_->state_->graceful_close = 0;
+  impl_->state()->graceful_close = 0;
 
   // Destroy all open streams immediately. We copy the map because
   // streams remove themselves during destruction. Each Destroy() call
@@ -1881,7 +1954,7 @@ void Session::FinishClose() {
 
   // Send final application-level shutdown and CONNECTION_CLOSE
   // unless this is a silent close.
-  if (!impl_->state_->silent_close) {
+  if (!impl_->state()->silent_close) {
     if (impl_->application_) {
       application().CompleteShutdown();
     }
@@ -1894,7 +1967,7 @@ void Session::FinishClose() {
   // If the session was passed to JavaScript, we need to round-trip
   // through JS so it can clean up before we destroy. The JS side
   // will synchronously call destroy(), which calls Session::Destroy().
-  if (impl_->state_->wrapped) {
+  if (impl_->state()->wrapped) {
     EmitClose(impl_->last_error_);
   } else {
     Destroy();
@@ -1906,7 +1979,7 @@ void Session::Destroy() {
   // Ensure the closing flag is set for the ~Impl() DCHECK. Normally
   // this is set by Session::Close(), but JS destroy() can be called
   // directly without going through Close() first.
-  impl_->state_->closing = 1;
+  impl_->state()->closing = 1;
 
   // If we're inside a ngtcp2 or nghttp3 callback scope, we cannot
   // destroy impl_ now because the callback is executing methods on
@@ -1919,10 +1992,7 @@ void Session::Destroy() {
   }
 
   Debug(this, "Session destroyed");
-  {
-    auto& stats_ = impl_->stats_;
-    STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
-  }
+  STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
   impl_.reset();
 }
 
@@ -1998,16 +2068,16 @@ void Session::SetApplication(std::unique_ptr<Application> app) {
       return;
     }
   }
-  impl_->state_->application_type = static_cast<uint8_t>(app->type());
-  impl_->state_->headers_supported = static_cast<uint8_t>(
+  impl_->state()->application_type = static_cast<uint8_t>(app->type());
+  impl_->state()->headers_supported = static_cast<uint8_t>(
       app->SupportsHeaders() ? HeadersSupportState::SUPPORTED
                              : HeadersSupportState::UNSUPPORTED);
   // Surface the application's "no error" and "internal error" codes via
   // session state so that JS-side code (e.g. the stream writer's fail()
   // path) can resolve the right wire code for the negotiated ALPN
   // without duplicating the per-application table.
-  impl_->state_->no_error_code = app->GetNoErrorCode();
-  impl_->state_->internal_error_code = app->GetInternalErrorCode();
+  impl_->state()->no_error_code = app->GetNoErrorCode();
+  impl_->state()->internal_error_code = app->GetInternalErrorCode();
   impl_->application_ = std::move(app);
 }
 
@@ -2165,7 +2235,6 @@ bool Session::ReadPacket(const uint8_t* data,
     case 0: {
       Debug(this, "Session successfully received %zu-byte packet", len);
       if (!is_destroyed()) [[likely]] {
-        auto& stats_ = impl_->stats_;
         STAT_INCREMENT_N(Stats, bytes_received, len);
         // Process deferred operations that couldn't run inside callback
         // scopes (e.g., HTTP/3 GOAWAY handling that calls into JS).
@@ -2197,7 +2266,7 @@ bool Session::ReadPacket(const uint8_t* data,
       //    There is no point in waiting for a draining period — the
       //    peer has no state. Close immediately with an error.
       if (!is_destroyed()) [[likely]] {
-        if (impl_->state_->stateless_reset) {
+        if (impl_->state()->stateless_reset) {
           Debug(this, "Session received stateless reset, closing");
           SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_DRAINING));
           Close(CloseMethod::SILENT);
@@ -2428,10 +2497,10 @@ datagram_id Session::SendDatagram(Store&& data) {
   }
 
   // Assign the datagram ID.
-  datagram_id did = ++impl_->state_->last_datagram_id;
+  datagram_id did = ++impl_->state()->last_datagram_id;
 
   // Check queue capacity. Apply the drop policy when full.
-  auto max_pending = impl_->state_->max_pending_datagrams;
+  auto max_pending = impl_->state()->max_pending_datagrams;
   if (max_pending > 0 && impl_->pending_datagrams_.size() >= max_pending) {
     auto drop_policy = impl_->config_.options.datagram_drop_policy;
     if (drop_policy == DatagramDropPolicy::DROP_OLDEST) {
@@ -2602,7 +2671,6 @@ void Session::AddStream(BaseObjectPtr<Stream> stream,
 
   // Update tracking statistics for the number of streams associated with this
   // session.
-  auto& stats_ = impl_->stats_;
   if (ngtcp2_conn_is_local_stream(*this, id)) {
     switch (direction) {
       case Direction::BIDIRECTIONAL: {
@@ -2654,7 +2722,7 @@ void Session::RemoveStream(stream_id id) {
   // then we can proceed to finishing the close now. Note that the
   // expectation is that the session will be destroyed once FinishClose
   // returns.
-  if (impl_->state_->closing && impl_->state_->graceful_close) {
+  if (impl_->state()->closing && impl_->state()->graceful_close) {
     FinishClose();
     CHECK(is_destroyed());
   }
@@ -2692,7 +2760,6 @@ void Session::ShutdownStreamWrite(stream_id id, QuicError code) {
 
 void Session::StreamDataBlocked(stream_id id) {
   DCHECK(!is_destroyed());
-  auto& stats_ = impl_->stats_;
   STAT_INCREMENT(Stats, block_count);
   application().BlockStream(id);
 }
@@ -2763,20 +2830,20 @@ bool Session::is_in_draining_period() const {
 
 bool Session::wants_session_ticket() const {
   return !is_destroyed() &&
-         HasListenerFlag(impl_->state_->listener_flags,
+         HasListenerFlag(impl_->state()->listener_flags,
                          SessionListenerFlags::SESSION_TICKET);
 }
 
 void Session::SetStreamOpenAllowed() {
   DCHECK(!is_destroyed());
-  impl_->state_->stream_open_allowed = 1;
+  impl_->state()->stream_open_allowed = 1;
 }
 
 void Session::PopulateEarlyTransportParamsState() {
   DCHECK(!is_destroyed());
   const ngtcp2_transport_params* tp = remote_transport_params();
   if (tp != nullptr) {
-    impl_->state_->max_datagram_size =
+    impl_->state()->max_datagram_size =
         MaxDatagramPayload(tp->max_datagram_frame_size);
   }
 }
@@ -2797,7 +2864,7 @@ bool Session::can_create_streams() const {
 }
 
 bool Session::can_open_streams() const {
-  return !is_destroyed() && impl_->state_->stream_open_allowed;
+  return !is_destroyed() && impl_->state()->stream_open_allowed;
 }
 
 uint64_t Session::max_data_left() const {
@@ -2818,12 +2885,12 @@ uint64_t Session::max_local_streams_bidi() const {
 
 void Session::set_wrapped() {
   DCHECK(!is_destroyed());
-  impl_->state_->wrapped = 1;
+  impl_->state()->wrapped = 1;
 }
 
 void Session::set_priority_supported(bool on) {
   DCHECK(!is_destroyed());
-  impl_->state_->priority_supported = on ? 1 : 0;
+  impl_->state()->priority_supported = on ? 1 : 0;
 }
 
 void Session::ExtendStreamOffset(stream_id id, size_t amount) {
@@ -2856,14 +2923,13 @@ size_t Session::PendingDatagramCount() const {
 
 void Session::DatagramSent(datagram_id id) {
   Debug(this, "Datagram %" PRIu64 " sent", id);
-  auto& stats_ = impl_->stats_;
   STAT_INCREMENT(Stats, datagrams_sent);
 }
 
 void Session::UpdateDataStats() {
   if (is_destroyed()) return;
   Debug(this, "Updating data stats");
-  auto& stats_ = impl_->stats_;
+
   ngtcp2_conn_info info;
   ngtcp2_conn_get_conn_info(*this, &info);
   STAT_SET(Stats, bytes_in_flight, info.bytes_in_flight);
@@ -3017,7 +3083,7 @@ void Session::UpdateTimer() {
 void Session::DatagramStatus(datagram_id datagramId,
                              quic::DatagramStatus status) {
   DCHECK(!is_destroyed());
-  auto& stats_ = impl_->stats_;
+
   switch (status) {
     case DatagramStatus::ACKNOWLEDGED: {
       Debug(this, "Datagram %" PRIu64 " was acknowledged", datagramId);
@@ -3035,7 +3101,7 @@ void Session::DatagramStatus(datagram_id datagramId,
       break;
     }
   }
-  if (HasListenerFlag(impl_->state_->listener_flags,
+  if (HasListenerFlag(impl_->state()->listener_flags,
                       SessionListenerFlags::DATAGRAM_STATUS)) {
     EmitDatagramStatus(datagramId, status);
   }
@@ -3047,13 +3113,13 @@ void Session::DatagramReceived(const uint8_t* data,
   DCHECK(!is_destroyed());
   // If there is nothing watching for the datagram on the JavaScript side,
   // or if the datagram is zero-length, we just drop it on the floor.
-  if (!HasListenerFlag(impl_->state_->listener_flags,
+  if (!HasListenerFlag(impl_->state()->listener_flags,
                        SessionListenerFlags::DATAGRAM) ||
       datalen == 0)
     return;
 
   Debug(this, "Session is receiving datagram of size %zu", datalen);
-  auto& stats_ = impl_->stats_;
+
   STAT_INCREMENT(Stats, datagrams_received);
   JS_TRY_ALLOCATE_BACKING(env(), backing, datalen)
   memcpy(backing->Data(), data, datalen);
@@ -3074,18 +3140,18 @@ void Session::GenerateNewConnectionId(ngtcp2_cid* cid,
 
 bool Session::HandshakeCompleted() {
   DCHECK(!is_destroyed());
-  DCHECK(!impl_->state_->handshake_completed);
+  DCHECK(!impl_->state()->handshake_completed);
 
   Debug(this, "Session handshake completed");
-  impl_->state_->handshake_completed = 1;
-  auto& stats_ = impl_->stats_;
+  impl_->state()->handshake_completed = 1;
+
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
   SetStreamOpenAllowed();
 
   // Capture the peer's max datagram frame size from the remote transport
   // parameters so JavaScript can check it without a C++ round-trip.
   const ngtcp2_transport_params* tp = remote_transport_params();
-  impl_->state_->max_datagram_size =
+  impl_->state()->max_datagram_size =
       MaxDatagramPayload(tp->max_datagram_frame_size);
 
   // If early data was attempted but rejected by the server,
@@ -3120,10 +3186,10 @@ bool Session::HandshakeCompleted() {
 
 void Session::HandshakeConfirmed() {
   DCHECK(!is_destroyed());
-  DCHECK(!impl_->state_->handshake_confirmed);
+  DCHECK(!impl_->state()->handshake_confirmed);
   Debug(this, "Session handshake confirmed");
-  impl_->state_->handshake_confirmed = 1;
-  auto& stats_ = impl_->stats_;
+  impl_->state()->handshake_confirmed = 1;
+
   STAT_RECORD_TIMESTAMP(Stats, handshake_confirmed_at);
 }
 
@@ -3261,7 +3327,7 @@ void Session::EmitClose(const QuicError& error) {
 
 void Session::set_max_datagram_size(uint16_t size) {
   if (!is_destroyed()) {
-    impl_->state_->max_datagram_size = size;
+    impl_->state()->max_datagram_size = size;
   }
 }
 
@@ -3376,7 +3442,7 @@ void Session::EmitPathValidation(PathValidationResult result,
 
   if (!env()->can_call_into_js()) return;
 
-  if (!HasListenerFlag(impl_->state_->listener_flags,
+  if (!HasListenerFlag(impl_->state()->listener_flags,
                        SessionListenerFlags::PATH_VALIDATION)) [[likely]] {
     return;
   }
@@ -3422,7 +3488,7 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
   // If there is nothing listening for the session ticket, don't bother
   // emitting.
-  if (!HasListenerFlag(impl_->state_->listener_flags,
+  if (!HasListenerFlag(impl_->state()->listener_flags,
                        SessionListenerFlags::SESSION_TICKET)) [[likely]] {
     Debug(this, "Session ticket was discarded");
     return;
@@ -3479,7 +3545,7 @@ void Session::EmitEarlyDataRejected() {
 
 void Session::EmitNewToken(const uint8_t* token, size_t len) {
   DCHECK(!is_destroyed());
-  if (!HasListenerFlag(impl_->state_->listener_flags,
+  if (!HasListenerFlag(impl_->state()->listener_flags,
                        SessionListenerFlags::NEW_TOKEN))
     return;
   if (!env()->can_call_into_js()) return;
@@ -3555,7 +3621,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
 
 void Session::EmitOrigins(std::vector<std::string>&& origins) {
   DCHECK(!is_destroyed());
-  if (!HasListenerFlag(impl_->state_->listener_flags,
+  if (!HasListenerFlag(impl_->state()->listener_flags,
                        SessionListenerFlags::ORIGIN))
     return;
   if (!env()->can_call_into_js()) return;
