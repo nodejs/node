@@ -171,6 +171,7 @@ jobs:
           sparse-checkout: |
             tools/nix/pkgs.nix
             deps/v8/DEPS
+            deps/crates/check-deps-in-sync-with-v8.sh
             deps/crates/Cargo.toml
             deps/crates/Cargo.lock
           sparse-checkout-cone-mode: false
