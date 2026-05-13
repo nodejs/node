@@ -255,7 +255,7 @@ pub fn check_trie<T: TrieValue + Into<u32>>(trie: &CodePointTrie<T>, check_range
         let range_value = range_tuple[1];
         // Check all values in this range, one-by-one
         while i < range_limit {
-            assert_eq!(range_value, trie.get32(i).into(), "trie_get({})", i,);
+            assert_eq!(range_value, trie.get32(i).into(), "trie_get({i})",);
             i += 1;
         }
     }
@@ -335,7 +335,6 @@ pub struct EnumPropCodePointMapData {
     pub ranges: Vec<(u32, u32, u32)>,
 }
 
-#[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
 pub struct EnumPropSerializedCPT {
     #[cfg_attr(any(feature = "serde", test), serde(rename = "struct"))]
@@ -347,7 +346,6 @@ pub struct EnumPropSerializedCPT {
 // using similar functions, some of these structs may be useful to refactor
 // into main code at a later point.
 
-#[allow(clippy::upper_case_acronyms)]
 #[cfg_attr(any(feature = "serde", test), derive(serde::Deserialize))]
 pub struct EnumPropSerializedCPTStruct {
     #[cfg_attr(any(feature = "serde", test), serde(skip))]

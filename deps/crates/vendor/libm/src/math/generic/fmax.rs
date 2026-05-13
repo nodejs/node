@@ -19,6 +19,5 @@ use crate::support::Float;
 #[inline]
 pub fn fmax<F: Float>(x: F, y: F) -> F {
     let res = if x.is_nan() || x < y { y } else { x };
-    // Canonicalize
-    res * F::ONE
+    res.canonicalize()
 }

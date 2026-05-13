@@ -222,7 +222,7 @@ impl DataError {
     #[inline]
     pub fn with_display_context<D: fmt::Display + ?Sized>(self, context: &D) -> Self {
         if !self.silent {
-            log::warn!("{}: {}", self, context);
+            log::warn!("{self}: {context}");
         }
         self
     }
@@ -235,7 +235,7 @@ impl DataError {
     #[inline]
     pub fn with_debug_context<D: fmt::Debug + ?Sized>(self, context: &D) -> Self {
         if !self.silent {
-            log::warn!("{}: {:?}", self, context);
+            log::warn!("{self}: {context:?}");
         }
         self
     }
@@ -256,7 +256,7 @@ impl core::error::Error for DataError {}
 #[cfg(feature = "std")]
 impl From<std::io::Error> for DataError {
     fn from(e: std::io::Error) -> Self {
-        log::warn!("I/O error: {}", e);
+        log::warn!("I/O error: {e}");
         DataErrorKind::Io(e.kind()).into_error()
     }
 }

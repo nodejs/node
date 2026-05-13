@@ -1917,7 +1917,7 @@ mod tests {
             id: &str,
             before_offset: i64,
             after_offset: i64,
-            provider: &impl TimeZoneProvider,
+            provider: &(impl TimeZoneProvider + ?Sized),
         ) {
             let id = provider.get(id.as_bytes()).unwrap();
             let before_possible = provider

@@ -60,7 +60,7 @@ unsafe impl VarULE for str {
     }
 }
 
-/// Note: VarULE is well-defined for all `[T]` where `T: ULE`, but [`ZeroSlice`] is more ergonomic
+/// Note: [`VarULE`] is well-defined for all `[T] where T: ULE`, but [`ZeroSlice`] is more ergonomic
 /// when `T` is a low-level ULE type. For example:
 ///
 /// ```no_run

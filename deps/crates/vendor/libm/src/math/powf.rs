@@ -46,7 +46,7 @@ const IVLN2_H: f32 = 1.4426879883e+00;
 const IVLN2_L: f32 = 7.0526075433e-06;
 
 /// Returns `x` to the power of `y` (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn powf(x: f32, y: f32) -> f32 {
     let mut z: f32;
     let mut ax: f32;

@@ -1,4 +1,4 @@
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn remquof(mut x: f32, mut y: f32) -> (f32, i32) {
     let ux: u32 = x.to_bits();
     let mut uy: u32 = y.to_bits();

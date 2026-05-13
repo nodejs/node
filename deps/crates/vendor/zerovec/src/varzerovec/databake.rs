@@ -12,7 +12,7 @@ impl<T: VarULE + ?Sized> Bake for VarZeroVec<'_, T, Index16> {
         if self.is_empty() {
             quote! { zerovec::vecs::VarZeroVec16::new() }
         } else {
-            let bytes = databake::Bake::bake(&self.as_bytes(), env);
+            let bytes = Bake::bake(&self.as_bytes(), env);
             // Safety: bytes was obtained from a VarZeroVec via as_bytes() above,
             // and thus is valid for unchecked construction.
             quote! { unsafe { zerovec::vecs::VarZeroVec16::from_bytes_unchecked(#bytes) } }
@@ -26,7 +26,7 @@ impl<T: VarULE + ?Sized> Bake for VarZeroVec<'_, T, Index32> {
         if self.is_empty() {
             quote! { zerovec::vecs::VarZeroVec32::new() }
         } else {
-            let bytes = databake::Bake::bake(&self.as_bytes(), env);
+            let bytes = Bake::bake(&self.as_bytes(), env);
             // Safety: bytes was obtained from a VarZeroVec via as_bytes() above,
             // and thus is valid for unchecked construction.
             quote! { unsafe { zerovec::vecs::VarZeroVec32::from_bytes_unchecked(#bytes) } }
@@ -52,7 +52,7 @@ impl<T: VarULE + ?Sized> Bake for &VarZeroSlice<T, Index16> {
         if self.is_empty() {
             quote! { zerovec::vecs::VarZeroSlice16::new_empty() }
         } else {
-            let bytes = databake::Bake::bake(&self.as_bytes(), env);
+            let bytes = Bake::bake(&self.as_bytes(), env);
             // Safety: bytes was obtained from a VarZeroSlice via as_bytes() above,
             // and thus is valid for unchecked construction.
             quote! { unsafe { zerovec::vecs::VarZeroSlice16::from_bytes_unchecked(#bytes) } }
@@ -66,7 +66,7 @@ impl<T: VarULE + ?Sized> Bake for &VarZeroSlice<T, Index32> {
         if self.is_empty() {
             quote! { zerovec::vecs::VarZeroSlice32::new_empty() }
         } else {
-            let bytes = databake::Bake::bake(&self.as_bytes(), env);
+            let bytes = Bake::bake(&self.as_bytes(), env);
             // Safety: bytes was obtained from a VarZeroSlice via as_bytes() above,
             // and thus is valid for unchecked construction.
             quote! { unsafe { zerovec::vecs::VarZeroSlice32::from_bytes_unchecked(#bytes) } }

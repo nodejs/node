@@ -5,8 +5,8 @@
 use super::*;
 use crate::ule::{AsULE, EncodeAsVarULE, UleError, VarULE};
 use crate::{VarZeroVec, ZeroSlice, ZeroVec};
-use alloc::borrow::Borrow;
 use alloc::boxed::Box;
+use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt;
 use core::iter::FromIterator;
@@ -411,7 +411,7 @@ where
     V: ZeroMapKV<'a, Container = VarZeroVec<'a, V>> + ?Sized,
     V: VarULE,
 {
-    /// Same as `insert()`, but allows using [EncodeAsVarULE](crate::ule::EncodeAsVarULE)
+    /// Same as `insert()`, but allows using [`EncodeAsVarULE`](crate::ule::EncodeAsVarULE)
     /// types with the value to avoid an extra allocation when dealing with custom ULE types.
     ///
     /// ```rust

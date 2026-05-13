@@ -63,7 +63,7 @@ const S03: f32 = 5.1354652442e-07; /* 0x3509daa6 */
 const S04: f32 = 1.1661400734e-09; /* 0x30a045e8 */
 
 /// Zeroth order of the [Bessel function](https://en.wikipedia.org/wiki/Bessel_function) of the first kind (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn j0f(mut x: f32) -> f32 {
     let z: f32;
     let r: f32;
@@ -110,7 +110,7 @@ const V03: f32 = 2.5915085189e-07; /* 0x348b216c */
 const V04: f32 = 4.4111031494e-10; /* 0x2ff280c2 */
 
 /// Zeroth order of the [Bessel function](https://en.wikipedia.org/wiki/Bessel_function) of the second kind (f32).
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn y0f(x: f32) -> f32 {
     let z: f32;
     let u: f32;

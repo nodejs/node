@@ -168,7 +168,7 @@ libm_helper! {
         (fn remquo(x: f64, y: f64) -> (f64, i32);   => remquo);
         (fn rint(x: f64) -> (f64);                  => rint);
         (fn round(x: f64) -> (f64);                 => round);
-        (fn roundevem(x: f64) -> (f64);             => roundeven);
+        (fn roundeven(x: f64) -> (f64);             => roundeven);
         (fn scalbn(x: f64, n: i32) -> (f64);        => scalbn);
         (fn sin(x: f64) -> (f64);                   => sin);
         (fn sincos(x: f64) -> (f64, f64);           => sincos);

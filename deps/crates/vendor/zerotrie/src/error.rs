@@ -20,6 +20,34 @@ pub enum ZeroTrieBuildError {
     /// Mixed-case data was added to a case-insensitive trie.
     #[displaydoc("Mixed-case data added to case-insensitive trie")]
     MixedCase,
+    /// Strings were added to a trie containing the delimiter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::BTreeMap;
+    /// use zerotrie::dense::ZeroAsciiDenseSparse2dTrieOwned;
+    /// use zerotrie::ZeroTrieBuildError;
+    ///
+    /// let mut data: BTreeMap<&str, BTreeMap<&str, usize>> = BTreeMap::new();
+    ///
+    /// // Delimiter in a prefix
+    /// data.entry("aa/bb").or_default().insert("CCC", 1);
+    /// let err =
+    ///     ZeroAsciiDenseSparse2dTrieOwned::try_from_btree_map_str(&data, b'/')
+    ///         .unwrap_err();
+    /// assert_eq!(err, ZeroTrieBuildError::IllegalDelimiter);
+    ///
+    /// // Delimiter in a suffix
+    /// data.clear();
+    /// data.entry("aaa").or_default().insert("BB/CC", 1);
+    /// let err =
+    ///     ZeroAsciiDenseSparse2dTrieOwned::try_from_btree_map_str(&data, b'/')
+    ///         .unwrap_err();
+    /// assert_eq!(err, ZeroTrieBuildError::IllegalDelimiter);
+    /// ```
+    #[displaydoc("Delimiter is contained in one or more strings")]
+    IllegalDelimiter,
 }
 
 impl core::error::Error for ZeroTrieBuildError {}

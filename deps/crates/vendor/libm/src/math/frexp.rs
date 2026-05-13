@@ -1,4 +1,4 @@
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn frexp(x: f64) -> (f64, i32) {
     let mut y = x.to_bits();
     let ee = ((y >> 52) & 0x7ff) as i32;

@@ -12,7 +12,7 @@ use crate::expr::{
 use crate::op::BinOp;
 #[cfg(all(feature = "printing", feature = "full"))]
 use crate::ty::ReturnType;
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 // Reference: https://doc.rust-lang.org/reference/expressions.html#expression-precedence
 pub(crate) enum Precedence {

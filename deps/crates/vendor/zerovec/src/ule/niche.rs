@@ -2,7 +2,7 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use core::{marker::Copy, mem::size_of};
+use core::marker::Copy;
 
 #[cfg(feature = "alloc")]
 use crate::map::ZeroMapKV;
@@ -52,9 +52,9 @@ pub trait NicheBytes<const N: usize> {
 // Any other bit pattern is a valid.
 #[repr(C)]
 pub union NichedOptionULE<U: NicheBytes<N> + ULE, const N: usize> {
-    /// Invariant: The value is `niche` only if the bytes equal NICHE_BIT_PATTERN.
+    /// Invariant: The value is `niche` only if the bytes equal `NICHE_BIT_PATTERN`.
     niche: [u8; N],
-    /// Invariant: The value is `valid` if the `niche` field does not match NICHE_BIT_PATTERN.
+    /// Invariant: The value is `valid` if the `niche` field does not match `NICHE_BIT_PATTERN`.
     valid: U,
 }
 
@@ -69,7 +69,7 @@ impl<U: NicheBytes<N> + ULE + core::fmt::Debug, const N: usize> core::fmt::Debug
 impl<U: NicheBytes<N> + ULE, const N: usize> NichedOptionULE<U, N> {
     /// New `NichedOptionULE<U, N>` from `Option<U>`
     pub fn new(opt: Option<U>) -> Self {
-        assert!(N == core::mem::size_of::<U>());
+        assert!(N == size_of::<U>());
         match opt {
             Some(u) => Self { valid: u },
             None => Self {
@@ -120,23 +120,23 @@ impl<U: NicheBytes<N> + ULE + PartialEq, const N: usize> PartialEq for NichedOpt
 impl<U: NicheBytes<N> + ULE + Eq, const N: usize> Eq for NichedOptionULE<U, N> {}
 
 /// Safety for ULE trait
-/// 1. NichedOptionULE does not have any padding bytes due to `#[repr(C)]` on a struct
+/// 1. `NichedOptionULE` does not have any padding bytes due to `#[repr(C)]` on a struct
 ///    containing only ULE fields.
-///    NichedOptionULE either contains NICHE_BIT_PATTERN or valid U byte sequences.
+///    `NichedOptionULE` either contains `NICHE_BIT_PATTERN` or valid U byte sequences.
 ///    In both cases the data is initialized.
-/// 2. NichedOptionULE is aligned to 1 byte due to `#[repr(C, packed)]` on a struct containing only
+/// 2. `NichedOptionULE` is aligned to 1 byte due to `#[repr(C, packed)]` on a struct containing only
 ///    ULE fields.
-/// 3. validate_bytes impl returns an error if invalid bytes are encountered.
-/// 4. validate_bytes impl returns an error there are extra bytes.
+/// 3. `validate_bytes` impl returns an error if invalid bytes are encountered.
+/// 4. `validate_bytes` impl returns an error there are extra bytes.
 /// 5. The other ULE methods are left to their default impl.
-/// 6. NichedOptionULE equality is based on ULE equality of the subfield, assuming that NicheBytes
+/// 6. `NichedOptionULE` equality is based on ULE equality of the subfield, assuming that `NicheBytes`
 ///    has been implemented correctly (this is a correctness but not a safety guarantee).
 unsafe impl<U: NicheBytes<N> + ULE, const N: usize> ULE for NichedOptionULE<U, N> {
     fn validate_bytes(bytes: &[u8]) -> Result<(), crate::ule::UleError> {
         let size = size_of::<Self>();
         // The implemention is only correct if NICHE_BIT_PATTERN has same number of bytes as the
         // type.
-        debug_assert!(N == core::mem::size_of::<U>());
+        debug_assert!(N == size_of::<U>());
 
         // The bytes should fully transmute to a collection of Self
         if bytes.len() % size != 0 {
@@ -156,7 +156,7 @@ unsafe impl<U: NicheBytes<N> + ULE, const N: usize> ULE for NichedOptionULE<U, N
 
 /// Optional type which uses [`NichedOptionULE<U,N>`] as ULE type.
 ///
-/// The implementors guarantee that `N == core::mem::size_of::<Self>()`
+/// The implementors guarantee that `N == size_of::<Self>()`
 /// `#[repr(transparent)]` guarantees that the layout is same as [`Option<U>`]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[repr(transparent)]

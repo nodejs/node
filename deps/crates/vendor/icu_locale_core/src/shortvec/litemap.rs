@@ -45,6 +45,8 @@ impl<K, V> Store<K, V> for ShortBoxSlice<(K, V)> {
             ZeroOne(ref v) => v.as_ref(),
             #[cfg(feature = "alloc")]
             Multi(ref v) => v.last(),
+            #[cfg(not(feature = "alloc"))]
+            Two([_, ref v]) => Some(v),
         }
         .map(|elt| (&elt.0, &elt.1))
     }

@@ -4,7 +4,7 @@
 
 use super::{Offset, Transition, EPOCH, SECONDS_IN_UTC_DAY};
 use crate::UtcOffset;
-use calendrical_calculations::iso;
+use calendrical_calculations::gregorian;
 use calendrical_calculations::rata_die::RataDie;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -208,14 +208,14 @@ impl TzRuleDate {
 
     /// Given a year, return the 1-indexed day number in that year for this transition
     fn day_in_year(&self, year: i32, day_before_year: RataDie) -> u16 {
-        let days_before_month = iso::days_before_month(year, self.month);
+        let days_before_month = gregorian::days_before_month(year, self.month);
 
         if let RuleMode::DOM = self.mode {
             return days_before_month + u16::from(self.day);
         }
 
         fn weekday(rd: RataDie) -> u8 {
-            const SUNDAY: RataDie = iso::const_fixed_from_iso(0, 12, 31);
+            const SUNDAY: RataDie = gregorian::fixed_from_gregorian(0, 12, 31);
             (rd.since(SUNDAY) % 7) as u8
         }
 
@@ -336,7 +336,7 @@ impl Rule<'_> {
     /// or after the year `i32::MAX`.
     pub(crate) fn for_timestamp(&self, seconds_since_epoch: i64) -> Option<Offset> {
         let local_year = self.local_year_for_timestamp(seconds_since_epoch)?;
-        let day_before_year = iso::day_before_year(local_year);
+        let day_before_year = gregorian::day_before_year(local_year);
 
         let (before, first) = self.transition(local_year, day_before_year, false);
 
@@ -369,7 +369,7 @@ impl Rule<'_> {
         seconds_exact: bool,
     ) -> Option<Transition> {
         let local_year = self.local_year_for_timestamp(seconds_since_epoch)?;
-        let day_before_year = iso::day_before_year(local_year);
+        let day_before_year = gregorian::day_before_year(local_year);
 
         let (_, first) = self.transition(local_year, day_before_year, false);
 
@@ -380,8 +380,12 @@ impl Rule<'_> {
                 return None;
             }
             return Some(
-                self.transition(local_year - 1, iso::day_before_year(local_year - 1), true)
-                    .1,
+                self.transition(
+                    local_year - 1,
+                    gregorian::day_before_year(local_year - 1),
+                    true,
+                )
+                .1,
             );
         }
 
@@ -406,7 +410,7 @@ impl Rule<'_> {
         let local_year = self
             .local_year_for_timestamp(seconds_since_epoch)
             .unwrap_or(self.start_year);
-        let day_before_year = iso::day_before_year(local_year);
+        let day_before_year = gregorian::day_before_year(local_year);
 
         let (_, first) = self.transition(local_year, day_before_year, false);
 
@@ -417,13 +421,18 @@ impl Rule<'_> {
         if seconds_since_epoch < second.since {
             second
         } else {
-            self.transition(local_year + 1, iso::day_before_year(local_year + 1), false)
-                .1
+            self.transition(
+                local_year + 1,
+                gregorian::day_before_year(local_year + 1),
+                false,
+            )
+            .1
         }
     }
 
     fn local_year_for_timestamp(&self, seconds_since_epoch: i64) -> Option<i32> {
-        let Ok(year) = iso::iso_year_from_fixed(EPOCH + (seconds_since_epoch / SECONDS_IN_UTC_DAY))
+        let Ok(year) =
+            gregorian::year_from_fixed(EPOCH + (seconds_since_epoch / SECONDS_IN_UTC_DAY))
         else {
             // Pretend rule doesn't apply anymore after year i32::MAX
             return None;
@@ -457,7 +466,7 @@ mod tests {
             if let Some(rule) = zoneinfo64.final_rule(&TZDB.rules) {
                 let transition = zoneinfo64.transition_offset_at(zoneinfo64.transition_count() - 1);
                 let utc_year =
-                    iso::iso_year_from_fixed(EPOCH + (transition.since / SECONDS_IN_UTC_DAY))
+                    gregorian::year_from_fixed(EPOCH + (transition.since / SECONDS_IN_UTC_DAY))
                         .unwrap();
 
                 assert!(
@@ -661,8 +670,11 @@ mod tests {
                 transition_time: 0,
                 time_mode: TimeMode::Utc,
             }
-            .day_in_year(2025, calendrical_calculations::iso::day_before_year(2025)),
-            calendrical_calculations::iso::days_before_month(2025, 8) + 6
+            .day_in_year(
+                2025,
+                calendrical_calculations::gregorian::day_before_year(2025)
+            ),
+            calendrical_calculations::gregorian::days_before_month(2025, 8) + 6
         );
 
         // Third Saturday in August 2025
@@ -675,8 +687,11 @@ mod tests {
                 transition_time: 0,
                 time_mode: TimeMode::Utc,
             }
-            .day_in_year(2025, calendrical_calculations::iso::day_before_year(2025)),
-            calendrical_calculations::iso::days_before_month(2025, 8) + 16
+            .day_in_year(
+                2025,
+                calendrical_calculations::gregorian::day_before_year(2025)
+            ),
+            calendrical_calculations::gregorian::days_before_month(2025, 8) + 16
         );
     }
 }

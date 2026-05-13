@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.83"
 name = "icu_locale_core"
-version = "2.0.1"
+version = "2.1.1"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -43,7 +43,12 @@ repository = "https://github.com/unicode-org/icu4x"
 all-features = true
 
 [features]
-alloc = []
+alloc = [
+    "litemap/alloc",
+    "tinystr/alloc",
+    "writeable/alloc",
+    "serde?/alloc",
+]
 databake = [
     "dep:databake",
     "alloc",
@@ -51,7 +56,6 @@ databake = [
 serde = [
     "dep:serde",
     "tinystr/serde",
-    "alloc",
 ]
 zerovec = [
     "dep:zerovec",
@@ -103,57 +107,22 @@ default-features = false
 
 [dependencies.litemap]
 version = "0.8.0"
-features = ["alloc"]
 default-features = false
 
 [dependencies.serde]
-version = "1.0.110"
-features = [
-    "alloc",
-    "derive",
-]
+version = "1.0.220"
 optional = true
 default-features = false
 
 [dependencies.tinystr]
 version = "0.8.0"
-features = ["alloc"]
 default-features = false
 
 [dependencies.writeable]
 version = "0.6.0"
-features = ["alloc"]
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.1"
+version = "0.11.3"
 optional = true
 default-features = false
-
-[dev-dependencies.iai]
-version = "0.1.1"
-
-[dev-dependencies.litemap]
-version = "0.8.0"
-features = ["testing"]
-default-features = false
-
-[dev-dependencies.postcard]
-version = "1.0.3"
-features = ["use-std"]
-default-features = false
-
-[dev-dependencies.potential_utf]
-version = "0.1.1"
-default-features = false
-
-[dev-dependencies.serde]
-version = "1.0.110"
-features = ["derive"]
-default-features = false
-
-[dev-dependencies.serde_json]
-version = "1.0.45"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.criterion]
-version = "0.5.0"

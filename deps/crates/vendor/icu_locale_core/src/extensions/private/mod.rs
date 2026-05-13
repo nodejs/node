@@ -89,6 +89,8 @@ impl Private {
 
     /// A constructor which takes a str slice, parses it and
     /// produces a well-formed [`Private`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[inline]
     #[cfg(feature = "alloc")]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
@@ -96,6 +98,8 @@ impl Private {
     }
 
     /// See [`Self::try_from_str`]
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         let mut iter = SubtagIterator::new(code_units);
@@ -109,6 +113,8 @@ impl Private {
     }
 
     /// A constructor which takes a pre-sorted list of [`Subtag`].
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     ///
     /// # Examples
     ///
@@ -190,6 +196,7 @@ impl Private {
     }
 }
 
+/// ✨ *Enabled with the `alloc` Cargo feature.*
 #[cfg(feature = "alloc")]
 impl FromStr for Private {
     type Err = ParseError;
@@ -200,7 +207,7 @@ impl FromStr for Private {
     }
 }
 
-writeable::impl_display_with_writeable!(Private);
+writeable::impl_display_with_writeable!(Private, #[cfg(feature = "alloc")]);
 
 impl writeable::Writeable for Private {
     fn write_to<W: core::fmt::Write + ?Sized>(&self, sink: &mut W) -> core::fmt::Result {

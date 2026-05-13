@@ -48,3 +48,8 @@ cfg_if! {
         pub use i586::{ceil, floor};
     }
 }
+cfg_if! {
+    if #[cfg(x86_no_sse)] {
+        pub use i586::{x87_exp10f, x87_exp10, x87_expf, x87_exp, x87_exp2f, x87_exp2};
+    }
+}

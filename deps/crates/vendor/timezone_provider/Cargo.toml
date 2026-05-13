@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.82.0"
+rust-version = "1.83.0"
 name = "timezone_provider"
-version = "0.1.0"
+version = "0.1.2"
 authors = ["boa-dev"]
 build = false
 include = [
@@ -89,7 +89,7 @@ version = "1.0.145"
 optional = true
 
 [dependencies.tinystr]
-version = "0.8.1"
+version = "0.8.0"
 features = ["zerovec"]
 
 [dependencies.tzif]
@@ -102,10 +102,10 @@ features = ["derive"]
 optional = true
 
 [dependencies.zerotrie]
-version = "0.2.2"
+version = "0.2.0"
 
 [dependencies.zerovec]
-version = "0.11.4"
+version = "0.11.0"
 features = [
     "derive",
     "alloc",
@@ -116,6 +116,6 @@ version = "0.2.0"
 optional = true
 
 [dependencies.zoneinfo_rs]
-version = "~0.0.17"
+version = "0.0.18"
 features = ["std"]
 optional = true

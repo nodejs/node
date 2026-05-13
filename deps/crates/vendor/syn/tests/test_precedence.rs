@@ -37,8 +37,6 @@ extern crate rustc_ast_pretty;
 extern crate rustc_data_structures;
 extern crate rustc_driver;
 extern crate rustc_span;
-extern crate smallvec;
-extern crate thin_vec;
 
 use crate::common::eq::SpanlessEq;
 use crate::common::parse;
@@ -210,10 +208,10 @@ fn librustc_parenthesize(mut librustc_expr: Box<ast::Expr>) -> Box<ast::Expr> {
     use rustc_ast::mut_visit::{walk_flat_map_assoc_item, MutVisitor};
     use rustc_ast::visit::{AssocCtxt, BoundKind};
     use rustc_data_structures::flat_map_in_place::FlatMapInPlace;
+    use rustc_data_structures::smallvec::SmallVec;
+    use rustc_data_structures::thin_vec::ThinVec;
     use rustc_span::DUMMY_SP;
-    use smallvec::SmallVec;
     use std::ops::DerefMut;
-    use thin_vec::ThinVec;
 
     struct FullyParenthesize;
 

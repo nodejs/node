@@ -45,7 +45,7 @@ use super::{k_cos, k_sin, rem_pio2};
 /// The cosine of `x` (f64).
 ///
 /// `x` is specified in radians.
-#[cfg_attr(all(test, assert_no_panic), no_panic::no_panic)]
+#[cfg_attr(assert_no_panic, no_panic::no_panic)]
 pub fn cos(x: f64) -> f64 {
     let ix = (f64::to_bits(x) >> 32) as u32 & 0x7fffffff;
 

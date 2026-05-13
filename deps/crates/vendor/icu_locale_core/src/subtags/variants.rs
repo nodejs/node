@@ -62,6 +62,8 @@ impl Variants {
     /// The caller is expected to provide sorted and deduplicated vector as
     /// an input.
     ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
+    ///
     /// # Examples
     ///
     /// ```

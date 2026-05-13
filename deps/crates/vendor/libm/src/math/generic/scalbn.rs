@@ -96,14 +96,14 @@ where
             // Work aroudn this by using a different algorithm that calculates the prescale
             // dynamically based on the maximum possible value. This adds more operations per round
             // since it needs to construct the scale, but works better in the general case.
-            let add = -(n + sig_total_bits as i32).clamp(exp_min, sig_total_bits as i32);
+            let add = -(n + sig_total_bits as i32).max(exp_min);
             let mul = F::from_parts(false, (F::EXP_BIAS as i32 - add) as u32, zero);
 
             x *= mul;
             n += add;
 
             if n < exp_min {
-                let add = -(n + sig_total_bits as i32).clamp(exp_min, sig_total_bits as i32);
+                let add = -(n + sig_total_bits as i32).max(exp_min);
                 let mul = F::from_parts(false, (F::EXP_BIAS as i32 - add) as u32, zero);
 
                 x *= mul;

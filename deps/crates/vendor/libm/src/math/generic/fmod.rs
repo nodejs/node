@@ -1,8 +1,12 @@
 /* SPDX-License-Identifier: MIT OR Apache-2.0 */
-use crate::support::{CastFrom, Float, Int, MinInt};
+use crate::support::{CastFrom, CastInto, Float, HInt, Int, MinInt, NarrowingDiv};
 
 #[inline]
-pub fn fmod<F: Float>(x: F, y: F) -> F {
+pub fn fmod<F: Float>(x: F, y: F) -> F
+where
+    F::Int: HInt,
+    <F::Int as HInt>::D: NarrowingDiv,
+{
     let _1 = F::Int::ONE;
     let sx = x.to_bits() & F::SIGN_MASK;
     let ux = x.to_bits() & !F::SIGN_MASK;
@@ -29,7 +33,7 @@ pub fn fmod<F: Float>(x: F, y: F) -> F {
 
     // To compute `(num << ex) % (div << ey)`, first
     // evaluate `rem = (num << (ex - ey)) % div` ...
-    let rem = reduction(num, ex - ey, div);
+    let rem = reduction::<F>(num, ex - ey, div);
     // ... so the result will be `rem << ey`
 
     if rem.is_zero() {
@@ -58,11 +62,55 @@ fn into_sig_exp<F: Float>(mut bits: F::Int) -> (F::Int, u32) {
 }
 
 /// Compute the remainder `(x * 2.pow(e)) % y` without overflow.
-fn reduction<I: Int>(mut x: I, e: u32, y: I) -> I {
-    x %= y;
-    for _ in 0..e {
-        x <<= 1;
-        x = x.checked_sub(y).unwrap_or(x);
+fn reduction<F>(mut x: F::Int, e: u32, y: F::Int) -> F::Int
+where
+    F: Float,
+    F::Int: HInt,
+    <<F as Float>::Int as HInt>::D: NarrowingDiv,
+{
+    // `f16` only has 5 exponent bits, so even `f16::MAX = 65504.0` is only
+    // a 40-bit integer multiple of the smallest subnormal.
+    if F::BITS == 16 {
+        debug_assert!(F::EXP_MAX - F::EXP_MIN == 29);
+        debug_assert!(e <= 29);
+        let u: u16 = x.cast();
+        let v: u16 = y.cast();
+        let u = (u as u64) << e;
+        let v = v as u64;
+        return F::Int::cast_from((u % v) as u16);
     }
-    x
+
+    // Ensure `x < 2y` for later steps
+    if x >= (y << 1) {
+        // This case is only reached with subnormal divisors,
+        // but it might be better to just normalize all significands
+        // to make this unnecessary. The further calls could potentially
+        // benefit from assuming a specific fixed leading bit position.
+        x %= y;
+    }
+
+    // The simple implementation seems to be fastest for a short reduction
+    // at this size. The limit here was chosen empirically on an Intel Nehalem.
+    // Less old CPUs that have faster `u64 * u64 -> u128` might not benefit,
+    // and 32-bit systems or architectures without hardware multipliers might
+    // want to do this in more cases.
+    if F::BITS == 64 && e < 32 {
+        // Assumes `x < 2y`
+        for _ in 0..e {
+            x = x.checked_sub(y).unwrap_or(x);
+            x <<= 1;
+        }
+        return x.checked_sub(y).unwrap_or(x);
+    }
+
+    // Fast path for short reductions
+    if e < F::BITS {
+        let w = x.widen() << e;
+        if let Some((_, r)) = w.checked_narrowing_div_rem(y) {
+            return r;
+        }
+    }
+
+    // Assumes `x < 2y`
+    crate::support::linear_mul_reduction(x, e, y)
 }

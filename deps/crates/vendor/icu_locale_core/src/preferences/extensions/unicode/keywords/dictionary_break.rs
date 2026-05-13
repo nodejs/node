@@ -2,25 +2,20 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-#[cfg(feature = "alloc")]
 use crate::extensions::unicode::Value;
-#[cfg(feature = "alloc")]
 use crate::preferences::extensions::unicode::errors::PreferencesParseError;
-#[cfg(feature = "alloc")]
 use crate::preferences::extensions::unicode::struct_keyword;
-#[cfg(feature = "alloc")]
 use crate::subtags::Script;
-#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
-#[cfg(feature = "alloc")]
 use core::str::FromStr;
 
-#[cfg(feature = "alloc")]
 struct_keyword!(
     /// A Unicode Dictionary Break Exclusion Identifier specifies
     /// scripts to be excluded from dictionary-based text break (for words and lines).
     ///
     /// The valid values are of one or more items of type [`Script`](crate::subtags::Script).
+    ///
+    /// ✨ *Enabled with the `alloc` Cargo feature.*
     DictionaryBreakScriptExclusions,
     "dx",
     Vec<Script>,

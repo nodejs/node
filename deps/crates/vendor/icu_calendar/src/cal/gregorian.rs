@@ -2,122 +2,39 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! This module contains types and implementations for the Gregorian calendar.
-//!
-//! ```rust
-//! use icu::calendar::{cal::Gregorian, Date};
-//!
-//! let date_iso = Date::try_new_iso(1970, 1, 2)
-//!     .expect("Failed to initialize ISO Date instance.");
-//! let date_gregorian = Date::new_from_iso(date_iso, Gregorian);
-//!
-//! assert_eq!(date_gregorian.era_year().year, 1970);
-//! assert_eq!(date_gregorian.month().ordinal, 1);
-//! assert_eq!(date_gregorian.day_of_month().0, 2);
-//! ```
-
-use crate::cal::iso::{Iso, IsoDateInner};
+use crate::cal::abstract_gregorian::{impl_with_abstract_gregorian, GregorianYears};
 use crate::calendar_arithmetic::ArithmeticDate;
-use crate::error::{year_check, DateError};
-use crate::{types, Calendar, Date, DateDuration, DateDurationUnit, RangeError};
-use calendrical_calculations::rata_die::RataDie;
+use crate::error::UnknownEraError;
+use crate::preferences::CalendarAlgorithm;
+use crate::{types, Date, DateError, RangeError};
 use tinystr::tinystr;
 
-/// The [(proleptic) Gregorian Calendar](https://en.wikipedia.org/wiki/Proleptic_Gregorian_calendar)
-///
-/// The Gregorian calendar is a solar calendar used by most of the world, with twelve months.
-///
-/// This type can be used with [`Date`] to represent dates in this calendar.
-///
-/// # Era codes
-///
-/// This calendar uses two era codes: `bce` (alias `bc`), and `ce` (alias `ad`), corresponding to the BCE and CE eras.
-///
-/// # Month codes
-///
-/// This calendar supports 12 solar month codes (`"M01" - "M12"`)
-#[derive(Copy, Clone, Debug, Default)]
-#[allow(clippy::exhaustive_structs)] // this type is stable
-pub struct Gregorian;
+impl_with_abstract_gregorian!(crate::cal::Gregorian, GregorianDateInner, CeBce, _x, CeBce);
 
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
-/// The inner date type used for representing [`Date`]s of [`Gregorian`]. See [`Date`] and [`Gregorian`] for more details.
-pub struct GregorianDateInner(pub(crate) IsoDateInner);
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CeBce;
 
-impl crate::cal::scaffold::UnstableSealed for Gregorian {}
-impl Calendar for Gregorian {
-    type DateInner = GregorianDateInner;
-    type Year = types::EraYear;
-    fn from_codes(
+impl GregorianYears for CeBce {
+    fn extended_from_era_year(
         &self,
-        era: Option<&str>,
+        era: Option<&[u8]>,
         year: i32,
-        month_code: types::MonthCode,
-        day: u8,
-    ) -> Result<Self::DateInner, DateError> {
-        let year = match era {
-            Some("bce" | "bc") => 1 - year_check(year, 1..)?,
-            Some("ad" | "ce") | None => year_check(year, 1..)?,
-            Some(_) => return Err(DateError::UnknownEra),
-        };
-
-        ArithmeticDate::new_from_codes(self, year, month_code, day)
-            .map(IsoDateInner)
-            .map(GregorianDateInner)
+    ) -> Result<i32, UnknownEraError> {
+        match era {
+            None => Ok(year),
+            Some(b"ad" | b"ce") => Ok(year),
+            Some(b"bce" | b"bc") => Ok(1 - year),
+            Some(_) => Err(UnknownEraError),
+        }
     }
 
-    fn from_rata_die(&self, rd: RataDie) -> Self::DateInner {
-        GregorianDateInner(Iso.from_rata_die(rd))
-    }
-
-    fn to_rata_die(&self, date: &Self::DateInner) -> RataDie {
-        Iso.to_rata_die(&date.0)
-    }
-
-    fn from_iso(&self, iso: IsoDateInner) -> GregorianDateInner {
-        GregorianDateInner(iso)
-    }
-
-    fn to_iso(&self, date: &Self::DateInner) -> IsoDateInner {
-        date.0
-    }
-
-    fn months_in_year(&self, date: &Self::DateInner) -> u8 {
-        Iso.months_in_year(&date.0)
-    }
-
-    fn days_in_year(&self, date: &Self::DateInner) -> u16 {
-        Iso.days_in_year(&date.0)
-    }
-
-    fn days_in_month(&self, date: &Self::DateInner) -> u8 {
-        Iso.days_in_month(&date.0)
-    }
-
-    fn offset_date(&self, date: &mut Self::DateInner, offset: DateDuration<Self>) {
-        Iso.offset_date(&mut date.0, offset.cast_unit())
-    }
-
-    #[allow(clippy::field_reassign_with_default)] // it's more clear this way
-    fn until(
-        &self,
-        date1: &Self::DateInner,
-        date2: &Self::DateInner,
-        _calendar2: &Self,
-        largest_unit: DateDurationUnit,
-        smallest_unit: DateDurationUnit,
-    ) -> DateDuration<Self> {
-        Iso.until(&date1.0, &date2.0, &Iso, largest_unit, smallest_unit)
-            .cast_unit()
-    }
-    /// The calendar-specific year represented by `date`
-    fn year_info(&self, date: &Self::DateInner) -> Self::Year {
-        let extended_year = self.extended_year(date);
+    fn era_year_from_extended(&self, extended_year: i32, _month: u8, _day: u8) -> types::EraYear {
         if extended_year > 0 {
             types::EraYear {
                 era: tinystr!(16, "ce"),
                 era_index: Some(1),
                 year: extended_year,
+                extended_year,
                 ambiguity: match extended_year {
                     ..=999 => types::YearAmbiguity::EraAndCenturyRequired,
                     1000..=1949 => types::YearAmbiguity::CenturyRequired,
@@ -129,43 +46,76 @@ impl Calendar for Gregorian {
             types::EraYear {
                 era: tinystr!(16, "bce"),
                 era_index: Some(0),
-                year: 1_i32.saturating_sub(extended_year),
+                year: 1 - extended_year,
+                extended_year,
                 ambiguity: types::YearAmbiguity::EraAndCenturyRequired,
             }
         }
-    }
-
-    fn extended_year(&self, date: &Self::DateInner) -> i32 {
-        Iso.extended_year(&date.0)
-    }
-
-    fn is_in_leap_year(&self, date: &Self::DateInner) -> bool {
-        Iso.is_in_leap_year(&date.0)
-    }
-
-    /// The calendar-specific month represented by `date`
-    fn month(&self, date: &Self::DateInner) -> types::MonthInfo {
-        Iso.month(&date.0)
-    }
-
-    /// The calendar-specific day-of-month represented by `date`
-    fn day_of_month(&self, date: &Self::DateInner) -> types::DayOfMonth {
-        Iso.day_of_month(&date.0)
-    }
-
-    /// Information of the day of the year
-    fn day_of_year(&self, date: &Self::DateInner) -> types::DayOfYear {
-        date.0 .0.day_of_year()
     }
 
     fn debug_name(&self) -> &'static str {
         "Gregorian"
     }
 
-    fn calendar_algorithm(&self) -> Option<crate::preferences::CalendarAlgorithm> {
-        Some(crate::preferences::CalendarAlgorithm::Gregory)
+    fn calendar_algorithm(&self) -> Option<CalendarAlgorithm> {
+        Some(CalendarAlgorithm::Gregory)
     }
 }
+
+/// The [Gregorian Calendar](https://en.wikipedia.org/wiki/Gregorian_calendar)
+///
+/// The Gregorian calendar is an improvement over the [`Julian`](super::Julian) calendar.
+/// It was adopted under Pope Gregory XIII in 1582 CE by much of Roman Catholic Europe,
+/// and over the following centuries by all other countries that had been using
+/// the Julian calendar. Eventually even countries that had been using other calendars
+/// adopted this calendar, and today it is used as the international civil calendar.
+///
+/// This implementation extends proleptically for dates before the calendar's creation.
+///
+/// This corresponds to the `"gregory"` [CLDR calendar](https://unicode.org/reports/tr35/#UnicodeCalendarIdentifier).
+///
+/// # Era codes
+///
+/// This calendar uses two era codes: `bce` (alias `bc`), and `ce` (alias `ad`), corresponding to the BCE and CE eras.
+///
+/// # Months and days
+///
+/// The 12 months are called January (`M01`, 31 days), February (`M02`, 28 days),
+/// March (`M03`, 31 days), April (`M04`, 30 days), May (`M05`, 31 days), June (`M06`, 30 days),
+/// July (`M07`, 31 days), August (`M08`, 31 days), September (`M09`, 30 days),
+/// October (`M10`, 31 days), November (`M11`, 30 days), December (`M12`, 31 days).
+///
+/// In leap years (years divisible by 4 but not 100 except when divisble by 400), February gains a 29th day.
+///
+/// Standard years thus have 365 days, and leap years 366.
+///
+/// # Calendar drift
+///
+/// The Gregorian calendar has an average year length of 365.2425, slightly longer than
+/// the mean solar year, so this calendar drifts 1 day in ~7700 years with respect
+/// to the seasons.
+///
+/// # Historical accuracy
+///
+/// This type implements the [*proleptic* Gregorian calendar](
+/// https://en.wikipedia.org/wiki/Gregorian_calendar#Proleptic_Gregorian_calendar),
+/// with dates before 1582 CE using the rules projected backwards. Care needs to be taken
+/// when intepreting historical dates before or during the transition from the Julian to
+/// the Gregorian calendar. [Some regions](https://en.wikipedia.org/wiki/Adoption_of_the_Gregorian_calendar)
+/// continued using the Julian calendar as late as the 20th century. Sources often
+/// mark dates as "New Style" (Gregorian) or "Old Style" (Julian) if there is ambiguity.
+///
+/// Historically, the Julian/Gregorian calendars were used with a variety of year reckoning
+/// schemes (see [`Julian`](super::Julian) for more detail). The Gregorian calendar has generally
+/// been used with the [Anno Domini](https://en.wikipedia.org/wiki/Anno_Domini)/[Common era](
+/// https://en.wikipedia.org/wiki/Common_Era) since its inception. However, some countries
+/// that have adopted the Gregorian calendar more recently are still using their traditional
+/// year-reckoning schemes. This crate implements some of these as different types, i.e the Thai
+/// [`Buddhist`](super::Buddhist) calendar, the [`Japanese`](super::Japanese) calendar, and the
+/// Chinese Republican Calendar ([`Roc`](super::Roc)).
+#[derive(Copy, Clone, Debug, Default)]
+#[allow(clippy::exhaustive_structs)] // this type is stable
+pub struct Gregorian;
 
 impl Date<Gregorian> {
     /// Construct a new Gregorian Date.
@@ -184,12 +134,22 @@ impl Date<Gregorian> {
     /// assert_eq!(date_gregorian.day_of_month().0, 2);
     /// ```
     pub fn try_new_gregorian(year: i32, month: u8, day: u8) -> Result<Date<Gregorian>, RangeError> {
-        Date::try_new_iso(year, month, day).map(|d| Date::new_from_iso(d, Gregorian))
+        ArithmeticDate::new_gregorian::<CeBce>(year, month, day)
+            .map(GregorianDateInner)
+            .map(|i| Date::from_raw(i, Gregorian))
+    }
+}
+
+impl Gregorian {
+    /// Returns the date of Easter in the given year.
+    pub fn easter(year: i32) -> Date<Self> {
+        Date::from_rata_die(calendrical_calculations::gregorian::easter(year), Self)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::cal::Iso;
     use calendrical_calculations::rata_die::RataDie;
 
     use super::*;

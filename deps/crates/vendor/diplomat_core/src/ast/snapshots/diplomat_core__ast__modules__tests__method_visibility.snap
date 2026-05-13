@@ -20,6 +20,11 @@ declared_types:
             - []
           abi_name: Foo_pub_fn
           self_param: ~
+          self_type:
+            path:
+              elements:
+                - Foo
+            lifetimes: []
           params: []
           return_type: ~
           lifetime_env: {}

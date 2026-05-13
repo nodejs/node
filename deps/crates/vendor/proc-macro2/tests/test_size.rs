@@ -4,7 +4,6 @@ extern crate proc_macro;
 
 use std::mem;
 
-#[rustversion::attr(before(1.64), ignore = "requires Rust 1.64+")]
 #[cfg_attr(not(target_pointer_width = "64"), ignore = "only applicable to 64-bit")]
 #[cfg_attr(randomize_layout, ignore = "disabled due to randomized layout")]
 #[test]
@@ -64,7 +63,6 @@ fn test_proc_macro2_wrapper_size_without_locations() {
     assert_eq!(mem::size_of::<proc_macro2::TokenStream>(), 32);
 }
 
-#[rustversion::attr(before(1.65), ignore = "requires Rust 1.65+")]
 #[cfg_attr(not(target_pointer_width = "64"), ignore = "only applicable to 64-bit")]
 #[cfg_attr(randomize_layout, ignore = "disabled due to randomized layout")]
 #[cfg_attr(not(wrap_proc_macro), ignore = "fallback mode")]

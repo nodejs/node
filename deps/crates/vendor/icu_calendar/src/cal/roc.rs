@@ -2,136 +2,63 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-//! This module contains types and implementations for the Republic of China calendar.
-//!
-//! ```rust
-//! use icu::calendar::{cal::Roc, Date};
-//!
-//! let date_iso = Date::try_new_iso(1970, 1, 2)
-//!     .expect("Failed to initialize ISO Date instance.");
-//! let date_roc = Date::new_from_iso(date_iso, Roc);
-//!
-//! assert_eq!(date_roc.era_year().year, 59);
-//! assert_eq!(date_roc.month().ordinal, 1);
-//! assert_eq!(date_roc.day_of_month().0, 2);
-//! ```
-
-use crate::error::year_check;
-use crate::{
-    cal::iso::IsoDateInner, calendar_arithmetic::ArithmeticDate, error::DateError, types, Calendar,
-    Date, Iso, RangeError,
-};
-use calendrical_calculations::rata_die::RataDie;
+use crate::cal::abstract_gregorian::{impl_with_abstract_gregorian, GregorianYears};
+use crate::calendar_arithmetic::ArithmeticDate;
+use crate::error::UnknownEraError;
+use crate::preferences::CalendarAlgorithm;
+use crate::{types, Date, DateError, RangeError};
 use tinystr::tinystr;
-
-/// Year of the beginning of the Taiwanese (ROC/Minguo) calendar.
-/// 1912 ISO = ROC 1
-const ROC_ERA_OFFSET: i32 = 1911;
 
 /// The [Republic of China Calendar](https://en.wikipedia.org/wiki/Republic_of_China_calendar)
 ///
-/// The ROC calendar is a solar calendar used in Taiwan and Penghu, as well as by overseas diaspora from
-/// those locations. Months and days are identical to the [`Gregorian`](super::Gregorian) calendar, while years are counted
-/// with 1912, the year of the establishment of the Republic of China, as year 1 of the ROC/Minguo/民国/民國 era.
+/// The ROC Calendar is a variant of the [`Gregorian`](crate::cal::Gregorian) calendar
+/// created by the government of the Republic of China. It is identical to the Gregorian
+/// calendar except that is uses the ROC/Minguo/民国/民國 Era (1912 CE) instead of the Common Era.
 ///
-/// The ROC calendar should not be confused with the Chinese traditional lunar calendar
-/// (see [`Chinese`](crate::cal::Chinese)).
+/// This implementation extends proleptically for dates before the calendar's creation
+/// in 1 Minguo (1912 CE).
+///
+/// The ROC calendar should not be confused with the [`ChineseTraditional`](crate::cal::ChineseTraditional)
+/// lunisolar calendar.
+///
+/// This corresponds to the `"roc"` [CLDR calendar](https://unicode.org/reports/tr35/#UnicodeCalendarIdentifier).
 ///
 /// # Era codes
 ///
 /// This calendar uses two era codes: `roc`, corresponding to years in the 民國 era (CE year 1912 and
 /// after), and `broc`, corresponding to years before the 民國 era (CE year 1911 and before).
-///
-///
-/// # Month codes
-///
-/// This calendar supports 12 solar month codes (`"M01" - "M12"`)
 #[derive(Copy, Clone, Debug, Default)]
 #[allow(clippy::exhaustive_structs)] // this type is stable
 pub struct Roc;
 
-/// The inner date type used for representing [`Date`]s of [`Roc`]. See [`Date`] and [`Roc`] for more info.
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
-pub struct RocDateInner(IsoDateInner);
+impl_with_abstract_gregorian!(crate::cal::Roc, RocDateInner, RocEra, _x, RocEra);
 
-impl crate::cal::scaffold::UnstableSealed for Roc {}
-impl Calendar for Roc {
-    type DateInner = RocDateInner;
-    type Year = types::EraYear;
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct RocEra;
 
-    fn from_codes(
+impl GregorianYears for RocEra {
+    const EXTENDED_YEAR_OFFSET: i32 = 1911;
+
+    fn extended_from_era_year(
         &self,
-        era: Option<&str>,
+        era: Option<&[u8]>,
         year: i32,
-        month_code: crate::types::MonthCode,
-        day: u8,
-    ) -> Result<Self::DateInner, DateError> {
-        let year = match era {
-            Some("roc") | None => ROC_ERA_OFFSET + year_check(year, 1..)?,
-            Some("broc") => ROC_ERA_OFFSET + 1 - year_check(year, 1..)?,
-            Some(_) => return Err(DateError::UnknownEra),
-        };
-
-        ArithmeticDate::new_from_codes(self, year, month_code, day)
-            .map(IsoDateInner)
-            .map(RocDateInner)
+    ) -> Result<i32, UnknownEraError> {
+        match era {
+            None => Ok(year),
+            Some(b"roc") => Ok(year),
+            Some(b"broc") => Ok(1 - year),
+            Some(_) => Err(UnknownEraError),
+        }
     }
 
-    fn from_rata_die(&self, rd: RataDie) -> Self::DateInner {
-        RocDateInner(Iso.from_rata_die(rd))
-    }
-
-    fn to_rata_die(&self, date: &Self::DateInner) -> RataDie {
-        Iso.to_rata_die(&date.0)
-    }
-
-    fn from_iso(&self, iso: IsoDateInner) -> Self::DateInner {
-        RocDateInner(iso)
-    }
-
-    fn to_iso(&self, date: &Self::DateInner) -> IsoDateInner {
-        date.0
-    }
-
-    fn months_in_year(&self, date: &Self::DateInner) -> u8 {
-        Iso.months_in_year(&date.0)
-    }
-
-    fn days_in_year(&self, date: &Self::DateInner) -> u16 {
-        Iso.days_in_year(&date.0)
-    }
-
-    fn days_in_month(&self, date: &Self::DateInner) -> u8 {
-        Iso.days_in_month(&date.0)
-    }
-
-    fn offset_date(&self, date: &mut Self::DateInner, offset: crate::DateDuration<Self>) {
-        Iso.offset_date(&mut date.0, offset.cast_unit())
-    }
-
-    fn until(
-        &self,
-        date1: &Self::DateInner,
-        date2: &Self::DateInner,
-        _calendar2: &Self,
-        largest_unit: crate::DateDurationUnit,
-        smallest_unit: crate::DateDurationUnit,
-    ) -> crate::DateDuration<Self> {
-        Iso.until(&date1.0, &date2.0, &Iso, largest_unit, smallest_unit)
-            .cast_unit()
-    }
-
-    fn debug_name(&self) -> &'static str {
-        "ROC"
-    }
-
-    fn year_info(&self, date: &Self::DateInner) -> Self::Year {
-        let extended_year = self.extended_year(date);
+    fn era_year_from_extended(&self, extended_year: i32, _month: u8, _day: u8) -> types::EraYear {
         if extended_year > 0 {
             types::EraYear {
                 era: tinystr!(16, "roc"),
                 era_index: Some(1),
                 year: extended_year,
+                extended_year,
                 ambiguity: types::YearAmbiguity::CenturyRequired,
             }
         } else {
@@ -139,33 +66,18 @@ impl Calendar for Roc {
                 era: tinystr!(16, "broc"),
                 era_index: Some(0),
                 year: 1 - extended_year,
+                extended_year,
                 ambiguity: types::YearAmbiguity::EraAndCenturyRequired,
             }
         }
     }
 
-    fn extended_year(&self, date: &Self::DateInner) -> i32 {
-        Iso.extended_year(&date.0) - ROC_ERA_OFFSET
+    fn debug_name(&self) -> &'static str {
+        "ROC"
     }
 
-    fn is_in_leap_year(&self, date: &Self::DateInner) -> bool {
-        Iso.is_in_leap_year(&date.0)
-    }
-
-    fn month(&self, date: &Self::DateInner) -> crate::types::MonthInfo {
-        Iso.month(&date.0)
-    }
-
-    fn day_of_month(&self, date: &Self::DateInner) -> crate::types::DayOfMonth {
-        Iso.day_of_month(&date.0)
-    }
-
-    fn day_of_year(&self, date: &Self::DateInner) -> types::DayOfYear {
-        Iso.day_of_year(&date.0)
-    }
-
-    fn calendar_algorithm(&self) -> Option<crate::preferences::CalendarAlgorithm> {
-        Some(crate::preferences::CalendarAlgorithm::Roc)
+    fn calendar_algorithm(&self) -> Option<CalendarAlgorithm> {
+        Some(CalendarAlgorithm::Roc)
     }
 }
 
@@ -185,7 +97,7 @@ impl Date<Roc> {
     /// let date_roc = Date::try_new_roc(1, 2, 3)
     ///     .expect("Failed to initialize ROC Date instance.");
     ///
-    /// assert_eq!(date_roc.era_year().era, tinystr!(16, "roc"));
+    /// assert_eq!(date_roc.era_year().era, "roc");
     /// assert_eq!(date_roc.era_year().year, 1, "ROC year check failed!");
     /// assert_eq!(date_roc.month().ordinal, 2, "ROC month check failed!");
     /// assert_eq!(date_roc.day_of_month().0, 3, "ROC day of month check failed!");
@@ -197,8 +109,9 @@ impl Date<Roc> {
     /// assert_eq!(date_gregorian.month().ordinal, 2, "Gregorian from ROC month check failed!");
     /// assert_eq!(date_gregorian.day_of_month().0, 3, "Gregorian from ROC day of month check failed!");
     pub fn try_new_roc(year: i32, month: u8, day: u8) -> Result<Date<Roc>, RangeError> {
-        let iso_year = year.saturating_add(ROC_ERA_OFFSET);
-        Date::try_new_iso(iso_year, month, day).map(|d| Date::new_from_iso(d, Roc))
+        ArithmeticDate::new_gregorian::<RocEra>(year, month, day)
+            .map(RocDateInner)
+            .map(|i| Date::from_raw(i, Roc))
     }
 }
 
@@ -206,6 +119,7 @@ impl Date<Roc> {
 mod test {
 
     use super::*;
+    use crate::cal::Iso;
     use calendrical_calculations::rata_die::RataDie;
 
     #[derive(Debug)]

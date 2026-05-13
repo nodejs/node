@@ -1,6 +1,10 @@
 // The subset of Span's API stabilized in Rust 1.88.
 
+#![cfg_attr(procmacro2_build_probe, no_std)]
+
+extern crate alloc;
 extern crate proc_macro;
+extern crate std;
 
 use proc_macro::Span;
 

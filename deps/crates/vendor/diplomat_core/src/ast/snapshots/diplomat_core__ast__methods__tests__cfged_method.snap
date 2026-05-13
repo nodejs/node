@@ -1,6 +1,6 @@
 ---
 source: core/src/ast/methods.rs
-expression: "Method::from_syn(&syn::parse_quote! {\n                #[doc = r\" Some docs.\"]\n                #[diplomat::rust_link(foo::Bar::batz, FnInStruct)]\n                #[cfg(any(feature = \"foo\", not(feature = \"bar\")))] fn\n                foo(x: u64, y: MyCustomStruct) {}\n            },\n    PathType::new(Path::empty().sub_path(Ident::from(\"MyStructContainingMethod\"))),\n    None, &Attrs::default())"
+expression: "Method::from_syn(&syn::parse_quote!\n{\n    #[doc = r\" Some docs.\"] #[diplomat::rust_link(foo::Bar::batz, FnInStruct)]\n    #[cfg(any(feature = \"foo\", not(feature = \"bar\")))] fn\n    foo(x: u64, y: MyCustomStruct) {}\n},\nPathType::new(Path::empty().sub_path(Ident::from(\"MyStructContainingMethod\"))),\nNone, &Attrs::default())"
 ---
 name: foo
 docs:
@@ -14,6 +14,11 @@ docs:
       display: Normal
 abi_name: MyStructContainingMethod_foo
 self_param: ~
+self_type:
+  path:
+    elements:
+      - MyStructContainingMethod
+  lifetimes: []
 params:
   - name: x
     ty:

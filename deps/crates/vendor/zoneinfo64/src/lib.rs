@@ -11,7 +11,7 @@
 //! let resb = resb::include_bytes_as_u32!("./data/zoneinfo64.res");
 //! // Then we parse the data
 //! let zoneinfo = ZoneInfo64::try_from_u32s(resb)
-//!            .expect("Error processing resource bundle file");
+//!     .expect("Error processing resource bundle file");
 //!
 //! let pacific = zoneinfo.get("America/Los_Angeles").unwrap();
 //! // Calculate the timezone offset for 2024-01-01
@@ -23,11 +23,20 @@
 //! // This is during a DST switchover and is ambiguous
 //! let possible = pacific.for_date_time(2025, 11, 2, 1, 0, 0);
 //! let offset_eight = UtcOffset::from_seconds(-8 * 3600);
-//! assert_eq!(possible, PossibleOffset::Ambiguous {
-//!     before: Offset { offset: offset_seven, rule_applies: true },
-//!     after: Offset { offset: offset_eight, rule_applies: false },
-//!     transition: 1762074000,
-//! });
+//! assert_eq!(
+//!     possible,
+//!     PossibleOffset::Ambiguous {
+//!         before: Offset {
+//!             offset: offset_seven,
+//!             rule_applies: true
+//!         },
+//!         after: Offset {
+//!             offset: offset_eight,
+//!             rule_applies: false
+//!         },
+//!         transition: 1762074000,
+//!     }
+//! );
 //! ```
 
 use std::fmt::Debug;
@@ -49,7 +58,7 @@ mod deserialize;
 /// as to the version in use; though we will try to keep it up to date.
 pub const ZONEINFO64_RES_FOR_TESTING: &[u32] = resb::include_bytes_as_u32!("./data/zoneinfo64.res");
 
-const EPOCH: RataDie = calendrical_calculations::iso::const_fixed_from_iso(1970, 1, 1);
+const EPOCH: RataDie = calendrical_calculations::gregorian::fixed_from_gregorian(1970, 1, 1);
 const SECONDS_IN_UTC_DAY: i64 = 24 * 60 * 60;
 
 /// An offset from UTC time (stored to seconds precision)
@@ -444,9 +453,9 @@ impl<'a> Zone<'a> {
         minute: u8,
         second: u8,
     ) -> PossibleOffset {
-        let day_before_year = calendrical_calculations::iso::day_before_year(year);
+        let day_before_year = calendrical_calculations::gregorian::day_before_year(year);
         let seconds_since_local_epoch = (day_before_year
-            + calendrical_calculations::iso::days_before_month(year, month) as i64
+            + calendrical_calculations::gregorian::days_before_month(year, month) as i64
             + day as i64
             - EPOCH)
             * SECONDS_IN_UTC_DAY

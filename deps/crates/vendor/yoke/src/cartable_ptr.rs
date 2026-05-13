@@ -61,7 +61,7 @@ use private::Sealed;
 ///
 /// Implementer safety:
 ///
-/// 1. `into_raw` transfers ownership of the values referenced by StableDeref to the caller,
+/// 1. `into_raw` transfers ownership of the values referenced by [`StableDeref`] to the caller,
 ///    if there is ownership to transfer
 /// 2. `drop_raw` returns ownership back to the impl, if there is ownership to transfer
 ///
@@ -284,8 +284,8 @@ where
     ///
     /// # Invariants
     ///
-    /// 1. Must be either `SENTINEL_PTR` or created from `CartablePointerLike::into_raw`
-    /// 2. If non-sentinel, must _always_ be for a valid SelectedRc
+    /// 1. Must be either `SENTINEL_PTR` or created from [`CartablePointerLike::into_raw`]
+    /// 2. If non-sentinel, must _always_ be for a valid `SelectedRc`
     inner: NonNull<C::Raw>,
     _cartable: PhantomData<C>,
 }
@@ -379,7 +379,6 @@ unsafe impl<C> Sync for CartableOptionPointer<C> where C: Send + CartablePointer
 mod tests {
     use super::*;
     use crate::Yoke;
-    use core::mem::size_of;
 
     const SAMPLE_BYTES: &[u8] = b"abCDEfg";
     const W: usize = size_of::<usize>();

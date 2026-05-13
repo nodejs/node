@@ -47,8 +47,7 @@ impl<V: Writeable> fmt::Display for WriteableMessage<V> {
 }
 
 fn main() {
-    let (string, parts) =
-        writeable::_internal::writeable_to_parts_for_test(&WriteableMessage("world"));
+    let (string, parts) = _internal::writeable_to_parts_for_test(&WriteableMessage("world"));
 
     assert_eq!(string, "Hello world 😅");
 

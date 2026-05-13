@@ -1,7 +1,8 @@
 use crate::{
     duration::DateDuration,
     options::{
-        OffsetDisambiguation, RelativeTo, RoundingIncrement, RoundingMode, RoundingOptions, Unit,
+        OffsetDisambiguation, Overflow, RelativeTo, RoundingIncrement, RoundingMode,
+        RoundingOptions, Unit,
     },
     partial::PartialDuration,
     Calendar, PlainDate, TimeZone, ZonedDateTime,
@@ -624,6 +625,24 @@ fn add_normalized_time_duration_out_of_range() {
 
     let err = duration.total(Unit::Day, Some(RelativeTo::PlainDate(relative_to)));
     assert!(err.is_err())
+}
+
+#[test]
+fn add_large_durations() {
+    // Testcases found by fuzzing <https://github.com/unicode-org/icu4x/pull/7206>
+    let base = PlainDate::new(2000, 1, 1, Calendar::from_str("dangi").unwrap()).unwrap();
+
+    let test_duration = Duration::from(DateDuration::new(4294901760, 256, 0, 0).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+
+    let test_duration = Duration::from(DateDuration::new(0, 1281, 0, 8589934592).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+
+    let test_duration = Duration::from(DateDuration::new(2046820352, 0, 0, 0).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
+
+    let test_duration = Duration::from(DateDuration::new(0, 0, 2516582400, 0).unwrap());
+    assert!(base.add(&test_duration, Some(Overflow::Constrain)).is_err());
 }
 
 #[test]

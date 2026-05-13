@@ -25,7 +25,7 @@ fn try_from_range<'data>(
             PotentialCodePoint::from_u24(till),
         ];
         let inv_list: ZeroVec<PotentialCodePoint> = ZeroVec::alloc_from_slice(&set);
-        #[allow(clippy::unwrap_used)] // valid
+        #[expect(clippy::unwrap_used)] // valid
         Ok(CodePointInversionList::try_from_inversion_list(inv_list).unwrap())
     } else {
         Err(RangeError(from, till))

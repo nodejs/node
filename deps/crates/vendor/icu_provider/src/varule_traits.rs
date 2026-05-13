@@ -5,7 +5,7 @@
 use zerovec::ule::VarULE;
 
 #[cfg(feature = "alloc")]
-use zerovec::{maps::ZeroMapKV, ZeroMap2d};
+use zerovec::{maps::ZeroMapKV, ZeroMap, ZeroMap2d};
 
 /// A trait that associates a [`VarULE`] type with a data struct.
 ///
@@ -83,6 +83,31 @@ macro_rules! data_struct {
 //=== Standard impls ===//
 
 #[cfg(feature = "alloc")]
+impl<'a, K0, V> MaybeAsVarULE for ZeroMap<'a, K0, V>
+where
+    K0: ZeroMapKV<'a>,
+    V: ZeroMapKV<'a>,
+    K0: ?Sized,
+    V: ?Sized,
+{
+    type EncodedStruct = [()];
+}
+
+#[cfg(feature = "alloc")]
+#[cfg(feature = "export")]
+impl<'a, K0, V> MaybeEncodeAsVarULE for ZeroMap<'a, K0, V>
+where
+    K0: ZeroMapKV<'a>,
+    V: ZeroMapKV<'a>,
+    K0: ?Sized,
+    V: ?Sized,
+{
+    fn maybe_encode_as_varule(&self) -> Option<&Self::EncodedStruct> {
+        None
+    }
+}
+
+#[cfg(feature = "alloc")]
 impl<'a, K0, K1, V> MaybeAsVarULE for ZeroMap2d<'a, K0, K1, V>
 where
     K0: ZeroMapKV<'a>,
@@ -117,6 +142,17 @@ impl<T, const N: usize> MaybeAsVarULE for [T; N] {
 
 #[cfg(feature = "export")]
 impl<T, const N: usize> MaybeEncodeAsVarULE for [T; N] {
+    fn maybe_encode_as_varule(&self) -> Option<&Self::EncodedStruct> {
+        None
+    }
+}
+
+impl MaybeAsVarULE for u16 {
+    type EncodedStruct = [()];
+}
+
+#[cfg(feature = "export")]
+impl MaybeEncodeAsVarULE for u16 {
     fn maybe_encode_as_varule(&self) -> Option<&Self::EncodedStruct> {
         None
     }
