@@ -258,6 +258,19 @@ class BindingData final
 
   std::unique_ptr<SessionManager> session_manager_;
 
+  // Type-erased arena storage. The concrete AliasedStructArena<T> types
+  // are only complete in the .cc files where Stream::State etc. are defined.
+  // Each .cc file provides typed accessor methods. The deleters are set
+  // when the arenas are created so that ~BindingData destroys them correctly.
+  using ArenaDeleter = void (*)(void*);
+  using ArenaPtr = std::unique_ptr<void, ArenaDeleter>;
+  ArenaPtr stream_state_arena_{nullptr, +[](void*) {}};
+  ArenaPtr stream_stats_arena_{nullptr, +[](void*) {}};
+  ArenaPtr session_state_arena_{nullptr, +[](void*) {}};
+  ArenaPtr session_stats_arena_{nullptr, +[](void*) {}};
+  ArenaPtr endpoint_state_arena_{nullptr, +[](void*) {}};
+  ArenaPtr endpoint_stats_arena_{nullptr, +[](void*) {}};
+
   // Deferred send flush state. The uv_check_t fires immediately after
   // the I/O poll phase in the same event loop tick, allowing batched
   // receive processing: all packets are read during poll, then
