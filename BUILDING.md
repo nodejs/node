@@ -1045,10 +1045,23 @@ enable FIPS support in Node.js.
 Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
 linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 
-To build Node.js with Temporal support, a Rust toolchain is required:
+Temporal support is enabled by default starting in Node.js 26. Building it
+requires a Rust toolchain:
 
 * rustc >= 1.82 (with LLVM >= 19)
 * cargo >= 1.82
+
+If `--v8-enable-temporal-support` and `--v8-disable-temporal-support` are both
+omitted, `configure.py` probes for `cargo` and `rustc`. If either is missing,
+a warning is printed and Temporal support is disabled.
+
+* Pass `--v8-enable-temporal-support` to `configure.py` to require Temporal
+  support. The build will stop with an error if `cargo` or `rustc` cannot be
+  found.
+* Pass `--v8-disable-temporal-support` to opt out of Temporal support and
+  remove the Rust toolchain requirement.
+
+Passing both options to `configure.py` is an error.
 
 ## Building Node.js with external core modules
 
