@@ -1,4 +1,5 @@
 #!/bin/sh
+#! nix-shell --pure -i bash -p cacert gawk git jq tomlq
 set -e
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
