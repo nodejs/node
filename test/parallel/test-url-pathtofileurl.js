@@ -22,11 +22,24 @@ const url = require('url');
 }
 
 {
-  assert.throws(() => {
-    url.pathToFileURL('\\\\exa mple\\share\\file.txt', { windows: true });
-  }, {
-    code: 'ERR_INVALID_URL',
-  });
+  const forbiddenHostnameChars = [
+    '\\\\exa mple\\share\\file.txt',
+    '\\\\host name\\share\\file.txt',   // space
+    '\\\\host#name\\share\\file.txt',   // hash
+    '\\\\host?name\\share\\file.txt',   // question mark
+    '\\\\host@name\\share\\file.txt',   // at sign
+    '\\\\host:name\\share\\file.txt',   // colon
+    '\\\\host/name\\share\\file.txt',   // forward slash
+    '\\\\host[name\\share\\file.txt',   // left bracket
+    '\\\\host]name\\share\\file.txt',   // right bracket
+  ];
+  for (const path of forbiddenHostnameChars) {
+    assert.throws(() => {
+      url.pathToFileURL(path, { windows: true });
+    }, {
+      code: 'ERR_INVALID_URL',
+    }, `pathToFileURL('${path}') should throw ERR_INVALID_URL`);
+  }
 }
 
 {
