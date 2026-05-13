@@ -396,7 +396,8 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo'];
-  rli.question(expectedLines[0]).then(() => rli.close()).then(common.mustNotCall('never settling promise'));
+  // close() should reject a pending question with AbortError
+  assert.rejects(rli.question(expectedLines[0]), { name: 'AbortError' }).then(common.mustCall());
   assertCursorRowsAndCols(rli, 0, expectedLines[0].length);
   rli.close();
 }
@@ -405,7 +406,8 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo', 'bar'];
-  rli.question(expectedLines.join('\n')).then(() => rli.close()).then(common.mustNotCall('never settling promise'));
+  // close() should reject a pending question with AbortError
+  assert.rejects(rli.question(expectedLines.join('\n')), { name: 'AbortError' }).then(common.mustCall());
   assertCursorRowsAndCols(
     rli, expectedLines.length - 1, expectedLines.slice(-1)[0].length);
   rli.close();
