@@ -5,16 +5,16 @@
 edition = "2021"
 name = "node_crates"
 version = "0.1.2"
-rust-version = "1.82"
+rust-version = "1.83"
 
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
-# Pin all temporal dependencies to the last version support rustc 1.82
-icu_collections = "~2.1.0"
-icu_locale_core = "~2.1.0"
-icu_provider = "~2.1.0"
+# Pin all temporal dependencies to be in sync with the version defined in deps/v8/DEPS:deps[third_party/rust]
+icu_collections = "=2.1.1"
+icu_locale_core = "=2.1.1"
+icu_provider = "=2.1.1"
 timezone_provider = "=0.1.2"
 
 [dependencies.temporal_capi]
@@ -30,7 +30,7 @@ default-features = false
 
 # Disable `icu_calendar_data` and `icu_locale_data` crates with disabling
 # `compiled_data` features. However these datasets are still enabled until
-# https://github.com/boa-dev/temporal/pull/694 lands.
+# https://github.com/boa-dev/temporal/pull/694 ships.
 [dependencies.icu_calendar]
 version = "~2.1.1"
 features = [
