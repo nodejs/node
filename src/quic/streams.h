@@ -304,6 +304,17 @@ class Stream final : public AsyncWrap,
   struct State;
   struct Stats;
 
+  // Typed accessors for arena-allocated state/stats. These are defined
+  // in streams.cc where State and Stats are complete types.
+  inline State* state() { return static_cast<State*>(state_slot_.ptr); }
+  inline const State* state() const {
+    return static_cast<const State*>(state_slot_.ptr);
+  }
+  inline Stats* stats() { return static_cast<Stats*>(stats_slot_.ptr); }
+  inline const Stats* stats() const {
+    return static_cast<const Stats*>(stats_slot_.ptr);
+  }
+
  private:
   struct Impl;
   struct PendingHeaders;
@@ -362,8 +373,8 @@ class Stream final : public AsyncWrap,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);
 
-  AliasedStruct<Stats> stats_;
-  AliasedStruct<State> state_;
+  ArenaSlotBase stats_slot_;
+  ArenaSlotBase state_slot_;
   BaseObjectWeakPtr<Session> session_;
   std::unique_ptr<Outbound> outbound_;
   std::shared_ptr<DataQueue> inbound_;
