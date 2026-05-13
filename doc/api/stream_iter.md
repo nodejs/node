@@ -1543,8 +1543,9 @@ the synchronous Writer methods (`writeSync`, `writevSync`, `endSync`) always
 return `false` or `-1`, deferring to the async path. The per-write
 `options.signal` parameter from the Writer interface is also ignored.
 
-The result is cached per instance -- calling `fromWritable()` twice with the
-same stream returns the same Writer.
+The result is cached per instance and backpressure policy -- calling
+`fromWritable()` twice with the same stream and `backpressure` option returns
+the same Writer.
 
 For duck-typed streams that do not expose `writableHighWaterMark`,
 `writableLength`, or similar properties, sensible defaults are used.
