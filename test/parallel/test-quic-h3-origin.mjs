@@ -87,7 +87,8 @@ const decoder = new TextDecoder();
   strictEqual(decoder.decode(body), 'ok');
 
   await Promise.all([originReceived.promise, stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // port: 8443 produces origin "https://hostname:8443"
@@ -181,5 +182,6 @@ const decoder = new TextDecoder();
   strictEqual(decoder.decode(body), 'ok');
 
   await Promise.all([originReceived.promise, stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
