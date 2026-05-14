@@ -40,7 +40,9 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::BigInt;
 using v8::Boolean;
+using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::Global;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
@@ -54,6 +56,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -420,9 +423,9 @@ bool SetOption(Environment* env,
 template <typename Opt, uint8_t Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
-               const v8::Local<v8::Object>& object,
-               const v8::Local<v8::String>& name) {
-  v8::Local<v8::Value> value;
+               const Local<Object>& object,
+               const Local<String>& name) {
+  Local<Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
   if (!value->IsUndefined()) {
     if (!value->IsUint32()) {
@@ -431,7 +434,7 @@ bool SetOption(Environment* env,
           env, "The %s option must be an uint8", *nameStr);
       return false;
     }
-    uint32_t val = value.As<v8::Uint32>()->Value();
+    uint32_t val = value.As<Uint32>()->Value();
     if (val > 255) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
@@ -1718,7 +1721,7 @@ Session::Session(Endpoint* endpoint,
   Debug(this, "Session created.");
 
   {
-    const v8::HandleScope handle_scope(env()->isolate());
+    const HandleScope handle_scope(env()->isolate());
     JS_DEFINE_READONLY_PROPERTY(
         env(),
         object,
@@ -1728,7 +1731,7 @@ Session::Session(Endpoint* endpoint,
         env(),
         object,
         FIXED_ONE_BYTE_STRING(env()->isolate(), "stateByteOffset"),
-        v8::Integer::NewFromUnsigned(
+        Integer::NewFromUnsigned(
             env()->isolate(),
             static_cast<uint32_t>(impl_->state_slot_.GetByteOffset())));
     JS_DEFINE_READONLY_PROPERTY(
@@ -1740,7 +1743,7 @@ Session::Session(Endpoint* endpoint,
         env(),
         object,
         FIXED_ONE_BYTE_STRING(env()->isolate(), "statsByteOffset"),
-        v8::Integer::NewFromUnsigned(
+        Integer::NewFromUnsigned(
             env()->isolate(),
             static_cast<uint32_t>(impl_->stats_slot_.GetByteOffset())));
   }
@@ -2127,8 +2130,8 @@ void Session::EmitQlog(uint32_t flags, std::string_view data) {
   // ngtcp2_conn is mid-destruction. Defer the final chunk via SetImmediate.
   if (is_destroyed()) {
     auto isolate = env()->isolate();
-    v8::Global<v8::Object> recv(isolate, object());
-    v8::Global<v8::Function> cb(
+    Global<Object> recv(isolate, object());
+    Global<Function> cb(
         isolate, BindingData::Get(env()).session_qlog_callback());
     std::string buf(data);
     env()->SetImmediate([recv = std::move(recv),
