@@ -27,43 +27,30 @@ const serverDone = Promise.withResolvers();
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     // Sending headers on non-H3 stream throws.
-    throws(() => {
-      stream.sendHeaders({ ':status': '200' });
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.sendHeaders({ ':status': '200' }), { code: 'ERR_INVALID_STATE' });
 
     // Setting onheaders on non-H3 stream throws.
-    throws(() => {
-      stream.onheaders = () => {};
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.onheaders = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // Setting ontrailers on non-H3 stream throws.
-    throws(() => {
-      stream.ontrailers = () => {};
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.ontrailers = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // Setting oninfo on non-H3 stream throws.
-    throws(() => {
-      stream.oninfo = () => {};
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.oninfo = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // Setting onwanttrailers on non-H3 stream throws.
-    throws(() => {
-      stream.onwanttrailers = () => {};
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.onwanttrailers = () => {}, { code: 'ERR_INVALID_STATE' });
 
     // sendInformationalHeaders throws on non-H3.
-    throws(() => {
-      stream.sendInformationalHeaders({ ':status': '103' });
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.sendInformationalHeaders({ ':status': '103' }), {
+      code: 'ERR_INVALID_STATE',
+    });
 
     // sendTrailers throws on non-H3.
-    throws(() => {
-      stream.sendTrailers({ 'x-trailer': 'value' });
-    }, { code: 'ERR_INVALID_STATE' });
+    throws(() => stream.sendTrailers({ 'x-trailer': 'value' }), { code: 'ERR_INVALID_STATE' });
 
-    try { await stream.closed; } catch {
-      // Stream may close with error.
-    }
+    stream.writer.endSync();
+
     serverSession.close();
     serverDone.resolve();
   });
@@ -81,15 +68,9 @@ await clientSession.opened;
 const stream = await clientSession.createBidirectionalStream({
   body: encoder.encode('ping'),
 });
-stream.closed.catch(() => {});
 
 // Client side — sending headers on non-H3 stream throws.
-throws(() => {
-  stream.sendHeaders({ ':method': 'GET' });
-}, { code: 'ERR_INVALID_STATE' });
+throws(() => stream.sendHeaders({ ':method': 'GET' }), { code: 'ERR_INVALID_STATE' });
 
-try { await stream.closed; } catch {
-  // Stream may close with error.
-}
 await serverDone.promise;
 clientSession.close();
