@@ -26,6 +26,7 @@ using v8::BackingStore;
 using v8::BigInt;
 using v8::FunctionCallbackInfo;
 using v8::Global;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
 using v8::Local;
@@ -34,6 +35,7 @@ using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::SharedArrayBuffer;
+using v8::String;
 using v8::Uint32;
 using v8::Uint8Array;
 using v8::Value;
@@ -277,7 +279,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
   // object's constructor name is "FileHandle".
   if (value->IsObject()) {
     auto obj = value.As<Object>();
-    Local<v8::String> ctor_name;
+    Local<String> ctor_name;
     auto maybe_name = obj->GetConstructorName();
     if (!maybe_name.IsEmpty()) {
       ctor_name = maybe_name;
@@ -287,9 +289,8 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
         ASSIGN_OR_RETURN_UNWRAP(
             &file_handle, value, Nothing<std::shared_ptr<DataQueue>>());
         Local<Value> path;
-        if (!v8::String::NewFromUtf8(env->isolate(),
-                                     file_handle->original_name().c_str())
-                 .ToLocal(&path)) {
+        if (!ToV8Value(env->context(), file_handle->original_name())
+            .ToLocal(&path)) {
           return Nothing<std::shared_ptr<DataQueue>>();
         }
         auto entry = DataQueue::CreateFdEntry(env, path);
@@ -1048,7 +1049,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   inbound_->addBackpressureListener(this);
 
   {
-    const v8::HandleScope handle_scope(env()->isolate());
+    const HandleScope handle_scope(env()->isolate());
     // Pass the page's shared views and this slot's byte offset. JS uses
     // the offset to index into the shared view — no per-stream V8 object
     // creation.
@@ -1060,7 +1061,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
         env(),
         object,
         FIXED_ONE_BYTE_STRING(env()->isolate(), "stateByteOffset"),
-        v8::Integer::NewFromUnsigned(
+        Integer::NewFromUnsigned(
             env()->isolate(),
             static_cast<uint32_t>(state_slot_.GetByteOffset())));
     JS_DEFINE_READONLY_PROPERTY(
@@ -1072,7 +1073,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
         env(),
         object,
         FIXED_ONE_BYTE_STRING(env()->isolate(), "statsByteOffset"),
-        v8::Integer::NewFromUnsigned(
+        Integer::NewFromUnsigned(
             env()->isolate(),
             static_cast<uint32_t>(stats_slot_.GetByteOffset())));
   }
@@ -1107,7 +1108,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   inbound_->addBackpressureListener(this);
 
   {
-    const v8::HandleScope handle_scope(env()->isolate());
+    const HandleScope handle_scope(env()->isolate());
     JS_DEFINE_READONLY_PROPERTY(env(),
                                 object,
                                 env()->state_string(),
@@ -1116,7 +1117,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
         env(),
         object,
         FIXED_ONE_BYTE_STRING(env()->isolate(), "stateByteOffset"),
-        v8::Integer::NewFromUnsigned(
+        Integer::NewFromUnsigned(
             env()->isolate(),
             static_cast<uint32_t>(state_slot_.GetByteOffset())));
     JS_DEFINE_READONLY_PROPERTY(
@@ -1128,7 +1129,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
         env(),
         object,
         FIXED_ONE_BYTE_STRING(env()->isolate(), "statsByteOffset"),
-        v8::Integer::NewFromUnsigned(
+        Integer::NewFromUnsigned(
             env()->isolate(),
             static_cast<uint32_t>(stats_slot_.GetByteOffset())));
   }
