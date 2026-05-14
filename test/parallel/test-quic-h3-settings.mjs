@@ -81,7 +81,8 @@ const decoder = new TextDecoder();
   strictEqual(decoder.decode(body), 'ok');
   await stream.closed;
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // maxHeaderLength enforcement.
@@ -136,7 +137,8 @@ const decoder = new TextDecoder();
   const body = await bytes(stream);
   strictEqual(decoder.decode(body), 'ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // enableConnectProtocol and enableDatagrams settings.
@@ -181,5 +183,6 @@ const decoder = new TextDecoder();
   const body = await bytes(stream);
   strictEqual(decoder.decode(body), 'settings-ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

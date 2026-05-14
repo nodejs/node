@@ -105,7 +105,8 @@ const decoder = new TextDecoder();
   await Promise.all([serverGotDatagram.promise, clientGotDatagram.promise]);
 
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Test 2: Server has enableDatagrams: false. The peer's H3 SETTINGS
@@ -168,4 +169,5 @@ const decoder = new TextDecoder();
 
   await Promise.all([stream.closed, serverDone.promise]);
   clientSession.close();
+  await serverEndpoint.close();
 }
