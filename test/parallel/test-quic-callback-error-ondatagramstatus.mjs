@@ -38,3 +38,4 @@ await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
 
 // The session's closed should reject with the error from the throw.
 await rejects(clientSession.closed, testError);
+await serverEndpoint.close();
