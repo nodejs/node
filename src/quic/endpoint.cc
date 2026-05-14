@@ -736,7 +736,9 @@ void Endpoint::RemoveSession(const CID& cid,
     }
   }
   if (primary_session_count_ > 0 && --primary_session_count_ == 0) {
-    udp_.Unref();
+    if (!is_listening()) {
+      udp_.Unref();
+    }
     session_manager().RemoveSession(cid);
     // The endpoint may be idle (no sessions, not listening). MaybeDestroy
     // handles both closing (immediate destroy) and idle timeout (start
