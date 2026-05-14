@@ -369,12 +369,14 @@ void Session::Application::SendPendingData() {
     if (closed) return;
     // Flush any remaining accumulated packets before updating stats.
     flush_batch();
-    auto& s = session();
-    if (!s.is_destroyed()) [[likely]] {
-      s.UpdatePacketTxTime();
-      s.UpdateTimer();
-      s.UpdateDataStats();
-    }
+    if (session().is_destroyed()) [[unlikely]] return;
+
+    // Get a strong pointer to protect against potential destruction during
+    // updating the time and data stats.
+    BaseObjectPtr<Session> s(session_);
+    s->UpdatePacketTxTime();
+    s->UpdateTimer();
+    s->UpdateDataStats();
   });
 
   // The maximum size of packet to create.
