@@ -1563,8 +1563,11 @@ void Stream::Destroy(QuicError error) {
   auto session = session_;
   session_.reset();
   // EmitClose above triggers MakeCallback which can destroy the session
-  // via JS re-entrancy. The weak pointer may now be null.
-  if (session) session->RemoveStream(id());
+  // via JS re-entrancy. The weak pointer may still be non-null (the
+  // Session BaseObject can be kept alive by a BaseObjectPtr elsewhere,
+  // e.g. OnTimeout's ref) even though impl_ has been reset. We must
+  // check is_destroyed() to avoid dereferencing the null impl_.
+  if (session && !session->is_destroyed()) session->RemoveStream(id());
 
   // Critically, make sure that the RemoveStream call is the last thing
   // trying to use this stream object. Once that call is made, the stream
