@@ -52,4 +52,5 @@ const clientSession = await connect(serverEndpoint.address, {
 
 await Promise.all([clientSession.opened, clientToken.promise]);
 
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

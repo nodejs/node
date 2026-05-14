@@ -72,5 +72,4 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await clientSession.closed;
 }
 
-serverEndpoint.close();
-await serverEndpoint.closed;
+await serverEndpoint.close();

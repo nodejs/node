@@ -73,4 +73,5 @@ const stream = await clientSession.createBidirectionalStream({
 throws(() => stream.sendHeaders({ ':method': 'GET' }), { code: 'ERR_INVALID_STATE' });
 
 await serverDone.promise;
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

@@ -49,6 +49,7 @@ const transportParams = { maxIdleTimeout: 1 };
   // robust to network-dropped close packets and stops the event loop
   // from waiting on the client's idle timer to expire.
   clientSession.destroy();
+  await rejects(serverEndpoint.close(), sessionError);
 }
 
 // -------------------------------------------------------------------
@@ -71,4 +72,5 @@ const transportParams = { maxIdleTimeout: 1 };
   await closedAssertion;
 
   clientSession.destroy();
+  await rejects(serverEndpoint.close(), sessionError);
 }
