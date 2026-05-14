@@ -87,4 +87,5 @@ const requests = paths.map(mustCall(async (path) => {
 }, REQUEST_COUNT));
 
 await Promise.all([...requests, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

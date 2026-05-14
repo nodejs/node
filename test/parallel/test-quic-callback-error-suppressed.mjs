@@ -50,3 +50,4 @@ clientSession.destroy(originalError);
 
 // Closed rejects with the original error (not the SuppressedError).
 await rejects(clientSession.closed, originalError);
+await serverEndpoint.close();

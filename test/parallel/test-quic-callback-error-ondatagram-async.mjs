@@ -39,5 +39,4 @@ await clientSession.sendDatagram(new Uint8Array([1, 2, 3]));
 
 await serverDone.promise;
 await clientSession.closed;
-serverEndpoint.close();
-await serverEndpoint.closed;
+await serverEndpoint.close();

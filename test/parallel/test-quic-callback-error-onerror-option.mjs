@@ -34,3 +34,4 @@ await clientSession.opened;
 clientSession.destroy(testError);
 
 await rejects(clientSession.closed, testError);
+await serverEndpoint.close();

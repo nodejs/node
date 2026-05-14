@@ -108,7 +108,8 @@ const decoder = new TextDecoder();
   const body = await bytes(stream);
   strictEqual(decoder.decode(body), 'ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Verify multiple pseudo-header combinations work correctly.
@@ -153,5 +154,6 @@ const decoder = new TextDecoder();
   });
 
   await Promise.all([bytes(stream), stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

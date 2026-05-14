@@ -54,5 +54,6 @@ stream.destroy();
 strictEqual(stream.destroyed, true);
 
 // Close everything cleanly.
-clientSession.close();
+await clientSession.close();
 await serverDone.promise;
+await serverEndpoint.close();
