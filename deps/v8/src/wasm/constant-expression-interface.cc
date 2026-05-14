@@ -8,6 +8,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-objects-inl.h"
