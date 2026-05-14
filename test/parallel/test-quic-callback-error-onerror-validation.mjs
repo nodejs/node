@@ -60,3 +60,4 @@ stream.onerror = undefined;
 strictEqual(stream.onerror, undefined);
 
 await clientSession.closed;
+await serverEndpoint.close();

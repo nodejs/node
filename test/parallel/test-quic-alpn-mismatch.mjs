@@ -52,3 +52,4 @@ await rejects(clientSession.opened, expected);
 // The handshake should fail — opened may reject or never resolve.
 // The session should close with an error.
 await rejects(clientSession.closed, expected);
+await serverEndpoint.close();

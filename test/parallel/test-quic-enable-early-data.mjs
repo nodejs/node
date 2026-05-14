@@ -56,3 +56,4 @@ clientSession.opened.then(mustCall((info) => {
 
 await Promise.all([serverOpened.promise, clientOpened.promise]);
 clientSession.close();
+await serverEndpoint.close();

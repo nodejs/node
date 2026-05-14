@@ -43,3 +43,4 @@ stream.setBody(new Uint8Array(4096));
 
 // The stream's closed promise should reject with the error from the throw.
 await rejects(stream.closed, testError);
+await serverEndpoint.close();

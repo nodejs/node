@@ -98,4 +98,5 @@ const responseBody = await bytes(stream);
 strictEqual(decoder.decode(responseBody), 'echo:' + requestBody);
 
 await Promise.all([stream.closed, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

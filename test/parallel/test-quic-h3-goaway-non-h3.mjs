@@ -61,5 +61,5 @@ await Promise.all([stream.closed, serverDone.promise]);
 
 // Wait a tick for any deferred callbacks to fire.
 await setImmediate();
-
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();
