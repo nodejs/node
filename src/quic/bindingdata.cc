@@ -23,6 +23,7 @@ using mem::kReserveSizeAndAlign;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::String;
@@ -274,7 +275,7 @@ void BindingData::DecreaseAllocatedSize(size_t size) {
 // Forwards detailed(verbose) debugging information from nghttp3. Enabled using
 // the NODE_DEBUG_NATIVE=NGHTTP3 category.
 void nghttp3_debug_log(const char* fmt, va_list args) {
-  auto isolate = v8::Isolate::GetCurrent();
+  auto isolate = Isolate::GetCurrent();
   if (isolate == nullptr) return;
   auto env = Environment::GetCurrent(isolate);
   if (env->enabled_debug_list()->enabled(DebugCategory::NGHTTP3)) {
