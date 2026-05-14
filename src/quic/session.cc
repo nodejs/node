@@ -3729,6 +3729,8 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
   SESSION_STATE(V)
 #undef V
 
+  NODE_DEFINE_CONSTANT(target, IDX_STATS_SESSION_COUNT);
+
 #define V(name, _) NODE_DEFINE_CONSTANT(target, IDX_STATS_SESSION_##name);
   SESSION_STATS(V)
   NODE_DEFINE_CONSTANT(target, IDX_STATS_SESSION_COUNT);
