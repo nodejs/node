@@ -54,7 +54,7 @@ function checkMethods(certificate) {
   // SPKAC input) via an exception, rather than silently returning ''.
   assert.throws(
     () => certificate.exportPublicKey(spkacFail),
-    { code: ERR_OSSL_ASN1_WRONG_TAG },
+    { code: 'ERR_OSSL_ASN1_WRONG_TAG' },
   );
 
   assert.strictEqual(
