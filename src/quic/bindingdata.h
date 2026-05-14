@@ -12,6 +12,7 @@
 #include <node_mem.h>
 #include <uv.h>
 #include <v8.h>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -158,6 +159,81 @@ class SessionManager;
   V(version, "version")
 
 // =============================================================================
+// Lightweight wrappers around uv_check_t that ensure safe handle closure.
+// The check handle is embedded in a heap-allocated CheckWrap whose destruction
+// is deferred until the uv_close callback fires, preventing use-after-free
+// when the owning object is destroyed before libuv finishes closing the handle.
+// Follows the same two-layer pattern as TimerWrap / TimerWrapHandle
+// (see timer_wrap.h).
+// TODO(@jasnell): Consider moving it out to a separate file like timer_wrap.h.
+class CheckWrap final : public MemoryRetainer {
+ public:
+  using CheckCb = std::function<void()>;
+
+  template <typename... Args>
+  explicit CheckWrap(Environment* env, Args&&... args)
+      : env_(env), fn_(std::forward<Args>(args)...) {
+    uv_check_init(env->event_loop(), &check_);
+    check_.data = this;
+  }
+
+  DISALLOW_COPY_AND_MOVE(CheckWrap)
+
+  inline Environment* env() const { return env_; }
+
+  void Start();
+  void Stop();
+  void Close();
+  void Ref();
+  void Unref();
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(CheckWrap)
+  SET_SELF_SIZE(CheckWrap)
+
+ private:
+  static void OnCheck(uv_check_t* check);
+  static void CheckClosedCb(uv_handle_t* handle);
+  ~CheckWrap() = default;
+
+  Environment* env_;
+  CheckCb fn_;
+  uv_check_t check_;
+
+  friend std::unique_ptr<CheckWrap>::deleter_type;
+};
+
+class CheckWrapHandle : public MemoryRetainer {
+ public:
+  template <typename... Args>
+  explicit CheckWrapHandle(Environment* env, Args&&... args)
+      : check_(new CheckWrap(env, std::forward<Args>(args)...)) {
+    env->AddCleanupHook(CleanupHook, this);
+  }
+
+  DISALLOW_COPY_AND_MOVE(CheckWrapHandle)
+
+  ~CheckWrapHandle() { Close(); }
+
+  inline operator bool() const { return check_ != nullptr; }
+
+  void Start();
+  void Stop();
+  void Close();
+  void Ref();
+  void Unref();
+
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
+
+  SET_MEMORY_INFO_NAME(CheckWrapHandle)
+  SET_SELF_SIZE(CheckWrapHandle)
+
+ private:
+  static void CleanupHook(void* data);
+  CheckWrap* check_;
+};
+
+// =============================================================================
 // The BindingState object holds state for the internalBinding('quic') binding
 // instance. It is mostly used to hold the persistent constructors, strings, and
 // callback references used for the rest of the implementation.
@@ -271,16 +347,15 @@ class BindingData final
   ArenaPtr endpoint_state_arena_{nullptr, +[](void*) {}};
   ArenaPtr endpoint_stats_arena_{nullptr, +[](void*) {}};
 
-  // Deferred send flush state. The uv_check_t fires immediately after
+  // Deferred send flush state. The CheckWrapHandle fires immediately after
   // the I/O poll phase in the same event loop tick, allowing batched
   // receive processing: all packets are read during poll, then
   // SendPendingData is called once per dirty session in the check callback.
-  uv_check_t flush_check_;
+  CheckWrapHandle flush_check_;
   std::vector<BaseObjectPtr<Session>> pending_flush_sessions_;
   bool flush_check_started_ = false;
-  bool flush_check_initialized_ = false;
 
-  static void OnFlushCheck(uv_check_t* handle);
+  void OnFlushCheck();
 };
 
 JS_METHOD_IMPL(IllegalConstructor);
