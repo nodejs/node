@@ -3018,6 +3018,15 @@ void Session::SendConnectionClose() {
 void Session::OnTimeout() {
   if (is_destroyed()) return;
   if (!impl_->application_) return;
+  // Hold a strong reference to prevent the Session from being freed during
+  // re-entrant calls. SendPendingData's scope guard calls UpdateTimer(),
+  // which can synchronously re-enter OnTimeout() when the timer has already
+  // expired. That re-entrant path can reach FinishClose → EmitClose →
+  // Destroy → impl_.reset() → ~Impl → RemoveSession(), dropping the last
+  // BaseObjectPtr from the endpoint map and freeing the Session. Without
+  // this guard, the outer OnTimeout / SendPendingData frames would operate
+  // on a freed object.
+  BaseObjectPtr<Session> ref(this);
   HandleScope scope(env()->isolate());
   int ret;
   {
