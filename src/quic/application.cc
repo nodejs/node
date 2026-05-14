@@ -369,7 +369,8 @@ void Session::Application::SendPendingData() {
     if (closed) return;
     // Flush any remaining accumulated packets before updating stats.
     flush_batch();
-    if (session().is_destroyed()) [[unlikely]] return;
+    if (session().is_destroyed()) [[unlikely]]
+      return;
 
     // Get a strong pointer to protect against potential destruction during
     // updating the time and data stats.
