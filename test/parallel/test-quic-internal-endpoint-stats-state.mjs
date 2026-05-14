@@ -45,7 +45,7 @@ const {
     isBusy: false,
     maxConnectionsPerHost: 100,
     maxConnectionsTotal: 10_000,
-    pendingCallbacks: '0',
+    pendingCallbacks: 0,
   });
 
   endpoint.busy = true;
