@@ -983,6 +983,8 @@ void Stream::InitPerContext(Realm* realm, Local<Object> target) {
   STREAM_STATE(V)
 #undef V
 
+  NODE_DEFINE_CONSTANT(target, IDX_STATS_STREAM_COUNT);
+
   constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
       static_cast<uint8_t>(HeadersKind::HINTS);
   constexpr int QUIC_STREAM_HEADERS_KIND_INITIAL =

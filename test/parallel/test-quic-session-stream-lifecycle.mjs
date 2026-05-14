@@ -90,8 +90,9 @@ strictEqual(clientSession.endpoint, null);
 strictEqual(clientSession.stats.isConnected, false);
 
 strictEqual(stream.destroyed, true);
-strictEqual(stream.session, null);
-strictEqual(stream.id, null);
-strictEqual(stream.direction, null);
+
+// The stream id and direction should still be available after destruction
+strictEqual(stream.id, 0n);
+strictEqual(stream.direction, 'bidi');
 
 await serverEndpoint.close();
