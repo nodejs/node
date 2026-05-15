@@ -2076,6 +2076,20 @@ added: v23.8.0
 
 * Type: {bigint}
 
+### `streamStats.bytesAccumulated`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint}
+
+The current number of bytes sitting in the stream's receive accumulation
+buffer, awaiting delivery to the application. A value near zero indicates
+the reader is keeping up with incoming data. A value near the stream's
+flow control window indicates the application is not consuming data fast
+enough.
+
 ### `streamStats.bytesReceived`
 
 <!-- YAML
@@ -2123,6 +2137,20 @@ added: v23.8.0
 -->
 
 * Type: {bigint}
+
+### `streamStats.maxBytesAccumulated`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint}
+
+The peak number of bytes that were accumulated in the stream's receive
+buffer at any point during the stream's lifetime. This value only
+increases monotonically. It is useful for diagnosing whether a stream
+experienced backpressure episodes and whether the accumulation buffer
+sizing is appropriate for the workload.
 
 ### `streamStats.maxOffset`
 
