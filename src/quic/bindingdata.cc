@@ -335,7 +335,7 @@ void BindingData::OnFlushCheck() {
   // pending_flush_sessions_ and are picked up on the next check tick.
   auto sessions = std::move(pending_flush_sessions_);
   for (auto& session : sessions) {
-    session->pending_flush_ = false;
+    session->flags_.pending_flush = false;
     if (!session->is_destroyed()) {
       session->FlushPendingData();
     }
@@ -437,28 +437,28 @@ JS_METHOD_IMPL(BindingData::SetCallbacks) {
 }
 
 NgTcp2CallbackScope::NgTcp2CallbackScope(Session* session) : session(session) {
-  CHECK(!session->in_ngtcp2_callback_scope_);
-  session->in_ngtcp2_callback_scope_ = true;
+  CHECK(!session->flags_.in_ngtcp2_callback_scope);
+  session->flags_.in_ngtcp2_callback_scope = true;
 }
 
 NgTcp2CallbackScope::~NgTcp2CallbackScope() {
-  session->in_ngtcp2_callback_scope_ = false;
-  if (session->destroy_deferred_) {
-    session->destroy_deferred_ = false;
+  session->flags_.in_ngtcp2_callback_scope = false;
+  if (session->flags_.destroy_deferred) {
+    session->flags_.destroy_deferred = false;
     session->Destroy();
   }
 }
 
 NgHttp3CallbackScope::NgHttp3CallbackScope(Session* session)
     : session(session) {
-  CHECK(!session->in_nghttp3_callback_scope_);
-  session->in_nghttp3_callback_scope_ = true;
+  CHECK(!session->flags_.in_nghttp3_callback_scope);
+  session->flags_.in_nghttp3_callback_scope = true;
 }
 
 NgHttp3CallbackScope::~NgHttp3CallbackScope() {
-  session->in_nghttp3_callback_scope_ = false;
-  if (session->destroy_deferred_) {
-    session->destroy_deferred_ = false;
+  session->flags_.in_nghttp3_callback_scope = false;
+  if (session->flags_.destroy_deferred) {
+    session->flags_.destroy_deferred = false;
     session->Destroy();
   }
 }

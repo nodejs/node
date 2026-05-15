@@ -606,25 +606,30 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   Side side_;
   const ngtcp2_mem* allocator_;
   std::unique_ptr<Impl> impl_;
-  // These flags live on Session (not Impl) so that the NgTcp2CallbackScope
-  // and NgHttp3CallbackScope destructors can safely clear them even after
-  // Impl has been destroyed via MakeCallback re-entrancy during a callback.
-  // The scope is placed at the ngtcp2/nghttp3 entry point (e.g. Receive,
-  // OnTimeout) rather than on individual callbacks, so the deferred destroy
-  // only fires after all callbacks for that entry point have completed.
-  bool in_ngtcp2_callback_scope_ = false;
-  bool in_nghttp3_callback_scope_ = false;
-  bool destroy_deferred_ = false;
-  // Set when this session is in BindingData's pending_flush_sessions_ vector.
-  // Cleared by the flush callback before calling SendPendingData.
-  // Provides O(1) dedup so a session receiving multiple packets in one I/O
-  // burst is only scheduled for flush once.
-  bool pending_flush_ = false;
-  // When true, Session::Send prefers synchronous delivery via
-  // Endpoint::SendOrTrySend (uv_udp_try_send with async fallback).
-  // Set during FlushPendingData to avoid the one-tick latency of
-  // async-only sends from the uv_check callback.
-  bool prefer_try_send_ = false;
+
+  struct Flags {
+    // These flags live on Session (not Impl) so that the NgTcp2CallbackScope
+    // and NgHttp3CallbackScope destructors can safely clear them even after
+    // Impl has been destroyed via MakeCallback re-entrancy during a callback.
+    // The scope is placed at the ngtcp2/nghttp3 entry point (e.g. Receive,
+    // OnTimeout) rather than on individual callbacks, so the deferred destroy
+    // only fires after all callbacks for that entry point have completed.
+    uint8_t in_ngtcp2_callback_scope : 1 = 0;
+    uint8_t in_nghttp3_callback_scope : 1 = 0;
+    uint8_t destroy_deferred : 1 = 0;
+    // Set when this session is in BindingData's pending_flush_sessions_ vector.
+    // Cleared by the flush callback before calling SendPendingData.
+    // Provides O(1) dedup so a session receiving multiple packets in one I/O
+    // burst is only scheduled for flush once.
+    uint8_t pending_flush : 1 = 0;
+    // When true, Session::Send prefers synchronous delivery via
+    // Endpoint::SendOrTrySend (uv_udp_try_send with async fallback).
+    // Set during FlushPendingData to avoid the one-tick latency of
+    // async-only sends from the uv_check callback.
+    uint8_t prefer_try_send : 1 = 0;
+  };
+  Flags flags_;
+
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
   friend struct NgTcp2CallbackScope;
