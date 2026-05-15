@@ -551,6 +551,21 @@ function testWritevInvalidChunksType() {
 }
 
 // =============================================================================
+// writev() uncorks when chunk validation throws
+// =============================================================================
+
+function testWritevInvalidChunkUncorks() {
+  const writable = new Writable({ write(chunk, enc, cb) { cb(); } });
+  const writer = fromWritable(writable);
+
+  assert.throws(
+    () => writer.writev([new Uint8Array([1]), 42]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+  assert.strictEqual(writable.writableCorked, 0);
+}
+
+// =============================================================================
 // Cached writer: second call returns same instance
 // =============================================================================
 
@@ -638,6 +653,7 @@ testDrainableNull();
 testDropOldestThrows();
 testInvalidBackpressureThrows();
 testWritevInvalidChunksType();
+testWritevInvalidChunkUncorks();
 testCachedWriter();
 testObjectModeThrows();
 
