@@ -5,6 +5,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { setImmediate: setImmediatePromise } = require('timers/promises');
 const { pipeTo, pipeToSync, push, text } = require('stream/iter');
 
 // Multi-chunk batch with writevSync (sync success path)
@@ -113,7 +114,7 @@ async function assertPushWriterBlockPipeTo(source, expected, expectedTotal) {
   });
 
   const pipe = pipeTo(source, writer);
-  await new Promise(setImmediate);
+  await setImmediatePromise();
   const data = await text(readable);
   const total = await pipe;
 
