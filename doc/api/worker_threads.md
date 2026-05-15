@@ -1369,17 +1369,18 @@ port2.postMessage(new Foo());
 // Prints: { c: 3 }
 ```
 
-This limitation extends to many built-in objects, such as the global `URL`
-object:
+Some built-in objects are not supported by the cloning algorithm used by
+[`port.postMessage()`][], such as `URL` objects:
 
 ```js
-const { port1, port2 } = new MessageChannel();
+const { port2 } = new MessageChannel();
 
-port1.onmessage = ({ data }) => console.log(data);
-
-port2.postMessage(new URL('https://example.org'));
-
-// Prints: { }
+try {
+  port2.postMessage(new URL('https://example.org'));
+} catch (error) {
+  console.log(error.name);
+  // Prints: DataCloneError
+}
 ```
 
 ### `port.hasRef()`
