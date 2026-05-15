@@ -338,7 +338,7 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
           in,
           inlen) == OPENSSL_NPN_NO_OVERLAP) {
     Debug(&tls_session.session(), "ALPN negotiation failed");
-    return SSL_TLSEXT_ERR_NOACK;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
   // ALPN negotiated successfully. *out/*outlen point to the selected
