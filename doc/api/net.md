@@ -773,7 +773,9 @@ changes:
     the socket immediately after the connection is established, similarly on what
     is done in [`socket.setKeepAlive()`][]. **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
-    initial delay before the first keepalive probe is sent on an idle socket. **Default:** `0`.
+    initial delay, in milliseconds, before the first keepalive probe is sent on
+    an idle socket. The value is rounded down to whole seconds before use.
+    **Default:** `0`.
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
     immediately after the socket is established. **Default:** `false`.
   * `onread` {Object} If specified, incoming data is stored in a single `buffer`
@@ -1400,8 +1402,9 @@ Enable/disable keep-alive functionality, and optionally set the initial
 delay before the first keepalive probe is sent on an idle socket.
 
 Set `initialDelay` (in milliseconds) to set the delay between the last
-data packet received and the first keepalive probe. Setting `0` for
-`initialDelay` will leave the value unchanged from the default
+data packet received and the first keepalive probe. The value is rounded down
+to whole seconds before it is passed to the operating system. Values less than
+`1000` ms become `0`, which leaves the value unchanged from the default
 (or previous) setting.
 
 Enabling the keep-alive functionality will set the following socket options:
@@ -1823,7 +1826,8 @@ changes:
     similarly on what is done in [`socket.setKeepAlive()`][]. **Default:**
     `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
-    initial delay before the first keepalive probe is sent on an idle socket.
+    initial delay, in milliseconds, before the first keepalive probe is sent on
+    an idle socket. The value is rounded down to whole seconds before use.
     **Default:** `0`.
   * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's
     algorithm immediately after a new incoming connection is received.
