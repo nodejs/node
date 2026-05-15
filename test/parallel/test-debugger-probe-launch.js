@@ -5,17 +5,19 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndExit } = require('../common/child_process');
-const { probeScript } = require('../common/debugger-probe');
+
+const cwd = fixtures.path('debugger');
 
 spawnSyncAndExit(process.execPath, [
   'inspect',
-  '--probe', `${probeScript}:12`,
+  '--probe', 'probe.js:12',
   '--expr', 'finalValue',
   '--',
   '--not-a-real-node-flag',
-  probeScript,
-], {
+  'probe.js',
+], { cwd }, {
   signal: null,
   status: 1,
   stderr(output) {
