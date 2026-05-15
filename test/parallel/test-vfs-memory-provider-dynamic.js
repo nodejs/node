@@ -51,8 +51,8 @@ function makeFileEntry(prototypeFrom, contentProvider) {
   const provider = new MemoryProvider();
   const root = getRoot(provider);
 
-  const dir = { __proto__: Object.getPrototypeOf(root) };
-  Object.assign(dir, {
+  const dir = {
+    __proto__: Object.getPrototypeOf(root),
     type: 1,           // TYPE_DIR
     mode: 0o755,
     children: new Map(),
