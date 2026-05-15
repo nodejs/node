@@ -1056,15 +1056,18 @@ pipes between the parent and child. The value is one of the following:
    corresponds to the index in the `stdio` array. The stream must have an
    underlying descriptor (file streams do not start until the `'open'` event has
    occurred).
-   **NOTE:** While it is technically possible to pass `stdin` as a writable or
-   `stdout`/`stderr` as readable, it is not recommended.
-   Readable and writable streams are designed with distinct behaviors, and using
-   them incorrectly (e.g., passing a readable stream where a writable stream is
-   expected) can lead to unexpected results or errors. This practice is discouraged
-   as it may result in undefined behavior or dropped callbacks if the stream
-   encounters errors. Always ensure that `stdin` is used as readable and
-   `stdout`/`stderr` as writable to maintain the intended flow of data between
-   the parent and child processes.
+   For `stdio[0]`, pass a readable stream because it supplies the child
+   process's stdin. For `stdio[1]` and `stdio[2]`, pass writable streams because
+   they receive the child process's stdout and stderr. This direction is the
+   opposite of the `'pipe'` helper streams exposed on the parent process, where
+   [`subprocess.stdin`][] is writable and [`subprocess.stdout`][] and
+   [`subprocess.stderr`][] are readable.
+   **NOTE:** While it is technically possible to pass a writable stream for
+   `stdio[0]` or a readable stream for `stdio[1]` or `stdio[2]`, it is not
+   recommended. Readable and writable streams are designed with distinct
+   behaviors, and using them in the opposite direction can lead to unexpected
+   results or errors, undefined behavior, or dropped callbacks if the stream
+   encounters errors.
 7. Positive integer: The integer value is interpreted as a file descriptor
    that is open in the parent process. It is shared with the child
    process, similar to how {Stream} objects can be shared. Passing sockets
