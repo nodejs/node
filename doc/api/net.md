@@ -1347,6 +1347,17 @@ added: v0.5.10
 The numeric representation of the remote port. For example, `80` or `21`. Value may be `undefined` if
 the socket is destroyed (for example, if the client disconnected).
 
+### `socket.server`
+
+<!-- YAML
+added: v0.3.4
+-->
+
+* Type: {net.Server|null}
+
+Reference to the server that accepted the socket. This property is `null` for
+sockets that were not created by a [`net.Server`][].
+
 ### `socket.resetAndDestroy()`
 
 <!-- YAML
