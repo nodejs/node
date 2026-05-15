@@ -50,7 +50,7 @@ namespace quic {
 namespace {
 
 // Temporarily wraps an SSL pointer but does not take ownership.
-// Use by a few of the TLSSession methods that need access to the SSL*
+// Used by a few of the TLSSession methods that need access to the SSL*
 // pointer held by the OSSLContext but cannot take ownership of it.
 class SSLPointerRef final {
  public:
@@ -188,7 +188,7 @@ void OSSLContext::reset() {
   if (ctx_) {
     // The SSL object inside the ngtcp2 ctx may not have been set if
     // SSL creation failed. Guard against null before clearing app data.
-    if (SSL* ssl = ngtcp2_crypto_ossl_ctx_get_ssl(ctx_); ssl != nullptr) {
+    if (SSL* ssl = *this; ssl != nullptr) {
       SSL_set_app_data(ssl, nullptr);
     }
     // connection_ is set during Initialize(). If Initialize() was
@@ -225,7 +225,7 @@ void OSSLContext::Initialize(SSL* ssl,
   connection_ = connection;
 }
 
-std::string OSSLContext::get_cipher_name() const {
+std::string_view OSSLContext::get_cipher_name() const {
   return SSL_get_cipher_name(*this);
 }
 

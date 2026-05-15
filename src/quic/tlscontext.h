@@ -45,7 +45,7 @@ class OSSLContext final {
                   ngtcp2_conn* connection,
                   SSL_CTX* ssl_ctx);
 
-  std::string get_cipher_name() const;
+  std::string_view get_cipher_name() const;
   std::string get_selected_alpn() const;
   std::string_view get_negotiated_group() const;
 

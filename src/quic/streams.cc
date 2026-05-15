@@ -290,7 +290,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
             &file_handle, value, Nothing<std::shared_ptr<DataQueue>>());
         Local<Value> path;
         if (!ToV8Value(env->context(), file_handle->original_name())
-            .ToLocal(&path)) {
+                 .ToLocal(&path)) {
           return Nothing<std::shared_ptr<DataQueue>>();
         }
         auto entry = DataQueue::CreateFdEntry(env, path);
@@ -529,8 +529,9 @@ class Stream::Outbound final : public MemoryRetainer {
   explicit Outbound(Stream* stream)
       : stream_(stream),
         queue_(DataQueue::Create()),
-        reader_(queue_->get_reader()),
-        streaming_(true) {}
+        reader_(queue_->get_reader()) {
+    flags_.streaming = true;
+  }
 
   void Acknowledge(size_t amount) {
     size_t remaining = std::min(amount, total_ - uncommitted_);
@@ -603,7 +604,7 @@ class Stream::Outbound final : public MemoryRetainer {
     if (queue_) queue_->cap();
   }
 
-  bool is_streaming() const { return streaming_; }
+  bool is_streaming() const { return flags_.streaming; }
   size_t total() const { return total_; }
   size_t uncommitted() const { return uncommitted_; }
 
@@ -615,7 +616,7 @@ class Stream::Outbound final : public MemoryRetainer {
   // Appends an entry to the underlying DataQueue. Only valid when
   // the Outbound was created in streaming mode.
   bool AppendEntry(std::unique_ptr<DataQueue::Entry> entry) {
-    if (!streaming_ || !queue_) return false;
+    if (!flags_.streaming || !queue_) return false;
     auto size = entry->size();
     auto result = queue_->append(std::move(entry));
     if (result.has_value() && result.value()) {
@@ -630,7 +631,7 @@ class Stream::Outbound final : public MemoryRetainer {
            ngtcp2_vec* data,
            size_t count,
            size_t max_count_hint) {
-    if (next_pending_) {
+    if (flags_.next_pending) {
       // An async read is in flight, but there may be uncommitted bytes
       // from a previous read that ngtcp2 didn't accept (nwrite=0 due
       // to pacing/congestion). Return those bytes so the send loop can
@@ -643,14 +644,14 @@ class Stream::Outbound final : public MemoryRetainer {
       return bob::Status::STATUS_BLOCK;
     }
 
-    if (errored_) {
+    if (flags_.errored) {
       std::move(next)(UV_EBADF, nullptr, 0, [](int) {});
       return UV_EBADF;
     }
 
     // If eos_ is true and there are no uncommitted bytes we'll return eos,
     // otherwise, return whatever is in the uncommitted queue.
-    if (eos_) {
+    if (flags_.eos) {
       if (uncommitted_ > 0) {
         PullUncommitted(std::move(next));
         return bob::Status::STATUS_CONTINUE;
@@ -683,8 +684,8 @@ class Stream::Outbound final : public MemoryRetainer {
             // If next_pending_ is true then a pull from the reader ended up
             // being asynchronous, our stream is blocking waiting for the data,
             // but we have an error! oh no! We need to error the stream.
-            if (next_pending_) {
-              next_pending_ = false;
+            if (flags_.next_pending) {
+              flags_.next_pending = false;
               stream_->Destroy(
                   QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
               // We do not need to worry about calling MarkErrored in this case
@@ -705,8 +706,8 @@ class Stream::Outbound final : public MemoryRetainer {
             // session will try to read from it again.
             // We must clear next_pending_ before calling ResumeStream because
             // ResumeStream can synchronously re-enter Outbound::Pull.
-            if (next_pending_) {
-              next_pending_ = false;
+            if (flags_.next_pending) {
+              flags_.next_pending = false;
               stream_->session().ResumeStream(stream_->id());
             }
             return;
@@ -732,8 +733,8 @@ class Stream::Outbound final : public MemoryRetainer {
           // pull from it again.
           // We must clear next_pending_ before calling ResumeStream because
           // ResumeStream can synchronously re-enter Outbound::Pull.
-          if (next_pending_) {
-            next_pending_ = false;
+          if (flags_.next_pending) {
+            flags_.next_pending = false;
             stream_->session().ResumeStream(stream_->id());
           }
         },
@@ -795,7 +796,7 @@ class Stream::Outbound final : public MemoryRetainer {
     // rather than blocking — the async callback will resume the stream when
     // more data arrives.
     if (ret == bob::Status::STATUS_WAIT) {
-      next_pending_ = true;
+      flags_.next_pending = true;
       if (uncommitted_ > 0) {
         PullUncommitted(std::move(next));
         return bob::Status::STATUS_CONTINUE;
@@ -843,7 +844,7 @@ class Stream::Outbound final : public MemoryRetainer {
   }
 
   void MarkErrored() {
-    errored_ = true;
+    flags_.errored = true;
     head_.reset();
     tail_ = nullptr;
     commit_head_ = nullptr;
@@ -854,7 +855,7 @@ class Stream::Outbound final : public MemoryRetainer {
   }
 
   void MarkEnded() {
-    eos_ = true;
+    flags_.eos = true;
     queue_.reset();
     reader_.reset();
   }
@@ -894,17 +895,17 @@ class Stream::Outbound final : public MemoryRetainer {
   std::shared_ptr<DataQueue> queue_;
   std::shared_ptr<DataQueue::Reader> reader_;
 
-  bool errored_ = false;
-
-  // True when in streaming mode (non-idempotent queue, appendable).
-  bool streaming_ = false;
-
-  // Will be set to true if the reader_ ends up providing a pull result
-  // asynchronously.
-  bool next_pending_ = false;
-
-  // Will be set to true once reader_ has returned eos.
-  bool eos_ = false;
+  struct Flags {
+    uint8_t errored : 1 = 0;
+    // True when in streaming mode (non-idempotent queue, appendable).
+    uint8_t streaming : 1 = 0;
+    // Will be set to true if the reader_ ends up providing a pull result
+    // asynchronously.
+    uint8_t next_pending : 1 = 0;
+    // Will be set to true once reader_ has returned eos.
+    uint8_t eos : 1 = 0;
+  };
+  Flags flags_;
 
   // The collection of buffers that we have pulled from reader_ and that we
   // are holding onto until they are acknowledged.
