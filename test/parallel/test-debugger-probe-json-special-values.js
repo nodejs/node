@@ -4,104 +4,113 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const {
-  assertProbeJson,
-  probeTypesScript,
-} = require('../common/debugger-probe');
+const { assertProbeJson } = require('../common/debugger-probe');
 
-const location = `${probeTypesScript}:17`;
+const cwd = fixtures.path('debugger');
+const probeArg = 'probe-types.js:17';
+const target = { suffix: 'probe-types.js', line: 17 };
+const location = { url: fixtures.fileURL('debugger', 'probe-types.js').href, line: 17, column: 1 };
 
 spawnSyncAndAssert(process.execPath, [
   'inspect',
   '--json',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'stringValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'booleanValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'undefinedValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'nullValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'nanValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'bigintValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'symbolValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'functionValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'objectValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'arrayValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'errorValue',
-  probeTypesScript,
-], {
+  'probe-types.js',
+], { cwd }, {
   stdout(output) {
     assertProbeJson(output, {
-      v: 1,
+      v: 2,
       probes: [
-        { expr: 'stringValue', target: [probeTypesScript, 17] },
-        { expr: 'booleanValue', target: [probeTypesScript, 17] },
-        { expr: 'undefinedValue', target: [probeTypesScript, 17] },
-        { expr: 'nullValue', target: [probeTypesScript, 17] },
-        { expr: 'nanValue', target: [probeTypesScript, 17] },
-        { expr: 'bigintValue', target: [probeTypesScript, 17] },
-        { expr: 'symbolValue', target: [probeTypesScript, 17] },
-        { expr: 'functionValue', target: [probeTypesScript, 17] },
-        { expr: 'objectValue', target: [probeTypesScript, 17] },
-        { expr: 'arrayValue', target: [probeTypesScript, 17] },
-        { expr: 'errorValue', target: [probeTypesScript, 17] },
+        { expr: 'stringValue', target },
+        { expr: 'booleanValue', target },
+        { expr: 'undefinedValue', target },
+        { expr: 'nullValue', target },
+        { expr: 'nanValue', target },
+        { expr: 'bigintValue', target },
+        { expr: 'symbolValue', target },
+        { expr: 'functionValue', target },
+        { expr: 'objectValue', target },
+        { expr: 'arrayValue', target },
+        { expr: 'errorValue', target },
       ],
       results: [
         {
           probe: 0,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'string', value: 'hello' },
         },
         {
           probe: 1,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'boolean', value: true },
         },
         {
           probe: 2,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'undefined' },
         },
         {
           probe: 3,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'object', subtype: 'null', value: null },
         },
         {
           probe: 4,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'number', unserializableValue: 'NaN', description: 'NaN' },
         },
         {
           probe: 5,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'bigint', unserializableValue: '1n', description: '1n' },
         },
         {
           probe: 6,
           event: 'hit',
           hit: 1,
+          location,
           result: { type: 'symbol', description: 'Symbol(tag)' },
         },
         {
           probe: 7,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'function',
             description: '() => 1',
@@ -111,6 +120,7 @@ spawnSyncAndAssert(process.execPath, [
           probe: 8,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'object',
             description: 'Object',
@@ -120,6 +130,7 @@ spawnSyncAndAssert(process.execPath, [
           probe: 9,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'object',
             subtype: 'array',
@@ -130,6 +141,7 @@ spawnSyncAndAssert(process.execPath, [
           probe: 10,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'object',
             subtype: 'error',

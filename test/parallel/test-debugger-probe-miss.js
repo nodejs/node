@@ -4,20 +4,25 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { assertProbeJson, missScript } = require('../common/debugger-probe');
+const { assertProbeJson } = require('../common/debugger-probe');
+const cwd = fixtures.path('debugger');
 
 spawnSyncAndAssert(process.execPath, [
   'inspect',
   '--json',
-  '--probe', `${missScript}:99`,
+  '--probe', 'probe-miss.js:99',
   '--expr', '42',
-  missScript,
-], {
+  'probe-miss.js',
+], { cwd }, {
   stdout(output) {
     assertProbeJson(output, {
-      v: 1,
-      probes: [{ expr: '42', target: [missScript, 99] }],
+      v: 2,
+      probes: [{
+        expr: '42',
+        target: { suffix: 'probe-miss.js', line: 99 },
+      }],
       results: [{
         event: 'miss',
         pending: [0],
