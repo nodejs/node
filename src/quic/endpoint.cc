@@ -378,7 +378,7 @@ Endpoint::UDP::~UDP() {
 }
 
 int Endpoint::UDP::Bind(const Options& options) {
-  if (is_bound_) return UV_EALREADY;
+  if (flags_.is_bound) return UV_EALREADY;
   if (is_closed_or_closing()) return UV_EBADF;
 
   int flags = 0;
@@ -389,7 +389,7 @@ int Endpoint::UDP::Bind(const Options& options) {
   int size;
 
   if (!err) {
-    is_bound_ = true;
+    flags_.is_bound = true;
     size = static_cast<int>(options.udp_receive_buffer_size);
     if (size > 0) {
       err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&impl_->handle_),
@@ -428,34 +428,34 @@ void Endpoint::UDP::Unref() {
 
 int Endpoint::UDP::Start() {
   if (is_closed_or_closing()) return UV_EBADF;
-  if (is_started_) return 0;
+  if (flags_.is_started) return 0;
   int err = uv_udp_recv_start(&impl_->handle_, Impl::OnAlloc, Impl::OnReceive);
-  is_started_ = (err == 0);
+  flags_.is_started = (err == 0);
   return err;
 }
 
 void Endpoint::UDP::Stop() {
-  if (is_closed_or_closing() || !is_started_) return;
+  if (is_closed_or_closing() || !flags_.is_started) return;
   USE(uv_udp_recv_stop(&impl_->handle_));
-  is_started_ = false;
+  flags_.is_started = false;
 }
 
 void Endpoint::UDP::Close() {
   if (is_closed_or_closing()) return;
   DCHECK(impl_);
   Stop();
-  is_bound_ = false;
-  is_closed_ = true;
+  flags_.is_bound = false;
+  flags_.is_closed = true;
   impl_->Close();
   impl_.reset();
 }
 
 bool Endpoint::UDP::is_bound() const {
-  return is_bound_;
+  return flags_.is_bound;
 }
 
 bool Endpoint::UDP::is_closed() const {
-  return is_closed_;
+  return flags_.is_closed;
 }
 
 bool Endpoint::UDP::is_closed_or_closing() const {
@@ -1295,8 +1295,8 @@ void Endpoint::Receive(const uint8_t* data,
     }
     // Schedule the session for deferred SendPendingData if it hasn't
     // been scheduled already in this burst.
-    if (!session->is_destroyed() && !session->pending_flush_) {
-      session->pending_flush_ = true;
+    if (!session->is_destroyed() && !session->flags_.pending_flush) {
+      session->flags_.pending_flush = true;
       BindingData::Get(env()).ScheduleSessionFlush(
           BaseObjectPtr<Session>(session));
     }
