@@ -4,39 +4,41 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const {
-  assertProbeJson,
-  probeTypesScript,
-} = require('../common/debugger-probe');
+const { assertProbeJson } = require('../common/debugger-probe');
 
-const location = `${probeTypesScript}:17`;
+const cwd = fixtures.path('debugger');
+const probeArg = 'probe-types.js:17';
+const target = { suffix: 'probe-types.js', line: 17 };
+const location = { url: fixtures.fileURL('debugger', 'probe-types.js').href, line: 17, column: 1 };
 
 spawnSyncAndAssert(process.execPath, [
   'inspect',
   '--json',
   '--preview',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'objectValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'arrayValue',
-  '--probe', location,
+  '--probe', probeArg,
   '--expr', 'errorValue',
-  probeTypesScript,
-], {
+  'probe-types.js',
+], { cwd }, {
   stdout(output) {
     assertProbeJson(output, {
-      v: 1,
+      v: 2,
       probes: [
-        { expr: 'objectValue', target: [probeTypesScript, 17] },
-        { expr: 'arrayValue', target: [probeTypesScript, 17] },
-        { expr: 'errorValue', target: [probeTypesScript, 17] },
+        { expr: 'objectValue', target },
+        { expr: 'arrayValue', target },
+        { expr: 'errorValue', target },
       ],
       results: [
         {
           probe: 0,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'object',
             description: 'Object',
@@ -55,6 +57,7 @@ spawnSyncAndAssert(process.execPath, [
           probe: 1,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'object',
             subtype: 'array',
@@ -76,6 +79,7 @@ spawnSyncAndAssert(process.execPath, [
           probe: 2,
           event: 'hit',
           hit: 1,
+          location,
           result: {
             type: 'object',
             subtype: 'error',
