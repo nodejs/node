@@ -567,6 +567,10 @@ The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.
 written from scratch for Node.js. You can figure out which version of `undici` is bundled
 in your Node.js process reading the `process.versions.undici` property.
 
+Node.js does not implement a browser-style HTTP cache for `fetch()`. Options
+such as `cache` are accepted for Web API compatibility, but do not make repeated
+requests reuse cached responses.
+
 ### Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
