@@ -440,6 +440,21 @@ async function testBackpressureSync() {
 }
 
 // =============================================================================
+// fromStreamIterSync: backpressure within a batch
+// =============================================================================
+
+async function testBackpressureSyncMultiChunkBatch() {
+  function* gen() {
+    yield [Buffer.from('a'), Buffer.from('b'), Buffer.from('c')];
+  }
+
+  const readable = toReadableSync(gen(), { highWaterMark: 1 });
+  const result = await collect(readable);
+
+  assert.strictEqual(result.toString(), 'abc');
+}
+
+// =============================================================================
 // fromStreamIterSync: source error
 // =============================================================================
 
@@ -613,6 +628,7 @@ Promise.all([
   testWithTransformAsync(),
   testBasicSync(),
   testBackpressureSync(),
+  testBackpressureSyncMultiChunkBatch(),
   testErrorSync(),
   testDestroySync(),
   testRoundTrip(),
