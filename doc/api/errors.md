@@ -390,6 +390,18 @@ will always return `undefined`, and the setter will do nothing. This can occur
 if the accessor is manually invoked with a `this` value that is not a builtin
 error object, such as a {Proxy}.
 
+## Class: `DOMException`
+
+* Extends: {Error}
+
+A web-compatible exception class used by web platform APIs. See
+[`DOMException`][] in the globals documentation, [MDN DOMException][], and the
+[WHATWG DOMException][] specification for details.
+
+`DOMException` instances use the `name` property to identify the error type,
+such as `'AbortError'`. The `code` property is a legacy numeric value, so use
+[`domException.name`][] instead when checking the error type.
+
 ## Class: `AssertionError`
 
 * Extends: {errors.Error}
@@ -4442,6 +4454,7 @@ An error occurred trying to allocate memory. This should never happen.
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
 [JSON Web Key Types Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-types
+[MDN DOMException]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [Native TypeScript support]: typescript.md#type-stripping
 [Node.js error codes]: #nodejs-error-codes
 [Permission Model]: permissions.md#permission-model
@@ -4449,6 +4462,7 @@ An error occurred trying to allocate memory. This should never happen.
 [SQLite]: sqlite.md
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [V8's stack trace API]: https://v8.dev/docs/stack-trace-api
+[WHATWG DOMException]: https://webidl.spec.whatwg.org/#idl-DOMException
 [WHATWG Supported Encodings]: util.md#whatwg-supported-encodings
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"`]: packages.md#exports
@@ -4459,6 +4473,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`--no-addons`]: cli.md#--no-addons
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
 [`Class: assert.AssertionError`]: assert.md#class-assertassertionerror
+[`DOMException`]: globals.md#class-domexception
 [`ERR_INCOMPATIBLE_OPTION_PAIR`]: #err_incompatible_option_pair
 [`ERR_INVALID_ARG_TYPE`]: #err_invalid_arg_type
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #err_missing_message_port_in_transfer_list
