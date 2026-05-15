@@ -496,6 +496,40 @@ substituted into a target pattern.
 }
 ```
 
+#### Package target fallback arrays
+
+Export targets can also be arrays. Each array item is tried in order until
+Node.js finds a target that resolves for the current package subpath and
+conditions. Array items can be string targets, `null`, nested condition
+objects, or nested arrays, and string targets follow the same validation rules
+described above.
+
+```json
+// package.json
+{
+  "name": "my-package",
+  "exports": {
+    ".": [
+      {
+        "node": "./node.js",
+        "default": "./universal.js"
+      },
+      "./fallback.js"
+    ]
+  }
+}
+```
+
+In this example, Node.js resolves `my-package` to `./node.js` because the
+`"node"` condition matches. A runtime that ignores `"node"` could still resolve
+the first array item through `"default"`. If the first array item does not
+resolve for the active conditions, Node.js continues to the next item.
+
+Node.js does not check whether a resolved file exists before selecting an array
+item. For example, `["./missing.js", "./fallback.js"]` resolves to
+`./missing.js`; the missing file error does not cause Node.js to try
+`./fallback.js`.
+
 ### Exports sugar
 
 <!-- YAML
