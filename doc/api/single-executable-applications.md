@@ -631,7 +631,8 @@ platforms:
 
 * Windows
 * macOS (arm64 only; x64 is not currently supported and is skipped in the
-  tests)
+  tests). Single-executable applications built on or for Intel macOS are not
+  expected to work.
 * Linux (all distributions [supported by Node.js][] except Alpine and all
   architectures [supported by Node.js][] except s390x)
 
