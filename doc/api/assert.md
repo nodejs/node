@@ -611,6 +611,7 @@ are recursively evaluated also by the following rules.
 * [Type tags][Object.prototype.toString()] of objects should be the same.
 * [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [`===` operator][].
+* Object constructors are compared when available.
 * Only [enumerable "own" properties][] are considered.
 * {Error} names, messages, causes, and errors are always compared,
   even if these are not enumerable properties.
