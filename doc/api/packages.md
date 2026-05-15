@@ -635,6 +635,14 @@ treating the right hand side target pattern as a `**` glob against the list of
 files within the package. Because `node_modules` paths are forbidden in exports
 targets, this expansion is dependent on only the files of the package itself.
 
+When multiple pattern keys match a requested subpath, Node.js selects the most
+specific match. Specificity is determined by the length of the static prefix
+before `*`, then by the length of the full pattern key. This means a more
+specific private-folder exclusion such as `"./features/private-internal/*"`
+can override a broader `"./features/*.js"` pattern regardless of object order.
+This is different from [conditional exports][], where object key order is
+significant.
+
 To exclude private subfolders from patterns, `null` targets can be used:
 
 ```json
