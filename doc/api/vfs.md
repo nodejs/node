@@ -11,7 +11,7 @@ added: REPLACEME
 <!-- source_link=lib/vfs.js -->
 
 The `node:vfs` module provides an in-memory virtual file system with an
-`fs`-like API. It is useful for tests, fixtures, embedded assets, and other
+`node:fs`-like API. It is useful for tests, fixtures, embedded assets, and other
 scenarios where you need a self-contained file system without touching the
 actual file-system.
 
@@ -112,12 +112,12 @@ added: REPLACEME
 
 `true` when the underlying provider is read-only.
 
-### File system methods
+### APIs
 
 `VirtualFileSystem` implements the following methods, with the same
 signatures as their [`node:fs`][] counterparts:
 
-#### Synchronous methods
+#### Synchronous API
 
 * `existsSync(path)`
 * `statSync(path[, options])`
@@ -151,14 +151,14 @@ signatures as their [`node:fs`][] counterparts:
 * Streams: `createReadStream`, `createWriteStream`
 * Watchers: `watch`, `watchFile`, `unwatchFile`
 
-#### Callback-style asynchronous methods
+#### Callback API
 
 `readFile`, `writeFile`, `stat`, `lstat`, `readdir`, `realpath`, `readlink`,
 `access`, `open`, `close`, `read`, `write`, `rm`, `fstat`, `truncate`,
 `ftruncate`, `link`, `mkdtemp`, `opendir`. Each takes a Node.js-style
-callback `(err, ...result)`.
+callback `(err, ...result) => {}`.
 
-#### Promise methods
+#### Promise API
 
 `vfs.promises` exposes the promise-based variants:
 
@@ -189,7 +189,10 @@ added: REPLACEME
 The base class for all VFS providers. Subclasses implement the essential
 primitives (`open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
 `rename`, ...) and inherit default implementations of the derived
-methods (`readFile`, `writeFile`, `exists`, `copyFile`, `access`, ...).
+The base class for all VFS providers. Subclasses implement the essential
+primitives (such as `open`, `stat`, `readdir`, `mkdir`, `rmdir`, `unlink`,
+`rename`, etc.) and inherit default implementations of the derived
+methods (such as `readFile`, `writeFile`, `exists`, `copyFile`, `access`, etc.).
 
 ### Capability flags
 
@@ -254,7 +257,7 @@ myVfs.writeFileSync('/x.txt', 'fail'); // throws EROFS
 added: REPLACEME
 -->
 
-A provider that wraps a real file system directory and exposes its
+A provider that wraps a directory (i.e. one on the actual file system) and exposes its
 contents through the VFS API. All VFS paths are resolved relative to
 the root and verified to stay inside it; symbolic links resolving
 outside the root are rejected.
@@ -265,7 +268,7 @@ outside the root are rejected.
 added: REPLACEME
 -->
 
-* `rootPath` {string} The absolute file system path to use as the root.
+* `rootPath` {string} The absolute file-system path to use as the root.
   Must be a non-empty string.
 
 ```cjs
