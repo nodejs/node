@@ -1921,11 +1921,13 @@ A `TypeError` is thrown if `urlString` is not a string.
 
 A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
-`url.parse()` uses a lenient, non-standard algorithm for parsing URL
-strings. It is prone to security issues such as [host name spoofing][]
-and incorrect handling of usernames and passwords. Do not use with untrusted
-input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
-[WHATWG URL][] API instead, for example:
+`url.parse()` can be used with URLs from trusted input, such as application
+configuration. It uses a lenient, non-standard algorithm for parsing URL
+strings, so do not use it with untrusted input or when parsed URL components
+are used for security decisions. It is prone to security issues such as
+[host name spoofing][] and incorrect handling of usernames and passwords. CVEs
+are not issued for `url.parse()` vulnerabilities. Use the [WHATWG URL][] API
+instead, for example:
 
 ```js
 function getURL(req) {
