@@ -1810,7 +1810,7 @@ bool Session::is_server() const {
 }
 
 bool Session::is_destroyed() const {
-  return !impl_ || destroy_deferred_;
+  return !impl_ || flags_.destroy_deferred;
 }
 
 bool Session::is_destroyed_or_closing() const {
@@ -1988,9 +1988,9 @@ void Session::Destroy() {
   // destroy impl_ now because the callback is executing methods on
   // objects owned by impl_ (e.g., the Application). Defer the
   // destruction until the scope exits.
-  if (in_ngtcp2_callback_scope_ || in_nghttp3_callback_scope_) {
+  if (flags_.in_ngtcp2_callback_scope || flags_.in_nghttp3_callback_scope) {
     Debug(this, "Session destroy deferred (in callback scope)");
-    destroy_deferred_ = true;
+    flags_.destroy_deferred = true;
     return;
   }
 
@@ -2131,8 +2131,8 @@ void Session::EmitQlog(uint32_t flags, std::string_view data) {
   if (is_destroyed()) {
     auto isolate = env()->isolate();
     Global<Object> recv(isolate, object());
-    Global<Function> cb(
-        isolate, BindingData::Get(env()).session_qlog_callback());
+    Global<Function> cb(isolate,
+                        BindingData::Get(env()).session_qlog_callback());
     std::string buf(data);
     env()->SetImmediate([recv = std::move(recv),
                          cb = std::move(cb),
@@ -2381,7 +2381,7 @@ void Session::SendBatch(Packet::Ptr* packets,
   if (primary_count == 0) return;
 
   // Use batched send for the primary endpoint.
-  if (prefer_try_send_) {
+  if (flags_.prefer_try_send) {
     endpoint().SendBatch(primary_packets, primary_count);
   } else {
     // Non-flush path: send individually via async uv_udp_send.
@@ -2396,9 +2396,9 @@ void Session::FlushPendingData() {
   if (impl_->application_) {
     // Prefer synchronous sends during the deferred flush to avoid the
     // one-tick latency of async uv_udp_send from the uv_check callback.
-    prefer_try_send_ = true;
+    flags_.prefer_try_send = true;
     application().SendPendingData();
-    prefer_try_send_ = false;
+    flags_.prefer_try_send = false;
   }
 }
 
@@ -2422,7 +2422,7 @@ void Session::Send(Packet::Ptr packet) {
   // prefer synchronous send to avoid the one-tick latency of async
   // uv_udp_send. SendOrTrySend uses uv_udp_try_send first, falling
   // back to uv_udp_send on EAGAIN.
-  if (prefer_try_send_) {
+  if (flags_.prefer_try_send) {
     Debug(this, "Session is sending (try_send) %s", packet->ToString());
     endpoint().SendOrTrySend(std::move(packet));
     return;
@@ -2857,7 +2857,7 @@ bool Session::can_send_packets() const {
   // or closing period. The callback scope check is per-session so that
   // one session's ngtcp2 callback does not block unrelated sessions
   // from sending.
-  return !is_destroyed() && !in_ngtcp2_callback_scope_ &&
+  return !is_destroyed() && !flags_.in_ngtcp2_callback_scope &&
          !is_in_draining_period() && !is_in_closing_period();
 }
 
