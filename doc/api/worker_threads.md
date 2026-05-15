@@ -2,6 +2,15 @@
 
 <!--introduced_in=v10.5.0-->
 
+<!-- YAML
+changes:
+  - version: v12.11.0
+    pr-url: https://github.com/nodejs/node/pull/29512
+    description: The module is no longer experimental.
+  - version: v11.7.0
+    description: The module no longer requires the `--experimental-worker` flag.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/worker_threads.js -->
