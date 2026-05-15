@@ -23,6 +23,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::BigInt;
 using v8::FunctionCallbackInfo;
 using v8::Global;
@@ -85,7 +86,11 @@ namespace quic {
   V(MAX_OFFSET, max_offset)                                                    \
   V(MAX_OFFSET_ACK, max_offset_ack)                                            \
   V(MAX_OFFSET_RECV, max_offset_received)                                      \
-  V(FINAL_SIZE, final_size)
+  V(FINAL_SIZE, final_size)                                                    \
+  /* Bytes in the receive accumulation buffer */                               \
+  V(BYTES_ACCUMULATED, bytes_accumulated)                                      \
+  /* Peak bytes accumulated over stream lifetime */                            \
+  V(MAX_BYTES_ACCUMULATED, max_bytes_accumulated)
 
 #define STREAM_JS_METHODS(V)                                                   \
   V(AttachSource, attachSource, false)                                         \
@@ -99,6 +104,91 @@ namespace quic {
   V(InitStreamingSource, initStreamingSource, false)                           \
   V(Write, write, false)                                                       \
   V(EndWrite, endWrite, false)
+
+// ============================================================================
+// RecvAccumulator implementation
+
+RecvAccumulator::RecvAccumulator(size_t max_capacity)
+    : buf_(kMinCapacity), max_capacity_(std::max(max_capacity, kMinCapacity)) {}
+
+size_t RecvAccumulator::Write(const uint8_t* data, size_t len) {
+  if (len == 0) return 0;
+
+  size_t capacity = buf_.size();
+
+  // If the buffer is full, caller must flush or grow first.
+  size_t space = remaining();
+  if (space == 0) return 0;
+
+  size_t to_write = std::min(len, space);
+
+  // Write into the buffer, handling wrap-around.
+  size_t physical_write = write_pos_ % capacity;
+  size_t first_chunk = std::min(to_write, capacity - physical_write);
+  memcpy(buf_.data() + physical_write, data, first_chunk);
+  if (first_chunk < to_write) {
+    memcpy(buf_.data(), data + first_chunk, to_write - first_chunk);
+  }
+
+  write_pos_ += to_write;
+  len_ += to_write;
+  return to_write;
+}
+
+std::unique_ptr<DataQueue::Entry> RecvAccumulator::Flush(Environment* env) {
+  if (len_ == 0) return nullptr;
+
+  size_t capacity = buf_.size();
+
+  auto store = ArrayBuffer::NewBackingStore(
+      env->isolate(), len_, BackingStoreInitializationMode::kUninitialized);
+  auto* dest = static_cast<uint8_t*>(store->Data());
+
+  // Copy from the ring buffer. Handle the wrap-around case.
+  size_t physical_read = read_pos_ % capacity;
+  size_t first_chunk = std::min(len_, capacity - physical_read);
+  memcpy(dest, buf_.data() + physical_read, first_chunk);
+  if (first_chunk < len_) {
+    memcpy(dest + first_chunk, buf_.data(), len_ - first_chunk);
+  }
+
+  size_t flushed = len_;
+
+  // Reset cursors.
+  read_pos_ = 0;
+  write_pos_ = 0;
+  len_ = 0;
+
+  // Shrink back toward kMinCapacity if we had expanded.
+  if (capacity > kMinCapacity) {
+    buf_.resize(kMinCapacity);
+    buf_.shrink_to_fit();
+  }
+
+  return DataQueue::CreateInMemoryEntryFromBackingStore(
+      std::move(store), 0, flushed);
+}
+
+void RecvAccumulator::Grow() {
+  size_t capacity = buf_.size();
+  size_t new_capacity = std::min(capacity * 2, max_capacity_);
+  if (new_capacity <= capacity) return;  // already at max
+
+  // Linearize the data and grow in one step.
+  std::vector<uint8_t> new_buf(new_capacity);
+  if (len_ > 0) {
+    size_t physical_read = read_pos_ % capacity;
+    size_t first_chunk = std::min(len_, capacity - physical_read);
+    memcpy(new_buf.data(), buf_.data() + physical_read, first_chunk);
+    if (first_chunk < len_) {
+      memcpy(new_buf.data() + first_chunk, buf_.data(), len_ - first_chunk);
+    }
+  }
+
+  buf_ = std::move(new_buf);
+  read_pos_ = 0;
+  write_pos_ = len_;
+}
 
 // ============================================================================
 
@@ -1421,6 +1511,28 @@ void Stream::EntryRead(size_t amount) {
   session().ExtendOffset(amount);
 }
 
+void Stream::BeforePull() {
+  // Called before the DataQueue reader pulls. Flush any accumulated
+  // receive data into the DataQueue so the pull finds it immediately.
+  if (recv_accumulator_ && recv_accumulator_->available() > 0) {
+    FlushAccumulation();
+  }
+}
+
+void Stream::FlushAccumulation() {
+  if (!recv_accumulator_ || recv_accumulator_->available() == 0) return;
+  auto entry = recv_accumulator_->Flush(env());
+  if (entry) {
+    inbound_->append(std::move(entry));
+    // Notify the reader that data is now available in the DataQueue.
+    // This is the only place we notify — not on every ReceiveData call —
+    // so the reader only wakes up when there is a well-sized entry to
+    // consume.
+    if (reader_) reader_->NotifyPull();
+  }
+  STAT_SET(Stats, bytes_accumulated, 0);
+}
+
 int Stream::DoPull(bob::Next<ngtcp2_vec> next,
                    int options,
                    ngtcp2_vec* data,
@@ -1513,6 +1625,8 @@ void Stream::EndWritable() {
 void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
   if (!is_readable()) return;
   state()->read_ended = 1;
+  // Flush any accumulated data before capping so the reader can see it.
+  FlushAccumulation();
   set_final_size(maybe_final_size.value_or(STAT_GET(Stats, bytes_received)));
   inbound_->cap(STAT_GET(Stats, final_size));
   // Notify the JS reader so it can see EOS. Pass fin=true so the
@@ -1547,6 +1661,10 @@ void Stream::Destroy(QuicError error) {
 
   // We are going to release our reference to the outbound_ queue here.
   outbound_.reset();
+
+  // EndReadable() above already flushed accumulated data. Just release
+  // the ring buffer memory.
+  recv_accumulator_.reset();
 
   // We reset the inbound here also. However, it's important to note that
   // the JavaScript side could still have a reader on the inbound DataQueue,
@@ -1594,15 +1712,81 @@ void Stream::ReceiveData(const uint8_t* data,
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_SET(Stats, max_offset_received, STAT_GET(Stats, bytes_received));
   STAT_RECORD_TIMESTAMP(Stats, received_at);
-  JS_TRY_ALLOCATE_BACKING(env(), backing, len)
-  memcpy(backing->Data(), data, len);
-  inbound_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
-      std::move(backing), 0, len));
 
-  // Notify the JS reader that data is available.
-  if (reader_) reader_->NotifyPull();
+  // Lazy-allocate the receive accumulation buffer on first data-carrying
+  // call. Streams that never receive data (write-only, immediately reset)
+  // pay zero cost.
+  if (!recv_accumulator_) {
+    // Use the per-stream flow control window as the max capacity. The
+    // peer cannot send more than this without the JS side consuming and
+    // extending the window, so the ring buffer can never overflow.
+    auto params = ngtcp2_conn_get_local_transport_params(session());
+    size_t max_cap;
+    if (direction() == Direction::BIDIRECTIONAL) {
+      max_cap =
+          ngtcp2_conn_is_local_stream(session(), id())
+              ? static_cast<size_t>(params->initial_max_stream_data_bidi_local)
+              : static_cast<size_t>(
+                    params->initial_max_stream_data_bidi_remote);
+    } else {
+      max_cap = static_cast<size_t>(params->initial_max_stream_data_uni);
+    }
+    recv_accumulator_ = std::make_unique<RecvAccumulator>(max_cap);
+  }
 
-  if (flags.fin) EndReadable();
+  // Track whether the accumulator was empty before this call. Used to
+  // notify the reader exactly once per accumulation cycle (empty → non-empty
+  // transition) rather than on every callback.
+  bool was_empty = recv_accumulator_->available() == 0;
+
+  // Accumulate into the ring buffer. When the buffer reaches the flush
+  // threshold (64 KB of accumulated data), flush it into the DataQueue as
+  // a single entry and continue writing the remainder. If the reader is
+  // not consuming (no reader, or reader hasn't pulled), allow the buffer
+  // to grow beyond 64 KB up to the flow control window instead of
+  // flushing — keeping data in cheap C++ memory rather than creating
+  // V8 BackingStore entries nobody is reading yet.
+  while (len > 0) {
+    size_t written = recv_accumulator_->Write(data, len);
+    data += written;
+    len -= written;
+
+    if (len > 0) {
+      // Buffer is full. Decide whether to flush or grow.
+      if (recv_accumulator_->should_flush() && reader_) {
+        // Reader exists and we've hit the flush threshold — produce a
+        // well-sized DataQueue entry for the reader to consume.
+        FlushAccumulation();
+      } else if (recv_accumulator_->remaining() == 0) {
+        // No reader yet, or below flush threshold but physically full.
+        // Try to grow the buffer to absorb more data.
+        recv_accumulator_->Grow();
+        // If Grow() couldn't expand (already at max), flush as fallback.
+        if (recv_accumulator_->remaining() == 0) {
+          FlushAccumulation();
+        }
+      }
+    }
+  }
+
+  // Update accumulation stats.
+  STAT_SET(Stats, bytes_accumulated, recv_accumulator_->available());
+  if (recv_accumulator_->available() > STAT_GET(Stats, max_bytes_accumulated)) {
+    STAT_SET(Stats, max_bytes_accumulated, recv_accumulator_->available());
+  }
+
+  if (flags.fin) {
+    FlushAccumulation();
+    EndReadable();
+  } else if (reader_ && was_empty) {
+    // Notify the reader once when the accumulator transitions from empty
+    // to non-empty. This wakes the reader exactly once per accumulation
+    // cycle. When the reader wakes and calls pull(), BeforePull() flushes
+    // the accumulated data, and the subsequent EntryRead() extends the
+    // flow control window. We do NOT notify on every callback — that
+    // would defeat coalescing by flushing tiny amounts each time.
+    reader_->NotifyPull();
+  }
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
