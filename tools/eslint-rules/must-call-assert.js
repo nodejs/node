@@ -63,7 +63,9 @@ function isMustCallOrMustCallAtLeast(str) {
 }
 
 function isMustCallOrTest(str) {
-  return str === 'test' || str === 'it' || isMustCallOrMustCallAtLeast(str);
+  return str === 'test' || str === 'it' || str === 'describe' || str === 'suite' ||
+    str === 'before' || str === 'after' || str === 'beforeEach' || str === 'afterEach' ||
+    isMustCallOrMustCallAtLeast(str);
 }
 
 module.exports = {
