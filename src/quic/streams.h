@@ -15,10 +15,60 @@
 #include "bindingdata.h"
 #include "data.h"
 
+#include <vector>
+
 namespace node::quic {
 
 class Session;
 class Stream;
+
+// An elastic ring buffer used by Stream to coalesce received data before
+// flushing it into the DataQueue. This avoids creating many small V8
+// BackingStore allocations from per-QUIC-frame ngtcp2 callbacks. Data is
+// memcpy'd into the ring buffer and flushed as a single right-sized
+// BackingStore when the reader pulls or the buffer reaches its flush
+// threshold. The buffer starts at kMinCapacity and can grow up to a
+// configured maximum (typically the stream flow control window).
+class RecvAccumulator final {
+ public:
+  static constexpr size_t kMinCapacity = 64 * 1024;        // 64 KB
+  static constexpr size_t kFlushThreshold = kMinCapacity;  // flush at 64 KB
+
+  explicit RecvAccumulator(size_t max_capacity);
+  ~RecvAccumulator() = default;
+
+  DISALLOW_COPY_AND_MOVE(RecvAccumulator)
+
+  // Append data. Returns the number of bytes written (may be less than
+  // len if the buffer is full). The caller should flush and retry with
+  // the remaining bytes.
+  size_t Write(const uint8_t* data, size_t len);
+
+  // Flush accumulated data as a single DataQueue entry backed by a
+  // right-sized V8 BackingStore. Returns nullptr if nothing is
+  // accumulated. Resets the read/write cursors and shrinks the buffer
+  // back toward kMinCapacity if it was expanded.
+  std::unique_ptr<DataQueue::Entry> Flush(Environment* env);
+
+  // Current number of bytes awaiting flush.
+  size_t available() const { return len_; }
+
+  // Number of bytes that can still be written before the buffer is full.
+  size_t remaining() const { return buf_.size() - len_; }
+
+  // True if accumulated data has reached the flush threshold.
+  bool should_flush() const { return len_ >= kFlushThreshold; }
+
+  // Grow the buffer capacity (doubles, up to max_capacity_).
+  void Grow();
+
+ private:
+  std::vector<uint8_t> buf_;
+  size_t max_capacity_;
+  size_t read_pos_ = 0;
+  size_t write_pos_ = 0;
+  size_t len_ = 0;  // write_pos_ - read_pos_, accounting for wrap
+};
 
 using Ngtcp2Source = bob::SourceImpl<ngtcp2_vec>;
 
@@ -253,6 +303,7 @@ class Stream final : public AsyncWrap,
   void EndWritable();
   void EndReadable(std::optional<uint64_t> maybe_final_size = std::nullopt);
   void EntryRead(size_t amount) override;
+  void BeforePull() override;
 
   // Pulls data from the internal outbound DataQueue configured for this stream.
   // This is called by the session/application when it is preparing to send
@@ -321,6 +372,10 @@ class Stream final : public AsyncWrap,
 
   class Outbound;
 
+  // Flushes any data accumulated in the receive ring buffer into the
+  // inbound DataQueue as a single right-sized entry.
+  void FlushAccumulation();
+
   // Gets a reader for the data received for this stream from the peer,
   BaseObjectPtr<Blob::Reader> get_reader();
 
@@ -379,6 +434,7 @@ class Stream final : public AsyncWrap,
   std::unique_ptr<Outbound> outbound_;
   std::shared_ptr<DataQueue> inbound_;
   BaseObjectWeakPtr<Blob::Reader> reader_;
+  std::unique_ptr<RecvAccumulator> recv_accumulator_;
 
   // If the stream cannot be opened yet, it will be created in a pending state.
   // Once the owning session is able to, it will complete opening of the stream
