@@ -6,6 +6,7 @@ const {
   DatabaseSync,
   constants,
 } = require('node:sqlite');
+const { spawnSync } = require('node:child_process');
 const { test, suite } = require('node:test');
 const { nextDb } = require('../sqlite/next-db.js');
 const { Worker } = require('worker_threads');
@@ -91,6 +92,41 @@ test('database.applyChangeset() - closed database results in exception', (t) => 
   }, {
     name: 'Error',
     message: 'database is not open',
+  });
+});
+
+test('database.applyChangeset() - malformed changeset throws instead of crashing', (t) => {
+  const script = `
+    const { DatabaseSync } = require('node:sqlite');
+    const payload = Buffer.from('540401000000743100177e0072286565286565', 'hex');
+
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE t1(a INTEGER PRIMARY KEY, b, c, d)');
+
+    try {
+      database.applyChangeset(payload);
+      console.log(JSON.stringify({ applied: true }));
+    } catch (err) {
+      console.log(JSON.stringify({
+        name: err.name,
+        code: err.code,
+        errcode: err.errcode,
+        message: err.message,
+      }));
+    }
+  `;
+
+  const result = spawnSync(process.execPath, ['--experimental-sqlite', '-e', script], {
+    encoding: 'utf8',
+  });
+
+  t.assert.strictEqual(result.signal, null);
+  t.assert.strictEqual(result.status, 0);
+  t.assert.deepStrictEqual(JSON.parse(result.stdout), {
+    name: 'Error',
+    code: 'ERR_SQLITE_ERROR',
+    errcode: 11,
+    message: 'database disk image is malformed',
   });
 });
 
