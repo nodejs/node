@@ -58,6 +58,9 @@ added: v12.2.0
   string.
 * Returns: {require} Require function
 
+The returned require function resolves relative specifiers as if they were
+loaded from `filename`. The file at `filename` does not need to exist.
+
 ```mjs
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
