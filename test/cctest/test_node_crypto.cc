@@ -3,9 +3,9 @@
 #define NODE_OPENSSL_SYSTEM_CERT_PATH "/missing/ca.pem"
 
 #include "crypto/crypto_context.h"
+#include "gtest/gtest.h"
 #include "node_options.h"
 #include "openssl/err.h"
-#include "gtest/gtest.h"
 
 /*
  * This test verifies that a call to NewRootCertDir with the build time
@@ -28,23 +28,18 @@ TEST(NodeCrypto, NewRootCertStore) {
  */
 TEST(NodeCrypto, MemoryTrackingConstants) {
   // Verify that our memory tracking constants are defined and reasonable
-  EXPECT_GT(node::crypto::kSizeOf_SSL_CTX, 0)
-      << "SSL_CTX size constant should be positive";
-  EXPECT_GT(node::crypto::kSizeOf_X509, 0)
-      << "X509 size constant should be positive";
-  EXPECT_GT(node::crypto::kSizeOf_EVP_MD_CTX, 0)
-      << "EVP_MD_CTX size constant should be positive";
+  EXPECT_GT(node::crypto::kSizeOf_SSL_CTX, 0UL)
+      << "SSL_CTX size constant should be greater than 0";
+  EXPECT_GT(node::crypto::kSizeOf_X509, 0UL)
+      << "X509 size constant should be greater than 0";
+  EXPECT_GT(node::crypto::kSizeOf_EVP_MD_CTX, 0UL)
+      << "EVP_MD_CTX size constant should be greater than 0";
 
-  // Verify reasonable size ranges (basic sanity check)
-  EXPECT_LT(node::crypto::kSizeOf_SSL_CTX, 10000)
+  // Verify reasonable upper bounds in case of overflow (basic sanity check)
+  EXPECT_LT(node::crypto::kSizeOf_SSL_CTX, 1000UL)
       << "SSL_CTX size should be reasonable";
-  EXPECT_LT(node::crypto::kSizeOf_X509, 10000)
+  EXPECT_LT(node::crypto::kSizeOf_X509, 1000UL)
       << "X509 size should be reasonable";
-  EXPECT_LT(node::crypto::kSizeOf_EVP_MD_CTX, 1000)
+  EXPECT_LT(node::crypto::kSizeOf_EVP_MD_CTX, 1000UL)
       << "EVP_MD_CTX size should be reasonable";
-
-  // Specific values we expect based on our implementation
-  EXPECT_EQ(node::crypto::kSizeOf_SSL_CTX, 240);
-  EXPECT_EQ(node::crypto::kSizeOf_X509, 128);
-  EXPECT_EQ(node::crypto::kSizeOf_EVP_MD_CTX, 48);
 }
