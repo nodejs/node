@@ -179,6 +179,11 @@ class DataQueueImpl final : public DataQueue,
     for (auto& listener : backpressure_listeners_) listener->EntryRead(amount);
   }
 
+  void NotifyBeforePull() {
+    if (idempotent_) return;
+    for (auto& listener : backpressure_listeners_) listener->BeforePull();
+  }
+
   bool HasBackpressureListeners() const noexcept {
     return !backpressure_listeners_.empty();
   }
@@ -380,6 +385,11 @@ class NonIdempotentDataQueueReader final
            size_t count,
            size_t max_count_hint = bob::kMaxCountHint) override {
     std::shared_ptr<DataQueue::Reader> self = shared_from_this();
+
+    // Let listeners flush pending data before we check the entries list.
+    // This allows, for example, the QUIC Stream to flush its receive
+    // accumulation buffer into the queue before the pull proceeds.
+    data_queue_->NotifyBeforePull();
 
     // If ended is true, this reader has already reached the end and cannot
     // provide any more data.
