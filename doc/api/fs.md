@@ -7291,6 +7291,11 @@ changes:
 * Type: {string}
 
 The path to the parent directory of the file this {fs.Dirent} object refers to.
+This value does not include `dirent.name`. For example, if
+`fs.readdirSync('project', { withFileTypes: true, recursive: true })` returns
+a {fs.Dirent} object for `project/src/index.js`, its `parentPath` is
+`'project/src'` and its `name` is `'index.js'`. Use
+`dirent.parentPath` and `dirent.name` together to build the full path.
 
 ### Class: `fs.FSWatcher`
 
