@@ -137,7 +137,9 @@ Store Store::CopyFrom(Local<ArrayBuffer> buffer) {
   auto backing = buffer->GetBackingStore();
   auto length = buffer->ByteLength();
   auto dest = ArrayBuffer::NewBackingStore(
-      isolate, length, BackingStoreInitializationMode::kUninitialized,
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
       BackingStoreOnFailureMode::kReturnNull);
   if (!dest) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
@@ -154,7 +156,9 @@ Store Store::CopyFrom(Local<ArrayBufferView> view) {
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
   auto dest = ArrayBuffer::NewBackingStore(
-      isolate, length, BackingStoreInitializationMode::kUninitialized,
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
       BackingStoreOnFailureMode::kReturnNull);
   // copy content
   if (!dest) {

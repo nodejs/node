@@ -349,9 +349,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     class Impl;
 
     BaseObjectWeakPtr<Impl> impl_;
-    bool is_bound_ = false;
-    bool is_started_ = false;
-    bool is_closed_ = false;
+    struct Flags {
+      uint8_t is_bound : 1 = 0;
+      uint8_t is_started : 1 = 0;
+      uint8_t is_closed : 1 = 0;
+    };
+    Flags flags_;
   };
 
   bool is_closed() const;
