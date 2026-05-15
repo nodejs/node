@@ -1818,10 +1818,10 @@ changes:
   * `highWaterMark` {number} Optionally overrides all [`net.Socket`][]s'
     `readableHighWaterMark` and `writableHighWaterMark`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
-  * `keepAlive` {boolean} If set to `true`, it enables keep-alive functionality
-    on the socket immediately after a new incoming connection is received,
-    similarly on what is done in [`socket.setKeepAlive()`][]. **Default:**
-    `false`.
+  * `keepAlive` {boolean} If set to `true`, enables TCP keep-alive on the
+    socket immediately after a new incoming connection is received, similarly
+    to what is done in [`socket.setKeepAlive()`][]. If `false`, no call to
+    [`socket.setKeepAlive()`][] is made. **Default:** `false`.
   * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
     **Default:** `0`.
