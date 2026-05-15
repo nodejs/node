@@ -8707,8 +8707,11 @@ a string, a {Buffer}, or a {URL} object using the `file:` protocol.
 #### String paths
 
 String paths are interpreted as UTF-8 character sequences identifying
-the absolute or relative filename. Relative paths will be resolved relative
-to the current working directory as determined by calling `process.cwd()`.
+an absolute or relative path. Relative paths will be resolved relative to the
+current working directory as determined by calling `process.cwd()`.
+
+A string path is not interpreted as a URL, even if it starts with `file:`.
+To pass a `file:` URL, use a {URL} object.
 
 Example using an absolute path on POSIX:
 
