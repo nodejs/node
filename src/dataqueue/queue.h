@@ -147,6 +147,11 @@ class DataQueue : public MemoryRetainer {
   class BackpressureListener {
    public:
     virtual void EntryRead(size_t amount) = 0;
+
+    // Called before the reader pulls from the DataQueue. Gives
+    // the listener a chance to flush pending data into the queue
+    // before the pull checks the entries list.
+    virtual void BeforePull() {}
   };
 
   // A DataQueue::Entry represents a logical chunk of data in the queue.
