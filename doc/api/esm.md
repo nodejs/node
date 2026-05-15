@@ -163,10 +163,11 @@ There are three types of specifiers:
   is always necessary for these._
 
 * _Bare specifiers_ like `'some-package'` or `'some-package/shuffle'`. They can
-  refer to the main entry point of a package by the package name, or a
-  specific feature module within a package prefixed by the package name as per
-  the examples respectively. _Including the file extension is only necessary
-  for packages without an [`"exports"`][] field._
+  refer to the main entry point of a package by the package name, or to a
+  package subpath by appending the subpath to the package name. Examples include
+  `'some-package/shuffle'` for a subpath exported by the package, and
+  `'some-package/shuffle.js'` for a file subpath in a package without an
+  [`"exports"`][] field.
 
 * _Absolute specifiers_ like `'file:///opt/nodejs/config.js'`. They refer
   directly and explicitly to a full path.
