@@ -3874,6 +3874,11 @@ has returned, delaying any `_write()`, `_final()` and `_destroy()` calls until
 `callback` is called. This is useful to initialize state or asynchronously
 initialize resources before the stream can be used.
 
+If `_construct()` returns a promise, the promise fulfillment is equivalent to
+calling `callback()` and promise rejection is equivalent to calling
+`callback(err)`. A stream implementation must either call `callback` or return
+a promise, not both.
+
 ```js
 const { Writable } = require('node:stream');
 const fs = require('node:fs');
@@ -4227,6 +4232,11 @@ This optional function will be scheduled in the next tick by the stream
 constructor, delaying any `_read()` and `_destroy()` calls until `callback` is
 called. This is useful to initialize state or asynchronously initialize
 resources before the stream can be used.
+
+If `_construct()` returns a promise, the promise fulfillment is equivalent to
+calling `callback()` and promise rejection is equivalent to calling
+`callback(err)`. A stream implementation must either call `callback` or return
+a promise, not both.
 
 ```js
 const { Readable } = require('node:stream');
