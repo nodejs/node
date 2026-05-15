@@ -99,7 +99,7 @@ transitioning macro RegExpPrototypeMatchAllImpl(
       nativeContext, matcher, string, global, unicode);
 }
 
-// https://tc39.github.io/proposal-string-matchall/
+// https://tc39.es/proposal-string-matchall/
 // RegExp.prototype [ @@matchAll ] ( string )
 transitioning javascript builtin RegExpPrototypeMatchAll(
     js-implicit context: NativeContext, receiver: JSAny)(
@@ -107,7 +107,7 @@ transitioning javascript builtin RegExpPrototypeMatchAll(
   return RegExpPrototypeMatchAllImpl(context, receiver, string);
 }
 
-// https://tc39.github.io/proposal-string-matchall/
+// https://tc39.es/proposal-string-matchall/
 // %RegExpStringIteratorPrototype%.next ( )
 transitioning javascript builtin RegExpStringIteratorPrototypeNext(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {

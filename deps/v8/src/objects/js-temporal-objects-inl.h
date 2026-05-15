@@ -30,16 +30,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-temporal-objects-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalDuration)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalInstant)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainDate)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainDateTime)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainMonthDay)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainTime)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainYearMonth)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalZonedDateTime)
-
-
 // temporal_rs object getters
 ACCESSORS(JSTemporalInstant, instant, Tagged<Managed<temporal_rs::Instant>>,
           kInstantOffset)
@@ -58,12 +48,12 @@ ACCESSORS(JSTemporalPlainYearMonth, year_month,
 ACCESSORS(JSTemporalZonedDateTime, zoned_date_time,
           Tagged<Managed<temporal_rs::ZonedDateTime>>, kZonedDateTimeOffset)
 
-#define DEFINE_CTOR_HELPER(JSType, camel_case)                              \
+#define DEFINE_CTOR_HELPER(JSType, snake_case)                              \
   inline DirectHandle<JSFunction> JSType::GetConstructorTarget(             \
       Isolate* isolate) {                                                   \
     return DirectHandle<JSFunction>(                                        \
         Cast<JSFunction>(                                                   \
-            isolate->native_context()->temporal_##camel_case##_function()), \
+            isolate->native_context()->temporal_##snake_case##_function()), \
         isolate);                                                           \
   }
 

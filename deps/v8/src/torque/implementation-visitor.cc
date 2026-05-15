@@ -3659,11 +3659,11 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
     IncludeGuardScope builtin_definitions_include_guard(
         builtin_definitions, builtin_definitions_file_name);
 
-    builtin_definitions
-        << "\n"
-           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC_TSA, TFC, TFS, TFH, "
-           "ASM) "
-           "\\\n";
+    builtin_definitions << "\n"
+                           "#define BUILTIN_LIST_FROM_TORQUE(CPP, TFJ_TSA, "
+                           "TFJ, TFC_TSA, TFC, TFS, TFH, "
+                           "ASM) "
+                           "\\\n";
     for (auto& declarable : GlobalContext::AllDeclarables()) {
       Builtin* builtin = Builtin::DynamicCast(declarable.get());
       if (!builtin || builtin->IsExternal()) continue;
@@ -3731,7 +3731,15 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           interface_descriptors << "};\n\n";
         }
       } else {
-        builtin_definitions << "TFJ(" << builtin->ExternalName();
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+        if (builtin->SupportsTSA()) {
+          builtin_definitions << "TFJ_TSA(" << builtin->ExternalName();
+        } else {
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+          builtin_definitions << "TFJ(" << builtin->ExternalName();
+#ifdef V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
+        }
+#endif  // V8_ENABLE_EXPERIMENTAL_TQ_TO_TSA
         if (builtin->IsVarArgsJavaScript()) {
           builtin_definitions << ", kDontAdaptArgumentsSentinel";
         } else {
@@ -3942,8 +3950,7 @@ class FieldOffsetsGenerator {
   bool header_size_emitted_ = false;
 };
 
-void GenerateClassExport(const ClassType* type, std::ostream& header,
-                         std::ostream& inl_header) {
+void GenerateClassExport(const ClassType* type, std::ostream& header) {
   const ClassType* super = type->GetSuperClass();
   std::string parent = "TorqueGenerated" + type->name() + "<" + type->name() +
                        ", " + super->name() + ">";
@@ -3954,7 +3961,6 @@ void GenerateClassExport(const ClassType* type, std::ostream& header,
   }
   header << "  TQ_OBJECT_CONSTRUCTORS(" << type->name() << ")\n";
   header << "};\n\n";
-  inl_header << "TQ_OBJECT_CONSTRUCTORS_IMPL(" << type->name() << ")\n";
 }
 
 }  // namespace
@@ -4380,7 +4386,7 @@ void CppClassGenerator::GenerateClass() {
       parent = (*parent)->parent()->ClassSupertype();
     }
 
-    GenerateClassExport(type_, hdr_, inl_);
+    GenerateClassExport(type_, hdr_);
   }
 }
 
@@ -4429,7 +4435,7 @@ void CppClassGenerator::GenerateCppObjectLayoutDefinitionAsserts() {
     std::string field_offset =
         "k" + CamelifyString(f.name_and_type.name) + "Offset";
     std::string cpp_field_offset =
-        f.index.has_value()
+        (f.index.has_value() && !f.index_is_constant)
             ? "OFFSET_OF_DATA_START(" + name_ + ")"
             : "offsetof(" + name_ + ", " + f.name_and_type.name + "_)";
     impl_ << "  static_assert(" << field_offset << " == " << cpp_field_offset
@@ -4469,14 +4475,6 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  inline explicit constexpr " << gen_name_
        << "(Address ptr, typename P::SkipTypeCheckTag\n)";
   hdr_ << "    : P(ptr, typename P::SkipTypeCheckTag{}) {}\n";
-  hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
-
-  inl_ << "template<class D, class P>\n";
-  inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
-  inl_ << "    : P(ptr) {\n";
-  inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
-       << "_NonInline(*this));\n";
-  inl_ << "}\n";
 }
 
 namespace {

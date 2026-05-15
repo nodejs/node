@@ -16,9 +16,9 @@
 #define ABSL_STRINGS_INTERNAL_APPEND_AND_OVERWRITE_H_
 
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/strings/resize_and_overwrite.h"
 
 namespace absl {
@@ -46,8 +46,7 @@ template <typename T, typename Op>
 void StringAppendAndOverwrite(T& str, typename T::size_type append_n,
                               Op append_op) {
   if (ABSL_PREDICT_FALSE(append_n > str.max_size() - str.size())) {
-    absl::base_internal::ThrowStdLengthError(
-        "absl::strings_internal::StringAppendAndOverwrite");
+    ThrowStdLengthError("absl::strings_internal::StringAppendAndOverwrite");
   }
 
   auto old_size = str.size();
@@ -57,12 +56,10 @@ void StringAppendAndOverwrite(T& str, typename T::size_type append_n,
     // Make sure to always grow by at least a factor of 2x.
     const auto min_growth = str.capacity();
     if (ABSL_PREDICT_FALSE(str.capacity() > str.max_size() - min_growth)) {
-      resize = str.max_size();
+      str.reserve(str.max_size());
     } else if (resize < str.capacity() + min_growth) {
-      resize = str.capacity() + min_growth;
+      str.reserve(str.capacity() + min_growth);
     }
-  } else {
-    resize = str.capacity();
   }
 
   // Avoid calling StringResizeAndOverwrite() here since it does an MSAN

@@ -49,9 +49,7 @@ void BM_WebSafeBase64Escape_string(benchmark::State& state) {
     }
   }
   for (auto _ : state) {
-    std::string escaped;
-    benchmark::DoNotOptimize(raw);
-    absl::WebSafeBase64Escape(raw, &escaped);
+    std::string escaped = absl::WebSafeBase64Escape(raw);
     benchmark::DoNotOptimize(escaped);
   }
 }

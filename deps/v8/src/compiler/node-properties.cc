@@ -386,11 +386,10 @@ OptionalMapRef NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
   HeapObjectMatcher mtarget(GetValueInput(receiver, 0));
   HeapObjectMatcher mnewtarget(GetValueInput(receiver, 1));
   if (mtarget.HasResolvedValue() && mnewtarget.HasResolvedValue() &&
-      mnewtarget.Ref(broker).IsJSFunction()) {
+      mnewtarget.Ref(broker).IsJSFunctionWithPrototype()) {
     ObjectRef target = mtarget.Ref(broker);
     JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
-    if (newtarget.map(broker).has_prototype_slot() &&
-        newtarget.has_initial_map(broker)) {
+    if (newtarget.has_initial_map(broker)) {
       MapRef initial_map = newtarget.initial_map(broker);
       OptionalObjectRef ctor = initial_map.GetConstructor(broker);
       if (ctor.has_value() && ctor->equals(target)) {

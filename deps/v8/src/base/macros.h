@@ -201,6 +201,34 @@ V8_INLINE constexpr Dest bit_cast(Source const& source) noexcept {
   void operator delete(void*, size_t) { v8::base::OS::Abort(); } \
   void operator delete[](void*, size_t) { v8::base::OS::Abort(); }
 
+// Define V8_USE_ADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define V8_USE_ADDRESS_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_MEMORY_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define V8_USE_MEMORY_SANITIZER 1
+#endif
+#endif
+
+// Define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(undefined_behavior_sanitizer)
+#define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_SAFE_STACK macro.
 #if defined(__has_feature)
 #if __has_feature(safe_stack)
@@ -597,6 +625,31 @@ bool is_inbounds(float_t v) {
 #else
 #define START_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
 #define END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
+#endif  // defined(__clang__)
+
+// Disable/enable -Wlifetime-safety warnings in code.
+#if defined(__clang__) && defined(__has_warning) && \
+    __has_warning("-Wlifetime-safety")
+#define START_IGNORE_LIFETIME_SAFETY_WARNINGS() \
+  _Pragma("clang diagnostic push")              \
+      _Pragma("clang diagnostic ignored \"-Wlifetime-safety\"")
+#define END_IGNORE_LIFETIME_SAFETY_WARNINGS() _Pragma("clang diagnostic pop")
+#else
+#define START_IGNORE_LIFETIME_SAFETY_WARNINGS()
+#define END_IGNORE_LIFETIME_SAFETY_WARNINGS()
+#endif  // defined(__clang__)
+
+// Disable/enable -Wreturn-stack-address warnings in code.
+#if defined(__clang__) && defined(__has_warning) && \
+    __has_warning("-Wreturn-stack-address")
+#define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
+  _Pragma("clang diagnostic push")                   \
+      _Pragma("clang diagnostic ignored \"-Wreturn-stack-address\"")
+#define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS() \
+  _Pragma("clang diagnostic pop")
+#else
+#define START_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
+#define END_IGNORE_RETURN_STACK_ADDRESS_WARNINGS()
 #endif  // defined(__clang__)
 
 #endif  // V8_BASE_MACROS_H_

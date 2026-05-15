@@ -22,8 +22,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-duration-format-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSDurationFormat)
-
 ACCESSORS(JSDurationFormat, icu_locale, Tagged<Managed<icu::Locale>>,
           kIcuLocaleOffset)
 

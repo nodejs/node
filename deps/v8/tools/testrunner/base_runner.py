@@ -485,11 +485,14 @@ class BaseTestRunner(object):
         # Some abseil symbols are observed as defined more than once in
         # component builds.
         asan_options += ['detect_odr_violation=0']
-      if not utils.GuessOS() in ['macos', 'windows']:
-        # LSAN is not available on mac and windows.
-        asan_options.append('detect_leaks=1')
-      else:
+      if any((
+          # LSan is not available on mac and windows.
+          utils.GuessOS() in ['macos', 'windows'],
+          # LSan conflicts with hardware-based watchpoints (using ptrace).
+          self.build_config.memory_corruption_api)):
         asan_options.append('detect_leaks=0')
+      else:
+        asan_options.append('detect_leaks=1')
       if utils.GuessOS() == 'windows':
         # https://crbug.com/967663
         asan_options.append('detect_stack_use_after_return=0')

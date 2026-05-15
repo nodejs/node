@@ -136,7 +136,7 @@ class DescriptorArray
   inline Tagged<MaybeObject> GetValue(PtrComprCageBase cage_base,
                                       InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
-  inline int GetFieldIndex(InternalIndex descriptor_number);
+  inline int GetOffsetInWords(InternalIndex descriptor_number);
   inline Tagged<FieldType> GetFieldType(InternalIndex descriptor_number);
   inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number);
@@ -192,11 +192,6 @@ class DescriptorArray
                                  bool concurrent_search = false);
   V8_INLINE InternalIndex Search(Tagged<Name> name, Tagged<Map> map,
                                  bool concurrent_search = false);
-
-  // Search the instance descriptors for given field offset.
-  V8_INLINE InternalIndex Search(int field_offset,
-                                 int number_of_own_descriptors);
-  V8_INLINE InternalIndex Search(int field_offset, Tagged<Map> map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.

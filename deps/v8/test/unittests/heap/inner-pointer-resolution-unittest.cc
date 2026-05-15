@@ -207,7 +207,8 @@ class InnerPointerResolutionTest
                                               roots.unchecked_fixed_array_map(),
                                               SKIP_WRITE_BARRIER);
         Tagged<FixedArray> arr(Cast<FixedArray>(heap_object));
-        arr->set_length((object.size - FixedArray::SizeFor(0)) / kTaggedSize);
+        arr->set_length(static_cast<uint32_t>(
+            (object.size - FixedArray::SizeFor(0)) / kTaggedSize));
         DCHECK_EQ(object.size, arr->AllocatedSize());
         break;
       }

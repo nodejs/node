@@ -342,7 +342,7 @@ function testOptimized(run, fctToOptimize) {
 (function TestArrayLen() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('createArray', makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([
@@ -376,7 +376,7 @@ function testOptimized(run, fctToOptimize) {
 (function TestArrayGet() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
 
   builder.addFunction('createArray',
       makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmExternRef]))
@@ -421,7 +421,7 @@ function testOptimized(run, fctToOptimize) {
 (function TestArrayGetPacked() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI8, true);
+  let array = builder.addArray(kWasmI8);
 
   builder.addFunction('createArray',
       makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmExternRef]))
@@ -497,7 +497,7 @@ function testOptimized(run, fctToOptimize) {
 (function TestCastArray() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI32, true);
+  let array = builder.addArray(kWasmI32);
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
 
   builder.addFunction('createArray', makeSig([], [kWasmExternRef]))
@@ -541,7 +541,7 @@ function testOptimized(run, fctToOptimize) {
 (function TestInliningArraySet() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let array = builder.addArray(kWasmI64, true);
+  let array = builder.addArray(kWasmI64);
 
   builder.addFunction('createArray',
       makeSig([kWasmI64, kWasmI64, kWasmI64], [kWasmExternRef]))

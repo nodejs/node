@@ -43,10 +43,10 @@ void SharedHeapDeserializer::DeserializeStringTable() {
   const int length = source()->GetUint30();
 
   // .. and the contents.
-  DirectHandleVector<String> strings(isolate());
+  DirectHandleVector<InternalizedString> strings(isolate());
   strings.reserve(length);
   for (int i = 0; i < length; ++i) {
-    strings.emplace_back(Cast<String>(ReadObject()));
+    strings.emplace_back(Cast<InternalizedString>(ReadObject()));
   }
 
   StringTable* t = isolate()->string_table();

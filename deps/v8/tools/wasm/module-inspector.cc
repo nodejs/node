@@ -222,7 +222,7 @@ class InstructionStatistics {
 class ExtendedFunctionDis : public FunctionBodyDisassembler {
  public:
   ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
-                      bool shared, WasmDetectedFeatures* detected,
+                      SharedFlag shared, WasmDetectedFeatures* detected,
                       const FunctionSig* sig, const uint8_t* start,
                       const uint8_t* end, uint32_t offset,
                       const ModuleWireBytes wire_bytes, NamesProvider* names)
@@ -396,6 +396,7 @@ class HexDumpModuleDis : public ITracer {
     // what we can.
     std::unique_ptr<WasmModule> fake_module;
     std::unique_ptr<NamesProvider> names_provider;
+    NamesProvider* original_names = names_;
     if (!names_) {
       fake_module.reset(new WasmModule(kWasmOrigin));
       names_provider.reset(
@@ -415,10 +416,8 @@ class HexDumpModuleDis : public ITracer {
                 << " out of " << wire_bytes_.length() << " bytes.\n";
     }
 
-    // For cleanliness, reset {names_} if it's pointing at a fake.
-    if (names_ == names_provider.get()) {
-      names_ = nullptr;
-    }
+    // For cleanliness, reset {names_} in case we set it at a fake above.
+    names_ = original_names;
   }
 
   // Tracer hooks.
@@ -588,8 +587,8 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = decoder_->pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
-    ExtendedFunctionDis d(&zone_, module, 0, false, &detected, &sig, start, end,
-                          offset, wire_bytes_, names_);
+    ExtendedFunctionDis d(&zone_, module, 0, SharedFlag::kNo, &detected, &sig,
+                          start, end, offset, wire_bytes_, names_);
     d.HexdumpConstantExpression(out_);
     total_bytes_ += static_cast<size_t>(end - start);
   }
@@ -601,7 +600,7 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
-    bool shared = module->type(func->sig_index).is_shared;
+    SharedFlag shared = module->type(func->sig_index).is_shared;
     ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
@@ -931,7 +930,7 @@ class FormatConverter {
     for (uint32_t i = module()->num_imported_functions;
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
-      bool shared = module()->type(func->sig_index).is_shared;
+      SharedFlag shared = module()->type(func->sig_index).is_shared;
       WasmDetectedFeatures detected;
       base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
       ExtendedFunctionDis d(&zone, module(), i, shared, &detected, func->sig,
@@ -979,7 +978,7 @@ class FormatConverter {
       if (type.has_descriptor()) num_has_descriptor++;
       if (type.is_descriptor()) num_is_descriptor++;
       if (type.is_final) num_final++;
-      if (type.is_shared) num_shared++;
+      if (type.is_shared == SharedFlag::kYes) num_shared++;
       Count(type.subtyping_depth, depths);
       switch (type.kind) {
         case TypeDefinition::kFunction:
@@ -1052,7 +1051,7 @@ class FormatConverter {
     }
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
-    bool shared = module()->type(func->sig_index).is_shared;
+    SharedFlag shared = module()->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 
@@ -1468,7 +1467,10 @@ int main(int argc, char** argv) {
   }
 
   // Bootstrap the basics.
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
+  if (!v8::V8::InitializeICUDefaultLocation(argv[0])) {
+    std::cerr << "Failed to initialize ICU" << std::endl;
+    return 1;
+  }
   v8::V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());

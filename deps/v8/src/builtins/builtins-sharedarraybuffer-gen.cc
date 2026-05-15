@@ -36,7 +36,8 @@ class SharedArrayBufferBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<UintPtrT> ValidateAtomicAccess(TNode<JSTypedArray> array,
                                        TNode<JSAny> index,
-                                       TNode<Context> context);
+                                       TNode<Context> context,
+                                       TNode<Int32T> elements_kind);
 
   inline void DebugCheckAtomicIndex(TNode<JSTypedArray> array,
                                     TNode<UintPtrT> index);
@@ -156,17 +157,18 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
   *out_backing_store = RawPtrAdd(backing_store, Signed(byte_offset));
 }
 
-// https://tc39.github.io/ecma262/#sec-validateatomicaccess
+// https://tc39.es/ecma262/#sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
 TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
-    TNode<JSTypedArray> array, TNode<JSAny> index, TNode<Context> context) {
+    TNode<JSTypedArray> array, TNode<JSAny> index, TNode<Context> context,
+    TNode<Int32T> elements_kind) {
   Label done(this), range_error(this), unreachable(this);
 
   // 1. Assert: typedArray is an Object that has a [[ViewedArrayBuffer]]
   // internal slot.
   // 2. Let length be IntegerIndexedObjectLength(typedArray);
   TNode<UintPtrT> array_length = LoadJSTypedArrayLengthAndValidate(
-      array, TypedArrayAccessMode::kRead, &unreachable);
+      array, TypedArrayAccessMode::kRead, &unreachable, elements_kind);
 
   // 3. Let accessIndex be ? ToIndex(requestIndex).
   TNode<UintPtrT> index_uintptr = ToIndex(context, index, &range_error);
@@ -255,7 +257,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
 
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context);
+      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
   // 3. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   // 4. NOTE: The above check is not redundant with the check in
@@ -345,7 +347,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
 
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context);
+      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
   Label u8(this), u16(this), u32(this), u64(this), other(this);
 
@@ -456,7 +458,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
 
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context);
+      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
 #if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
@@ -596,7 +598,7 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
 
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
   TNode<UintPtrT> index_word =
-      ValidateAtomicAccess(array, index_or_field_name, context);
+      ValidateAtomicAccess(array, index_or_field_name, context, elements_kind);
 
 #if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);
@@ -776,7 +778,8 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
   TNode<JSTypedArray> array = CAST(maybe_array);
 
   // 2. Let i be ? ValidateAtomicAccess(typedArray, index).
-  TNode<UintPtrT> index_word = ValidateAtomicAccess(array, index, context);
+  TNode<UintPtrT> index_word =
+      ValidateAtomicAccess(array, index, context, elements_kind);
 
 #if V8_TARGET_ARCH_MIPS64
   TNode<Number> index_number = ChangeUintPtrToTagged(index_word);

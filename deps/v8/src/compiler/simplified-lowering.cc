@@ -1221,7 +1221,8 @@ class RepresentationSelector {
       return MachineRepresentation::kNone;
     } else if (type.Is(Type::Signed32()) || type.Is(Type::Unsigned32())) {
       return MachineRepresentation::kWord32;
-    } else if (type.Is(Type::NumberOrOddball()) && use.IsUsedAsWord32()) {
+    } else if (type.Is(Type::NumberOrOddball()) && use.IsUsedAsWord32() &&
+               !use.check_safe_integer()) {
       return MachineRepresentation::kWord32;
     } else if (type.Is(Type::Boolean())) {
       return MachineRepresentation::kBit;
@@ -1428,8 +1429,38 @@ class RepresentationSelector {
 
   template <Phase T>
   void VisitStateValues(Node* node) {
+    // If the StateValues' first input is the receiver, it needs to be converted
+    // to tagged, such that we don't need to allocate when computing stack
+    // traces.
+    // TODO(nicohartmann): This is only relevant for lazy frames, but there is
+    // currently no easy way to tell if a frame is eager or lazy; fix.
+    bool first_input_is_receiver = false;
+    for (Node* use : node->uses()) {
+      if (use->opcode() == IrOpcode::kFrameState) {
+        FrameState frame_state(use);
+        switch (frame_state.frame_state_info().type()) {
+          case FrameStateType::kUnoptimizedFunction:
+          case FrameStateType::kJavaScriptBuiltinContinuation:
+          case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
+            if (use->InputCount() > FrameState::kFrameStateParametersInput &&
+                use->InputAt(FrameState::kFrameStateParametersInput) == node) {
+              first_input_is_receiver = true;
+              break;
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
     if (propagate<T>()) {
-      for (int i = 0; i < node->InputCount(); i++) {
+      int i = 0;
+      if (first_input_is_receiver) {
+        EnqueueInput<T>(node, i, UseInfo::AnyTagged());
+        ++i;
+      }
+      for (; i < node->InputCount(); i++) {
         if (IsLargeBigInt(TypeOf(node->InputAt(i)))) {
           // BigInt64s are rematerialized in deoptimization. The other BigInts
           // must be rematerialized before deoptimization. By propagating an
@@ -1449,7 +1480,15 @@ class RepresentationSelector {
       Zone* zone = jsgraph_->zone();
       ZoneVector<MachineType>* types =
           zone->New<ZoneVector<MachineType>>(node->InputCount(), zone);
-      for (int i = 0; i < node->InputCount(); i++) {
+      int i = 0;
+      if (first_input_is_receiver) {
+        Node* receiver = node->InputAt(0);
+        ConvertInput(node, 0, UseInfo::AnyTagged());
+        (*types)[i] = DeoptMachineTypeOf(MachineRepresentation::kTagged,
+                                         TypeOf(receiver));
+        ++i;
+      }
+      for (; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
         MachineRepresentation input_rep = GetInfo(input)->representation();
         if (IsLargeBigInt(TypeOf(input))) {

@@ -5,6 +5,8 @@
 #ifndef V8_BASE_IEEE754_H_
 #define V8_BASE_IEEE754_H_
 
+#include <cmath>
+
 #include "src/base/base-export.h"
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
@@ -105,7 +107,7 @@ V8_BASE_EXPORT double cosh(double x);
 V8_BASE_EXPORT double sinh(double x);
 
 // Returns the hyperbolic tangent of |x|, where |x| is given radians.
-V8_BASE_EXPORT double tanh(double x);
+V8_INLINE double tanh(double x) { return std::tanh(x); }
 
 }  // namespace ieee754
 }  // namespace base

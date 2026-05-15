@@ -7,6 +7,7 @@
 
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
+#include "src/objects/trusted-pointer.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -92,8 +93,8 @@ class BytecodeArray : public ExposedTrustedObject {
   DECL_GETTER(SourcePositionTable, Tagged<TrustedByteArray>)
 
   // Raw accessors to access these fields during code cache deserialization.
-  DECL_GETTER(raw_constant_pool, Tagged<Object>)
-  DECL_GETTER(raw_handler_table, Tagged<Object>)
+  DECL_GETTER(raw_constant_pool, Tagged<Union<Smi, TrustedFixedArray>>)
+  DECL_GETTER(raw_handler_table, Tagged<Union<Smi, TrustedByteArray>>)
   // This accessor can also be used when it's not guaranteed that a source
   // position table exists, for example because it hasn't been collected. In
   // that case, Smi::zero() will be returned.
@@ -167,25 +168,19 @@ class BytecodeArray : public ExposedTrustedObject {
 // A BytecodeWrapper wraps a BytecodeArray but lives inside the sandbox. This
 // can be useful for example when a reference to a BytecodeArray needs to be
 // stored along other tagged pointers inside an array or similar datastructure.
-class BytecodeWrapper : public Struct {
+V8_OBJECT class BytecodeWrapper : public StructLayout {
  public:
   DECL_TRUSTED_POINTER_ACCESSORS(bytecode, BytecodeArray)
 
   DECL_PRINTER(BytecodeWrapper)
   DECL_VERIFIER(BytecodeWrapper)
 
-#define FIELD_LIST(V)                     \
-  V(kBytecodeOffset, kTrustedPointerSize) \
-  V(kHeaderSize, 0)                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
-#undef FIELD_LIST
-
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(BytecodeWrapper, Struct);
-};
+ public:
+  TrustedPointerMember<BytecodeArray, kBytecodeArrayIndirectPointerTag>
+      bytecode_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

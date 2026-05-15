@@ -25,11 +25,9 @@ class JSRawJson : public TorqueGeneratedJSRawJson<JSRawJson, JSObject> {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_RAW_JSON_FIELDS)
 #undef JS_RAW_JSON_FIELDS
 
-  // Index only valid to use if HasInitialLayout() returns true.
-  static const int kRawJsonInitialIndex = 0;
-
   // Returns whether this raw JSON object has the initial layout and the
-  // "rawJSON" property can be directly accessed using kRawJsonInitialIndex.
+  // "rawJSON" property can be directly accessed using
+  // kRawJsonInitialOffset.
   inline bool HasInitialLayout(Isolate* isolate) const;
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSRawJson> Create(

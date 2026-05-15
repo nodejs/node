@@ -9,6 +9,7 @@
 #include <stack>
 #include <vector>
 
+#include "src/base/small-vector.h"
 #include "src/common/simd128.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/frame-translation-builder.h"
@@ -273,6 +274,8 @@ class TranslatedFrame {
     return raw_bytecode_array_;
   }
 
+  using ValuesContainer = base::SmallVector<TranslatedValue, 8>;
+
   class iterator {
    public:
     iterator& operator++() {
@@ -304,11 +307,10 @@ class TranslatedFrame {
    private:
     friend TranslatedFrame;
 
-    explicit iterator(std::deque<TranslatedValue>::iterator position,
-                      int input_index = 0)
+    explicit iterator(ValuesContainer::iterator position, int input_index = 0)
         : position_(position), input_index_(input_index) {}
 
-    std::deque<TranslatedValue>::iterator position_;
+    ValuesContainer::iterator position_;
     int input_index_;
   };
 
@@ -375,7 +377,7 @@ class TranslatedFrame {
     return TranslatedFrame(kInvalid, {}, {}, 0);
   }
 
-  static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
+  static void AdvanceIterator(ValuesContainer::iterator* iter);
 
   explicit TranslatedFrame(Kind kind,
                            Tagged<SharedFunctionInfo> raw_shared_info,
@@ -414,8 +416,6 @@ class TranslatedFrame {
   int formal_parameter_count_ = -1;
 
   enum HandleState { kRawPointers, kHandles } handle_state_;
-
-  using ValuesContainer = std::deque<TranslatedValue>;
 
   ValuesContainer values_;
 
@@ -485,15 +485,15 @@ class TranslatedState {
   // Store newly materialized values into the isolate.
   void StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame);
 
-  using iterator = std::vector<TranslatedFrame>::iterator;
+  using iterator = base::SmallVector<TranslatedFrame, 3>::iterator;
   iterator begin() { return frames_.begin(); }
   iterator end() { return frames_.end(); }
 
-  using const_iterator = std::vector<TranslatedFrame>::const_iterator;
+  using const_iterator = base::SmallVector<TranslatedFrame, 3>::const_iterator;
   const_iterator begin() const { return frames_.begin(); }
   const_iterator end() const { return frames_.end(); }
 
-  std::vector<TranslatedFrame>& frames() { return frames_; }
+  base::SmallVector<TranslatedFrame, 3>& frames() { return frames_; }
 
   TranslatedFrame* GetFrameFromJSFrameIndex(int jsframe_index);
   TranslatedFrame* GetArgumentsInfoFromJSFrameIndex(int jsframe_index,
@@ -505,11 +505,22 @@ class TranslatedState {
             Address stack_frame_pointer, DeoptTranslationIterator* iterator,
             Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
             const DeoptimizationLiteralProvider& literal_array,
-            RegisterValues* registers, FILE* trace_file, int parameter_count,
-            int actual_argument_count);
+            RegisterValues* registers, FILE* trace_file,
+            uint32_t parameter_count, uint32_t actual_argument_count);
 
   void VerifyMaterializedObjects();
   bool DoUpdateFeedback(DeoptimizeReason reason);
+
+  // Resolves one deopt translation value opcode to a raw Tagged<Object>,
+  // reading from the live frame if needed.  Only LITERAL and
+  // TAGGED_STACK_SLOT can be resolved cheaply; for any other opcode the
+  // iterator is left positioned just past the opcode and std::nullopt is
+  // returned so the caller can fall back to the full materialization path.
+  static std::optional<Tagged<Object>> TryResolveTaggedValue(
+      DeoptTranslationIterator* it, Address fp,
+      Tagged<DeoptimizationLiteralArray> literals);
+
+  static Address DecompressIfNeeded(intptr_t value);
 
  private:
   friend TranslatedValue;
@@ -525,11 +536,11 @@ class TranslatedState {
       Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
       const DeoptimizationLiteralProvider& literal_array, Address fp,
       FILE* trace_file);
+  template <bool IsTracing>
   int CreateNextTranslatedValue(
       int frame_index, DeoptTranslationIterator* iterator,
       const DeoptimizationLiteralProvider& literal_array, Address fp,
       RegisterValues* registers, FILE* trace_file);
-  Address DecompressIfNeeded(intptr_t value);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
                                                CreateArgumentsType type,
@@ -585,17 +596,17 @@ class TranslatedState {
   static Simd128 getSimd128Slot(Address fp, int slot_index);
 
   Purpose const purpose_;
-  std::vector<TranslatedFrame> frames_;
+  base::SmallVector<TranslatedFrame, 3> frames_;
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
-  int formal_parameter_count_;
-  int actual_argument_count_;
+  uint32_t formal_parameter_count_;
+  uint32_t actual_argument_count_;
 
   struct ObjectPosition {
     int frame_index_;
     int value_index_;
   };
-  std::deque<ObjectPosition> object_positions_;
+  std::vector<ObjectPosition> object_positions_;
   Handle<FeedbackVector> feedback_vector_handle_;
   Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;

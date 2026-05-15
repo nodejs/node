@@ -288,6 +288,13 @@ void WriteBarrier::ForJSDispatchHandle(Tagged<HeapObject> host,
 }
 
 // static
+void WriteBarrier::ForJSDispatchHandle(HeapObjectLayout* host,
+                                       JSDispatchHandle handle,
+                                       WriteBarrierMode mode) {
+  ForJSDispatchHandle(Tagged(host), handle, mode);
+}
+
+// static
 void WriteBarrier::ForProtectedPointer(Tagged<TrustedObject> host,
                                        ProtectedPointerSlot slot,
                                        Tagged<TrustedObject> value,

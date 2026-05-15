@@ -195,6 +195,10 @@
           'release_x64_asan_sandbox_testing_undefined_double',
       'V8 Clusterfuzz Linux64 ASAN fuzzilli sandbox testing - release builder':
           'release_x64_asan_fuzzilli_sandbox_testing_undefined_double',
+      'V8 Clusterfuzz Linux64 arm64 fuzzilli sandbox testing - release builder':
+          'release_simulate_arm64_fuzzilli_sandbox_testing_undefined_double',
+      'V8 Clusterfuzz Linux64 ASAN arm64 fuzzilli sandbox testing - release builder':
+          'release_simulate_arm64_asan_fuzzilli_sandbox_testing_undefined_double',
     },
     'client.v8.perf' : {
       # Arm
@@ -318,6 +322,10 @@
       'v8_linux64_fuzzilli_sandbox_testing_compile_rel': 'release_x64_fuzzilli_sandbox_testing_undefined_double',
       'v8_linux64_asan_sandbox_testing_compile_rel': 'release_x64_asan_sandbox_testing_undefined_double',
       'v8_linux64_asan_fuzzilli_sandbox_testing_compile_rel': 'release_x64_asan_fuzzilli_sandbox_testing_undefined_double',
+      'v8_linux64_arm64_fuzzilli_sandbox_testing_compile_rel':
+          'release_simulate_arm64_fuzzilli_sandbox_testing_undefined_double',
+      'v8_linux64_arm64_asan_fuzzilli_sandbox_testing_compile_rel':
+          'release_simulate_arm64_asan_fuzzilli_sandbox_testing_undefined_double',
       'v8_linux64_cfi_compile_rel': 'release_x64_cfi',
       'v8_linux64_fuzzilli_compile_rel': 'release_x64_fuzzilli',
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
@@ -488,6 +496,14 @@
       'release_trybot', 'simulate_arm', 'v8_enable_lite_mode'],
     'release_simulate_arm_trybot': [
       'release_trybot', 'simulate_arm'],
+    'release_simulate_arm64_asan_fuzzilli_sandbox_testing_undefined_double': [
+      'release_bot', 'simulate_arm64', 'asan', 'minimal_symbols', 'backtrace',
+      'trace_pc_guard', 'v8_enable_memory_corruption_api',
+      'v8_enable_undefined_double', 'v8_enable_fuzzilli'],
+    'release_simulate_arm64_fuzzilli_sandbox_testing_undefined_double': [
+      'release_bot', 'simulate_arm64', 'minimal_symbols', 'backtrace',
+      'trace_pc_guard', 'v8_enable_memory_corruption_api',
+      'v8_enable_undefined_double', 'v8_enable_fuzzilli'],
     'release_simulate_arm64_gcmole': [
       'release_bot', 'simulate_arm64', 'gcmole'],
     'release_simulate_arm64_gcmole_trybot': [
@@ -1091,7 +1107,8 @@
     },
 
     'use_centipede': {
-      'gn_args': 'use_centipede=true optimize_for_fuzzing = true',
+      'gn_args': 'use_centipede=true optimize_for_fuzzing=true '
+                 'sanitizer_coverage_skip_stdlib_and_absl=true',
     },
 
     'v8_check_header_includes': {
@@ -1112,8 +1129,10 @@
     },
 
     'v8_dumpling': {
-      'gn_args': 'v8_dumpling=true v8_enable_object_print=true '
-                 'v8_enable_partition_alloc=false v8_symbol_level=2',
+      'gn_args': 'v8_dumpling=true '
+                 'v8_enable_lazy_source_positions=false '
+                 'v8_enable_partition_alloc=false '
+                 'v8_symbol_level=2',
     },
 
     'v8_enable_drumbrake': {

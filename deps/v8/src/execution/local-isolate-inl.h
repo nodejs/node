@@ -24,6 +24,10 @@ ReadOnlyHeap* LocalIsolate::read_only_heap() const {
   return isolate_->read_only_heap();
 }
 
+bool LocalIsolate::is_short_builtin_calls_enabled() const {
+  return isolate_->is_short_builtin_calls_enabled();
+}
+
 RootsTable& LocalIsolate::roots_table() { return isolate_->roots_table(); }
 const RootsTable& LocalIsolate::roots_table() const {
   return isolate_->roots_table();

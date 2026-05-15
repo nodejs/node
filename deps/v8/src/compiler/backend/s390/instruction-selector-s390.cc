@@ -47,10 +47,7 @@ OperandModes immediateModeMask =
     OperandMode::kInt32Imm | OperandMode::kInt32Imm_Negate |
     OperandMode::kUint32Imm | OperandMode::kInt20Imm;
 
-#define AndCommonMode                                                \
-  ((OperandMode::kAllowRM |                                          \
-    (CpuFeatures::IsSupported(DISTINCT_OPS) ? OperandMode::kAllowRRR \
-                                            : OperandMode::kNone)))
+#define AndCommonMode (OperandMode::kAllowRM | OperandMode::kAllowRRR)
 #define And64OperandMode AndCommonMode
 #define Or64OperandMode And64OperandMode
 #define Xor64OperandMode And64OperandMode
@@ -60,26 +57,20 @@ OperandModes immediateModeMask =
 #define Or32OperandMode And32OperandMode
 #define Xor32OperandMode And32OperandMode
 
-#define Shift32OperandMode                                   \
-  ((OperandMode::kAllowRI | OperandMode::kShift64Imm |       \
-    (CpuFeatures::IsSupported(DISTINCT_OPS)                  \
-         ? (OperandMode::kAllowRRR | OperandMode::kAllowRRI) \
-         : OperandMode::kNone)))
+#define Shift32OperandMode                            \
+  (OperandMode::kAllowRI | OperandMode::kShift64Imm | \
+  OperandMode::kAllowRRR | OperandMode::kAllowRRI)
 
-#define Shift64OperandMode                             \
-  ((OperandMode::kAllowRI | OperandMode::kShift64Imm | \
-    OperandMode::kAllowRRR | OperandMode::kAllowRRI))
+#define Shift64OperandMode                            \
+  (OperandMode::kAllowRI | OperandMode::kShift64Imm | \
+  OperandMode::kAllowRRR | OperandMode::kAllowRRI)
 
-#define AddOperandMode                                            \
-  ((OperandMode::kArithmeticCommonMode | OperandMode::kInt32Imm | \
-    (CpuFeatures::IsSupported(DISTINCT_OPS)                       \
-         ? (OperandMode::kAllowRRR | OperandMode::kAllowRRI)      \
-         : OperandMode::kArithmeticCommonMode)))
-#define SubOperandMode                                                   \
-  ((OperandMode::kArithmeticCommonMode | OperandMode::kInt32Imm_Negate | \
-    (CpuFeatures::IsSupported(DISTINCT_OPS)                              \
-         ? (OperandMode::kAllowRRR | OperandMode::kAllowRRI)             \
-         : OperandMode::kArithmeticCommonMode)))
+#define AddOperandMode                                           \
+  (OperandMode::kArithmeticCommonMode | OperandMode::kInt32Imm | \
+  OperandMode::kAllowRRR | OperandMode::kAllowRRI)
+#define SubOperandMode                                                  \
+  (OperandMode::kArithmeticCommonMode | OperandMode::kInt32Imm_Negate | \
+  OperandMode::kAllowRRR | OperandMode::kAllowRRI)
 #define MulOperandMode \
   (OperandMode::kArithmeticCommonMode | OperandMode::kInt32Imm)
 
@@ -905,7 +896,7 @@ void InstructionSelector::VisitLoad(OpIndex node) {
             SelectLoadOpcode(view.ts_loaded_rep(), view.ts_result_rep()));
 }
 
-void InstructionSelector::VisitProtectedLoad(OpIndex node) {
+void InstructionSelector::VisitTrappingLoad(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1057,7 +1048,7 @@ void InstructionSelector::VisitStore(OpIndex node) {
   VisitGeneralStore(this, node, rep, write_barrier_kind);
 }
 
-void InstructionSelector::VisitProtectedStore(OpIndex node) {
+void InstructionSelector::VisitTrappingStore(OpIndex node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1176,7 +1167,7 @@ void InstructionSelector::VisitWord64And(OpIndex node) {
         opcode = kS390_RotLeftAndClear64;
         mask = mb;
       }
-      if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+      if (match) {
         Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
              g.TempImmediate(sh), g.TempImmediate(mask));
         return;
@@ -1220,7 +1211,7 @@ void InstructionSelector::VisitWord64Shl(OpIndex node) {
           opcode = kS390_RotLeftAndClear64;
           mask = mb;
         }
-        if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+        if (match) {
           Emit(opcode, g.DefineAsRegister(node),
                g.UseRegister(bitwise_and.left()), g.TempImmediate(sh),
                g.TempImmediate(mask));
@@ -1450,8 +1441,7 @@ bool TryMatchShiftFromMul(InstructionSelector* selector, OpIndex node) {
     int power = 63 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
     bool doZeroExt = DoZeroExtForResult(selector, node);
     bool canEliminateZeroExt = ProduceWord32Result(selector, left);
-    InstructionOperand dst = (doZeroExt && !canEliminateZeroExt &&
-                              CpuFeatures::IsSupported(DISTINCT_OPS))
+    InstructionOperand dst = (doZeroExt && !canEliminateZeroExt)
                                  ? g.DefineAsRegister(node)
                                  : g.DefineSameAsFirst(node);
 
@@ -1495,16 +1485,8 @@ static inline bool TryMatchInt32MulWithOverflow(InstructionSelector* selector,
                                                 OpIndex node) {
   OptionalOpIndex ovf = selector->FindProjection(node, 1);
   if (ovf.valid()) {
-    if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
       TryMatchInt32OpWithOverflow<kS390_Mul32>(
           selector, node, OperandMode::kAllowRRR | OperandMode::kAllowRM);
-    } else {
-      FlagsContinuation cont =
-          FlagsContinuation::ForSet(kNotEqual, ovf.value());
-      VisitWord32BinOp(selector, node, kS390_Mul32WithOverflow,
-                       OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
-                       &cont);
-    }
     return true;
   }
   return TryMatchShiftFromMul<Int32BinopMatcher, kS390_ShiftLeft32>(selector,
@@ -1840,9 +1822,7 @@ void InstructionSelector::VisitFloat64Ieee754Binop(OpIndex node,
 void InstructionSelector::VisitInt64MulWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid()) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(
-        CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow : kNotEqual,
-        ovf.value());
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     return EmitInt64MulWithOverflow(this, node, &cont);
   }
     FlagsContinuation cont;
@@ -2142,24 +2122,14 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
               }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               if (is64) {
-                cont->OverwriteAndNegateIfEqual(
-                    CpuFeatures::IsSupported(MISC_INSTR_EXT2) ? kOverflow
-                                                              : kNotEqual);
+                cont->OverwriteAndNegateIfEqual(kOverflow);
                 return EmitInt64MulWithOverflow(this, node, cont);
 
               } else {
-                if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
                   cont->OverwriteAndNegateIfEqual(kOverflow);
                   return VisitWord32BinOp(
                       this, node, kS390_Mul32,
                       OperandMode::kAllowRRR | OperandMode::kAllowRM, cont);
-                } else {
-                  cont->OverwriteAndNegateIfEqual(kNotEqual);
-                  return VisitWord32BinOp(
-                      this, node, kS390_Mul32WithOverflow,
-                      OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps,
-                      cont);
-                }
               }
             default:
               break;
@@ -3362,6 +3332,10 @@ void InstructionSelector::VisitTruncateFloat32ToUint32(OpIndex node) {
   }
 
   Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
+}
+
+void InstructionSelector::VisitWord64MulWide(OpIndex node, bool is_signed) {
+  UNIMPLEMENTED();
 }
 
 void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,

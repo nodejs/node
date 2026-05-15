@@ -1,9 +1,8 @@
 // Copyright 2024 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// Flags: --allow-natives-syntax --jit-fuzzing --wasm-staging
-// Flags: --expose-gc
+
+// Flags: --allow-natives-syntax --jit-fuzzing --expose-gc
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");

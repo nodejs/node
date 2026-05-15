@@ -46,21 +46,28 @@ v8::Local<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
   if (strcmp(*v8::String::Utf8Value(isolate, str), "externalizeString") == 0) {
-    return v8::FunctionTemplate::New(isolate,
-                                     ExternalizeStringExtension::Externalize);
+    return v8::FunctionTemplate::New(
+        isolate, ExternalizeStringExtension::Externalize,
+        v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 0,
+        v8::ConstructorBehavior::kThrow);
   } else if (strcmp(*v8::String::Utf8Value(isolate, str),
                     "createExternalizableString") == 0) {
     return v8::FunctionTemplate::New(
-        isolate, ExternalizeStringExtension::CreateExternalizableString);
+        isolate, ExternalizeStringExtension::CreateExternalizableString,
+        v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 0,
+        v8::ConstructorBehavior::kThrow);
   } else if (strcmp(*v8::String::Utf8Value(isolate, str),
                     "createExternalizableTwoByteString") == 0) {
     return v8::FunctionTemplate::New(
-        isolate, ExternalizeStringExtension::CreateExternalizableTwoByteString);
+        isolate, ExternalizeStringExtension::CreateExternalizableTwoByteString,
+        v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 0,
+        v8::ConstructorBehavior::kThrow);
   } else {
     DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString"),
               0);
-    return v8::FunctionTemplate::New(isolate,
-                                     ExternalizeStringExtension::IsOneByte);
+    return v8::FunctionTemplate::New(
+        isolate, ExternalizeStringExtension::IsOneByte, v8::Local<v8::Value>(),
+        v8::Local<v8::Signature>(), 0, v8::ConstructorBehavior::kThrow);
   }
 }
 

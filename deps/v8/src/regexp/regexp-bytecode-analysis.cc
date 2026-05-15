@@ -13,13 +13,15 @@
 
 namespace v8 {
 namespace internal {
+namespace regexp {
 
-RegExpBytecodeAnalysis::RegExpBytecodeAnalysis(
-    Isolate* isolate, Zone* zone, DirectHandle<TrustedByteArray> bytecode)
+BytecodeAnalysis::BytecodeAnalysis(Isolate* isolate, Zone* zone,
+                                   DirectHandle<TrustedByteArray> bytecode)
     : zone_(zone),
       bytecode_(*bytecode, isolate),
-      length_(bytecode->length()),
-      offset_to_prev_bytecode_(bytecode->length() + kSlotAtLength, 0, zone),
+      length_(bytecode->ulength().value()),
+      offset_to_prev_bytecode_(bytecode->ulength().value() + kSlotAtLength, 0,
+                               zone),
       backtrack_targets_(zone),
       block_starts_(zone),
       offset_to_block_id_(length_, -1, zone),
@@ -31,7 +33,7 @@ RegExpBytecodeAnalysis::RegExpBytecodeAnalysis(
       uses_current_char_(0, zone),
       loads_current_char_(0, zone) {}
 
-void RegExpBytecodeAnalysis::Analyze() {
+void BytecodeAnalysis::Analyze() {
   // TODO(jgruber): Analysis passes need to be optimized before being used in
   // production. We are quite wasteful currently.
   FindBasicBlocks();
@@ -39,12 +41,12 @@ void RegExpBytecodeAnalysis::Analyze() {
   AnalyzeDataFlow();
 }
 
-void RegExpBytecodeAnalysis::PrintBlock(int block_id) {
+void BytecodeAnalysis::PrintBlock(uint32_t block_id) {
   const char* kGrey = "\e[0;32m";
   const char* kReset = "\033[0m";
   const char* prefix = "-- ";
 
-  const int block_start = BlockStart(block_id);
+  const uint32_t block_start = BlockStart(block_id);
   PrintF("%s%sb%02d, ebb%02d, [%x,%x), attrs {", kGrey, prefix, block_id,
          GetEbbId(block_start), block_start, BlockEnd(block_id));
   if (IsLoopHeader(block_id)) PrintF(" header");
@@ -54,7 +56,7 @@ void RegExpBytecodeAnalysis::PrintBlock(int block_id) {
   {
     PrintF("}, pred {");
     bool printed_first = false;
-    for (int pred : predecessors_[block_id]) {
+    for (uint32_t pred : predecessors_[block_id]) {
       PrintF("%sb%02d", printed_first ? "," : "", pred);
       printed_first = true;
     }
@@ -64,7 +66,7 @@ void RegExpBytecodeAnalysis::PrintBlock(int block_id) {
     bool printed_first = false;
     ForEachSuccessor(
         block_id,
-        [&](int successor, int jump_offset, bool is_backtrack) {
+        [&](uint32_t successor, uint32_t jump_offset, bool is_backtrack) {
           PrintF("%sb%02d", printed_first ? "," : "", successor);
           printed_first = true;
           if (IsBackEdge(jump_offset)) PrintF(" backedge");
@@ -108,42 +110,38 @@ void RegExpBytecodeAnalysis::PrintBlock(int block_id) {
   }
 }
 
-int RegExpBytecodeAnalysis::GetBlockId(int bytecode_offset) const {
-  DCHECK_GE(bytecode_offset, 0);
+uint32_t BytecodeAnalysis::GetBlockId(uint32_t bytecode_offset) const {
   DCHECK_LT(bytecode_offset, length_);
   int id = offset_to_block_id_[bytecode_offset];
   DCHECK_GE(id, 0);
-  return id;
+  return static_cast<uint32_t>(id);
 }
 
-int RegExpBytecodeAnalysis::GetEbbId(int bytecode_offset) const {
-  DCHECK_GE(bytecode_offset, 0);
+int BytecodeAnalysis::GetEbbId(uint32_t bytecode_offset) const {
   DCHECK_LT(bytecode_offset, length_);
   // Can be uninitialized for dead code so negative ids are valid.
   return offset_to_ebb_id_[bytecode_offset];
 }
 
-int RegExpBytecodeAnalysis::BlockStart(int block_id) const {
-  DCHECK_GE(block_id, 0);
+uint32_t BytecodeAnalysis::BlockStart(uint32_t block_id) const {
   DCHECK_LT(block_id, block_count());
   return block_starts_[block_id];
 }
 
-int RegExpBytecodeAnalysis::BlockEnd(int block_id) const {
-  DCHECK_GE(block_id, 0);
+uint32_t BytecodeAnalysis::BlockEnd(uint32_t block_id) const {
   DCHECK_LT(block_id, block_count());
   return block_starts_[block_id + 1];
 }
 
-bool RegExpBytecodeAnalysis::IsLoopHeader(int block_id) const {
+bool BytecodeAnalysis::IsLoopHeader(uint32_t block_id) const {
   return is_loop_header_.Contains(block_id);
 }
 
-bool RegExpBytecodeAnalysis::IsBackEdge(int bytecode_offset) const {
+bool BytecodeAnalysis::IsBackEdge(uint32_t bytecode_offset) const {
   return is_back_edge_.Contains(bytecode_offset);
 }
 
-void RegExpBytecodeAnalysis::FindBasicBlocks() {
+void BytecodeAnalysis::FindBasicBlocks() {
   // Potential optimizations
   // * Simple xmm reg allocation, with constant hoisting.
   //   * Only do this if the code actually uses the xmm regs.
@@ -184,12 +182,11 @@ void RegExpBytecodeAnalysis::FindBasicBlocks() {
   leaders.Add(0);
 
   uint32_t prev_offset = 0;
-  for (RegExpBytecodeIterator it(bytecode_); !it.done(); it.advance()) {
-    const RegExpBytecode bytecode = it.current_bytecode();
-    const RegExpBytecodeFlags flags = RegExpBytecodes::Flags(bytecode);
+  for (BytecodeIterator it(bytecode_); !it.done(); it.advance()) {
+    const Bytecode bytecode = it.current_bytecode();
+    const BytecodeFlags flags = Bytecodes::Flags(bytecode);
     const uint32_t current_offset = it.current_offset();
-    const uint32_t next_offset =
-        current_offset + RegExpBytecodes::Size(bytecode);
+    const uint32_t next_offset = current_offset + Bytecodes::Size(bytecode);
 
     const bool is_fallthrough = (flags & ReBcFlag::kNoFallthrough) == 0;
     bool treat_as_fallthrough = is_fallthrough;
@@ -203,15 +200,14 @@ void RegExpBytecodeAnalysis::FindBasicBlocks() {
     // Gather jump targets.
     bool has_jumptarget_operand = false;
     bool has_nontrivial_jumptarget = false;
-    RegExpBytecodes::DispatchOnBytecode(bytecode, [&]<RegExpBytecode bc>() {
-      using Operands = RegExpBytecodeOperands<bc>;
+    Bytecodes::DispatchOnBytecode(bytecode, [&]<Bytecode bc>() {
+      using Operands = BytecodeOperands<bc>;
       Operands::ForEachOperand([&]<auto op>() {
-        if constexpr (Operands::Type(op) ==
-                      RegExpBytecodeOperandType::kJumpTarget) {
+        if constexpr (Operands::Type(op) == BytecodeOperandType::kJumpTarget) {
           uint32_t target =
               Operands::template Get<op>(it.current_address(), no_gc_);
           DCHECK_LT(target, length_);
-          if constexpr (bc == RegExpBytecode::kPushBacktrack) {
+          if constexpr (bc == Bytecode::kPushBacktrack) {
             // The target is pushed to the stack, not branched to.
             backtrack_targets_.push_back(target);
             leaders.Add(target);
@@ -241,20 +237,19 @@ void RegExpBytecodeAnalysis::FindBasicBlocks() {
   }
 
   // And for backwards walks from the end:
-  DCHECK_GT(static_cast<uint32_t>(length_), prev_offset);
-  DCHECK(is_uint8(static_cast<uint32_t>(length_) - prev_offset));
-  offset_to_prev_bytecode_[length_] =
-      static_cast<uint32_t>(length_) - prev_offset;
+  DCHECK_GT(length_, prev_offset);
+  DCHECK(is_uint8(length_ - prev_offset));
+  offset_to_prev_bytecode_[length_] = length_ - prev_offset;
 
   // Pass 2: Create blocks.
-  for (int leader : leaders) {
+  for (uint32_t leader : leaders) {
     block_starts_.push_back(leader);
   }
 
   // Pass 3: Map offsets to block IDs.
-  int current_block_id = 0;
-  int next_block_start = block_starts_[current_block_id + 1];
-  for (int pc = 0; pc < length_; ++pc) {
+  uint32_t current_block_id = 0;
+  uint32_t next_block_start = block_starts_[current_block_id + 1];
+  for (uint32_t pc = 0; pc < length_; ++pc) {
     if (pc == next_block_start) {
       current_block_id++;
       next_block_start = block_starts_[current_block_id + 1];
@@ -265,20 +260,21 @@ void RegExpBytecodeAnalysis::FindBasicBlocks() {
 }
 
 template <typename Callback>
-void RegExpBytecodeAnalysis::ForEachSuccessor(int block_id, Callback callback,
-                                              bool include_backtrack) {
-  int end = BlockEnd(block_id);
+void BytecodeAnalysis::ForEachSuccessor(uint32_t block_id, Callback callback,
+                                        bool include_backtrack) {
+  uint32_t end = BlockEnd(block_id);
   DCHECK_GT(offset_to_prev_bytecode_[end], 0);
-  int current_offset = end - offset_to_prev_bytecode_[end];
+  DCHECK_GE(end, offset_to_prev_bytecode_[end]);
+  uint32_t current_offset = end - offset_to_prev_bytecode_[end];
 
   // To find successors, we only need to look at the last instruction of the
   // block.
 
-  RegExpBytecodeIterator iterator(bytecode_, current_offset);
-  RegExpBytecode bytecode = iterator.current_bytecode();
+  BytecodeIterator iterator(bytecode_, current_offset);
+  Bytecode bytecode = iterator.current_bytecode();
 
   // Backtrack may jump to any backtrack target.
-  if (bytecode == RegExpBytecode::kBacktrack) {
+  if (bytecode == Bytecode::kBacktrack) {
     if (include_backtrack) {
       for (uint32_t target : backtrack_targets_) {
         callback(GetBlockId(target), current_offset, true);
@@ -287,17 +283,16 @@ void RegExpBytecodeAnalysis::ForEachSuccessor(int block_id, Callback callback,
     return;
   }
 
-  const RegExpBytecodeFlags flags = RegExpBytecodes::Flags(bytecode);
+  const BytecodeFlags flags = Bytecodes::Flags(bytecode);
   const bool may_branch =
       (flags & ReBcFlag::kNoBranchDespiteJumpTargetOperand) == 0;
   const bool is_fallthrough = (flags & ReBcFlag::kNoFallthrough) == 0;
 
   if (may_branch) {
-    RegExpBytecodes::DispatchOnBytecode(bytecode, [&]<RegExpBytecode bc>() {
-      using Operands = RegExpBytecodeOperands<bc>;
+    Bytecodes::DispatchOnBytecode(bytecode, [&]<Bytecode bc>() {
+      using Operands = BytecodeOperands<bc>;
       Operands::ForEachOperand([&]<auto op>() {
-        if constexpr (Operands::Type(op) ==
-                      RegExpBytecodeOperandType::kJumpTarget) {
+        if constexpr (Operands::Type(op) == BytecodeOperandType::kJumpTarget) {
           uint32_t target =
               Operands::template Get<op>(iterator.current_address(), no_gc_);
           CHECK_LT(target, length_);
@@ -314,18 +309,18 @@ void RegExpBytecodeAnalysis::ForEachSuccessor(int block_id, Callback callback,
   }
 }
 
-void RegExpBytecodeAnalysis::AnalyzeControlFlow() {
-  const int num_blocks = block_count();
+void BytecodeAnalysis::AnalyzeControlFlow() {
+  const uint32_t num_blocks = block_count();
 
   predecessors_.assign(num_blocks, ZoneSet<int>(zone_));
   is_loop_header_.Resize(num_blocks, zone_);
 
   BitVector visited(num_blocks, zone_);
   BitVector recursion_stack(num_blocks, zone_);
-  ZoneVector<std::pair<int, int>> back_edges(zone_);
+  ZoneVector<std::pair<uint32_t, uint32_t>> back_edges(zone_);
 
   struct Frame {
-    int block_id;
+    uint32_t block_id;
     int ebb_id;
     bool successors_visited;
   };
@@ -335,7 +330,7 @@ void RegExpBytecodeAnalysis::AnalyzeControlFlow() {
 
   while (!dfs_stack.empty()) {
     Frame& frame = dfs_stack.top();
-    const int u = frame.block_id;
+    const uint32_t u = frame.block_id;
 
     if (frame.successors_visited) {
       // Post-order.
@@ -356,7 +351,7 @@ void RegExpBytecodeAnalysis::AnalyzeControlFlow() {
 
     ForEachSuccessor(
         u,
-        [&](int v, int jump_offset, bool is_backtrack) {
+        [&](uint32_t v, uint32_t jump_offset, bool is_backtrack) {
           predecessors_[v].emplace(u);
           if (!is_backtrack && recursion_stack.Contains(v)) {
             // Back-edge detected.
@@ -381,7 +376,7 @@ void RegExpBytecodeAnalysis::AnalyzeControlFlow() {
     Frame frame = dfs_stack.top();
     dfs_stack.pop();
 
-    const int u = frame.block_id;
+    const uint32_t u = frame.block_id;
     if (visited.Contains(u)) {
       continue;
     }
@@ -390,7 +385,7 @@ void RegExpBytecodeAnalysis::AnalyzeControlFlow() {
 
     ForEachSuccessor(
         u,
-        [&](int v, int jump_offset, bool is_backtrack) {
+        [&](uint32_t v, uint32_t jump_offset, bool is_backtrack) {
           if (visited.Contains(v)) return;
           int ebb_id = GetEbbId(BlockStart(v));
           if (ebb_id == -1) {
@@ -410,13 +405,13 @@ void RegExpBytecodeAnalysis::AnalyzeControlFlow() {
   ComputeLoops(back_edges);
 }
 
-void RegExpBytecodeAnalysis::ComputeLoops(
-    const ZoneVector<std::pair<int, int>>& back_edges) {
-  int num_blocks = block_count();
+void BytecodeAnalysis::ComputeLoops(
+    const ZoneVector<std::pair<uint32_t, uint32_t>>& back_edges) {
+  uint32_t num_blocks = block_count();
 
   for (const auto& edge : back_edges) {
-    int header = edge.second;
-    int latch = edge.first;
+    uint32_t header = edge.second;
+    uint32_t latch = edge.first;
 
     // Find or create loop info for this header.
     // TODO(jgruber): not linear search. BlockInfo could point at LoopInfo.
@@ -434,17 +429,17 @@ void RegExpBytecodeAnalysis::ComputeLoops(
     }
 
     // Add blocks to loop body by walking backwards from latch to header.
-    ZoneVector<int> worklist(zone_);
+    ZoneVector<uint32_t> worklist(zone_);
     worklist.push_back(latch);
     loop->members.Add(latch);
 
     while (!worklist.empty()) {
-      int block = worklist.back();
+      uint32_t block = worklist.back();
       worklist.pop_back();
 
       if (block == header) continue;
 
-      for (int pred : predecessors_[block]) {
+      for (uint32_t pred : predecessors_[block]) {
         if (!loop->members.Contains(pred)) {
           loop->members.Add(pred);
           worklist.push_back(pred);
@@ -455,10 +450,10 @@ void RegExpBytecodeAnalysis::ComputeLoops(
 
   // Compute loop exits now that loop infos are complete.
   for (auto& loop : loops_) {
-    for (int block : loop.members) {
+    for (uint32_t block : loop.members) {
       ForEachSuccessor(
           block,
-          [&](int successor, int jump_offset, bool is_backtrack) {
+          [&](uint32_t successor, uint32_t jump_offset, bool is_backtrack) {
             if (!loop.members.Contains(successor)) {
               loop.exits.push_back({block, successor});
             }
@@ -468,16 +463,16 @@ void RegExpBytecodeAnalysis::ComputeLoops(
   }
 }
 
-bool RegExpBytecodeAnalysis::UsesCurrentChar(int block_id) const {
+bool BytecodeAnalysis::UsesCurrentChar(uint32_t block_id) const {
   return uses_current_char_.Contains(block_id);
 }
 
-bool RegExpBytecodeAnalysis::LoadsCurrentChar(int block_id) const {
+bool BytecodeAnalysis::LoadsCurrentChar(uint32_t block_id) const {
   return loads_current_char_.Contains(block_id);
 }
 
-void RegExpBytecodeAnalysis::AnalyzeDataFlow() {
-  int num_blocks = block_count();
+void BytecodeAnalysis::AnalyzeDataFlow() {
+  uint32_t num_blocks = block_count();
   uses_current_char_.Resize(num_blocks, zone_);
   loads_current_char_.Resize(num_blocks, zone_);
 
@@ -485,17 +480,17 @@ void RegExpBytecodeAnalysis::AnalyzeDataFlow() {
   // current_character if any use exists before a load in the same block; any
   // uses after a local load are not counted.
 
-  for (int block_id = 0; block_id < num_blocks; ++block_id) {
-    int start = BlockStart(block_id);
-    int end = BlockEnd(block_id);
+  for (uint32_t block_id = 0; block_id < num_blocks; ++block_id) {
+    uint32_t start = BlockStart(block_id);
+    uint32_t end = BlockEnd(block_id);
 
-    RegExpBytecodeIterator iterator(bytecode_, start);
+    BytecodeIterator iterator(bytecode_, start);
     bool locally_loaded = false;
 
     while (iterator.current_offset() < end) {
-      RegExpBytecode bytecode = iterator.current_bytecode();
+      Bytecode bytecode = iterator.current_bytecode();
 
-      const RegExpBytecodeFlags flags = RegExpBytecodes::Flags(bytecode);
+      const BytecodeFlags flags = Bytecodes::Flags(bytecode);
       const bool loads = (flags & ReBcFlag::kLoadsCC) != 0;
       const bool uses = (flags & ReBcFlag::kUsesCC) != 0;
 
@@ -512,5 +507,6 @@ void RegExpBytecodeAnalysis::AnalyzeDataFlow() {
   }
 }
 
+}  // namespace regexp
 }  // namespace internal
 }  // namespace v8

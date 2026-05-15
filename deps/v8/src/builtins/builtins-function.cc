@@ -162,6 +162,7 @@ BUILTIN(AsyncFunctionConstructor) {
   return *func;
 }
 
+// https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorfunction-constructor
 BUILTIN(AsyncGeneratorFunctionConstructor) {
   HandleScope scope(isolate);
   DirectHandle<Object> maybe_func;
@@ -250,7 +251,7 @@ BUILTIN(WebAssemblyFunctionPrototypeBind) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-// ES6 section 19.2.3.5 Function.prototype.toString ( )
+// https://tc39.es/ecma262/#sec-function.prototype.tostring
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();

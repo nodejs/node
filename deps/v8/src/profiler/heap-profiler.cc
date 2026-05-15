@@ -19,7 +19,7 @@
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/profiler/allocation-tracker.h"
-#include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/heap-snapshot-generator.h"
 #include "src/profiler/sampling-heap-profiler.h"
 #include "src/utils/output-stream.h"
 
@@ -94,14 +94,14 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
     build_embedder_graph_callbacks_.erase(it);
 }
 
-void HeapProfiler::BuildEmbedderGraph(
-    Isolate* isolate, v8::EmbedderGraph* graph,
-    UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects) {
+void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
+                                      v8::EmbedderGraph* graph,
+                                      CppHeapWrapperSet&& cpp_heap_wrappers) {
   if (internal_build_embedder_graph_callback_.first) {
     internal_build_embedder_graph_callback_.first(
         reinterpret_cast<v8::Isolate*>(isolate), graph,
         internal_build_embedder_graph_callback_.second,
-        std::move(cpp_heap_external_objects));
+        std::move(cpp_heap_wrappers));
   }
   for (const auto& cb : build_embedder_graph_callbacks_) {
     cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);
@@ -146,13 +146,9 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
       use_cpp_class_name.emplace(heap()->cpp_heap());
     }
 
-    // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
-    // TODO(https://crbug.com/333672197): remove.
-    START_ALLOW_USE_DEPRECATED()
-    HeapSnapshotGenerator generator(
-        result, options.control, options.global_object_name_resolver,
-        options.context_name_resolver, heap(), options.stack_state);
-    END_ALLOW_USE_DEPRECATED()
+    HeapSnapshotGenerator generator(result, options.control,
+                                    options.context_name_resolver, heap(),
+                                    options.stack_state);
     if (!generator.GenerateSnapshot()) {
       delete result;
       result = nullptr;
@@ -172,10 +168,11 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 }
 
 // Precondition: only call this if you have just completed a full GC cycle.
-void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
+void HeapProfiler::WriteSnapshotToDiskAfterGC(
+    const v8::HeapProfiler::HeapSnapshotOptions options) {
   // We need to set a stack marker for the stack walk performed by the
   // snapshot generator to work.
-  heap()->stack().SetMarkerIfNeededAndCallback([this, snapshot_mode]() {
+  heap()->stack().SetMarkerIfNeededAndCallback([this, options]() {
     int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
     int pid = base::OS::GetCurrentProcessId();
     std::string filename = "v8-heap-" + std::to_string(time) + "-" +
@@ -183,16 +180,12 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
     if (v8_flags.heap_snapshot_path.value()) {
       filename = v8_flags.heap_snapshot_path.value();
     }
-    v8::HeapProfiler::HeapSnapshotOptions options;
+    v8::HeapProfiler::HeapSnapshotOptions otions;
     std::unique_ptr<HeapSnapshot> result(
-        new HeapSnapshot(this, snapshot_mode, options.numerics_mode));
-    // Allow usages of v8::HeapProfiler::ObjectNameResolver for now.
-    // TODO(https://crbug.com/333672197): remove.
-    START_ALLOW_USE_DEPRECATED()
-    HeapSnapshotGenerator generator(
-        result.get(), options.control, options.global_object_name_resolver,
-        options.context_name_resolver, heap(), options.stack_state);
-    END_ALLOW_USE_DEPRECATED()
+        new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
+    HeapSnapshotGenerator generator(result.get(), options.control,
+                                    options.context_name_resolver, heap(),
+                                    options.stack_state);
     if (!generator.GenerateSnapshotAfterGC()) return;
     i::FileOutputStream stream(filename.c_str());
     if (stream.IsOpen()) {
@@ -204,6 +197,17 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
              filename.c_str());
     }
   });
+}
+
+// static
+v8::HeapProfiler::HeapSnapshotOptions
+HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage() {
+  // Since this API is intended for V8 devs, we do not treat globals as
+  // roots here on purpose.
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
+  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
+  return options;
 }
 
 void HeapProfiler::TakeSnapshotToFile(

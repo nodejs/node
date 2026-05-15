@@ -52,6 +52,20 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   TNode<JSFunction> CreateUnwrapClosure(TNode<NativeContext> native_context,
                                         TNode<Boolean> done);
 
+  // Branches to |if_non_thenable| when |value| is guaranteed not to have a
+  // "then" property and no promise hooks/debug are active. Falls through to
+  // |if_slow| otherwise. Used to gate fast paths that skip promise/closure
+  // allocation for non-thenable awaited/yielded values.
+  void BranchIfNonThenable(TNode<Context> context, TNode<Object> value,
+                           Label* if_non_thenable, Label* if_slow);
+
+  // Allocates an AsyncResumeTask, stores all fields, and enqueues it on
+  // the microtask queue.  Used by both async generator yield and async
+  // function await fast paths.
+  void EnqueueAsyncResumeTask(TNode<NativeContext> native_context,
+                              TNode<JSGeneratorObject> generator,
+                              TNode<Object> value, int kind);
+
  private:
   TNode<Context> AllocateAsyncIteratorValueUnwrapContext(
       TNode<NativeContext> native_context, TNode<Boolean> done);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --wasm-staging
+// Flags: --experimental-wasm-imported-strings-utf8
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -16,14 +16,14 @@ let length = 3;
 let instance = (() => {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  let good_array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  let good_array_i16 = builder.addArray(kWasmI16, {final: true});
   builder.endRecGroup();
   builder.startRecGroup();
-  let good_array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  let good_array_i8 = builder.addArray(kWasmI8, {final: true});
   builder.endRecGroup();
   builder.startRecGroup();
-  let bad_array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
-  let bad_array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  let bad_array_i16 = builder.addArray(kWasmI16, {final: true});
+  let bad_array_i8 = builder.addArray(kWasmI8, {final: true});
   builder.endRecGroup();
 
   let wtf16_data = builder.addPassiveDataSegment([97, 0, 98, 0, 99, 0]);
@@ -100,14 +100,14 @@ let good_array_i16;
 function MakeInvalidImporterBuilder() {
   let builder = new WasmModuleBuilder();
   builder.startRecGroup();
-  array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
-  array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  array_i16 = builder.addArray(kWasmI16, {final: true});
+  array_i8 = builder.addArray(kWasmI8, {final: true});
   builder.endRecGroup();
   builder.startRecGroup();
-  good_array_i8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  good_array_i8 = builder.addArray(kWasmI8, {final: true});
   builder.endRecGroup();
   builder.startRecGroup();
-  good_array_i16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  good_array_i16 = builder.addArray(kWasmI16, {final: true});
   builder.endRecGroup();
   return builder;
 }

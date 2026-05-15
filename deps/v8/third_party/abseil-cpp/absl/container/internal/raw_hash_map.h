@@ -21,7 +21,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/container/internal/common_policy_traits.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/raw_hash_set.h"  // IWYU pragma: export
@@ -290,8 +290,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   MappedReference<P> at(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
     if (it == this->end()) {
-      base_internal::ThrowStdOutOfRange(
-          "absl::container_internal::raw_hash_map<>::at");
+      ThrowStdOutOfRange("absl::container_internal::raw_hash_map<>::at");
     }
     return Policy::value(&*it);
   }
@@ -301,8 +300,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
     if (it == this->end()) {
-      base_internal::ThrowStdOutOfRange(
-          "absl::container_internal::raw_hash_map<>::at");
+      ThrowStdOutOfRange("absl::container_internal::raw_hash_map<>::at");
     }
     return Policy::value(&*it);
   }

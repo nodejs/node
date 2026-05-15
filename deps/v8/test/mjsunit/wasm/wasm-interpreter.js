@@ -1507,7 +1507,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let structTypes = [];
   for (let i = 0; i < 50; i++) {
     structTypes[i] = structSuper;
-    structSuper = builder.addStruct([makeField(kWasmI32, true)], structSuper);
+    structSuper = builder.addStruct(
+        {fields: [makeField(kWasmI32, true)], supertype: structSuper});
   }
 
   builder.addFunction("main", kSig_v_v)
@@ -1526,7 +1527,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestWasmGCBrOnNonNull() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let sig_v_v = builder.addType(kSig_v_v);
   let sig_i_v = builder.addType(kSig_i_v);
@@ -1740,7 +1741,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const table_size = 3;
   let table = builder.addTable(kWasmFuncRef, table_size, table_size);
 
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let sig_index = builder.addType(kSig_v_v);
 
@@ -1789,7 +1790,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let sig_a_in = builder.addType(makeSig([kWasmI32, wasmRefNullType(array_type_index)], [kWasmAnyFunc]));
 
@@ -1872,7 +1873,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let sig_a_a = builder.addType(makeSig([wasmRefNullType(array_type_index)], [wasmRefNullType(array_type_index)]));
 
   // Function 0
@@ -1903,7 +1904,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
 
   // ArrayCopy
   builder.addFunction("test_array_copy", kSig_v_v)
@@ -2033,8 +2034,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let refarraytype = builder.addArray(kWasmArrayRef, true);
-  let intarraytype = builder.addArray(kWasmI32, true);
+  let refarraytype = builder.addArray(kWasmArrayRef);
+  let intarraytype = builder.addArray(kWasmI32);
 
   builder.addFunction(undefined, makeSig([kWasmI32], [wasmRefType(refarraytype)]))
     .exportAs('make_ref_array')
@@ -2103,7 +2104,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true), makeField(wasmRefType(array_type_index), true)]);
 
   builder.addFunction(undefined, makeSig([wasmRefType(array_type_index)], [wasmRefType(struct_type_index)]))
@@ -2373,7 +2374,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_xy_v = makeSig([], [wasmRefType(array_type_index), wasmRefType(struct_type_index)]);
   const funcTypeId = builder.addType(kSig_xy_v);
@@ -2409,7 +2410,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_xy_v = makeSig([], [wasmRefType(array_type_index), wasmRefType(struct_type_index)]);
   let sig_index = builder.addType(kSig_xy_v);
@@ -2462,7 +2463,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_xy_v = makeSig([], [wasmRefType(array_type_index), wasmRefType(struct_type_index)]);
   let sig_index = builder.addType(kSig_xy_v);
@@ -2560,7 +2561,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   let builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_array_v = makeSig([], [wasmRefType(array_type_index)]);
   let sig_array_index = builder.addType(kSig_array_v);
@@ -2665,8 +2666,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  let array_index1 = builder.addArray(kWasmI16, true, kNoSuperType, true);
-  let array_index2 = builder.addArray(kWasmI16, true, kNoSuperType, false);
+  let array_index1 = builder.addArray(kWasmI16, {final: true});
+  let array_index2 = builder.addArray(kWasmI16);
 
   builder.addFunction("main", kSig_i_i)
     .addLocals(wasmRefNullType(array_index1), 2)
@@ -2691,7 +2692,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_x_xy = makeSig(
     [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
@@ -2734,7 +2735,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_x_xy = makeSig(
     [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
@@ -2794,7 +2795,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_x_xy = makeSig(
     [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
@@ -2863,7 +2864,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_x_xy = makeSig(
     [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
@@ -2922,7 +2923,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   let struct_type_index = builder.addStruct([makeField(kWasmI32, true)]);
   let kSig_x_xy = makeSig(
     [wasmRefNullType(array_type_index), wasmRefNullType(struct_type_index)],
@@ -3100,7 +3101,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  let array_type_index = builder.addArray(kWasmI32, true);
+  let array_type_index = builder.addArray(kWasmI32);
   var kSig_irlii_iiiiiiii = makeSig(
     [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
     [kWasmI32, wasmRefNullType(array_type_index), kWasmI64, kWasmI32, kWasmI32]);

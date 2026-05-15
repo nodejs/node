@@ -29,8 +29,6 @@ namespace v8::internal {
 
 #include "torque-generated/src/objects/swiss-name-dictionary-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(SwissNameDictionary, HeapObject)
-
 swiss_table::ctrl_t* SwissNameDictionary::CtrlTable() {
   return reinterpret_cast<ctrl_t*>(
       field_address(CtrlTableStartOffset(Capacity())));
@@ -707,6 +705,7 @@ constexpr int SwissNameDictionary::PropertyDetailsTableStartOffset(
 
 // static
 constexpr int SwissNameDictionary::MaxCapacity() {
+  // TODO(375937549): Convert to uint32_t.
   constexpr int kConstSize =
       SwissNameDictionary::DataTableStartOffset() + sizeof(ByteArray::Header) +
       // Size for present and deleted element count at max capacity:
@@ -722,7 +721,8 @@ constexpr int SwissNameDictionary::MaxCapacity() {
       sizeof(uint32_t);
 
   constexpr int result =
-      (kMaxFixedArrayCapacity * kTaggedSize - kConstSize) / kPerEntrySize;
+      (static_cast<int>(kMaxFixedArrayCapacity) * kTaggedSize - kConstSize) /
+      kPerEntrySize;
   static_assert(Smi::kMaxValue >= result);
 
   return result;
@@ -760,9 +760,11 @@ SwissNameDictionary::probe(uint32_t hash, int capacity) {
       swiss_table::H1(hash), static_cast<uint32_t>(non_zero_capacity - 1));
 }
 
-ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, Tagged<ByteArray>,
-                   MetaTablePointerOffset(), true,
-                   value->length() >= kMetaTableEnumerationDataStartIndex)
+ACCESSORS_CHECKED2(
+    SwissNameDictionary, meta_table, Tagged<ByteArray>,
+    MetaTablePointerOffset(), true,
+    value->ulength().value() >=
+        static_cast<uint32_t>(kMetaTableEnumerationDataStartIndex))
 
 }  // namespace v8::internal
 

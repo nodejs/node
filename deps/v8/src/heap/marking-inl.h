@@ -318,8 +318,6 @@ MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
     DCHECK(chunk->InWritableSharedSpace());
     // Object in shared writable space. Only mark it if the Isolate is owning
     // the shared space.
-    //
-    // TODO(340989496): Speed up check here by keeping the flag on Heap.
     if (!heap->isolate()->is_shared_space_isolate()) {
       return MarkingHelper::LivenessMode::kAlwaysLive;
     }

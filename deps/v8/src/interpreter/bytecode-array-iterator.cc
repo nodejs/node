@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 
+#include "include/v8config.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
@@ -35,7 +36,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
 
 BytecodeArrayIterator::BytecodeArrayIterator(
     Handle<BytecodeArray> bytecode_array, int initial_offset,
-    DisallowGarbageCollection& no_gc)
+    DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND)
     : bytecode_array_(bytecode_array),
       start_(reinterpret_cast<uint8_t*>(
           bytecode_array_->GetFirstBytecodeAddress())),
@@ -317,8 +318,9 @@ AbortReason BytecodeArrayIterator::GetAbortReasonOperand(
 
 Tagged<Object> BytecodeArrayIterator::GetConstantAtIndex(int index) const {
   Tagged<TrustedFixedArray> constant_pool = bytecode_array()->constant_pool();
-  CHECK_WITH_MSG(base::IsInHalfOpenRange(index, 0, constant_pool->length()),
-                 "Constant pool index out of bounds");
+  CHECK_WITH_MSG(
+      base::IsInHalfOpenRange(index, 0u, constant_pool->ulength().value()),
+      "Constant pool index out of bounds");
   return constant_pool->get(index);
 }
 

@@ -301,18 +301,18 @@ void DcheckOverrideFunction(const char*, int, const char*) {}
 
 TEST(LoggingDeathTest, V8_DcheckCanBeOverridden) {
   // Default DCHECK state should be fatal.
-  ASSERT_DEATH_IF_SUPPORTED(V8_Dcheck(__FILE__, __LINE__, "Dread pirate"),
+  ASSERT_DEATH_IF_SUPPORTED(V8_Dcheck(V8_LOG_ARGS("Dread pirate")),
                             "Dread pirate");
 
   ASSERT_DEATH_IF_SUPPORTED(
       {
         v8::base::SetDcheckFunction(&DcheckOverrideFunction);
         // This should be non-fatal.
-        V8_Dcheck(__FILE__, __LINE__, "I'm a benign teapot.");
+        V8_Dcheck(V8_LOG_ARGS("I'm a benign teapot."));
 
         // Restore default behavior, and assert on lethality.
         v8::base::SetDcheckFunction(nullptr);
-        V8_Dcheck(__FILE__, __LINE__, "Dread pirate");
+        V8_Dcheck(V8_LOG_ARGS("Dread pirate"));
       },
       "Dread pirate");
 }

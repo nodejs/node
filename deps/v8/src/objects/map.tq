@@ -10,7 +10,7 @@ bitfield struct MapBitFields1 extends uint8 {
   is_undetectable: bool: 1 bit;
   is_access_check_needed: bool: 1 bit;
   is_constructor: bool: 1 bit;
-  has_prototype_slot: bool: 1 bit;
+  reserved_for_map_extensions: bool: 1 bit;
 }
 
 bitfield struct MapBitFields2 extends uint8 {

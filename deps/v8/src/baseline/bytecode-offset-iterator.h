@@ -75,14 +75,15 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
 
  private:
   void Initialize();
-  inline int ReadPosition() {
-    return base::VLQDecodeUnsigned(data_start_address_, &current_index_);
+  inline uint32_t ReadPosition() {
+    return base::VLQDecodeUnsigned(data_start_address_,
+                                   reinterpret_cast<int*>(&current_index_));
   }
 
   Handle<TrustedByteArray> mapping_table_;
   uint8_t* data_start_address_;
-  int data_length_;
-  int current_index_;
+  uint32_t data_length_;
+  uint32_t current_index_;
   Address current_pc_start_offset_;
   Address current_pc_end_offset_;
   int current_bytecode_offset_;

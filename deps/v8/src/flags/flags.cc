@@ -20,6 +20,7 @@
 #include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
 #include "src/flags/flags-impl.h"
@@ -119,6 +120,7 @@ struct FlagError : public std::ostringstream {
   ~FlagError() {
     base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
     base::OS::PrintError("%s\n", kHint);
+    base::PrintStackTraceIfAvailable();
     // TODO(457654443): consider merging exit_on_contradictory_flags and
     // abort_on_contradictory_flags into a single, more generic flag specifying
     // how to handle flag processing errors.
@@ -305,13 +307,8 @@ constexpr size_t kNumFlags = arraysize(flags);
 
 base::Vector<Flag> Flags() { return base::ArrayVector(flags); }
 
-#if V8_CC_MSVC && defined(_DEBUG)
-std::array<int, kNumFlags> GetSortedFlagIndices() {
-  const char* kFlagNames[] = {
-#else
 consteval std::array<int, kNumFlags> GetSortedFlagIndices() {
   constexpr const char* kFlagNames[] = {
-#endif
 #define FLAG_MODE_APPLY_NAME(nam) #nam,
 #define FLAG_ALIAS(ftype, ctype, alias, nam) #alias,
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
@@ -343,11 +340,7 @@ struct FlagNameGreater {
 class FlagMapByName {
  public:
   FlagMapByName() {
-#if V8_CC_MSVC && defined(_DEBUG)
-    const std::array<int, kNumFlags> sorted_indices =
-#else
     constexpr std::array<int, kNumFlags> sorted_indices =
-#endif
         GetSortedFlagIndices();
     for (size_t i = 0; i < kNumFlags; ++i) {
       flags_[i] = &flags[sorted_indices[i]];
@@ -846,7 +839,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
   }
 
   // Allocate argument array.
-  base::ScopedVector<char*> argv(argc);
+  auto argv = base::OwnedVector<char*>::NewForOverwrite(argc);
 
   // Split the flags string into arguments.
   argc = 1;  // be compatible with SetFlagsFromCommandLine()
@@ -1094,6 +1087,12 @@ class ImplicationProcessor {
       }
     }
     if (is_conclusion_value_change) {
+      if constexpr (std::is_same_v<T, const char*>) {
+        if (conclusion_flag->owns_ptr_) {
+          DeleteArray(conclusion_value->value());
+          conclusion_flag->owns_ptr_ = false;
+        }
+      }
       *conclusion_value = value;
       // Any implications by the conclusion flag are now invalid. Reset the
       // flags previously implied by the conclusion flag. If they were also
@@ -1274,6 +1273,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 #if V8_ENABLE_WEBASSEMBLY
       RESET_WHEN_CORRECTNESS_FUZZING(wasm_assert_types),
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+      // Not useful for differential fuzzing: https://crbug.com/496356383
+      RESET_WHEN_CORRECTNESS_FUZZING(heap_snapshot_on_gc),
 
       // https://crbug.com/369974230
       RESET_WHEN_FUZZING(expose_async_hooks),

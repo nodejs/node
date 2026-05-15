@@ -176,7 +176,7 @@ macro IntToString(x: int32, radix: uint32): String {
   return strSeq;
 }
 
-// https://tc39.github.io/ecma262/#sec-number.prototype.tostring
+// https://tc39.es/ecma262/#sec-number.prototype.tostring
 transitioning javascript builtin NumberPrototypeToString(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): String {
@@ -220,7 +220,7 @@ transitioning javascript builtin NumberPrototypeToString(
   return runtime::DoubleToStringWithRadix(x, radixNumber);
 }
 
-// ES6 #sec-number.isfinite
+// https://tc39.es/ecma262/#sec-number.isfinite
 javascript builtin NumberIsFinite(
     js-implicit context: NativeContext, receiver: JSAny)(
     value: JSAny): Boolean {
@@ -239,13 +239,13 @@ javascript builtin NumberIsFinite(
   }
 }
 
-// ES6 #sec-number.isinteger
+// https://tc39.es/ecma262/#sec-number.isinteger
 javascript builtin NumberIsInteger(
     js-implicit context: NativeContext)(value: JSAny): Boolean {
   return SelectBooleanConstant(IsInteger(value));
 }
 
-// ES6 #sec-number.isnan
+// https://tc39.es/ecma262/#sec-number.isnan
 javascript builtin NumberIsNaN(
     js-implicit context: NativeContext)(value: JSAny): Boolean {
   typeswitch (value) {
@@ -262,20 +262,20 @@ javascript builtin NumberIsNaN(
   }
 }
 
-// ES6 #sec-number.issafeinteger
+// https://tc39.es/ecma262/#sec-number.issafeinteger
 javascript builtin NumberIsSafeInteger(
     js-implicit context: NativeContext)(value: JSAny): Boolean {
   return SelectBooleanConstant(IsSafeInteger(value));
 }
 
-// ES6 #sec-number.prototype.valueof
+// https://tc39.es/ecma262/#sec-number.prototype.valueof
 transitioning javascript builtin NumberPrototypeValueOf(
     js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   return ToThisValue(
       receiver, PrimitiveType::kNumber, 'Number.prototype.valueOf');
 }
 
-// ES6 #sec-number.parsefloat
+// https://tc39.es/ecma262/#sec-number.parsefloat
 transitioning javascript builtin NumberParseFloat(
     js-implicit context: NativeContext)(value: JSAny): Number {
   try {
@@ -361,7 +361,7 @@ transitioning builtin ParseInt(
   }
 }
 
-// ES6 #sec-number.parseint
+// https://tc39.es/ecma262/#sec-number.parseint
 transitioning javascript builtin NumberParseInt(
     js-implicit context: NativeContext)(value: JSAny, radix: JSAny): Number {
   return ParseInt(value, radix);

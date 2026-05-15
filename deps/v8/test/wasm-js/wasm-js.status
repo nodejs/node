@@ -114,5 +114,12 @@
   # It does not support multiple stacks yet.
   'proposals/js-promise-integration/js-promise-integration/js-promise-integration': [SKIP],
   'wpt/jspi/*': [SKIP]
-}]  # cet_shadow_stack
+}],  # cet_shadow_stack
+
+##############################################################################
+['clang_coverage', {
+  # Too slow tests.
+  'limits': [SKIP],
+  'proposals/threads/limits': [SKIP],
+}],
 ]

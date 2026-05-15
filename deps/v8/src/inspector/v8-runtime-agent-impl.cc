@@ -900,13 +900,13 @@ Response V8RuntimeAgentImpl::addBinding(
   }
   if (executionContextId.has_value()) {
     int contextId = executionContextId.value();
-    InspectedContext* context =
+    std::shared_ptr<InspectedContext> context =
         m_inspector->getContext(m_session->contextGroupId(), contextId);
     if (!context) {
       return Response::InvalidParams(
           "Cannot find execution context with given executionContextId");
     }
-    addBinding(context, name);
+    addBinding(context.get(), name);
     return Response::Success();
   }
 

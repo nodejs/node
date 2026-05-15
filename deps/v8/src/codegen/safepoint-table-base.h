@@ -12,10 +12,12 @@
 namespace v8 {
 namespace internal {
 
-// Both Turbofan and Malgev safepoint tables store the stack slots as the first
+// Both Turbofan and Maglev safepoint tables store the stack slots as the first
 // data entry in the header.
 constexpr int kSafepointTableStackSlotsOffset = 0;
 using SafepointTableStackSlotsField_t = uint32_t;
+
+class SafepointTable;
 
 class SafepointEntryBase {
  public:
@@ -56,9 +58,14 @@ class SafepointEntryBase {
   }
 
  private:
+  friend class SafepointTable;
+
   int pc_ = 0;
-  int deopt_index_ = kNoDeoptIndex;
-  int trampoline_pc_ = kNoTrampolinePC;
+  // The default values are only used by the default constructor, which is
+  // only used for uninitialized entries. Allowing the compiler to zero out
+  // the entire memory range is more useful than initializing to {kNo...}.
+  int deopt_index_ = 0;
+  int trampoline_pc_ = 0;
 };
 
 class SafepointTableBuilderBase {

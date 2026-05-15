@@ -36,5 +36,5 @@ extern class JSPromise extends JSObjectWithEmbedderSlots {
 }
 
 @doNotGenerateCast
-extern class JSPromiseConstructor extends JSFunction
+extern class JSPromiseConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';

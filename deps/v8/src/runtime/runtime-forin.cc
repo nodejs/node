@@ -76,12 +76,14 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
         }
       }
       case LookupIterator::MODULE_NAMESPACE: {
-#ifdef DEBUG
-        DirectHandle<JSModuleNamespace> ns = it.GetHolder<JSModuleNamespace>();
-        if (IsJSDeferredModuleNamespace(*ns)) {
-          DCHECK_EQ(ns->module()->status(), Module::kEvaluated);
+        // It triggers evaluation, because this access is like calling
+        // [[GetOwnProperty]] on deferred namespace object.
+        if (JSDeferredModuleNamespace::TriggersEvaluation(&it)) {
+          DirectHandle<JSDeferredModuleNamespace> holder =
+              it.GetHolder<JSDeferredModuleNamespace>();
+          JSDeferredModuleNamespace::EvaluateModuleSync(isolate, holder);
+          RETURN_EXCEPTION_IF_EXCEPTION(isolate);
         }
-#endif
         continue;
       }
       case LookupIterator::STRING_LOOKUP_START_OBJECT:

@@ -82,7 +82,7 @@ V8_OBJECT class RegExpMatchInfo
     return capture_index * 2 + 1;
   }
 
-  static constexpr int kMinCapacity = 2;
+  static constexpr uint32_t kMinCapacity = 2;
 
   DECL_PRINTER(RegExpMatchInfo)
   DECL_VERIFIER(RegExpMatchInfo)

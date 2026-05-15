@@ -142,7 +142,6 @@ void LogFile::MessageBuilder::AppendString(const char* str, size_t length,
   if (str == nullptr) return;
   if (is_one_byte) {
     for (size_t i = 0; i < length; i++) {
-      DCHECK_IMPLIES(is_one_byte, str[i] != '\0');
       AppendCharacter(str[i]);
     }
   } else {
@@ -159,7 +158,6 @@ void LogFile::MessageBuilder::AppendFormatString(const char* format, ...) {
   const int length = FormatStringIntoBuffer(format, args);
   va_end(args);
   for (int i = 0; i < length; i++) {
-    DCHECK_NE(log_->format_buffer_[i], '\0');
     AppendCharacter(log_->format_buffer_[i]);
   }
 }

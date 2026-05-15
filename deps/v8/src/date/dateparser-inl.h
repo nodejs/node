@@ -340,8 +340,9 @@ DateParser::DateToken DateParser::ParseES5DateTime(
     if (!scanner->Peek().IsEndOfInput()) return DateToken::Invalid();
   }
   // Successfully parsed ES5 Date Time String.
-  // ES#sec-date-time-string-format Date Time String Format
-  // "When the time zone offset is absent, date-only forms are interpreted
+  // https://tc39.es/ecma262/#sec-date-time-string-format Date Time String
+  // Format "When the time zone offset is absent, date-only forms are
+  // interpreted
   //  as a UTC time and date-time forms are interpreted as a local time."
   if (tz->IsEmpty() && time->IsEmpty()) {
     tz->Set(0);

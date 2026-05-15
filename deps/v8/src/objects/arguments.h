@@ -35,9 +35,9 @@ class JSSloppyArgumentsObject
     : public TorqueGeneratedJSSloppyArgumentsObject<JSSloppyArgumentsObject,
                                                     JSArgumentsObject> {
  public:
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static const int kCalleeIndex = kLengthIndex + 1;
+  // Offsets of in-object properties.
+  static const int kLengthOffset = kHeaderSize;
+  static const int kCalleeOffset = kLengthOffset + kTaggedSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSloppyArgumentsObject);
@@ -49,9 +49,8 @@ class JSStrictArgumentsObject
     : public TorqueGeneratedJSStrictArgumentsObject<JSStrictArgumentsObject,
                                                     JSArgumentsObject> {
  public:
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static_assert(kLengthIndex == JSSloppyArgumentsObject::kLengthIndex);
+  // Offsets of in-object properties.
+  static const int kLengthOffset = kHeaderSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStrictArgumentsObject);
@@ -65,14 +64,19 @@ class JSStrictArgumentsObject
 // - the parameter map contains no fast alias mapping (i.e. the hole)
 // - this struct (in the slow backing store) contains an index into the context
 // - all attributes are available as part if the property details
-class AliasedArgumentsEntry
-    : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
-                                                  Struct> {
+V8_OBJECT class AliasedArgumentsEntry : public StructLayout {
  public:
+  inline int aliased_context_slot() const;
+  inline void set_aliased_context_slot(int value);
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(AliasedArgumentsEntry)
-};
+  DECL_PRINTER(AliasedArgumentsEntry)
+  DECL_VERIFIER(AliasedArgumentsEntry)
+
+ public:
+  TaggedMember<Smi> aliased_context_slot_;
+} V8_OBJECT_END;
 
 class SloppyArgumentsElementsShape final : public AllStatic {
  public:

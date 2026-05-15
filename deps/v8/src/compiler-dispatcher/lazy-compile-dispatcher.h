@@ -41,6 +41,7 @@ class ParseInfo;
 class ProducedPreparseData;
 class SharedFunctionInfo;
 class TimedHistogram;
+class UnoptimizedData;
 class Utf16CharacterStream;
 class WorkerThreadRuntimeCallStats;
 class Zone;
@@ -138,14 +139,28 @@ class V8_EXPORT_PRIVATE LazyCompileDispatcher {
       kFinalized,
     };
 
-    explicit Job(std::unique_ptr<BackgroundCompileTask> task);
+    Job(std::unique_ptr<BackgroundCompileTask> task, LocalIsolate* isolate,
+        DirectHandle<SharedFunctionInfo> shared_info);
     ~Job();
+
+    void ClearFromUncompiledData();
 
     bool is_running_on_background() const {
       return state == State::kRunning || state == State::kAbortRequested;
     }
 
+    // The task that this Job will run.
     std::unique_ptr<BackgroundCompileTask> task;
+
+    // The UncompiledData object of the function being compiled by this Job. The
+    // UncompiledData stores a trusted pointer to this Job, which can be used
+    // for a reverse lookup from function to Job. The Job has a reference to the
+    // UncompiledData so that it can clear the Job pointer when the Job is
+    // destroyed.
+    MaybeIndirectHandle<UnionOf<UncompiledDataWithPreparseDataAndJob,
+                                UncompiledDataWithoutPreparseDataWithJob>>
+        owning_uncompiled_data;
+
     State state = State::kPending;
   };
 

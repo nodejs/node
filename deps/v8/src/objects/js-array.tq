@@ -35,7 +35,7 @@ extern class JSArrayIterator extends JSObject {
   kind: SmiTagged<IterationKind>;
 }
 
-// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+// https://tc39.es/ecma262/#sec-createarrayiterator
 @export
 macro CreateArrayIterator(
     implicit context: NativeContext)(array: JSReceiver,
@@ -50,7 +50,7 @@ macro CreateArrayIterator(
   };
 }
 
-// Perform CreateArrayIterator (ES #sec-createarrayiterator).
+// https://tc39.es/ecma262/#sec-createarrayiterator
 @export
 macro CreateArrayIterator(
     implicit context: NativeContext)(array: JSReceiver,
@@ -74,7 +74,7 @@ extern class TemplateLiteralObject extends JSArray {
 }
 
 @doNotGenerateCast
-extern class JSArrayConstructor extends JSFunction
+extern class JSArrayConstructor extends JSFunctionWithPrototype
     generates 'TNode<JSFunction>';
 
 macro NewJSArray(

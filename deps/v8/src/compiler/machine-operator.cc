@@ -94,8 +94,8 @@ std::ostream& operator<<(std::ostream& os, MemoryAccessKind kind) {
       return os << "kNormal";
     case MemoryAccessKind::kUnaligned:
       return os << "kUnaligned";
-    case MemoryAccessKind::kProtectedByTrapHandler:
-      return os << "kProtected";
+    case MemoryAccessKind::kTrapping:
+      return os << "kTrapping";
   }
   UNREACHABLE();
 }
@@ -218,7 +218,7 @@ bool operator==(StoreLaneParameters lhs, StoreLaneParameters rhs) {
 
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
-         IrOpcode::kProtectedLoad == op->opcode() ||
+         IrOpcode::kTrappingLoad == op->opcode() ||
          IrOpcode::kLoadTrapOnNull == op->opcode() ||
          IrOpcode::kUnalignedLoad == op->opcode() ||
          IrOpcode::kLoadImmutable == op->opcode());
@@ -238,7 +238,7 @@ AtomicOpParameters AtomicOpParametersOf(Operator const* op) {
 
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
-         IrOpcode::kProtectedStore == op->opcode() ||
+         IrOpcode::kTrappingStore == op->opcode() ||
          IrOpcode::kStoreTrapOnNull == op->opcode() ||
          IrOpcode::kStoreIndirectPointer == op->opcode());
   return OpParameter<StoreRepresentation>(op);
@@ -1290,7 +1290,7 @@ struct MachineOperatorGlobalCache {
   OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
-// ProtectedLoad and LoadTrapOnNull are not marked kNoWrite, so potentially
+// TrappingLoad and LoadTrapOnNull are not marked kNoWrite, so potentially
 // trapping loads are not eliminated if their result is unused.
 #define LOAD(Type)                                                             \
   struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
@@ -1306,12 +1306,12 @@ struct MachineOperatorGlobalCache {
               IrOpcode::kUnalignedLoad, Operator::kEliminatable,               \
               "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
   };                                                                           \
-  struct ProtectedLoad##Type##Operator final                                   \
+  struct TrappingLoad##Type##Operator final                                    \
       : public Operator1<LoadRepresentation> {                                 \
-    ProtectedLoad##Type##Operator()                                            \
+    TrappingLoad##Type##Operator()                                             \
         : Operator1<LoadRepresentation>(                                       \
-              IrOpcode::kProtectedLoad,                                        \
-              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1,  \
+              IrOpcode::kTrappingLoad,                                         \
+              Operator::kNoDeopt | Operator::kNoThrow, "TrappingLoad", 2, 1,   \
               1, 1, 1, 0, MachineType::Type()) {}                              \
   };                                                                           \
   struct LoadTrapOnNull##Type##Operator final                                  \
@@ -1331,7 +1331,7 @@ struct MachineOperatorGlobalCache {
   };                                                                           \
   Load##Type##Operator kLoad##Type;                                            \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                          \
-  ProtectedLoad##Type##Operator kProtectedLoad##Type;                          \
+  TrappingLoad##Type##Operator kTrappingLoad##Type;                            \
   LoadTrapOnNull##Type##Operator kLoadTrapOnNull##Type;                        \
   LoadImmutable##Type##Operator kLoadImmutable##Type;
   MACHINE_TYPE_LIST(LOAD)
@@ -1344,8 +1344,7 @@ struct MachineOperatorGlobalCache {
     KIND##LoadTransform##TYPE##Operator()                              \
         : Operator1<LoadTransformParameters>(                          \
               IrOpcode::kLoadTransform,                                \
-              MemoryAccessKind::k##KIND ==                             \
-                      MemoryAccessKind::kProtectedByTrapHandler        \
+              MemoryAccessKind::k##KIND == MemoryAccessKind::kTrapping \
                   ? Operator::kNoDeopt | Operator::kNoThrow            \
                   : Operator::kEliminatable,                           \
               #KIND "LoadTransform", 2, 1, 1, 1, 1, 0,                 \
@@ -1357,7 +1356,7 @@ struct MachineOperatorGlobalCache {
 #define LOAD_TRANSFORM(TYPE)           \
   LOAD_TRANSFORM_KIND(TYPE, Normal)    \
   LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
-  LOAD_TRANSFORM_KIND(TYPE, ProtectedByTrapHandler)
+  LOAD_TRANSFORM_KIND(TYPE, Trapping)
 
   LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
 #undef LOAD_TRANSFORM
@@ -1429,13 +1428,13 @@ struct MachineOperatorGlobalCache {
               "UnalignedStore", 3, 1, 1, 0, 1, 0,                          \
               MachineRepresentation::Type) {}                              \
   };                                                                       \
-  struct ProtectedStore##Type##Operator                                    \
+  struct TrappingStore##Type##Operator                                     \
       : public Operator1<StoreRepresentation> {                            \
-    explicit ProtectedStore##Type##Operator()                              \
+    explicit TrappingStore##Type##Operator()                               \
         : Operator1<StoreRepresentation>(                                  \
-              IrOpcode::kProtectedStore,                                   \
+              IrOpcode::kTrappingStore,                                    \
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
-              "ProtectedStore", 3, 1, 1, 0, 1, 0,                          \
+              "TrappingStore", 3, 1, 1, 0, 1, 0,                           \
               StoreRepresentation(MachineRepresentation::Type,             \
                                   kNoWriteBarrier)) {}                     \
   };                                                                       \
@@ -1471,7 +1470,7 @@ struct MachineOperatorGlobalCache {
       kStore##Type##EphemeronKeyWriteBarrier;                              \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
   UnalignedStore##Type##Operator kUnalignedStore##Type;                    \
-  ProtectedStore##Type##Operator kProtectedStore##Type;                    \
+  TrappingStore##Type##Operator kTrappingStore##Type;                      \
   StoreTrapOnNull##Type##FullWriteBarrier##Operator                        \
       kStoreTrapOnNull##Type##FullWriteBarrier;                            \
   StoreTrapOnNull##Type##NoWriteBarrier##Operator                          \
@@ -1556,7 +1555,7 @@ struct MachineOperatorGlobalCache {
   Word32SeqCstLoad##Type##Kind##Operator kWord32SeqCstLoad##Type##Kind;
 #define ATOMIC_LOAD(Type)             \
   ATOMIC_LOAD_WITH_KIND(Type, Normal) \
-  ATOMIC_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_TYPE_LIST(ATOMIC_LOAD)
 #undef ATOMIC_LOAD_WITH_KIND
 #undef ATOMIC_LOAD
@@ -1575,7 +1574,7 @@ struct MachineOperatorGlobalCache {
   Word64SeqCstLoad##Type##Kind##Operator kWord64SeqCstLoad##Type##Kind;
 #define ATOMIC_LOAD(Type)             \
   ATOMIC_LOAD_WITH_KIND(Type, Normal) \
-  ATOMIC_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_U64_TYPE_LIST(ATOMIC_LOAD)
 #undef ATOMIC_LOAD_WITH_KIND
 #undef ATOMIC_LOAD
@@ -1596,7 +1595,7 @@ struct MachineOperatorGlobalCache {
   Word32SeqCstStore##Type##Kind##Operator kWord32SeqCstStore##Type##Kind;
 #define ATOMIC_STORE(Type)             \
   ATOMIC_STORE_WITH_KIND(Type, Normal) \
-  ATOMIC_STORE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_STORE_WITH_KIND(Type, Trapping)
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef ATOMIC_STORE_WITH_KIND
 #undef ATOMIC_STORE
@@ -1617,7 +1616,7 @@ struct MachineOperatorGlobalCache {
   Word64SeqCstStore##Type##Kind##Operator kWord64SeqCstStore##Type##Kind;
 #define ATOMIC_STORE(Type)             \
   ATOMIC_STORE_WITH_KIND(Type, Normal) \
-  ATOMIC_STORE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_STORE_WITH_KIND(Type, Trapping)
   ATOMIC64_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef ATOMIC_STORE_WITH_KIND
 #undef ATOMIC_STORE
@@ -1642,7 +1641,7 @@ struct MachineOperatorGlobalCache {
   ATOMIC_OP(Word32AtomicExchange, type, kind)
 #define ATOMIC_OP_LIST(type)             \
   ATOMIC_OP_LIST_WITH_KIND(type, Normal) \
-  ATOMIC_OP_LIST_WITH_KIND(type, ProtectedByTrapHandler)
+  ATOMIC_OP_LIST_WITH_KIND(type, Trapping)
   ATOMIC_TYPE_LIST(ATOMIC_OP_LIST)
 #undef ATOMIC_OP_LIST_WITH_KIND
 #undef ATOMIC_OP_LIST
@@ -1655,7 +1654,7 @@ struct MachineOperatorGlobalCache {
   ATOMIC_OP(Word64AtomicExchange, type, kind)
 #define ATOMIC64_OP_LIST(type)             \
   ATOMIC64_OP_LIST_WITH_KIND(type, Normal) \
-  ATOMIC64_OP_LIST_WITH_KIND(type, ProtectedByTrapHandler)
+  ATOMIC64_OP_LIST_WITH_KIND(type, Trapping)
   ATOMIC_U64_TYPE_LIST(ATOMIC64_OP_LIST)
 #undef ATOMIC64_OP_LIST_WITH_KIND
 #undef ATOMIC64_OP_LIST
@@ -1678,7 +1677,7 @@ struct MachineOperatorGlobalCache {
       kWord32AtomicCompareExchange##Type##Kind;
 #define ATOMIC_COMPARE_EXCHANGE(Type)             \
   ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Normal) \
-  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Trapping)
   ATOMIC_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
 #undef ATOMIC_COMPARE_EXCHANGE_WITH_KIND
 #undef ATOMIC_COMPARE_EXCHANGE
@@ -1700,7 +1699,7 @@ struct MachineOperatorGlobalCache {
       kWord64AtomicCompareExchange##Type##Kind;
 #define ATOMIC_COMPARE_EXCHANGE(Type)             \
   ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Normal) \
-  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, ProtectedByTrapHandler)
+  ATOMIC_COMPARE_EXCHANGE_WITH_KIND(Type, Trapping)
   ATOMIC_U64_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
 #undef ATOMIC_COMPARE_EXCHANGE_WITH_KIND
 #undef ATOMIC_COMPARE_EXCHANGE
@@ -2008,10 +2007,10 @@ const Operator* MachineOperatorBuilder::LoadImmutable(LoadRepresentation rep) {
   UNREACHABLE();
 }
 
-const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
-#define LOAD(Type)                       \
-  if (rep == MachineType::Type()) {      \
-    return &cache_.kProtectedLoad##Type; \
+const Operator* MachineOperatorBuilder::TrappingLoad(LoadRepresentation rep) {
+#define LOAD(Type)                      \
+  if (rep == MachineType::Type()) {     \
+    return &cache_.kTrappingLoad##Type; \
   }
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -2039,7 +2038,7 @@ const Operator* MachineOperatorBuilder::LoadTransform(
 #define LOAD_TRANSFORM(TYPE)           \
   LOAD_TRANSFORM_KIND(TYPE, Normal)    \
   LOAD_TRANSFORM_KIND(TYPE, Unaligned) \
-  LOAD_TRANSFORM_KIND(TYPE, ProtectedByTrapHandler)
+  LOAD_TRANSFORM_KIND(TYPE, Trapping)
 
   LOAD_TRANSFORM_LIST(LOAD_TRANSFORM)
 #undef LOAD_TRANSFORM
@@ -2050,23 +2049,23 @@ const Operator* MachineOperatorBuilder::LoadTransform(
 const Operator* MachineOperatorBuilder::LoadLane(MemoryAccessKind kind,
                                                  LoadRepresentation rep,
                                                  uint8_t laneidx) {
-#define LOAD_LANE_KIND(TYPE, KIND, LANEIDX)                                    \
-  if (kind == MemoryAccessKind::k##KIND && rep == MachineType::TYPE() &&       \
-      laneidx == LANEIDX) {                                                    \
-    return zone_->New<Operator1<LoadLaneParameters>>(                          \
-        IrOpcode::kLoadLane,                                                   \
-        MemoryAccessKind::k##KIND == MemoryAccessKind::kProtectedByTrapHandler \
-            ? Operator::kNoDeopt | Operator::kNoThrow                          \
-            : Operator::kEliminatable,                                         \
-        "LoadLane", 3, 1, 1, 1, 1, 0,                                          \
-        LoadLaneParameters{MemoryAccessKind::k##KIND,                          \
-                           LoadRepresentation::TYPE(), LANEIDX});              \
+#define LOAD_LANE_KIND(TYPE, KIND, LANEIDX)                              \
+  if (kind == MemoryAccessKind::k##KIND && rep == MachineType::TYPE() && \
+      laneidx == LANEIDX) {                                              \
+    return zone_->New<Operator1<LoadLaneParameters>>(                    \
+        IrOpcode::kLoadLane,                                             \
+        MemoryAccessKind::k##KIND == MemoryAccessKind::kTrapping         \
+            ? Operator::kNoDeopt | Operator::kNoThrow                    \
+            : Operator::kEliminatable,                                   \
+        "LoadLane", 3, 1, 1, 1, 1, 0,                                    \
+        LoadLaneParameters{MemoryAccessKind::k##KIND,                    \
+                           LoadRepresentation::TYPE(), LANEIDX});        \
   }
 
 #define LOAD_LANE_T(T, LANE)         \
   LOAD_LANE_KIND(T, Normal, LANE)    \
   LOAD_LANE_KIND(T, Unaligned, LANE) \
-  LOAD_LANE_KIND(T, ProtectedByTrapHandler, LANE)
+  LOAD_LANE_KIND(T, Trapping, LANE)
 
 #define LOAD_LANE_INT8(LANE) LOAD_LANE_T(Int8, LANE)
 #define LOAD_LANE_INT16(LANE) LOAD_LANE_T(Int16, LANE)
@@ -2103,7 +2102,7 @@ const Operator* MachineOperatorBuilder::StoreLane(MemoryAccessKind kind,
 #define STORE_LANE_T(T, LANE)         \
   STORE_LANE_KIND(T, Normal, LANE)    \
   STORE_LANE_KIND(T, Unaligned, LANE) \
-  STORE_LANE_KIND(T, ProtectedByTrapHandler, LANE)
+  STORE_LANE_KIND(T, Trapping, LANE)
 
 #define STORE_LANE_WORD8(LANE) STORE_LANE_T(kWord8, LANE)
 #define STORE_LANE_WORD16(LANE) STORE_LANE_T(kWord16, LANE)
@@ -2213,12 +2212,12 @@ std::optional<const Operator*> MachineOperatorBuilder::TryStorePair(
   return {};
 }
 
-const Operator* MachineOperatorBuilder::ProtectedStore(
+const Operator* MachineOperatorBuilder::TrappingStore(
     MachineRepresentation rep) {
   switch (rep) {
 #define STORE(kRep)                 \
   case MachineRepresentation::kRep: \
-    return &cache_.kProtectedStore##kRep;
+    return &cache_.kTrappingStore##kRep;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
@@ -2325,7 +2324,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicLoad(
   }
 #define CACHED_LOAD(Type)             \
   CACHED_LOAD_WITH_KIND(Type, Normal) \
-  CACHED_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  CACHED_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_TYPE_LIST(CACHED_LOAD)
 #undef CACHED_LOAD_WITH_KIND
 #undef CACHED_LOAD
@@ -2353,7 +2352,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicStore(
   }
 #define CACHED_STORE(kRep)             \
   CACHED_STORE_WITH_KIND(kRep, Normal) \
-  CACHED_STORE_WITH_KIND(kRep, ProtectedByTrapHandler)
+  CACHED_STORE_WITH_KIND(kRep, Trapping)
   ATOMIC_REPRESENTATION_LIST(CACHED_STORE)
 #undef CACHED_STORE_WITH_KIND
 #undef CACHED_STORE
@@ -2380,7 +2379,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicExchange(
   }
 #define EXCHANGE(kType)             \
   EXCHANGE_WITH_KIND(kType, Normal) \
-  EXCHANGE_WITH_KIND(kType, ProtectedByTrapHandler)
+  EXCHANGE_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(EXCHANGE)
 #undef EXCHANGE_WITH_KIND
 #undef EXCHANGE
@@ -2396,7 +2395,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicCompareExchange(
   }
 #define COMPARE_EXCHANGE(kType)             \
   COMPARE_EXCHANGE_WITH_KIND(kType, Normal) \
-  COMPARE_EXCHANGE_WITH_KIND(kType, ProtectedByTrapHandler)
+  COMPARE_EXCHANGE_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(COMPARE_EXCHANGE)
 #undef COMPARE_EXCHANGE_WITH_KIND
 #undef COMPARE_EXCHANGE
@@ -2412,7 +2411,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicAdd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2428,7 +2427,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicSub(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2444,7 +2443,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicAnd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2460,7 +2459,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicOr(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2476,7 +2475,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicXor(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2493,7 +2492,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicLoad(
   }
 #define CACHED_LOAD(Type)             \
   CACHED_LOAD_WITH_KIND(Type, Normal) \
-  CACHED_LOAD_WITH_KIND(Type, ProtectedByTrapHandler)
+  CACHED_LOAD_WITH_KIND(Type, Trapping)
   ATOMIC_U64_TYPE_LIST(CACHED_LOAD)
 #undef CACHED_LOAD_WITH_KIND
 #undef CACHED_LOAD
@@ -2521,7 +2520,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicStore(
   }
 #define CACHED_STORE(kRep)             \
   CACHED_STORE_WITH_KIND(kRep, Normal) \
-  CACHED_STORE_WITH_KIND(kRep, ProtectedByTrapHandler)
+  CACHED_STORE_WITH_KIND(kRep, Trapping)
   ATOMIC64_REPRESENTATION_LIST(CACHED_STORE)
 #undef CACHED_STORE_WITH_KIND
 #undef CACHED_STORE
@@ -2549,7 +2548,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicAdd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2565,7 +2564,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicSub(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2581,7 +2580,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicAnd(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2597,7 +2596,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicOr(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2613,7 +2612,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicXor(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2629,7 +2628,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicExchange(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP
@@ -2645,7 +2644,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicCompareExchange(
   }
 #define OP(kType)             \
   OP_WITH_KIND(kType, Normal) \
-  OP_WITH_KIND(kType, ProtectedByTrapHandler)
+  OP_WITH_KIND(kType, Trapping)
   ATOMIC_U64_TYPE_LIST(OP)
 #undef OP_WITH_KIND
 #undef OP

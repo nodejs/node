@@ -19,9 +19,10 @@ const mutator = require('./mutator.js');
 const sourceHelpers = require('../source_helpers.js');
 const tryCatch = require('./try_catch.js');
 
-const BABYLON_RELAXED_SUPER_OPTIONS = Object.assign(
+const BABYLON_RELAXED_OPTIONS = Object.assign(
     {}, sourceHelpers.BABYLON_OPTIONS);
-BABYLON_RELAXED_SUPER_OPTIONS['allowSuperOutsideMethod'] = true;
+BABYLON_RELAXED_OPTIONS['allowSuperOutsideMethod'] = true;
+BABYLON_RELAXED_OPTIONS['allowAwaitOutsideFunction'] = true;
 
 /**
  * Check if a snippet containing `super` can be inserted at `path`
@@ -32,7 +33,7 @@ BABYLON_RELAXED_SUPER_OPTIONS['allowSuperOutsideMethod'] = true;
  * a constructor. Member expressions like super.x are allowed.
  */
 function validateSuper(path, source) {
-  const ast = babylon.parse(source, BABYLON_RELAXED_SUPER_OPTIONS);
+  const ast = babylon.parse(source, BABYLON_RELAXED_OPTIONS);
 
   // TODO(389069288): The DB currently only stores if a snippet contains
   // super. We could move this further differentiation into the DB.
@@ -56,6 +57,26 @@ function validateSuper(path, source) {
          (!call || surroundingMethod.node.kind == 'constructor');
 }
 
+/**
+ * Check if a snippet containing `await` can be inserted at `path`
+ * without creating a syntax error.
+ *
+ * Syntax errors would be raised if await is used outside an async
+ * function.
+ */
+function validateAwait(path, source) {
+  const ast = babylon.parse(source, BABYLON_RELAXED_OPTIONS);
+  let hasAwait = false;
+  babelTraverse(ast, {
+    AwaitExpression(path) {
+      hasAwait = true;
+    },
+  });
+  if (!hasAwait) return true;
+  const surroundingFunction = path.findParent(x => x.isFunction());
+  return surroundingFunction && surroundingFunction.node.async;
+}
+
 class CrossOverMutator extends mutator.Mutator {
   constructor(settings, db) {
     super(settings);
@@ -70,6 +91,10 @@ class CrossOverMutator extends mutator.Mutator {
   createInsertion(path, expression) {
     if (expression.needsSuper &&
         !validateSuper(path, expression.source)) {
+      return undefined;
+    }
+
+    if (!validateAwait(path, expression.source)) {
       return undefined;
     }
 

@@ -182,8 +182,8 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     DCHECK(ValidateCallbackInfo(info));
     if (!IsValidConnectSessionArgs(info)) return;
     v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
-    std::unique_ptr<FrontendChannelImpl> channel =
-        std::make_unique<FrontendChannelImpl>(
+    std::shared_ptr<FrontendChannelImpl> channel =
+        std::make_shared<FrontendChannelImpl>(
             InspectorIsolateData::FromContext(context)->task_runner(),
             InspectorIsolateData::FromContext(context)->GetContextGroupId(
                 context),

@@ -412,6 +412,48 @@ uint8_t NEONFormatDecoder::PickBits(const uint8_t bits[]) {
   }
   return result;
 }
+
+VectorFormat SVESizeDecoder::GetVectorFormat(void) {
+  // Treat scalable vector registers as SIMD&FP ones for the time being and
+  // ignore all register bits except for the least significant 128.
+  switch (instrbits_ & SVESizeFieldMask) {
+    case SVE_B:
+      return kFormat16B;
+    case SVE_H:
+      return kFormat8H;
+    case SVE_S:
+      return kFormat4S;
+    case SVE_D:
+      return kFormat2D;
+    default:
+      UNREACHABLE();
+  }
+}
+
+const char* SVESizeDecoder::Substitute(const char* string) {
+  const char* size = "";
+
+  switch (instrbits_ & SVESizeFieldMask) {
+    case SVE_B:
+      size = "b";
+      break;
+    case SVE_H:
+      size = "h";
+      break;
+    case SVE_S:
+      size = "s";
+      break;
+    case SVE_D:
+      size = "d";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  snprintf(form_buffer_, sizeof(form_buffer_), string, size, size, size);
+  return form_buffer_;
+}
+
 }  // namespace internal
 }  // namespace v8
 

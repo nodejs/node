@@ -257,7 +257,7 @@ class WasmFrameConstants : public TypedFrameConstants {
   // instruction that triggered the signal to the runtime. This is done by
   // setting a return address and then jumping to a builtin which will call
   // further to the runtime. As the return address we use the fault address +
-  // {kProtectedInstructionReturnAddressOffset}. Using the fault address itself
+  // {kTrappingInstructionReturnAddressOffset}. Using the fault address itself
   // would cause problems with safepoints and source positions.
   //
   // The problem with safepoints is that a safepoint has to be registered at the
@@ -270,7 +270,7 @@ class WasmFrameConstants : public TypedFrameConstants {
   // position of the faulty memory access, however, is recorded at the fault
   // address. Therefore the stack trace code would not find the source position
   // if we used the fault address as the return address.
-  static constexpr int kProtectedInstructionReturnAddressOffset = 1;
+  static constexpr int kTrappingInstructionReturnAddressOffset = 1;
 };
 
 #if V8_ENABLE_DRUMBRAKE

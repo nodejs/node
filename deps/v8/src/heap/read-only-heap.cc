@@ -14,6 +14,10 @@
 #include "src/heap/mutable-page.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/init/isolate-group.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/trap-handler/trap-handler.h"
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
@@ -25,6 +29,12 @@ namespace v8 {
 namespace internal {
 
 ReadOnlyHeap::~ReadOnlyHeap() {
+#if V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
+  if (wasm_null_payload_ != kNullAddress) {
+    trap_handler::UnregisterCoveredMemory(wasm_null_payload_,
+                                          WasmNull::kPayloadSize);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
 #ifdef V8_ENABLE_SANDBOX
   IsolateGroup::current()->code_pointer_table()->TearDownSpace(
       &code_pointer_space_);
@@ -152,6 +162,16 @@ void ReadOnlyHeap::InitializeFromIsolateRoots(Isolate* isolate) {
 void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   DCHECK(roots_init_complete_);
   read_only_space_->ShrinkPages();
+
+#if V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
+  if (trap_handler::IsTrapHandlerEnabled()) {
+    CHECK_EQ(wasm_null_payload_, kNullAddress);
+    wasm_null_payload_ = isolate->factory()->wasm_null()->payload();
+    CHECK(trap_handler::RegisterCoveredMemory(wasm_null_payload_,
+                                              WasmNull::kPayloadSize));
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
+
   ReadOnlyArtifacts* artifacts =
       isolate->isolate_group()->read_only_artifacts();
   read_only_space()->DetachPagesAndAddToArtifacts(artifacts);

@@ -83,10 +83,10 @@ void BytecodeArray::PrintJson(std::ostream& os) {
 
   os << "]";
 
-  int constant_pool_length = constant_pool()->length();
+  uint32_t constant_pool_length = constant_pool()->ulength().value();
   if (constant_pool_length > 0) {
     os << ", \"constantPool\": [";
-    for (int i = 0; i < constant_pool_length; i++) {
+    for (uint32_t i = 0; i < constant_pool_length; i++) {
       Tagged<Object> object = constant_pool()->get(i);
       if (i > 0) os << ", ";
       os << "\"" << base::JSONEscaped(object) << "\"";
@@ -159,16 +159,18 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     iterator.Advance();
   }
 
-  os << "Constant pool (size = " << handle->constant_pool()->length() << ")\n";
+  os << "Constant pool (size = " << handle->constant_pool()->ulength().value()
+     << ")\n";
 #ifdef OBJECT_PRINT
-  if (handle->constant_pool()->length() > 0) {
+  if (handle->constant_pool()->ulength().value() > 0) {
     Print(handle->constant_pool(), os);
   }
 #endif
 
-  os << "Handler Table (size = " << handle->handler_table()->length() << ")\n";
+  os << "Handler Table (size = " << handle->handler_table()->ulength().value()
+     << ")\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (handle->handler_table()->length() > 0) {
+  if (handle->handler_table()->ulength().value() > 0) {
     HandlerTable table(*handle);
     table.HandlerTableRangePrint(os);
   }
@@ -176,10 +178,10 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
 
   Tagged<TrustedByteArray> source_position_table =
       handle->SourcePositionTable();
-  os << "Source Position Table (size = " << source_position_table->length()
-     << ")\n";
+  os << "Source Position Table (size = "
+     << source_position_table->ulength().value() << ")\n";
 #ifdef OBJECT_PRINT
-  if (source_position_table->length() > 0) {
+  if (source_position_table->ulength().value() > 0) {
     os << Brief(source_position_table) << std::endl;
   }
 #endif

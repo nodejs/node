@@ -1172,7 +1172,14 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   HeapAllocator::SetAllocationGcInterval(interval);
   CONVERT_INT32_ARG_FUZZ_SAFE(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
-#endif
+#else   // !V8_ENABLE_ALLOCATION_TIMEOUT
+  static std::atomic_flag printed_warning{false};
+  if (!printed_warning.test_and_set()) {
+    base::OS::PrintError(
+        "Warning: %%SetAllocationTimeout has no effect in this build. Set the "
+        "`v8_enable_test_features` GN arg to enable it.\n");
+  }
+#endif  // !V8_ENABLE_ALLOCATION_TIMEOUT
 #ifdef DEBUG
   if (args.length() == 3) {
     // Enable/disable inline allocation if requested.
@@ -1265,12 +1272,8 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   }
 
   HeapProfiler* heap_profiler = isolate->heap()->heap_profiler();
-  // Since this API is intended for V8 devs, we do not treat globals as roots
-  // here on purpose.
-  v8::HeapProfiler::HeapSnapshotOptions options;
-  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-  heap_profiler->TakeSnapshotToFile(options, filename);
+  heap_profiler->TakeSnapshotToFile(
+      HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage(), filename);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1679,6 +1682,8 @@ int StackSize(Isolate* isolate) {
   return n;
 }
 
+}  // anonymous namespace
+
 void PrintIndentation(int stack_size) {
   const int max_display = 80;
   if (stack_size <= max_display) {
@@ -1687,8 +1692,6 @@ void PrintIndentation(int stack_size) {
     PrintF("%4d:%*s", stack_size, max_display, "...");
   }
 }
-
-}  // namespace
 
 RUNTIME_FUNCTION(Runtime_TraceEnter) {
   SealHandleScope shs(isolate);
@@ -2081,7 +2084,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                              Address entry_point) final {}
     void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                                DirectHandle<String> source,
-                               RegExpFlags flags) final {}
+                               regexp::Flags flags) final {}
     void CodeMoveEvent(Tagged<InstructionStream> from,
                        Tagged<InstructionStream> to) final {}
     void BytecodeMoveEvent(Tagged<BytecodeArray> from,
@@ -2133,9 +2136,9 @@ RUNTIME_FUNCTION(Runtime_Is64Bit) {
   return isolate->heap()->ToBoolean(kSystemPointerSize == 8);
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntMaxLengthBits) {
+RUNTIME_FUNCTION(Runtime_BigIntMaxBits) {
   HandleScope scope(isolate);
-  return *isolate->factory()->NewNumber(BigInt::kMaxLengthBits);
+  return *isolate->factory()->NewNumber(BigInt::kMaxBits);
 }
 
 RUNTIME_FUNCTION(Runtime_IsSameHeapObject) {
@@ -2641,10 +2644,10 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
 
   DirectHandle<TrustedFixedArray> constant_pool(bytecode_array->constant_pool(),
                                                 isolate);
-  int cp_length = constant_pool->length();
+  uint32_t cp_length = constant_pool->ulength().value();
   Handle<JSArray> constant_pool_array =
       isolate->factory()->NewJSArray(cp_length);
-  for (int i = 0; i < cp_length; ++i) {
+  for (uint32_t i = 0; i < cp_length; ++i) {
     Handle<Object> value(constant_pool->get(i), isolate);
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetElement(isolate, constant_pool_array, i, value,
@@ -2653,7 +2656,7 @@ RUNTIME_FUNCTION(Runtime_GetBytecode) {
 
   DirectHandle<TrustedByteArray> handler_table(bytecode_array->handler_table(),
                                                isolate);
-  int ht_length = handler_table->length();
+  size_t ht_length = static_cast<size_t>(handler_table->ulength().value());
   Handle<JSArrayBuffer> handler_table_buffer =
       isolate->factory()
           ->NewJSArrayBufferAndBackingStore(ht_length,
@@ -2728,10 +2731,10 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
       JSReceiver::GetProperty(isolate, input, "constant_pool"));
   CHECK_UNLESS_FUZZING(IsJSArray(*cp_obj));
   auto cp_array = Cast<JSArray>(cp_obj);
-  int cp_length = Smi::ToInt(cp_array->length());
+  uint32_t cp_length = Smi::ToUInt(cp_array->length());
   DirectHandle<TrustedFixedArray> constant_pool =
       isolate->factory()->NewTrustedFixedArray(cp_length);
-  for (int i = 0; i < cp_length; ++i) {
+  for (uint32_t i = 0; i < cp_length; ++i) {
     Handle<Object> val;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, val, JSReceiver::GetElement(isolate, cp_array, i));
@@ -2744,7 +2747,7 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
       JSReceiver::GetProperty(isolate, input, "handler_table"));
   CHECK_UNLESS_FUZZING(IsJSArrayBuffer(*ht_obj));
   auto ht_buffer = Cast<JSArrayBuffer>(ht_obj);
-  int ht_length = static_cast<int>(ht_buffer->byte_length());
+  uint32_t ht_length = static_cast<uint32_t>(ht_buffer->byte_length());
   uint8_t* ht_data = static_cast<uint8_t*>(ht_buffer->backing_store());
   DirectHandle<TrustedByteArray> handler_table =
       isolate->factory()->NewTrustedByteArray(ht_length);
@@ -2800,6 +2803,22 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
                        *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
 
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  MaybeHandle<Number> result =
+      Object::ToNumber(isolate, handle(args[0], isolate));
+  DirectHandle<Number> result_handle;
+  if (!result.ToHandle(&result_handle)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Force HeapNumber, even if the value is representable as a Smi.
+  if (IsSmi(*result_handle)) {
+    return *isolate->factory()->NewHeapNumber(i::Smi::ToInt(*result_handle));
+  }
+  return *result_handle;
 }
 
 }  // namespace internal

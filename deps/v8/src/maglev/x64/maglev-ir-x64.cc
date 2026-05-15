@@ -949,6 +949,11 @@ void Float64Min::SetValueLocationConstraints() {
 
 void Float64Min::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left_and_out = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   Float64MinMaxHelper(
@@ -967,6 +972,11 @@ void Float64Max::SetValueLocationConstraints() {
 
 void Float64Max::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
+  if (LeftInput().node() == RightInput().node()) {
+    DCHECK_EQ(ToDoubleRegister(result()), ToDoubleRegister(LeftInput()));
+    return;
+  }
+
   DoubleRegister left_and_out = ToDoubleRegister(LeftInput());
   DoubleRegister right = ToDoubleRegister(RightInput());
   Float64MinMaxHelper(
@@ -1133,8 +1143,9 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
                                    Register feedback_cell,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
-  __ subl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(amount));
+  __ subl(
+      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+      Immediate(amount));
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(less, HandleInterruptsAndTiering, done, node, type);
   __ bind(*done);

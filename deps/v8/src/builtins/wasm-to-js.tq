@@ -173,7 +173,7 @@ transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
         const rawRef = *slot;
         const value = BitcastWordToTagged(rawRef);
         outParams.objects[nextIndex] =
-            WasmToJSObject(data.native_context, value, paramType);
+            WasmToJSObject(data.native_context, value);
       }
       nextIndex++;
     }

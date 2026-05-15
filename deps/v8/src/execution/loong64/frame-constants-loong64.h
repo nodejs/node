@@ -42,6 +42,11 @@ class WasmLiftoffSetupFrameConstants : public TypedFrameConstants {
   static constexpr int kInstanceSpillOffset =
       TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
 
+  // We then spill floating-point param regs and finally ra. Offset computation:
+  // 1 for the instance, and counting each floating-point reg as two slots.
+  static constexpr int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(
+      1 + kNumberOfSavedGpParamRegs + 2 * kNumberOfSavedFpParamRegs);
+
   static constexpr int kParameterSpillsOffset[] = {
       TYPED_FRAME_PUSHED_VALUE_OFFSET(6), TYPED_FRAME_PUSHED_VALUE_OFFSET(5),
       TYPED_FRAME_PUSHED_VALUE_OFFSET(4), TYPED_FRAME_PUSHED_VALUE_OFFSET(3),

@@ -84,7 +84,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(BigIntEqualToNumber, 2, 1)                                        \
   F(BigIntEqualToString, 2, 1)                                        \
   F(BigIntExponentiate, 2, 1)                                         \
-  F(BigIntMaxLengthBits, 0, 1)                                        \
+  F(BigIntMaxBits, 0, 1)                                              \
   F(BigIntToNumber, 1, 1)                                             \
   F(BigIntUnaryOp, 2, 1)                                              \
   F(ToBigInt, 1, 1)                                                   \
@@ -139,7 +139,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ResolvePossiblyDirectEval, 6, 1)              \
   F(VerifyType, 1, 1)                             \
   F(CheckTurboshaftTypeOf, 2, 1)                  \
-  IF_SPARKPLUG_PLUS(F, MaybePatchBinaryBaselineCode, 4, 1)
+  IF_SPARKPLUG_PLUS(F, PatchBaselineCode, 4, 1)   \
+  IF_SPARKPLUG_PLUS(F, PatchBaselineCodeAndThrow, 4, 1)
 
 // TODO(olivf): Unify the Maglev/TF variants into one runtime function and pass
 // the optimization tier as an argument.
@@ -264,6 +265,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowRangeError, -1 /* >= 1 */, 1)             \
   F(ThrowReferenceError, 1, 1)                     \
   F(ThrowAccessedUninitializedVariable, 1, 1)      \
+  F(VarargStackOverflow, -1, 1)                    \
   F(ThrowStackOverflow, 0, 1)                      \
   F(ThrowSymbolAsyncIteratorInvalid, 0, 1)         \
   F(ThrowSymbolIteratorInvalid, 0, 1)              \
@@ -546,6 +548,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ActiveTierIsSparkplug, 1, 1)                                         \
   F(ActiveTierIsMaglev, 1, 1)                                            \
   F(ActiveTierIsTurbofan, 1, 1)                                          \
+  F(AllocateHeapNumberWithValue, 1, 1)                                   \
   F(ArrayBufferDetachForceWasm, 1, 1)                                    \
   F(ArrayIteratorProtector, 0, 1)                                        \
   F(ArraySpeciesProtector, 0, 1)                                         \
@@ -713,6 +716,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ThrowWasmStackOverflow, 0, 1)                                \
   F(WasmI32AtomicWait, 4, 1)                                     \
   F(WasmI64AtomicWait, 5, 1)                                     \
+  F(WasmManagedObjectWait, 4, 1)                                 \
+  F(WasmAllocateWaitQueue, 2, 1)                                 \
   F(WasmMemoryGrow, 2, 1)                                        \
   F(WasmStackGuard, 1, 1)                                        \
   F(WasmStackGuardLoop, 0, 1)                                    \
@@ -732,8 +737,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTableGrow, 3, 1)                                         \
   F(WasmTableFill, 5, 1)                                         \
   F(WasmJSToWasmObject, 2, 1)                                    \
-  F(WasmGenericJSToWasmObject, 2, 1)                             \
-  F(WasmGenericWasmToJSObject, 1, 1)                             \
+  F(WasmWasmToJSObject, 1, 1)                                    \
   F(WasmCompileLazy, 2, 1)                                       \
   F(WasmAllocateFeedbackVector, 3, 1)                            \
   F(WasmLiftoffDeoptFinish, 1, 1)                                \
@@ -748,15 +752,14 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmArrayInitSegment, 6, 1)                                  \
   F(WasmAllocateSuspender, 0, 1)                                 \
   F(WasmAllocateContinuation, 2, 1)                              \
-  F(WasmAllocateEmptyContinuation, 0, 1)                         \
   F(WasmAllocateBoundContinuation, 2, 1)                         \
   F(ClearWasmSuspenderResumeField, 1, 1)                         \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
   F(WasmStringNewWtf8, 5, 1)                                     \
-  F(WasmStringNewWtf8Array, 4, 1)                                \
+  F(WasmStringNewWtf8Array, 5, 1)                                \
   F(WasmStringNewWtf16, 4, 1)                                    \
-  F(WasmStringNewWtf16Array, 3, 1)                               \
+  F(WasmStringNewWtf16Array, 4, 1)                               \
   F(WasmStringConst, 2, 1)                                       \
   F(WasmStringMeasureUtf8, 1, 1)                                 \
   F(WasmStringMeasureWtf8, 1, 1)                                 \
@@ -767,7 +770,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmStringAsWtf8, 1, 1)                                      \
   F(WasmStringViewWtf8Encode, 7, 1)                              \
   F(WasmStringViewWtf8Slice, 3, 1)                               \
-  F(WasmStringFromCodePoint, 1, 1)                               \
+  F(WasmStringFromCodePoint, 2, 1)                               \
   F(WasmStringHash, 1, 1, RuntimeCallProperty::kCannotTriggerGC) \
   F(WasmSubstring, 3, 1)                                         \
   F(WasmConfigureAllPrototypes, 4, 1)                            \
@@ -1152,6 +1155,8 @@ enum class DebugPrintValueType : uint16_t {
   kFloat64,
   kTagged,
 };
+
+void PrintIndentation(int stack_size);
 
 }  // namespace internal
 }  // namespace v8

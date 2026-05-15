@@ -1706,18 +1706,27 @@ TEST_F(DisasmArm64Test, fmov_imm) {
 }
 
 TEST_F(DisasmArm64Test, fmov_reg) {
-  SET_UP_ASM();
-
-  COMPARE(fmov(w3, s13), "fmov w3, s13");
-  COMPARE(fmov(x6, d26), "fmov x6, d26");
-  COMPARE(fmov(s11, w30), "fmov s11, w30");
-  COMPARE(fmov(d31, x2), "fmov d31, x2");
-  COMPARE(fmov(s12, s13), "fmov s12, s13");
-  COMPARE(fmov(d22, d23), "fmov d22, d23");
-  COMPARE(fmov(v0.D(), 1, x13), "fmov v0.D[1], x13");
-  COMPARE(fmov(x13, v0.D(), 1), "fmov x13, v0.D[1]");
-
-  CLEANUP();
+  {
+    SET_UP_ASM();
+    COMPARE(fmov(w3, s13), "fmov w3, s13");
+    COMPARE(fmov(x6, d26), "fmov x6, d26");
+    COMPARE(fmov(s11, w30), "fmov s11, w30");
+    COMPARE(fmov(d31, x2), "fmov d31, x2");
+    COMPARE(fmov(s12, s13), "fmov s12, s13");
+    COMPARE(fmov(d22, d23), "fmov d22, d23");
+    COMPARE(fmov(v0.D(), 1, x13), "fmov v0.D[1], x13");
+    COMPARE(fmov(x13, v0.D(), 1), "fmov x13, v0.D[1]");
+    CLEANUP();
+  }
+  {
+    SET_UP_MASM();
+    COMPARE(Mov(v1.V2S(), v1.V2S()), "mov v1.8b, v1.8b");
+    COMPARE(Mov(v2.V4S(), v2.V4S()), "mov v2.16b, v2.16b");
+    COMPARE(Mov(v3.V2D(), v3.V2D()), "mov v3.16b, v3.16b");
+    COMPARE(Fmov(s4, s4), "fmov s4, s4");
+    COMPARE(Fmov(d5, d5), "fmov d5, d5");
+    CLEANUP();
+  }
 }
 
 TEST_F(DisasmArm64Test, fp_dp1) {
@@ -4732,6 +4741,9 @@ TEST_F(DisasmArm64Test, neon_sha3) {
           "bcax v0.16b, v1.16b, v2.16b, v3.16b");
   COMPARE(Eor3(v10.V16B(), v11.V16B(), v12.V16B(), v13.V16B()),
           "eor3 v10.16b, v11.16b, v12.16b, v13.16b");
+  COMPARE(Xar(v2.V2D(), v4.V2D(), v6.V2D(), 1), "xar v2.2d, v4.2d, v6.2d, #1");
+  COMPARE(Xar(v3.V2D(), v21.V2D(), v24.V2D(), 63),
+          "xar v3.2d, v21.2d, v24.2d, #63");
 
   CLEANUP();
 }
@@ -5188,6 +5200,20 @@ TEST_F(DisasmArm64Test, cssc) {
   COMPARE(Umax(w5, w9, 255), "umax w5, w9, #255");
   COMPARE(Umax(x6, x8, 128), "umax x6, x8, #128");
   COMPARE(Umin(x30, xzr, 0), "umin lr, xzr, #0");
+
+  CLEANUP();
+}
+
+TEST_F(DisasmArm64Test, sve_bit_permute) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SVEBITPERM,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Bext(z6.VnB(), z2.VnB(), z5.VnB()), "bext z6.b, z2.b, z5.b");
+  COMPARE(Bext(z6.VnD(), z2.VnD(), z5.VnD()), "bext z6.d, z2.d, z5.d");
+  COMPARE(Bext(z6.VnH(), z2.VnH(), z5.VnH()), "bext z6.h, z2.h, z5.h");
+  COMPARE(Bext(z6.VnS(), z2.VnS(), z5.VnS()), "bext z6.s, z2.s, z5.s");
 
   CLEANUP();
 }

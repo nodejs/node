@@ -176,10 +176,37 @@ function allowOOM(fn) {
         kExprMemoryGrow, 0,  // memory.grow 0
       ])
       .exportFunc();
+  builder.addFunction('load_with_page_offset', makeSig([kWasmF64], [kWasmI32]))
+      .addBody([
+        kExprLocalGet, 0,                                  // local.get 0
+        kExprI64UConvertF64,                               // i64.uconvert_sat.f64
+        kExprI32LoadMem, 2, ...wasmUnsignedLeb(kPageSize), // i32.load 2 65536
+      ])
+      .exportFunc();
+  builder.addFunction('store_with_page_offset', makeSig([kWasmF64, kWasmI32], []))
+      .addBody([
+       kExprLocalGet, 0,                                    // local.get 0
+        kExprI64UConvertF64,                                // i64.uconvert_sat.f64
+        kExprLocalGet, 1,                                   // local.get 1
+        kExprI32StoreMem, 2, ...wasmUnsignedLeb(kPageSize), // i32.store 2 65536
+      ])
+      .exportFunc();
 
   let instance = builder.instantiate();
+  let load_with_page_offset = instance.exports.load_with_page_offset;
+  let store_with_page_offset = instance.exports.store_with_page_offset;
 
   assertEquals(1n, instance.exports.grow(2n));
+  // After the previous check we know that the size of the memory is 3 Wasm
+  // pages, so given the offset, the following 2 accesses operate around the
+  // end of the memory.
+  assertTraps(kTrapMemOutOfBounds, () =>
+    load_with_page_offset(2 * kPageSize - 3));
+  assertTraps(kTrapMemOutOfBounds, () =>
+    store_with_page_offset(2 * kPageSize - 3));
+  assertTraps(kTrapMemOutOfBounds, () => load_with_page_offset(4 * kPageSize));
+  assertTraps(kTrapMemOutOfBounds, () =>
+    store_with_page_offset(4 * kPageSize));
   assertEquals(3n, instance.exports.grow(1n));
   assertEquals(-1n, instance.exports.grow(-1n));
   assertEquals(-1n, instance.exports.grow(1n << 31n));
@@ -188,6 +215,8 @@ function allowOOM(fn) {
   assertEquals(-1n, instance.exports.grow(1n << 63n));
   assertEquals(-1n, instance.exports.grow(7n));  // Above the maximum of 10.
   assertEquals(4n, instance.exports.grow(6n));   // Just at the maximum of 10.
+  store_with_page_offset(9 * kPageSize - 4, 0x12345678);
+  assertEquals(0x12345678, load_with_page_offset(9 * kPageSize - 4));
 })();
 
 (function TestGrow64_ToMemory() {

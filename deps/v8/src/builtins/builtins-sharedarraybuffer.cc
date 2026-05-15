@@ -115,7 +115,7 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
 
 }  // namespace
 
-// ES #sec-atomics.notify
+// https://tc39.es/ecma262/#sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
 BUILTIN(AtomicsNotify) {
   // TODO(clemensb): This builtin only allocates (an exception) in the case of

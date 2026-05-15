@@ -43,8 +43,8 @@ TEST_F(GlobalObjectTest, StrictUndeclaredGlobalVariable) {
   Local<Object> proto = Object::New(isolate());
   Local<Object> global = context()->Global();
   proto->Set(context(), var_name, Number::New(isolate(), 100)).FromJust();
-  global->SetPrototypeV2(context(), proto).FromJust();
-  CHECK_EQ(global->GetPrototypeV2(), proto);
+  global->SetPrototype(context(), proto).FromJust();
+  CHECK_EQ(global->GetPrototype(), proto);
   CHECK(TryRunJS("\"use strict\"; x = 42;").IsEmpty());
   CHECK(try_catch.HasCaught());
   String::Utf8Value exception(isolate(), try_catch.Exception());
@@ -109,8 +109,8 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   env2->SetSecurityToken(token);
 
   // Create a reference to env2 global from env1 global.
-  env1->Global()->SetPrototypeV2(env1, env2->Global()).FromJust();
-  CHECK_EQ(env1->Global()->GetPrototypeV2(), env2->Global());
+  env1->Global()->SetPrototype(env1, env2->Global()).FromJust();
+  CHECK_EQ(env1->Global()->GetPrototype(), env2->Global());
 
   // Set some global variables in global2
   env2->Global()->Set(env2, NewString("a"), NewString("a")).FromJust();

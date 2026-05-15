@@ -47,6 +47,8 @@ class SandboxedArrayBufferAllocatorBase {
  public:
   virtual void* Allocate(size_t length) = 0;
   virtual void* AllocateUninitialized(size_t length) = 0;
+  // On allocation failure, triggers an OOM crash instead of returning nullptr.
+  virtual void* AllocateUninitializedOrCrash(size_t length) = 0;
   virtual void Free(void* ptr) = 0;
 };
 
@@ -71,6 +73,7 @@ class SandboxedArrayBufferAllocator final
 
   void* Allocate(size_t length) override;
   void* AllocateUninitialized(size_t length) override;
+  void* AllocateUninitializedOrCrash(size_t length) override;
   void Free(void* data) override;
 
   void TearDown();
@@ -107,6 +110,7 @@ class PABackedSandboxedArrayBufferAllocator
 
   void* Allocate(size_t length) override;
   void* AllocateUninitialized(size_t length) override;
+  void* AllocateUninitializedOrCrash(size_t length) override;
   void Free(void* data) override;
 
   void TearDown();

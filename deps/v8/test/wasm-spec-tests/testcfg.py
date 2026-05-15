@@ -7,67 +7,42 @@ from testrunner.objects import testcase
 
 # We use the 'wasm-3.0' branch on the main spec repo, so enable all proposals
 # that were merged into that branch.
-default_flags = ['--experimental-wasm-exnref']
+default_flags = []
 
-proposal_flags = [
-    {
-        'name': 'js-types',
-        'flags': ['--experimental-wasm-type-reflection']
-    },
-    {
-        'name': 'tail-call',
-        'flags': []
-    },
-    {
-        'name':
-            'memory64',
-        'flags': [
-            # The memory64 repository is rebased on the upstream 'wasm-3.0'
-            # branch, which contains exnref.
-            '--experimental-wasm-exnref'
-        ]
-    },
-    {
-        'name': 'extended-const',
-        'flags': []
-    },
-    {
-        'name': 'function-references',
-        'flags': []
-    },
-    {
-        'name': 'gc',
-        'flags': []
-    },
-    {
-        'name': 'multi-memory',
-        'flags': ['--experimental-wasm-multi-memory']
-    },
-    {
-        'name': 'exception-handling',
-        # This flag enables the *new* exception handling proposal. The legacy
-        # proposal is enabled by default.
-        'flags': ['--experimental-wasm-exnref']
-    },
-    {
-        'name':
-            'js-promise-integration',
-        'flags': [
-            '--experimental-wasm-jspi',
-            # The jspi repository is rebased on the upstream 'wasm-3.0'
-            # branch, which contains exnref.
-            '--experimental-wasm-exnref'
-        ]
-    },
-    {
-        'name': 'stack-switching',
-        'flags': ['--experimental-wasm-wasmfx']
-    },
-    {
-        'name': 'custom-descriptors',
-        'flags': ['--experimental-wasm-custom-descriptors']
-    }
-]
+proposal_flags = [{
+    'name': 'js-types',
+    'flags': ['--experimental-wasm-type-reflection']
+}, {
+    'name': 'tail-call',
+    'flags': []
+}, {
+    'name': 'memory64',
+    'flags': []
+}, {
+    'name': 'extended-const',
+    'flags': []
+}, {
+    'name': 'function-references',
+    'flags': []
+}, {
+    'name': 'gc',
+    'flags': []
+}, {
+    'name': 'multi-memory',
+    'flags': []
+}, {
+    'name': 'exception-handling',
+    'flags': []
+}, {
+    'name': 'js-promise-integration',
+    'flags': []
+}, {
+    'name': 'stack-switching',
+    'flags': ['--experimental-wasm-wasmfx']
+}, {
+    'name': 'custom-descriptors',
+    'flags': ['--experimental-wasm-custom-descriptors']
+}]
 
 
 class TestLoader(testsuite.JSTestLoader):

@@ -18,8 +18,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-struct WasmModule;
-
 // Representation of an constant expression. Unlike {ConstantExpression}, this
 // does not use {WireBytesRef}, i.e., it does not depend on a wasm module's
 // bytecode representation.
@@ -186,6 +184,7 @@ class WasmInitExpr : public ZoneObject {
       case kI8:
       case kI16:
       case kI32:
+      case kWaitQueue:
         return WasmInitExpr(int32_t{0});
       case kI64:
         return WasmInitExpr(int64_t{0});

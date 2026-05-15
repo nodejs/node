@@ -11,15 +11,32 @@
 namespace v8 {
 namespace internal {
 
-template <ExternalPointerTag tag>
+template <ExternalPointerTagRange kTagRange>
 class ExternalPointerMember {
  public:
   ExternalPointerMember() = default;
 
+  template <ExternalPointerTag tag>
   void Init(Address host_address, IsolateForSandbox isolate, Address value);
+  void Init(Address host_address, IsolateForSandbox isolate, Address value)
+    requires(kTagRange.Size() == 1)
+  {
+    Init<kTagRange.first>(host_address, isolate, value);
+  }
 
+  template <ExternalPointerTagRange tag_range>
   inline Address load(const IsolateForSandbox isolate) const;
+  inline Address load(const IsolateForSandbox isolate) const {
+    return load<kTagRange>(isolate);
+  }
+
+  template <ExternalPointerTag tag>
   inline void store(IsolateForSandbox isolate, Address value);
+  inline void store(IsolateForSandbox isolate, Address value)
+    requires(kTagRange.Size() == 1)
+  {
+    store<kTagRange.first>(isolate, value);
+  }
 
   inline ExternalPointer_t load_encoded() const;
   inline void store_encoded(ExternalPointer_t value);

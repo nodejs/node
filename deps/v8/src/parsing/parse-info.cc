@@ -47,8 +47,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 
-  flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsFromFunction(shared);
+  flags.SetFlagsForFunctionFromScript(script);
   flags.set_allow_lazy_parsing(true);
   flags.set_is_lazy_compile(true);
 
@@ -60,6 +60,8 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());
 
+  flags.set_is_hoisted_in_context(shared->is_hoisted_in_context());
+
   return flags;
 }
 
@@ -68,13 +70,13 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForScriptCompile(
     Isolate* isolate, Tagged<Script> script) {
   UnoptimizedCompileFlags flags(isolate, script->id());
 
-  flags.SetFlagsForFunctionFromScript(script);
   flags.SetFlagsForToplevelCompile(
       script->IsUserJavaScript(), flags.outer_language_mode(),
       construct_repl_mode(script->is_repl_mode()),
       script->origin_options().IsModule() ? ScriptType::kModule
                                           : ScriptType::kClassic,
       v8_flags.lazy);
+  flags.SetFlagsForFunctionFromScript(script);
   if (script->is_wrapped()) {
     flags.set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
@@ -146,7 +148,8 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
     Tagged<Script> script) {
   DCHECK_EQ(script_id(), script->id());
 
-  set_is_eval(script->compilation_type() == Script::CompilationType::kEval);
+  set_is_eval(is_toplevel() &&
+              script->compilation_type() == Script::CompilationType::kEval);
   set_is_module(script->origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
 
@@ -209,7 +212,8 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       language_mode_(flags.outer_language_mode()),
       is_background_compilation_(false),
       is_streaming_compilation_(false),
-      has_module_in_scope_chain_(flags.is_module()) {
+      has_module_in_scope_chain_(flags.is_module()),
+      has_generator_in_scope_chain_(false) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }

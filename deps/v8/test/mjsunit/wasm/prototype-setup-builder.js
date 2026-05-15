@@ -82,11 +82,11 @@ class WasmPrototypeSetupBuilder {
     this.module_builder = wasm_module_builder;
     this.configs = [];
     this.$array_externref =
-        wasm_module_builder.addArray(kWasmExternRef, true, kNoSuperType, true);
+        wasm_module_builder.addArray(kWasmExternRef, {final: true});
     this.$array_funcref =
-        wasm_module_builder.addArray(kWasmFuncRef, true, kNoSuperType, true);
+        wasm_module_builder.addArray(kWasmFuncRef, {final: true});
     this.$array_i8 =
-        wasm_module_builder.addArray(kWasmI8, true, kNoSuperType, true);
+        wasm_module_builder.addArray(kWasmI8, {final: true});
     this.$configureAll = wasm_module_builder.addImport(
         "wasm:js-prototypes", "configureAll",
         makeSig([wasmRefNullType(this.$array_externref),

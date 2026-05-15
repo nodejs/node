@@ -72,19 +72,11 @@
   const Type* operator->() const { return this; }                              \
                                                                                \
  protected:                                                                    \
-  friend class Tagged<Type>;                                                   \
-                                                                               \
   /* Special constructor for constexpr construction which allows skipping type \
    * checks. */                                                                \
   explicit constexpr V8_INLINE Type(Address ptr, HeapObject::SkipTypeCheckTag) \
       : __VA_ARGS__(ptr, HeapObject::SkipTypeCheckTag()) {}                    \
-                                                                               \
-  inline void CheckTypeOnCast();                                               \
-  explicit inline Type(Address ptr)
-
-#define OBJECT_CONSTRUCTORS_IMPL(Type, Super)                           \
-  inline void Type::CheckTypeOnCast() { SLOW_DCHECK(Is##Type(*this)); } \
-  inline Type::Type(Address ptr) : Super(ptr) { CheckTypeOnCast(); }
+  friend class Tagged<Type>
 
 #define DECL_PRIMITIVE_GETTER(name, type) inline type name() const;
 
@@ -1127,10 +1119,6 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #define TQ_OBJECT_CONSTRUCTORS(Type)                             \
   OBJECT_CONSTRUCTORS(Type, TorqueGenerated##Type<Type, Super>); \
   friend class TorqueGenerated##Type<Type, Super>;
-
-#define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \
-  inline Type::Type(Address ptr)          \
-      : TorqueGenerated##Type<Type, Type::Super>(ptr) {}
 
 #define TQ_CPP_OBJECT_DEFINITION_ASSERTS(_class, parent) \
   template class TorqueGenerated##_class##Asserts<_class, parent>;

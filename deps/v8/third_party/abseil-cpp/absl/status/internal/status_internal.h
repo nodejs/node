@@ -20,6 +20,8 @@
 #include <string>
 #include <utility>
 
+#include <optional>
+
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
@@ -83,7 +85,7 @@ class StatusRep {
   void Unref() const;
 
   // Payload methods correspond to the same methods in absl::Status.
-  absl::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
+  std::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
   void SetPayload(absl::string_view type_url, absl::Cord payload);
   struct EraseResult {
     bool erased;

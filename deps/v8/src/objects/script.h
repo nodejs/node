@@ -13,6 +13,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/local-factory.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/objects/struct.h"
@@ -82,6 +83,9 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // code from which eval was called, as negative integer.
   DECL_INT_ACCESSORS(eval_from_position)
 
+  DECL_ACCESSORS(eval_from_scope_info, Tagged<Object>)
+  inline bool has_eval_from_scope_info() const;
+
   // [infos]: weak fixed array containing all shared function infos and scope
   // infos for eval created from this script.
   DECL_ACCESSORS(infos, Tagged<WeakFixedArray>)
@@ -96,7 +100,7 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   // [wasm_native_module]: the wasm {NativeModule} this script belongs to.
   // This must only be called if the type of this script is TYPE_WASM.
   DECL_ACCESSORS(wasm_managed_native_module, Tagged<Object>)
-  inline wasm::NativeModule* wasm_native_module() const;
+  inline Managed<wasm::NativeModule>::Ptr wasm_native_module() const;
 
   // [wasm_weak_instance_list]: the list of all {WasmInstanceObject} being
   // affected by breakpoints that are managed via this script.
@@ -296,6 +300,8 @@ class Script : public TorqueGeneratedScript<Script, Struct> {
   static void V8_PRESERVE_MOST
       InitLineEndsInternal(IsolateT* isolate, DirectHandle<Script> script);
 };
+
+V8_EXPORT_PRIVATE const char* ToString(Script::Type type);
 
 }  // namespace internal
 }  // namespace v8

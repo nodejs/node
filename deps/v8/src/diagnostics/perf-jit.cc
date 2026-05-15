@@ -39,6 +39,7 @@
 
 #include <memory>
 
+#include "include/v8config.h"
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
@@ -138,8 +139,8 @@ FILE* PerfJitLogger::perf_output_handle_ = nullptr;
 void PerfJitLogger::OpenJitDumpFile() {
   size_t bufferSize = strlen(v8_flags.perf_prof_path) +
                       sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  base::ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(perf_dump_name, kFilenameFormatString,
+  auto perf_dump_name = base::OwnedVector<char>::NewForOverwrite(bufferSize);
+  int size = SNPrintF(perf_dump_name.as_vector(), kFilenameFormatString,
                       v8_flags.perf_prof_path.value(), process_id_);
   CHECK_NE(size, -1);
 
@@ -235,8 +236,8 @@ void PerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  Tagged<Code> code;
-  if (!TryCast(abstract_code, &code)) return;
+  if (!IsCode(abstract_code)) return;
+  Tagged<Code> code = abstract_code->GetCode();
 
   // Debug info has to be emitted first.
   DirectHandle<SharedFunctionInfo> sfi;
@@ -305,9 +306,9 @@ constexpr size_t kUnknownScriptNameStringLen =
     arraysize(kUnknownScriptNameString) - 1;
 
 namespace {
-base::Vector<const char> GetScriptName(Tagged<Object> maybeScript,
-                                       std::unique_ptr<char[]>* storage,
-                                       const DisallowGarbageCollection& no_gc) {
+base::Vector<const char> GetScriptName(
+    Tagged<Object> maybeScript, std::unique_ptr<char[]>* storage,
+    const DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND) {
   if (IsScript(maybeScript)) {
     Tagged<Object> name_or_url =
         Cast<Script>(maybeScript)->GetNameOrSourceURL();

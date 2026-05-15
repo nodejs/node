@@ -482,6 +482,7 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
     const TNode<Object> obj, Label* if_cannot_be_held_weakly) {
   Label check_symbol_key(this);
   Label end(this);
+  Label check_not_in_shared_space(this);
   GotoIf(TaggedIsSmi(obj), if_cannot_be_held_weakly);
   TNode<Uint16T> instance_type = LoadMapInstanceType(LoadMap(CAST(obj)));
   GotoIfNot(IsJSReceiverInstanceType(instance_type), &check_symbol_key);
@@ -490,13 +491,24 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   // collection keys.
   GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(instance_type),
          if_cannot_be_held_weakly);
+#if V8_ENABLE_WEBASSEMBLY
+  GotoIf(IsWasmObjectInstanceType(instance_type), &check_not_in_shared_space);
+#endif
   Goto(&end);
+
+#if V8_ENABLE_WEBASSEMBLY
+  Bind(&check_not_in_shared_space);
+  Branch(IsPageFlagSet(BitcastTaggedToWord(obj),
+                       MemoryChunk::IN_WRITABLE_SHARED_SPACE),
+         if_cannot_be_held_weakly, &end);
+#endif
+
   Bind(&check_symbol_key);
   GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
-  GotoIf(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
-         if_cannot_be_held_weakly);
-  Goto(&end);
+  Branch(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
+         if_cannot_be_held_weakly, &end);
+
   Bind(&end);
 }
 
@@ -2167,6 +2179,7 @@ TNode<Smi> CollectionsBuiltinsAssembler::DeleteFromSetTable(
   return number_of_elements;
 }
 
+// https://tc39.es/ecma262/#sec-map.prototype.entries
 TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2176,6 +2189,7 @@ TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {
       context, Context::MAP_KEY_VALUE_ITERATOR_MAP_INDEX, CAST(receiver)));
 }
 
+// https://tc39.es/ecma262/#sec-get-map.prototype.size
 TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2186,6 +2200,7 @@ TF_BUILTIN(MapPrototypeGetSize, CollectionsBuiltinsAssembler) {
   Return(LoadObjectField(table, OrderedHashMap::NumberOfElementsOffset()));
 }
 
+// https://tc39.es/ecma262/#sec-map.prototype.forEach
 TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map.prototype.forEach";
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
@@ -2246,6 +2261,7 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
   }
 }
 
+// https://tc39.es/ecma262/#sec-map.prototype.keys
 TF_BUILTIN(MapPrototypeKeys, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2254,6 +2270,7 @@ TF_BUILTIN(MapPrototypeKeys, CollectionsBuiltinsAssembler) {
       context, Context::MAP_KEY_ITERATOR_MAP_INDEX, CAST(receiver)));
 }
 
+// https://tc39.es/ecma262/#sec-map.prototype.values
 TF_BUILTIN(MapPrototypeValues, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2263,6 +2280,7 @@ TF_BUILTIN(MapPrototypeValues, CollectionsBuiltinsAssembler) {
       context, Context::MAP_VALUE_ITERATOR_MAP_INDEX, CAST(receiver)));
 }
 
+// https://tc39.es/ecma262/#sec-%mapiteratorprototype%.next
 TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Map Iterator.prototype.next";
   const auto maybe_receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -2366,6 +2384,7 @@ TNode<BoolT> CollectionsBuiltinsAssembler::TableHasKey(
   return SmiGreaterThanOrEqual(index, SmiConstant(0));
 }
 
+// https://tc39.es/ecma262/#sec-set.prototype.entries
 TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2375,6 +2394,7 @@ TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {
       context, Context::SET_KEY_VALUE_ITERATOR_MAP_INDEX, CAST(receiver)));
 }
 
+// https://tc39.es/ecma262/#sec-get-set.prototype.size
 TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2385,6 +2405,7 @@ TF_BUILTIN(SetPrototypeGetSize, CollectionsBuiltinsAssembler) {
   Return(LoadObjectField(table, OrderedHashSet::NumberOfElementsOffset()));
 }
 
+// https://tc39.es/ecma262/#sec-set.prototype.foreach
 TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set.prototype.forEach";
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
@@ -2440,6 +2461,7 @@ TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
   }
 }
 
+// https://tc39.es/ecma262/#sec-set.prototype.values
 TF_BUILTIN(SetPrototypeValues, CollectionsBuiltinsAssembler) {
   const auto receiver = Parameter<Object>(Descriptor::kReceiver);
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -2449,6 +2471,7 @@ TF_BUILTIN(SetPrototypeValues, CollectionsBuiltinsAssembler) {
       context, Context::SET_VALUE_ITERATOR_MAP_INDEX, CAST(receiver)));
 }
 
+// https://tc39.es/ecma262/#sec-%setiteratorprototype%.next
 TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   const char* const kMethodName = "Set Iterator.prototype.next";
   const auto maybe_receiver = Parameter<Object>(Descriptor::kReceiver);

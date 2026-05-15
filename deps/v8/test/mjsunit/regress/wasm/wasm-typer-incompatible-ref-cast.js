@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-liftoff
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
 let supertype = builder.addStruct([]);
-let sub1 = builder.addStruct([makeField(kWasmI32, true)], supertype);
-let sub2 = builder.addStruct([makeField(kWasmF64, true)], supertype);
+let sub1 = builder.addStruct({fields: [makeField(kWasmI32, true)], supertype});
+let sub2 = builder.addStruct({fields: [makeField(kWasmF64, true)], supertype});
 
 let crash = builder.addFunction("crash", kSig_v_i).exportFunc()
  .addLocals(wasmRefNullType(sub1), 1)

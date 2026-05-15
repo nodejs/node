@@ -98,8 +98,6 @@ cc_test(
         "//absl/numeric:bits",
         "//absl/strings:cord_test_helpers",
         "//absl/strings:string_view",
-        "//absl/types:optional",
-        "//absl/types:variant",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -174,6 +172,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/numeric:bits",
     ],
 )
 

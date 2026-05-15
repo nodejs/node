@@ -30,9 +30,6 @@ static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
 static_assert(Internals::kCallbackInfoDataOffset ==
               InterceptorInfo::kDataOffset);
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
-TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
-
 Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
   return callback_.load();
 }
@@ -134,6 +131,8 @@ INTERCEPTOR_INFO_HAS_GETTER(deleter)
 INTERCEPTOR_INFO_HAS_GETTER(definer)
 INTERCEPTOR_INFO_HAS_GETTER(enumerator)
 
+bool InterceptorInfo::has_index_of() const { return has_indexed_index_of(); }
+
 #undef INTERCEPTOR_INFO_HAS_GETTER
 
 LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
@@ -194,10 +193,15 @@ LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     kApiIndexedPropertyDefinerCallbackTag, !is_named(),
     !is_named() && (value != kNullAddress))
 
+LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+    InterceptorInfo, indexed_index_of, Address, kIndexOfOffset,
+    kApiIndexedPropertyIndexOfCallbackTag, !is_named(),
+    !is_named() && (value != kNullAddress))
+
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                CanInterceptSymbolsBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, NonMaskingBit::kShift)
-BOOL_ACCESSORS(InterceptorInfo, flags, is_named, NamedBit::kShift)
+BOOL_GETTER(InterceptorInfo, flags, is_named, NamedBit::kShift)
 BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
                HasNoSideEffectBit::kShift)
 // TODO(ishell): remove once all the Api changes are done.

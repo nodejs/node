@@ -35,9 +35,11 @@
   [0.02, "--no-maglev"],
   [0.02, "--no-sparkplug"],
   [0.02, "--no-turbofan"],
-  [0.05, "--turbolev"],
+  [0.7, "--turbolev"],
   [0.2, "--optimize-maglev-optimizes-to-turbofan"],
   [0.5, "--optimize-on-next-call-optimizes-to-maglev"],
+  [0.5, "--maglev-untagged-phis"],
+  [0.1, "--no-maglev-loop-peeling"],
   [0.0001, "--simulate-errors"],
   [0.1, "--minor-ms"],
   [0.1, "--shared-string-table"],
@@ -51,7 +53,7 @@
   [0.25, "--experimental-wasm-revectorize"],
   [0.1, "--no-additive-safe-int-feedback"],
   [0.1, "--hashes-collide"],
-  [0.1, "--proto-assign-seq-opt"],
-  [0.5, "--proto-assign-seq-opt --proto-assign-seq-opt-count=1"],
+  [0.5, "--proto-assign-seq-lazy-func-opt --proto-assign-seq-opt-count=1"],
+  [0.5, "--private-field-bytecodes"],
   [0.1, "--scavenger-chaos-mode"]
 ]

@@ -192,7 +192,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  var array_index = builder.addArray(kWasmI16, true);
+  var array_index = builder.addArray(kWasmI16);
 
   let element0_value = -44;
   let element1_value = 55;
@@ -224,7 +224,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
-  var array_index = builder.addArray(wasmRefNullType(struct_index), true);
+  var array_index = builder.addArray(wasmRefNullType(struct_index));
 
   let element0_value = 44;
   let element2_value = 55;
@@ -276,8 +276,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
   var struct_index = builder.addStruct([makeField(kWasmI64, true)]);
-  var array_num_index = builder.addArray(kWasmI64, true);
-  var array_ref_index = builder.addArray(wasmRefNullType(struct_index), true);
+  var array_num_index = builder.addArray(kWasmI64);
+  var array_ref_index = builder.addArray(wasmRefNullType(struct_index));
 
   let elem1 = -44;
   let elem2 = 15;
@@ -330,7 +330,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  var array_num_index = builder.addArray(kWasmI64, true);
+  var array_num_index = builder.addArray(kWasmI64);
 
   builder.addGlobal(
       wasmRefType(array_num_index), false, false,
@@ -344,7 +344,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let array_index = builder.addArray(kWasmI31Ref, false);
+  let array_index = builder.addArray(kWasmI31Ref, {mutable: false});
 
   let values = [0, 10, -22, 0x7fffffff, -1];
 

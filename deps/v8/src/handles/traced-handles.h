@@ -281,8 +281,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   static void Move(Address** from, Address** to);
 
   static Tagged<Object> Mark(Address* location, MarkMode mark_mode);
-  static Tagged<Object> MarkConservatively(Address* inner_location,
-                                           Address* traced_node_block_base,
+  static Tagged<Object> MarkConservatively(TracedNode* node,
                                            MarkMode mark_mode);
 
   static bool IsValidInUseNode(const Address* location);
@@ -368,6 +367,19 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   size_t used_nodes_ = 0;
   size_t block_size_bytes_ = 0;
   bool disable_block_handling_on_free_ = false;
+};
+
+class V8_EXPORT_PRIVATE ConservativeTracedHandlesNodeScanner final {
+ public:
+  explicit ConservativeTracedHandlesNodeScanner(Isolate* isolate);
+
+  TracedNode* TryFindNode(const void* hint) const;
+
+ private:
+  static TracedNode* TryGetNodeFromInnerPointer(
+      Address* inner_location, Address* traced_node_block_base);
+
+  const TracedHandles::NodeBounds traced_node_bounds_;
 };
 
 }  // namespace v8::internal

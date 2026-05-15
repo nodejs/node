@@ -172,6 +172,7 @@ cc_library(
         ":status",
         ":statusor",
         "//absl/base:config",
+        "//absl/base:core_headers",
         "//absl/strings:string_view",
         "@googletest//:gtest",
     ],

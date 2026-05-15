@@ -7,17 +7,10 @@
 
 #include "src/objects/cpp-heap-external-object.h"
 
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
-
 namespace v8::internal {
 
 #include "torque-generated/src/objects/cpp-heap-external-object-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(CppHeapExternalObject)
-
 }  // namespace v8::internal
-
-#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_CPP_HEAP_EXTERNAL_OBJECT_INL_H_

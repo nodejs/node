@@ -301,6 +301,7 @@
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
+  'test-heap/Regress8014': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
   'test-serialize/ContextSerializerCustomContext': [SKIP],
@@ -427,6 +428,9 @@
 
   # Some Wasm functionality is not implemented yet.
   'test-run-wasm-f16/*': [SKIP],
+
+  # Flush to zero is not supported yet.
+  'test-wasm-shared-engine/RunImportedWithDenormalsMismatchAndSourceUrl': [SKIP],
 }],  # 'arch == riscv64 or (arch == riscv32)'
 
 ['arch == riscv32', {
@@ -514,6 +518,10 @@
   'test-jump-table-assembler/*': [SKIP],
 
   'test-wasm-breakpoints/*' : [SKIP],
+
+  # Flush to zero is not supported yet.
+  'test-wasm-shared-engine/SharedEngineRunImportedWithDenormalsMismatchAndSourceUrl': [SKIP]
+
 }],  # 'arch == ppc64 or arch == s390x'
 
 ##############################################################################
@@ -526,7 +534,7 @@
 
 ##############################################################################
 ['mode == debug and tsan', {
-  'test-serialize/StartupSerializer*': [PASS, NO_VARIANTS],
+  'test-serialize/*': [PASS, NO_VARIANTS],
 }],  # mode == debug and tsan
 
 ##############################################################################
@@ -753,10 +761,10 @@
 }],
 
 ################################################################################
-['variant == stress or variant == wasm_assert_types', {
-  # The 'stress' variants sets the '--no-liftoff' flag, which means that Wasm
-  # compiles directly to TurboFan. This makes the cache no longer incremental,
-  # and these tests don't make sense.
+['variant == stress or variant == wasm_assert_types or variant == instruction_scheduling or variant == stress_instruction_scheduling', {
+  # The 'stress' variant (and the other listed variants) sets the '--no-liftoff'
+  # flag, which means that Wasm compiles directly to TurboFan. This makes the
+  # cache no longer incremental, and these tests don't make sense.
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],
@@ -835,18 +843,23 @@
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
 }],  # direct_handle
 
-['clang_coverage and mode == debug', {
+['clang_coverage', {
   # Slow tests.
-  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, SLOW],
+  'test-heap/OutOfMemory': [PASS, SLOW],
+  'test-heap/OutOfMemoryIneffectiveGC': [PASS, SLOW],
+}],
 
+['clang_coverage and mode == debug', {
   # Too slow tests.
+  'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
+  'test-heap/Regress8014': [SKIP],
+  'test-heap/TestInternalWeakLists': [SKIP],
   'test-serialize/ContextSerializerContext': [SKIP],
   'test-serialize/ContextSerializerCustomContext': [SKIP],
-  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
-  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-  'test-api/Threading8': [SKIP],
-  'test-heap/TestInternalWeakLists': [SKIP],
+  'test-serialize/SharedStrings': [SKIP],
+  'test-serialize/StartupSerializer*': [SKIP],
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 
 ##############################################################################

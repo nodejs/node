@@ -13,30 +13,33 @@ namespace v8::internal::wasm::subtyping_unittest {
 class WasmSubtypingTest : public TestWithPlatform {};
 using FieldInit = std::pair<ValueType, bool>;
 using Idx = ModuleTypeIndex;
-constexpr bool kShared = true;
 
-constexpr ValueType refS(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refS(uint32_t index, SharedFlag shared = SharedFlag::kNo) {
   return ValueType::Ref(Idx{index}, shared, RefTypeKind::kStruct);
 }
-constexpr ValueType refA(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refA(uint32_t index, SharedFlag shared = SharedFlag::kNo) {
   return ValueType::Ref(Idx{index}, shared, RefTypeKind::kArray);
 }
-constexpr ValueType refF(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refF(uint32_t index, SharedFlag shared = SharedFlag::kNo) {
   return ValueType::Ref(Idx{index}, shared, RefTypeKind::kFunction);
 }
-constexpr ValueType refC(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refC(uint32_t index, SharedFlag shared = SharedFlag::kNo) {
   return ValueType::Ref(Idx{index}, shared, RefTypeKind::kCont);
 }
-constexpr ValueType refNullS(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refNullS(uint32_t index,
+                             SharedFlag shared = SharedFlag::kNo) {
   return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kStruct);
 }
-constexpr ValueType refNullA(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refNullA(uint32_t index,
+                             SharedFlag shared = SharedFlag::kNo) {
   return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kArray);
 }
-constexpr ValueType refNullF(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refNullF(uint32_t index,
+                             SharedFlag shared = SharedFlag::kNo) {
   return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kFunction);
 }
-constexpr ValueType refNullC(uint32_t index, bool shared = kNotShared) {
+constexpr ValueType refNullC(uint32_t index,
+                             SharedFlag shared = SharedFlag::kNo) {
   return ValueType::RefNull(Idx{index}, shared, RefTypeKind::kCont);
 }
 
@@ -45,11 +48,11 @@ FieldInit immut(ValueType type) { return FieldInit(type, false); }
 
 void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
                   ModuleTypeIndex supertype = kNoSuperType,
-                  bool is_final = false, bool is_shared = false,
+                  bool is_final = false, SharedFlag is_shared = SharedFlag::kNo,
                   bool in_singleton_rec_group = true) {
   StructType::Builder<WasmModuleSignatureStorage> builder(
       &module->signature_storage, static_cast<uint32_t>(fields.size()), false,
-      false);
+      is_shared);
   for (FieldInit field : fields) {
     builder.AddField(field.first, field.second);
   }
@@ -62,7 +65,7 @@ void DefineStruct(WasmModule* module, std::initializer_list<FieldInit> fields,
 
 void DefineArray(WasmModule* module, FieldInit element_type,
                  ModuleTypeIndex supertype = kNoSuperType,
-                 bool is_final = false, bool is_shared = false,
+                 bool is_final = false, SharedFlag is_shared = SharedFlag::kNo,
                  bool in_singleton_rec_group = true) {
   module->AddArrayTypeForTesting(module->signature_storage.New<ArrayType>(
                                      element_type.first, element_type.second),
@@ -76,7 +79,8 @@ void DefineSignature(WasmModule* module,
                      std::initializer_list<ValueType> params,
                      std::initializer_list<ValueType> returns,
                      ModuleTypeIndex supertype = kNoSuperType,
-                     bool is_final = false, bool is_shared = false,
+                     bool is_final = false,
+                     SharedFlag is_shared = SharedFlag::kNo,
                      bool in_singleton_rec_group = true) {
   module->AddSignatureForTesting(
       FunctionSig::Build(&module->signature_storage, returns, params),
@@ -88,7 +92,7 @@ void DefineSignature(WasmModule* module,
 
 void DefineCont(WasmModule* module, ModuleTypeIndex cont,
                 ModuleTypeIndex supertype = kNoSuperType, bool is_final = false,
-                bool is_shared = false) {
+                SharedFlag is_shared = SharedFlag::kNo) {
   module->AddContTypeForTesting(module->signature_storage.New<ContType>(cont),
                                 supertype, is_final, is_shared);
 }
@@ -105,11 +109,11 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   for (WasmModule* module : {module1, module2}) {
     // Three mutually recursive types.
     /*  0 */ DefineStruct(module, {mut(refA(2)), immut(refNullA(2))},
-                          kNoSuperType, false, false, false);
+                          kNoSuperType, false, SharedFlag::kNo, false);
     /*  1 */ DefineStruct(module, {mut(refA(2)), immut(refA(2))}, Idx{0}, false,
-                          false, false);
-    /*  2 */ DefineArray(module, immut(refS(0)), kNoSuperType, false, false,
-                         false);
+                          SharedFlag::kNo, false);
+    /*  2 */ DefineArray(module, immut(refS(0)), kNoSuperType, false,
+                         SharedFlag::kNo, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 3);
 
     /*  3 */ DefineArray(module, immut(refS(1)), Idx{2});
@@ -131,36 +135,36 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Rec. group.
     /* 18 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))}, Idx{17},
-                          false, false, false);
+                          false, SharedFlag::kNo, false);
     /* 19 */ DefineArray(module, {mut(refNullF(21))}, kNoSuperType, false,
-                         false, false);
+                         SharedFlag::kNo, false);
     /* 20 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false, false, false);
+                             false, SharedFlag::kNo, false);
     /* 21 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, Idx{20}, false,
-                             false, false);
+                             SharedFlag::kNo, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     // Identical rec. group.
     /* 22 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))}, Idx{17},
-                          false, false, false);
+                          false, SharedFlag::kNo, false);
     /* 23 */ DefineArray(module, {mut(refNullF(25))}, kNoSuperType, false,
-                         false, false);
+                         SharedFlag::kNo, false);
     /* 24 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false, false, false);
+                             false, SharedFlag::kNo, false);
     /* 25 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, Idx{24}, false,
-                             false, false);
+                             SharedFlag::kNo, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     // Nonidentical rec. group: the last function extends a type outside the
     // recursive group.
     /* 26 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(17))}, Idx{17},
-                          false, false, false);
+                          false, SharedFlag::kNo, false);
     /* 27 */ DefineArray(module, {mut(refNullF(29))}, kNoSuperType, false,
-                         false, false);
+                         SharedFlag::kNo, false);
     /* 28 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false, false, false);
+                             false, SharedFlag::kNo, false);
     /* 29 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, Idx{20}, false,
-                             false, false);
+                             SharedFlag::kNo, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     /* 30 */ DefineStruct(module, {mut(kWasmI32), immut(refNullS(18))},
@@ -178,18 +182,20 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     // Shared types.
     /* 36 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType);
     /* 37 */ DefineStruct(module, {mut(kWasmI32), mut(kWasmI64)}, Idx{36});
-    /* 38 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, false, true);
+    /* 38 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, false,
+                          SharedFlag::kYes);
     /* 39 */ DefineStruct(module, {mut(kWasmI32), mut(kWasmI64)}, Idx{38},
-                          false, true);
-    /* 40 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, false, true);
+                          false, SharedFlag::kYes);
+    /* 40 */ DefineStruct(module, {mut(kWasmI32)}, kNoSuperType, false,
+                          SharedFlag::kYes);
     /* 41 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
-                             false, true, true);
+                             false, SharedFlag::kYes, true);
 
     // Continuation types (switching group)
     /* 42 */ DefineSignature(module, {kWasmI32}, {refNullC(45)}, kNoSuperType,
-                             false, false, false);
+                             false, SharedFlag::kNo, false);
     /* 43 */ DefineSignature(module, {refNullC(44)}, {kWasmI32}, kNoSuperType,
-                             false, false, false);
+                             false, SharedFlag::kNo, false);
     /* 44 */ DefineCont(module, ModuleTypeIndex{42});
     /* 45 */ DefineCont(module, ModuleTypeIndex{43});
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
@@ -199,8 +205,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 2);
   }
 
-  constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
-                                         kWasmS128};
+  constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64,      kWasmF32,
+                                         kWasmF64, kWasmS128,     kWasmI8,
+                                         kWasmI16, kWasmWaitQueue};
   constexpr ValueType ref_types[] = {
       kWasmFuncRef,
       kWasmEqRef,
@@ -473,36 +480,37 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   /* Shared types */
   // A shared type can be a subtype of a shared type.
-  VALID_SUBTYPE(refS(39, kShared), refS(38, kShared));
+  VALID_SUBTYPE(refS(39, SharedFlag::kYes), refS(38, SharedFlag::kYes));
   // A shared type is not a valid subtype of a non-shared type and vice versa.
-  NOT_VALID_SUBTYPE(refS(39, kShared), refS(36));
-  NOT_VALID_SUBTYPE(refS(37), refS(38, kShared));
+  NOT_VALID_SUBTYPE(refS(39, SharedFlag::kYes), refS(36));
+  NOT_VALID_SUBTYPE(refS(37), refS(38, SharedFlag::kYes));
   // Two shared types are identical. A shared and non-shared type are
   // distinct.
   IDENTICAL(S, 38, 40);
-  DISTINCT_SHARED(S, 36, kNotShared, 38, kShared);
+  DISTINCT_SHARED(S, 36, SharedFlag::kNo, 38, SharedFlag::kYes);
 
   // Abstract types.
   auto Gen = ValueType::Generic;
   using G = GenericKind;
   ValueType kRefAny = kWasmAnyRef.AsNonNull();
-  ValueType kRefAnyShared = Gen(G::kAny, kNonNullable, kShared);
+  ValueType kRefAnyShared = Gen(G::kAny, kNonNullable, SharedFlag::kYes);
   ValueType kRefEq = kWasmEqRef.AsNonNull();
-  ValueType kRefEqShared = Gen(G::kEq, kNonNullable, kShared);
-  ValueType kRefI31Shared = Gen(G::kI31, kNonNullable, kShared);
-  ValueType kRefStructShared = Gen(G::kStruct, kNonNullable, kShared);
-  ValueType kRefArrayShared = Gen(G::kArray, kNonNullable, kShared);
-  ValueType kRefNoneShared = Gen(G::kNone, kNonNullable, kShared);
+  ValueType kRefEqShared = Gen(G::kEq, kNonNullable, SharedFlag::kYes);
+  ValueType kRefI31Shared = Gen(G::kI31, kNonNullable, SharedFlag::kYes);
+  ValueType kRefStructShared = Gen(G::kStruct, kNonNullable, SharedFlag::kYes);
+  ValueType kRefArrayShared = Gen(G::kArray, kNonNullable, SharedFlag::kYes);
+  ValueType kRefNoneShared = Gen(G::kNone, kNonNullable, SharedFlag::kYes);
   ValueType kRefFunc = kWasmFuncRef.AsNonNull();
-  ValueType kRefFuncShared = Gen(G::kFunc, kNonNullable, kShared);
-  ValueType kRefNoFuncShared = Gen(G::kNoFunc, kNonNullable, kShared);
-  ValueType kRefNoExternShared = Gen(G::kNoExtern, kNonNullable, kShared);
-  ValueType kRefNullFuncShared = Gen(G::kFunc, kNullable, kShared);
-  ValueType kRefNullEqShared = Gen(G::kEq, kNullable, kShared);
-  ValueType kRefNullExternShared = Gen(G::kExtern, kNullable, kShared);
-  ValueType kRefNullNoneShared = Gen(G::kNone, kNullable, kShared);
-  ValueType kRefNullNoFuncShared = Gen(G::kNoFunc, kNullable, kShared);
-  ValueType kRefNullI31Shared = Gen(G::kI31, kNullable, kShared);
+  ValueType kRefFuncShared = Gen(G::kFunc, kNonNullable, SharedFlag::kYes);
+  ValueType kRefNoFuncShared = Gen(G::kNoFunc, kNonNullable, SharedFlag::kYes);
+  ValueType kRefNoExternShared =
+      Gen(G::kNoExtern, kNonNullable, SharedFlag::kYes);
+  ValueType kRefNullFuncShared = Gen(G::kFunc, kNullable, SharedFlag::kYes);
+  ValueType kRefNullEqShared = Gen(G::kEq, kNullable, SharedFlag::kYes);
+  ValueType kRefNullExternShared = Gen(G::kExtern, kNullable, SharedFlag::kYes);
+  ValueType kRefNullNoneShared = Gen(G::kNone, kNullable, SharedFlag::kYes);
+  ValueType kRefNullNoFuncShared = Gen(G::kNoFunc, kNullable, SharedFlag::kYes);
+  ValueType kRefNullI31Shared = Gen(G::kI31, kNullable, SharedFlag::kYes);
 
   SUBTYPE(kRefEqShared, kRefAnyShared);
   NOT_SUBTYPE(kRefEqShared, kRefAny);
@@ -510,15 +518,15 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   NOT_SUBTYPE(kRefFuncShared, kRefAnyShared);
   SUBTYPE(kRefNullNoneShared, kRefNullI31Shared);
   SUBTYPE(kRefNullNoFuncShared, kRefNullFuncShared);
-  SUBTYPE(refS(40, kShared), kRefNullEqShared);
-  SUBTYPE(kRefNullNoneShared, refNullS(40, kShared));
-  NOT_SUBTYPE(refS(40, kShared), kWasmEqRef);
-  NOT_SUBTYPE(refS(40, kShared), kRefNullExternShared);
-  SUBTYPE(refF(41, kShared), kRefNullFuncShared);
-  SUBTYPE(kRefNullNoFuncShared, refNullF(41, kShared));
-  NOT_SUBTYPE(kRefNullNoFuncShared, refF(41, kShared));
-  NOT_SUBTYPE(refF(41, kShared), kWasmSharedAnyRef);
-  NOT_SUBTYPE(refF(41, kShared), kWasmFuncRef);
+  SUBTYPE(refS(40, SharedFlag::kYes), kRefNullEqShared);
+  SUBTYPE(kRefNullNoneShared, refNullS(40, SharedFlag::kYes));
+  NOT_SUBTYPE(refS(40, SharedFlag::kYes), kWasmEqRef);
+  NOT_SUBTYPE(refS(40, SharedFlag::kYes), kRefNullExternShared);
+  SUBTYPE(refF(41, SharedFlag::kYes), kRefNullFuncShared);
+  SUBTYPE(kRefNullNoFuncShared, refNullF(41, SharedFlag::kYes));
+  NOT_SUBTYPE(kRefNullNoFuncShared, refF(41, SharedFlag::kYes));
+  NOT_SUBTYPE(refF(41, SharedFlag::kYes), kWasmSharedAnyRef);
+  NOT_SUBTYPE(refF(41, SharedFlag::kYes), kWasmFuncRef);
   NOT_SUBTYPE(refS(0), kRefStructShared);
   NOT_SUBTYPE(refA(2), kRefArrayShared);
   NOT_SUBTYPE(refF(10), kRefFuncShared);
@@ -791,8 +799,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   INTERSECTION(refF(10), refNullF(11), kWasmBottom);
 
   // Shared types
-  ValueType struct_shared = refS(40, kShared);
-  ValueType function_shared = refF(41, kShared);
+  ValueType struct_shared = refS(40, SharedFlag::kYes);
+  ValueType function_shared = refF(41, SharedFlag::kYes);
   UNION(struct_shared, struct_shared.AsNullable(), struct_shared.AsNullable());
   UNION(struct_shared, struct_type, kWasmTop);
   UNION(struct_shared, function_shared, kWasmTop);

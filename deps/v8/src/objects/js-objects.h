@@ -154,7 +154,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> object,
       DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasOwnProperty(
-      Isolate* isolate, DirectHandle<JSReceiver> object, uint32_t index);
+      Isolate* isolate, DirectHandle<JSReceiver> object, size_t index);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, DirectHandle<JSReceiver> receiver, const char* key);
@@ -286,9 +286,9 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, DirectHandle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE inline std::optional<Tagged<NativeContext>>
-  GetCreationContext();
+  GetCreationContext() const;
   V8_EXPORT_PRIVATE inline MaybeDirectHandle<NativeContext> GetCreationContext(
-      Isolate* isolate);
+      Isolate* isolate) const;
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -298,7 +298,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
                            DirectHandle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetOwnPropertyAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
-                           uint32_t index);
+                           size_t index);
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetElementAttributes(Isolate* isolate, DirectHandle<JSReceiver> object,
@@ -699,10 +699,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Get the header size for a JSObject.  Used to compute the index of
   // embedder fields as well as the number of embedder fields.
-  // The |function_has_prototype_slot| parameter is needed only for
-  // JSFunction objects.
-  static V8_EXPORT_PRIVATE int GetHeaderSize(
-      InstanceType instance_type, bool function_has_prototype_slot = false);
+  static V8_EXPORT_PRIVATE int GetHeaderSize(InstanceType instance_type);
   static inline int GetHeaderSize(Tagged<Map> map);
 
   static inline bool MayHaveEmbedderFields(Tagged<Map> map);
@@ -838,8 +835,11 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
-  inline Tagged<Object> InObjectPropertyAt(int index);
-  inline Tagged<Object> InObjectPropertyAtPut(
+  inline Tagged<Object> InObjectPropertyAtOffset(int offset);
+  inline Tagged<Object> InObjectPropertyPutAtIndex(
+      int index, Tagged<Object> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> InObjectPropertyPutAtOffset(
       int index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -1120,12 +1120,6 @@ class JSAccessorPropertyDescriptor : public JSObject {
                                 JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
 
-  // Indices of in-object properties.
-  static const int kGetIndex = 0;
-  static const int kSetIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAccessorPropertyDescriptor);
 };
@@ -1148,12 +1142,6 @@ class JSDataPropertyDescriptor : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
 #undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
-
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kWritableIndex = 1;
-  static const int kEnumerableIndex = 2;
-  static const int kConfigurableIndex = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataPropertyDescriptor);
@@ -1179,10 +1167,6 @@ class JSIteratorResult : public JSObject {
                                 JS_ITERATOR_RESULT_FIELDS)
 #undef JS_ITERATOR_RESULT_FIELDS
 
-  // Indices of in-object properties.
-  static const int kValueIndex = 0;
-  static const int kDoneIndex = 1;
-
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
 
@@ -1198,7 +1182,7 @@ class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
   inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
-  V8_EXPORT_PRIVATE bool IsDetached();
+  inline bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
 
@@ -1214,6 +1198,7 @@ class JSGlobalObject
     : public TorqueGeneratedJSGlobalObject<JSGlobalObject, JSSpecialObject> {
  public:
   DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, Tagged<GlobalDictionary>)
+  DECL_GETTER(raw_global_proxy, Tagged<HeapObject>)
 
   static void InvalidatePropertyCell(DirectHandle<JSGlobalObject> object,
                                      DirectHandle<Name> name);
@@ -1396,10 +1381,10 @@ class JSMessageObject
 };
 
 // The [Async-from-Sync Iterator] object
-// (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
+// (https://tc39.es/proposal-async-iteration/#sec-async-from-sync-iterator-objects)
 // An object which wraps an ordinary Iterator and converts it to behave
 // according to the Async Iterator protocol.
-// (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
+// (See https://tc39.es/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator
     : public TorqueGeneratedJSAsyncFromSyncIterator<JSAsyncFromSyncIterator,
                                                     JSObject> {
@@ -1410,7 +1395,7 @@ class JSAsyncFromSyncIterator
   // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
-  // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
+  // (https://tc39.es/proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
 
   TQ_OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator)
 };

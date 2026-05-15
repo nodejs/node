@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api/api-arguments-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/elements.h"
 #include "src/objects/js-array-inl.h"
@@ -183,7 +183,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     index = static_cast<uint32_t>(value);
   }
 
-  uint32_t capacity = static_cast<uint32_t>(object->elements()->length());
+  uint32_t capacity = object->elements()->ulength().value();
 
   if (index >= capacity) {
     bool has_grown;
@@ -205,14 +205,14 @@ RUNTIME_FUNCTION(Runtime_ArrayIsArray) {
   DirectHandle<Object> object = args.at(0);
   Maybe<bool> result = Object::IsArray(object);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_IsArray) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Tagged<Object> obj = args[0];
-  return isolate->heap()->ToBoolean(IsJSArray(obj));
+  return ReadOnlyRoots(isolate).boolean_value(IsJSArray(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
@@ -392,6 +392,38 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
                                                    static_cast<uint32_t>(len));
     MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
     return *isolate->factory()->NewNumberFromInt64(result.FromJust());
+  }
+
+  if (V8_UNLIKELY(v8_flags.fast_api_indexof &&
+                  object->map()->has_indexed_interceptor() &&
+                  len <= kMaxUInt32)) {
+    DirectHandle<InterceptorInfo> interceptor(
+        object->map()->GetIndexedInterceptor(), isolate);
+
+    if (!interceptor->non_masking() && interceptor->has_index_of()) {
+      PropertyCallbackArguments arguments(isolate, Cast<JSObject>(*object));
+      uint32_t actual_length = static_cast<uint32_t>(len);
+      uint32_t result = arguments.CallIndexedIndexOf(
+          isolate, interceptor, search_element, static_cast<uint32_t>(index),
+          actual_length, &actual_length);
+      // An exception was thrown in the interceptor. Propagate.
+      RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
+      if (result != kMaxUInt32) {
+        return *isolate->factory()->NewNumberFromUint(result);
+      }
+      // The needle was not found in the indexed interceptor, however,
+      // we might still need to keep on searching in case the length value
+      // is bigger than the number of elements in the indexed interceptor.
+      if (len <= actual_length) {
+        // The interceptor covers the whole range.
+        return Smi::FromInt(-1);
+      }
+      if (JSObject::PrototypeHasNoElements(isolate, Cast<JSObject>(*object))) {
+        return Smi::FromInt(-1);
+      }
+      // Keep on searching.
+      index = actual_length;
+    }
   }
 
   // Otherwise, perform slow lookups for special receiver types.

@@ -106,10 +106,6 @@ class WasmJs {
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
       Isolate* isolate, DirectHandle<NativeContext> context,
       DirectHandle<JSObject> webassembly);
-
-  V8_EXPORT_PRIVATE static void InstallResizableBufferIntegration(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
 };
 
 }  // namespace v8::internal

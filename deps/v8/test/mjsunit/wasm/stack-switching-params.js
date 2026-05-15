@@ -241,3 +241,55 @@ let instance = builder.instantiate();
   let ref = {};
   assertEquals(ref, instance.exports.test_return_ref(ref));
 })();
+
+
+(function TestSwitchSimd() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig_v_v = builder.addType(kSig_v_v);
+  let cont_v_v = builder.addCont(sig_v_v);
+  let sig_s_v = builder.addType(makeSig([], [kWasmS128]));
+  let cont_s_v = builder.addCont(sig_s_v);
+  // Return continuation for target: takes v128 and dummy cont.
+  let sig_s_c = builder.addType(makeSig([kWasmS128, wasmRefType(cont_v_v)], []));
+  let cont_s_c = builder.addCont(sig_s_c);
+  // Target of switch must take a continuation as its last parameter.
+  let sig_target = builder.addType(makeSig([wasmRefType(cont_s_c)], []));
+  let cont_target = builder.addCont(sig_target);
+  let tag_switch = builder.addTag(makeSig([], []));
+
+  let target = builder.addFunction("target", sig_target)
+      .addBody([
+          ...wasmI32Const(1),
+          kSimdPrefix, kExprI32x4Splat,
+          kExprLocalGet, 0, // The return continuation (cont_s_c)
+          kExprSwitch, cont_s_c, tag_switch,
+          kExprUnreachable,
+      ]).exportFunc();
+
+  let switch_func = builder.addFunction("switch_func", sig_s_v)
+      .addBody([
+          kExprRefFunc, target.index,
+          kExprContNew, cont_target,
+          kExprSwitch, cont_target, tag_switch,
+          // switch pushes parameters of cont_s_c: v128, cont_v_v
+          kExprDrop, // drop cont_v_v
+          kExprReturn, // return v128
+      ]).exportFunc();
+
+  builder.addFunction("main", kSig_i_v)
+      .addBody([
+          kExprRefFunc, switch_func.index,
+          kExprContNew, cont_s_v,
+          kExprResume, cont_s_v, 1,
+            kOnSwitch, tag_switch,
+          // Check result (v128)
+          ...wasmI32Const(1),
+          ...SimdInstr(kExprI32x4Splat),
+          ...SimdInstr(kExprI32x4Eq),
+          ...SimdInstr(kExprI32x4AllTrue)
+      ]).exportFunc();
+
+    let instance = builder.instantiate();
+    assertEquals(1, instance.exports.main());
+})();

@@ -14,8 +14,10 @@ namespace internal {
 
 using RegList = RegListBase<Register>;
 using DoubleRegList = RegListBase<DoubleRegister>;
+using Simd128RegList = RegListBase<Simd128Register>;
 ASSERT_TRIVIALLY_COPYABLE(RegList);
 ASSERT_TRIVIALLY_COPYABLE(DoubleRegList);
+ASSERT_TRIVIALLY_COPYABLE(Simd128RegList);
 
 const RegList kJSCallerSaved = {a0, a1, a2, a3, a4, a5, a6, a7,
                                 t0, t1, t2, t3, t4, t5, t8};

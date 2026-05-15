@@ -419,9 +419,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
                        Node* value);
   Node* LoadUnaligned(MachineType type, Node* object, Node* offset);
 
-  Node* ProtectedStore(MachineRepresentation rep, Node* object, Node* offset,
-                       Node* value);
-  Node* ProtectedLoad(MachineType type, Node* object, Node* offset);
+  Node* TrappingStore(MachineRepresentation rep, Node* object, Node* offset,
+                      Node* value);
+  Node* TrappingLoad(MachineType type, Node* object, Node* offset);
   Node* LoadTrapOnNull(MachineType type, Node* object, Node* offset);
   Node* StoreTrapOnNull(StoreRepresentation rep, Node* object, Node* offset,
                         Node* value);

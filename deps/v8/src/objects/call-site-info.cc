@@ -7,7 +7,9 @@
 #include <optional>
 
 #include "src/base/strings.h"
+#include "src/builtins/builtins.h"
 #include "src/objects/call-site-info-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -16,6 +18,71 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal {
+
+// static
+DirectHandle<CallSiteInfo> CallSiteInfo::ConstructFromRawData(
+    Isolate* isolate, DirectHandle<FixedArray> frames, int index) {
+  int base_index = index * Fields::kCount;
+  DirectHandle<Object> receiver(frames->get(base_index + Fields::kReceiver),
+                                isolate);
+  DirectHandle<Object> function(frames->get(base_index + Fields::kFunction),
+                                isolate);
+  DirectHandle<Object> code_obj(frames->get(base_index + Fields::kCode),
+                                isolate);
+  DirectHandle<Union<Code, BytecodeArray, Undefined>> resolved_code;
+  if (IsCodeWrapper(*code_obj)) {
+    resolved_code = handle(Cast<CodeWrapper>(code_obj)->code(isolate), isolate);
+  } else if (IsBytecodeWrapper(*code_obj)) {
+    resolved_code =
+        handle(Cast<BytecodeWrapper>(code_obj)->bytecode(isolate), isolate);
+  } else if (IsUndefined(*code_obj)) {
+    resolved_code = isolate->factory()->undefined_value();
+  } else {
+    UNREACHABLE();
+  }
+
+  int offset = Smi::ToInt(frames->get(base_index + Fields::kOffset));
+  int flags = Smi::ToInt(frames->get(base_index + Fields::kFlags));
+
+  return isolate->factory()->NewCallSiteInfo(
+      Cast<JSAny>(receiver), Cast<UnionOf<Smi, JSFunction>>(function),
+      resolved_code, offset, flags);
+}
+
+// static
+Handle<FixedArray> CallSiteInfo::ExpandDeferredFrames(
+    Isolate* isolate, Handle<FixedArray> raw_data) {
+  int entry_count = raw_data->length().value() / Fields::kCount;
+
+  // Resolve deferred baseline frames in-place (PC offset → bytecode offset).
+  for (int i = 0; i < entry_count; i++) {
+    int base = i * Fields::kCount;
+    int flags = Smi::ToInt(raw_data->get(base + Fields::kFlags));
+
+    if (flags & kIsDeferredBaselineFrame) {
+      // Resolve the bytecode offset from the raw PC offset.
+      Tagged<Object> code_obj = raw_data->get(base + Fields::kCode);
+      CHECK(IsCodeWrapper(code_obj));
+      Tagged<Code> code = Cast<CodeWrapper>(code_obj)->code(isolate);
+      int pc_offset = Smi::ToInt(raw_data->get(base + Fields::kOffset));
+      Tagged<BytecodeArray> bytecode_array =
+          Cast<JSFunction>(raw_data->get(base + Fields::kFunction))
+              ->shared()
+              ->GetBytecodeArray(isolate);
+      int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
+          code->instruction_start() + pc_offset, bytecode_array);
+
+      raw_data->set(base + Fields::kCode, bytecode_array->wrapper());
+      raw_data->set(base + Fields::kOffset, Smi::FromInt(bytecode_offset));
+
+      // Strip deferred flags.
+      int clean_flags = flags & ~kDeferredFlagsMask;
+      raw_data->set(base + Fields::kFlags, Smi::FromInt(clean_flags));
+    }
+  }
+
+  return raw_data;
+}
 
 bool CallSiteInfo::IsPromiseAll() const {
   if (!IsAsync()) return false;
@@ -368,8 +435,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     if (details.IsDontEnum()) continue;
     Tagged<Object> value;
     if (details.location() == PropertyLocation::kField) {
-      auto field_index = FieldIndex::ForPropertyIndex(
-          map, details.field_index(), details.representation());
+      auto field_index = FieldIndex::ForDetails(map, details);
       if (field_index.is_double()) continue;
       value = receiver->RawFastPropertyAt(isolate, field_index);
     } else {

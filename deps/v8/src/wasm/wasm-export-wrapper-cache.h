@@ -51,7 +51,7 @@ class WasmExportWrapperCache : public AllStatic {
   // Key (Smi), value (Weak<CodeWrapper>).
   static constexpr int kSlotsPerEntry = 2;
 
-  static DirectHandle<WeakFixedArray> New(Isolate* isolate, int capacity);
+  static DirectHandle<WeakFixedArray> New(Isolate* isolate, uint32_t capacity);
 
   static uint32_t Capacity(Tagged<WeakFixedArray> cache);
 
@@ -91,7 +91,7 @@ class WasmExportWrapperCache : public AllStatic {
 
   template <bool entry_may_exist>
   static void PutInternal(Tagged<WeakFixedArray> cache, uint32_t hash,
-                          Tagged<MaybeWeak<Object>> value);
+                          Tagged<MaybeObject> value);
 };
 
 }  // namespace v8::internal::wasm

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
+@cppObjectLayoutDefinition
 extern class Module extends HeapObject {
   // The complete export table, mapping an export name to its cell.
   exports: ObjectHashTable;

@@ -949,6 +949,7 @@ void GCTracer::PrintNVP() const {
          heap_->memory_allocator()->GetTotalPooledChunksCount())
       .p("new_space_capacity",
          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0)
+      .p("new_space_size", heap_->new_space() ? heap_->new_space()->Size() : 0)
       .p("old_gen_allocation_limit",
          heap_->limits()->old_generation_allocation_limit())
       .p("global_allocation_limit", heap_->limits()->global_allocation_limit())

@@ -27,12 +27,25 @@ BUILTIN(MathSumPrecise) {
   }
 
   Xsum xsum;
+
+  bool only_ints = false;
+  int64_t int_sum = 0;
+
+  constexpr uint32_t kMaxIteration = std::numeric_limits<uint32_t>::max();
+  // Assume that kMaxIterations integer additions cannot not overflow.
+  static_assert(kMaxIteration * std::numeric_limits<int>::max() <
+                std::numeric_limits<int64_t>::max());
+  static_assert(kMaxIteration * std::numeric_limits<int>::min() >
+                std::numeric_limits<int64_t>::min());
+
   auto int_visitor = [&](int val) -> bool {
-    xsum.AddForSumPrecise(val);
+    only_ints = true;
+    int_sum += val;
     return true;
   };
 
   auto double_visitor = [&](double val) -> bool {
+    DCHECK(!only_ints);
     xsum.AddForSumPrecise(val);
     return true;
   };
@@ -44,16 +57,31 @@ BUILTIN(MathSumPrecise) {
           Object::TypeOf(isolate, val)};
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kIsNotNumber, base::VectorOf(error_args)));
+      only_ints = false;
       return false;
     }
+    DCHECK(!only_ints);
     xsum.AddForSumPrecise(Object::NumberValue(*val));
     return true;
   };
 
+  uint64_t max_count;
   if (IterableForEach(isolate, items, int_visitor, double_visitor,
-                      generic_visitor, kMaxSafeIntegerUint64)
+                      generic_visitor, &max_count, kMaxSafeIntegerUint64)
           .is_null()) {
     return ReadOnlyRoots(isolate).exception();
+  }
+
+  if (only_ints) {
+    if (max_count > kMaxIteration) [[unlikely]] {
+      // This should be basically impossible. Externally mapped array
+      // buffers could theoretically be that large.
+      // If we ever hit this we need to add overflow checks to int_visitor.
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kIterableTooLargeToSum));
+      return ReadOnlyRoots(isolate).exception();
+    }
+    return *isolate->factory()->NewNumber(static_cast<double>(int_sum));
   }
 
   switch (auto res = xsum.GetSumPrecise(); std::get<Xsum::Result>(res)) {

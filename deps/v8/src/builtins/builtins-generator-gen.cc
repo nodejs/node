@@ -168,7 +168,7 @@ TF_BUILTIN(AsyncModuleEvaluate, GeneratorBuiltinsAssembler) {
               method_name);
 }
 
-// ES6 #sec-generator.prototype.next
+// https://tc39.es/ecma262/#sec-generator.prototype.next
 TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -184,7 +184,7 @@ TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
                            "[Generator].prototype.next");
 }
 
-// ES6 #sec-generator.prototype.return
+// https://tc39.es/ecma262/#sec-generator.prototype.return
 TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -200,7 +200,7 @@ TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
                            "[Generator].prototype.return");
 }
 
-// ES6 #sec-generator.prototype.throw
+// https://tc39.es/ecma262/#sec-generator.prototype.throw
 TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
   const int kExceptionArg = 0;
 
@@ -308,6 +308,35 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
       1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
 
   Return(LoadJSGeneratorObjectInputOrDebugPos(generator));
+}
+
+TF_BUILTIN(GeneratorNextLazyDeoptContinuation, GeneratorBuiltinsAssembler) {
+  auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
+  auto result = Parameter<Object>(Descriptor::kResult);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  // If the generator is not suspended (i.e., its state is 'executing'),
+  // close it and wrap the return value in IteratorResult.
+  TNode<Smi> result_continuation =
+      LoadObjectField<Smi>(generator, JSGeneratorObject::kContinuationOffset);
+  TNode<Smi> closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
+  TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
+
+  Label if_final_return(this);
+  GotoIf(SmiEqual(result_continuation, executing), &if_final_return);
+
+  // If yielded, just return the result.
+  Return(result);
+
+  BIND(&if_final_return);
+  {
+    // Close the generator.
+    StoreObjectFieldNoWriteBarrier(
+        generator, JSGeneratorObject::kContinuationOffset, closed);
+    // Return the wrapped result.
+    Return(CallBuiltin(Builtin::kCreateIterResultObject, context, result,
+                       TrueConstant()));
+  }
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

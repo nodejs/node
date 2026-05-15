@@ -7,9 +7,10 @@
 // Christoph Lüders: Fast Multiplication of Large Integers,
 // http://arxiv.org/abs/1503.04955
 
+#include "src/bigint/bigint-inl.h"
 #include "src/bigint/bigint-internal.h"
-#include "src/bigint/digit-arithmetic.h"
 #include "src/bigint/util.h"
+#include "src/bigint/vector-arithmetic-inl.h"
 
 namespace v8 {
 namespace bigint {
@@ -313,7 +314,7 @@ void ComputeParameters(uint32_t N, int m, Parameters* params) {
   // We want recursive calls to make progress, so force K to be a multiple
   // of 8 if it's above the recursion threshold. Otherwise, K must be a
   // multiple of kDigitBits.
-  const int threshold = (K + 1 >= kFftInnerThreshold * kDigitBits)
+  const int threshold = (K + 1 >= config::kFftInnerThreshold * kDigitBits)
                             ? 3 + kLog2DigitBits
                             : kLog2DigitBits;
   int K_tz = CountTrailingZeros(K);
@@ -429,24 +430,23 @@ class FFTContainer {
   // {n} is the number of chunks, whose length is {K}+1.
   // {K} determines F_n = 2^(K * kDigitBits) + 1.
   FFTContainer(uint32_t n, uint32_t K, ProcessorImpl* processor)
-      : n_(n), K_(K), length_(K + 1), processor_(processor) {
-    storage_ = new digit_t[length_ * n_];
-    part_ = new digit_t*[n_];
-    digit_t* ptr = storage_;
+      : n_(n),
+        K_(K),
+        length_(K + 1),
+        processor_(processor),
+        storage_(processor_->platform()->Allocate(length_ * n_),
+                 Platform::Deleter(processor_->platform())),
+        part_(std::make_unique_for_overwrite<digit_t*[]>(n)),
+        temp_(processor_->platform()->Allocate(length_ * 2),
+              Platform::Deleter(processor_->platform())) {
+    digit_t* ptr = storage_.get();
     for (uint32_t i = 0; i < n; i++, ptr += length_) {
       part_[i] = ptr;
     }
-    temp_ = new digit_t[length_ * 2];
   }
   FFTContainer() = delete;
   FFTContainer(const FFTContainer&) = delete;
   FFTContainer& operator=(const FFTContainer&) = delete;
-
-  ~FFTContainer() {
-    delete[] storage_;
-    delete[] part_;
-    delete[] temp_;
-  }
 
   void Start_Default(Digits X, uint32_t chunk_size, int theta, int omega);
   void Start(Digits X, uint32_t chunk_size, int theta, int omega);
@@ -468,13 +468,16 @@ class FFTContainer {
                                  uint32_t end, digit_t* temp);
 
  private:
+  digit_t* temp() { return temp_.get(); }
   const uint32_t n_;       // Number of parts.
   const uint32_t K_;       // Always length_ - 1.
   const uint32_t length_;  // Length of each part, in digits.
   ProcessorImpl* processor_;
-  digit_t* storage_;  // Combined storage of all parts.
-  digit_t** part_;    // Pointers to each part.
-  digit_t* temp_;     // Temporary storage with size 2 * length_.
+  using Buffer = std::unique_ptr<digit_t[], Platform::Deleter>;
+  using Parts = std::unique_ptr<digit_t*[]>;
+  Buffer storage_;  // Combined storage of all parts.
+  Parts part_;      // Pointers to each part.
+  Buffer temp_;     // Temporary storage with size 2 * length_.
 };
 
 inline void CopyAndZeroExtend(digit_t* dst, const digit_t* src,
@@ -508,8 +511,8 @@ void FFTContainer::Start_Default(Digits X, uint32_t chunk_size, int theta,
     if (current_theta != 0) {
       // Multiply with theta^i, and reduce modulo 2^K + 1.
       // We pass theta as a shift amount; it really means 2^theta.
-      CopyAndZeroExtend(temp_, pointer, chunk_size, part_length_in_bytes);
-      ShiftModFn(part_[i], temp_, current_theta, K_, chunk_size);
+      CopyAndZeroExtend(temp(), pointer, chunk_size, part_length_in_bytes);
+      ShiftModFn(part_[i], temp(), current_theta, K_, chunk_size);
     } else {
       CopyAndZeroExtend(part_[i], pointer, chunk_size, part_length_in_bytes);
     }
@@ -520,7 +523,7 @@ void FFTContainer::Start_Default(Digits X, uint32_t chunk_size, int theta,
   for (; i < n_; i++) {
     memset(part_[i], 0, part_length_in_bytes);
   }
-  FFT_ReturnShuffledThreadsafe(0, n_, omega, temp_);
+  FFT_ReturnShuffledThreadsafe(0, n_, omega, temp());
 }
 
 // This version of Start is optimized for the case where ~half of the
@@ -535,6 +538,7 @@ void FFTContainer::Start(Digits X, uint32_t chunk_size, int theta, int omega) {
   const size_t part_length_in_bytes = length_ * sizeof(digit_t);
   uint32_t nhalf = n_ / 2;
   // Unrolled first iteration.
+  chunk_size = std::min(chunk_size, len);
   CopyAndZeroExtend(part_[0], pointer, chunk_size, part_length_in_bytes);
   CopyAndZeroExtend(part_[nhalf], pointer, chunk_size, part_length_in_bytes);
   pointer += chunk_size;
@@ -552,7 +556,7 @@ void FFTContainer::Start(Digits X, uint32_t chunk_size, int theta, int omega) {
     memset(part_[i], 0, part_length_in_bytes);
     memset(part_[i + nhalf], 0, part_length_in_bytes);
   }
-  FFT_Recurse(0, nhalf, omega, temp_);
+  FFT_Recurse(0, nhalf, omega, temp());
 }
 
 // Forward transformation.
@@ -587,7 +591,7 @@ void FFTContainer::FFT_Recurse(uint32_t start, uint32_t half, int omega,
 // We use the "DIT" aka "decimation in time" transform here, because it
 // turns bit-reversed input into normally sorted output.
 void FFTContainer::BackwardFFT(uint32_t start, uint32_t len, int omega) {
-  BackwardFFT_Threadsafe(start, len, omega, temp_);
+  BackwardFFT_Threadsafe(start, len, omega, temp());
 }
 
 void FFTContainer::BackwardFFT_Threadsafe(uint32_t start, uint32_t len,
@@ -618,7 +622,7 @@ void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
   const int shift = n_ * omega - m;
   for (uint32_t i = 0; i < n_; i++, z_index += chunk_size) {
     digit_t* part = part_[i];
-    ShiftModFn(temp_, part, shift, K_);
+    ShiftModFn(temp(), part, shift, K_);
     digit_t carry = 0;
     uint32_t zi = z_index;
     uint32_t j = 0;
@@ -628,8 +632,11 @@ void FFTContainer::NormalizeAndRecombine(int omega, int m, RWDigits Z,
     for (; j < length_; j++) {
       DCHECK(temp_[j] == 0);
     }
-    if (carry != 0) {
-      DCHECK(zi < Z.len());
+    // Only concurrent in-sandbox corruption can cause carries beyond Z.len().
+    // So guard the store with a bounds check, but have a DCHECK so tests can
+    // detect any implementation bugs leading to an unexpected situation.
+    DCHECK(carry == 0 || zi < Z.len());
+    if (carry != 0 && zi < Z.len()) {
       Z[zi] = carry;
     }
   }
@@ -657,9 +664,9 @@ void FFTContainer::CounterWeightAndRecombine(int theta, int m, RWDigits Z,
     if (shift < 0) shift += 2 * n_ * theta;
     DCHECK(shift >= 0);
     digit_t* input = part_[k];
-    ShiftModFn(temp_, input, shift, K_);
+    ShiftModFn(temp(), input, shift, K_);
     uint32_t remaining_z = Z.len() - z_index;
-    if (ShouldBeNegative(temp_, length_, k + 1, s)) {
+    if (ShouldBeNegative(temp(), length_, k + 1, s)) {
       // Subtract F_n from input before adding to result. We use the following
       // transformation (knowing that X < F_n):
       // Z + (X - F_n) == Z - (F_n - X)
@@ -727,7 +734,7 @@ void FFTContainer::DoPointwiseMultiplication(const FFTContainer& other,
                                              digit_t* temp) {
   // The (K_ & 3) != 0 condition makes sure that the inner FFT gets
   // to split the work into at least 4 chunks.
-  bool use_fft = length_ >= kFftInnerThreshold && (K_ & 3) == 0;
+  bool use_fft = length_ >= config::kFftInnerThreshold && (K_ & 3) == 0;
   Parameters params;
   if (use_fft) ComputeParameters_Inner(K_, &params);
   RWDigits result(temp, 2 * length_);
@@ -752,7 +759,7 @@ void FFTContainer::DoPointwiseMultiplication(const FFTContainer& other,
 // Convenient entry point for pointwise multiplications.
 void FFTContainer::PointwiseMultiply(const FFTContainer& other) {
   DCHECK(n_ == other.n_);
-  DoPointwiseMultiplication(other, 0, n_, temp_);
+  DoPointwiseMultiplication(other, 0, n_, temp());
 }
 
 }  // namespace
@@ -767,24 +774,63 @@ void FFTContainer::PointwiseMultiply(const FFTContainer& other) {
 // Gaudry/Kruppa/Zimmerman report that it saved them around 10%.
 
 void ProcessorImpl::MultiplyFFT(RWDigits Z, Digits X, Digits Y) {
-  Parameters params;
-  int m = GetParameters(X.len() + Y.len(), &params);
-  int omega = params.r;  // really: 2^r
+  // TODO(jkummerow): Determine a good threshold value. Earlier experiments
+  // suggested that "a few hundred" might work well.
+  static constexpr uint32_t kAsymmetricChunkingThreshold = 100;
 
-  FFTContainer a(params.n, params.K, this);
-  a.Start(X, params.s, 0, omega);
+  Parameters params;
   if (X == Y) {
     // Squaring.
+    int m = GetParameters(X.len() * 2, &params);
+    int omega = params.r;  // really: 2^r
+    FFTContainer a(params.n, params.K, this);
+    a.Start(X, params.s, 0, omega);
     a.PointwiseMultiply(a);
+    if (should_terminate()) return;
+    a.BackwardFFT(0, params.n, omega);
+    a.NormalizeAndRecombine(omega, m, Z, params.s);
+  } else if (X.len() > Y.len() * kAsymmetricChunkingThreshold) {
+    // Asymmetric input sizes. Proceed in chunks. See {MultiplyToomCook()}.
+    uint32_t k = Y.len();
+    int m = GetParameters(k * 2, &params);
+    int omega = params.r;  // really: 2^r
+    // The container {b} only needs to be initialized once, whereas {a} will
+    // be reused for each chunk.
+    FFTContainer b(params.n, params.K, this);
+    b.Start(Y, params.s, 0, omega);
+    FFTContainer a(params.n, params.K, this);
+    // Unroll the first iteration to initialize {Z}.
+    Digits X0(X, 0, k);
+    a.Start(X0, params.s, 0, omega);
+    a.PointwiseMultiply(b);
+    if (should_terminate()) return;
+    a.BackwardFFT(0, params.n, omega);
+    a.NormalizeAndRecombine(omega, m, Z, params.s);
+    // Then loop for the remaining chunks.
+    ScratchDigits T(2 * k, platform());
+    for (uint32_t i = k; i < X.len(); i += k) {
+      Digits Xi(X, i, k);
+      a.Start(Xi, params.s, 0, omega);
+      a.PointwiseMultiply(b);
+      if (should_terminate()) return;
+      a.BackwardFFT(0, params.n, omega);
+      a.NormalizeAndRecombine(omega, m, T, params.s);
+      AddAndReturnOverflow(Z + i, T);  // Can't overflow.
+    }
   } else {
+    // Similar-ish sized inputs. Handle them in one go.
+    int m = GetParameters(X.len() + Y.len(), &params);
+    int omega = params.r;  // really: 2^r
+
+    FFTContainer a(params.n, params.K, this);
+    a.Start(X, params.s, 0, omega);
     FFTContainer b(params.n, params.K, this);
     b.Start(Y, params.s, 0, omega);
     a.PointwiseMultiply(b);
+    if (should_terminate()) return;
+    a.BackwardFFT(0, params.n, omega);
+    a.NormalizeAndRecombine(omega, m, Z, params.s);
   }
-  if (should_terminate()) return;
-
-  a.BackwardFFT(0, params.n, omega);
-  a.NormalizeAndRecombine(omega, m, Z, params.s);
 }
 
 }  // namespace bigint

@@ -30,10 +30,6 @@ bool OrderedHashTable<Derived, entrysize>::IsKey(ReadOnlyRoots roots,
 }
 
 template <class Derived>
-SmallOrderedHashTable<Derived>::SmallOrderedHashTable(Address ptr)
-    : HeapObject(ptr) {}
-
-template <class Derived>
 Tagged<Object> SmallOrderedHashTable<Derived>::KeyAt(
     InternalIndex entry) const {
   DCHECK_LT(entry.as_int(), Capacity());
@@ -49,13 +45,6 @@ Tagged<Object> SmallOrderedHashTable<Derived>::GetDataEntry(
   Offset entry_offset = GetDataEntryOffset(entry, relative_index);
   return TaggedField<Object>::load(*this, entry_offset);
 }
-
-OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashSet,
-                         SmallOrderedHashTable<SmallOrderedHashSet>)
-OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashMap,
-                         SmallOrderedHashTable<SmallOrderedHashMap>)
-OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
-                         SmallOrderedHashTable<SmallOrderedNameDictionary>)
 
 Handle<Map> OrderedHashSet::GetMap(RootsTable& roots) {
   return roots.ordered_hash_set_map();

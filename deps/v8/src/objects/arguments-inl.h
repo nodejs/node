@@ -21,8 +21,12 @@ namespace internal {
 
 #include "torque-generated/src/objects/arguments-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry)
+int AliasedArgumentsEntry::aliased_context_slot() const {
+  return aliased_context_slot_.load().value();
+}
+void AliasedArgumentsEntry::set_aliased_context_slot(int value) {
+  aliased_context_slot_.store(this, Smi::FromInt(value));
+}
 
 Tagged<Context> SloppyArgumentsElements::context() const {
   return context_.load();
@@ -43,19 +47,19 @@ void SloppyArgumentsElements::set_arguments(
 
 Tagged<UnionOf<Smi, Hole>> SloppyArgumentsElements::mapped_entries(
     uint32_t index, RelaxedLoadTag tag) const {
-  DCHECK_LT(index, ulength());
+  DCHECK_LT(index, ulength().value());
   return objects()[index].Relaxed_Load();
 }
 
 void SloppyArgumentsElements::set_mapped_entries(
     uint32_t index, Tagged<UnionOf<Smi, Hole>> value) {
-  DCHECK_LT(index, length());
+  DCHECK_LT(index, ulength().value());
   objects()[index].store(this, value);
 }
 
 void SloppyArgumentsElements::set_mapped_entries(
     uint32_t index, Tagged<UnionOf<Smi, Hole>> value, RelaxedStoreTag tag) {
-  DCHECK_LT(index, ulength());
+  DCHECK_LT(index, ulength().value());
   objects()[index].Relaxed_Store(this, value);
 }
 

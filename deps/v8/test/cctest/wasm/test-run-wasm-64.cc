@@ -1349,18 +1349,20 @@ WASM_EXEC_TEST(StoreMemI64_alignment) {
 
 WASM_EXEC_TEST(I64Global) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
-  int64_t* global = r.builder().AddGlobal<int64_t>();
+  const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
   // global = global + p0
   r.Build({WASM_GLOBAL_SET(
                0, WASM_I64_AND(WASM_GLOBAL_GET(0),
                                WASM_I64_SCONVERT_I32(WASM_LOCAL_GET(0)))),
            WASM_ZERO});
 
-  *global = 0xFFFFFFFFFFFFFFFFLL;
+  r.builder().WriteGlobal(
+      *global, WasmValue(static_cast<int64_t>(0xFFFFFFFFFFFFFFFFLL)));
   for (int i = 9; i < 444444; i += 111111) {
-    int64_t expected = *global & i;
+    int64_t global_val = r.builder().ReadGlobal(*global).to_i64();
+    int64_t expected = global_val & i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, r.builder().ReadGlobal(*global).to_i64());
   }
 }
 

@@ -27,7 +27,9 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/oddball.h"
+#include "src/objects/property-details.h"
 #include "src/objects/property.h"
+#include "src/objects/tagged-field.h"
 #include "src/objects/transitions-inl.h"
 #include "src/roots/roots.h"
 #include "src/utils/ostreams.h"
@@ -203,6 +205,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_EXTERNAL_OBJECT_TYPE:
       return kVisitJSExternalObject;
 
+    case JS_FUNCTION_WITHOUT_PROTOTYPE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
@@ -272,6 +275,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_ITERATOR_DROP_HELPER_TYPE:
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
+    case JS_ITERATOR_ZIP_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -386,6 +390,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case CALLABLE_TASK_TYPE:
     case CALLBACK_TASK_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
+    case ASYNC_RESUME_TASK_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
@@ -470,6 +475,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
       return kVisitWasmStruct;
     case WASM_CONTINUATION_OBJECT_TYPE:
       return kVisitWasmContinuationObject;
+    case WASM_STACK_OBJECT_TYPE:
+      return kVisitWasmStackObject;
     case WASM_SUSPENDING_OBJECT_TYPE:
       return kVisitWasmSuspendingObject;
     case WASM_TABLE_OBJECT_TYPE:
@@ -533,8 +540,8 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, DirectHandle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  // Compute the new index for new field.
-  int index = map->NextFreePropertyIndex();
+  // Compute the new offset for new field.
+  FieldStorageLocation offset = map->NextFreeFieldStorageLocation();
 
   if (map->instance_type() == JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
     constness = PropertyConstness::kMutable;
@@ -546,10 +553,10 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, DirectHandle<Map> map,
   }
 
   MaybeObjectDirectHandle wrapped_type = WrapFieldType(type);
-
-  Descriptor d = Descriptor::DataField(name, index, attributes, constness,
+  Descriptor d = Descriptor::DataField(name, offset, attributes, constness,
                                        representation, wrapped_type);
   Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
+
   new_map->AccountAddedPropertyField();
   return new_map;
 }
@@ -1204,17 +1211,21 @@ int Map::NumberOfEnumerableProperties() const {
   return result;
 }
 
-int Map::NextFreePropertyIndex() const {
+FieldStorageLocation Map::NextFreeFieldStorageLocation() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   Tagged<DescriptorArray> descs = instance_descriptors(kAcquireLoad);
   // Search properties backwards to find the last field.
   for (int i = number_of_own_descriptors - 1; i >= 0; --i) {
     PropertyDetails details = descs->GetDetails(InternalIndex(i));
     if (details.location() == PropertyLocation::kField) {
-      return details.field_index() + details.field_width_in_words();
+      return details.storage_location().Next(instance_size_in_words(),
+                                             details.field_width_in_words());
     }
   }
-  return 0;
+
+  // We didn't find a field, so this must be the first field in the object.
+  return FieldStorageLocation::First(GetInObjectPropertiesStartInWords(),
+                                     instance_size_in_words());
 }
 
 bool Map::OnlyHasSimpleProperties() const {
@@ -1681,8 +1692,8 @@ Handle<Map> Map::AddMissingTransitions(
   // the flag and clear it right before the descriptors are installed. This
   // makes heap verification happy and ensures the flag ends up accurate.
   Handle<Map> last_map = CopyDropDescriptors(isolate, split_map);
-  last_map->InitializeDescriptors(isolate, *descriptors);
   last_map->SetInObjectUnusedPropertyFields(0);
+  last_map->InitializeDescriptors(isolate, *descriptors);
   last_map->set_may_have_interesting_properties(true);
 
   // During creation of intermediate maps we violate descriptors sharing
@@ -2097,13 +2108,14 @@ DirectHandle<Map> Map::TransitionToDataProperty(
   if (!maybe_map.ToHandle(&result)) {
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
-    std::unique_ptr<base::ScopedVector<char>> buffer;
+    base::OwnedVector<char> buffer;
     if (v8_flags.log_maps) {
-      base::ScopedVector<char> name_buffer(100);
-      name->NameShortPrint(name_buffer);
-      buffer.reset(new base::ScopedVector<char>(128));
-      SNPrintF(*buffer, "TooManyFastProperties %s", name_buffer.begin());
-      reason = buffer->begin();
+      auto name_buffer = base::OwnedVector<char>::NewForOverwrite(100);
+      name->NameShortPrint(name_buffer.as_vector());
+      buffer = base::OwnedVector<char>::NewForOverwrite(128);
+      SNPrintF(buffer.as_vector(), "TooManyFastProperties %s",
+               name_buffer.begin());
+      reason = buffer.begin();
     }
 #endif
     DirectHandle<Object> maybe_constructor(map->GetConstructor(), isolate);
@@ -2351,7 +2363,7 @@ bool Map::EquivalentToForTransition(
   if (new_instance_type) {
     if (*new_instance_type != other->instance_type()) return false;
   } else {
-    CHECK_EQ(instance_type(), other->instance_type());
+    if (instance_type() != other->instance_type()) return false;
   }
   if (bit_field() != other->bit_field()) return false;
   if (new_prototype.is_null()) {
@@ -2431,12 +2443,54 @@ int Map::ComputeMinObjectSlack(Isolate* isolate) {
   return slack;
 }
 
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+void Map::VerifyDescriptorInObjectBits(Isolate* isolate,
+                                       Tagged<DescriptorArray> descriptors,
+                                       int number_of_own_descriptors) {
+  if (!IsJSObjectMap(*this)) {
+    // Non-JSObjects should not have any own field descriptors.
+    for (int i = 0; i < number_of_own_descriptors; ++i) {
+      PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
+      CHECK_NE(details.location(), PropertyLocation::kField);
+    }
+    return;
+  }
+  // Verify that field descriptors' in-object bit matches the map's in-object
+  // property count.
+  for (int i = 0; i < number_of_own_descriptors; ++i) {
+    PropertyDetails details = descriptors->GetDetails(InternalIndex(i));
+    VerifyPropertyDetailsInObjectBits(details);
+  }
+}
+void Map::VerifyPropertyDetailsInObjectBits(PropertyDetails details) {
+  if (details.location() != PropertyLocation::kField) return;
+
+  if (details.is_in_object()) {
+    int field_index =
+        details.field_offset() - GetInObjectPropertiesStartInWords();
+    CHECK_GE(field_index, 0);
+    // Allow an index one past the UsedInstanceSize in case we are in the middle
+    // of updating the map's descriptors.
+    CHECK_LT(field_index, std::min(GetInObjectProperties(),
+                                   (UsedInstanceSize() / kTaggedSize) + 1));
+  } else {
+    int field_index =
+        PropertyArray::OffsetInWordsToIndex(details.field_offset());
+    CHECK_GE(field_index, 0);
+    CHECK_LT(field_index, PropertyArray::kMaxLength);
+  }
+}
+#endif
+
 void Map::SetInstanceDescriptors(Isolate* isolate,
                                  Tagged<DescriptorArray> descriptors,
                                  int number_of_own_descriptors,
                                  WriteBarrierMode barrier_mode) {
   DCHECK_IMPLIES(barrier_mode == WriteBarrierMode::SKIP_WRITE_BARRIER,
                  HeapLayout::InReadOnlySpace(descriptors));
+#if defined(DEBUG) || defined(VERIFY_HEAP)
+  VerifyDescriptorInObjectBits(isolate, descriptors, number_of_own_descriptors);
+#endif
   set_instance_descriptors(descriptors, kReleaseStore, barrier_mode);
   SetNumberOfOwnDescriptors(number_of_own_descriptors);
 #ifndef V8_DISABLE_WRITE_BARRIERS
@@ -2644,6 +2698,25 @@ void NormalizedMapCache::Set(Isolate* isolate, DirectHandle<Map> fast_map,
   DCHECK(normalized_map->is_dictionary_map());
   WeakFixedArray::set(GetIndex(isolate, *fast_map, normalized_map->prototype()),
                       MakeWeak(*normalized_map));
+}
+
+const char* ToString(VisitorId visitor_id) {
+  switch (visitor_id) {
+#define VISITOR_ID_CASE_DECL(id) \
+  case kVisit##id:               \
+    return #id;
+    DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    TORQUE_DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    POINTER_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    TORQUE_POINTER_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+    TRUSTED_VISITOR_ID_LIST(VISITOR_ID_CASE_DECL)
+#undef VISITOR_ID_CASE_DECL
+    case kDataOnlyVisitorIdCount:
+      return "DataOnlyVisitorIdCount";
+    case kVisitorIdCount:
+      return "VisitorIdCount";
+  }
+  UNREACHABLE();
 }
 
 }  // namespace v8::internal

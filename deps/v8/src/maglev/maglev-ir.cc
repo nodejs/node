@@ -27,13 +27,16 @@
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/interpreter/bytecode-flags-and-tokens.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/map.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/tagged-field.h"
 #include "src/roots/static-roots.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-assembler-inl.h"
@@ -247,16 +250,16 @@ void Phi::RecordUseReprHint(UseRepresentationSet repr_mask,
   }
 }
 
-void Phi::SetUseRequires31BitValue() {
-  if (uses_require_31_bit_value()) return;
-  set_uses_require_31_bit_value();
+void Phi::SetUseRequiresSmi() {
+  if (uses_require_smi()) return;
+  set_uses_require_smi();
   auto inputs =
       is_loop_phi() ? merge_state_->predecessors_so_far() : input_count();
   for (uint32_t i = 0; i < inputs; ++i) {
     ValueNode* input_node = input(i).node();
     DCHECK(input_node);
     if (auto phi = input_node->TryCast<Phi>()) {
-      phi->SetUseRequires31BitValue();
+      phi->SetUseRequiresSmi();
     }
   }
 }
@@ -702,7 +705,7 @@ Tribool ValueNode::IsTheHole() const {
   }
   if (const LoadTaggedField* load = TryCast<LoadTaggedField>()) {
     // Modules variables can be the hole.
-    if (load->offset() == Cell::kValueOffset) {
+    if (load->offset() == offsetof(Cell, maybe_value_)) {
       return Tribool::kMaybe;
     }
     return Tribool::kFalse;
@@ -712,6 +715,9 @@ Tribool ValueNode::IsTheHole() const {
       return Tribool::kFalse;
     }
     return Tribool::kMaybe;
+  }
+  if (Is<Identity>()) {
+    return UnwrapIdentities()->IsTheHole();
   }
   if (const Phi* phi = TryCast<Phi>()) {
     if (!phi->is_loop_phi() && !phi->is_exception_phi()) {
@@ -1030,8 +1036,10 @@ bool FromConstantToBool(MaglevAssembler* masm, ValueNode* node) {
 
 namespace {
 template <typename NodeT>
-void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm, Register reg) {
-  if constexpr (!IsDoubleRepresentation(
+void LoadToRegisterHelper(const NodeT* node, MaglevAssembler* masm,
+                          Register reg) {
+  if constexpr (IsConstantNode(Node::opcode_of<NodeT>) &&
+                !IsDoubleRepresentation(
                     NodeT::kProperties.value_representation())) {
     return node->DoLoadToRegister(masm, reg);
   } else {
@@ -1039,9 +1047,10 @@ void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm, Register reg) {
   }
 }
 template <typename NodeT>
-void LoadToRegisterHelper(NodeT* node, MaglevAssembler* masm,
+void LoadToRegisterHelper(const NodeT* node, MaglevAssembler* masm,
                           DoubleRegister reg) {
-  if constexpr (IsDoubleRepresentation(
+  if constexpr (IsConstantNode(Node::opcode_of<NodeT>) &&
+                IsDoubleRepresentation(
                     NodeT::kProperties.value_representation())) {
     return node->DoLoadToRegister(masm, reg);
   } else {
@@ -1072,21 +1081,6 @@ void ValueNode::LoadToRegister(MaglevAssembler* masm,
     default:
       UNREACHABLE();
   }
-}
-
-void ValueNode::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
-  DCHECK(regalloc_info()->is_spilled());
-  DCHECK(!use_double_register());
-  __ Move(reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(
-                   regalloc_info()->spill_slot())));
-}
-
-void ValueNode::DoLoadToRegister(MaglevAssembler* masm,
-                                 DoubleRegister reg) const {
-  DCHECK(regalloc_info()->is_spilled());
-  DCHECK(use_double_register());
-  __ LoadFloat64(reg, masm->GetStackSlot(compiler::AllocatedOperand::cast(
-                          regalloc_info()->spill_slot())));
 }
 
 void SmiConstant::DoLoadToRegister(MaglevAssembler* masm, Register reg) const {
@@ -2267,6 +2261,149 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   Handle<Map> last_map = maps().at(map_count - 1).object();
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap);
   map_compare.Generate(last_map, kNotEqual, fail);
+  __ bind(&done);
+}
+
+int CheckHomomorphicMap::MaxCallStackArgs() const {
+  return WriteBarrierDescriptor::GetStackParameterCount();
+}
+void CheckHomomorphicMap::SetValueLocationConstraints() {
+  UseRegister(ObjectInput());
+  set_temporaries_needed(3);
+}
+void CheckHomomorphicMap::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register object = ToRegister(ObjectInput());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register map = temps.Acquire();
+  Register scratch = temps.Acquire();
+  Register scratch2 = temps.Acquire();
+
+  Label done, done_map_load;
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+    __ LoadMap(map, object);
+  } else {
+    Label not_smi;
+    __ JumpIfNotSmi(object, &not_smi);
+    __ Move(map, masm->isolate()->factory()->heap_number_map());
+    __ Jump(&done_map_load);
+
+    __ bind(&not_smi);
+    __ LoadMap(map, object);
+    __ bind(&done_map_load);
+  }
+
+  uint32_t length = homomorphic_array().length().value();
+  // The length is always a power of 2.
+  DCHECK(base::bits::IsPowerOfTwo(length));
+
+  // 1. Check cache.
+  {
+    Register cache_index = scratch;
+    Register array = scratch2;
+
+    __ LoadBitsFromWord32(cache_index, map,
+                          base::bits::CountTrailingZeros(length),
+                          kTaggedSizeLog2);
+
+    __ Move(array, homomorphic_array().object());
+
+    // Reading the array entry clobbers the array.
+    Register array_entry = array;
+    __ LoadTaggedFieldByIndex(array_entry, array, cache_index, kTaggedSizeLog2,
+                              OFFSET_OF_DATA_START(WeakHomomorphicFixedArray));
+
+    Register weak_map = scratch;  // reuse cache_index register
+    __ MakeWeak(weak_map, map);
+
+    __ CompareTaggedAndJumpIf(array_entry, weak_map, kEqual, &done);
+  }
+
+  int descriptor_index =
+      LoadHandler::DescriptorIndexBits::decode(handler_value_);
+
+  // 1. Check descriptor count.
+  Register descriptor_count = scratch;
+  __ LoadInt32(descriptor_count, FieldMemOperand(map, Map::kBitField3Offset));
+  __ AndInt32(descriptor_count, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
+
+  // Check if descriptor_index (encoded) < scratch.
+  // If scratch <= encoded(descriptor_index), deopt.
+  int encoded_descriptor_index =
+      Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index);
+  __ CompareInt32AndJumpIf(descriptor_count, encoded_descriptor_index,
+                           kUnsignedLessThanEqual,
+                           __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+  descriptor_count = Register::no_reg();
+
+  // 2. Load descriptor array.
+  __ LoadTaggedField(scratch,
+                     FieldMemOperand(map, Map::kInstanceDescriptorsOffset));
+
+  // 3. Check key.
+  Register descriptor_key = scratch2;
+  int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+                   DescriptorArray::kEntryKeyOffset;
+  __ LoadTaggedField(descriptor_key, scratch, key_offset);
+  __ CompareTaggedAndJumpIf(
+      descriptor_key, name_.object(), kNotEqual,
+      __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+  descriptor_key = Register::no_reg();
+
+  // 4. Check details.
+  Register descriptor_entry = scratch2;
+  int details_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+                       DescriptorArray::kEntryDetailsOffset;
+  __ LoadAndUntagTaggedSignedField(descriptor_entry, scratch, details_offset);
+
+  // 4a. Check kind, location, and storage location.
+  uint16_t storage_offset =
+      LoadHandler::StorageOffsetInWordsBits::decode(handler_value_);
+  bool is_inobject = LoadHandler::IsInobjectBits::decode(handler_value_);
+  uint32_t expected_details_mask = PropertyDetails::KindField::kMask |
+                                   PropertyDetails::LocationField::kMask |
+                                   PropertyDetails::OffsetInWordsField::kMask |
+                                   PropertyDetails::InObjectField::kMask;
+  uint32_t expected_details =
+      PropertyDetails::KindField::encode(PropertyKind::kData) |
+      PropertyDetails::LocationField::encode(PropertyLocation::kField) |
+      PropertyDetails::OffsetInWordsField::encode(storage_offset) |
+      PropertyDetails::InObjectField::encode(is_inobject);
+
+  __ AndInt32(scratch, descriptor_entry, expected_details_mask);
+  __ CompareInt32AndJumpIf(scratch, static_cast<int32_t>(expected_details),
+                           kNotEqual,
+                           __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+
+  // 4b. Check Representation.
+  bool is_double = LoadHandler::IsDoubleBits::decode(handler_value_);
+  uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+  uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+      PropertyDetails::EncodeRepresentation(Representation::Double()));
+
+  __ AndInt32(scratch, descriptor_entry, repr_mask);
+  __ CompareInt32AndJumpIf(scratch, static_cast<int32_t>(expected_repr),
+                           is_double ? kNotEqual : kEqual,
+                           __ GetDeoptLabel(this, DeoptimizeReason::kWrongMap));
+
+  // 5. Update cache.
+  {
+    Register cache_index = scratch;
+    Register array = scratch2;
+    __ LoadBitsFromWord32(cache_index, map,
+                          base::bits::CountTrailingZeros(length),
+                          kTaggedSizeLog2);
+
+    // map is clobbered here with a weak ptr tag.
+    Register weak_map = map;
+    __ MakeWeak(weak_map, map);
+
+    __ Move(array, homomorphic_array().object());
+    __ StoreFixedArrayElementWithWriteBarrier(array, cache_index, weak_map,
+                                              register_snapshot());
+  }
+
   __ bind(&done);
 }
 
@@ -3799,8 +3936,10 @@ void CheckMaglevType::SetValueLocationConstraints() {
 
 void CheckMaglevType::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kCheckMaglevType>(ValueInput(),
-                                            Smi::FromEnum(expected_type_));
+  __ CallBuiltin<Builtin::kCheckMaglevType>(
+      ValueInput(), Smi::FromEnum(expected_type_),
+      Smi::FromInt(allow_widening_smi_to_int32_ ==
+                   AllowWideningSmiToInt32::kAllow));
 }
 
 int StoreContextSlotWithWriteBarrier::MaxCallStackArgs() const {
@@ -4537,6 +4676,11 @@ void Abort::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ Trap();
 }
 
+void Trap::SetValueLocationConstraints() {}
+void Trap::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
+  __ Trap();
+}
+
 void LogicalNot::SetValueLocationConstraints() {
   // MaglevAssembler::IsRootConstant (used in GenerateCode below) does not
   // support constant inputs (which UseAny allows). Constants should have been
@@ -5216,17 +5360,6 @@ void Float64ToTagged::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void Float64ToHeapNumberForField::SetValueLocationConstraints() {
-  UseRegister(ValueInput());
-  DefineAsRegister(this);
-}
-void Float64ToHeapNumberForField::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(ValueInput());
-  Register object = ToRegister(result());
-  __ AllocateHeapNumber(register_snapshot(), object, value);
-}
-
 void HoleyFloat64ToTagged::SetValueLocationConstraints() {
   UseRegister(ValueInput());
   DefineAsRegister(this);
@@ -5580,6 +5713,20 @@ void StringSlice::GenerateCode(MaglevAssembler* masm,
   __ LoadRoot(kReturnRegister0, RootIndex::kempty_string);
 
   __ bind(&done_all);
+}
+
+void StringIndexOf::SetValueLocationConstraints() {
+  using D = CallInterfaceDescriptorFor<Builtin::kStringIndexOf>::type;
+  UseFixed(StringInput(), D::GetRegisterParameter(0));
+  UseFixed(SearchStringInput(), D::GetRegisterParameter(1));
+  UseFixed(PositionInput(), D::GetRegisterParameter(2));
+  DefineAsFixed(this, kReturnRegister0);
+}
+
+void StringIndexOf::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  __ CallBuiltin<Builtin::kStringIndexOf>(StringInput(), SearchStringInput(),
+                                          PositionInput());
 }
 
 void StringConcat::SetValueLocationConstraints() {
@@ -8339,6 +8486,11 @@ void CheckMapsWithMigrationAndDeopt::PrintParams(std::ostream& os) const {
   os << ")";
 }
 
+void CheckHomomorphicMap::PrintParams(std::ostream& os) const {
+  os << "(" << name_ << ", " << homomorphic_array_ << ", " << check_type()
+     << std::hex << ", " << handler_value_ << std::dec << ")";
+}
+
 void TransitionElementsKindOrCheckMap::PrintParams(std::ostream& os) const {
   os << "(" << Node::input(0).node() << ", [";
   os << *transition_target().object();
@@ -8395,11 +8547,29 @@ void CheckMapsWithMigration::PrintParams(std::ostream& os) const {
 }
 
 void CheckMaglevType::PrintParams(std::ostream& os) const {
-  os << "(" << expected_type_ << ")";
+  os << "(" << expected_type_ << ", allow_widening_smi_to_int32 = "
+     << (allow_widening_smi_to_int32_ == AllowWideningSmiToInt32::kAllow)
+     << ")";
 }
 
 void StoreContextSlotWithWriteBarrier::PrintParams(std::ostream& os) const {
-  os << "(" << index_ << ")";
+  os << "(" << index_ << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
+}
+
+void StoreSmiContextCell::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << slot_offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
+}
+
+void StoreInt32ContextCell::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << slot_offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
+}
+
+void StoreFloat64ContextCell::PrintParams(std::ostream& os) const {
+  os << "(0x" << std::hex << slot_offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
 }
 
 void LoadTaggedField::PrintParams(std::ostream& os) const {
@@ -8424,11 +8594,13 @@ void LoadTaggedField::PrintParams(std::ostream& os) const {
 }
 
 void LoadContextSlotNoCells::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
 }
 
 void LoadContextSlot::PrintParams(std::ostream& os) const {
-  os << "(0x" << std::hex << offset() << std::dec << ")";
+  os << "(0x" << std::hex << offset() << std::dec << ", "
+     << (maybe_assigned() == kNotAssigned ? "constant" : "mutable") << ")";
 }
 
 void LoadFloat64::PrintParams(std::ostream& os) const {
@@ -8463,7 +8635,8 @@ void StoreTaggedFieldNoWriteBarrier::PrintParams(std::ostream& os) const {
   if (!property_key().is_none()) {
     os << ": " << property_key();
   }
-  os << ")";
+  os << ", " << (maybe_assigned() == kNotAssigned ? "constant" : "mutable")
+     << ")";
 }
 
 std::ostream& operator<<(std::ostream& os, StoreMap::Kind kind) {
@@ -8490,7 +8663,8 @@ void StoreTaggedFieldWithWriteBarrier::PrintParams(std::ostream& os) const {
   if (!property_key().is_none()) {
     os << ": " << property_key();
   }
-  os << ", maybe_smi:" << value_can_be_smi();
+  os << ", " << (maybe_assigned() == kNotAssigned ? "constant" : "mutable")
+     << ", maybe_smi:" << value_can_be_smi();
   os << ")";
 }
 
@@ -8728,7 +8902,6 @@ VirtualObject::VirtualObject(uint64_t bitfield, uint32_t id,
   static_assert(kUninitializedSlotValue == nullptr);
   memset(slots_.data(), 0, slot_count * sizeof(slots_[0]));
 }
-
 compiler::MapRef VirtualObject::map_from_slot(
     compiler::JSHeapBroker* broker) const {
   ValueNode* value = get(HeapObject::kMapOffset);
@@ -8742,6 +8915,7 @@ compiler::OptionalMapRef VirtualObject::TryGetMapFromSlot(
   if (!maybe_constant.has_value()) return {};
   return maybe_constant->AsMap();
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal

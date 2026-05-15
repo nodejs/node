@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-externalize-string --wasm-staging
+// Flags: --expose-externalize-string --experimental-wasm-stringref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -108,7 +108,7 @@ function makeWtf8TestDataSegment() {
   let ascii_data_index =
       builder.addPassiveDataSegment(Uint8Array.from(encodeWtf8("ascii")));
 
-  let i8_array = builder.addArray(kWasmI8, true);
+  let i8_array = builder.addArray(kWasmI8);
 
   let make_i8_array = builder.addFunction(
       "make_i8_array", makeSig([], [wasmRefType(i8_array)]))
@@ -207,7 +207,7 @@ function makeWtf8TestDataSegment() {
   let builder = new WasmModuleBuilder();
   let data = makeWtf8TestDataSegment();
   let data_index = builder.addPassiveDataSegment(data.data);
-  let i8_array = builder.addArray(kWasmI8, true);
+  let i8_array = builder.addArray(kWasmI8);
 
   let make_i8_array = builder.addFunction(
       "make_i8_array", makeSig([], [wasmRefType(i8_array)]))
@@ -279,7 +279,7 @@ function makeWtf16TestDataSegment(strings) {
   let ascii_data_index =
       builder.addPassiveDataSegment(Uint8Array.from(encodeWtf16LE("ascii")));
 
-  let i16_array = builder.addArray(kWasmI16, true);
+  let i16_array = builder.addArray(kWasmI16);
 
   let make_i16_array = builder.addFunction(
       "make_i16_array", makeSig([], [wasmRefType(i16_array)]))
@@ -340,7 +340,7 @@ function makeWtf16TestDataSegment(strings) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let i8_array = builder.addArray(kWasmI8, true);
+  let i8_array = builder.addArray(kWasmI8);
 
   let kSig_w_wii =
       makeSig([kWasmStringRef, kWasmI32, kWasmI32],
@@ -448,7 +448,7 @@ function makeWtf16TestDataSegment(strings) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  let i16_array = builder.addArray(kWasmI16, true);
+  let i16_array = builder.addArray(kWasmI16);
 
   let kSig_w_wii =
       makeSig([kWasmStringRef, kWasmI32, kWasmI32],

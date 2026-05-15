@@ -41,7 +41,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/base/bits.h"
-#include "src/base/cpu.h"
+#include "src/base/cpu/cpu.h"
 #include "src/base/overflowing-math.h"
 #include "src/codegen/arm/assembler-arm-inl.h"
 #include "src/codegen/assembler-inl.h"
@@ -214,7 +214,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CpuFeatureSet command_line = CpuFeaturesFromCommandLine();
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
+#ifdef V8_USE_HOST_CPU_ARM_FEATURES
     supported_ |= command_line & CpuFeaturesFromCompiler();
+#endif
     return;
   }
 

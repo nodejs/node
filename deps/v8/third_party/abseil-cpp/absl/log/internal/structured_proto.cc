@@ -16,11 +16,11 @@
 #include "absl/log/internal/structured_proto.h"
 
 #include <cstdint>
+#include <variant>
 
 #include "absl/base/config.h"
 #include "absl/log/internal/proto.h"
 #include "absl/types/span.h"
-#include "absl/types/variant.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -81,11 +81,11 @@ struct I32EncoderVisitor final {
 // Handles protobuf-encoding a type contained inside `StructuredProtoField`.
 struct EncoderVisitor final {
   bool operator()(StructuredProtoField::Varint varint) {
-    return absl::visit(VarintEncoderVisitor{field_number, buf}, varint);
+    return std::visit(VarintEncoderVisitor{field_number, buf}, varint);
   }
 
   bool operator()(StructuredProtoField::I64 i64) {
-    return absl::visit(I64EncoderVisitor{field_number, buf}, i64);
+    return std::visit(I64EncoderVisitor{field_number, buf}, i64);
   }
 
   bool operator()(StructuredProtoField::LengthDelimited length_delimited) {
@@ -95,7 +95,7 @@ struct EncoderVisitor final {
   }
 
   bool operator()(StructuredProtoField::I32 i32) {
-    return absl::visit(I32EncoderVisitor{field_number, buf}, i32);
+    return std::visit(I32EncoderVisitor{field_number, buf}, i32);
   }
 
   uint64_t field_number;
@@ -106,7 +106,7 @@ struct EncoderVisitor final {
 
 bool EncodeStructuredProtoField(StructuredProtoField field,
                                 absl::Span<char>& buf) {
-  return absl::visit(EncoderVisitor{field.field_number, buf}, field.value);
+  return std::visit(EncoderVisitor{field.field_number, buf}, field.value);
 }
 
 }  // namespace log_internal

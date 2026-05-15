@@ -84,7 +84,7 @@ class NonIterableBitMask {
  public:
   explicit NonIterableBitMask(T mask) : mask_(mask) {}
 
-  explicit operator bool() const { return this->mask_ != 0; }
+  explicit operator bool() const { return mask_ != 0; }
 
   // Returns the index of the lowest *abstract* bit set in `self`.
   uint32_t LowestBitSet() const {
@@ -274,8 +274,12 @@ inline __m128i _mm_cmpgt_epi8_fixed(__m128i a, __m128i b) {
 
 struct GroupSse2Impl {
   static constexpr size_t kWidth = 16;  // the number of slots per group
-  using BitMaskType = BitMask<uint16_t, kWidth>;
-  using NonIterableBitMaskType = NonIterableBitMask<uint16_t, kWidth>;
+  // There are only 16 bits, but using uint32_t instead of uint16_t allows for
+  // better codegen. In particular, there is no blsr instruction for a 16 bit
+  // register, but there is for a 32 bit register (used in BitMask::operator++).
+  using MaskInt = uint32_t;
+  using BitMaskType = BitMask<MaskInt, kWidth>;
+  using NonIterableBitMaskType = NonIterableBitMask<MaskInt, kWidth>;
 
   explicit GroupSse2Impl(const ctrl_t* pos) {
     ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pos));
@@ -284,42 +288,35 @@ struct GroupSse2Impl {
   // Returns a bitmask representing the positions of slots that match hash.
   BitMaskType Match(h2_t hash) const {
     auto match = _mm_set1_epi8(static_cast<char>(hash));
-    return BitMaskType(
-        static_cast<uint16_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
+    return BitMaskType(MoveMask(_mm_cmpeq_epi8(match, ctrl)));
   }
 
   // Returns a bitmask representing the positions of empty slots.
   NonIterableBitMaskType MaskEmpty() const {
 #ifdef ABSL_INTERNAL_HAVE_SSSE3
     // This only works because ctrl_t::kEmpty is -128.
-    return NonIterableBitMaskType(
-        static_cast<uint16_t>(_mm_movemask_epi8(_mm_sign_epi8(ctrl, ctrl))));
+    return NonIterableBitMaskType(MoveMask(_mm_sign_epi8(ctrl, ctrl)));
 #else
     auto match = _mm_set1_epi8(static_cast<char>(ctrl_t::kEmpty));
-    return NonIterableBitMaskType(
-        static_cast<uint16_t>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
+    return NonIterableBitMaskType(MoveMask(_mm_cmpeq_epi8(match, ctrl)));
 #endif
   }
 
   // Returns a bitmask representing the positions of full slots.
   // Note: for `is_small()` tables group may contain the "same" slot twice:
   // original and mirrored.
-  BitMaskType MaskFull() const {
-    return BitMaskType(static_cast<uint16_t>(_mm_movemask_epi8(ctrl) ^ 0xffff));
-  }
+  BitMaskType MaskFull() const { return BitMaskType(MoveMask(ctrl) ^ 0xffff); }
 
   // Returns a bitmask representing the positions of non full slots.
   // Note: this includes: kEmpty, kDeleted, kSentinel.
   // It is useful in contexts when kSentinel is not present.
-  auto MaskNonFull() const {
-    return BitMaskType(static_cast<uint16_t>(_mm_movemask_epi8(ctrl)));
-  }
+  auto MaskNonFull() const { return BitMaskType(MoveMask(ctrl)); }
 
   // Returns a bitmask representing the positions of empty or deleted slots.
   NonIterableBitMaskType MaskEmptyOrDeleted() const {
     auto special = _mm_set1_epi8(static_cast<char>(ctrl_t::kSentinel));
-    return NonIterableBitMaskType(static_cast<uint16_t>(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(special, ctrl))));
+    return NonIterableBitMaskType(
+        MoveMask(_mm_cmpgt_epi8_fixed(special, ctrl)));
   }
 
   // Returns a bitmask representing the positions of full or sentinel slots.
@@ -327,8 +324,8 @@ struct GroupSse2Impl {
   // original and mirrored.
   NonIterableBitMaskType MaskFullOrSentinel() const {
     auto special = _mm_set1_epi8(static_cast<char>(ctrl_t::kSentinel) - 1);
-    return NonIterableBitMaskType(static_cast<uint16_t>(
-        _mm_movemask_epi8(_mm_cmpgt_epi8_fixed(ctrl, special))));
+    return NonIterableBitMaskType(
+        MoveMask(_mm_cmpgt_epi8_fixed(ctrl, special)));
   }
 
   void ConvertSpecialToEmptyAndFullToDeleted(ctrl_t* dst) const {
@@ -342,6 +339,17 @@ struct GroupSse2Impl {
     auto twos = _mm_set1_epi8(static_cast<char>(2));
     auto res = _mm_subs_epi8(_mm_and_si128(msbs, ctrl), twos);
     _mm_storeu_si128(reinterpret_cast<__m128i*>(dst), res);
+  }
+
+  static MaskInt MoveMask(__m128i xmm) {
+    auto mask = static_cast<MaskInt>(_mm_movemask_epi8(xmm));
+#ifdef __clang__
+    // TODO(b/472522597): Without the inline asm, clang ends up generating an
+    // unnecessary movzx to zero the upper bits of the output, but those bits
+    // are already zero. See https://godbolt.org/z/G6xW1Ecbx.
+    asm("" : "+r"(mask));  // NOLINT
+#endif
+    return mask;
   }
 
   __m128i ctrl;

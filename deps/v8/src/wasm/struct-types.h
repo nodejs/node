@@ -22,7 +22,7 @@ class StructTypeBase : public ZoneObject {
  public:
   StructTypeBase(uint32_t field_count, uint32_t* field_offsets,
                  const ValueTypeBase* reps, const bool* mutabilities,
-                 bool is_descriptor, bool is_shared)
+                 bool is_descriptor, SharedFlag is_shared)
       : field_count_(field_count),
         is_descriptor_(is_descriptor),
         is_shared_(is_shared),
@@ -34,7 +34,7 @@ class StructTypeBase : public ZoneObject {
 
   bool is_descriptor() const { return is_descriptor_; }
 
-  bool is_shared() const { return is_shared_; }
+  SharedFlag is_shared() const { return is_shared_; }
 
   uint32_t field_count() const { return field_count_; }
 
@@ -74,17 +74,18 @@ class StructTypeBase : public ZoneObject {
     return field_offsets_[field_count() - 1];
   }
 
-  uint32_t Align(uint32_t offset, uint32_t alignment, bool is_shared) {
+  uint32_t Align(uint32_t offset, uint32_t alignment, SharedFlag is_shared) {
     return RoundUp(
         offset,
-        std::min(alignment,
-                 static_cast<uint32_t>(is_shared ? kDoubleSize : kTaggedSize)));
+        std::min(alignment, static_cast<uint32_t>(is_shared == SharedFlag::kYes
+                                                      ? kDoubleSize
+                                                      : kTaggedSize)));
   }
 
   void InitializeOffsets() {
     if (field_count() == 0) return;
     DCHECK(!offsets_initialized_);
-    if (is_descriptor() && is_shared()) {
+    if (is_descriptor() && is_shared() == SharedFlag::kYes) {
       // TODO(42204563, 403372470): Implement shared custom descriptors and
       // update the offset calculation for the first field.
       UNIMPLEMENTED();
@@ -152,7 +153,7 @@ class StructTypeBase : public ZoneObject {
     };
 
     BuilderImpl(SignatureStorageOrZone* storage, uint32_t field_count,
-                bool is_descriptor, bool is_shared)
+                bool is_descriptor, SharedFlag is_shared)
         : storage_(storage),
           field_count_(field_count),
           is_descriptor_(is_descriptor),
@@ -214,7 +215,7 @@ class StructTypeBase : public ZoneObject {
     SignatureStorageOrZone* const storage_;
     const uint32_t field_count_;
     const bool is_descriptor_;
-    const bool is_shared_;
+    const SharedFlag is_shared_;
     uint32_t cursor_;
     uint32_t* field_offsets_;
     ValueTypeSubclass* const buffer_;
@@ -231,7 +232,7 @@ class StructTypeBase : public ZoneObject {
   static_assert(kV8MaxWasmStructFields < std::numeric_limits<uint16_t>::max());
   const uint16_t field_count_;
   const bool is_descriptor_;
-  const bool is_shared_;
+  const SharedFlag is_shared_;
 #if DEBUG
   bool offsets_initialized_ = false;
 #endif
@@ -249,7 +250,7 @@ class StructType : public StructTypeBase {
 
   StructType(uint32_t field_count, uint32_t* field_offsets,
              const ValueType* reps, const bool* mutabilities,
-             bool is_descriptor, bool is_shared)
+             bool is_descriptor, SharedFlag is_shared)
       : StructTypeBase(field_count, field_offsets, reps, mutabilities,
                        is_descriptor, is_shared) {}
 
@@ -283,7 +284,7 @@ class CanonicalStructType : public StructTypeBase {
 
   CanonicalStructType(uint32_t field_count, uint32_t* field_offsets,
                       const CanonicalValueType* reps, const bool* mutabilities,
-                      bool is_descriptor, bool is_shared)
+                      bool is_descriptor, SharedFlag is_shared)
       : StructTypeBase(field_count, field_offsets, reps, mutabilities,
                        is_descriptor, is_shared) {}
 

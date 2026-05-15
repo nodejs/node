@@ -43,8 +43,7 @@ type TaggedIndex extends StrongTagged
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
 type WeakHeapObject extends Tagged
-    generates 'TNode<MaybeWeak<HeapObject>>'
-    constexpr 'MaybeWeak<HeapObject>';
+    generates 'TNode<Weak<HeapObject>>' constexpr 'Weak<HeapObject>';
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 
 type Object = Smi|HeapObject;
@@ -424,8 +423,7 @@ extern enum ExtractFixedArrayFlag
   ...
 }
 
-const kBigIntMaxLengthBits:
-    constexpr uintptr generates 'BigInt::kMaxLengthBits';
+const kBigIntMaxBits: constexpr uintptr generates 'BigInt::kMaxBits';
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 const kBigIntDigitSize: constexpr intptr generates 'kSystemPointerSize';
 const kBitsPerByte: constexpr intptr generates 'kBitsPerByte';
@@ -516,6 +514,8 @@ extern enum MessageTemplate {
   kWasmTrapArrayTooLarge,
   kWasmTrapStringOffsetOutOfBounds,
   kWasmTrapResume,
+  kWasmTrapSuspend,
+  kWasmTrapSwitch,
   kWeakRefsRegisterTargetAndHoldingsMustNotBeSame,
   kInvalidWeakRefsRegisterTarget,
   kInvalidWeakRefsUnregisterToken,
@@ -535,6 +535,8 @@ extern enum MessageTemplate {
   kStrictReadOnlyProperty,
   kInvalidUsingInForInLoop,
   kIllegalInvocation,
+  kInvalidIteratorZipMode,
+  kIteratorZipStrictMismatch,
   ...
 }
 
@@ -934,6 +936,8 @@ extern transitioning runtime TransitionElementsKindWithKind(
 extern macro ArrayListElements(ArrayList): FixedArray;
 
 extern macro LoadObjectField(HeapObject, constexpr int32): Object;
+extern macro LoadTrustedPointerFromObject(
+    HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 
 extern macro LoadBufferObject(RawPtr, constexpr int32): Object;
 extern macro LoadBufferPointer(RawPtr, constexpr int32): RawPtr;
@@ -1801,7 +1805,7 @@ transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
       otherwise IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow;
 }
 
-// https://tc39.github.io/ecma262/#sec-toindex
+// https://tc39.es/ecma262/#sec-toindex
 // Unlike ToIndex from the spec this implementation triggers IfRangeError if
 // the result is bigger than min(kMaxUIntPtr, kMaxSafeInteger).
 // We can do this because all callers do a range checks against uintptr length
@@ -2250,3 +2254,20 @@ extern macro I8x16Eq(I8X16, I8X16): I8X16;
 extern macro I8x16Splat(int32): I8X16;
 
 extern enum TypedArrayAccessMode extends int31 { kRead, kWrite }
+
+// ES #sec-getoptionsobject
+transitioning macro GetOptionsObject(
+    implicit context: NativeContext)(options: JSAny): JSReceiver {
+  // 1. If options is undefined, then
+  if (options == Undefined) {
+    // a. Return OrdinaryObjectCreate(null).
+    const nullProtoMap = LoadSlowObjectWithNullPrototypeMap(context);
+    const properties = AllocateNameDictionary(Convert<intptr>(0));
+    return AllocateJSObjectFromMap(nullProtoMap, properties);
+  }
+  // 2. If options is an Object, then
+  //    a. Return options.
+  // 3. Throw a TypeError exception.
+  return Cast<JSReceiver>(options)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'options');
+}

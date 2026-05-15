@@ -11,7 +11,7 @@ namespace internal {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
-// ES #sec-isfinite-number
+// https://tc39.es/ecma262/#sec-isfinite-number
 TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
 
@@ -60,7 +60,7 @@ TF_BUILTIN(GlobalIsFinite, CodeStubAssembler) {
   Return(FalseConstant());
 }
 
-// ES6 #sec-isnan-number
+// https://tc39.es/ecma262/#sec-isnan-number
 TF_BUILTIN(GlobalIsNaN, CodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
 

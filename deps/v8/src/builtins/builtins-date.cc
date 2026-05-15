@@ -54,7 +54,7 @@ Tagged<Object> SetDateValue(Isolate* isolate, DirectHandle<JSDate> date,
 
 }  // namespace
 
-// ES #sec-date-constructor
+// https://tc39.es/ecma262/#sec-date-constructor
 BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
   if (IsUndefined(*args.new_target(), isolate)) {
@@ -778,7 +778,7 @@ BUILTIN(DatePrototypeToTimeString) {
 }
 
 #ifdef V8_INTL_SUPPORT
-// ecma402 #sup-date.prototype.tolocaledatestring
+// https://tc39.es/ecma402/#sup-date.prototype.tolocaledatestring
 BUILTIN(DatePrototypeToLocaleDateString) {
   HandleScope scope(isolate);
 
@@ -798,7 +798,7 @@ BUILTIN(DatePrototypeToLocaleDateString) {
                    method_name));                            // method_name
 }
 
-// ecma402 #sup-date.prototype.tolocalestring
+// https://tc39.es/ecma402/#sup-date.prototype.tolocalestring
 BUILTIN(DatePrototypeToLocaleString) {
   HandleScope scope(isolate);
 
@@ -818,7 +818,7 @@ BUILTIN(DatePrototypeToLocaleString) {
                    method_name));                           // method_name
 }
 
-// ecma402 #sup-date.prototype.tolocaletimestring
+// https://tc39.es/ecma402/#sup-date.prototype.tolocaletimestring
 BUILTIN(DatePrototypeToLocaleTimeString) {
   HandleScope scope(isolate);
 
@@ -924,7 +924,7 @@ BUILTIN(DatePrototypeToJson) {
 }
 
 #ifdef V8_TEMPORAL_SUPPORT
-// Temporal #sec-date.prototype.totemporalinstant
+// https://tc39.es/proposal-temporal/#sec-date.prototype.totemporalinstant
 BUILTIN(DatePrototypeToTemporalInstant) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toTemporalInstant");

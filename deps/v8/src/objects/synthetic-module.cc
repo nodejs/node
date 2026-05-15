@@ -75,7 +75,8 @@ bool SyntheticModule::PrepareInstantiate(Isolate* isolate,
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   DirectHandle<FixedArray> export_names(module->export_names(), isolate);
   // Spec step 7: For each export_name in module->export_names...
-  for (int i = 0, n = export_names->length(); i < n; ++i) {
+  const uint32_t export_names_len = export_names->ulength().value();
+  for (uint32_t i = 0; i < export_names_len; ++i) {
     // Spec step 7.1: Create a new mutable binding for export_name.
     // Spec step 7.2: Initialize the new mutable binding to undefined.
     DirectHandle<Cell> cell = isolate->factory()->NewCell();

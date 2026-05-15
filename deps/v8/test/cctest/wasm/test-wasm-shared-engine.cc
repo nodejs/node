@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/base/fpu.h"
 #include "src/execution/microtask-queue.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/sandboxable-thread.h"
@@ -59,7 +60,9 @@ class SharedEngineIsolate {
 
   DirectHandle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     DirectHandle<WasmModuleObject> module_object =
-        GetWasmEngine()->ImportNativeModule(isolate(), shared_module, {});
+        GetWasmEngine()
+            ->ImportNativeModule(isolate(), shared_module, {})
+            .ToHandleChecked();
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeDirectHandle<WasmInstanceObject> instance =
         GetWasmEngine()->SyncInstantiate(isolate(), &thrower, module_object, {},
@@ -310,6 +313,68 @@ TEST(SharedEngineRunThreadedTierUp) {
   });
   for (auto& thread : threads) CHECK(thread.Start());
   for (auto& thread : threads) thread.Join();
+}
+
+TEST(SharedEngineRunImportedWithDenormalsMismatchAndSourceUrl) {
+  SharedModule module;
+  bool default_flush = base::FPU::GetFlushDenormals();
+  constexpr char kSourceUrl[] = "wasm://test/source_url";
+  {
+    SharedEngineIsolate isolate;
+    HandleScope scope(isolate.isolate());
+    ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
+    DirectHandle<WasmInstanceObject> instance =
+        isolate.CompileAndInstantiate(buffer);
+    module = isolate.ExportInstance(instance);
+    CHECK_EQ(23, isolate.Run(instance));
+  }
+  std::shared_ptr<NativeModule> recompiled_native_module;
+  {
+    base::FlushDenormalsScope flush_denormals_scope(!default_flush);
+    SharedEngineIsolate isolate;
+    HandleScope scope(isolate.isolate());
+
+    // Call ImportNativeModule directly with a source URL
+    DirectHandle<WasmModuleObject> module_object =
+        GetWasmEngine()
+            ->ImportNativeModule(isolate.isolate(), module,
+                                 base::CStrVector(kSourceUrl))
+            .ToHandleChecked();
+
+    // Verify that the import succeeded and we have a WasmModuleObject
+    CHECK(!module_object.is_null());
+
+    recompiled_native_module = module_object->native_module().as_shared_ptr();
+    // Verify that it's not the same module as the original one.
+    CHECK_NE(module.get(), recompiled_native_module.get());
+
+    // Verify that the source URL is preserved
+    Tagged<Script> script = module_object->script();
+    DirectHandle<String> script_name(Cast<String>(script->name()),
+                                     isolate.isolate());
+    size_t length;
+    std::unique_ptr<char[]> cstring = script_name->ToCString(&length);
+    CHECK_EQ(0, strcmp(cstring.get(), kSourceUrl));
+
+    // Verify that the imported module has the new flags in its NativeModule.
+    CHECK_EQ(!default_flush,
+             module_object->native_module()->compile_imports().contains(
+                 CompileTimeImport::kDisableDenormalFloats));
+  }
+  {
+    base::FlushDenormalsScope flush_denormals_scope(!default_flush);
+    SharedEngineIsolate isolate3;
+    HandleScope scope(isolate3.isolate());
+    DirectHandle<WasmModuleObject> module_object3 =
+        GetWasmEngine()
+            ->ImportNativeModule(isolate3.isolate(), module,
+                                 base::CStrVector(kSourceUrl))
+            .ToHandleChecked();
+
+    // Verify that it reused the NativeModule created by isolate2!
+    CHECK_EQ(recompiled_native_module.get(),
+             module_object3->native_module().raw());
+  }
 }
 
 }  // namespace test_wasm_shared_engine

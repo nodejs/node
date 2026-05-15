@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --expose-gc --liftoff-only
+// Flags: --allow-natives-syntax --expose-gc
 // Force all functions (the first 8, technically) to generate debug code.
 // Flags: --wasm-debug-mask-for-testing=255
 

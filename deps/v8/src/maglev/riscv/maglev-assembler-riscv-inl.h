@@ -326,6 +326,8 @@ inline Condition MaglevAssembler::CheckSmi(Register src) {
 }
 
 #ifdef V8_ENABLE_DEBUG_CODE
+// TODO(riscv): move this function to MacroAssembler as it is done on all other
+// ports.
 inline void MaglevAssembler::AssertMap(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -747,6 +749,14 @@ inline void MaglevAssembler::AddInt32(Register reg, Register other) {
   Add32(reg, reg, other);
 }
 
+inline void MaglevAssembler::AddInt32(Register dst, Register src, int amount) {
+  Add32(dst, src, Operand(amount));
+}
+
+inline void MaglevAssembler::AndInt32(Register dst, Register src, int mask) {
+  Add32(dst, src, Operand(mask));
+}
+
 inline void MaglevAssembler::AndInt32(Register reg, int mask) {
   // check if size of immediate exceeds 32 bits
   if constexpr (sizeof(intptr_t) > sizeof(mask)) {
@@ -775,6 +785,33 @@ inline void MaglevAssembler::ShiftLeft(Register reg, int amount) {
   Sll32(reg, reg, Operand(amount));
 }
 
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, int32_t value) {
+  Srl32(dst, dst, Operand(value));
+}
+inline void MaglevAssembler::ShiftRightLogical32(Register dst, Register src,
+                                                 int32_t value) {
+  Srl32(dst, src, Operand(value));
+}
+inline void MaglevAssembler::SubInt32(Register dst, Register src) {
+  Sub32(dst, dst, src);
+}
+inline void MaglevAssembler::SubInt32(Register dst, Register src1,
+                                      Register src2) {
+  Sub32(dst, src1, src2);
+}
+inline void MaglevAssembler::LoadBitsFromWord32(Register dst, Register src,
+                                                int width, int shift) {
+  if (dst != src) {
+    mv(dst, src);
+  }
+  if (shift != 0) {
+    Srl32(dst, dst, Operand(shift));
+  }
+  if (shift + width < 32) {
+    And(dst, dst, Operand((1 << width) - 1));
+  }
+}
+
 inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
   Add64(reg, reg, Operand(delta));
 }
@@ -788,6 +825,10 @@ inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,
                                                 Register scratch) {
   EnterExitFrame(scratch, extra_slots, frame_type);
+}
+
+inline void MaglevAssembler::MakeWeak(Register dst, Register src) {
+  Or(dst, src, Operand(kWeakHeapObjectTag));
 }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {

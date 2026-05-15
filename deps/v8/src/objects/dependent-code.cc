@@ -103,7 +103,7 @@ void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
                                       const Function& fn) {
   DisallowGarbageCollection no_gc;
 
-  int len = length();
+  uint32_t len = length().value();
   if (len == 0) return;
 
   // We compact during traversal, thus use a somewhat custom loop construct:
@@ -111,7 +111,8 @@ void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
   // - Loop back-to-front s.t. trailing cleared entries can simply drop off
   //   the back of the list.
   // - Any cleared slots are filled from the back of the list.
-  int i = len - kSlotsPerEntry;
+  // TODO(375937549): Convert to uint32_t.
+  int i = static_cast<int>(len) - kSlotsPerEntry;
   while (i >= 0) {
     Tagged<MaybeObject> obj = Get(i + kCodeSlotOffset);
     if (obj.IsCleared()) {

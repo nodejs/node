@@ -49,3 +49,16 @@ extern class JSIteratorConcatHelper extends JSIteratorHelperSimple {
   iterables: FixedArray;
   current: Smi;
 }
+
+extern enum JSIteratorZipHelperMode extends uint31 {
+  kShortest,
+  kLongest,
+  kStrict
+}
+
+extern class JSIteratorZipHelper extends JSIteratorHelper {
+  underlying_iterators: FixedArray;
+  mode: SmiTagged<JSIteratorZipHelperMode>;
+  active_count: Smi;
+  padding: FixedArray;
+}

@@ -64,8 +64,6 @@ int WrappedMain(int argc, const char** argv) {
     }
   }
 
-  CurrentCompilerOptions::Scope compiler_options_scope(options);
-
   TorqueCompilerResult result = CompileTorque(files, options);
 
   // PositionAsString requires the SourceFileMap to be set to

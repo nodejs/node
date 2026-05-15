@@ -2058,14 +2058,14 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     raw_data->SetWrappedSharedFunctionInfo(*sfi_wrapper);
   }
 
-  int inlined_functions_size =
-      static_cast<int>(graph_->inlined_functions().size());
+  uint32_t inlined_functions_size =
+      static_cast<uint32_t>(graph_->inlined_functions().size());
   DirectHandle<ProtectedDeoptimizationLiteralArray> protected_literals =
       local_isolate->factory()->NewProtectedFixedArray(
-          protected_deopt_literals_.size());
+          static_cast<uint32_t>(protected_deopt_literals_.size()));
   DirectHandle<DeoptimizationLiteralArray> literals =
       local_isolate->factory()->NewDeoptimizationLiteralArray(
-          deopt_literals_.size());
+          static_cast<uint32_t>(deopt_literals_.size()));
   DirectHandle<TrustedPodArray<InliningPosition>> inlining_positions =
       TrustedPodArray<InliningPosition>::New(local_isolate,
                                              inlined_functions_size);
@@ -2092,7 +2092,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     }
   }
 
-  for (int i = 0; i < inlined_functions_size; i++) {
+  for (uint32_t i = 0; i < inlined_functions_size; i++) {
     auto inlined_function_info = graph_->inlined_functions()[i];
     inlining_positions->set(i, inlined_function_info.position);
   }
@@ -2145,6 +2145,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   return data;
 }
+#undef __
 
 }  // namespace maglev
 }  // namespace internal

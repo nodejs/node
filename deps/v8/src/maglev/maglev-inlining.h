@@ -12,6 +12,7 @@
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-tracer.h"
 
 namespace v8::internal::maglev {
 
@@ -36,12 +37,15 @@ class ReturnedValueRepresentationSelector {
 class MaglevInliner {
  public:
   explicit MaglevInliner(Graph* graph)
-      : graph_(graph), flags_(graph->compilation_info()->flags()) {}
+      : graph_(graph),
+        tracer_(graph->compilation_info()),
+        flags_(graph->compilation_info()->flags()) {}
 
   bool Run();
 
  private:
   Graph* graph_;
+  Tracer tracer_;
   const CompilationFlags flags_;
 
   bool IsSmallWithHeapNumberInputsOutputs(MaglevCallSiteInfo* call_site) const;

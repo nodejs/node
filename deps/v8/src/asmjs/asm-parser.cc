@@ -17,6 +17,7 @@
 #include "src/flags/flags.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/parsing/scanner.h"
+#include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes.h"
 

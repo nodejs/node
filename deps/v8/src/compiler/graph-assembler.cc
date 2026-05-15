@@ -1156,16 +1156,16 @@ Node* GraphAssembler::LoadUnaligned(MachineType type, Node* object,
   return AddNode(graph()->NewNode(op, object, offset, effect(), control()));
 }
 
-Node* GraphAssembler::ProtectedStore(MachineRepresentation rep, Node* object,
-                                     Node* offset, Node* value) {
-  return AddNode(graph()->NewNode(machine()->ProtectedStore(rep), object,
-                                  offset, value, effect(), control()));
+Node* GraphAssembler::TrappingStore(MachineRepresentation rep, Node* object,
+                                    Node* offset, Node* value) {
+  return AddNode(graph()->NewNode(machine()->TrappingStore(rep), object, offset,
+                                  value, effect(), control()));
 }
 
-Node* GraphAssembler::ProtectedLoad(MachineType type, Node* object,
-                                    Node* offset) {
-  return AddNode(graph()->NewNode(machine()->ProtectedLoad(type), object,
-                                  offset, effect(), control()));
+Node* GraphAssembler::TrappingLoad(MachineType type, Node* object,
+                                   Node* offset) {
+  return AddNode(graph()->NewNode(machine()->TrappingLoad(type), object, offset,
+                                  effect(), control()));
 }
 
 Node* GraphAssembler::LoadTrapOnNull(MachineType type, Node* object,

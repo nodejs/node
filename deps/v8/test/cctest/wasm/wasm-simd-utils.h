@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TEST_CCTEST_WASM_WASM_SIMD_UTILS_H_
+#define V8_TEST_CCTEST_WASM_WASM_SIMD_UTILS_H_
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -352,3 +355,5 @@ void RunIntToIntNarrowingRevecTest(WasmOpcode opcode);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_WASM_WASM_SIMD_UTILS_H_

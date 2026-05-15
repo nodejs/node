@@ -169,12 +169,11 @@ let tests = [
 for (const {name, type, valid, invalid} of tests) {
   print(`test ${name}`);
   let builder = new WasmModuleBuilder();
-  let struct = builder.addStruct(
-    [makeField(kWasmI32, true)], kNoSuperType, false, false);
+  let struct = builder.addStruct({fields: [makeField(kWasmI32, true)]});
   let sharedStruct = builder.addStruct(
-    [makeField(kWasmI32, true)], kNoSuperType, false, true);
-  let array = builder.addArray(kWasmI32, true, kNoSuperType, false, false);
-  let sharedArray = builder.addArray(kWasmI32, true, kNoSuperType, false, true);
+      {fields: [makeField(kWasmI32, true)], shared: true});
+  let array = builder.addArray(kWasmI32);
+  let sharedArray = builder.addArray(kWasmI32, {shared: true});
 
   builder.addFunction("createUnsharedStruct",
     makeSig([], [wasmRefType(struct)]))

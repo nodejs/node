@@ -155,7 +155,7 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
 };
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as
-// defined in ES section #sec-array-iterator-objects.
+// defined in https://tc39.es/ecma262/#sec-array-iterator-objects.
 class JSArrayIterator
     : public TorqueGeneratedJSArrayIterator<JSArrayIterator, JSObject> {
  public:

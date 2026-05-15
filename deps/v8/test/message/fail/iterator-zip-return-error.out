@@ -1,0 +1,7 @@
+*%(basename)s:10: Error: original_error_location
+    throw new Error("original_error_location");
+    ^
+Error: original_error_location
+    at Object.return (*%(basename)s:10:11)
+    at Iterator.return (<anonymous>)
+    at *%(basename)s:16:14

@@ -1365,6 +1365,12 @@ bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
       broker_->isolate()->factory()->array_buffer_detaching_protector()));
 }
 
+bool CompilationDependencies::DependOnArrayBufferMutableProtector() {
+  return DependOnProtector(
+      MakeRef(broker_,
+              broker_->isolate()->factory()->array_buffer_mutable_protector()));
+}
+
 bool CompilationDependencies::DependOnArrayIteratorProtector() {
   return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->array_iterator_protector()));

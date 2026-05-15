@@ -129,7 +129,8 @@ status_internal::StatusIsMatcher StatusIs(
 // code matches code_matcher.  See above for details.
 template <typename StatusCodeMatcherT>
 status_internal::StatusIsMatcher StatusIs(StatusCodeMatcherT&& code_matcher) {
-  return StatusIs(std::forward<StatusCodeMatcherT>(code_matcher), ::testing::_);
+  return absl_testing::StatusIs(std::forward<StatusCodeMatcherT>(code_matcher),
+                                ::testing::_);
 }
 
 // Returns a gMock matcher that matches a Status or StatusOr<> which is OK.

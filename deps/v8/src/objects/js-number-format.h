@@ -42,21 +42,21 @@ namespace internal {
 class JSNumberFormat
     : public TorqueGeneratedJSNumberFormat<JSNumberFormat, JSObject> {
  public:
-  // ecma402/#sec-initializenumberformat
+  // https://tc39.es/ecma402/#sec-initializenumberformat
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat> New(
       Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
       DirectHandle<Object> options, const char* service);
 
-  // ecma402/#sec-unwrapnumberformat
+  // https://tc39.es/ecma402/#sec-unwrapnumberformat
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSNumberFormat>
   UnwrapNumberFormat(Isolate* isolate, DirectHandle<JSReceiver> format_holder);
 
-  // #sec-number-format-functions
+  // https://tc39.es/ecma262/#sec-number-format-functions
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> NumberFormatFunction(
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
-  // ecma402/#sec-intl.numberformat.prototype.resolvedoptions
+  // https://tc39.es/ecma402/#sec-intl.numberformat.prototype.resolvedoptions
   static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format);
 
@@ -64,20 +64,19 @@ class JSNumberFormat
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
-  // ecma402/#sec-formatnumericrange
+  // https://tc39.es/ecma402/#sec-formatnumericrange
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumericRange(
       Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> x, Handle<Object> y);
 
-  // ecma402/#sec-formatnumericrangetoparts
+  // https://tc39.es/ecma402/#sec-formatnumericrangetoparts
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray>
   FormatNumericRangeToParts(Isolate* isolate,
                             DirectHandle<JSNumberFormat> number_format,
                             Handle<Object> x, Handle<Object> y);
 
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> FormatNumeric(
-      Isolate* isolate,
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
+      Isolate* isolate, const icu::number::LocalizedNumberFormatter* lfmt,
       Handle<Object> numeric_obj);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
@@ -134,8 +133,7 @@ class V8_NODISCARD IntlMathematicalValue {
       Isolate* isolate, Handle<Object> value);
 
   static Maybe<icu::number::FormattedNumber> FormatNumeric(
-      Isolate* isolate,
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
+      Isolate* isolate, const icu::number::LocalizedNumberFormatter* lfmt,
       const IntlMathematicalValue& x);
 
   static Maybe<icu::number::FormattedNumberRange> FormatRange(

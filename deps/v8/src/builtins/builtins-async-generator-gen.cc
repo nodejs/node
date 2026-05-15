@@ -9,6 +9,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/microtask.h"
 
 namespace v8 {
 namespace internal {
@@ -95,18 +96,18 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
   inline TNode<Smi> LoadResumeTypeFromAsyncGeneratorRequest(
       const TNode<AsyncGeneratorRequest> request) {
     return LoadObjectField<Smi>(request,
-                                AsyncGeneratorRequest::kResumeModeOffset);
+                                offsetof(AsyncGeneratorRequest, resume_mode_));
   }
 
   inline TNode<JSPromise> LoadPromiseFromAsyncGeneratorRequest(
       const TNode<AsyncGeneratorRequest> request) {
-    return LoadObjectField<JSPromise>(request,
-                                      AsyncGeneratorRequest::kPromiseOffset);
+    return LoadObjectField<JSPromise>(
+        request, offsetof(AsyncGeneratorRequest, promise_));
   }
 
   inline TNode<Object> LoadValueFromAsyncGeneratorRequest(
       const TNode<AsyncGeneratorRequest> request) {
-    return LoadObjectField(request, AsyncGeneratorRequest::kValueOffset);
+    return LoadObjectField(request, offsetof(AsyncGeneratorRequest, value_));
   }
 
   inline TNode<BoolT> IsAbruptResumeType(const TNode<Smi> resume_type) {
@@ -201,18 +202,18 @@ TNode<AsyncGeneratorRequest>
 AsyncGeneratorBuiltinsAssembler::AllocateAsyncGeneratorRequest(
     JSAsyncGeneratorObject::ResumeMode resume_mode, TNode<Object> resume_value,
     TNode<JSPromise> promise) {
-  TNode<HeapObject> request = Allocate(AsyncGeneratorRequest::kSize);
+  TNode<HeapObject> request = Allocate(sizeof(AsyncGeneratorRequest));
   StoreMapNoWriteBarrier(request, RootIndex::kAsyncGeneratorRequestMap);
-  StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kNextOffset,
-                                 UndefinedConstant());
+  StoreObjectFieldNoWriteBarrier(
+      request, offsetof(AsyncGeneratorRequest, next_), UndefinedConstant());
   StoreObjectFieldNoWriteBarrier(request,
-                                 AsyncGeneratorRequest::kResumeModeOffset,
+                                 offsetof(AsyncGeneratorRequest, resume_mode_),
                                  SmiConstant(resume_mode));
-  StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kValueOffset,
-                                 resume_value);
-  StoreObjectFieldNoWriteBarrier(request, AsyncGeneratorRequest::kPromiseOffset,
-                                 promise);
-  StoreObjectFieldRoot(request, AsyncGeneratorRequest::kNextOffset,
+  StoreObjectFieldNoWriteBarrier(
+      request, offsetof(AsyncGeneratorRequest, value_), resume_value);
+  StoreObjectFieldNoWriteBarrier(
+      request, offsetof(AsyncGeneratorRequest, promise_), promise);
+  StoreObjectFieldRoot(request, offsetof(AsyncGeneratorRequest, next_),
                        RootIndex::kUndefinedValue);
   return CAST(request);
 }
@@ -257,8 +258,10 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait() {
   TNode<AsyncGeneratorRequest> request =
       CAST(LoadFirstAsyncGeneratorRequestFromQueue(async_generator_object));
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
-      request, AsyncGeneratorRequest::kPromiseOffset);
+      request, offsetof(AsyncGeneratorRequest, promise_));
 
+  // TODO(jgruber): For non-thenable values, use AsyncResumeTask with a new
+  // kAwait kind to skip AwaitContext + closure allocation.
   Await(context, async_generator_object, value, outer_promise,
         RootIndex::kAsyncGeneratorAwaitResolveClosureSharedFun,
         RootIndex::kAsyncGeneratorAwaitRejectClosureSharedFun);
@@ -287,12 +290,13 @@ void AsyncGeneratorBuiltinsAssembler::AddAsyncGeneratorRequestToQueue(
     Label loop_next(this), next_empty(this);
     TNode<AsyncGeneratorRequest> current = CAST(var_current.value());
     TNode<HeapObject> next = LoadObjectField<HeapObject>(
-        current, AsyncGeneratorRequest::kNextOffset);
+        current, offsetof(AsyncGeneratorRequest, next_));
 
     Branch(IsUndefined(next), &next_empty, &loop_next);
     BIND(&next_empty);
     {
-      StoreObjectField(current, AsyncGeneratorRequest::kNextOffset, request);
+      StoreObjectField(current, offsetof(AsyncGeneratorRequest, next_),
+                       request);
       Goto(&done);
     }
 
@@ -314,7 +318,7 @@ AsyncGeneratorBuiltinsAssembler::TakeFirstAsyncGeneratorRequestFromQueue(
       generator, JSAsyncGeneratorObject::kQueueOffset);
 
   TNode<Object> next =
-      LoadObjectField(request, AsyncGeneratorRequest::kNextOffset);
+      LoadObjectField(request, offsetof(AsyncGeneratorRequest, next_));
 
   StoreObjectField(generator, JSAsyncGeneratorObject::kQueueOffset, next);
   return request;
@@ -325,7 +329,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorReturnClosedReject(
     TNode<Object> value) {
   SetGeneratorNotAwaiting(generator);
 
-  // https://tc39.github.io/proposal-async-iteration/
+  // https://tc39.es/proposal-async-iteration/
   //    #async-generator-resume-next-return-processor-rejected step 2:
   // Return ! AsyncGeneratorReject(_F_.[[Generator]], _reason_).
   CallBuiltin(Builtin::kAsyncGeneratorReject, context, generator, value);
@@ -334,8 +338,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorReturnClosedReject(
 }
 }  // namespace
 
-// https://tc39.github.io/proposal-async-iteration/
-// Section #sec-asyncgenerator-prototype-next
+// https://tc39.es/proposal-async-iteration/#sec-asyncgenerator-prototype-next
+// https://tc39.es/ecma262/#sec-asyncgenerator-prototype-next
 TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -352,8 +356,8 @@ TF_BUILTIN(AsyncGeneratorPrototypeNext, AsyncGeneratorBuiltinsAssembler) {
                         "[AsyncGenerator].prototype.next");
 }
 
-// https://tc39.github.io/proposal-async-iteration/
-// Section #sec-asyncgenerator-prototype-return
+// https://tc39.es/proposal-async-iteration/#sec-asyncgenerator-prototype-return
+// https://tc39.es/ecma262/#sec-asyncgenerator-prototype-return
 TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -370,8 +374,8 @@ TF_BUILTIN(AsyncGeneratorPrototypeReturn, AsyncGeneratorBuiltinsAssembler) {
                         "[AsyncGenerator].prototype.return");
 }
 
-// https://tc39.github.io/proposal-async-iteration/
-// Section #sec-asyncgenerator-prototype-throw
+// https://tc39.es/proposal-async-iteration/#sec-asyncgenerator-prototype-throw
+// https://tc39.es/ecma262/#sec-asyncgenerator-prototype-throw
 TF_BUILTIN(AsyncGeneratorPrototypeThrow, AsyncGeneratorBuiltinsAssembler) {
   const int kValueArg = 0;
 
@@ -413,9 +417,10 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  // The penultimate step of proposal-async-iteration/#sec-asyncgeneratorresolve
-  // and proposal-async-iteration/#sec-asyncgeneratorreject both recursively
-  // invoke AsyncGeneratorResumeNext() again.
+  // The penultimate step of
+  // https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorresolve and
+  // https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorreject both
+  // recursively invoke AsyncGeneratorResumeNext() again.
   //
   // This implementation does not implement this recursively, but instead
   // performs a loop in AsyncGeneratorResumeNext, which  continues as long as
@@ -592,11 +597,42 @@ TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
   const TNode<JSPromise> outer_promise =
       LoadPromiseFromAsyncGeneratorRequest(request);
 
-  Await(context, generator, value, outer_promise,
-        RootIndex::kAsyncGeneratorYieldWithAwaitResolveClosureSharedFun,
-        RootIndex::kAsyncGeneratorAwaitRejectClosureSharedFun);
-  SetGeneratorAwaiting(generator);
-  Return(UndefinedConstant());
+  // Fast path: for non-thenable values without hooks/debug active, enqueue
+  // a specialized AsyncResumeTask instead of going through Await() which
+  // allocates closures. This saves ~3 heap allocations per yield.
+  Label slow_path(this), enqueue_resume_task(this);
+  BranchIfNonThenable(context, value, &enqueue_resume_task, &slow_path);
+
+  BIND(&enqueue_resume_task);
+  {
+    // Allocate and enqueue the specialized task directly.
+    TNode<NativeContext> native_context = LoadNativeContext(context);
+    TNode<HeapObject> task = Allocate(sizeof(AsyncResumeTask));
+    StoreMapNoWriteBarrier(task, RootIndex::kAsyncResumeTaskMap);
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    StoreObjectFieldRoot(
+        task, ObjectTraits<Microtask>::kContinuationPreservedEmbedderDataOffset,
+        RootIndex::kUndefinedValue);
+#endif
+    using Traits = ObjectTraits<AsyncResumeTask>;
+    StoreObjectFieldNoWriteBarrier(task, Traits::kGeneratorOffset, generator);
+    StoreObjectFieldNoWriteBarrier(task, Traits::kValueOffset, value);
+    StoreObjectFieldNoWriteBarrier(task, Traits::kKindOffset,
+                                   SmiConstant(AsyncResumeTask::kYield));
+    CallBuiltin(Builtin::kEnqueueMicrotask, native_context, task);
+    SetGeneratorAwaiting(generator);
+    Return(UndefinedConstant());
+  }
+
+  BIND(&slow_path);
+  {
+    // Thenable or hooks active: fall back to full Await with closures.
+    Await(context, generator, value, outer_promise,
+          RootIndex::kAsyncGeneratorYieldWithAwaitResolveClosureSharedFun,
+          RootIndex::kAsyncGeneratorAwaitRejectClosureSharedFun);
+    SetGeneratorAwaiting(generator);
+    Return(UndefinedConstant());
+  }
 }
 
 TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,
@@ -608,8 +644,8 @@ TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,
 
   SetGeneratorNotAwaiting(generator);
 
-  // Per proposal-async-iteration/#sec-asyncgeneratoryield step 9
-  // Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *false*).
+  // Per https://tc39.es/proposal-async-iteration/#sec-asyncgeneratoryield step
+  // 9 Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *false*).
   CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,
               FalseConstant());
 
@@ -625,12 +661,14 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
   // In particular, non-closed generators will resume the generator with either
   // "return" or "throw" resume modes, allowing finally blocks or catch blocks
   // to be evaluated, as if the `await` were performed within the body of the
-  // generator. (per proposal-async-iteration/#sec-asyncgeneratoryield step 8.b)
+  // generator. (per
+  // https://tc39.es/proposal-async-iteration/#sec-asyncgeneratoryield step 8.b)
   //
   // Closed generators do not resume the generator in the resolve/reject
   // closures, but instead simply perform AsyncGeneratorResolve or
   // AsyncGeneratorReject with the awaited value
-  // (per proposal-async-iteration/#sec-asyncgeneratorresumenext step 10.b.i)
+  // (per https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorresumenext
+  // step 10.b.i)
   //
   // In all cases, the final step is to jump back to AsyncGeneratorResumeNext.
   const auto generator =
@@ -706,7 +744,7 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
 // On-resolve closure for Await in AsyncGeneratorReturn
 // Resume the generator with "return" resume_mode, and finally perform
 // AsyncGeneratorResumeNext. Per
-// proposal-async-iteration/#sec-asyncgeneratoryield step 8.e
+// https://tc39.es/proposal-async-iteration/#sec-asyncgeneratoryield step 8.e
 TF_BUILTIN(AsyncGeneratorReturnResolveClosure,
            AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
@@ -726,7 +764,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
 
   SetGeneratorNotAwaiting(generator);
 
-  // https://tc39.github.io/proposal-async-iteration/
+  // https://tc39.es/proposal-async-iteration/
   //    #async-generator-resume-next-return-processor-fulfilled step 2:
   //  Return ! AsyncGeneratorResolve(_F_.[[Generator]], _value_, *true*).
   CallBuiltin(Builtin::kAsyncGeneratorResolve, context, generator, value,

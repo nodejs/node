@@ -17,6 +17,7 @@
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects.h"
@@ -170,23 +171,15 @@ std::optional<Tagged<Name>> FunctionTemplateInfo::TryGetCachedPropertyName(
 
 int FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
-  return Cast<FixedArray>(GetCFunctionOverloads())->length() /
-         kFunctionOverloadEntrySize;
+  return Cast<FixedArray>(GetCFunctionOverloads())->ulength().value();
 }
 
-Address FunctionTemplateInfo::GetCFunction(Isolate* isolate, int index) const {
+CFunctionWithSignature FunctionTemplateInfo::GetCFunction(Isolate* isolate,
+                                                          int index) const {
   i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<kCFunctionTag>(
-      isolate, Cast<FixedArray>(GetCFunctionOverloads())
-                   ->get(index * kFunctionOverloadEntrySize));
-}
-
-const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
-                                                         int index) const {
-  i::DisallowHeapAllocation no_gc;
-  return v8::ToCData<CFunctionInfo*, kCFunctionInfoTag>(
-      isolate, Cast<FixedArray>(GetCFunctionOverloads())
-                   ->get(index * kFunctionOverloadEntrySize + 1));
+  return *Cast<Managed<CFunctionWithSignature>>(
+              Cast<FixedArray>(GetCFunctionOverloads())->get(index))
+              ->raw();
 }
 
 // static
@@ -254,9 +247,9 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
   Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 
-  const int property_names_len = property_names->length();
-  CHECK_EQ(property_names_len, static_cast<int>(property_values.size()));
-  const int num_properties_set = static_cast<int>(std::count_if(
+  const uint32_t property_names_len = property_names->ulength().value();
+  CHECK_EQ(property_names_len, property_values.size());
+  const uint32_t num_properties_set = static_cast<uint32_t>(std::count_if(
       property_values.begin(), property_values.end(),
       [](const auto& maybe_value) { return !maybe_value.IsEmpty(); }));
 

@@ -68,9 +68,8 @@ bool CompileAllFunctionsForReferenceExecution(NativeModule* native_module,
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code =
         wire_bytes_accessor.GetFunctionBytes(&func);
-    constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end(), kIsShared);
+                           func_code.end(), SharedFlag::kNo);
     auto result = ExecuteLiftoffCompilation(
         &env, func_body,
         LiftoffOptions{.func_index = static_cast<int>(func.func_index),
@@ -934,7 +933,8 @@ int ExecuteAgainstReference(Isolate* isolate,
 ) {
   HandleScope handle_scope(isolate);
 
-  NativeModule* native_module = module_object->native_module();
+  Managed<wasm::NativeModule>::Ptr native_module =
+      module_object->native_module();
   const WasmModule* module = native_module->module();
   const base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   int exported_main = FindExportedMainFunction(module, wire_bytes);
@@ -1103,16 +1103,16 @@ int ExecuteAgainstReference(Isolate* isolate,
   if (should_trace_memory) {
     std::ostringstream ss;
     ss << "\nMemory trace.\n";
-    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace, native_module,
-                                ss);
+    CompareAndPrintMemoryTraces(memory_trace, ref_memory_trace,
+                                native_module.raw(), ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 
   if (should_trace_globals) {
     std::ostringstream ss;
     ss << "\nGlobal trace.\n";
-    CompareAndPrintGlobalTraces(global_trace, ref_global_trace, native_module,
-                                ss);
+    CompareAndPrintGlobalTraces(global_trace, ref_global_trace,
+                                native_module.raw(), ss);
     base::OS::PrintError("%s", ss.str().c_str());
   }
 
@@ -1231,6 +1231,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 #if V8_TARGET_ARCH_ARM64
       // Fuzz the Wasm SIMD optimizations in Turboshaft for aarch64.
       v8_flags.experimental_wasm_simd_opt = true;
+      v8_flags.experimental_wasm_deinterleave_loads = true;
 #endif  // V8_TARGET_ARCH_ARM64
 
       // Enforce implications from enabling features.

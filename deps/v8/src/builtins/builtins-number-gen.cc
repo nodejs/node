@@ -158,7 +158,7 @@ DEF_UNOP(Increment_Baseline, Generate_IncrementWithFeedback)
 DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
 #undef DEF_UNOP
 
-#define DEF_COMPARE(Name)                                                  \
+#define DEF_RELATIONAL_COMPARE(Name)                                       \
   TF_BUILTIN(Name##_WithEmbeddedFeedback, CodeStubAssembler) {             \
     auto lhs = Parameter<Object>(Descriptor::kLeft);                       \
     auto rhs = Parameter<Object>(Descriptor::kRight);                      \
@@ -189,14 +189,14 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
       Unreachable();                                                       \
     }                                                                      \
   }
-DEF_COMPARE(LessThan)
-DEF_COMPARE(LessThanOrEqual)
-DEF_COMPARE(GreaterThan)
-DEF_COMPARE(GreaterThanOrEqual)
-#undef DEF_COMPARE
+DEF_RELATIONAL_COMPARE(LessThan)
+DEF_RELATIONAL_COMPARE(LessThanOrEqual)
+DEF_RELATIONAL_COMPARE(GreaterThan)
+DEF_RELATIONAL_COMPARE(GreaterThanOrEqual)
+#undef DEF_RELATIONAL_COMPARE
 
-#define DEF_COMPARE(Name)                                                   \
-  TF_BUILTIN(Name##_Baseline, CodeStubAssembler) {                          \
+#define DEF_RELATIONAL_COMPARE(Name)                                        \
+  TF_BUILTIN(Name##_Generic_Baseline, CodeStubAssembler) {                  \
     auto lhs = Parameter<Object>(Descriptor::kLeft);                        \
     auto rhs = Parameter<Object>(Descriptor::kRight);                       \
     auto feedback_offset =                                                  \
@@ -227,11 +227,11 @@ DEF_COMPARE(GreaterThanOrEqual)
       Unreachable();                                                        \
     }                                                                       \
   }
-DEF_COMPARE(LessThan)
-DEF_COMPARE(LessThanOrEqual)
-DEF_COMPARE(GreaterThan)
-DEF_COMPARE(GreaterThanOrEqual)
-#undef DEF_COMPARE
+DEF_RELATIONAL_COMPARE(LessThan)
+DEF_RELATIONAL_COMPARE(LessThanOrEqual)
+DEF_RELATIONAL_COMPARE(GreaterThan)
+DEF_RELATIONAL_COMPARE(GreaterThanOrEqual)
+#undef DEF_RELATIONAL_COMPARE
 
 TF_BUILTIN(AddLhsIsStringConstantInternalizeWithVector, CodeStubAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
@@ -334,7 +334,7 @@ TF_BUILTIN(StrictEqual_WithEmbeddedFeedback, CodeStubAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
+TF_BUILTIN(Equal_Generic_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
   auto feedback_offset =
@@ -381,30 +381,87 @@ TF_BUILTIN(StrictEqual_Generic_Baseline, CodeStubAssembler) {
 }
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
-TF_BUILTIN(StrictEqual_None_Baseline, CodeStubAssembler) {
-  auto lhs = Parameter<Object>(Descriptor::kLeft);
-  auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto feedback_offset =
-      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
+#define DEFINE_TYPED_EQUALITY_COMMON(Name)                         \
+  TF_BUILTIN(Name##_None_Baseline, CodeStubAssembler) {            \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    TailCallBuiltin(Builtin::k##Name##AndTryPatchCode,             \
+                    LoadContextFromBaseline(), lhs, rhs,           \
+                    Int32Constant(static_cast<int32_t>(            \
+                        CompareOperationFeedback::Type::kNone)),   \
+                    feedback_offset);                              \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##AndTryPatchCode, CodeStubAssembler) {           \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto current_feedback =                                        \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);  \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    Generate##Name##AndTryPatchCode(lhs, rhs, current_feedback,    \
+                                    feedback_offset);              \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##_SignedSmall_Baseline, CodeStubAssembler) {     \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    GenerateSmiEqual(lhs, rhs, feedback_offset,                    \
+                     Builtin::k##Name##AndTryPatchCode);           \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##_Number_Baseline, CodeStubAssembler) {          \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    GenerateNumberEqual(lhs, rhs, feedback_offset,                 \
+                        Builtin::k##Name##AndTryPatchCode);        \
+  }                                                                \
+                                                                   \
+  TF_BUILTIN(Name##_String_Baseline, CodeStubAssembler) {          \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);               \
+    auto rhs = Parameter<Object>(Descriptor::kRight);              \
+    auto feedback_offset =                                         \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset); \
+                                                                   \
+    GenerateStringEqual(lhs, rhs, feedback_offset,                 \
+                        Builtin::k##Name##AndTryPatchCode);        \
+  }
 
-  TailCallBuiltin(
-      Builtin::kStrictEqualAndTryPatchCode, LoadContextFromBaseline(), lhs, rhs,
-      Int32Constant(
-          static_cast<int32_t>(CompareOperationFeedback::Type::kNone)),
-      feedback_offset);
-}
+DEFINE_TYPED_EQUALITY_COMMON(StrictEqual)
+DEFINE_TYPED_EQUALITY_COMMON(Equal)
+#undef DEFINE_TYPED_EQUALITY_COMMON
 
-TF_BUILTIN(StrictEqualAndTryPatchCode, CodeStubAssembler) {
-  auto lhs = Parameter<Object>(Descriptor::kLeft);
-  auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto current_feedback =
-      UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);
-  auto feedback_offset =
-      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
+#define DEF_TYPED_OBJECT_EQUALITY(EqualityType, StubType, TypeChecker)  \
+  TF_BUILTIN(EqualityType##_##StubType##_Baseline, CodeStubAssembler) { \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    GenerateTypedTaggedEqual(                                           \
+        lhs, rhs, feedback_offset,                                      \
+        [this](TNode<HeapObject> o) { return TypeChecker(o); },         \
+        Builtin::k##EqualityType##AndTryPatchCode,                      \
+        Int32Constant(static_cast<int32_t>(                             \
+            CompareOperationFeedback::Type::k##StubType)));             \
+  }
 
-  GenerateStrictEqualAndTryPatchCode(lhs, rhs, current_feedback,
-                                     feedback_offset);
-}
+DEF_TYPED_OBJECT_EQUALITY(StrictEqual, Symbol, IsSymbol)
+DEF_TYPED_OBJECT_EQUALITY(StrictEqual, Receiver, IsJSReceiver)
+DEF_TYPED_OBJECT_EQUALITY(StrictEqual, InternalizedString, IsInternalizedString)
+DEF_TYPED_OBJECT_EQUALITY(Equal, Receiver, IsJSReceiver)
+DEF_TYPED_OBJECT_EQUALITY(Equal, InternalizedString, IsInternalizedString)
+#undef DEF_TYPED_OBJECT_EQUALITY
 
 TF_BUILTIN(StrictEqual_Any_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
@@ -414,210 +471,81 @@ TF_BUILTIN(StrictEqual_Any_Baseline, CodeStubAssembler) {
   Return(result);
 }
 
-#define DEF_STRICTEQUAL_TYPED_OBJECT_STUB(StubType, TypeChecker)               \
-  TF_BUILTIN(StrictEqual_##StubType##_Baseline, CodeStubAssembler) {           \
-    auto lhs = Parameter<Object>(Descriptor::kLeft);                           \
-    auto rhs = Parameter<Object>(Descriptor::kRight);                          \
-    auto feedback_offset =                                                     \
-        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);             \
-                                                                               \
-    Label fallback(this, Label::kDeferred), if_notequal(this), if_equal(this); \
-    TVARIABLE(Boolean, result);                                                \
-                                                                               \
-    GotoIf(TaggedIsSmi(lhs), &fallback);                                       \
-    TNode<HeapObject> lhs_heapobject = CAST(lhs);                              \
-    GotoIfNot(TypeChecker(lhs_heapobject), &fallback);                         \
-                                                                               \
-    Branch(TaggedEqual(lhs, rhs), &if_equal, &if_notequal);                    \
-    BIND(&if_equal);                                                           \
-    {                                                                          \
-      result = TrueConstant();                                                 \
-      Return(result.value());                                                  \
-    }                                                                          \
-                                                                               \
-    BIND(&if_notequal);                                                        \
-    {                                                                          \
-      GotoIf(TaggedIsSmi(rhs), &fallback);                                     \
-      TNode<HeapObject> rhs_heapobject = CAST(rhs);                            \
-      GotoIfNot(TypeChecker(rhs_heapobject), &fallback);                       \
-                                                                               \
-      result = FalseConstant();                                                \
-      Return(result.value());                                                  \
-    }                                                                          \
-                                                                               \
-    BIND(&fallback);                                                           \
-    {                                                                          \
-      TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,                    \
-                      LoadContextFromBaseline(), lhs, rhs,                     \
-                      Int32Constant(static_cast<int32_t>(                      \
-                          CompareOperationFeedback::Type::k##StubType)),       \
-                      feedback_offset);                                        \
-    }                                                                          \
-  }
-
-DEF_STRICTEQUAL_TYPED_OBJECT_STUB(Symbol, IsSymbol)
-DEF_STRICTEQUAL_TYPED_OBJECT_STUB(Receiver, IsJSReceiver)
-DEF_STRICTEQUAL_TYPED_OBJECT_STUB(InternalizedString, IsInternalizedString)
-#undef DEF_STRICTEQUAL_ODDBALL_STUB
-
-TF_BUILTIN(StrictEqual_SignedSmall_Baseline, CodeStubAssembler) {
+TF_BUILTIN(Equal_Any_Baseline, CodeStubAssembler) {
   auto lhs = Parameter<Object>(Descriptor::kLeft);
   auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto feedback_offset =
-      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
 
-  Label fallback(this, Label::kDeferred), if_equal(this), if_notequal(this);
-  TVARIABLE(Boolean, result);
-
-  GotoIfNot(TaggedIsSmi(lhs), &fallback);
-  Branch(TaggedEqual(lhs, rhs), &if_equal, &if_notequal);
-
-  BIND(&if_notequal);
+  TVARIABLE(Object, var_exception);
+  Label if_exception(this, Label::kDeferred);
+  TNode<Boolean> result;
   {
-    GotoIfNot(TaggedIsSmi(rhs), &fallback);
-    result = FalseConstant();
-    Return(result.value());
+    ScopedExceptionHandler handler(this, &if_exception, &var_exception);
+    result = Equal(lhs, rhs, [&]() { return LoadContextFromBaseline(); });
   }
+  Return(result);
 
-  BIND(&if_equal);
+  BIND(&if_exception);
   {
-    result = TrueConstant();
-    Return(result.value());
-  }
-
-  BIND(&fallback);
-  {
-    TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,
-                    LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        CompareOperationFeedback::Type::kSignedSmall)),
-                    feedback_offset);
+    CallRuntime(Runtime::kReThrow, LoadContextFromBaseline(),
+                var_exception.value());
+    Unreachable();
   }
 }
 
-TF_BUILTIN(StrictEqual_Number_Baseline, CodeStubAssembler) {
-  auto lhs = Parameter<Object>(Descriptor::kLeft);
-  auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto feedback_offset =
-      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-
-  Label fallback(this, Label::kDeferred), if_ref_equal(this),
-      if_ref_notequal(this), if_notequal(this), if_equal(this);
-  TVARIABLE(Boolean, result);
-
-  Branch(TaggedEqual(lhs, rhs), &if_ref_equal, &if_ref_notequal);
-
-  BIND(&if_ref_equal);
-  {
-    GotoIf(TaggedIsSmi(lhs), &if_equal);
-    GotoIfNot(IsHeapNumber(CAST(lhs)), &fallback);
-
-    // check for NaN values because they are not considered equal, even if both
-    // the left and the right hand side reference exactly the same value.
-    TNode<Float64T> value = LoadHeapNumberValue(CAST(lhs));
-    BranchIfFloat64IsNaN(value, &if_notequal, &if_equal);
+#define DEF_TYPED_RELATIONAL_COMPARE(Name)                              \
+  TF_BUILTIN(Name##AndTryPatchCode, CodeStubAssembler) {                \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto current_feedback =                                             \
+        UncheckedParameter<Int32T>(Descriptor::kCurrentFeedback);       \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    Generate##Name##AndTryPatchCode(lhs, rhs, current_feedback,         \
+                                    feedback_offset);                   \
+  }                                                                     \
+                                                                        \
+  TF_BUILTIN(Name##_None_Baseline, CodeStubAssembler) {                 \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<IntPtrT>(Descriptor::kFeedbackOffset);       \
+                                                                        \
+    TailCallBuiltin(Builtin::k##Name##AndTryPatchCode,                  \
+                    LoadContextFromBaseline(), lhs, rhs,                \
+                    Int32Constant(static_cast<int32_t>(                 \
+                        CompareOperationFeedback::Type::kNone)),        \
+                    feedback_offset);                                   \
+  }                                                                     \
+                                                                        \
+  TF_BUILTIN(Name##_SignedSmall_Baseline, CodeStubAssembler) {          \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    GenerateSmiRelationalCompare(Operation::k##Name, lhs, rhs,          \
+                                 feedback_offset,                       \
+                                 Builtin::k##Name##AndTryPatchCode);    \
+  }                                                                     \
+                                                                        \
+  TF_BUILTIN(Name##_Number_Baseline, CodeStubAssembler) {               \
+    auto lhs = Parameter<Object>(Descriptor::kLeft);                    \
+    auto rhs = Parameter<Object>(Descriptor::kRight);                   \
+    auto feedback_offset =                                              \
+        UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);      \
+                                                                        \
+    GenerateNumberRelationalCompare(Operation::k##Name, lhs, rhs,       \
+                                    feedback_offset,                    \
+                                    Builtin::k##Name##AndTryPatchCode); \
   }
 
-  BIND(&if_ref_notequal);
-  {
-    Label lhs_is_smi(this), lhs_is_notsmi(this);
-    Branch(TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_notsmi);
+DEF_TYPED_RELATIONAL_COMPARE(LessThan)
+DEF_TYPED_RELATIONAL_COMPARE(LessThanOrEqual)
+DEF_TYPED_RELATIONAL_COMPARE(GreaterThan)
+DEF_TYPED_RELATIONAL_COMPARE(GreaterThanOrEqual)
+#undef DEF_TYPED_RELATIONAL_COMPARE
 
-    BIND(&lhs_is_smi);
-    {
-      GotoIf(TaggedIsSmi(rhs), &if_notequal);
-      GotoIfNot(IsHeapNumber(CAST(rhs)), &fallback);
-      TNode<Float64T> l_value = SmiToFloat64(CAST(lhs));
-      TNode<Float64T> r_value = LoadHeapNumberValue(CAST(rhs));
-      Branch(Float64Equal(l_value, r_value), &if_equal, &if_notequal);
-    }
-
-    BIND(&lhs_is_notsmi);
-    {
-      GotoIfNot(IsHeapNumber(CAST(lhs)), &fallback);
-      Label rhs_is_smi(this), rhs_is_notsmi(this);
-      Branch(TaggedIsSmi(rhs), &rhs_is_smi, &rhs_is_notsmi);
-
-      BIND(&rhs_is_smi);
-      {
-        TNode<Float64T> l_value = LoadHeapNumberValue(CAST(lhs));
-        TNode<Float64T> r_value = SmiToFloat64(CAST(rhs));
-        Branch(Float64Equal(l_value, r_value), &if_equal, &if_notequal);
-      }
-
-      BIND(&rhs_is_notsmi);
-      {
-        GotoIfNot(IsHeapNumber(CAST(rhs)), &fallback);
-        TNode<Float64T> l_value = LoadHeapNumberValue(CAST(lhs));
-        TNode<Float64T> r_value = LoadHeapNumberValue(CAST(rhs));
-        Branch(Float64Equal(l_value, r_value), &if_equal, &if_notequal);
-      }
-    }
-  }
-
-  BIND(&if_equal);
-  {
-    result = TrueConstant();
-    Return(result.value());
-  }
-
-  BIND(&if_notequal);
-  {
-    result = FalseConstant();
-    Return(result.value());
-  }
-
-  BIND(&fallback);
-  {
-    TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,
-                    LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        CompareOperationFeedback::Type::kNumber)),
-                    feedback_offset);
-  }
-}
-
-TF_BUILTIN(StrictEqual_String_Baseline, CodeStubAssembler) {
-  auto lhs = Parameter<Object>(Descriptor::kLeft);
-  auto rhs = Parameter<Object>(Descriptor::kRight);
-  auto feedback_offset =
-      UncheckedParameter<UintPtrT>(Descriptor::kFeedbackOffset);
-
-  Label fallback(this, Label::kDeferred), if_ref_equal(this),
-      if_ref_notequal(this), end(this);
-  TVARIABLE(Boolean, result);
-
-  GotoIf(TaggedIsSmi(lhs), &fallback);
-  GotoIfNot(IsString(CAST(lhs)), &fallback);
-  Branch(TaggedEqual(lhs, rhs), &if_ref_equal, &if_ref_notequal);
-
-  BIND(&if_ref_equal);
-  {
-    result = TrueConstant();
-    Return(result.value());
-  }
-
-  BIND(&if_ref_notequal);
-  {
-    GotoIf(TaggedIsSmi(rhs), &fallback);
-    GotoIfNot(IsString(CAST(rhs)), &fallback);
-    BranchIfStringEqual(CAST(lhs), CAST(rhs), &end, &end, &result);
-  }
-
-  BIND(&end);
-  {
-    Return(result.value());
-  }
-
-  BIND(&fallback);
-  {
-    TailCallBuiltin(Builtin::kStrictEqualAndTryPatchCode,
-                    LoadContextFromBaseline(), lhs, rhs,
-                    Int32Constant(static_cast<int32_t>(
-                        CompareOperationFeedback::Type::kString)),
-                    feedback_offset);
-  }
-}
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

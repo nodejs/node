@@ -51,7 +51,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildChangeInt32ToNumber(
     // value.
     result = __ BitcastWordPtrToSmi(
         __ ChangeInt32ToIntPtr(__ template Projection<0>(add)));
-  } ELSE{
+  } ELSE {
     // Otherwise, call builtin, to convert to a HeapNumber.
     result = CallBuiltin<WasmInt32ToHeapNumberDescriptor>(
         Builtin::kWasmInt32ToHeapNumber, Operator::kNoProperties, value);
@@ -83,6 +83,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
       case NumericKind::kI8:
       case NumericKind::kI16:
       case NumericKind::kF16:
+      case NumericKind::kWaitQueue:
         UNREACHABLE();
     }
   }
@@ -93,7 +94,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     if (type.is_nullable()) {
       IF (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
         result = __ template LoadRoot<RootIndex::kNullValue>();
-      } ELSE{
+      } ELSE {
         V<WasmInternalFunction> internal = V<WasmInternalFunction>::Cast(
             __ LoadTrustedPointer(ret, LoadOp::Kind::TaggedBase(),
                                   kWasmInternalFunctionIndirectPointerTag,
@@ -108,7 +109,7 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
           result = CallBuiltin<WasmInternalFunctionCreateExternalDescriptor>(
               Builtin::kWasmInternalFunctionCreateExternal,
               Operator::kNoProperties, internal, context);
-        } ELSE{
+        } ELSE {
           result = maybe_external;
         }
       }
@@ -131,16 +132,40 @@ auto WasmWrapperTSGraphBuilder<Assembler>::ToJS(OpIndex ret,
     return result;
   }
 
-  // Cases that are never or always null:
+  // Always null.
+  if (type.is_none_type()) return __ template LoadRoot<RootIndex::kNullValue>();
+
+  if (IsSubtypeOf(type, kWasmSharedExternRef)) {
+    // We have to unshare shared strings before passing them to JS.
+    ScopedVar<Object> result(this, OpIndex::Invalid());
+    IF (__ IsSmi(ret)) {
+      result = ret;
+    } ELSE {
+      OpIndex instance_type = LoadInstanceType(LoadMap(ret));
+      V<Word32> is_string = __ Uint32LessThan(
+          instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
+      IF (is_string) {
+        // Since this is a shared externref, the string will be shared.
+        result =
+            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmWasmToJSObject,
+                               {ret}, __ NoContextConstant());
+      } ELSE {
+        result = ret;
+      }
+    }
+    return result;
+  }
+
+  // At this point, we only have to process WasmNull.
+  // These two cases are never WasmNull.
   if (!type.is_nullable()) return ret;
   if (!type.use_wasm_null()) return ret;
-  if (type.is_none_type()) return __ template LoadRoot<RootIndex::kNullValue>();
 
   // Nullable reference. Convert WasmNull if needed.
   ScopedVar<Object> result(this, OpIndex::Invalid());
   IF_NOT (__ TaggedEqual(ret, __ template LoadRoot<RootIndex::kWasmNull>())) {
     result = ret;
-  } ELSE{
+  } ELSE {
     result = __ template LoadRoot<RootIndex::kNullValue>();
   }
   return result;
@@ -237,9 +262,14 @@ auto WasmWrapperTSGraphBuilder<Assembler>::InlineWasmFunctionInsideWrapper(
     if (inlined_function_data_.has_value()) {
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
       WasmBodyInliningResult inlining_result =
-          static_cast<Assembler*>(&Asm())->TryInlineWasmCall(
-              inlined_function_data_->native_module,
-              inlined_function_data_->function_index, inlined_args);
+          static_cast<Assembler*>(&Asm())->TryInlineWasmBody(
+              inlined_function_data_.value(), inlined_args,
+              lazy_deopt_on_throw);
+      // If the body inlining traps unconditionally (e.g., due to an
+      // unreachable) no need to produce/convert a result.
+      if (__ generating_unreachable_operations()) {
+        return OpIndex::Invalid();
+      }
       switch (inlining_result.type) {
         case WasmBodyInliningResult::Type::kSuccessWithValue:
           DCHECK_EQ(sig_->return_count(), 1);
@@ -268,8 +298,9 @@ template <typename Assembler>
 auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
     bool receiver_is_first_param, V<JSFunction> js_closure,
     V<Context> js_context, base::Vector<const OpIndex> arguments,
-    OptionalV<FrameState> frame_state,
-    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) -> V<Any> {
+    OptionalV<FrameState> lazy_frame_state,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
+    OptionalV<FrameState> eager_frame_state) -> V<Any> {
   const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 
   __ Bind(__ NewBlock());
@@ -328,18 +359,19 @@ auto WasmWrapperTSGraphBuilder<Assembler>::BuildJSToWasmWrapperImpl(
 
   // Convert JS parameters to wasm numbers using the default transformation
   // and build the call.
+  DCHECK_IMPLIES(!is_inlining_into_js_, !lazy_frame_state.valid());
   const int args_count = wasm_param_count + /* instance_data */ 1;
   base::SmallVector<OpIndex, 16> args(args_count);
   args[0] = instance_data;
   for (int i = 0; i < wasm_param_count; ++i) {
-    args[i + 1] = FromJS(params[i], js_context, sig_->GetParam(i), frame_state,
-                         lazy_deopt_on_throw);
+    args[i + 1] =
+        FromJS(params[i], js_context, sig_->GetParam(i), eager_frame_state);
   }
 
   // Inline the wasm function, if possible.
   V<Object> jsval = InlineWasmFunctionInsideWrapper(
       js_context, function_data, VectorOf(args), /* do_conversion */ true,
-      frame_state, lazy_deopt_on_throw);
+      lazy_frame_state, lazy_deopt_on_throw);
   return jsval;
 }
 
@@ -579,9 +611,13 @@ void WasmWrapperTSGraphBuilder<Assembler>::BuildWasmStackEntryWrapper() {
   args[0] = instance;
   // Unpack continuation params.
   IterateWasmFXArgBuffer(sig_->parameters(), [&](size_t index, int offset) {
-    args[index + 1] = __ LoadOffHeap(arg_buffer, offset,
-                                     MemoryRepresentation::FromMachineType(
-                                         sig_->GetParam(index).machine_type()));
+    CanonicalValueType type = sig_->GetParam(index);
+    // On-stack refs are uncompressed.
+    MemoryRepresentation rep =
+        type.is_ref()
+            ? MemoryRepresentation::AnyUncompressedTagged()
+            : MemoryRepresentation::FromMachineType(type.machine_type());
+    args[index + 1] = __ LoadOffHeap(arg_buffer, offset, rep);
   });
 
   base::Vector<OpIndex> returns =

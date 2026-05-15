@@ -9,8 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-promise-inl.h"
-
-#include "src/objects/objects-inl.h"  // Needed for write barriers
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,10 +19,36 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-generator-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSGeneratorObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest)
+Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> AsyncGeneratorRequest::next()
+    const {
+  return next_.load();
+}
+void AsyncGeneratorRequest::set_next(
+    Tagged<UnionOf<AsyncGeneratorRequest, Undefined>> value,
+    WriteBarrierMode mode) {
+  next_.store(this, value, mode);
+}
+
+int AsyncGeneratorRequest::resume_mode() const {
+  return resume_mode_.load().value();
+}
+void AsyncGeneratorRequest::set_resume_mode(int value) {
+  resume_mode_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Object> AsyncGeneratorRequest::value() const { return value_.load(); }
+void AsyncGeneratorRequest::set_value(Tagged<Object> value,
+                                      WriteBarrierMode mode) {
+  value_.store(this, value, mode);
+}
+
+Tagged<JSPromise> AsyncGeneratorRequest::promise() const {
+  return promise_.load();
+}
+void AsyncGeneratorRequest::set_promise(Tagged<JSPromise> value,
+                                        WriteBarrierMode mode) {
+  promise_.store(this, value, mode);
+}
 
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);

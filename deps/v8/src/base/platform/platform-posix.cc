@@ -82,19 +82,7 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-/*
- * NOTE: illumos starting with illumos#14418 (pushed April 20th, 2022)
- * prototypes madvise(3C) properly with a `void *` first argument.
- * The only way to detect this outside of configure-time checking is to
- * check for the existence of MEMCNTL_SHARED, which gets defined for the first
- * time in illumos#14418 under the same circumstances save _STRICT_POSIX, which
- * thankfully neither Solaris nor illumos builds of Node or V8 do.
- *
- * If some future illumos push changes the MEMCNTL_SHARED assumptions made
- * above, the illumos check below will have to be revisited.  This check
- * will work on both pre-and-post illumos#14418 illumos environments.
- */
-#if defined(V8_OS_SOLARIS) && !(defined(__illumos__) && defined(MEMCNTL_SHARED))
+#if defined(V8_OS_SOLARIS)
 #if (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE > 2) || defined(__EXTENSIONS__)
 extern "C" int madvise(caddr_t, size_t, int);
 #else
@@ -1496,6 +1484,15 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   return stack_start;
 #endif  // V8_OS_ZOS
 }
+
+// static
+void Stack::SaveStackLimit() { UNREACHABLE(); }
+
+// static
+Stack::StackSlot Stack::GetStackLimit() { UNREACHABLE(); }
+
+// static
+void Stack::SetCurrentThreadStackBounds(uintptr_t, uintptr_t) { UNREACHABLE(); }
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
         // !defined(_AIX) && !defined(V8_OS_SOLARIS)

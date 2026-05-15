@@ -23,8 +23,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-plural-rules-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSPluralRules)
-
 ACCESSORS(JSPluralRules, icu_plural_rules, Tagged<Managed<icu::PluralRules>>,
           kIcuPluralRulesOffset)
 ACCESSORS(JSPluralRules, icu_number_formatter,

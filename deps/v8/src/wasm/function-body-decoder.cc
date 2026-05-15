@@ -7,7 +7,6 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -19,7 +18,7 @@ namespace wasm {
 
 template <typename ValidationTag>
 bool DecodeLocalDecls(WasmEnabledFeatures enabled, BodyLocalDecls* decls,
-                      const WasmModule* module, bool is_shared,
+                      const WasmModule* module, SharedFlag is_shared,
                       const uint8_t* start, const uint8_t* end, Zone* zone) {
   if constexpr (ValidationTag::validate) DCHECK_NOT_NULL(module);
   WasmDetectedFeatures unused_detected_features;
@@ -43,14 +42,15 @@ bool DecodeLocalDecls(WasmEnabledFeatures enabled, BodyLocalDecls* decls,
 void DecodeLocalDecls(WasmEnabledFeatures enabled, BodyLocalDecls* decls,
                       const uint8_t* start, const uint8_t* end, Zone* zone) {
   constexpr WasmModule* kNoModule = nullptr;
-  DecodeLocalDecls<Decoder::NoValidationTag>(enabled, decls, kNoModule, false,
-                                             start, end, zone);
+  DecodeLocalDecls<Decoder::NoValidationTag>(enabled, decls, kNoModule,
+                                             SharedFlag::kNo, start, end, zone);
 }
 
 bool ValidateAndDecodeLocalDeclsForTesting(WasmEnabledFeatures enabled,
                                            BodyLocalDecls* decls,
                                            const WasmModule* module,
-                                           bool is_shared, const uint8_t* start,
+                                           SharedFlag is_shared,
+                                           const uint8_t* start,
                                            const uint8_t* end, Zone* zone) {
   return DecodeLocalDecls<Decoder::FullValidationTag>(
       enabled, decls, module, is_shared, start, end, zone);
@@ -86,10 +86,9 @@ unsigned OpcodeLength(const uint8_t* pc, const uint8_t* end) {
   Zone* no_zone = nullptr;
   WasmModule* no_module = nullptr;
   FunctionSig* no_sig = nullptr;
-  constexpr bool kIsShared = false;
   WasmDecoder<Decoder::NoValidationTag> decoder(
       no_zone, no_module, WasmEnabledFeatures::All(), &unused_detected_features,
-      no_sig, kIsShared, pc, end, 0);
+      no_sig, SharedFlag::kNo, pc, end, 0);
   return WasmDecoder<Decoder::NoValidationTag>::OpcodeLength(&decoder, pc);
 }
 
@@ -101,10 +100,10 @@ BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, uint32_t num_locals,
                                            bool* loop_is_innermost) {
   WasmEnabledFeatures no_features = WasmEnabledFeatures::None();
   WasmDetectedFeatures unused_detected_features;
-  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+  // TODO(14616): Extend this to shared functions.
   WasmDecoder<Decoder::FullValidationTag> decoder(
-      zone, nullptr, no_features, &unused_detected_features, nullptr, kIsShared,
-      start, end, 0);
+      zone, nullptr, no_features, &unused_detected_features, nullptr,
+      SharedFlag::kNo, start, end, 0);
   return WasmDecoder<Decoder::FullValidationTag>::AnalyzeLoopAssignment(
       &decoder, start, num_locals, zone, loop_is_innermost);
 }

@@ -37,7 +37,6 @@
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/span.h"
 
 namespace absl {
@@ -1745,7 +1744,7 @@ void FormatEPositiveExpSlow(uint128 mantissa, int exp, bool uppercase,
         bool change_to_zeros = false;
         if (nines + 1 >= digits_to_go) {
           // Everything we need to print is in the first DigitRun
-          auto [next_digit_opt, next_nines] = GetDigits(btd, digits_view);
+          auto next_digit_opt = GetDigits(btd, digits_view).digit;
           if (nines == state.precision) {
             change_to_zeros = next_digit_opt.value_or(0) > 4;
           } else {
@@ -1793,7 +1792,7 @@ void FormatEPositiveExpSlow(uint128 mantissa, int exp, bool uppercase,
             digits_to_go -= curr_nines + 1;
           } else {
             bool need_round_up = false;
-            auto [next_digit_opt, next_nines] = GetDigits(btd, digits_view);
+            auto next_digit_opt = GetDigits(btd, digits_view).digit;
             if (digits_to_go == 1) {
               need_round_up = curr_nines > 0 || next_digit_opt > 4;
             } else if (digits_to_go == curr_nines + 1) {

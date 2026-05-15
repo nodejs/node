@@ -27,6 +27,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/property-cell.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
@@ -63,7 +64,7 @@ namespace compiler {
 //   HeapObject and the data is an instance of ObjectData. For
 //   ReadOnlyHeapObjects, it is OK to access heap even from off-thread, so
 //   these objects need not be serialized.
-enum ObjectDataKind {
+enum ObjectDataKind : uint8_t {
   kSmi,
   kBackgroundSerializedHeapObject,
   kUnserializedHeapObject,
@@ -79,15 +80,22 @@ bool Is64() { return kSystemPointerSize == 8; }
 
 class ObjectData : public ZoneObject {
  public:
+  // This constructor is called from CREATE_DATA macro and exists just for
+  // signature compatibility with HeapObjectData's constructor. We create
+  // ObjectData for Smis and never serialized/unserialized HeapObjects.
+  ObjectData(JSHeapBroker* broker, ObjectData** storage,
+             InstanceType /* not used */, IndirectHandle<Object> object,
+             ObjectDataKind kind)
+      : ObjectData(broker, storage, object, kind) {}
+
   ObjectData(JSHeapBroker* broker, ObjectData** storage,
              IndirectHandle<Object> object, ObjectDataKind kind)
-      : object_(object),
-        kind_(kind)
+      :
 #ifdef DEBUG
-        ,
-        broker_(broker)
+        broker_(broker),
 #endif  // DEBUG
-  {
+        object_(object),
+        kind_(kind) {
     // This assignment ensures we don't end up inserting the same object
     // in an endless recursion.
     *storage = this;
@@ -140,34 +148,46 @@ class ObjectData : public ZoneObject {
 #endif  // DEBUG
 
  private:
-  IndirectHandle<Object> const object_;
-  ObjectDataKind const kind_;
 #ifdef DEBUG
   JSHeapBroker* const broker_;  // For DCHECKs.
 #endif                          // DEBUG
+  IndirectHandle<Object> const object_;
+  ObjectDataKind const kind_;
+  // Put primitive fields last to avoid wasting space in subclasses adding
+  // more primitive data fields.
 };
 
 class HeapObjectData : public ObjectData {
  public:
   HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<HeapObject> object, ObjectDataKind kind);
-  HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<HeapObject> object, MapRef map,
+                 InstanceType instance_type, IndirectHandle<HeapObject> object,
                  ObjectDataKind kind);
+  HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
+                 InstanceType instance_type, IndirectHandle<HeapObject> object,
+                 MapRef map, ObjectDataKind kind);
 
   std::optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
+  InstanceType data_instance_type() const { return data_instance_type_; }
   ObjectData* map() const { return map_; }
   InstanceType GetMapInstanceType() const;
 
  private:
   std::optional<bool> TryGetBooleanValueImpl(JSHeapBroker* broker) const;
 
+  // This instance type defines HeapObjectData's subclass type and used by
+  // ObjectData::IsBlah() predicates. This works since usually we don't expect
+  // objects to drastically change their instance types - i.e. JSArray objects
+  // should always match IsJSArray(object) predicate even if V8 decides to
+  // change the object's instance type "a little bit". Example of an instance
+  // type change is JS_TYPED_ARRAY_TYPE -> JS_DETACHED_TYPED_ARRAY_TYPE.
+  InstanceType const data_instance_type_;
   ObjectData* map_;
 };
 
 class PropertyCellData : public HeapObjectData {
  public:
   PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
+                   InstanceType instance_type,
                    IndirectHandle<PropertyCell> object, ObjectDataKind kind);
 
   bool Cache(JSHeapBroker* broker);
@@ -191,39 +211,27 @@ class PropertyCellData : public HeapObjectData {
 
 namespace {
 
-ZoneVector<Address> GetCFunctions(Tagged<FixedArray> function_overloads,
-                                  Isolate* isolate, Zone* zone) {
-  const int len = function_overloads->length() /
-                  FunctionTemplateInfo::kFunctionOverloadEntrySize;
-  ZoneVector<Address> c_functions = ZoneVector<Address>(len, zone);
-  for (int i = 0; i < len; i++) {
-    c_functions[i] = v8::ToCData<kCFunctionTag>(
-        isolate, function_overloads->get(
-                     FunctionTemplateInfo::kFunctionOverloadEntrySize * i));
-  }
-  return c_functions;
-}
-
-ZoneVector<const CFunctionInfo*> GetCSignatures(
+ZoneVector<CFunctionInfoWithDetails> GetCFunctionsWithSignatures(
     Tagged<FixedArray> function_overloads, Isolate* isolate, Zone* zone) {
-  const int len = function_overloads->length() /
-                  FunctionTemplateInfo::kFunctionOverloadEntrySize;
-  ZoneVector<const CFunctionInfo*> c_signatures =
-      ZoneVector<const CFunctionInfo*>(len, zone);
-  for (int i = 0; i < len; i++) {
-    c_signatures[i] = v8::ToCData<const CFunctionInfo*, kCFunctionInfoTag>(
-        isolate, function_overloads->get(
-                     FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1));
+  const uint32_t len = function_overloads->ulength().value();
+  ZoneVector<CFunctionInfoWithDetails> c_functions_with_signatures =
+      ZoneVector<CFunctionInfoWithDetails>(len, zone);
+  for (uint32_t i = 0; i < len; i++) {
+    auto overload =
+        Cast<Managed<CFunctionWithSignature>>(function_overloads->get(i))
+            ->raw();
+    c_functions_with_signatures[i] = {overload->address, overload->signature};
   }
-  return c_signatures;
+  return c_functions_with_signatures;
 }
 
 }  // namespace
 
 PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
+                                   InstanceType instance_type,
                                    IndirectHandle<PropertyCell> object,
                                    ObjectDataKind kind)
-    : HeapObjectData(broker, storage, object, kind) {}
+    : HeapObjectData(broker, storage, instance_type, object, kind) {}
 
 bool PropertyCellData::Cache(JSHeapBroker* broker) {
   if (serialized()) return true;
@@ -281,22 +289,25 @@ bool PropertyCellData::Cache(JSHeapBroker* broker) {
 class JSReceiverData : public HeapObjectData {
  public:
   JSReceiverData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<JSReceiver> object, ObjectDataKind kind)
-      : HeapObjectData(broker, storage, object, kind) {}
+                 InstanceType instance_type, IndirectHandle<JSReceiver> object,
+                 ObjectDataKind kind)
+      : HeapObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSObjectData : public JSReceiverData {
  public:
   JSObjectData(JSHeapBroker* broker, ObjectData** storage,
-               IndirectHandle<JSObject> object, ObjectDataKind kind)
-      : JSReceiverData(broker, storage, object, kind) {}
+               InstanceType instance_type, IndirectHandle<JSObject> object,
+               ObjectDataKind kind)
+      : JSReceiverData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSProxyData : public JSReceiverData {
  public:
   JSProxyData(JSHeapBroker* broker, ObjectData** storage,
-              IndirectHandle<JSProxy> object, ObjectDataKind kind)
-      : JSReceiverData(broker, storage, object, kind) {}
+              InstanceType instance_type, IndirectHandle<JSProxy> object,
+              ObjectDataKind kind)
+      : JSReceiverData(broker, storage, instance_type, object, kind) {}
 };
 
 namespace {
@@ -355,7 +366,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
       Tagged<PropertyArray> properties =
           Cast<PropertyArray>(raw_properties_or_hash);
       const int array_index = field_index.outobject_array_index();
-      if (array_index < properties->length(kAcquireLoad)) {
+      if (static_cast<uint32_t>(array_index) <
+          properties->length(kAcquireLoad).value()) {
         constant = properties->get(array_index);
       } else {
         TRACE_BROKER_MISSING(
@@ -419,38 +431,43 @@ OptionalObjectRef GetOwnDictionaryPropertyFromHeap(
 class JSTypedArrayData : public JSObjectData {
  public:
   JSTypedArrayData(JSHeapBroker* broker, ObjectData** storage,
+                   InstanceType instance_type,
                    IndirectHandle<JSTypedArray> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSDataViewData : public JSObjectData {
  public:
   JSDataViewData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<JSDataView> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+                 InstanceType instance_type, IndirectHandle<JSDataView> object,
+                 ObjectDataKind kind)
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSPrimitiveWrapperData : public JSObjectData {
  public:
   JSPrimitiveWrapperData(JSHeapBroker* broker, ObjectData** storage,
+                         InstanceType instance_type,
                          IndirectHandle<JSPrimitiveWrapper> object,
                          ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSBoundFunctionData : public JSObjectData {
  public:
   JSBoundFunctionData(JSHeapBroker* broker, ObjectData** storage,
+                      InstanceType instance_type,
                       IndirectHandle<JSBoundFunction> object,
                       ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSFunctionData : public JSObjectData {
  public:
   JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<JSFunction> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {
+                 InstanceType instance_type, IndirectHandle<JSFunction> object,
+                 ObjectDataKind kind)
+      : JSObjectData(broker, storage, instance_type, object, kind) {
     Cache(broker);
   }
 
@@ -541,11 +558,30 @@ class JSFunctionData : public JSObjectData {
                                                   // prototype_or_initial_map_.
 };
 
+class JSFunctionWithoutPrototypeData : public JSFunctionData {
+ public:
+  JSFunctionWithoutPrototypeData(JSHeapBroker* broker, ObjectData** storage,
+                                 InstanceType instance_type,
+                                 IndirectHandle<JSFunction> object,
+                                 ObjectDataKind kind)
+      : JSFunctionData(broker, storage, instance_type, object, kind) {}
+};
+
+class JSFunctionWithPrototypeData : public JSFunctionData {
+ public:
+  JSFunctionWithPrototypeData(JSHeapBroker* broker, ObjectData** storage,
+                              InstanceType instance_type,
+                              IndirectHandle<JSFunction> object,
+                              ObjectDataKind kind)
+      : JSFunctionData(broker, storage, instance_type, object, kind) {}
+};
+
 class BigIntData : public HeapObjectData {
  public:
   BigIntData(JSHeapBroker* broker, ObjectData** storage,
-             IndirectHandle<BigInt> object, ObjectDataKind kind)
-      : HeapObjectData(broker, storage, object, kind),
+             InstanceType instance_type, IndirectHandle<BigInt> object,
+             ObjectDataKind kind)
+      : HeapObjectData(broker, storage, instance_type, object, kind),
         as_uint64_(object->AsUint64(nullptr)),
         as_int64_(object->AsInt64(&lossless_)) {}
 
@@ -569,7 +605,8 @@ struct PropertyDescriptor {
 class MapData : public HeapObjectData {
  public:
   MapData(JSHeapBroker* broker, ObjectData** storage,
-          IndirectHandle<Map> object, ObjectDataKind kind);
+          InstanceType instance_type, IndirectHandle<Map> object,
+          ObjectDataKind kind);
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
@@ -787,9 +824,12 @@ bool JSFunctionRef::IsConsistentWithHeapState(JSHeapBroker* broker) const {
 }
 
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
+                               InstanceType instance_type,
                                IndirectHandle<HeapObject> object,
                                ObjectDataKind kind)
-    : ObjectData(broker, storage, object, kind), map_(nullptr) {
+    : ObjectData(broker, storage, object, kind),
+      data_instance_type_(instance_type),
+      map_(nullptr) {
   // At this point, this object may already be in the RefsMap. GetOrCreateData
   // will lookup objects in there. If (e.g. due to in-sandbox corruption) the
   // object graph is such that we end up retrieving ourselves from the RefsMap
@@ -802,9 +842,12 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
 }
 
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
+                               InstanceType instance_type,
                                IndirectHandle<HeapObject> object, MapRef map,
                                ObjectDataKind kind)
-    : ObjectData(broker, storage, object, kind), map_(map.data()) {
+    : ObjectData(broker, storage, object, kind),
+      data_instance_type_(instance_type),
+      map_(map.data()) {
   CHECK_IMPLIES(broker->mode() == JSHeapBroker::kSerialized,
                 kind == kBackgroundSerializedHeapObject);
 }
@@ -854,8 +897,13 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
     return Cast<Map>(map_data->object())->instance_type();
   }
   if (this == map_data) {
-    // Handle infinite recursion in case this object is a contextful meta map.
-    return MAP_TYPE;
+    // Handle infinite recursion in case this object is a meta map (i.e. has
+    // itself as a map) by customizing ObjectData::AsMap() implementation
+    // for the meta map case and reading instance type from this MapData
+    // object.
+    SBXCHECK(InstanceTypeChecker::IsMap(data_instance_type_));
+    CHECK_EQ(kind(), kBackgroundSerializedHeapObject);
+    return static_cast<const MapData*>(this)->instance_type();
   }
   return map_data->AsMap()->instance_type();
 }
@@ -894,8 +942,9 @@ bool SupportsFastArrayResize(JSHeapBroker* broker, MapRef map) {
 }  // namespace
 
 MapData::MapData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<Map> object, ObjectDataKind kind)
-    : HeapObjectData(broker, storage, object, kind) {
+                 InstanceType instance_type, IndirectHandle<Map> object,
+                 ObjectDataKind kind)
+    : HeapObjectData(broker, storage, instance_type, object, kind) {
   // This lock ensure that MapData can always be background-serialized, i.e.
   // while the lock is held the Map object may not be modified (except in
   // benign ways).
@@ -934,62 +983,75 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage,
 class FixedArrayBaseData : public HeapObjectData {
  public:
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
+                     InstanceType instance_type,
                      IndirectHandle<FixedArrayBase> object, ObjectDataKind kind)
-      : HeapObjectData(broker, storage, object, kind),
-        length_(object->length(kAcquireLoad)) {}
+      : HeapObjectData(broker, storage, instance_type, object, kind),
+        length_(object->length(kAcquireLoad).value()) {}
 
   uint32_t length() const { return length_; }
 
  private:
-  int const length_;
+  uint32_t const length_;
 };
 
 class FixedArrayData : public FixedArrayBaseData {
  public:
   FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
-                 IndirectHandle<FixedArray> object, ObjectDataKind kind)
-      : FixedArrayBaseData(broker, storage, object, kind) {}
+                 InstanceType instance_type, IndirectHandle<FixedArray> object,
+                 ObjectDataKind kind)
+      : FixedArrayBaseData(broker, storage, instance_type, object, kind) {}
 };
 
 // Only used in JSNativeContextSpecialization.
 class ScriptContextTableData : public FixedArrayBaseData {
  public:
   ScriptContextTableData(JSHeapBroker* broker, ObjectData** storage,
+                         InstanceType instance_type,
                          IndirectHandle<ScriptContextTable> object,
                          ObjectDataKind kind)
-      : FixedArrayBaseData(broker, storage, object, kind) {}
+      : FixedArrayBaseData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSArrayData : public JSObjectData {
  public:
   JSArrayData(JSHeapBroker* broker, ObjectData** storage,
-              IndirectHandle<JSArray> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+              InstanceType instance_type, IndirectHandle<JSArray> object,
+              ObjectDataKind kind)
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSGlobalObjectData : public JSObjectData {
  public:
   JSGlobalObjectData(JSHeapBroker* broker, ObjectData** storage,
+                     InstanceType instance_type,
                      IndirectHandle<JSGlobalObject> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
 class JSGlobalProxyData : public JSObjectData {
  public:
   JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
+                    InstanceType instance_type,
                     IndirectHandle<JSGlobalProxy> object, ObjectDataKind kind)
-      : JSObjectData(broker, storage, object, kind) {}
+      : JSObjectData(broker, storage, instance_type, object, kind) {}
 };
 
-#define DEFINE_IS(Name)                                                 \
-  bool ObjectData::Is##Name() const {                                   \
-    if (should_access_heap()) {                                         \
-      return i::Is##Name(*object());                                    \
-    }                                                                   \
-    if (is_smi()) return false;                                         \
-    InstanceType instance_type =                                        \
-        static_cast<const HeapObjectData*>(this)->GetMapInstanceType(); \
-    return InstanceTypeChecker::Is##Name(instance_type);                \
+#define DEFINE_IS(Name)                                                   \
+  bool ObjectData::Is##Name() const {                                     \
+    if (should_access_heap()) {                                           \
+      return i::Is##Name(*object());                                      \
+    }                                                                     \
+    if (is_smi()) return false;                                           \
+    auto ho_data = static_cast<const HeapObjectData*>(this);              \
+    InstanceType data_instance_type = ho_data->data_instance_type();      \
+    /* Make sure HeapObjectData subclass has matching type. */            \
+    if (!InstanceTypeChecker::Is##Name(data_instance_type)) return false; \
+    /* Check if object()'s map's instance_type matches. */                \
+    InstanceType instance_type = ho_data->GetMapInstanceType();           \
+    /* As long as Maps are background serialized, the heap object's */    \
+    /* instance type should match the HeapObjectData subclass. */         \
+    DCHECK_EQ(data_instance_type, instance_type);                         \
+    return InstanceTypeChecker::Is##Name(instance_type);                  \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
 #undef DEFINE_IS
@@ -1098,31 +1160,19 @@ ObjectData* JSHeapBroker::TryGetOrCreateData(IndirectHandle<Object> object,
 
   ObjectData* object_data;
   InstanceType instance_type = heap_object->map()->instance_type();
-#define CREATE_DATA(Name)                                             \
-  if (i::InstanceTypeChecker::Is##Name(instance_type)) {              \
-    entry = refs_->InsertNew(object.address());                       \
-    object_data = zone()->New<ref_traits<Name>::data_type>(           \
-        this, &entry->value, TrustedCast<Name>(object),               \
-        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind)); \
-    /* NOLINTNEXTLINE(readability/braces) */                          \
+
+#define CREATE_DATA(Name)                                              \
+  if (i::InstanceTypeChecker::Is##Name(instance_type)) {               \
+    entry = refs_->InsertNew(object.address());                        \
+    object_data = zone()->New<ref_traits<Name>::data_type>(            \
+        this, &entry->value, instance_type, TrustedCast<Name>(object), \
+        ObjectDataKindFor(ref_traits<Name>::ref_serialization_kind));  \
+    /* NOLINTNEXTLINE(readability/braces) */                           \
   } else
   HEAP_BROKER_OBJECT_LIST(CREATE_DATA)
 #undef CREATE_DATA
   {
     UNREACHABLE();
-  }
-
-  // Ensure that the original instance type matches the one of the serialized
-  // object (if the object was serialized). In particular, this is important
-  // for Maps: in GetMapInstanceType we have special handling for maps and will
-  // report MAP_TYPE for objects whose map pointer points back to itself. With
-  // heap corruption, a non-map object can be made to point to itself though,
-  // in which case we may later treat a non-MapData object as a MapData object.
-  // See also crbug.com/326700497 for more details.
-  if (!object_data->should_access_heap()) {
-    SBXCHECK_EQ(
-        instance_type,
-        static_cast<HeapObjectData*>(object_data)->GetMapInstanceType());
   }
 
   // At this point the entry pointer is not guaranteed to be valid as
@@ -1518,17 +1568,17 @@ StringRef StringRef::UnpackIfThin(JSHeapBroker* broker) {
   return *this;
 }
 
-int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
-  return object()->constant_elements()->length();
+uint32_t ArrayBoilerplateDescriptionRef::constants_elements_length() const {
+  return object()->constant_elements()->ulength().value();
 }
 
-OptionalObjectRef FixedArrayRef::TryGet(JSHeapBroker* broker, int i) const {
+OptionalObjectRef FixedArrayRef::TryGet(JSHeapBroker* broker,
+                                        uint32_t i) const {
   Handle<Object> value;
   {
     DisallowGarbageCollection no_gc;
-    CHECK_GE(i, 0);
     value = broker->CanonicalPersistentHandle(object()->get(i, kAcquireLoad));
-    if (i >= object()->length(kAcquireLoad)) {
+    if (i >= object()->length(kAcquireLoad).value()) {
       // Right-trimming happened.
       CHECK_LT(i, length());
       return {};
@@ -1544,6 +1594,10 @@ Float64 FixedDoubleArrayRef::GetFromImmutableFixedDoubleArray(int i) const {
   return Float64::FromBits(object()->get_representation(i));
 }
 
+SafeHeapObjectSize WeakHomomorphicFixedArrayRef::length() const {
+  return object()->length();
+}
+
 IndirectHandle<TrustedByteArray> BytecodeArrayRef::SourcePositionTable(
     JSHeapBroker* broker) const {
   return broker->CanonicalPersistentHandle(object()->SourcePositionTable());
@@ -1553,8 +1607,8 @@ Address BytecodeArrayRef::handler_table_address() const {
   return reinterpret_cast<Address>(object()->handler_table()->begin());
 }
 
-int BytecodeArrayRef::handler_table_size() const {
-  return object()->handler_table()->length();
+uint32_t BytecodeArrayRef::handler_table_size() const {
+  return object()->handler_table()->ulength().value();
 }
 
 #define IF_ACCESS_FROM_HEAP_C(name)  \
@@ -1676,19 +1730,17 @@ HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_extensible, Map::Bits3::IsExtensibleBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
                    Map::Bits3::ConstructionCounterBits)
-HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
-                Map::Bits1::HasPrototypeSlotBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                 Map::Bits1::IsAccessCheckNeededBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_callable, Map::Bits1::IsCallableBit)
 HEAP_ACCESSOR_B(Map, bit_field, has_indexed_interceptor,
                 Map::Bits1::HasIndexedInterceptorBit)
 HEAP_ACCESSOR_B(Map, bit_field, has_named_interceptor,
-                Map::Bits1::HasIndexedInterceptorBit)
+                Map::Bits1::HasNamedInterceptorBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_constructor, Map::Bits1::IsConstructorBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_undetectable, Map::Bits1::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
-HEAP_ACCESSOR_C(Map, int, NextFreePropertyIndex)
+HEAP_ACCESSOR_C(Map, FieldStorageLocation, NextFreeFieldStorageLocation)
 BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 HEAP_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
@@ -1705,11 +1757,6 @@ HeapObjectRef RegExpBoilerplateDescriptionRef::data(
   // Immutable after initialization.
   return MakeRefAssumeMemoryFence(
       broker, Cast<HeapObject>(object()->data(broker->isolate())));
-}
-
-StringRef RegExpBoilerplateDescriptionRef::source(JSHeapBroker* broker) const {
-  // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker, object()->source());
 }
 
 int RegExpBoilerplateDescriptionRef::flags() const { return object()->flags(); }
@@ -1771,13 +1818,27 @@ HolderLookupResult FunctionTemplateInfoRef::LookupHolderOfExpectedType(
 }
 
 HEAP_ACCESSOR_C(ScopeInfo, int, ContextLength)
+HEAP_ACCESSOR_C(ScopeInfo, int, ContextHeaderLength)
+HEAP_ACCESSOR_C(ScopeInfo, int, FunctionContextSlotIndex)
+
+MaybeAssignedFlag ScopeInfoRef::ContextLocalMaybeAssignedFlag(int var) const {
+  return object()->ContextLocalMaybeAssignedFlag(var);
+}
+
+VariableMode ScopeInfoRef::ContextLocalMode(int var) const {
+  return object()->ContextLocalMode(var);
+}
+
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContextExtensionSlot)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SomeContextHasExtension)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasOuterScopeInfo)
 HEAP_ACCESSOR_C(ScopeInfo, bool, HasContext)
 HEAP_ACCESSOR_C(ScopeInfo, bool, ClassScopeHasPrivateBrand)
 HEAP_ACCESSOR_C(ScopeInfo, bool, SloppyEvalCanExtendVars)
+HEAP_ACCESSOR_C(ScopeInfo, bool, HasAllocatedReceiver)
 HEAP_ACCESSOR_C(ScopeInfo, ScopeType, scope_type)
+HEAP_ACCESSOR_C(ScopeInfo, FunctionKind, function_kind)
+HEAP_ACCESSOR_C(ScopeInfo, int, ReceiverContextSlotIndex)
 
 ScopeInfoRef ScopeInfoRef::OuterScopeInfo(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->OuterScopeInfo());
@@ -1795,6 +1856,11 @@ BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray(
     bytecode_array = object()->GetBytecodeArray(broker->isolate());
   }
   return MakeRefAssumeMemoryFence(broker, bytecode_array);
+}
+
+bool SharedFunctionInfoRef::is_toplevel() const {
+  return object()->function_literal_id(kRelaxedLoad) ==
+         kFunctionLiteralIdTopLevel;
 }
 
 #define DEF_SFI_ACCESSOR(type, name) \
@@ -1892,7 +1958,9 @@ bool JSTypedArrayRef::is_on_heap() const {
 }
 
 size_t JSTypedArrayRef::length(JSHeapBroker* broker) const {
-  DCHECK_NE(map(broker).instance_type(), JS_DETACHED_TYPED_ARRAY_TYPE);
+  if (map(broker).instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE) {
+    return 0;
+  }
   return object()->byte_length() /
          ElementsKindToByteSize(elements_kind(broker));
 }
@@ -1946,7 +2014,7 @@ bool MapRef::CanBeDeprecated() const { return object()->CanBeDeprecated(); }
 
 bool MapRef::CanTransition() const { return object()->CanTransition(); }
 
-int MapRef::GetInObjectPropertiesStartInWords() const {
+uint8_t MapRef::GetInObjectPropertiesStartInWords() const {
   return object()->GetInObjectPropertiesStartInWords();
 }
 
@@ -1959,16 +2027,12 @@ bool StringRef::IsExternalString() const {
   return i::IsExternalString(*object());
 }
 
-ZoneVector<Address> FunctionTemplateInfoRef::c_functions(
+ZoneVector<CFunctionInfoWithDetails>
+FunctionTemplateInfoRef::c_functions_with_signatures(
     JSHeapBroker* broker) const {
-  return GetCFunctions(Cast<FixedArray>(object()->GetCFunctionOverloads()),
-                       broker->isolate(), broker->zone());
-}
-
-ZoneVector<const CFunctionInfo*> FunctionTemplateInfoRef::c_signatures(
-    JSHeapBroker* broker) const {
-  return GetCSignatures(Cast<FixedArray>(object()->GetCFunctionOverloads()),
-                        broker->isolate(), broker->zone());
+  return GetCFunctionsWithSignatures(
+      Cast<FixedArray>(object()->GetCFunctionOverloads()), broker->isolate(),
+      broker->zone());
 }
 
 bool StringRef::IsSeqString() const { return i::IsSeqString(*object()); }
@@ -2354,7 +2418,9 @@ OptionalFixedArrayBaseRef JSObjectRef::elements(JSHeapBroker* broker,
 }
 
 uint32_t FixedArrayBaseRef::length() const {
-  IF_ACCESS_FROM_HEAP_C(length);
+  if (data_->should_access_heap()) {
+    return object()->ulength().value();
+  }
   return data()->AsFixedArrayBase()->length();
 }
 
