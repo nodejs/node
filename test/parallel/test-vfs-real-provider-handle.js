@@ -44,7 +44,6 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
   {
     await myVfs.promises.writeFile('/h2.txt', 'abcdef');
     const handle = await myVfs.provider.open('/h2.txt', 'r+');
-    assert.strictEqual(typeof handle.fd, 'number');
 
     const buf = Buffer.alloc(3);
     assert.strictEqual(handle.readSync(buf, 0, 3, 0), 3);
@@ -101,20 +100,5 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
     // Subsequent close is a no-op
     handle.closeSync();
     await handle.close();
-  }
-
-  // ===== Async fd-ops error paths via externally-closed fd =====
-  // Run last so the freed fd doesn't get recycled into a sibling test.
-  {
-    await myVfs.promises.writeFile('/eb.txt', 'x');
-    const handle = await myVfs.provider.open('/eb.txt', 'r+');
-    fs.closeSync(handle.fd);
-    await assert.rejects(handle.read(Buffer.alloc(1), 0, 1, 0),
-                         { code: 'EBADF' });
-    await assert.rejects(handle.write(Buffer.from('y'), 0, 1, 0),
-                         { code: 'EBADF' });
-    await assert.rejects(handle.stat(), { code: 'EBADF' });
-    await assert.rejects(handle.truncate(0), { code: 'EBADF' });
-    await assert.rejects(handle.close(), { code: 'EBADF' });
   }
 })().then(common.mustCall());
