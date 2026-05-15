@@ -230,6 +230,21 @@ options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
 
+### `agent.options`
+
+<!-- YAML
+added: v0.3.4
+-->
+
+* {Object}
+
+The options used by the agent when creating new connections. This is a shallow
+copy of the `options` argument passed to the [`Agent`][] constructor, with
+agent defaults and normalizations applied.
+
+For example, [`http.globalAgent.options`][] can be used as the base options
+when creating another [`Agent`][] instance with additional custom settings.
+
 ### `agent.createConnection(options[, callback])`
 
 <!-- YAML
@@ -4701,6 +4716,7 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`http.Server`]: #class-httpserver
 [`http.createServer()`]: #httpcreateserveroptions-requestlistener
 [`http.get()`]: #httpgetoptions-callback
+[`http.globalAgent.options`]: #agentoptions
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
 [`http.setGlobalProxyFromEnv()`]: #httpsetglobalproxyfromenvproxyenv
