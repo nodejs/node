@@ -160,6 +160,10 @@ method.
 
 All {FileHandle} objects are {EventEmitter}s.
 
+Methods on {FileHandle} objects that return promises may reject if the
+underlying file system operation fails. The possible errors are
+platform-specific.
+
 If a {FileHandle} is not closed using the `filehandle.close()` method, it will
 try to automatically close the file descriptor and emit a process warning,
 helping to prevent memory leaks. Please do not rely on this behavior because
