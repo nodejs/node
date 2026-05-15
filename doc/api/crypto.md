@@ -6149,8 +6149,9 @@ dependent upon the key type.
 ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
-passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
-additional properties can be passed:
+passed to [`crypto.createPrivateKey()`][]. For example, strings and buffers are
+treated as PEM input. If it is an object, the following additional properties
+can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the generated signature. It can be one of the following:
@@ -6284,8 +6285,9 @@ key type.
 ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
-passed to [`crypto.createPublicKey()`][]. If it is an object, the following
-additional properties can be passed:
+passed to [`crypto.createPublicKey()`][]. For example, strings and buffers are
+treated as PEM input. If it is an object, the following additional properties
+can be passed:
 
 * `dsaEncoding` {string} For DSA and ECDSA, this option specifies the
   format of the signature. It can be one of the following:
