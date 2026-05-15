@@ -720,6 +720,12 @@ least specific in object order_.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
 which are further explained in [the dual CommonJS/ES module packages section][].
+If a package wants to avoid the dual package hazard in Node.js while still
+providing an ES module build for non-Node.js environments, consider using
+`"node"` and `"default"` conditions instead. For example, the `"node"`
+condition can point to a single CommonJS implementation for Node.js, while the
+`"default"` condition points to an ES module implementation for browsers or
+other JavaScript runtimes.
 
 The `"node-addons"` condition can be used to provide an entry point which
 uses native C++ addons. However, this condition can be disabled via the

@@ -567,6 +567,19 @@ The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.
 written from scratch for Node.js. You can figure out which version of `undici` is bundled
 in your Node.js process reading the `process.versions.undici` property.
 
+### Node.js-specific behavior
+
+The Node.js implementation is intentionally close to the browser standard, but
+it runs outside a browser context and includes some Node.js-specific behavior:
+
+* Cookie storage is not provided by Node.js. To preserve cookies across
+  requests, manage `Cookie` and `Set-Cookie` headers manually or use a separate
+  cookie store.
+* Header handling is not constrained by the browser forbidden request-header
+  rules.
+* Request and response bodies can be backed by Node.js streams and other
+  async iterable sources supported by undici.
+
 ### Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.

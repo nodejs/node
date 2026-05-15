@@ -7925,6 +7925,20 @@ Objects returned from [`fs.statfs()`][] and its synchronous counterpart are of
 this type. If `bigint` in the `options` passed to those methods is `true`, the
 numeric values will be `bigint` instead of `number`.
 
+The block counts are expressed in units of `statfs.bsize`, which is reported in
+bytes. For example, to calculate available space:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/tmp');
+const availableBytes = stats.bavail * stats.bsize;
+const totalBytes = stats.blocks * stats.bsize;
+const availableFiles = stats.ffree;
+
+console.log({ availableBytes, totalBytes, availableFiles });
+```
+
 ```console
 StatFs {
   type: 1397114950,
@@ -7963,7 +7977,7 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users, in units of `statfs.bsize`.
 
 #### `statfs.bfree`
 
@@ -7975,7 +7989,7 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in the file system, in units of `statfs.bsize`.
 
 #### `statfs.blocks`
 
@@ -7987,7 +8001,7 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in the file system, in units of `statfs.bsize`.
 
 #### `statfs.bsize`
 
@@ -7999,7 +8013,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in bytes.
 
 #### `statfs.frsize`
 
@@ -8009,7 +8023,7 @@ added: v26.1.0
 
 * Type: {number|bigint}
 
-Fundamental file system block size.
+Fundamental file system block size, in bytes.
 
 #### `statfs.ffree`
 
@@ -8045,7 +8059,7 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Operating system-specific numeric file system type.
 
 ### Class: `fs.Utf8Stream`
 
