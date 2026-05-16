@@ -134,16 +134,53 @@ async function testShareCancelWithReason() {
 
 async function testShareAbortSignal() {
   const ac = new AbortController();
-  const shared = share(from('data'), { signal: ac.signal });
-  const consumer = shared.pull();
+  const enc = new TextEncoder();
+  async function* source() {
+    yield [enc.encode('a')];
+    yield [enc.encode('b')];
+  }
+  const shared = share(source(), {
+    highWaterMark: 1,
+    backpressure: 'block',
+    signal: ac.signal,
+  });
+  const fast = shared.pull()[Symbol.asyncIterator]();
+  shared.pull();
 
+  await fast.next();
+  const read = fast.next();
+  const rejected = assert.rejects(read, { name: 'AbortError' });
   ac.abort();
 
-  const batches = [];
-  for await (const batch of consumer) {
-    batches.push(batch);
+  await rejected;
+}
+
+async function testShareAbortSignalWhileSourcePullPending() {
+  const ac = new AbortController();
+  let resume;
+  let sourceStarted;
+  const sourceStartedPromise = new Promise((resolve) => {
+    sourceStarted = resolve;
+  });
+  async function* source() {
+    await new Promise((resolve) => {
+      resume = resolve;
+      sourceStarted();
+    });
   }
-  assert.strictEqual(batches.length, 0);
+  const shared = share(source(), { signal: ac.signal });
+  const iter1 = shared.pull()[Symbol.asyncIterator]();
+  const iter2 = shared.pull()[Symbol.asyncIterator]();
+  const read1 = iter1.next();
+  const read2 = iter2.next();
+  const rejected1 = assert.rejects(read1, { name: 'AbortError' });
+  const rejected2 = assert.rejects(read2, { name: 'AbortError' });
+
+  await sourceStartedPromise;
+  ac.abort();
+  resume();
+
+  await Promise.all([rejected1, rejected2]);
 }
 
 async function testShareAlreadyAborted() {
@@ -153,11 +190,12 @@ async function testShareAlreadyAborted() {
   const shared = share(from('data'), { signal: ac.signal });
   const consumer = shared.pull();
 
-  const batches = [];
-  for await (const batch of consumer) {
-    batches.push(batch);
-  }
-  assert.strictEqual(batches.length, 0);
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of consumer) {
+      assert.fail('Should not reach here');
+    }
+  }, { name: 'AbortError' });
 }
 
 // =============================================================================
@@ -273,6 +311,7 @@ Promise.all([
   testShareCancelMidIteration(),
   testShareCancelWithReason(),
   testShareAbortSignal(),
+  testShareAbortSignalWhileSourcePullPending(),
   testShareAlreadyAborted(),
   testShareSourceError(),
   testShareLateJoiningConsumer(),
