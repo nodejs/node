@@ -184,14 +184,14 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
       }
 
       v8::Local<v8::Object> ret = v8::Object::New(isolate);
-      if (ret->Set(env->context(),
-                   OneByteString(isolate, "publicKey"),
-                   public_key)
-              .IsNothing() ||
-          ret->Set(env->context(),
-                   OneByteString(isolate, "privateKey"),
-                   private_key)
-              .IsNothing()) {
+      if (!ret->DefineOwnProperty(env->context(),
+                                  OneByteString(isolate, "publicKey"),
+                                  public_key)
+               .FromMaybe(false) ||
+          !ret->DefineOwnProperty(env->context(),
+                                  OneByteString(isolate, "privateKey"),
+                                  private_key)
+               .FromMaybe(false)) {
         return {};
       }
       return ret;

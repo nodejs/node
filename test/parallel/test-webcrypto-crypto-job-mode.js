@@ -7,6 +7,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasOpenSSL } = require('../common/crypto');
 const { types: { isCryptoKey } } = require('util');
 const { internalBinding } = require('internal/test/binding');
 const {
@@ -31,6 +32,34 @@ const {
 
 const { subtle } = globalThis.crypto;
 
+// Defines Object.prototype setters that fail the test if native result objects
+// carrying key or shared secret material use [[Set]].
+async function withObjectPrototypeSetters(names, fn) {
+  const descriptors = new Map();
+  for (const name of names) {
+    descriptors.set(name, Object.getOwnPropertyDescriptor(Object.prototype, name));
+    Object.defineProperty(Object.prototype, name, {
+      __proto__: null,
+      configurable: true,
+      get: common.mustNotCall(`Object.prototype.${name} getter`),
+      set: common.mustNotCall(`Object.prototype.${name} setter`),
+    });
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const name of names) {
+      const descriptor = descriptors.get(name);
+      if (descriptor === undefined) {
+        delete Object.prototype[name];
+      } else {
+        Object.defineProperty(Object.prototype, name, descriptor);
+      }
+    }
+  }
+}
+
 (async function() {
   {
     const promise = new HashJob(
@@ -49,6 +78,7 @@ const { subtle } = globalThis.crypto;
     const digest = await promise;
     assert(digest instanceof ArrayBuffer);
     assert.strictEqual(digest.byteLength, 32);
+    assert.strictEqual(Object.hasOwn(digest, 'then'), false);
   }
 
   {
@@ -67,16 +97,19 @@ const { subtle } = globalThis.crypto;
   }
 
   {
-    const pair = await new EcKeyPairGenJob(
-      kCryptoJobWebCrypto,
-      'P-256',
-      undefined,
-      { name: 'ECDSA', namedCurve: 'P-256' },
-      getUsagesMask(new Set(['verify'])),
-      getUsagesMask(new Set(['sign'])),
-      true).run();
+    const pair = await withObjectPrototypeSetters(
+      ['publicKey', 'privateKey'],
+      () => new EcKeyPairGenJob(
+        kCryptoJobWebCrypto,
+        'P-256',
+        undefined,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        getUsagesMask(new Set(['verify'])),
+        getUsagesMask(new Set(['sign'])),
+        true).run());
 
     assert.strictEqual(Object.getPrototypeOf(pair), Object.prototype);
+    assert.strictEqual(Object.hasOwn(pair, 'then'), false);
     assert(isCryptoKey(pair.publicKey));
     assert(isCryptoKey(pair.privateKey));
     assert(pair.publicKey instanceof CryptoKey);
@@ -163,18 +196,33 @@ const { subtle } = globalThis.crypto;
     Object.defineProperty(CryptoKey.prototype, 'then', {
       __proto__: null,
       configurable: true,
-      get() { throw new Error('resolve then getter'); },
+      get: common.mustNotCall('CryptoKey.prototype.then getter'),
     });
 
     try {
-      await assert.rejects(
-        subtle.generateKey(
-          { name: 'AES-CBC', length: 128 },
-          true,
-          ['encrypt']),
-        /resolve then getter/);
+      const key = await subtle.generateKey(
+        { name: 'AES-CBC', length: 128 },
+        true,
+        ['encrypt']);
+      assert(isCryptoKey(key));
+      assert.strictEqual(Object.hasOwn(key, 'then'), false);
     } finally {
       delete CryptoKey.prototype.then;
     }
+  }
+
+  if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
+    const pair = await subtle.generateKey(
+      { name: 'ML-KEM-768' },
+      true,
+      ['encapsulateBits', 'decapsulateBits']);
+    const result = await withObjectPrototypeSetters(
+      ['sharedKey', 'ciphertext'],
+      () => subtle.encapsulateBits({ name: 'ML-KEM-768' }, pair.publicKey));
+
+    assert.strictEqual(Object.getPrototypeOf(result), Object.prototype);
+    assert.strictEqual(Object.hasOwn(result, 'then'), false);
+    assert(result.sharedKey instanceof ArrayBuffer);
+    assert(result.ciphertext instanceof ArrayBuffer);
   }
 })().then(common.mustCall());
