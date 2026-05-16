@@ -91,6 +91,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     std::string ToString() const;
 
+    v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
+
     static const Application_Options kDefault;
   };
 
@@ -324,6 +326,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   uint32_t version() const;
   Endpoint& endpoint() const;
   TLSSession& tls_session() const;
+  bool has_application() const;
   Application& application() const;
   const Config& config() const;
   const Options& options() const;
