@@ -101,6 +101,7 @@ class SessionManager;
   V(initial_max_streams_bidi, "initialMaxStreamsBidi")                         \
   V(initial_max_streams_uni, "initialMaxStreamsUni")                           \
   V(ipv6_only, "ipv6Only")                                                     \
+  V(reuse_port, "reusePort")                                                   \
   V(keylog, "keylog")                                                          \
   V(keys, "keys")                                                              \
   V(lost, "lost")                                                              \
