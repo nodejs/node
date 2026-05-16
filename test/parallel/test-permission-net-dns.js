@@ -7,10 +7,10 @@ const dns = require('dns');
 const { Resolver } = dns.promises;
 
 {
-  dns.lookup('localhost', common.mustCall((err) => {
+  dns.lookup('nodejs.org', common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
   }));
-  dns.promises.lookup('localhost').catch(common.mustCall((err) => {
+  dns.promises.lookup('nodejs.org').catch(common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_ACCESS_DENIED');
   }));
 }

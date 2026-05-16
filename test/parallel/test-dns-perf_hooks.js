@@ -20,13 +20,13 @@ function inc() {
 
 // If DNS resolution fails, skip it
 // https://github.com/nodejs/node/issues/44003
-dns.lookup('localhost', common.mustCall((err) => { !err && inc(); }));
+dns.lookup('nodejs.org', common.mustCall((err) => { !err && inc(); }));
 dns.lookupService('127.0.0.1', 80, common.mustCall((err) => { !err && inc(); }));
-dns.resolveAny('localhost', common.mustCall((err) => { !err && inc(); }));
+dns.resolveAny('nodejs.org', common.mustCall((err) => { !err && inc(); }));
 
-dns.promises.lookup('localhost').then(inc).catch(() => {});
+dns.promises.lookup('nodejs.org').then(inc).catch(() => {});
 dns.promises.lookupService('127.0.0.1', 80).then(inc).catch(() => {});
-dns.promises.resolveAny('localhost').then(inc).catch(() => {});
+dns.promises.resolveAny('nodejs.org').then(inc).catch(() => {});
 
 process.on('exit', () => {
   assert.strictEqual(entries.length, count);

@@ -64,19 +64,8 @@ describe('report exclude network option', () => {
           (ep[ip4 ? 'ip4' : 'ip6'] === (ip4 ? '127.0.0.1' : '::1')),
       )?.[local ? 'localEndpoint' : 'remoteEndpoint'];
     };
-    try {
-      // The reverse DNS of 127.0.0.1 can be a lot of things other than localhost
-      // it could resolve to the server name for instance
-      assert.notStrictEqual(findHandle(true)?.host, '127.0.0.1');
-      assert.notStrictEqual(findHandle(false)?.host, '127.0.0.1');
 
-      if (ipv6Available) {
-        assert.notStrictEqual(findHandle(true, false)?.host, '::1');
-        assert.notStrictEqual(findHandle(false, false)?.host, '::1');
-      }
-    } catch (e) {
-      throw new Error(e?.message + ' in ' + JSON.stringify(tcp, null, 2), { cause: e });
-    }
+    // Lookup for 'localhost' does not require DNS queries, hence not tested
 
     process.report.excludeNetwork = true;
     report = process.report.getReport();

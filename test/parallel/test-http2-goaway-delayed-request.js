@@ -18,5 +18,5 @@ server.listen(0, common.mustCall(() => {
   const stream = client.request();
   stream.on('error', common.expectsError({ code: 'ERR_HTTP2_GOAWAY_SESSION' }));
 
-  setImmediate(() => client.close());
+  client.close();
 }));
