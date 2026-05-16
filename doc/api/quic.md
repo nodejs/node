@@ -2286,6 +2286,23 @@ added: v23.8.0
 
 When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 
+#### `endpointOptions.reusePort`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+* Default: `false`
+
+When `true`, allows multiple endpoints (across separate processes) to bind to
+the same address and port. The kernel will load-balance incoming UDP datagrams
+across all sockets bound with this option. This enables horizontal scaling of
+QUIC servers by running multiple Node.js processes on the same port.
+
+Supported on Linux 3.9+ and DragonFlyBSD 3.6+. On unsupported platforms, the
+bind will fail with an error.
+
 #### `endpointOptions.maxConnectionsPerHost`
 
 <!-- YAML
