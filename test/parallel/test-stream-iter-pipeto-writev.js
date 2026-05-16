@@ -5,7 +5,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pipeTo, pipeToSync } = require('stream/iter');
+const { setImmediate: setImmediatePromise } = require('timers/promises');
+const { pipeTo, pipeToSync, push, text } = require('stream/iter');
 
 // Multi-chunk batch with writevSync (sync success path)
 async function testWritevSyncSuccess() {
@@ -104,6 +105,35 @@ async function testWriteSyncAlwaysFails() {
   assert.strictEqual(total, 2);
 }
 
+// PushWriter block mode accepts sync writes even when returning false for
+// backpressure. pipeTo must wait for drain, not retry the same write.
+async function assertPushWriterBlockPipeTo(source, expected, expectedTotal) {
+  const { writer, readable } = push({
+    highWaterMark: 1,
+    backpressure: 'block',
+  });
+
+  const pipe = pipeTo(source, writer);
+  await setImmediatePromise();
+  const data = await text(readable);
+  const total = await pipe;
+
+  assert.strictEqual(data, expected);
+  assert.strictEqual(total, expectedTotal);
+}
+
+async function testPushWriterBlockSyncFalseAccepted() {
+  await assertPushWriterBlockPipeTo((async function*() {
+    yield [new Uint8Array([97])];
+    yield [new Uint8Array([98])];
+  })(), 'ab', 2);
+
+  await assertPushWriterBlockPipeTo((async function*() {
+    yield [new Uint8Array([97, 98])];
+    yield [new Uint8Array([99]), new Uint8Array([100])];
+  })(), 'abcd', 4);
+}
+
 // pipeToSync with writevSync
 async function testPipeToSyncWritev() {
   const batches = [];
@@ -142,6 +172,7 @@ Promise.all([
   testWritevSyncFails(),
   testWriteSyncFailsMidBatch(),
   testWriteSyncAlwaysFails(),
+  testPushWriterBlockSyncFalseAccepted(),
   testPipeToSyncWritev(),
   testPipeToSyncWriteFallback(),
 ]).then(common.mustCall());
