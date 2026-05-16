@@ -38,6 +38,10 @@ class Session::Application : public MemoryRetainer {
   Application(Session* session, const Options& options);
   DISALLOW_COPY_AND_MOVE(Application)
 
+  // Get the active options for this application. These may differ from the
+  // options passed at construction time since some options can be negotiated.
+  virtual const Options& options() const = 0;
+
   // The type of Application, exposed via the session state so JS
   // can observe which Application was selected after ALPN negotiation.
   // This is used primarily for testing/debugging.

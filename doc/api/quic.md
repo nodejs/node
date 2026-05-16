@@ -724,6 +724,18 @@ added: v23.8.0
 
 A `QuicSession` represents the local side of a QUIC connection.
 
+### `session.applicationOptions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.ApplicationOptions}
+
+The current application-level options for this session. These include settings
+that are specific to the negotiated application protocol (e.g. HTTP/3) and may
+be negotiated separately from the transport parameters. Read only.
+
 ### `session.close([options])`
 
 <!-- YAML
@@ -2218,6 +2230,70 @@ added: v23.8.0
 
 ## Types
 
+### type: `ApplicationOptions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Object}
+
+The application specific options.
+
+#### `applicationOptions.maxHeaderPairs`
+
+* Type: {bigint|number}
+
+Maximum number of header name-value pairs accepted per header block.
+Headers beyond this limit are silently dropped. **Default:** `128`
+
+#### `applicationOptions.maxHeaderLength`
+
+* Type: {bigint|number}
+
+Maximum total byte length of all header names and values combined per header
+block. Headers that would push the total over this limit are silently
+dropped. **Default:** `8192`
+
+#### `applicationOptions.maxFieldSectionSize`
+
+* Type: {bigint|number}
+
+Maximum size of a compressed header field section (QPACK). `0` means
+unlimited. **Default:** `0`
+
+#### `applicationOptions.qpackMaxDTableCapacity`
+
+* Type: {bigint|number}
+
+QPACK dynamic table capacity in bytes. Set to `0` to disable the dynamic
+table. **Default:** `4096`
+
+#### `applicationOptions.qpackEncoderMaxDTableCapacity`
+
+* Type: {bigint|number}
+
+QPACK encoder maximum dynamic table capacity. **Default:** `4096`
+
+#### `applicationOptions.qpackBlockedStreams`
+
+* Type: {bigint|number}
+
+Maximum number of streams that can e blocked waiting for QPACK dynamic table
+updates. **Default:** `100`
+
+#### `applicationOptions.enableConnectProtocol`
+
+* Type: {boolean}
+
+Enable the extended CONNECT protocol (RFC 9220). **Default:** `false`
+
+#### `applicationOptions.enableDatagrams`
+
+* Type: {boolean}
+
+Enable HTTP/3 datagrams (RFC 9297). **Default:** `false`
+
 ### Type: `EndpointOptions`
 
 <!-- YAML
@@ -2474,30 +2550,9 @@ Default: `'h3'`
 added: REPLACEME
 -->
 
-* Type: {Object}
+* Type: {quic.ApplicationOptions}
 
-HTTP/3 application-specific options. These only apply when the negotiated
-ALPN selects the HTTP/3 application (`'h3'`).
-
-* `maxHeaderPairs` {number} Maximum number of header name-value pairs
-  accepted per header block. Headers beyond this limit are silently
-  dropped. **Default:** `128`
-* `maxHeaderLength` {number} Maximum total byte length of all header
-  names and values combined per header block. Headers that would push
-  the total over this limit are silently dropped. **Default:** `8192`
-* `maxFieldSectionSize` {number} Maximum size of a compressed header
-  field section (QPACK). `0` means unlimited. **Default:** `0`
-* `qpackMaxDTableCapacity` {number} QPACK dynamic table capacity in
-  bytes. Set to `0` to disable the dynamic table. **Default:** `4096`
-* `qpackEncoderMaxDTableCapacity` {number} QPACK encoder maximum
-  dynamic table capacity. **Default:** `4096`
-* `qpackBlockedStreams` {number} Maximum number of streams that can
-  be blocked waiting for QPACK dynamic table updates.
-  **Default:** `100`
-* `enableConnectProtocol` {boolean} Enable the extended CONNECT
-  protocol (RFC 9220). **Default:** `false`
-* `enableDatagrams` {boolean} Enable HTTP/3 datagrams (RFC 9297).
-  **Default:** `false`
+Application-specific options.
 
 ```mjs
 const { listen } = await import('node:quic');
