@@ -140,6 +140,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // flag on the underlying uv_udp_t.
     bool ipv6_only = false;
 
+    // When true, multiple endpoints (across separate processes) can bind to
+    // the same address:port and the kernel will load-balance incoming UDP
+    // datagrams across them. This sets the UV_UDP_REUSEPORT flag on the
+    // underlying uv_udp_t. Supported on Linux 3.9+ and DragonFlyBSD 3.6+.
+    bool reuse_port = false;
+
     uint32_t udp_receive_buffer_size = 0;
     uint32_t udp_send_buffer_size = 0;
 

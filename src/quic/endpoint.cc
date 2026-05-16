@@ -191,7 +191,7 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
       !SET(max_connections_per_host) || !SET(max_connections_total) ||
       !SET(max_stateless_resets) || !SET(address_lru_size) ||
       !SET(max_retries) || !SET(validate_address) ||
-      !SET(disable_stateless_reset) || !SET(ipv6_only) ||
+      !SET(disable_stateless_reset) || !SET(ipv6_only) || !SET(reuse_port) ||
 #ifdef DEBUG
       !SET(rx_loss) || !SET(tx_loss) ||
 #endif
@@ -262,6 +262,7 @@ std::string Endpoint::Options::ToString() const {
   res += prefix + "reset token secret: " + reset_token_secret.ToString();
   res += prefix + "token secret: " + token_secret.ToString();
   res += prefix + "ipv6 only: " + boolToString(ipv6_only);
+  res += prefix + "reuse port: " + boolToString(reuse_port);
   res += prefix +
          "udp receive buffer size: " + std::to_string(udp_receive_buffer_size);
   res +=
@@ -376,6 +377,7 @@ int Endpoint::UDP::Bind(const Options& options) {
   int flags = 0;
   if (options.local_address->family() == AF_INET6 && options.ipv6_only)
     flags |= UV_UDP_IPV6ONLY;
+  if (options.reuse_port) flags |= UV_UDP_REUSEPORT;
   int err = uv_udp_bind(&impl_->handle_, options.local_address->data(), flags);
   int size;
 
