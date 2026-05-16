@@ -157,6 +157,8 @@ class Http3ApplicationImpl final : public Session::Application {
     session->set_priority_supported();
   }
 
+  const Options& options() const override { return options_; }
+
   Session::Application::Type type() const override {
     return Session::Application::Type::HTTP3;
   }

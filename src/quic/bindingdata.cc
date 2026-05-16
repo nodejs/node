@@ -385,7 +385,17 @@ void BindingData::set_transport_params_template(
 
 Local<DictionaryTemplate> BindingData::transport_params_template() const {
   return PersistentToLocal::Default(env()->isolate(),
-    transport_params_template_);
+                                    transport_params_template_);
+}
+
+void BindingData::set_application_options_template(
+    Local<DictionaryTemplate> tmpl) {
+  application_options_template_.Reset(env()->isolate(), tmpl);
+}
+
+Local<DictionaryTemplate> BindingData::application_options_template() const {
+  return PersistentToLocal::Default(env()->isolate(),
+                                    application_options_template_);
 }
 
 #define V(name, _)                                                             \
