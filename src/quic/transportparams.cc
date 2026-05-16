@@ -347,23 +347,23 @@ v8::MaybeLocal<v8::Object> TransportParams::ToObject(Environment* env) const {
   auto& binding_data = BindingData::Get(env);
   auto tmpl = binding_data.transport_params_template();
   static constexpr std::string_view names[] = {
-    "preferredAddressIpv4",
-    "preferredAddressIpv6",
-    "originalDCID",
-    "initialSCID",
-    "retrySCID",
-    "initialMaxStreamDataBidiLocal",
-    "initialMaxStreamDataBidiRemote",
-    "initialMaxStreamDataUni",
-    "initialMaxData",
-    "initialMaxStreamsBidi",
-    "initialMaxStreamsUni",
-    "maxIdleTimeout",
-    "activeConnectionIDLimit",
-    "ackDelayExponent",
-    "maxAckDelay",
-    "maxDatagramFrameSize",
-    "disableActiveMigration",
+      "preferredAddressIpv4",
+      "preferredAddressIpv6",
+      "originalDCID",
+      "initialSCID",
+      "retrySCID",
+      "initialMaxStreamDataBidiLocal",
+      "initialMaxStreamDataBidiRemote",
+      "initialMaxStreamDataUni",
+      "initialMaxData",
+      "initialMaxStreamsBidi",
+      "initialMaxStreamsUni",
+      "maxIdleTimeout",
+      "activeConnectionIDLimit",
+      "ackDelayExponent",
+      "maxAckDelay",
+      "maxDatagramFrameSize",
+      "disableActiveMigration",
   };
   if (tmpl.IsEmpty()) {
     tmpl = DictionaryTemplate::New(env->isolate(), names);
@@ -457,42 +457,30 @@ v8::MaybeLocal<v8::Object> TransportParams::ToObject(Environment* env) const {
       values[kRetrySCIDIndex] = value;
     }
 
-    values[kInitialMaxStreamDataBidiLocalIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->initial_max_stream_data_bidi_local);
-    values[kInitialMaxStreamDataBidiRemoteIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->initial_max_stream_data_bidi_remote);
-    values[kInitialMaxStreamDataUniIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->initial_max_stream_data_uni);
+    values[kInitialMaxStreamDataBidiLocalIndex] = BigInt::NewFromUnsigned(
+        env->isolate(), ptr_->initial_max_stream_data_bidi_local);
+    values[kInitialMaxStreamDataBidiRemoteIndex] = BigInt::NewFromUnsigned(
+        env->isolate(), ptr_->initial_max_stream_data_bidi_remote);
+    values[kInitialMaxStreamDataUniIndex] = BigInt::NewFromUnsigned(
+        env->isolate(), ptr_->initial_max_stream_data_uni);
     values[kInitialMaxDataIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->initial_max_data);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->initial_max_data);
     values[kInitialMaxStreamsBidiIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->initial_max_streams_bidi);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->initial_max_streams_bidi);
     values[kInitialMaxStreamsUniIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->initial_max_streams_uni);
-    values[kMaxIdleTimeoutIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->max_idle_timeout / NGTCP2_SECONDS);
-    values[kActiveConnectionIDLimitIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->active_connection_id_limit);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->initial_max_streams_uni);
+    values[kMaxIdleTimeoutIndex] = BigInt::NewFromUnsigned(
+        env->isolate(), ptr_->max_idle_timeout / NGTCP2_SECONDS);
+    values[kActiveConnectionIDLimitIndex] = BigInt::NewFromUnsigned(
+        env->isolate(), ptr_->active_connection_id_limit);
     values[kAckDelayExponentIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->ack_delay_exponent);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->ack_delay_exponent);
     values[kMaxAckDelayIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->ack_delay_exponent);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->ack_delay_exponent);
     values[kMaxAckDelayIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->max_ack_delay);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->max_ack_delay);
     values[kMaxDatagramFrameSizeIndex] =
-        BigInt::NewFromUnsigned(env->isolate(),
-            ptr_->max_datagram_frame_size);
+        BigInt::NewFromUnsigned(env->isolate(), ptr_->max_datagram_frame_size);
     values[kDisableActiveMigrationIndex] =
         Boolean::New(env->isolate(), ptr_->disable_active_migration);
   }

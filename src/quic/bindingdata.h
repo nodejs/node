@@ -306,6 +306,9 @@ class BindingData final
   void set_transport_params_template(v8::Local<v8::DictionaryTemplate> tmpl);
   v8::Local<v8::DictionaryTemplate> transport_params_template() const;
 
+  void set_application_options_template(v8::Local<v8::DictionaryTemplate> tmpl);
+  v8::Local<v8::DictionaryTemplate> application_options_template() const;
+
 #define V(name, _)                                                             \
   void set_##name##_callback(v8::Local<v8::Function> fn);                      \
   v8::Local<v8::Function> name##_callback() const;
@@ -325,6 +328,7 @@ class BindingData final
 #undef V
 
   v8::Global<v8::DictionaryTemplate> transport_params_template_;
+  v8::Global<v8::DictionaryTemplate> application_options_template_;
 
 #define V(name, _) v8::Global<v8::Function> name##_callback_;
   QUIC_JS_CALLBACKS(V)
