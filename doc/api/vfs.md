@@ -10,7 +10,7 @@ added: REPLACEME
 
 <!-- source_link=lib/vfs.js -->
 
-The `node:vfs` module provides an in-memory virtual file system with an
+The `node:vfs` module provides an in-memory virtual file system with a
 `node:fs`-like API. It is useful for tests, fixtures, embedded assets, and other
 scenarios where you need a self-contained file system without touching the
 actual file-system.
