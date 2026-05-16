@@ -240,7 +240,7 @@ module.exports = {
         }
       },
 
-      'Property[value.type="FunctionExpression"][value.id]'(node) {
+      ':matches(Property,PropertyDefinition)[value.type="FunctionExpression"][value.id]'(node) {
 
         if (node.key.type === 'Identifier' && !node.computed) {
           const functionName = node.value.id.name;
