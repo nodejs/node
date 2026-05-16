@@ -163,6 +163,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     static constexpr uint64_t DEFAULT_HANDSHAKE_TIMEOUT = 10'000;
     uint64_t handshake_timeout = DEFAULT_HANDSHAKE_TIMEOUT;
 
+    // The initial round-trip time estimate in milliseconds. ngtcp2 uses this
+    // for PTO computation, initial pacing, and early loss detection before
+    // the first RTT sample is collected. The default of 0 uses ngtcp2's
+    // built-in default of 333ms, which is appropriate for the general
+    // internet. For low-latency environments (e.g., loopback or same-rack
+    // deployments), setting a value closer to the actual RTT avoids
+    // unnecessarily conservative initial behavior.
+    uint64_t initial_rtt = 0;
+
     // The keep-alive timeout in milliseconds. When set to a non-zero value,
     // ngtcp2 will automatically send PING frames to keep the connection alive
     // before the idle timeout fires. Set to 0 to disable (default).
