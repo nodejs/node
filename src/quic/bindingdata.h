@@ -303,6 +303,9 @@ class BindingData final
   QUIC_CONSTRUCTORS(V)
 #undef V
 
+  void set_transport_params_template(v8::Local<v8::DictionaryTemplate> tmpl);
+  v8::Local<v8::DictionaryTemplate> transport_params_template() const;
+
 #define V(name, _)                                                             \
   void set_##name##_callback(v8::Local<v8::Function> fn);                      \
   v8::Local<v8::Function> name##_callback() const;
@@ -320,6 +323,8 @@ class BindingData final
 #define V(name) v8::Global<v8::FunctionTemplate> name##_constructor_template_;
   QUIC_CONSTRUCTORS(V)
 #undef V
+
+  v8::Global<v8::DictionaryTemplate> transport_params_template_;
 
 #define V(name, _) v8::Global<v8::Function> name##_callback_;
   QUIC_JS_CALLBACKS(V)

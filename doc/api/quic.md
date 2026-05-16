@@ -833,6 +833,17 @@ added: v23.8.0
 
 True if `session.destroy()` has been called. Read only.
 
+### `session.localTransportParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.TransportParams|null}
+
+The transport parameters advertised by the local endpoint during the handshake.
+Returns `null` if the session has been destroyed. Read only.
+
 ### `session.endpoint`
 
 <!-- YAML
@@ -1125,6 +1136,19 @@ added: v23.8.0
   * `remote` {net.SocketAddress}
 
 The local and remote socket addresses associated with the session. Read only.
+
+### `session.remoteTransportParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {quic.TransportParams|null|undefined}
+
+The transport parameters advertised by the remote peer during the handshake.
+Returns `null` if the session has been destroyed, `undefined` if the handshake
+has not yet completed and the remote parameters are not yet available. Read
+only.
 
 ### `session.sendDatagram(datagram[, encoding])`
 
@@ -2927,6 +2951,37 @@ won't have need to specify.
 added: v23.8.0
 -->
 
+The `TransportParams` type represents the QUIC transport parameters that are
+negotiated during session establishment. These parameters are used when
+creating a session. The negotiated values can be observed via the
+`session.localTransportParams` and `session.remoteTransportParams` properties.
+
+#### `transportParams.initialSCID`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The initial source connection ID (SCID) specified. This field is ignored on
+creation of the session and is provided for informational purposes only when
+available in the `session.localTransportParams` and
+`session.remoteTransportParams` properties.
+
+#### `transportParams.originalDCID`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The original destination connection ID (DCID) specified. This field is
+ignored on creation of the session and is provided for informational
+purposes only when available in the `session.localTransportParams` and
+`session.remoteTransportParams` properties.
+
 #### `transportParams.preferredAddressIpv4`
 
 <!-- YAML
@@ -3039,6 +3094,19 @@ is willing to receive. Set to `0` to disable datagram support. The peer
 will not send datagrams larger than this value. The actual maximum size of
 a datagram that can be _sent_ is determined by the peer's
 `maxDatagramFrameSize`, not this endpoint's value.
+
+#### `transportParams.retrySCID`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The retry connection ID specified. This field is ignored on creation
+of the session and is provided for informational purposes only when
+available in the `session.localTransportParams` and
+`session.remoteTransportParams` properties.
 
 ## Callbacks
 

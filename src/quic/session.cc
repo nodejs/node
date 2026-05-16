@@ -190,7 +190,9 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(SilentClose, silentClose, SIDE_EFFECT)                                     \
   V(UpdateKey, updateKey, SIDE_EFFECT)                                         \
   V(OpenStream, openStream, SIDE_EFFECT)                                       \
-  V(SendDatagram, sendDatagram, SIDE_EFFECT)
+  V(SendDatagram, sendDatagram, SIDE_EFFECT)                                   \
+  V(LocalTransportParams, localTransportParams, NO_SIDE_EFFECT)                \
+  V(RemoteTransportParams, remoteTransportParams, NO_SIDE_EFFECT)              \
 
 struct Session::State final {
 #define V(_, name, type) type name;
@@ -1163,6 +1165,36 @@ struct Session::Impl final : public MemoryRetainer {
         BigInt::New(env->isolate(), session->SendDatagram(std::move(store))));
   }
 
+  JS_METHOD(LocalTransportParams) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+
+    ngtcp2_conn* conn = *session;
+    TransportParams params(ngtcp2_conn_get_local_transport_params(conn));
+    Local<Object> obj;
+    if (params.ToObject(env).ToLocal(&obj)) {
+      args.GetReturnValue().Set(obj);
+    }
+  }
+
+  JS_METHOD(RemoteTransportParams) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+
+    ngtcp2_conn* conn = *session;
+    auto params = ngtcp2_conn_get_remote_transport_params(conn);
+    if (params == nullptr) {
+      // Remote transport parameters are not yet available.
+      return args.GetReturnValue().SetUndefined();
+    }
+    TransportParams tp(params);
+    Local<Object> obj;
+    if (tp.ToObject(env).ToLocal(&obj)) {
+      args.GetReturnValue().Set(obj);
+    }
+  }
   // Internal ngtcp2 callbacks
 
   static int on_acknowledge_stream_data_offset(ngtcp2_conn* conn,
