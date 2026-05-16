@@ -176,16 +176,16 @@ MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(
 
   if (params.job_mode == kCryptoJobWebCrypto) {
     Local<Object> result = Object::New(env->isolate());
-    if (result
-            ->Set(env->context(),
-                  OneByteString(env->isolate(), "sharedKey"),
-                  shared_key_obj.As<ArrayBufferView>()->Buffer())
-            .IsNothing() ||
-        result
-            ->Set(env->context(),
-                  OneByteString(env->isolate(), "ciphertext"),
-                  ciphertext_obj.As<ArrayBufferView>()->Buffer())
-            .IsNothing()) {
+    if (!result
+             ->DefineOwnProperty(env->context(),
+                                 OneByteString(env->isolate(), "sharedKey"),
+                                 shared_key_obj.As<ArrayBufferView>()->Buffer())
+             .FromMaybe(false) ||
+        !result
+             ->DefineOwnProperty(env->context(),
+                                 OneByteString(env->isolate(), "ciphertext"),
+                                 ciphertext_obj.As<ArrayBufferView>()->Buffer())
+             .FromMaybe(false)) {
       return MaybeLocal<Value>();
     }
     return result;

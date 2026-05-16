@@ -295,8 +295,10 @@ bool ExportJWKRsaKey(Environment* env,
 
   const ncrypto::Rsa rsa = m_pkey;
   if (!rsa ||
-      target->Set(env->context(), env->jwk_kty_string(), env->jwk_rsa_string())
-          .IsNothing()) {
+      !target
+           ->DefineOwnProperty(
+               env->context(), env->jwk_kty_string(), env->jwk_rsa_string())
+           .FromMaybe(false)) {
     return false;
   }
 

@@ -439,13 +439,45 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
  private:
   void ResolveWebCrypto(v8::Local<v8::Value> value) {
     Environment* env = AsyncWrap::env();
+    v8::Local<v8::Context> context = env->context();
     v8::Local<v8::Promise::Resolver> resolver =
         v8::Local<v8::Promise::Resolver>::New(env->isolate(), resolver_);
 
+    bool should_delete_then = false;
+    v8::Local<v8::String> then_key;
     v8::Local<v8::Value> exception;
     {
       node::errors::TryCatchScope try_catch(env);
-      if (resolver->Resolve(env->context(), value).IsJust()) {
+      if (value->IsObject()) {
+        then_key = FIXED_ONE_BYTE_STRING(env->isolate(), "then");
+        v8::Local<v8::Object> object = value.As<v8::Object>();
+        v8::Maybe<bool> has_own_then =
+            object->HasOwnProperty(context, then_key);
+        if (has_own_then.IsNothing()) {
+          if (try_catch.HasCaught() && try_catch.CanContinue()) {
+            exception = try_catch.Exception();
+          }
+        } else if (!has_own_then.FromJust()) {
+          if (object
+                  ->DefineOwnProperty(context,
+                                      then_key,
+                                      v8::Undefined(env->isolate()),
+                                      v8::DontEnum)
+                  .FromMaybe(false)) {
+            should_delete_then = true;
+          } else if (try_catch.HasCaught() && try_catch.CanContinue()) {
+            exception = try_catch.Exception();
+          } else {
+            exception = v8::Exception::Error(OneByteString(
+                env->isolate(), "Failed to prepare WebCrypto job result"));
+          }
+        }
+      }
+
+      if (exception.IsEmpty() && resolver->Resolve(context, value).IsJust()) {
+        if (should_delete_then) {
+          USE(value.As<v8::Object>()->Delete(context, then_key));
+        }
         resolver_.Reset();
         return;
       }
@@ -454,8 +486,11 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       }
     }
 
+    if (should_delete_then) {
+      USE(value.As<v8::Object>()->Delete(context, then_key));
+    }
     if (!exception.IsEmpty()) {
-      USE(resolver->Reject(env->context(), exception));
+      USE(resolver->Reject(context, exception));
     }
     resolver_.Reset();
   }

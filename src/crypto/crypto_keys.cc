@@ -156,9 +156,11 @@ bool ExportJWKSecretKey(Environment* env,
                              BASE64URL)
              .ToLocal(&raw) &&
          target
-             ->Set(env->context(), env->jwk_kty_string(), env->jwk_oct_string())
-             .IsJust() &&
-         target->Set(env->context(), env->jwk_k_string(), raw).IsJust();
+             ->DefineOwnProperty(
+                 env->context(), env->jwk_kty_string(), env->jwk_oct_string())
+             .FromMaybe(false) &&
+         target->DefineOwnProperty(env->context(), env->jwk_k_string(), raw)
+             .FromMaybe(false);
 }
 
 KeyObjectData ImportJWKSecretKey(Environment* env, Local<Object> jwk) {
