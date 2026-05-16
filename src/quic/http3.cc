@@ -333,9 +333,7 @@ class Http3ApplicationImpl final : public Session::Application {
     // We cannot add the header if we've either reached
     // * the max number of header pairs or
     // * the max number of header bytes (name + value combined)
-    // current_count is the number of entries in the headers vector
-    // (each pair = name entry + value entry = 2 entries).
-    return (current_count / 2 < options_.max_header_pairs) &&
+    return (current_count < options_.max_header_pairs) &&
            (current_headers_length + this_header_length) <=
                options_.max_header_length;
   }
@@ -825,12 +823,12 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->BeginHeaders(HeadersKind::INITIAL);
   }
 
-  void OnReceiveHeader(stream_id id, Http3Header&& header) {
+  void OnReceiveHeader(stream_id id, std::unique_ptr<Http3Header> header) {
     auto stream = session().FindStream(id);
 
     if (!stream) [[unlikely]]
       return;
-    if (header.name() == ":status" && header.value()[0] == '1') {
+    if (header->name() == ":status" && header->value()[0] == '1') {
       Debug(&session(),
             "HTTP/3 application switching to hints headers for stream %" PRIi64,
             stream->id());
@@ -839,8 +837,8 @@ class Http3ApplicationImpl final : public Session::Application {
     IF_QUIC_DEBUG(env()) {
       Debug(&session(),
             "Received header \"%s: %s\"",
-            header.name(),
-            header.value());
+            header->name(),
+            header->value());
     }
     stream->AddHeader(std::move(header));
   }
@@ -874,15 +872,15 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->BeginHeaders(HeadersKind::TRAILING);
   }
 
-  void OnReceiveTrailer(stream_id id, Http3Header&& header) {
+  void OnReceiveTrailer(stream_id id, std::unique_ptr<Http3Header> header) {
     auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     IF_QUIC_DEBUG(env()) {
       Debug(&session(),
             "Received header \"%s: %s\"",
-            header.name(),
-            header.value());
+            header->name(),
+            header->value());
     }
     stream->AddHeader(std::move(header));
   }
@@ -1239,7 +1237,9 @@ class Http3ApplicationImpl final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app.OnReceiveHeader(id, Http3Header(app.env(), token, name, value, flags));
+    app.OnReceiveHeader(
+        id,
+        std::make_unique<Http3Header>(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
@@ -1281,7 +1281,9 @@ class Http3ApplicationImpl final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app.OnReceiveTrailer(id, Http3Header(app.env(), token, name, value, flags));
+    app.OnReceiveTrailer(
+        id,
+        std::make_unique<Http3Header>(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
