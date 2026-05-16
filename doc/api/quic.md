@@ -2723,6 +2723,23 @@ added: v23.8.0
 Specifies the maximum number of milliseconds a TLS handshake is permitted to take
 to complete before timing out.
 
+#### `sessionOptions.initialRtt`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {bigint|number}
+* **Default:** `0` (use ngtcp2 default of 333ms)
+
+Specifies the initial round-trip time estimate in milliseconds. This value is
+used for probe timeout (PTO) computation, initial pacing, and early loss
+detection before the first actual RTT sample is collected from the connection.
+The default of 333ms is appropriate for the general internet. For low-latency
+environments such as loopback or same-rack deployments, setting a value closer
+to the actual RTT (e.g., `1`) avoids unnecessarily conservative initial
+behavior.
+
 #### `sessionOptions.keepAlive`
 
 <!-- YAML

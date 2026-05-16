@@ -93,6 +93,7 @@ class SessionManager;
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
+  V(initial_rtt, "initialRtt")                                                 \
   V(keep_alive_timeout, "keepAlive")                                           \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
