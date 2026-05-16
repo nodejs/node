@@ -344,7 +344,7 @@ class Stream final : public AsyncWrap,
   // Returns false if the header cannot be added. This will typically happen
   // if the application does not support headers, a maximum number of headers
   // have already been added, or the maximum total header length is reached.
-  bool AddHeader(const Header& header);
+  bool AddHeader(std::unique_ptr<Header> header);
 
   // TODO(@jasnell): Implement MemoryInfo to track outbound_, inbound_,
   // reader_, headers_, and pending_headers_queue_.
@@ -455,9 +455,11 @@ class Stream final : public AsyncWrap,
   const StoredPriority& stored_priority() const { return priority_; }
 
   // The headers_ field holds a block of headers that have been received and
-  // are being buffered for delivery to the JavaScript side.
-  // TODO(@jasnell): Use v8::Global instead of v8::Local here.
-  v8::LocalVector<v8::Value> headers_;
+  // are being buffered for delivery to the JavaScript side. Headers are
+  // stored as C++ objects during collection (AddHeader) and converted to
+  // V8 strings only when emitted (EmitHeaders), avoiding StrongRootAllocator
+  // mutex contention on the per-header hot path.
+  std::vector<std::unique_ptr<Header>> headers_;
 
   // The headers_kind_ field indicates the kind of headers that are being
   // buffered.

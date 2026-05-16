@@ -31,6 +31,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::Nothing;
 using v8::Object;
@@ -1126,8 +1127,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
                std::shared_ptr<DataQueue> source)
     : AsyncWrap(session->env(), object, PROVIDER_QUIC_STREAM),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()),
-      headers_(env()->isolate()) {
+      inbound_(DataQueue::Create()) {
   auto& binding = BindingData::Get(env());
   stats_slot_ = GetStreamStatsArena(binding).Allocate(env()->isolate());
   state_slot_ = GetStreamStateArena(binding).Allocate(env()->isolate());
@@ -1185,8 +1185,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       session_(std::move(session)),
       inbound_(DataQueue::Create()),
       maybe_pending_stream_(
-          std::make_unique<PendingStream>(direction, this, session_)),
-      headers_(env()->isolate()) {
+          std::make_unique<PendingStream>(direction, this, session_)) {
   auto& binding = BindingData::Get(env());
   stats_slot_ = GetStreamStatsArena(binding).Allocate(env()->isolate());
   state_slot_ = GetStreamStateArena(binding).Allocate(env()->isolate());
@@ -1567,27 +1566,16 @@ void Stream::set_headers_kind(HeadersKind kind) {
   headers_kind_ = kind;
 }
 
-bool Stream::AddHeader(const Header& header) {
-  size_t len = header.length();
+bool Stream::AddHeader(std::unique_ptr<Header> header) {
+  size_t len = header->length();
   if (!session_->application().CanAddHeader(
           headers_.size(), headers_length_, len)) {
     return false;
   }
 
   headers_length_ += len;
-
-  auto& state = BindingData::Get(env());
-
-  const auto push = [&](auto raw) {
-    Local<Value> value;
-    if (!raw.ToLocal(&value)) [[unlikely]] {
-      return false;
-    }
-    headers_.push_back(value);
-    return true;
-  };
-
-  return push(header.GetName(&state)) && push(header.GetValue(&state));
+  headers_.push_back(std::move(header));
+  return true;
 }
 
 void Stream::Acknowledge(size_t datalen) {
@@ -1899,19 +1887,35 @@ void Stream::EmitHeaders() {
   // state()->wants_headers will be set from the javascript side if the
   // stream object has a handler for the headers event.
   if (!env()->can_call_into_js() || !state()->wants_headers) {
+    headers_.clear();
     return;
   }
   CallbackScope<Stream> cb_scope(this);
 
-  Local<Value> argv[] = {
-      Array::New(env()->isolate(), headers_.data(), headers_.size()),
-      Integer::NewFromUnsigned(env()->isolate(),
-                               static_cast<uint32_t>(headers_kind_))};
+  auto& binding = BindingData::Get(env());
+  size_t count = headers_.size() * 2;
+  LocalVector<Value> values(env()->isolate(), count);
+
+  for (size_t i = 0; i < headers_.size(); i++) {
+    Local<Value> name;
+    Local<Value> value;
+    if (!headers_[i]->GetName(&binding).ToLocal(&name) ||
+        !headers_[i]->GetValue(&binding).ToLocal(&value)) [[unlikely]] {
+      headers_.clear();
+      return;
+    }
+    values[i * 2] = name;
+    values[i * 2 + 1] = value;
+  }
 
   headers_.clear();
 
-  MakeCallback(
-      BindingData::Get(env()).stream_headers_callback(), arraysize(argv), argv);
+  Local<Value> argv[] = {
+      Array::New(env()->isolate(), values.data(), count),
+      Integer::NewFromUnsigned(env()->isolate(),
+                               static_cast<uint32_t>(headers_kind_))};
+
+  MakeCallback(binding.stream_headers_callback(), arraysize(argv), argv);
 }
 
 void Stream::EmitReset(const QuicError& error) {
