@@ -193,6 +193,7 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(SendDatagram, sendDatagram, SIDE_EFFECT)                                   \
   V(LocalTransportParams, localTransportParams, NO_SIDE_EFFECT)                \
   V(RemoteTransportParams, remoteTransportParams, NO_SIDE_EFFECT)              \
+  V(ApplicationOptions, applicationOptions, NO_SIDE_EFFECT)
 
 struct Session::State final {
 #define V(_, name, type) type name;
@@ -1195,6 +1196,24 @@ struct Session::Impl final : public MemoryRetainer {
       args.GetReturnValue().Set(obj);
     }
   }
+
+  JS_METHOD(ApplicationOptions) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+
+    Local<Object> obj;
+    if (!session->has_application()) {
+      // The application has not yet been selected (ALPN negotiation is not
+      // yet complete on the server) or the session has been destroyed. In
+      // either case, the application options are not available.
+      return args.GetReturnValue().SetUndefined();
+    }
+    auto& options = session->application().options();
+    if (options.ToObject(env).ToLocal(&obj)) {
+      args.GetReturnValue().Set(obj);
+    }
+  }
   // Internal ngtcp2 callbacks
 
   static int on_acknowledge_stream_data_offset(ngtcp2_conn* conn,
@@ -2072,6 +2091,10 @@ Endpoint& Session::endpoint() const {
 TLSSession& Session::tls_session() const {
   DCHECK(!is_destroyed());
   return *tls_session_;
+}
+
+bool Session::has_application() const {
+  return !is_destroyed() && impl_->application_ != nullptr;
 }
 
 Session::Application& Session::application() const {

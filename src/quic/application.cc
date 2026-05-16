@@ -19,9 +19,13 @@
 
 namespace node {
 
+using v8::BigInt;
+using v8::Boolean;
+using v8::DictionaryTemplate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Value;
@@ -112,6 +116,44 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 #undef SET
 
   return Just<Application_Options>(options);
+}
+
+MaybeLocal<Object> Session::Application_Options::ToObject(
+    Environment* env) const {
+  auto& binding_data = BindingData::Get(env);
+  auto tmpl = binding_data.application_options_template();
+  static constexpr std::string_view names[] = {
+      "maxHeaderPairs",
+      "maxHeaderLength",
+      "maxFieldSectionSize",
+      "qpackMaxDtableCapacity",
+      "qpackEncoderMaxDtableCapacity",
+      "qpackBlockedStreams",
+      "enableConnectProtocol",
+      "enableDatagrams",
+  };
+  if (tmpl.IsEmpty()) {
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    binding_data.set_application_options_template(tmpl);
+  }
+  MaybeLocal<Value> values[] = {
+      BigInt::NewFromUnsigned(env->isolate(), max_header_pairs),
+      BigInt::NewFromUnsigned(env->isolate(), max_header_length),
+      BigInt::NewFromUnsigned(env->isolate(), max_field_section_size),
+      BigInt::NewFromUnsigned(env->isolate(), qpack_max_dtable_capacity),
+      BigInt::NewFromUnsigned(env->isolate(),
+                              qpack_encoder_max_dtable_capacity),
+      BigInt::NewFromUnsigned(env->isolate(), qpack_blocked_streams),
+      Boolean::New(env->isolate(), enable_connect_protocol),
+      Boolean::New(env->isolate(), enable_datagrams),
+  };
+  static_assert(std::size(values) == std::size(names));
+
+  auto obj = tmpl->NewInstance(env->context(), values);
+  if (obj->SetPrototypeV2(env->context(), Null(env->isolate())).IsNothing()) {
+    return {};
+  }
+  return obj;
 }
 
 // ============================================================================
@@ -655,7 +697,10 @@ class DefaultApplication final : public Session::Application {
   // Marked NOLINT because the cpp linter gets confused about this using
   // statement not being sorted with the using v8 statements at the top
   // of the namespace.
-  using Application::Application;  // NOLINT
+  DefaultApplication(Session* session, const Options& options)
+      : Session::Application(session, options), options_(options) {}
+
+  const Options& options() const override { return options_; }
 
   Session::Application::Type type() const override {
     return Session::Application::Type::DEFAULT;
@@ -826,6 +871,8 @@ class DefaultApplication final : public Session::Application {
       stream->Schedule(&stream_queue_);
     }
   }
+
+  Options options_;
 
   Stream::Queue stream_queue_;
 };
