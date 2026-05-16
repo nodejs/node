@@ -147,6 +147,16 @@ assert.throws(() => broadcast({ highWaterMark: Number.MAX_SAFE_INTEGER + 1 }),
 assert.throws(() => broadcast({ signal: {} }), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG_VALUE' });
 
+// BroadcastWriter.writev requires array
+{
+  const { writer } = broadcast();
+  assert.throws(() => writer.writev('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(42), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writevSync('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writevSync(42), { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
+
 // Broadcast.from rejects non-iterable input
 assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => Broadcast.from('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
