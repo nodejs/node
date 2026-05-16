@@ -20,6 +20,7 @@
 namespace node {
 
 using mem::kReserveSizeAndAlign;
+using v8::DictionaryTemplate;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -376,6 +377,16 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 QUIC_CONSTRUCTORS(V)
 
 #undef V
+
+void BindingData::set_transport_params_template(
+    Local<DictionaryTemplate> tmpl) {
+  transport_params_template_.Reset(env()->isolate(), tmpl);
+}
+
+Local<DictionaryTemplate> BindingData::transport_params_template() const {
+  return PersistentToLocal::Default(env()->isolate(),
+    transport_params_template_);
+}
 
 #define V(name, _)                                                             \
   void BindingData::set_##name##_callback(Local<Function> fn) {                \
