@@ -145,7 +145,8 @@ bool TrySetEncodedKey(Environment* env,
   const ncrypto::Buffer<const char> out = data;
   return StringBytes::Encode(env->isolate(), out.data, out.len, BASE64URL)
              .ToLocal(&encoded) &&
-         target->Set(env->context(), key, encoded).IsJust();
+         target->DefineOwnProperty(env->context(), key, encoded)
+             .FromMaybe(false);
 }
 }  // namespace
 
@@ -172,16 +173,18 @@ bool ExportJwkPqcKey(Environment* env,
     }
   }
 
-  return !(
-      target->Set(env->context(), env->jwk_kty_string(), env->jwk_akp_string())
-          .IsNothing() ||
-      target
-          ->Set(env->context(),
-                env->jwk_alg_string(),
-                OneByteString(env->isolate(), alg->name))
-          .IsNothing() ||
-      !TrySetEncodedKey(
-          env, pkey.rawPublicKey(), target, env->jwk_pub_string()));
+  return !(!target
+                ->DefineOwnProperty(env->context(),
+                                    env->jwk_kty_string(),
+                                    env->jwk_akp_string())
+                .FromMaybe(false) ||
+           !target
+                ->DefineOwnProperty(env->context(),
+                                    env->jwk_alg_string(),
+                                    OneByteString(env->isolate(), alg->name))
+                .FromMaybe(false) ||
+           !TrySetEncodedKey(
+               env, pkey.rawPublicKey(), target, env->jwk_pub_string()));
 }
 
 KeyObjectData ImportJWKPqcKey(Environment* env, Local<Object> jwk) {
