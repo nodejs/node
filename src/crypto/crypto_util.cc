@@ -705,8 +705,9 @@ Maybe<void> SetEncodedValue(Environment* env,
   if (!EncodeBignum(env, bn, size).ToLocal(&value)) {
     return Nothing<void>();
   }
-  return target->Set(env->context(), name, value).IsJust() ? JustVoid()
-                                                           : Nothing<void>();
+  return target->DefineOwnProperty(env->context(), name, value).FromMaybe(false)
+             ? JustVoid()
+             : Nothing<void>();
 }
 
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
