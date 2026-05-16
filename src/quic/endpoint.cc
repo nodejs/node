@@ -302,7 +302,10 @@ class Endpoint::UDP::Impl final : public HandleWrap {
                    reinterpret_cast<uv_handle_t*>(&handle_),
                    PROVIDER_QUIC_UDP),
         endpoint_(endpoint) {
-    CHECK_EQ(uv_udp_init(endpoint->env()->event_loop(), &handle_), 0);
+    CHECK_EQ(uv_udp_init_ex(endpoint->env()->event_loop(),
+                            &handle_,
+                            AF_UNSPEC | UV_UDP_RECVMMSG),
+             0);
     handle_.data = this;
   }
 
@@ -311,18 +314,26 @@ class Endpoint::UDP::Impl final : public HandleWrap {
   SET_SELF_SIZE(Impl)
 
  private:
-  // Pre-allocated receive buffer. Reused across all datagrams because
-  // ngtcp2_conn_read_pkt is synchronous — it copies what it needs and
-  // does not retain a reference to the buffer after returning. This
-  // eliminates a malloc(64KB)/free(64KB) cycle per received datagram.
-  static constexpr size_t kRecvBufferSize = 65536;  // UV__UDP_DGRAM_MAXSIZE
-  char recv_buf_[kRecvBufferSize];
+  // Pre-allocated receive buffer sized for recvmmsg batching. libuv's
+  // recvmmsg path partitions the alloc buffer into 64KB chunks (one per
+  // datagram). With kRecvBatchSize chunks we can receive up to that many
+  // packets in a single recvmmsg syscall. ngtcp2_conn_read_pkt is
+  // synchronous — it copies what it needs — so the buffer is safely
+  // reused across batches.
+  // libuv's recvmmsg partitions the buffer into UV__UDP_DGRAM_MAXSIZE (64KB)
+  // chunks regardless of actual packet size. QUIC packets are ~1200 bytes,
+  // so most of each 64KB chunk is wasted. We use a modest batch size to
+  // balance syscall reduction against memory usage.
+  static constexpr size_t kDgramMaxSize = 65536;  // UV__UDP_DGRAM_MAXSIZE
+  static constexpr size_t kRecvBatchSize = 5;
+  static constexpr size_t kRecvBufferSize = kDgramMaxSize * kRecvBatchSize;
+  std::array<char, kRecvBufferSize> recv_buf_ = {};
 
   static void OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf) {
     auto* impl = From(handle);
-    *buf = uv_buf_init(impl->recv_buf_, kRecvBufferSize);
+    *buf = uv_buf_init(impl->recv_buf_.data(), kRecvBufferSize);
   }
 
   static void OnReceive(uv_udp_t* handle,
@@ -333,6 +344,13 @@ class Endpoint::UDP::Impl final : public HandleWrap {
     auto impl = From(handle);
     DCHECK_NOT_NULL(impl);
     DCHECK_NOT_NULL(impl->endpoint_);
+
+    // UV_UDP_MMSG_FREE signals the end of a recvmmsg batch — the
+    // buffer can be reused. Since our buffer is pre-allocated and
+    // persistent, there is nothing to free.
+    if (flags & UV_UDP_MMSG_FREE) {
+      return;
+    }
 
     // Nothing to do in these cases. Specifically, if the nread
     // is zero or we have received a partial packet, we are just
@@ -348,6 +366,9 @@ class Endpoint::UDP::Impl final : public HandleWrap {
       return;
     }
 
+    // UV_UDP_MMSG_CHUNK is set for each packet in a recvmmsg batch.
+    // Processing is the same as for a single-message receive — ngtcp2
+    // copies what it needs synchronously from the buf slice.
     impl->endpoint_->Receive(reinterpret_cast<const uint8_t*>(buf->base),
                              static_cast<size_t>(nread),
                              SocketAddress(addr));
