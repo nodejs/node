@@ -162,13 +162,22 @@ async function testShareAbortSignalWhileSourcePullPending() {
   const sourceStartedPromise = new Promise((resolve) => {
     sourceStarted = resolve;
   });
-  async function* source() {
-    await new Promise((resolve) => {
-      resume = resolve;
-      sourceStarted();
-    });
-  }
-  const shared = share(source(), { signal: ac.signal });
+  const source = {
+    __proto__: null,
+    [Symbol.asyncIterator]() {
+      return {
+        __proto__: null,
+        async next() {
+          await new Promise((resolve) => {
+            resume = resolve;
+            sourceStarted();
+          });
+          return { __proto__: null, done: true, value: undefined };
+        },
+      };
+    },
+  };
+  const shared = share(source, { signal: ac.signal });
   const iter1 = shared.pull()[Symbol.asyncIterator]();
   const iter2 = shared.pull()[Symbol.asyncIterator]();
   const read1 = iter1.next();
