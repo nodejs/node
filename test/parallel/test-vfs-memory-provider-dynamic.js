@@ -66,7 +66,7 @@ function makeFileEntry(prototypeFrom, contentProvider) {
     nlink: 1,
     uid: 0,
     gid: 0,
-  });
+  };
   const t = Date.now();
   dir.atime = t; dir.mtime = t; dir.ctime = t; dir.birthtime = t;
   dir.isFile = root.isFile.bind(dir);

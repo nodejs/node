@@ -31,10 +31,10 @@ fs.mkdirSync(testDir, { recursive: true });
 
 // Invalid rootPath
 {
-  assert.throws(() => new vfs.RealFSProvider(''),
-                { code: 'ERR_INVALID_ARG_VALUE' });
   assert.throws(() => new vfs.RealFSProvider(123),
-                { code: 'ERR_INVALID_ARG_VALUE' });
+                { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => new vfs.RealFSProvider({}),
+                { code: 'ERR_INVALID_ARG_TYPE' });
 }
 
 // vfs.create(provider) wires it up
