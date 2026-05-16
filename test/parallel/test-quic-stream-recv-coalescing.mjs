@@ -17,15 +17,17 @@ if (!hasQuic) {
 const { listen, connect } = await import('../common/quic.mjs');
 const { drainableProtocol: dp } = await import('stream/iter');
 
-// Payloads of varying sizes. Exercises different coalescing paths:
-//   Small (below frame size), medium (a few frames), large (many frames).
+// Payloads of varying sizes with diverse prime factors to exercise
+// different flow control boundary alignments. Avoids round multiples
+// of 1000 so that frame boundaries, accumulation buffer thresholds,
+// and flow control windows are hit at irregular offsets.
 const payloadSizes = [
-  100,       // Small: fits in a single frame
-  5_000,     // Medium: a few frames
-  64_000,    // Large: triggers buffer-full flush
-  1_000,     // Small again after large
-  200_000,   // Very large: well beyond 64 KB buffer
-  500,       // Small tail
+  97,        // Small prime: fits in a single frame
+  4_999,     // Medium prime: a few frames
+  65_521,    // Largest prime below 64 KB buffer flush threshold
+  1_153,     // Small prime after large
+  196_613,   // Large prime: well beyond 64 KB buffer
+  509,       // Small prime tail
 ];
 const totalBytes = payloadSizes.reduce((a, b) => a + b, 0);
 
