@@ -513,6 +513,12 @@ Session::Config::Config(Environment* env,
       options.handshake_timeout == UINT64_MAX
           ? UINT64_MAX
           : options.handshake_timeout * NGTCP2_MILLISECONDS;
+
+  // The initial_rtt option is in milliseconds; ngtcp2 expects nanoseconds.
+  // A value of 0 leaves the ngtcp2 default (333ms) unchanged.
+  if (options.initial_rtt > 0)
+    settings.initial_rtt = options.initial_rtt * NGTCP2_MILLISECONDS;
+
   settings.max_stream_window = options.max_stream_window;
   settings.max_window = options.max_window;
   settings.ack_thresh = options.unacknowledged_packet_threshold;
@@ -604,10 +610,11 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
-      !SET(handshake_timeout) || !SET(keep_alive_timeout) ||
-      !SET(max_stream_window) || !SET(max_window) || !SET(max_payload_size) ||
-      !SET(unacknowledged_packet_threshold) || !SET(cc_algorithm) ||
-      !SET(draining_period_multiplier) || !SET(max_datagram_send_attempts)) {
+      !SET(handshake_timeout) || !SET(initial_rtt) ||
+      !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
+      !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
+      !SET(cc_algorithm) || !SET(draining_period_multiplier) ||
+      !SET(max_datagram_send_attempts)) {
     return Nothing<Options>();
   }
 
@@ -725,6 +732,12 @@ std::string Session::Options::ToString() const {
   } else {
     res += prefix + "handshake timeout: " + std::to_string(handshake_timeout) +
            " nanoseconds";
+  }
+  if (initial_rtt > 0) {
+    res += prefix + "initial rtt: " + std::to_string(initial_rtt) +
+           " milliseconds";
+  } else {
+    res += prefix + "initial rtt: <default>";
   }
   res += prefix + "max stream window: " + std::to_string(max_stream_window);
   res += prefix + "max window: " + std::to_string(max_window);
