@@ -31,6 +31,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   const clientEndpoint = new QuicEndpoint();
   const client = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
+    verifyPeer: 'manual',
   });
   await client.opened;
 
@@ -57,6 +58,7 @@ const { listen, connect } = await import('../common/quic.mjs');
   const clientEndpoint = new QuicEndpoint({ idleTimeout: 1 });
   const client = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
+    verifyPeer: 'manual',
   });
   await client.opened;
   await client.close();

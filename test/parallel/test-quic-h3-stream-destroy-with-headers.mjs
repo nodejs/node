@@ -34,6 +34,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 await clientSession.opened;
 

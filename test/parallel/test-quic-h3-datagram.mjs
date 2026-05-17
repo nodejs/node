@@ -66,6 +66,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
     // Client receives datagram from server.
@@ -139,6 +140,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
   });

@@ -46,6 +46,7 @@ const cert = readKey('agent1-cert.pem');
   // Verify a client can connect to the bound address.
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await clientSession.opened;

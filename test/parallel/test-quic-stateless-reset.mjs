@@ -47,6 +47,7 @@ const encoder = new TextEncoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
+    verifyPeer: 'manual',
     onerror: mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
     }),
@@ -103,6 +104,7 @@ const encoder = new TextEncoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
+    verifyPeer: 'manual',
     // Short idle timeout so the client doesn't hang waiting for
     // a stateless reset that will never arrive.
     transportParams: { maxIdleTimeout: 1 },
@@ -172,6 +174,7 @@ const encoder = new TextEncoder();
 
   const client1 = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
+    verifyPeer: 'manual',
     onerror: mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
     }),
@@ -198,6 +201,7 @@ const encoder = new TextEncoder();
 
   const client2 = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
+    verifyPeer: 'manual',
     // Short idle timeout so the client closes after the server
     // destroys (no stateless reset will arrive, rate-limited).
     transportParams: { maxIdleTimeout: 1 },

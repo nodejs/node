@@ -41,6 +41,7 @@ const serverEndpoint = await listen((serverSession) => {
 // First connection: receive the token.
 const cs1 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   onnewtoken: mustCall((token) => {
     savedToken = token;
     gotToken.resolve();
@@ -58,6 +59,7 @@ await setTimeout(1500);
 // connection should still succeed (Retry is transparent).
 const cs2 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   token: savedToken,
 });
 await cs2.opened;

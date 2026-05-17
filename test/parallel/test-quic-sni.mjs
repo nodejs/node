@@ -39,6 +39,7 @@ ok(serverEndpoint.address !== undefined);
 // Client connects with servername 'localhost' — should match the SNI entry.
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
   alpn: 'quic-test',
 });
 const clientInfo = await clientSession.opened;
