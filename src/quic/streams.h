@@ -258,6 +258,11 @@ class Stream final : public AsyncWrap,
 
   Session& session() const;
 
+  // Returns the most recent activity timestamp for this stream in
+  // nanoseconds (uv_hrtime). Uses received_at if data has been received,
+  // otherwise falls back to created_at. Returns 0 if neither is set.
+  uint64_t last_activity_timestamp() const;
+
   // True if this stream was created in a pending state and is still waiting
   // to be created.
   bool is_pending() const;

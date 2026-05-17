@@ -1659,6 +1659,11 @@ added: v23.8.0
 
 * Type: {bigint}
 
+### `sessionStats.streamsIdleTimedOut`
+
+* Type: {bigint} The total number of peer-initiated streams destroyed by the
+  stream idle timeout. Read only.
+
 ## Class: `QuicError`
 
 <!-- YAML
@@ -3025,6 +3030,23 @@ Controls which datagram to drop when the pending datagram queue
 reported as lost via the `ondatagramstatus` callback.
 
 This option is immutable after session creation.
+
+#### `sessionOptions.streamIdleTimeout`
+
+* Type: {bigint|number}
+* **Default:** `30000` (30 seconds)
+
+The maximum time in milliseconds that a peer-initiated stream can be idle
+(no data received) before it is automatically destroyed. This protects
+against slowloris-style attacks where a remote peer opens streams but never
+sends data, holding server resources indefinitely. Only peer-initiated
+streams are checked — locally-initiated streams are the application's
+responsibility. Set to `0` to disable.
+
+The idle check runs as part of the normal send processing loop, so it adds
+no additional timers or event loop overhead. The
+`session.stats.streamsIdleTimedOut` counter tracks how many streams have been
+destroyed by this mechanism.
 
 #### `sessionOptions.maxDatagramSendAttempts`
 

@@ -35,7 +35,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 const serverObservation = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall((stream) => {
+  serverSession.onstream = mustCall(async (stream) => {
     const writer = stream.writer;
     // Sanity: the writer is active before the peer tears the stream
     // down, so desiredSize is a number reflecting the initial
@@ -57,6 +57,11 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
       setImmediate(() => {
         serverObservation.resolve(writer.desiredSize);
       });
+    });
+
+    // The peer's reset causes stream.closed to reject.
+    await assert.rejects(stream.closed, {
+      code: 'ERR_QUIC_APPLICATION_ERROR',
     });
   });
 }));
