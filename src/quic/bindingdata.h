@@ -70,6 +70,7 @@ class SessionManager;
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
+  V(allow, "allow")                                                            \
   V(application, "application")                                                \
   V(authoritative, "authoritative")                                            \
   V(bbr, "bbr")                                                                \
@@ -81,6 +82,7 @@ class SessionManager;
   V(crl, "crl")                                                                \
   V(cubic, "cubic")                                                            \
   V(datagram_drop_policy, "datagramDropPolicy")                                \
+  V(deny, "deny")                                                              \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(draining_period_multiplier, "drainingPeriodMultiplier")                    \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
@@ -127,6 +129,8 @@ class SessionManager;
   V(immediate_close_burst, "immediateCloseBurst")                              \
   V(session_creation_rate, "sessionCreationRate")                              \
   V(session_creation_burst, "sessionCreationBurst")                            \
+  V(block_list, "blockList")                                                   \
+  V(block_list_policy, "blockListPolicy")                                      \
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
