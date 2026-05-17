@@ -186,10 +186,10 @@ typename T::Type* SocketAddressLRU<T>::Peek(
 }
 
 template <typename T>
-void SocketAddressLRU<T>::CheckExpired() {
+void SocketAddressLRU<T>::CheckExpired(uint64_t now) {
   auto it = list_.rbegin();
   while (it != list_.rend()) {
-    if (T::CheckExpired(it->first, it->second)) {
+    if (T::CheckExpired(it->first, it->second, now)) {
       map_.erase(it->first);
       list_.pop_back();
       it = list_.rbegin();
@@ -211,21 +211,20 @@ void SocketAddressLRU<T>::MemoryInfo(MemoryTracker* tracker) const {
 // cache and adjust if necessary. Whether the item exists or not,
 // purge expired items.
 template <typename T>
-typename T::Type* SocketAddressLRU<T>::Upsert(
-    const SocketAddress& address) {
-
-  auto on_exit = OnScopeLeave([&]() { CheckExpired(); });
+typename T::Type* SocketAddressLRU<T>::Upsert(const SocketAddress& address,
+                                              uint64_t now) {
+  auto on_exit = OnScopeLeave([&]() { CheckExpired(now); });
 
   auto it = map_.find(address);
   if (it != std::end(map_)) {
     list_.splice(list_.begin(), list_, it->second);
-    T::Touch(it->first, &it->second->second);
+    T::Touch(it->first, &it->second->second, now);
     return &it->second->second;
   }
 
   list_.push_front(Pair(address, { }));
   map_[address] = list_.begin();
-  T::Touch(list_.begin()->first, &list_.begin()->second);
+  T::Touch(list_.begin()->first, &list_.begin()->second, now);
 
   // Drop the last item in the list if we are
   // over the size limit...

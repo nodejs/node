@@ -213,8 +213,9 @@ class SocketAddressLRU : public MemoryRetainer {
   // If the item already exists, returns a reference to
   // the existing item, adjusting items position in the
   // LRU. If the item does not exist, emplaces the item
-  // and returns the new item.
-  Type* Upsert(const SocketAddress& address);
+  // and returns the new item. The caller provides a
+  // timestamp to avoid redundant uv_hrtime() calls.
+  Type* Upsert(const SocketAddress& address, uint64_t now);
 
   // Returns a reference to the item if it exists, or
   // nullptr. The position in the LRU is not modified.
@@ -231,7 +232,7 @@ class SocketAddressLRU : public MemoryRetainer {
   using Pair = std::pair<SocketAddress, Type>;
   using Iterator = typename std::list<Pair>::iterator;
 
-  void CheckExpired();
+  void CheckExpired(uint64_t now);
 
   std::list<Pair> list_;
   SocketAddress::Map<Iterator> map_;
