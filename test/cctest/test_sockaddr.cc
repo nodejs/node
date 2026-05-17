@@ -146,11 +146,13 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   struct FooLRUTraits {
     using Type = Foo;
 
-    static bool CheckExpired(const SocketAddress& address, const Type& type) {
+    static bool CheckExpired(const SocketAddress& address,
+                             const Type& type,
+                             uint64_t now) {
       return type.expired;
     }
 
-    static void Touch(const SocketAddress& address, Type* type) {
+    static void Touch(const SocketAddress& address, Type* type, uint64_t now) {
       type->expired = false;
     }
   };
@@ -169,7 +171,8 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   SocketAddress addr3(reinterpret_cast<const sockaddr*>(&storage[2]));
   SocketAddress addr4(reinterpret_cast<const sockaddr*>(&storage[3]));
 
-  Foo* foo = lru.Upsert(addr1);
+  uint64_t now = uv_hrtime();
+  Foo* foo = lru.Upsert(addr1, now);
   CHECK_NOT_NULL(foo);
   CHECK_EQ(foo->c, 0);
   CHECK_EQ(foo->expired, false);
@@ -177,14 +180,14 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   foo->c = 1;
   foo->expired = true;
 
-  foo = lru.Upsert(addr1);
+  foo = lru.Upsert(addr1, now);
   CHECK_NOT_NULL(lru.Peek(addr1));
   CHECK_EQ(lru.Peek(addr1), lru.Peek(addr4));
   CHECK_EQ(lru.Peek(addr1)->c, 1);
   CHECK_EQ(lru.Peek(addr1)->expired, false);
   CHECK_EQ(lru.size(), 1);
 
-  foo = lru.Upsert(addr2);
+  foo = lru.Upsert(addr2, now);
   foo->c = 2;
   foo->expired = true;
   CHECK_NOT_NULL(lru.Peek(addr2));
@@ -193,7 +196,7 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
 
   foo->expired = true;
 
-  foo = lru.Upsert(addr3);
+  foo = lru.Upsert(addr3, now);
   foo->c = 3;
   foo->expired = false;
   CHECK_NOT_NULL(lru.Peek(addr3));
