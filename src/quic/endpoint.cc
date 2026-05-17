@@ -78,7 +78,8 @@ namespace quic {
   V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
   V(STATELESS_RESET_RATE_LIMITED, stateless_reset_rate_limited)                \
   V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)                              \
-  V(IMMEDIATE_CLOSE_RATE_LIMITED, immediate_close_rate_limited)
+  V(IMMEDIATE_CLOSE_RATE_LIMITED, immediate_close_rate_limited)                \
+  V(SESSION_CREATION_RATE_LIMITED, session_creation_rate_limited)
 
 struct Endpoint::State {
 #define V(_, name, type) type name;
@@ -90,6 +91,15 @@ STAT_STRUCT(Endpoint, ENDPOINT)
 
 TokenBucket::TokenBucket(double rate, double burst)
     : rate(rate), burst(burst), tokens(burst), last_ts(uv_hrtime()) {}
+
+void TokenBucket::InitOnce(double r, double b) {
+  if (last_ts == 0) {
+    rate = r;
+    burst = b;
+    tokens = b;
+    last_ts = uv_hrtime();
+  }
+}
 
 // Try to consume one token. Refills based on elapsed time, then
 // attempts to consume. Returns true if the request is allowed.
@@ -227,7 +237,8 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
       !SET(retry_rate) || !SET(retry_burst) || !SET(stateless_reset_rate) ||
       !SET(stateless_reset_burst) || !SET(version_negotiation_rate) ||
       !SET(version_negotiation_burst) || !SET(immediate_close_rate) ||
-      !SET(immediate_close_burst) ||
+      !SET(immediate_close_burst) || !SET(session_creation_rate) ||
+      !SET(session_creation_burst) ||
 #ifdef DEBUG
       !SET(rx_loss) || !SET(tx_loss) ||
 #endif
@@ -296,6 +307,11 @@ std::string Endpoint::Options::ToString() const {
          "immediate close rate: " + std::to_string(immediate_close_rate) + "/s";
   res += prefix +
          "immediate close burst: " + std::to_string(immediate_close_burst);
+  res += prefix +
+         "session creation rate: " + std::to_string(session_creation_rate) +
+         "/s";
+  res += prefix +
+         "session creation burst: " + std::to_string(session_creation_burst);
   res += prefix + "validate address: " + boolToString(validate_address);
   res += prefix +
          "disable stateless reset: " + boolToString(disable_stateless_reset);
@@ -1330,6 +1346,19 @@ void Endpoint::Receive(const uint8_t* data,
     // One final check. If the endpoint is closed, closing, or is not listening
     // as a server, then we cannot accept the initial packet.
     if (is_closed() || is_closing() || !is_listening()) return;
+
+    // Per-host session creation rate limit. The bucket is initialized
+    // on first access with the configured rate/burst from options.
+    auto info = addr_validation_lru_.Upsert(config.remote_address);
+    info->session_creation_bucket.InitOnce(options_.session_creation_rate,
+                                           options_.session_creation_burst);
+    if (!info->session_creation_bucket.consume()) {
+      Debug(this,
+            "Session creation rate limit exceeded for %s",
+            config.remote_address);
+      STAT_INCREMENT(Stats, session_creation_rate_limited);
+      return;
+    }
 
     Debug(this, "Creating new session for %s", config.dcid);
 
