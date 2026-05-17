@@ -776,6 +776,12 @@ added: v23.8.0
 * Type: {bigint} The total number of immediate connection close packets
   dropped by the global rate limiter. Read only.
 
+### `endpointStats.sessionCreationRateLimited`
+
+* Type: {bigint} The total number of session creation attempts dropped by the
+  per-host rate limiter. Read only. A non-zero value indicates one or more
+  remote addresses are creating sessions faster than the configured rate allows.
+
 ## Class: `QuicSession`
 
 <!-- YAML
@@ -2542,6 +2548,26 @@ send per second.
 
 The maximum burst of immediate connection close packets allowed before rate
 limiting takes effect.
+
+#### `endpointOptions.sessionCreationRate`
+
+* Type: {number}
+* **Default:** `50`
+
+The maximum number of new sessions that a single remote address can create per
+second. This is a per-host rate limit tracked in the address validation LRU
+cache. It prevents a validated remote address from churning through sessions
+(rapidly opening and abandoning connections) faster than the server can handle.
+For benchmarking where traffic comes from a single source, set this to a high
+value.
+
+#### `endpointOptions.sessionCreationBurst`
+
+* Type: {number}
+* **Default:** `100`
+
+The maximum burst of new session creations allowed from a single remote address
+before rate limiting takes effect.
 
 #### `endpointOptions.retryTokenExpiration`
 

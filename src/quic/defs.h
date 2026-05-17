@@ -371,7 +371,14 @@ struct TokenBucket final {
   double tokens;     // current token count
   uint64_t last_ts;  // last refill timestamp (nanoseconds, uv_hrtime)
 
+  TokenBucket() : rate(0), burst(0), tokens(0), last_ts(0) {}
   TokenBucket(double rate, double burst);
+
+  // Reinitialize the bucket with new rate/burst parameters if it
+  // hasn't been initialized yet (last_ts == 0). Used for per-host
+  // buckets in the address LRU where the rate/burst aren't known
+  // at construction time.
+  void InitOnce(double r, double b);
 
   // Try to consume one token. Refills based on elapsed time, then
   // attempts to consume. Returns true if the request is allowed.
