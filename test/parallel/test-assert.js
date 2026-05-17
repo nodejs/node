@@ -559,6 +559,16 @@ test('Output that extends beyond 10 lines should also be truncated for display',
   });
 });
 
+test('Large strictEqual object diffs are truncated for display', () => {
+  const buffer = Buffer.alloc(1001);
+  const err = assert.throws(() => assert.strictEqual(buffer, [buffer]));
+
+  assert.strictEqual(err.code, 'ERR_ASSERTION');
+  assert.match(err.message, /\.\.\. Skipped lines/);
+  assert.ok(err.message.includes('<Buffer'));
+  assert.ok(err.message.split('\n').length < 40);
+});
+
 test('Bad args to AssertionError constructor should throw TypeError.', () => {
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
   for (const input of args) {
