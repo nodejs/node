@@ -72,7 +72,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint64_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
 
     // HTTP/3 specific options.
-    uint64_t max_field_section_size = 0;
+    // The maximum header section size advertised to the peer in SETTINGS.
+    // Defaults to match max_header_length so the SETTINGS frame accurately
+    // reflects the enforcement limit. A value of 0 would incorrectly tell
+    // the peer not to send any headers at all.
+    uint64_t max_field_section_size = DEFAULT_MAX_HEADER_LENGTH;
     uint64_t qpack_max_dtable_capacity = 4096;
     uint64_t qpack_encoder_max_dtable_capacity = 4096;
     uint64_t qpack_blocked_streams = 100;
