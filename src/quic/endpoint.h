@@ -252,24 +252,27 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // ellicit retry packets (It can do so by intentionally sending initial
   // packets that ignore the retry token). To help mitigate that risk, we limit
   // the number of retries we send to a given remote endpoint.
-  void SendRetry(const PathDescriptor& options);
+  void SendRetry(const PathDescriptor& options, uint64_t now);
 
   // Sends a version negotiation packet. This is terminal for the connection and
   // is sent only when a QUIC packet is received for an unsupported QUIC
   // version. It is possible that a malicious packet triggered this so we need
   // to be careful not to commit too many resources.
-  void SendVersionNegotiation(const PathDescriptor& options);
+  void SendVersionNegotiation(const PathDescriptor& options, uint64_t now);
 
   // Possibly generates and sends a stateless reset packet. This is terminal for
   // the connection. It is possible that a malicious packet triggered this so we
   // need to be careful not to commit too many resources.
-  bool SendStatelessReset(const PathDescriptor& options, size_t source_len);
+  bool SendStatelessReset(const PathDescriptor& options,
+                          size_t source_len,
+                          uint64_t now);
 
   // Shutdown a connection prematurely, before a Session is created. This should
   // only be called at the start of a session before the crypto keys have been
   // established.
   void SendImmediateConnectionClose(const PathDescriptor& options,
-                                    QuicError error);
+                                    QuicError error,
+                                    uint64_t now);
 
   // Listen for connections (act as a server).
   void Listen(const Session::Options& options);
@@ -469,8 +472,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
       TokenBucket session_creation_bucket;
     };
 
-    static bool CheckExpired(const SocketAddress& address, const Type& type);
-    static void Touch(const SocketAddress& address, Type* type);
+    static bool CheckExpired(const SocketAddress& address,
+                             const Type& type,
+                             uint64_t now);
+    static void Touch(const SocketAddress& address, Type* type, uint64_t now);
   };
 
   SocketAddressLRU<SocketAddressInfoTraits> addr_validation_lru_;
