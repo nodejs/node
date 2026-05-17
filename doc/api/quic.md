@@ -104,6 +104,42 @@ to negotiate the application protocol (via ALPN), authenticate the server (and
 optionally the client), exchange transport parameters, and establish shared keys
 for encryption.
 
+#### Certificate size and handshake performance
+
+QUIC includes an anti-amplification limit ([RFC 9000 Section 8.1][]) that
+restricts the server to sending at most three times the data received from
+the client before the client's address is validated. Because the client's
+Initial packet is typically around 1200 bytes, the server can send at most
+approximately 3600 bytes before it must wait for the client to acknowledge.
+
+The server's initial response is dominated by its TLS certificate chain. If
+the certificate chain exceeds the amplification limit, the handshake requires
+an additional round trip — the server must pause, wait for the client's
+acknowledgement, and then continue sending the remainder of the certificate.
+This eliminates QUIC's 1-RTT handshake advantage over TCP+TLS and can add
+50–100 ms or more of latency on the first connection, depending on the network
+path.
+
+To avoid this, servers should use compact certificate chains:
+
+* **Use ECDSA certificates** (P-256 or P-384) rather than RSA. ECDSA keys and
+  signatures are significantly smaller. A typical ECDSA P-256 certificate chain
+  with one intermediate is approximately 1.5–2 KB, well within the amplification
+  limit. An equivalent RSA-2048 chain is often 3–5 KB, which may exceed it.
+
+* **Minimize the certificate chain.** Include only the leaf certificate and
+  the necessary intermediate(s). Do not include the root certificate (clients
+  already have it in their trust store). Avoid cross-signed intermediates when
+  the self-signed root is already widely trusted.
+
+* **Prefer certificate authorities with short chains.** Some CAs issue
+  certificates with a single small intermediate, while others require multiple
+  large RSA intermediates. The choice of CA directly affects handshake latency.
+
+Certificate compression ([RFC 8879][]) can also address this issue by
+compressing the certificate chain during the handshake. However, Node.js does
+not currently support TLS certificate compression.
+
 ### Applications
 
 Every `QuicSession` is associated with a single application protocol, negotiated
@@ -4036,8 +4072,10 @@ throughput issues caused by flow control.
 [Callback error handling]: #callback-error-handling
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
+[RFC 8879]: https://www.rfc-editor.org/rfc/rfc8879
 [RFC 8999]: https://www.rfc-editor.org/rfc/rfc8999
 [RFC 9000]: https://www.rfc-editor.org/rfc/rfc9000
+[RFC 9000 Section 8.1]: https://www.rfc-editor.org/rfc/rfc9000#section-8.1
 [RFC 9001]: https://www.rfc-editor.org/rfc/rfc9001
 [RFC 9002]: https://www.rfc-editor.org/rfc/rfc9002
 [RFC 9114]: https://www.rfc-editor.org/rfc/rfc9114
