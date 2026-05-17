@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-iterator.h"
 
+#include "src/codegen/bailout-reason.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects/feedback-vector.h"
@@ -26,7 +27,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
                       ? LocalHeap::Current()
                       : Isolate::Current()->main_thread_local_heap()) {
   local_heap_->AddGCEpilogueCallback(UpdatePointersCallback, this);
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
   if (initial_offset != 0) {
     AdvanceTo(initial_offset);
   }
@@ -44,7 +45,7 @@ BytecodeArrayIterator::BytecodeArrayIterator(
       prefix_size_(0),
       local_heap_(nullptr) {
   // Don't add a GC callback, since we're in a no_gc scope.
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
   if (initial_offset != 0) {
     AdvanceTo(initial_offset);
   }
@@ -57,8 +58,9 @@ BytecodeArrayIterator::~BytecodeArrayIterator() {
 }
 
 void BytecodeArrayIterator::AdvanceTo(int offset) {
-  DCHECK_GE(offset, current_offset());
-  while (current_offset() != offset && cursor_ < end_) {
+  DCHECK(base::IsInRange(cursor_ - prefix_size_, start_, start_ + offset));
+  DCHECK_LE(current_offset(), offset);
+  while (current_offset() < offset) {
     Advance();
   }
   // Make sure we're always at a valid offset.
@@ -67,7 +69,7 @@ void BytecodeArrayIterator::AdvanceTo(int offset) {
 
 void BytecodeArrayIterator::SetOffset(int offset) {
   DCHECK_GE(offset, 0);
-  if (offset < current_offset()) {
+  if (!base::IsInRange(cursor_ - prefix_size_, start_, start_ + offset)) {
     Reset();
   }
   // Advance to the given offset instead of just setting cursor_.
@@ -77,14 +79,14 @@ void BytecodeArrayIterator::SetOffset(int offset) {
 
 void BytecodeArrayIterator::Reset() {
   cursor_ = start_;
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
 }
 
 // protected
 void BytecodeArrayIterator::SetOffsetUnchecked(int offset) {
   DCHECK_GE(offset, 0);
   cursor_ = start_ + offset;
-  UpdateOperandScale();
+  UpdateCurrentBytecode();
 }
 
 // static
@@ -182,15 +184,39 @@ uint32_t BytecodeArrayIterator::GetRegisterCountOperand(
   return GetUnsignedOperand(operand_index, OperandType::kRegCount);
 }
 
-uint32_t BytecodeArrayIterator::GetIndexOperand(int operand_index) const {
+uint32_t BytecodeArrayIterator::GetConstantPoolIndexOperand(
+    int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  DCHECK_EQ(operand_type, OperandType::kIdx);
+  DCHECK_EQ(operand_type, OperandType::kConstantPoolIndex);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
+uint32_t BytecodeArrayIterator::GetFeedbackSlotOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kFeedbackSlot);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
+uint32_t BytecodeArrayIterator::GetContextSlotOperand(int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kContextSlot);
+  return GetUnsignedOperand(operand_index, operand_type);
+}
+
+uint32_t BytecodeArrayIterator::GetCoverageSlotOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kCoverageSlot);
   return GetUnsignedOperand(operand_index, operand_type);
 }
 
 FeedbackSlot BytecodeArrayIterator::GetSlotOperand(int operand_index) const {
-  int index = GetIndexOperand(operand_index);
+  int index = GetFeedbackSlotOperand(operand_index);
   return FeedbackVector::ToSlot(index);
 }
 
@@ -280,31 +306,49 @@ Runtime::FunctionId BytecodeArrayIterator::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-template <typename IsolateT>
-Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
-    int index, IsolateT* isolate) const {
-  return handle(bytecode_array()->constant_pool()->get(index), isolate);
+AbortReason BytecodeArrayIterator::GetAbortReasonOperand(
+    int operand_index) const {
+  OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK_EQ(operand_type, OperandType::kAbortReason);
+  return static_cast<AbortReason>(
+      GetUnsignedOperand(operand_index, operand_type));
 }
 
-bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
-  return IsSmi(bytecode_array()->constant_pool()->get(index));
+Tagged<Object> BytecodeArrayIterator::GetConstantAtIndex(int index) const {
+  Tagged<TrustedFixedArray> constant_pool = bytecode_array()->constant_pool();
+  CHECK_WITH_MSG(base::IsInHalfOpenRange(index, 0, constant_pool->length()),
+                 "Constant pool index out of bounds");
+  return constant_pool->get(index);
+}
+
+Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
+    int index, Isolate* isolate) const {
+  return handle(GetConstantAtIndex(index), isolate);
+}
+
+Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
+    int index, LocalIsolate* isolate) const {
+  return handle(GetConstantAtIndex(index), isolate);
 }
 
 Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
-  return Cast<Smi>(bytecode_array()->constant_pool()->get(index));
+  Tagged<Object> object = GetConstantAtIndex(index);
+  CHECK_WITH_MSG(IsSmi(object), "Constant pool entry is not a Smi");
+  return Cast<Smi>(object);
 }
 
-template <typename IsolateT>
-Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-    int operand_index, IsolateT* isolate) const {
-  return GetConstantAtIndex(GetIndexOperand(operand_index), isolate);
+Handle<Object> BytecodeArrayIterator::GetConstantForOperand(
+    int operand_index, Isolate* isolate) const {
+  return GetConstantAtIndex(GetConstantPoolIndexOperand(operand_index),
+                            isolate);
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-        int operand_index, Isolate* isolate) const;
-template Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
-    int operand_index, LocalIsolate* isolate) const;
+Handle<Object> BytecodeArrayIterator::GetConstantForOperand(
+    int operand_index, LocalIsolate* isolate) const {
+  return GetConstantAtIndex(GetConstantPoolIndexOperand(operand_index),
+                            isolate);
+}
 
 int BytecodeArrayIterator::GetRelativeJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
@@ -315,7 +359,7 @@ int BytecodeArrayIterator::GetRelativeJumpTargetOffset() const {
     }
     return relative_offset;
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Tagged<Smi> smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
+    Tagged<Smi> smi = GetConstantAtIndexAsSmi(GetConstantPoolIndexOperand(0));
     return smi.value();
   } else {
     UNREACHABLE();
@@ -331,12 +375,12 @@ JumpTableTargetOffsets BytecodeArrayIterator::GetJumpTableTargetOffsets()
   uint32_t table_start, table_size;
   int32_t case_value_base;
   if (current_bytecode() == Bytecode::kSwitchOnGeneratorState) {
-    table_start = GetIndexOperand(1);
+    table_start = GetConstantPoolIndexOperand(1);
     table_size = GetUnsignedImmediateOperand(2);
     case_value_base = 0;
   } else {
     DCHECK_EQ(current_bytecode(), Bytecode::kSwitchOnSmiNoFeedback);
-    table_start = GetIndexOperand(0);
+    table_start = GetConstantPoolIndexOperand(0);
     table_size = GetUnsignedImmediateOperand(1);
     case_value_base = GetImmediateOperand(2);
   }
@@ -347,8 +391,10 @@ int BytecodeArrayIterator::GetAbsoluteOffset(int relative_offset) const {
   return current_offset() + relative_offset + prefix_size_;
 }
 
-std::ostream& BytecodeArrayIterator::PrintTo(std::ostream& os) const {
-  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_);
+std::ostream& BytecodeArrayIterator::PrintCurrentBytecodeTo(
+    std::ostream& os) const {
+  return BytecodeDecoder::Decode(os, cursor_ - prefix_size_,
+                                 bytecode_array_->constant_pool());
 }
 
 void BytecodeArrayIterator::UpdatePointers() {
@@ -358,10 +404,35 @@ void BytecodeArrayIterator::UpdatePointers() {
   if (start != start_) {
     start_ = start;
     uint8_t* end = start + bytecode_array_->length();
-    size_t distance_to_end = end_ - cursor_;
-    cursor_ = end - distance_to_end;
+    if (cursor_ != nullptr) {
+      size_t distance_to_end = end_ - cursor_;
+      cursor_ = end - distance_to_end;
+    }
     end_ = end;
   }
+}
+
+uint32_t BytecodeArrayIterator::GetEmbeddedFeedback(int operand_index) const {
+  DCHECK_GE(operand_index, 0);
+  DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
+  DCHECK_EQ(OperandType::kEmbeddedFeedback,
+            Bytecodes::GetOperandType(current_bytecode(), operand_index));
+  Address embedded_feedback_start = reinterpret_cast<Address>(cursor_) +
+                                    current_operand_offset(operand_index);
+  return BytecodeDecoder::RacyDecodeEmbeddedFeedback(embedded_feedback_start);
+}
+
+CompareOperationHint BytecodeArrayIterator::GetEmbeddedCompareOperationHint() {
+  DCHECK(Bytecodes::IsCompareWithEmbeddedFeedback(current_bytecode()));
+  uint32_t type_feedback = GetEmbeddedFeedback(1);
+  return v8::internal::CompareOperationHintFromFeedback(type_feedback);
+}
+
+int BytecodeArrayIterator::GetEmbeddedFeedbackOffset(int operand_index) const {
+  DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
+            OperandType::kEmbeddedFeedback);
+  return BytecodeArray::kHeaderSize - kHeapObjectTag + current_offset() +
+         prefix_size_ + current_operand_offset(operand_index);
 }
 
 JumpTableTargetOffsets::JumpTableTargetOffsets(
@@ -380,30 +451,20 @@ JumpTableTargetOffsets::iterator JumpTableTargetOffsets::end() const {
   return iterator(case_value_base_ + table_size_, table_start_ + table_size_,
                   table_start_ + table_size_, iterator_);
 }
-int JumpTableTargetOffsets::size() const {
-  int ret = 0;
-  // TODO(leszeks): Is there a more efficient way of doing this than iterating?
-  for (JumpTableTargetOffset entry : *this) {
-    USE(entry);
-    ret++;
-  }
-  return ret;
-}
+int JumpTableTargetOffsets::size() const { return table_size_; }
 
 JumpTableTargetOffsets::iterator::iterator(
     int case_value, int table_offset, int table_end,
     const BytecodeArrayIterator* iterator)
     : iterator_(iterator),
-      current_(Smi::zero()),
       index_(case_value),
       table_offset_(table_offset),
-      table_end_(table_end) {
-  UpdateAndAdvanceToValid();
-}
+      table_end_(table_end) {}
 
 JumpTableTargetOffset JumpTableTargetOffsets::iterator::operator*() {
   DCHECK_LT(table_offset_, table_end_);
-  return {index_, iterator_->GetAbsoluteOffset(Smi::ToInt(current_))};
+  return {index_, iterator_->GetAbsoluteOffset(Smi::ToInt(
+                      iterator_->GetConstantAtIndexAsSmi(table_offset_)))};
 }
 
 JumpTableTargetOffsets::iterator&
@@ -411,7 +472,6 @@ JumpTableTargetOffsets::iterator::operator++() {
   DCHECK_LT(table_offset_, table_end_);
   ++table_offset_;
   ++index_;
-  UpdateAndAdvanceToValid();
   return *this;
 }
 
@@ -421,20 +481,6 @@ bool JumpTableTargetOffsets::iterator::operator!=(
   DCHECK_EQ(table_end_, other.table_end_);
   DCHECK_EQ(index_ - other.index_, table_offset_ - other.table_offset_);
   return index_ != other.index_;
-}
-
-void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
-  while (table_offset_ < table_end_ &&
-         !iterator_->IsConstantAtIndexSmi(table_offset_)) {
-    ++table_offset_;
-    ++index_;
-  }
-
-  // Make sure we haven't reached the end of the table with a hole in current.
-  if (table_offset_ < table_end_) {
-    DCHECK(iterator_->IsConstantAtIndexSmi(table_offset_));
-    current_ = iterator_->GetConstantAtIndexAsSmi(table_offset_);
-  }
 }
 
 }  // namespace interpreter

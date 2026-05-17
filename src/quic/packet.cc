@@ -127,11 +127,15 @@ Packet::Ptr Packet::CreateImmediateConnectionClosePacket(
                                       "immediate connection close (endpoint)");
   if (!packet) return packet;
   ngtcp2_vec vec = *packet;
+  // ngtcp2_crypto_write_connection_close expects dcid to be the
+  // client's SCID and scid to be the client's DCID (mirrored).
+  // PathDescriptor carries the incoming packet's CIDs as-is, so
+  // we swap here.
   ssize_t nwrite = ngtcp2_crypto_write_connection_close(vec.base,
                                                         vec.len,
                                                         path_descriptor.version,
-                                                        path_descriptor.dcid,
                                                         path_descriptor.scid,
+                                                        path_descriptor.dcid,
                                                         reason.code(),
                                                         nullptr,
                                                         0);
@@ -160,9 +164,11 @@ Packet::Ptr Packet::CreateStatelessResetPacket(
   if (!packet) return packet;
   ngtcp2_vec vec = *packet;
 
-  ssize_t nwrite = ngtcp2_pkt_write_stateless_reset(
+  auto nwrite = ngtcp2_pkt_write_stateless_reset2(
       vec.base, pktlen, token, random, kRandlen);
-  if (nwrite <= static_cast<ssize_t>(kMinStatelessResetLen)) return Ptr();
+  if (nwrite < static_cast<ssize_t>(kMinStatelessResetLen)) {
+    return Ptr();
+  }
 
   packet->Truncate(static_cast<size_t>(nwrite));
   return packet;
@@ -203,14 +209,18 @@ Packet::Ptr Packet::CreateVersionNegotiationPacket(
   if (!packet) return packet;
   ngtcp2_vec vec = *packet;
 
+  // ngtcp2_pkt_write_version_negotiation expects dcid to be the
+  // client's SCID and scid to be the client's DCID (mirrored).
+  // PathDescriptor carries the incoming packet's CIDs as-is, so
+  // we swap here.
   ssize_t nwrite =
       ngtcp2_pkt_write_version_negotiation(vec.base,
                                            pktlen,
                                            0,
-                                           path_descriptor.dcid,
-                                           path_descriptor.dcid.length(),
                                            path_descriptor.scid,
                                            path_descriptor.scid.length(),
+                                           path_descriptor.dcid,
+                                           path_descriptor.dcid.length(),
                                            sv,
                                            arraysize(sv));
   if (nwrite <= 0) return Ptr();

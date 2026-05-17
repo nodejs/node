@@ -1324,10 +1324,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   times[1] = src_statsbuf.st_mtim;
 #endif
 
-  if (futimens(dstfd, times) == -1) {
-    err = UV__ERR(errno);
-    goto out;
-  }
+  (void) futimens(dstfd, times);
 
   /*
    * Change the ownership and permissions of the destination file to match the

@@ -33,6 +33,10 @@ extern class PrototypeInfo extends Struct {
   // which feeds Reflect.construct, proxies and similar.
   derived_maps: WeakArrayList|Undefined;
 
+  // Use by SetPrototypeProperties Bytecode to store infos for lazy allocation
+  // of closures.
+  prototype_shared_closure_info: PrototypeSharedClosureInfo|Undefined;
+
   // Cached handler for loads of non-existent properties through this
   // prototype object.
   cached_handler[kPrototypeInfoCachedHandlerCount]: LoadHandler|Zero;

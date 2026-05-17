@@ -7,7 +7,7 @@
 
 const kNoBacktrackLimit = 0;  // To match JSRegExp::kNoBacktrackLimit.
 const re0 = %NewRegExpWithBacktrackLimit("(\\d+)+x", "", kNoBacktrackLimit);
-const re1 = %NewRegExpWithBacktrackLimit("(\\d+)+x", "", 50);
+const re1 = %NewRegExpWithBacktrackLimit("(\\d+)+x", "", 100);
 
 // Backtracks remain below the limit on this subject string.
 {

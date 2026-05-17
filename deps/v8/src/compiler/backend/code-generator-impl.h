@@ -86,6 +86,21 @@ class InstructionOperandConverter {
     return static_cast<uint8_t>(InputInt32(index) & 0x3F);
   }
 
+  uint8_t InputIntFromLaneSize(size_t index, int width) {
+    switch (width) {
+      case 8:
+        return InputInt3(index);
+      case 16:
+        return InputInt4(index);
+      case 32:
+        return InputInt5(index);
+      case 64:
+        return InputInt6(index);
+      default:
+        UNREACHABLE();
+    }
+  }
+
   CodeEntrypointTag InputCodeEntrypointTag(size_t index) {
     // Tags are stored shifted to the right so they fit into 32-bits.
     uint64_t shifted_tag = InputUint32(index);

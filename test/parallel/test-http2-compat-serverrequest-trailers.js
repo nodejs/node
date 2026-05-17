@@ -22,6 +22,7 @@ server.listen(0, common.mustCall(function() {
     request.on('data', common.mustCallAtLeast((chunk) => data += chunk));
     request.on('end', common.mustCall(() => {
       const trailers = request.trailers;
+      assert.strictEqual(Object.getPrototypeOf(trailers), null);
       for (const [name, value] of Object.entries(expectedTrailers)) {
         assert.strictEqual(trailers[name], value);
       }

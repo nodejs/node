@@ -198,15 +198,6 @@
   'language/statements/try/tco-finally': [SKIP],
   'language/statements/while/tco-body': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5690
-  'language/expressions/call/eval-spread': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12209
-  'intl402/Intl/supportedValuesOf/collations-accepted-by-Collator': [FAIL],
-
-  # https://github.com/tc39/test262/pull/4417
-  'intl402/Locale/prototype/getWeekInfo/output-object-keys': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9875
   'language/expressions/coalesce/tco-pos-undefined': [FAIL],
   'language/expressions/coalesce/tco-pos-null': [FAIL],
@@ -253,9 +244,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # intl402
-  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
-
   # Begin Temporal test expectations
   # Temporal work is tracked in b/42201538
 
@@ -263,77 +251,17 @@
   # there are only 16 tests. Skip for now.
   'staging/sm/Temporal/*': [SKIP],
 
-  # Fixed upstream
-
-  # Issue filed upstream
-
-  # Float casting to integer (https://github.com/boa-dev/temporal/issues/189, https://github.com/boa-dev/temporal/issues/334)
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-6': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/precision-exact-mathematical-values-7': [FAIL],
-
-  # Remapping out-of-range eras (https://github.com/boa-dev/temporal/issues/448)
-  'intl402/Temporal/PlainDate/from/remapping-era': [FAIL],
-  'staging/Intl402/Temporal/old/japanese-before-era': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/remapping-era': [FAIL],
-
-  # We need a way to regulate non-ISO on construction (https://github.com/unicode-org/icu4x/issues/6790)
-  'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
-  'intl402/Temporal/PlainDate/prototype/with/gregorian-mutually-exclusive-fields': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-japanese': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/reference-year-1972': [FAIL],
-
-  # We need to be able to construct from ordinal months (https://github.com/unicode-org/icu4x/issues/6790)
-  'staging/Intl402/Temporal/old/hebrew-leap-months': [FAIL],
-
-  # PlainMonthDay needs to support Chinese/Dangi (https://github.com/boa-dev/temporal/issues/450)
-  'intl402/Temporal/PlainMonthDay/from/constrain-to-leap-day': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-chinese': [FAIL],
-
-  # Chinese/Dangi need to use related_iso as their arithmetical year (https://github.com/unicode-org/icu4x/pull/6800)
-  'intl402/Temporal/PlainDate/prototype/until/until-across-lunisolar-leap-months': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [FAIL],
-  'intl402/Temporal/PlainDate/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainDateTime/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/calendar-not-supporting-eras': [FAIL],
-
-  # Non-ISO datetime arithmetic (https://github.com/unicode-org/icu4x/issues/1174)
-  'intl402/Temporal/PlainYearMonth/prototype/with/minimum-valid-year-month': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-buddhist': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-coptic': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-ethioaa': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-ethiopic': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-gregory': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-hebrew': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-indian': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamicc': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-civil': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-tbla': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-umalqura': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-persian': [FAIL],
-  'staging/Intl402/Temporal/old/non-iso-calendars-roc': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
-  'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
-  'intl402/Temporal/PlainYearMonth/from/reference-day-hebrew': [FAIL],
-  'intl402/Temporal/PlainMonthDay/from/calendar-not-supporting-eras': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/add/options-undefined': [FAIL],
-  'intl402/Temporal/PlainYearMonth/prototype/subtract/options-undefined': [FAIL],
-  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-chinese': [FAIL],
-  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months-hebrew': [FAIL],
-
-  # No issue filed
-
-  # Temporal should error on the ambiguous `islamic` calendar
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
-  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [FAIL],
-
-  # ICU4C and ICU4X disagree on canonical timezones
-  'intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal': [FAIL],
+  # toLocaleString with just an era setting should format as default
+  # b/463427743
+  'intl402/Temporal/Instant/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainDate/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/era': [FAIL],
+  'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/era': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/temporal-objects-format-with-era': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRange/temporal-objects-format-with-era': [FAIL],
 
   # End Temporal test expectations
-
 
   # https://github.com/tc39/test262/pull/3988
   'intl402/DurationFormat/prototype/format/precision-exact-mathematical-values': [FAIL],
@@ -625,12 +553,14 @@
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-islamic-rgsa': [SKIP],
+
+  # Older ICU4C revision with different era codes
+  'intl402/DateTimeFormat/prototype/formatToParts/chinese-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatToParts/dangi-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/chinese-calendar-dates': [SKIP],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/dangi-calendar-dates': [SKIP],
 
   # Somehow passes on Android (b/433933898):
-  'staging/Intl402/Temporal/old/non-iso-calendars-chinese': [SKIP],
-  'staging/Intl402/Temporal/old/non-iso-calendars-dangi': [SKIP],
 }], # 'system == android'
 
 ['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
@@ -701,15 +631,6 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
-################################################################################
-# Test expectations should be updated because of crbug.com/381805376
-[ALWAYS, {
-  'staging/sm/Iterator/prototype/every/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/find/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/forEach/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/reduce/check-fn-after-getting-iterator': [SKIP],
-  'staging/sm/Iterator/prototype/some/check-fn-after-getting-iterator': [SKIP],
-}],
 
 
 
@@ -761,16 +682,6 @@
 # Roll-watcher patch
 [ALWAYS, {
   # https://github.com/tc39/test262/pull/4146
-  'built-ins/Math/sumPrecise/length': [SKIP],
-  'built-ins/Math/sumPrecise/name': [SKIP],
-  'built-ins/Math/sumPrecise/not-a-constructor': [SKIP],
-  'built-ins/Math/sumPrecise/prop-desc': [SKIP],
-  'built-ins/Math/sumPrecise/sum': [SKIP],
-  'built-ins/Math/sumPrecise/sum-is-NaN': [SKIP],
-  'built-ins/Math/sumPrecise/sum-is-infinite': [SKIP],
-  'built-ins/Math/sumPrecise/sum-is-minus-zero': [SKIP],
-  'built-ins/Math/sumPrecise/takes-iterable': [SKIP],
-  'built-ins/Math/sumPrecise/throws-on-non-number': [SKIP],
   'intl402/DateTimeFormat/offset-timezone-no-unicode-minus-sign': [SKIP],
 }],
 # End roll-watcher patch
@@ -821,32 +732,10 @@
 # End roll-watcher patch
 ####
 
-
-
 ####
 # import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
 [ALWAYS, {
-  'language/import/import-defer/deferred-namespace-object/exotic-object-behavior': [SKIP],
   'language/import/import-defer/deferred-namespace-object/identity': [SKIP],
-  'language/import/import-defer/errors/get-other-while-dep-evaluating-async/main': [SKIP],
-  'language/import/import-defer/errors/get-other-while-dep-evaluating/main': [SKIP],
-  'language/import/import-defer/errors/get-other-while-evaluating-async/main': [SKIP],
-  'language/import/import-defer/errors/get-other-while-evaluating/main': [SKIP],
-  'language/import/import-defer/errors/get-self-while-defer-evaluating/main': [SKIP],
-  'language/import/import-defer/errors/get-self-while-evaluating': [SKIP],
-  'language/import/import-defer/errors/get-self-while-evaluating-async/main': [SKIP],
-  'language/import/import-defer/errors/module-throws/defer-import-after-evaluation': [SKIP],
-  'language/import/import-defer/errors/module-throws/third-party-evaluation-after-defer-import': [SKIP],
-  'language/import/import-defer/errors/module-throws/trigger-evaluation': [SKIP],
-  'language/import/import-defer/evaluation-sync/import-defer-does-not-evaluate': [SKIP],
-  'language/import/import-defer/evaluation-sync/module-imported-defer-and-eager': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/flattening-order/main': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/import-defer-async-module/main': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/import-defer-transitive-async-module/main': [SKIP],
-  'language/import/import-defer/evaluation-top-level-await/sync-dependency-of-deferred-async-module/main': [SKIP],
-  'language/import/import-defer/syntax/import-attributes': [SKIP],
-  'language/import/import-defer/syntax/valid-default-binding-named-defer': [SKIP],
-  'language/import/import-defer/syntax/valid-defer-namespace': [SKIP],
 }],
 # end import test262@dad2774b2eab2119cc8390ae65db4a5016de2dfe
 ####
@@ -854,38 +743,6 @@
 ####
 # import test262@d49db639a89df9cc2b6c02554beb41acaec95c38
 [ALWAYS, {
-  'built-ins/Iterator/concat/arguments-checked-in-order': [FAIL],
-  'built-ins/Iterator/concat/fresh-iterator-result': [FAIL],
-  'built-ins/Iterator/concat/get-iterator-method-only-once': [FAIL],
-  'built-ins/Iterator/concat/get-iterator-method-throws': [FAIL],
-  'built-ins/Iterator/concat/inner-iterator-created-in-order': [FAIL],
-  'built-ins/Iterator/concat/is-function': [FAIL],
-  'built-ins/Iterator/concat/iterable-primitive-wrapper-objects': [FAIL],
-  'built-ins/Iterator/concat/length': [FAIL],
-  'built-ins/Iterator/concat/many-arguments': [FAIL],
-  'built-ins/Iterator/concat/name': [FAIL],
-  'built-ins/Iterator/concat/next-method-called-with-zero-arguments': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-non-object': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-throwing-done': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-throwing-value': [FAIL],
-  'built-ins/Iterator/concat/next-method-returns-throwing-value-done': [FAIL],
-  'built-ins/Iterator/concat/next-method-throws': [FAIL],
-  'built-ins/Iterator/concat/prop-desc': [FAIL],
-  'built-ins/Iterator/concat/proto': [FAIL],
-  'built-ins/Iterator/concat/result-is-iterator': [FAIL],
-  'built-ins/Iterator/concat/return-is-forwarded': [FAIL],
-  'built-ins/Iterator/concat/return-is-not-forwarded-after-exhaustion': [FAIL],
-  'built-ins/Iterator/concat/return-is-not-forwarded-before-initial-start': [FAIL],
-  'built-ins/Iterator/concat/return-method-called-with-zero-arguments': [FAIL],
-  'built-ins/Iterator/concat/single-argument': [FAIL],
-  'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-next': [FAIL],
-  'built-ins/Iterator/concat/throws-typeerror-when-generator-is-running-return': [FAIL],
-  'built-ins/Iterator/concat/throws-typeerror-when-iterator-not-an-object': [FAIL],
-  'built-ins/Iterator/concat/zero-arguments': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRange/to-datetime-formattable-with-different-arg-kinds': [FAIL],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/to-datetime-formattable-with-different-arg-kinds': [FAIL],
-  'language/import/import-defer/deferred-namespace-object/to-string-tag': [FAIL],
-
   'staging/sm/class/superCallOrder': [FAIL],
   'staging/sm/class/superPropOrdering': [FAIL],
   'staging/sm/DataView/detach-after-construction': [FAIL],
@@ -943,52 +800,6 @@
 }],
 # End roll-watcher patch
 ####
-
-####
-# import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
-[ALWAYS, {
-  'language/import/import-defer/evaluation-triggers/ignore-exported-then-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-exported-then-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-getPrototypeOf': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-isExtensible': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-not-exported-then-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-preventExtensions': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-setPrototypeOf': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-set-string-exported': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-set-string-not-exported': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-other-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/ignore-symbol-toStringTag-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-exported-string-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-defineOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-delete': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-get': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-getOwnProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-not-exported-string-hasProperty': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKey-names': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKeys': [SKIP],
- 'language/import/import-defer/evaluation-triggers/trigger-ownPropertyKeys-symbols': [SKIP],
-}],
-# end import test262@e7a84b0a090ca86cc05f2e90116115c8c2a7c059
-###
 
 ####
 # import test262@bc5c14176e2b11a78859571eb693f028c8822458
@@ -1116,20 +927,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'intl402/Collator/prototype/resolvedOptions/resolved-case-first-unicode-extensions-and-options': [SKIP],
-  'intl402/Collator/prototype/resolvedOptions/resolved-collation-unicode-extensions-and-options': [SKIP],
-  'intl402/Collator/prototype/resolvedOptions/resolved-numeric-unicode-extensions-and-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-calendar-unicode-extensions-and-options': [SKIP],
-  'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/DurationFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/NumberFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/resolved-numbering-system-unicode-extensions-and-options': [SKIP],
-}],
-# End roll-watcher patch
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'language/expressions/assignmenttargettype/direct-callexpression': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-in-lhs': [SKIP],
   'language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs': [SKIP],
@@ -1153,39 +950,8 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/ArrayBuffer/prototype/resize/this-is-immutable-arraybuffer-object': [SKIP],
-  'built-ins/ArrayBuffer/prototype/transfer/this-is-immutable-arraybuffer': [SKIP],
-  'built-ins/ArrayBuffer/prototype/transferToFixedLength/this-is-immutable-arraybuffer': [SKIP],
-  'built-ins/DataView/prototype/setBigInt64/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setBigUint64/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setFloat16/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setFloat32/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setFloat64/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setInt16/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setInt32/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setInt8/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setUint16/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setUint32/immutable-buffer': [SKIP],
-  'built-ins/DataView/prototype/setUint8/immutable-buffer': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
   'intl402/String/prototype/toLocaleLowerCase/validates-all-locale-identifiers': [SKIP],
   'intl402/String/prototype/toLocaleUpperCase/validates-all-locale-identifiers': [SKIP],
-  'intl402/Temporal/Duration/prototype/round/relativeto-dst-back-transition': [SKIP],
-  'intl402/Temporal/Duration/prototype/total/relativeto-dst-back-transition': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/since/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/PlainDate/prototype/until/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/since/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/PlainDateTime/prototype/until/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/same-date-reverse-wallclock': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/since/wrapping-at-end-of-month-gregorian': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/same-date-reverse-wallclock': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/until/wrapping-at-end-of-month-gregorian': [SKIP],
   'staging/sm/DataView/get-set-index-range': [SKIP],
   'staging/sm/Math/acosh-exact': [SKIP],
   'staging/sm/Math/atanh-exact': [SKIP],
@@ -1233,10 +999,159 @@
 ####
 
 ####
-# import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+# Roll-watcher patch
 [ALWAYS, {
-  'language/module-code/top-level-await/rejection-order': [FAIL],
+  'built-ins/ThrowTypeError/distinct-cross-realm': [SKIP],
+  'built-ins/Uint8Array/prototype/setFromBase64/trailing-garbage': [SKIP],
+  'intl402/Intl/supportedValuesOf/calendars-required-by-intl-era-monthcode': [SKIP],
 }],
-# end import test262@a073f479f80b336256b7fc4e04700c827293e2fe
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/constructor-options-calendar-islamic-fallback': [SKIP],
+  'language/statements/await-using/syntax/block-scope-syntax-await-using-declarations-mixed-with-without-initializer': [SKIP],
+  'language/statements/using/syntax/using-for-using-of-of': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatToParts/era': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+
+####
+# import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
+[ALWAYS, {
+  # New tests for Iterator.zip and .zipKeyed
+  'built-ins/Iterator/zip/*': [SKIP],
+  'built-ins/Iterator/zipKeyed/*': [SKIP],
+
+  # Tests that need Unicode 17.0 data
+  # b/464064844
+  'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Assigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Cased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Case_Ignorable': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casemapped': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Lowercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Titlecased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Uppercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Diacritic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji_Presentation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extended_Pictographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extender': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Cased_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Currency_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Decimal_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Lowercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Math_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Modifier_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Nonspacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Spacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Uppercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Extend': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Ideographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Start': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Lowercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Math': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Beria_Erfe': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Beria_Erfe': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Kannada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Nandinagari': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Newa': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sharada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sidetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Syriac': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tai_Yo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Telugu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tifinagh': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tirhuta': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tolong_Siki': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Unknown': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Kannada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sharada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sidetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tai_Yo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Telugu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tolong_Siki': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Unknown': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Unified_Ideograph': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Uppercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Start': [FAIL],
+  'built-ins/RegExp/unicodeSets/generated/rgi-emoji-17.0': [FAIL],
+
+  'language/identifiers/part-unicode-17.0.0-class-escaped': [FAIL],
+  'language/identifiers/part-unicode-17.0.0-class': [FAIL],
+  'language/identifiers/part-unicode-17.0.0-escaped': [FAIL],
+  'language/identifiers/part-unicode-17.0.0': [FAIL],
+  'language/identifiers/start-unicode-17.0.0-class-escaped': [FAIL],
+  'language/identifiers/start-unicode-17.0.0-class': [FAIL],
+  'language/identifiers/start-unicode-17.0.0-escaped': [FAIL],
+  'language/identifiers/start-unicode-17.0.0': [FAIL],
+
+  # Times out
+  'built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji': [SKIP],
+}],
+# end import test262@bc5c6fe5bc9c82f031058e3bbe16bf3937a81fc5
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/DateTimeFormat/prototype/formatToParts/compare-to-temporal-lunisolar': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'intl402/Temporal/Instant/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/PlainDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/datestyle-and-timestyle': [SKIP],
+  'intl402/Temporal/PlainTime/prototype/toLocaleString/hourcycle': [SKIP],
+  'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/hourcycle': [SKIP],
+}],
+# End roll-watcher patch
 ####
 ]

@@ -85,7 +85,7 @@ class StreamHandler extends AsyncResource {
 
     const rawHeaders = controller?.rawHeaders
     const responseHeaderData = responseHeaders === 'raw'
-      ? (Array.isArray(rawHeaders) ? util.parseRawHeaders(rawHeaders) : [])
+      ? util.parseRawHeaders(rawHeaders)
       : headers
 
     if (statusCode < 200) {

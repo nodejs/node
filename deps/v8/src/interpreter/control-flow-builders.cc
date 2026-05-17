@@ -126,8 +126,9 @@ void SwitchBuilder::EmitJumpTableIfExists(
     int min_case, int max_case, std::map<int, CaseClause*>& covered_cases) {
   builder()->SwitchOnSmiNoFeedback(jump_table_);
   fall_through_.Bind(builder());
+  // Bind any uncovered cases.
   for (int j = min_case; j <= max_case; ++j) {
-    if (covered_cases.find(j) == covered_cases.end()) {
+    if (!covered_cases.contains(j)) {
       this->BindCaseTargetForJumpTable(j, nullptr);
     }
   }

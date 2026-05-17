@@ -71,12 +71,15 @@ class V8_EXPORT_PRIVATE Sandbox {
    * */
   static constexpr bool kFallbackToPartiallyReservedSandboxAllowed = true;
 
+  // The name for the virtual address space reservation backing the sandbox.
+  static constexpr const char* kSandboxAddressSpaceName = "v8-sandbox";
+
   /**
    * Initializes this sandbox.
    *
    * This will allocate the virtual address subspace for the sandbox inside the
    * provided virtual address space. If a subspace of the required size cannot
-   * be allocated, this method will insted initialize this sandbox as a
+   * be allocated, this method will instead initialize this sandbox as a
    * partially-reserved sandbox. In that case, a smaller virtual address space
    * reservation will be used and an EmulatedVirtualAddressSubspace instance
    * will be created on top of it to back the sandbox. If not enough virtual

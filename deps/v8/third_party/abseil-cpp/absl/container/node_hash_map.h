@@ -122,13 +122,18 @@ class NodeHashMapPolicy;
 //   if (result != ducks.end()) {
 //     std::cout << "Result: " << result->second << std::endl;
 //   }
-template <class Key, class Value, class Hash = DefaultHashContainerHash<Key>,
-          class Eq = DefaultHashContainerEq<Key>,
-          class Alloc = std::allocator<std::pair<const Key, Value>>>
+template <
+    class Key, class Value,
+    class Hash =
+        typename container_internal::NodeHashMapPolicy<Key, Value>::DefaultHash,
+    class Eq =
+        typename container_internal::NodeHashMapPolicy<Key, Value>::DefaultEq,
+    class Alloc = typename container_internal::NodeHashMapPolicy<
+        Key, Value>::DefaultAlloc>
 class ABSL_ATTRIBUTE_OWNER node_hash_map
-    : public absl::container_internal::raw_hash_map<
+    : public absl::container_internal::InstantiateRawHashMap<
           absl::container_internal::NodeHashMapPolicy<Key, Value>, Hash, Eq,
-          Alloc> {
+          Alloc>::type {
   using Base = typename node_hash_map::raw_hash_map;
 
  public:
@@ -628,6 +633,10 @@ class NodeHashMapPolicy
   using key_type = Key;
   using mapped_type = Value;
   using init_type = std::pair</*non const*/ key_type, mapped_type>;
+
+  using DefaultHash = DefaultHashContainerHash<Key>;
+  using DefaultEq = DefaultHashContainerEq<Key>;
+  using DefaultAlloc = std::allocator<std::pair<const Key, Value>>;
 
   template <class Allocator, class... Args>
   static value_type* new_element(Allocator* alloc, Args&&... args) {

@@ -18,40 +18,134 @@
 #include <utility>
 
 #include "gtest/gtest.h"
+#include "absl/base/options.h"
 
 namespace {
 
-struct Base {
-  explicit Base(int value) : x(value) {}
-  Base(const Base& other) = delete;
-  Base& operator=(const Base& other) = delete;
+struct BaseForImplicitCast {
+  explicit BaseForImplicitCast(int value) : x(value) {}
+  BaseForImplicitCast(const BaseForImplicitCast& other) = delete;
+  BaseForImplicitCast& operator=(const BaseForImplicitCast& other) = delete;
   int x;
 };
-struct Derived : Base {
-  explicit Derived(int value) : Base(value) {}
+struct DerivedForImplicitCast : BaseForImplicitCast {
+  explicit DerivedForImplicitCast(int value) : BaseForImplicitCast(value) {}
 };
 
+static_assert(std::is_same_v<decltype(absl::implicit_cast<BaseForImplicitCast&>(
+                                 std::declval<DerivedForImplicitCast&>())),
+                             BaseForImplicitCast&>);
 static_assert(
-    std::is_same_v<
-        decltype(absl::implicit_cast<Base&>(std::declval<Derived&>())), Base&>);
-static_assert(std::is_same_v<decltype(absl::implicit_cast<const Base&>(
-                                 std::declval<Derived>())),
-                             const Base&>);
+    std::is_same_v<decltype(absl::implicit_cast<const BaseForImplicitCast&>(
+                       std::declval<DerivedForImplicitCast>())),
+                   const BaseForImplicitCast&>);
 
 TEST(ImplicitCastTest, LValueReference) {
-  Derived derived(5);
-  EXPECT_EQ(&absl::implicit_cast<Base&>(derived), &derived);
-  EXPECT_EQ(&absl::implicit_cast<const Base&>(derived), &derived);
+  DerivedForImplicitCast derived(5);
+  EXPECT_EQ(&absl::implicit_cast<BaseForImplicitCast&>(derived), &derived);
+  EXPECT_EQ(&absl::implicit_cast<const BaseForImplicitCast&>(derived),
+            &derived);
 }
 
 TEST(ImplicitCastTest, RValueReference) {
-  Derived derived(5);
-  Base&& base = absl::implicit_cast<Base&&>(std::move(derived));
+  DerivedForImplicitCast derived(5);
+  BaseForImplicitCast&& base =
+      absl::implicit_cast<BaseForImplicitCast&&>(std::move(derived));
   EXPECT_EQ(&base, &derived);
 
-  const Derived cderived(6);
-  const Base&& cbase = absl::implicit_cast<const Base&&>(std::move(cderived));
+  const DerivedForImplicitCast cderived(6);
+  const BaseForImplicitCast&& cbase =
+      absl::implicit_cast<const BaseForImplicitCast&&>(std::move(cderived));
   EXPECT_EQ(&cbase, &cderived);
+}
+
+class BaseForDownCast {
+ public:
+  virtual ~BaseForDownCast() = default;
+};
+
+class DerivedForDownCast : public BaseForDownCast {};
+class Derived2ForDownCast : public BaseForDownCast {};
+
+TEST(DownCastTest, Pointer) {
+  DerivedForDownCast derived;
+  BaseForDownCast* const base_ptr = &derived;
+
+  // Tests casting a BaseForDownCast* to a DerivedForDownCast*.
+  EXPECT_EQ(&derived, absl::down_cast<DerivedForDownCast*>(base_ptr));
+
+  // Tests casting a const BaseForDownCast* to a const DerivedForDownCast*.
+  const BaseForDownCast* const_base_ptr = base_ptr;
+  EXPECT_EQ(&derived,
+            absl::down_cast<const DerivedForDownCast*>(const_base_ptr));
+
+  // Tests casting a BaseForDownCast* to a const DerivedForDownCast*.
+  EXPECT_EQ(&derived, absl::down_cast<const DerivedForDownCast*>(base_ptr));
+
+  // Tests casting a BaseForDownCast* to a BaseForDownCast* (an identity cast).
+  EXPECT_EQ(base_ptr, absl::down_cast<BaseForDownCast*>(base_ptr));
+
+  // Tests down casting NULL.
+  EXPECT_EQ(nullptr,
+            (absl::down_cast<DerivedForDownCast*, BaseForDownCast>(nullptr)));
+
+  // Tests a bad downcast. We have to disguise the badness just enough
+  // that the compiler doesn't warn about it at compile time.
+  BaseForDownCast* base2 = new BaseForDownCast();
+#if GTEST_HAS_DEATH_TEST && (!defined(NDEBUG) || (ABSL_OPTION_HARDENED == 1 || \
+                                                  ABSL_OPTION_HARDENED == 2))
+  EXPECT_DEATH(static_cast<void>(absl::down_cast<DerivedForDownCast*>(base2)),
+               ".*down cast from .*BaseForDownCast.* to "
+               ".*DerivedForDownCast.* failed.*");
+#endif
+  delete base2;
+}
+
+TEST(DownCastTest, Reference) {
+  DerivedForDownCast derived;
+  BaseForDownCast& base_ref = derived;
+
+  // Tests casting a BaseForDownCast& to a DerivedForDownCast&.
+  // NOLINTNEXTLINE(runtime/casting)
+  EXPECT_EQ(&derived, &absl::down_cast<DerivedForDownCast&>(base_ref));
+
+  // Tests casting a const BaseForDownCast& to a const DerivedForDownCast&.
+  const BaseForDownCast& const_base_ref = base_ref;
+  // NOLINTNEXTLINE(runtime/casting)
+  EXPECT_EQ(&derived,
+            &absl::down_cast<const DerivedForDownCast&>(const_base_ref));
+
+  // Tests casting a BaseForDownCast& to a const DerivedForDownCast&.
+  // NOLINTNEXTLINE(runtime/casting)
+  EXPECT_EQ(&derived, &absl::down_cast<const DerivedForDownCast&>(base_ref));
+
+  // Tests casting a BaseForDownCast& to a BaseForDownCast& (an identity cast).
+  // NOLINTNEXTLINE(runtime/casting)
+  EXPECT_EQ(&base_ref, &absl::down_cast<BaseForDownCast&>(base_ref));
+
+  // Tests a bad downcast. We have to disguise the badness just enough
+  // that the compiler doesn't warn about it at compile time.
+  BaseForDownCast& base2 = *new BaseForDownCast();
+#if GTEST_HAS_DEATH_TEST && (!defined(NDEBUG) || (ABSL_OPTION_HARDENED == 1 || \
+                                                  ABSL_OPTION_HARDENED == 2))
+  EXPECT_DEATH(static_cast<void>(absl::down_cast<DerivedForDownCast&>(base2)),
+               ".*down cast from .*BaseForDownCast.* to "
+               ".*DerivedForDownCast.* failed.*");
+#endif
+  delete &base2;
+}
+
+TEST(DownCastTest, ErrorMessage) {
+  DerivedForDownCast derived;
+  BaseForDownCast& base = derived;
+  (void)base;
+
+#if GTEST_HAS_DEATH_TEST && (!defined(NDEBUG) || (ABSL_OPTION_HARDENED == 1 || \
+                                                  ABSL_OPTION_HARDENED == 2))
+  EXPECT_DEATH(static_cast<void>(absl::down_cast<Derived2ForDownCast&>(base)),
+               ".*down cast from .*DerivedForDownCast.* to "
+               ".*Derived2ForDownCast.* failed.*");
+#endif
 }
 
 }  // namespace

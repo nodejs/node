@@ -12,6 +12,11 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 
+#ifndef V8_RISCV_ENABLE_DEPRECATED_RISCV32
+#error \
+    "RISCV32 support is scheduled for removal. See https://groups.google.com/g/v8-dev/c/VSkorXmM84E"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {

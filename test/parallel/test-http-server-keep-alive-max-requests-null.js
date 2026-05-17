@@ -9,7 +9,7 @@ const bodySent = 'This is my request';
 
 function assertResponse(headers, body, expectClosed) {
   assert.match(headers, /Connection: keep-alive\r\n/m);
-  assert.match(headers, /Keep-Alive: timeout=5\r\n/m);
+  assert.match(headers, /Keep-Alive: timeout=65\r\n/m);
   assert.match(body, /Hello World!/m);
 }
 

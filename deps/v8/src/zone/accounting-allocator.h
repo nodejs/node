@@ -6,10 +6,10 @@
 #define V8_ZONE_ACCOUNTING_ALLOCATOR_H_
 
 #include <atomic>
-#include <memory>
+#include <unordered_set>
 
-#include "include/v8-platform.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/logging/tracing-flags.h"
 
 namespace v8 {
@@ -27,6 +27,11 @@ class Zone;
 
 class V8_EXPORT_PRIVATE AccountingAllocator {
  public:
+  // TODO(409953791): Consider making this constructor private. We have several
+  // places where we create an ad-hoc `AccountingAllocator` only for creating a
+  // single, temporary Zone where we should instead use some already available
+  // allocator. Increasing the API friction might help reducing the number of
+  // allocator instances.
   AccountingAllocator();
   explicit AccountingAllocator(Isolate* isolate);
   AccountingAllocator(const AccountingAllocator&) = delete;
@@ -74,6 +79,36 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   Isolate* const isolate_ = nullptr;
   std::atomic<size_t> current_memory_usage_{0};
   std::atomic<size_t> max_memory_usage_{0};
+};
+
+// TODO(479122452): Consider merging this into `AccountingAllocator`,
+// or at least use `TracingAccountingAllocator` in more places instead.
+// As of 2026-01, we are often creating Zones from `AccountingAllocator`s,
+// which then don't appear in the tracing output of `--trace-zone-stats`.
+class TracingAccountingAllocator : public AccountingAllocator {
+ public:
+  explicit TracingAccountingAllocator(Isolate* isolate)
+      : AccountingAllocator(isolate) {}
+  ~TracingAccountingAllocator() = default;
+
+ protected:
+  void TraceZoneCreationImpl(const Zone* zone) override;
+  void TraceZoneDestructionImpl(const Zone* zone) override;
+  void TraceAllocateSegmentImpl(Segment* segment) override;
+
+ private:
+  void UpdateMemoryTrafficAndReportMemoryUsage(size_t memory_traffic_delta);
+  std::string Dump(bool dump_details);
+
+  std::atomic<size_t> nesting_depth_{0};
+
+  base::Mutex mutex_;
+  std::unordered_set<const Zone*> active_zones_;
+#ifdef V8_ENABLE_PRECISE_ZONE_STATS
+  TypeStats type_stats_;
+#endif
+  // This value is increased on both allocations and deallocations.
+  size_t memory_traffic_since_last_report_ = 0;
 };
 
 }  // namespace internal

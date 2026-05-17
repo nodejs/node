@@ -103,8 +103,7 @@ class FastApiCallLoweringReducer : public Next {
       Label<> trigger_exception(this);
 
       V<Object> exception =
-          __ Load(__ ExternalConstant(ExternalReference::Create(
-                      IsolateAddressId::kExceptionAddress, isolate_)),
+          __ Load(__ IsolateField(IsolateFieldId::kException),
                   LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr());
       GOTO_IF_NOT(LIKELY(__ TaggedEqual(
                       exception,
@@ -117,7 +116,7 @@ class FastApiCallLoweringReducer : public Next {
       GOTO(done, FastApiCallOp::kSuccessValue);
       BIND(trigger_exception);
       __ template CallRuntime<typename runtime::PropagateException>(
-          frame_state, __ NoContextConstant(), {}, LazyDeoptOnThrow::kNo);
+          frame_state, context, {}, LazyDeoptOnThrow::kNo);
 
       __ Unreachable();
     }
@@ -209,7 +208,8 @@ class FastApiCallLoweringReducer : public Next {
           V<Word32> instance_type = __ LoadInstanceTypeField(map);
 
           V<Word32> encoding = __ Word32BitwiseAnd(
-              instance_type, kStringRepresentationAndEncodingMask);
+              instance_type,
+              kIsNotStringMask | kStringRepresentationAndEncodingMask);
           GOTO_IF_NOT(__ Word32Equal(encoding, kSeqOneByteStringTag),
                       handle_error);
 
@@ -330,7 +330,7 @@ class FastApiCallLoweringReducer : public Next {
         return __ HeapConstant(factory_->undefined_value());
       case CTypeInfo::Type::kBool:
         static_assert(sizeof(bool) == 1, "unsupported bool size");
-        return __ Word32BitwiseAnd(result, __ Word32Constant(0xFF));
+        return __ Word32BitwiseAnd(result, 0xFF);
       case CTypeInfo::Type::kInt32:
       case CTypeInfo::Type::kUint32:
       case CTypeInfo::Type::kFloat32:
@@ -423,8 +423,7 @@ class FastApiCallLoweringReducer : public Next {
     __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
                     MemoryRepresentation::UintPtr());
 
-    OpIndex context_address = __ ExternalConstant(
-        ExternalReference::Create(IsolateAddressId::kContextAddress, isolate_));
+    OpIndex context_address = __ IsolateField(IsolateFieldId::kContext);
 
     __ StoreOffHeap(context_address, __ BitcastHeapObjectToWordPtr(context),
                     MemoryRepresentation::UintPtr());

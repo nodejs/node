@@ -6,8 +6,9 @@
 #define V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_INL_H_
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
 #include "src/wasm/object-access.h"
@@ -285,6 +286,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
     return fp;
   }
   LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   LoadU64(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   CmpU64(old_fp.gp(),
@@ -664,6 +666,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, uint32_t* protected_load_pc,
+                                  AtomicMemoryOrder /* memory_order */,
                                   LiftoffRegList /* pinned */, bool i64_offset,
                                   Endianness endianness) {
   Load(dst, src_addr, offset_reg, offset_imm, type, protected_load_pc,
@@ -673,8 +676,17 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, uint32_t* protected_store_pc,
+                                   AtomicMemoryOrder memory_order,
                                    LiftoffRegList /* pinned */, bool i64_offset,
                                    Endianness endianness) {
+  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
+         memory_order == AtomicMemoryOrder::kAcqRel);
+  if (memory_order == AtomicMemoryOrder::kAcqRel) {
+    Store(dst_addr, offset_reg, offset_imm, src, type, {}, protected_store_pc,
+          true, i64_offset);
+    return;
+  }
+
 #ifdef V8_TARGET_BIG_ENDIAN
   bool reverse_bytes = endianness == LiftoffAssembler::kLittle;
 #else

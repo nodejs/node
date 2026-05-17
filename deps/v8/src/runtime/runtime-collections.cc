@@ -4,9 +4,9 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -138,7 +138,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 #endif
 
   bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
-  return isolate->heap()->ToBoolean(was_present);
+  return ReadOnlyRoots(isolate).boolean_value(was_present);
 }
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {

@@ -110,9 +110,6 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 
   auto& get_raw_pool_for_testing() { return pool_; }
 
-  void SetDecommitPooledPages(bool value) { decommit_pooled_pages_ = value; }
-  static constexpr bool kDefaultDecommitPooledPage = false;
-
  private:
   // The pool of pages that are not returned to the OS. Bounded by
   // `primary_pool_capacity_`.
@@ -126,7 +123,6 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
     bool is_discarded = false;
   };
   std::vector<PooledPageMemoryRegion> pool_;
-  bool decommit_pooled_pages_ = kDefaultDecommitPooledPage;
 };
 
 // A backend that is used for allocating and freeing normal and large pages.

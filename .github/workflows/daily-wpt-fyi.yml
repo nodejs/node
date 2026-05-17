@@ -52,7 +52,7 @@ jobs:
         run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-arm64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
           check-latest: true
@@ -96,6 +96,48 @@ jobs:
             echo "WPT_REPORT=$(pwd)/out/wpt/wptreport.json" >> $GITHUB_ENV
           fi
 
+      # undici WPT Runner
+      - name: Set env.UNDICI_VERSION
+        if: ${{ env.WPT_REPORT != '' }}
+        run: |
+          UNDICI_VERSION=$(jq -r '.version' < deps/undici/src/package.json)
+          echo "UNDICI_VERSION=v$UNDICI_VERSION" >> $GITHUB_ENV
+          if [ "${UNDICI_VERSION%%.*}" -ge 7 ]; then
+            echo "UNDICI_WPT=current" >> $GITHUB_ENV
+          else
+            echo "UNDICI_WPT=legacy" >> $GITHUB_ENV
+          fi
+      # Checkout composite actions from the default branch since the
+      # version-specific checkout above overwrites .github/actions/
+      - name: Checkout undici WPT actions
+        if: ${{ env.WPT_REPORT != '' }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          sparse-checkout: |
+            .github/actions/undici-wpt-current
+            .github/actions/undici-wpt-legacy
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          path: _wpt_actions
+          clean: false
+      - name: Place undici WPT actions
+        if: ${{ env.WPT_REPORT != '' }}
+        run: |
+          mkdir -p .github/actions
+          cp -r _wpt_actions/.github/actions/undici-wpt-* .github/actions/
+      - name: Run undici WPT (current)
+        if: ${{ env.UNDICI_WPT == 'current' }}
+        uses: ./.github/actions/undici-wpt-current
+        with:
+          undici-version: ${{ env.UNDICI_VERSION }}
+          wpt-report: ${{ env.WPT_REPORT }}
+      - name: Run undici WPT (legacy)
+        if: ${{ env.UNDICI_WPT == 'legacy' }}
+        uses: ./.github/actions/undici-wpt-legacy
+        with:
+          undici-version: ${{ env.UNDICI_VERSION }}
+          wpt-report: ${{ env.WPT_REPORT }}
+
       # Upload artifacts
       - name: Clone report for upload
         if: ${{ env.WPT_REPORT != '' }}
@@ -103,7 +145,7 @@ jobs:
         run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           path: out/wpt/wptreport-*.json
           name: WPT Report for ${{ steps.setup-node.outputs.node-version }}

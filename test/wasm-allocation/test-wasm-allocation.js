@@ -4,12 +4,18 @@
 // wasm memory32 with guard regions reserves 8GB of virtual address space.
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
+const { isMainThread } = require('worker_threads');
 
 // The first allocation should succeed.
 const first = new WebAssembly.Memory({ initial: 10, maximum: 100 });
 assert(first);
+
+if (!isMainThread) {
+  // https://github.com/nodejs/node/issues/62870
+  common.skip('Workers terminate instead of throwing');
+}
 
 // Subsequent allocations should eventually fail due to running out of
 // virtual address space.

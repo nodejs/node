@@ -179,12 +179,17 @@ added:
   - v20.6.0
   - v18.19.0
 deprecated:
+ - v26.0.0
  - v25.9.0
  - v24.15.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation (DEP0205).
+  - version: v25.9.0
+    pr-url: https://github.com/nodejs/node/pull/62395
+    description: Documentation-only deprecation (DEP0205). Use
+                 `module.registerHooks()` instead.
   - version:
     - v23.6.1
     - v22.13.1
@@ -257,7 +262,7 @@ added:
   - v23.2.0
   - v22.13.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61803
     description: Removed `transform` and `sourceMap` options.
 -->
@@ -372,7 +377,7 @@ This may slow down the first load of a module graph, but subsequent loads of the
 graph may get a significant speedup if the contents of the modules do not change.
 
 To clean up the generated compile cache on disk, simply remove the cache directory. The cache
-directory will be recreated the next time the same directory is used for for compile cache
+directory will be recreated the next time the same directory is used for compile cache
 storage. To avoid filling up the disk with stale cache, it is recommended to use a directory
 under the [`os.tmpdir()`][]. If the compile cache is enabled by a call to
 [`module.enableCompileCache()`][] without specifying the `directory`, Node.js will use

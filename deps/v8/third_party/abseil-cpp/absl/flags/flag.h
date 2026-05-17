@@ -241,7 +241,8 @@ ABSL_NAMESPACE_END
     /* default value argument. That keeps temporaries alive */               \
     /* long enough for NonConst to work correctly.          */               \
     static constexpr absl::string_view Value(                                \
-        absl::string_view absl_flag_help = ABSL_FLAG_IMPL_FLAGHELP(txt)) {   \
+        absl::string_view absl_flag_help ABSL_ATTRIBUTE_LIFETIME_BOUND  =     \
+            ABSL_FLAG_IMPL_FLAGHELP(txt)) {                                  \
       return absl_flag_help;                                                 \
     }                                                                        \
     static std::string NonConst() { return std::string(Value()); }           \

@@ -52,6 +52,8 @@ updates:
       semver-major-days: 5
       semver-minor-days: 5
       semver-patch-days: 5
+      exclude:
+        - '@node-core/doc-kit'
     commit-message:
       prefix: tools
     open-pull-requests-limit: 10

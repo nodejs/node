@@ -36,12 +36,11 @@ http.createServer(common.mustCall(function(req, res) {
     'Connection',
     'keep-alive',
   ];
-  const expectHeaders = {
-    'host': `localhost:${this.address().port}`,
-    'transfer-encoding': 'CHUNKED',
-    'x-bar': 'yoyoyo',
-    'connection': 'keep-alive'
-  };
+  const expectHeaders = { '__proto__': null,
+                          'host': `localhost:${this.address().port}`,
+                          'transfer-encoding': 'CHUNKED',
+                          'x-bar': 'yoyoyo',
+                          'connection': 'keep-alive' };
   const expectRawTrailers = [
     'x-bAr',
     'yOyOyOy',
@@ -52,7 +51,7 @@ http.createServer(common.mustCall(function(req, res) {
     'X-baR',
     'OyOyOyO',
   ];
-  const expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
+  const expectTrailers = { '__proto__': null, 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
 
   this.close();
 
@@ -98,13 +97,12 @@ http.createServer(common.mustCall(function(req, res) {
       'Transfer-Encoding',
       'chunked',
     ];
-    const expectHeaders = {
-      'keep-alive': 'timeout=1',
-      'trailer': 'x-foo',
-      'date': null,
-      'connection': 'keep-alive',
-      'transfer-encoding': 'chunked'
-    };
+    const expectHeaders = { '__proto__': null,
+                            'keep-alive': 'timeout=1',
+                            'trailer': 'x-foo',
+                            'date': null,
+                            'connection': 'keep-alive',
+                            'transfer-encoding': 'chunked' };
     res.rawHeaders[5] = null;
     res.headers.date = null;
     assert.deepStrictEqual(res.rawHeaders, expectRawHeaders);
@@ -120,7 +118,7 @@ http.createServer(common.mustCall(function(req, res) {
         'X-foO',
         'OxOxOxO',
       ];
-      const expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
+      const expectTrailers = { '__proto__': null, 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
 
       assert.deepStrictEqual(res.rawTrailers, expectRawTrailers);
       assert.deepStrictEqual(res.trailers, expectTrailers);

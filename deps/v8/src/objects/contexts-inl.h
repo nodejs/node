@@ -78,8 +78,7 @@ Tagged<Object> Context::GetNoCell(int index) {
 template <typename MemoryTag>
 void Context::SetNoCell(int index, Tagged<Object> value, MemoryTag tag,
                         WriteBarrierMode mode) {
-  DCHECK(IsAnyHole(get(index, kRelaxedLoad)) ||
-         !Is<ContextCell>(get(index, kRelaxedLoad)));
+  DCHECK(!Is<ContextCell>(get(index, kRelaxedLoad)));
   set(index, value, mode, tag);
 }
 
@@ -172,6 +171,14 @@ Tagged<NativeContext> Context::native_context() const {
   return this->map()->native_context();
 }
 
+Tagged<JSGlobalObject> Context::global_object() const {
+  return native_context()->global_object();
+}
+
+Tagged<JSGlobalProxy> Context::global_proxy() const {
+  return native_context()->global_proxy();
+}
+
 bool Context::IsFunctionContext() const {
   return map()->instance_type() == FUNCTION_CONTEXT_TYPE;
 }
@@ -215,10 +222,6 @@ inline bool Context::HasContextCells() const {
 bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
   return this->native_context()->security_token() ==
          that->native_context()->security_token();
-}
-
-bool Context::IsDetached(Isolate* isolate) const {
-  return global_object()->IsDetached(isolate);
 }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
@@ -309,6 +312,26 @@ Tagged<Map> Context::GetInitialJSArrayMap(ElementsKind kind) const {
 EXTERNAL_POINTER_ACCESSORS(NativeContext, microtask_queue, MicrotaskQueue*,
                            kMicrotaskQueueOffset,
                            kNativeContextMicrotaskQueueTag)
+
+Tagged<JSGlobalProxy> NativeContext::global_proxy() const {
+  return global_proxy_object();
+}
+
+bool NativeContext::IsDetached() const { return global_object()->IsDetached(); }
+
+Tagged<JSGlobalObject> NativeContext::global_object() const {
+  return Cast<JSGlobalObject>(extension());
+}
+
+// Caution, hack: this getter ignores the AcquireLoadTag. The global_object
+// slot is safe to read concurrently since it is immutable after
+// initialization.  This function should *not* be used from anywhere other
+// than heap-refs.cc.
+// TODO(jgruber): Remove this function after NativeContextRef is actually
+// never serialized and BROKER_NATIVE_CONTEXT_FIELDS is removed.
+Tagged<JSGlobalObject> NativeContext::global_object(AcquireLoadTag) const {
+  return global_object();
+}
 
 void NativeContext::synchronized_set_script_context_table(
     Tagged<ScriptContextTable> script_context_table) {

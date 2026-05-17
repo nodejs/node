@@ -163,8 +163,8 @@ class RequestAbortedError extends AbortError {
 
 const kInformationalError = Symbol.for('undici.error.UND_ERR_INFO')
 class InformationalError extends UndiciError {
-  constructor (message) {
-    super(message)
+  constructor (message, options) {
+    super(message, options)
     this.name = 'InformationalError'
     this.message = message || 'Request information'
     this.code = 'UND_ERR_INFO'

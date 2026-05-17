@@ -494,8 +494,9 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
           shll_cl(Operand(rdi, rax, times_4, 100)));
   COMPARE("d1e2                 shll rdx,1", shll(rdx, Immediate(1)));
   COMPARE("c1e206               shll rdx,6", shll(rdx, Immediate(6)));
-  COMPARE("480fa30a             REX.W bt [rdx],rcx,cl",
-          btq(Operand(rdx, 0), rcx));
+  COMPARE("480fa30a             REX.W bt [rdx],rcx", btq(Operand(rdx, 0), rcx));
+  COMPARE("490fa3cb             REX.W bt r11,rcx", btq(r11, rcx));
+  COMPARE("0fa3c8               bt rax,rcx", btl(rax, rcx));
   COMPARE("480fab0a             REX.W bts [rdx],rcx",
           btsq(Operand(rdx, 0), rcx));
   COMPARE("480fab0c8b           REX.W bts [rbx+rcx*4],rcx",

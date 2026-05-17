@@ -223,8 +223,8 @@ class BytecodeHandlerReducer : public Next {
     return V<BytecodeArray>::Cast(bytecode_array_);
   }
 
-  V<Word32> BytecodeOperandIdxInt32(int operand_index) {
-    DCHECK_EQ(OperandType::kIdx,
+  V<Word32> BytecodeOperandFeedbackSlotInt32(int operand_index) {
+    DCHECK_EQ(OperandType::kFeedbackSlot,
               Bytecodes::GetOperandType(data_.bytecode, operand_index));
     OperandSize operand_size = Bytecodes::GetOperandSize(
         data_.bytecode, operand_index, operand_scale());
@@ -293,13 +293,13 @@ class BytecodeHandlerReducer : public Next {
 
 template <template <typename> typename Reducer>
 class TurboshaftBytecodeHandlerAssembler
-    : public compiler::turboshaft::TSAssembler<
+    : public compiler::turboshaft::Assembler<
           Reducer, BytecodeHandlerReducer, BuiltinsReducer,
           FeedbackCollectorReducer,
           compiler::turboshaft::MachineLoweringReducer,
           compiler::turboshaft::VariableReducer> {
  public:
-  using Base = compiler::turboshaft::TSAssembler<
+  using Base = compiler::turboshaft::Assembler<
       Reducer, BytecodeHandlerReducer, BuiltinsReducer,
       FeedbackCollectorReducer, compiler::turboshaft::MachineLoweringReducer,
       compiler::turboshaft::VariableReducer>;
@@ -335,8 +335,8 @@ IGNITION_HANDLER_TS(BitwiseNot, NumberBuiltinsBytecodeHandlerAssembler) {
   V<Context> context = GetContext();
 
   constexpr int kSlotIndex = 0;
-  SetFeedbackSlot(
-      __ ChangeUint32ToUintPtr(__ BytecodeOperandIdxInt32(kSlotIndex)));
+  SetFeedbackSlot(__ ChangeUint32ToUintPtr(
+      __ BytecodeOperandFeedbackSlotInt32(kSlotIndex)));
   LoadFeedbackVectorOrUndefinedIfJitless();
 
   V<Object> result = BitwiseNot(context, value);

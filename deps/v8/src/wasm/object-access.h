@@ -54,6 +54,12 @@ class ObjectAccess : public AllStatic {
     return ToTagged(ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
+  // Get the offset into a trusted pod array array for a given {index}.
+  template <typename T>
+  static constexpr int ElementOffsetInTaggedTrustedPodArray(int index) {
+    return ToTagged(TrustedPodArray<T>::OffsetOfElementAt(index));
+  }
+
   // Get the offset of the context stored in a {JSFunction} object.
   static constexpr int ContextOffsetInTaggedJSFunction() {
     return ToTagged(JSFunction::kContextOffset);

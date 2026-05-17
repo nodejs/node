@@ -1219,7 +1219,7 @@ TEST(TransitionLookup) {
     }
     keys[i] = name;
 
-    bool is_private = name->IsPrivate();
+    bool is_private = name->IsAnyPrivate();
     PropertyAttributes base_attributes = is_private ? DONT_ENUM : NONE;
 
     // Ensure that all the combinations of cases are covered:

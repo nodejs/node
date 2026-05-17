@@ -247,7 +247,7 @@ class VisualStudioFinder {
       'Unrestricted',
       '-NoProfile',
       '-Command',
-      '&{Add-Type -Path \'' + csFile + '\';' + '[VisualStudioConfiguration.Main]::PrintJson()}'
+      '&{Add-Type -IgnoreWarnings -Path \'' + csFile + '\';' + '[VisualStudioConfiguration.Main]::PrintJson()}'
     ]
 
     this.log.silly('Running', ps, psArgs)

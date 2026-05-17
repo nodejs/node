@@ -147,7 +147,12 @@ DataPointer DataPointer::SecureAlloc(size_t len) {
 #ifndef OPENSSL_IS_BORINGSSL
   auto ptr = OPENSSL_secure_zalloc(len);
   if (ptr == nullptr) return {};
-  return DataPointer(ptr, len, true);
+  // OPENSSL_secure_zalloc transparently falls back to a regular allocation
+  // when the secure heap is not initialized or is exhausted. Reflect the
+  // actual provenance of the pointer so that reset() routes to the correct
+  // free function (OPENSSL_secure_clear_free vs. OPENSSL_clear_free) and
+  // callers of isSecure() get a truthful answer.
+  return DataPointer(ptr, len, CRYPTO_secure_allocated(ptr) == 1);
 #else
   // BoringSSL does not implement the OPENSSL_secure_zalloc API.
   auto ptr = OPENSSL_malloc(len);
@@ -3103,9 +3108,13 @@ const Cipher Cipher::AES_256_GCM = Cipher::FromNid(NID_aes_256_gcm);
 const Cipher Cipher::AES_128_KW = Cipher::FromNid(NID_id_aes128_wrap);
 const Cipher Cipher::AES_192_KW = Cipher::FromNid(NID_id_aes192_wrap);
 const Cipher Cipher::AES_256_KW = Cipher::FromNid(NID_id_aes256_wrap);
+
+#ifndef OPENSSL_IS_BORINGSSL
 const Cipher Cipher::AES_128_OCB = Cipher::FromNid(NID_aes_128_ocb);
 const Cipher Cipher::AES_192_OCB = Cipher::FromNid(NID_aes_192_ocb);
 const Cipher Cipher::AES_256_OCB = Cipher::FromNid(NID_aes_256_ocb);
+#endif
+
 const Cipher Cipher::CHACHA20_POLY1305 = Cipher::FromNid(NID_chacha20_poly1305);
 
 bool Cipher::isGcmMode() const {

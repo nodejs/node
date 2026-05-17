@@ -91,25 +91,18 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
   std::optional<OS::MemoryRange> result;
-  // This function assumes that the layout of the file is as follows:
-  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
-  // and the lines are arranged in increasing order of address.
-  // If we encounter an unexpected situation we abort scanning further entries.
-  FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == nullptr) return {};
+  SignalSafeMapsParser parser;
+  if (!parser.IsValid()) return {};
 
   // Search for the gaps between existing virtual memory (vm) areas. If the gap
   // contains enough space for the requested-size range that is within the
   // boundary, push the overlapped memory range to the vector.
-  uintptr_t gap_start = 0, gap_end = 0;
+  uintptr_t gap_start = 0;
   // This loop will terminate once the scanning hits an EOF or reaches the gap
   // at the higher address to the end of boundary.
-  uintptr_t vm_start;
-  uintptr_t vm_end;
-  while (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &vm_start, &vm_end) == 2 &&
-         gap_start < boundary_end) {
+  while (auto entry = parser.Next()) {
     // Visit the gap at the lower address to this vm.
-    gap_end = vm_start;
+    uintptr_t gap_end = entry->start;
     // Skip the gaps at the lower address to the start of boundary.
     if (gap_end > boundary_start) {
       // The available area is the overlap of the gap and boundary. Push
@@ -125,50 +118,14 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
       }
     }
     // Continue to visit the next gap.
-    gap_start = vm_end;
-
-    int c;
-    // Skip characters until we reach the end of the line or EOF.
-    do {
-      c = getc(fp);
-    } while ((c != EOF) && (c != '\n'));
-    if (c == EOF) break;
+    gap_start = entry->end;
+    if (gap_start >= boundary_end) break;
   }
 
-  fclose(fp);
   return result;
 }
 
 //  static
-std::optional<MemoryRegion> MemoryRegion::FromMapsLine(const char* line) {
-  MemoryRegion region;
-  unsigned dev_major = 0, dev_minor = 0;
-  uintptr_t inode = 0;
-  int path_index = 0;
-  uintptr_t offset = 0;
-  // The format is:
-  // address           perms offset  dev   inode   pathname
-  // 08048000-08056000 r-xp 00000000 03:0c 64593   /usr/sbin/gpm
-  //
-  // The final %n term captures the offset in the input string, which is used
-  // to determine the path name. It *does not* increment the return value.
-  // Refer to man 3 sscanf for details.
-  if (sscanf(line,
-             "%" V8PRIxPTR "-%" V8PRIxPTR " %4c %" V8PRIxPTR
-             " %x:%x %" V8PRIdPTR " %n",
-             &region.start, &region.end, region.permissions, &offset,
-             &dev_major, &dev_minor, &inode, &path_index) < 7) {
-    return std::nullopt;
-  }
-  region.permissions[4] = '\0';
-  region.inode = inode;
-  region.offset = offset;
-  region.dev = makedev(dev_major, dev_minor);
-  region.pathname.assign(line + path_index);
-
-  return region;
-}
-
 namespace {
 // Parses /proc/self/maps.
 std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
@@ -176,50 +133,20 @@ std::unique_ptr<std::vector<MemoryRegion>> ParseProcSelfMaps(
     bool early_stopping) {
   auto result = std::make_unique<std::vector<MemoryRegion>>();
 
-  if (!fp) fp = fopen("/proc/self/maps", "r");
-  if (!fp) return nullptr;
+  // Create parser. If fp is provided, use its fd.
+  // Note: we must not close the fd if it belongs to fp.
+  int fd = fp ? fileno(fp) : -1;
+  SignalSafeMapsParser parser(fd, /*should_close_fd=*/fp == nullptr);
+  if (!parser.IsValid()) return nullptr;
 
-  // Allocate enough room to be able to store a full file name.
-  // 55ac243aa000-55ac243ac000 r--p 00000000 fe:01 31594735 /usr/bin/head
-  const int kMaxLineLength = 2 * FILENAME_MAX;
-  std::unique_ptr<char[]> line = std::make_unique<char[]>(kMaxLineLength);
-
-  // This loop will terminate once the scanning hits an EOF.
-  bool error = false;
-  while (true) {
-    error = true;
-
-    // Read to the end of the line. Exit if the read fails.
-    if (fgets(line.get(), kMaxLineLength, fp) == nullptr) {
-      if (feof(fp)) error = false;
-      break;
-    }
-
-    size_t line_length = strlen(line.get());
-    // Empty line at the end.
-    if (!line_length) {
-      error = false;
-      break;
-    }
-    // Line was truncated.
-    if (line.get()[line_length - 1] != '\n') break;
-    line.get()[line_length - 1] = '\0';
-
-    std::optional<MemoryRegion> region = MemoryRegion::FromMapsLine(line.get());
-    if (!region) {
-      break;
-    }
-
-    error = false;
-
+  while (auto region = parser.Next()) {
     if (predicate(*region)) {
       result->push_back(std::move(*region));
       if (early_stopping) break;
     }
   }
 
-  fclose(fp);
-  if (!error && !result->empty()) return result;
+  if (!result->empty()) return result;
 
   return nullptr;
 }
@@ -243,11 +170,7 @@ std::vector<OS::SharedLibraryAddress> GetSharedLibraryAddresses(FILE* fp) {
   auto regions = ParseProcSelfMaps(
       fp,
       [](const MemoryRegion& region) {
-        if (region.permissions[0] == 'r' && region.permissions[1] == '-' &&
-            region.permissions[2] == 'x') {
-          return true;
-        }
-        return false;
+        return region.permissions == PagePermissions::kReadExecute;
       },
       false);
 
@@ -257,8 +180,8 @@ std::vector<OS::SharedLibraryAddress> GetSharedLibraryAddresses(FILE* fp) {
   for (const MemoryRegion& region : *regions) {
     uintptr_t start = region.start;
 #ifdef V8_OS_ANDROID
-    if (region.pathname.size() < 4 ||
-        region.pathname.compare(region.pathname.size() - 4, 4, ".apk") != 0) {
+    size_t len = strlen(region.pathname);
+    if (len < 4 || strcmp(region.pathname + len - 4, ".apk") != 0) {
       // Only adjust {start} based on {offset} if the file isn't the APK,
       // since we load the library directly from the APK and don't want to
       // apply the offset of the .so in the APK as the libraries offset.
@@ -292,7 +215,7 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
   if (!enclosing_region.start) return false;
 
   // Anonymous mapping?
-  if (enclosing_region.pathname.empty()) return false;
+  if (strlen(enclosing_region.pathname) == 0) return false;
 
   // Since the file is already in use for executable code, this is most likely
   // to fail due to sandboxing, e.g. if open() is blocked outright.
@@ -306,7 +229,7 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
   // OS). On these systems, consider using mremap() with the MREMAP_DONTUNMAP
   // flag. However, since we need it on non-anonymous mapping, this would only
   // be available starting with version 5.13.
-  int fd = open(enclosing_region.pathname.c_str(), O_RDONLY);
+  int fd = open(enclosing_region.pathname, O_RDONLY);
   if (fd == -1) return false;
 
   // Now we have a file descriptor to the same path the data we want to remap
@@ -346,6 +269,123 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
   }
 
   return true;
+}
+
+SignalSafeMapsParser::SignalSafeMapsParser(int fd, bool should_close_fd)
+    : fd_(fd >= 0 ? fd : open("/proc/self/maps", O_RDONLY)),
+      should_close_fd_(fd >= 0 ? should_close_fd : true),
+      buffer_pos_(0),
+      buffer_end_(0) {}
+
+SignalSafeMapsParser::~SignalSafeMapsParser() {
+  if (should_close_fd_ && fd_ >= 0) close(fd_);
+}
+
+std::optional<MemoryRegion> SignalSafeMapsParser::Next() {
+  CHECK(IsValid());
+
+  // The maps file consists of the following kind of lines:
+  // 55ac243aa000-55ac243ac000 r--p 00000000 fe:01 31594735 /usr/bin/foo
+
+  MemoryRegion entry;
+  char delim;
+  if (!ReadHex(&entry.start, &delim)) return std::nullopt;
+  if (delim != '-') return std::nullopt;
+  if (!ReadHex(&entry.end, &delim)) return std::nullopt;
+  if (delim != ' ') return std::nullopt;
+
+  for (int i = 0; i < 4; ++i) {
+    if (!ReadChar(&entry.raw_permissions[i])) return std::nullopt;
+  }
+  entry.raw_permissions[4] = '\0';
+
+  entry.permissions = PagePermissions::kNoAccess;
+  if (entry.raw_permissions[0] == 'r')
+    entry.permissions |= PagePermissions::kRead;
+  if (entry.raw_permissions[1] == 'w')
+    entry.permissions |= PagePermissions::kWrite;
+  if (entry.raw_permissions[2] == 'x')
+    entry.permissions |= PagePermissions::kExecute;
+
+  char c;
+  if (!ReadChar(&c)) return std::nullopt;
+  if (c != ' ') return std::nullopt;
+
+  if (!ReadHex(&entry.offset, &delim)) return std::nullopt;
+  if (delim != ' ') return std::nullopt;
+
+  uintptr_t major, minor;
+  if (!ReadHex(&major, &delim)) return std::nullopt;
+  if (delim != ':') return std::nullopt;
+  if (!ReadHex(&minor, &delim)) return std::nullopt;
+  if (delim != ' ') return std::nullopt;
+  entry.dev = makedev(static_cast<unsigned int>(major),
+                      static_cast<unsigned int>(minor));
+
+  uintptr_t inode = 0;
+  if (!ReadDecimal(&inode, &delim)) return std::nullopt;
+  entry.inode = static_cast<ino_t>(inode);
+
+  // Skip spaces.
+  while (delim == ' ') {
+    if (!ReadChar(&delim)) break;
+  }
+
+  // delim is now the first char of the pathname or newline.
+  char current_char = delim;
+  size_t path_len = 0;
+  while (current_char != '\n') {
+    if (path_len < MemoryRegion::kMaxPathnameSize - 1) {
+      entry.pathname[path_len++] = current_char;
+    }
+    if (!ReadChar(&current_char)) break;
+  }
+  entry.pathname[path_len] = '\0';
+
+  return entry;
+}
+
+bool SignalSafeMapsParser::ReadChar(char* out) {
+  if (buffer_pos_ >= buffer_end_) {
+    buffer_pos_ = 0;
+    ssize_t bytes = read(fd_, buffer_, kBufferSize);
+    if (bytes <= 0) return false;
+    buffer_end_ = bytes;
+  }
+  *out = buffer_[buffer_pos_++];
+  return true;
+}
+
+bool SignalSafeMapsParser::ReadHex(uintptr_t* out_val, char* out_delim) {
+  *out_val = 0;
+  while (true) {
+    char c;
+    if (!ReadChar(&c)) return false;
+    if (c >= '0' && c <= '9') {
+      *out_val = (*out_val << 4) | (c - '0');
+    } else if (c >= 'a' && c <= 'f') {
+      *out_val = (*out_val << 4) | (c - 'a' + 10);
+    } else if (c >= 'A' && c <= 'F') {
+      *out_val = (*out_val << 4) | (c - 'A' + 10);
+    } else {
+      *out_delim = c;
+      return true;
+    }
+  }
+}
+
+bool SignalSafeMapsParser::ReadDecimal(uintptr_t* out_val, char* out_delim) {
+  *out_val = 0;
+  while (true) {
+    char c;
+    if (!ReadChar(&c)) return false;
+    if (c >= '0' && c <= '9') {
+      *out_val = (*out_val * 10) + (c - '0');
+    } else {
+      *out_delim = c;
+      return true;
+    }
+  }
 }
 
 }  // namespace base

@@ -57,18 +57,44 @@
 #ifndef ABSL_CONTAINER_BTREE_MAP_H_
 #define ABSL_CONTAINER_BTREE_MAP_H_
 
+#include <functional>
+#include <memory>
+#include <type_traits>
+#include <utility>
+
 #include "absl/base/attributes.h"
 #include "absl/container/internal/btree.h"  // IWYU pragma: export
 #include "absl/container/internal/btree_container.h"  // IWYU pragma: export
+#include "absl/container/internal/common.h"
+#include "absl/container/internal/container_memory.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 namespace container_internal {
 
+template <typename Key, typename Data, typename... Params>
+struct map_params_impl;
+
+template <typename Key, typename Data>
+struct btree_map_defaults {
+  using Compare = std::less<Key>;
+  using Alloc = std::allocator<std::pair<const Key, Data>>;
+  using TargetNodeSize = std::integral_constant<int, 256>;
+  using IsMulti = std::false_type;
+};
+
 template <typename Key, typename Data, typename Compare, typename Alloc,
           int TargetNodeSize, bool IsMulti>
-struct map_params;
+using map_params = typename ApplyWithoutDefaultSuffix<
+    map_params_impl,
+    TypeList<void, void, typename btree_map_defaults<Key, Data>::Compare,
+             typename btree_map_defaults<Key, Data>::Alloc,
+             typename btree_map_defaults<Key, Data>::TargetNodeSize,
+             typename btree_map_defaults<Key, Data>::IsMulti>,
+    TypeList<Key, Data, Compare, Alloc,
+             std::integral_constant<int, TargetNodeSize>,
+             std::integral_constant<bool, IsMulti>>>::type;
 
 }  // namespace container_internal
 
@@ -855,11 +881,20 @@ namespace container_internal {
 
 // A parameters structure for holding the type parameters for a btree_map.
 // Compare and Alloc should be nothrow copy-constructible.
-template <typename Key, typename Data, typename Compare, typename Alloc,
-          int TargetNodeSize, bool IsMulti>
-struct map_params : common_params<Key, Compare, Alloc, TargetNodeSize, IsMulti,
-                                  /*IsMap=*/true, map_slot_policy<Key, Data>> {
-  using super_type = typename map_params::common_params;
+template <typename Key, typename Data, typename... Params>
+struct map_params_impl
+    : common_params<
+          Key,
+          GetFromListOr<typename btree_map_defaults<Key, Data>::Compare, 0,
+                        Params...>,
+          GetFromListOr<typename btree_map_defaults<Key, Data>::Alloc, 1,
+                        Params...>,
+          GetFromListOr<typename btree_map_defaults<Key, Data>::TargetNodeSize,
+                        2, Params...>::value,
+          GetFromListOr<typename btree_map_defaults<Key, Data>::IsMulti, 3,
+                        Params...>::value,
+          /*IsMap=*/true, map_slot_policy<Key, Data>> {
+  using super_type = typename map_params_impl::common_params;
   using mapped_type = Data;
   // This type allows us to move keys when it is safe to do so. It is safe
   // for maps in which value_type and mutable_value_type are layout compatible.
@@ -867,6 +902,21 @@ struct map_params : common_params<Key, Compare, Alloc, TargetNodeSize, IsMulti,
   using slot_type = typename super_type::slot_type;
   using value_type = typename super_type::value_type;
   using init_type = typename super_type::init_type;
+
+  static_assert(
+      std::is_same_v<
+          map_params<
+              Key, Data,
+              GetFromListOr<typename btree_map_defaults<Key, Data>::Compare, 0,
+                            Params...>,
+              GetFromListOr<typename btree_map_defaults<Key, Data>::Alloc, 1,
+                            Params...>,
+              GetFromListOr<
+                  typename btree_map_defaults<Key, Data>::TargetNodeSize, 2,
+                  Params...>::value,
+              GetFromListOr<typename btree_map_defaults<Key, Data>::IsMulti, 3,
+                            Params...>::value>,
+          map_params_impl>);
 
   template <typename V>
   static auto key(const V &value ABSL_ATTRIBUTE_LIFETIME_BOUND)

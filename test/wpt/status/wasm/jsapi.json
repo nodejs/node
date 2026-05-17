@@ -15,41 +15,6 @@
       ]
     }
   },
-  "memory/to-fixed-length-buffer-shared.any.js": {
-    "fail": {
-      "expected": [
-        "toFixedLengthBuffer caching behavior"
-      ]
-    }
-  },
-  "memory/to-fixed-length-buffer.any.js": {
-    "fail": {
-      "expected": [
-        "API surface",
-        "toFixedLengthBuffer caching behavior"
-      ]
-    }
-  },
-  "memory/to-resizable-buffer-shared.any.js": {
-    "fail": {
-      "expected": [
-        "toResizableBuffer caching behavior",
-        "toResizableBuffer max size",
-        "Resizing a Memory's resizable buffer"
-      ]
-    }
-  },
-  "memory/to-resizable-buffer.any.js": {
-    "fail": {
-      "expected": [
-        "API surface",
-        "toResizableBuffer caching behavior",
-        "toResizableBuffer max size",
-        "Resizing a Memory's resizable buffer",
-        "Resizable buffers from Memory cannot be detached by JS"
-      ]
-    }
-  },
   "module/moduleSource.tentative.any.js": {
     "fail": {
       "expected": [

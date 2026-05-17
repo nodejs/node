@@ -171,6 +171,51 @@ void CppHeapPointerTable::ResolveEvacuationEntryDuringSweeping(
   *handle_location = new_handle;
 }
 
+#ifdef OBJECT_PRINT
+
+namespace {
+
+constexpr std::string_view entry_spacer =
+    "+-----------------------------------------+\n";
+
+}  // namespace
+
+// static
+void CppHeapPointerTableEntryPrinter::PrintHeader(const char* space_name) {
+  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "| %*s |\n", static_cast<int>(entry_spacer.size() - 5),
+         space_name);
+  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "|     handle |   tag |    CppHeap pointer |\n");
+  PrintF(stderr, "%s", entry_spacer.data());
+}
+
+// static
+void CppHeapPointerTableEntryPrinter::PrintIfInUse(
+    CppHeapPointerHandle handle, const CppHeapPointerTableEntry& entry,
+    std::function<bool(CppHeapPointerTag)> entry_callback) {
+  const auto payload = entry.GetRawPayload();
+  const CppHeapPointerTag tag = payload.ExtractTag();
+  if (tag == CppHeapPointerTag::kFreeEntryTag ||
+      tag == CppHeapPointerTag::kZappedEntryTag) {
+    return;
+  }
+  if (!entry_callback(tag)) {
+    return;
+  }
+
+  Address address = payload.Untag(tag);
+  PrintF(stderr, "| %10" PRIu32 " | %5" PRIu16 " | 0x%016" PRIxPTR " |\n",
+         handle, tag, address);
+}
+
+// static
+void CppHeapPointerTableEntryPrinter::PrintFooter() {
+  PrintF(stderr, "%s", entry_spacer.data());
+}
+
+#endif  // OBJECT_PRINT
+
 }  // namespace internal
 }  // namespace v8
 

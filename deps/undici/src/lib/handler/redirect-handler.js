@@ -23,6 +23,10 @@ class RedirectHandler {
       throw new InvalidArgumentError('maxRedirections must be a positive number')
     }
 
+    if (opts.throwOnMaxRedirect != null && typeof opts.throwOnMaxRedirect !== 'boolean') {
+      throw new InvalidArgumentError('throwOnMaxRedirect must be a boolean')
+    }
+
     this.dispatch = dispatch
     this.location = null
     const { maxRedirections: _, ...cleanOpts } = opts

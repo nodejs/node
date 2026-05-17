@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class RegExpBytecodeWriter;
 class TrustedByteArray;
 
 // Peephole optimization for regexp interpreter bytecode.
@@ -18,12 +19,11 @@ class TrustedByteArray;
 // RegExpBytecodeGenerator can be optimized into a single bytecode.
 class RegExpBytecodePeepholeOptimization : public AllStatic {
  public:
-  // Performs peephole optimization on the given bytecode and returns the
-  // optimized bytecode.
+  // Performs peephole optimization on the bytecode in the given src_writer and
+  // returns the optimized bytecode.
   static DirectHandle<TrustedByteArray> OptimizeBytecode(
       Isolate* isolate, Zone* zone, DirectHandle<String> source,
-      const uint8_t* bytecode, int length,
-      const ZoneUnorderedMap<int, int>& jump_edges);
+      RegExpBytecodeWriter* src_writer);
 };
 
 }  // namespace internal

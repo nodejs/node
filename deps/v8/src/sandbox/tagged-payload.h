@@ -5,89 +5,120 @@
 #ifndef V8_SANDBOX_TAGGED_PAYLOAD_H_
 #define V8_SANDBOX_TAGGED_PAYLOAD_H_
 
+#include "include/v8-sandbox.h"
 #include "src/common/globals.h"
+#include "src/sandbox/check.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 
 namespace v8 {
 namespace internal {
 
-// Struct providing common utilities for pointer tagging.
+// A generic payload struct to use for the entries of a pointer table.
+// It encodes (1) the pointer (2) the type tag and (3) the marking bit. The
+// exact layout of the pointer, tag, and marking bit within the word is
+// determined by the `PayloadTaggingScheme` template parameter, making this
+// struct highly flexible and configurable for different requirements.
 template <typename PayloadTaggingScheme>
 struct TaggedPayload {
-  static_assert(PayloadTaggingScheme::kMarkBit != 0,
-                "Invalid kMarkBit specified in tagging scheme.");
-  // The mark bit does not overlap with the TagMask.
-  static_assert((PayloadTaggingScheme::kMarkBit &
-                 PayloadTaggingScheme::kTagMask) == 0);
+  using TagType = typename PayloadTaggingScheme::TagType;
+  using TagRangeType = TagRange<TagType>;
 
-  TaggedPayload(Address pointer, typename PayloadTaggingScheme::TagType tag)
+  static constexpr uint64_t kTagShift = PayloadTaggingScheme::kTagShift;
+  static constexpr uint64_t kPayloadShift = PayloadTaggingScheme::kPayloadShift;
+  static constexpr uint64_t kPayloadMask = PayloadTaggingScheme::kPayloadMask;
+  static constexpr uint64_t kTagMask = PayloadTaggingScheme::kTagMask;
+  static constexpr uint64_t kMarkBit = PayloadTaggingScheme::kMarkBit;
+  static constexpr TagType kFreeEntryTag = PayloadTaggingScheme::kFreeEntryTag;
+  static constexpr TagType kEvacuationEntryTag =
+      PayloadTaggingScheme::kEvacuationEntryTag;
+
+  TaggedPayload(Address pointer, TagType tag)
       : encoded_word_(Tag(pointer, tag)) {}
 
-  Address Untag(typename PayloadTaggingScheme::TagType tag) const {
-    return encoded_word_ & ~(tag | PayloadTaggingScheme::kMarkBit);
+  static Address Tag(Address pointer, TagType tag) {
+    return (pointer << kPayloadShift) |
+           (static_cast<Address>(tag) << kTagShift);
   }
 
-  static Address Tag(Address pointer,
-                     typename PayloadTaggingScheme::TagType tag) {
-    return pointer | tag;
+  static bool CheckTag(Address content, TagRangeType tag_range) {
+    // TODO(saelo): we should probably also check that the bits that are neither
+    // part of the tag nor the payload are zero.
+    TagType tag = static_cast<TagType>((content & kTagMask) >> kTagShift);
+    return tag_range.Contains(tag);
   }
 
-  bool IsTaggedWith(typename PayloadTaggingScheme::TagType tag) const {
-    return (encoded_word_ & PayloadTaggingScheme::kTagMask) == tag;
+  Address UntagAllowNullHandle(TagRangeType tag_range) const {
+    Address content = encoded_word_;
+    if (V8_LIKELY(CheckTag(content, tag_range))) {
+      return (content & kPayloadMask) >> kPayloadShift;
+    } else {
+      return kNullAddress;
+    }
   }
 
-  void SetTag(typename PayloadTaggingScheme::TagType new_tag) {
-    encoded_word_ = (encoded_word_ & ~PayloadTaggingScheme::kTagMask) | new_tag;
+  Address UntagDisallowNullHandle(TagRangeType tag_range) const {
+    Address content = encoded_word_;
+    SBXCHECK(CheckTag(content, tag_range));
+    return (content & kPayloadMask) >> kPayloadShift;
   }
 
-  void SetMarkBit() { encoded_word_ |= PayloadTaggingScheme::kMarkBit; }
-
-  void ClearMarkBit() { encoded_word_ &= ~PayloadTaggingScheme::kMarkBit; }
-
-  bool HasMarkBitSet() const {
-    return (encoded_word_ & PayloadTaggingScheme::kMarkBit) != 0;
+  Address Untag(TagRangeType tag_range) const {
+    if (ExternalPointerCanBeEmpty(tag_range)) {
+      // TODO(saelo): use well-known null entries per type tag instead of a
+      // generic null entry. Then this logic can be removed entirely.
+      return UntagAllowNullHandle(tag_range);
+    } else {
+      return UntagDisallowNullHandle(tag_range);
+    }
   }
 
-  uint32_t ExtractFreelistLink() const {
-    return static_cast<uint32_t>(encoded_word_);
+  Address Untag(TagType tag) const { return Untag(TagRangeType(tag, tag)); }
+
+  bool IsTaggedWithTagIn(TagRangeType tag_range) const {
+    return CheckTag(encoded_word_, tag_range);
   }
 
-  typename PayloadTaggingScheme::TagType ExtractTag() const {
-    return static_cast<typename PayloadTaggingScheme::TagType>(
-        (encoded_word_ & PayloadTaggingScheme::kTagMask) |
-        PayloadTaggingScheme::kMarkBit);
+  bool IsTaggedWith(TagType tag) const {
+    return IsTaggedWithTagIn(TagRangeType(tag));
   }
 
-  bool ContainsFreelistLink() const {
-      return IsTaggedWith(PayloadTaggingScheme::kFreeEntryTag);
+  void SetMarkBit() { encoded_word_ |= kMarkBit; }
+
+  void ClearMarkBit() { encoded_word_ &= ~kMarkBit; }
+
+  bool HasMarkBitSet() const { return encoded_word_ & kMarkBit; }
+
+  // Extracts the freelist pointer if this entry is a freelist entry.
+  std::optional<uint32_t> ExtractFreelistLink() const {
+    if (IsTaggedWith(kFreeEntryTag)) {
+      return static_cast<uint32_t>((encoded_word_ & kPayloadMask) >>
+                                   kPayloadShift);
+    } else {
+      return std::nullopt;
+    }
   }
+
+  void SetTag(TagType tag) {
+    encoded_word_ =
+        (encoded_word_ & ~kTagMask) | (static_cast<Address>(tag) << kTagShift);
+  }
+
+  TagType ExtractTag() const {
+    return static_cast<TagType>((encoded_word_ & kTagMask) >> kTagShift);
+  }
+
+  bool ContainsFreelistLink() const { return IsTaggedWith(kFreeEntryTag); }
 
   bool ContainsEvacuationEntry() const {
-    if constexpr (PayloadTaggingScheme::kSupportsEvacuation) {
-      return IsTaggedWith(PayloadTaggingScheme::kEvacuationEntryTag);
-    } else {
-      return false;
-    }
-  }
-
-  bool IsZapped() const {
-    if constexpr (PayloadTaggingScheme::kSupportsZapping) {
-      return IsTaggedWith(PayloadTaggingScheme::kZappedEntryTag);
-    } else {
-      return false;
-    }
+    return IsTaggedWith(kEvacuationEntryTag);
   }
 
   Address ExtractEvacuationEntryHandleLocation() const {
-    if constexpr (PayloadTaggingScheme::kSupportsEvacuation) {
-      return Untag(PayloadTaggingScheme::kEvacuationEntryTag);
-    } else {
-      UNREACHABLE();
-    }
+    return Untag(kEvacuationEntryTag);
   }
 
   bool ContainsPointer() const {
-    return !ContainsFreelistLink() && !ContainsEvacuationEntry() && !IsZapped();
+    return !ContainsFreelistLink() && !ContainsEvacuationEntry();
   }
 
   bool operator==(TaggedPayload other) const {

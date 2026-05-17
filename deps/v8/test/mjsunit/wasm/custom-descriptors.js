@@ -55,7 +55,7 @@ assertEquals($g_desc1.index, $s1);
 
 let $g_s0 = builder.addGlobal(wasmRefType($s0), false, false, [
   kExprGlobalGet, $g_desc0.index,
-  kGCPrefix, kExprStructNewDefault, $s0,
+  kGCPrefix, kExprStructNewDefaultDesc, $s0,
 ]);
 
 let $sideeffect = builder.addImport("m", "sideeffect", kSig_v_v);
@@ -68,14 +68,14 @@ function MakeFunctions(type_index) {
     kExprLocalGet, 0,
     ...(type_index == $s1 ? [kExprI32Const, 2] : []),
     kExprGlobalGet, global_index,
-    kGCPrefix, kExprStructNew, type_index,
+    kGCPrefix, kExprStructNewDesc, type_index,
   ]);
 
   builder.addFunction("oneshot_s" + type_index, sig_r_i).exportFunc().addBody([
     kExprLocalGet, 0,
     ...(type_index == $s1 ? [kExprI32Const, 2] : []),
     kGCPrefix, kExprStructNewDefault, desc_index,
-    kGCPrefix, kExprStructNew, type_index,
+    kGCPrefix, kExprStructNewDesc, type_index,
   ]);
 
   builder.addFunction("get_desc_s" + type_index, sig_r_r).exportFunc().addBody([
@@ -84,29 +84,29 @@ function MakeFunctions(type_index) {
     kGCPrefix, kExprRefGetDesc, type_index,
   ]);
 
-  builder.addFunction("cast_desc_s" + type_index, sig_v_r).exportFunc()
+  builder.addFunction("cast_desc_eq_s" + type_index, sig_v_r).exportFunc()
   .addBody([
     kExprLocalGet, 0,
     kExprGlobalGet, global_index,
-    kGCPrefix, kExprRefCastDesc, type_index,
+    kGCPrefix, kExprRefCastDescEq, type_index,
     kExprDrop,
     // Same thing again, with an exact cast.
     kExprLocalGet, 0,
     kExprGlobalGet, global_index,
-    kGCPrefix, kExprRefCastDesc, kWasmExact, type_index,
+    kGCPrefix, kExprRefCastDescEq, kWasmExact, type_index,
     kExprDrop,
   ]);
 
-  builder.addFunction("cast_desc_null_s" + type_index, sig_v_r).exportFunc()
+  builder.addFunction("cast_desc_eq_null_s" + type_index, sig_v_r).exportFunc()
   .addBody([
     kExprLocalGet, 0,
     kExprGlobalGet, global_index,
-    kGCPrefix, kExprRefCastDescNull, type_index,
+    kGCPrefix, kExprRefCastDescEqNull, type_index,
     kExprDrop,
     // Same thing again, with an exact cast.
     kExprLocalGet, 0,
     kExprGlobalGet, global_index,
-    kGCPrefix, kExprRefCastDescNull, kWasmExact, type_index,
+    kGCPrefix, kExprRefCastDescEqNull, kWasmExact, type_index,
     kExprDrop,
   ]);
 
@@ -130,13 +130,13 @@ function MakeFunctions(type_index) {
     kExprI32ConvertI64,
   ]);
 
-  builder.addFunction("br_on_cast_desc_s" + type_index, sig_i_r)
+  builder.addFunction("br_on_cast_desc_eq_s" + type_index, sig_i_r)
   .exportFunc()
   .addBody([
     kExprBlock, kAnyRefCode,
       kExprLocalGet, 0,
       kExprGlobalGet, global_index,
-      ...wasmBrOnCastDesc(0, anyref, wasmRefNullType(type_index).exact()),
+      ...wasmBrOnCastDescEq(0, anyref, wasmRefNullType(type_index).exact()),
       kExprI32Const, 0, // If branch not taken, return 0.
       kExprReturn,
     kExprEnd,
@@ -144,13 +144,13 @@ function MakeFunctions(type_index) {
     kExprI32Const, 1, // If branch taken, return 1.
   ]);
 
-builder.addFunction("br_on_cast_desc_fail_s" + type_index, sig_i_r)
+builder.addFunction("br_on_cast_desc_eq_fail_s" + type_index, sig_i_r)
   .exportFunc()
   .addBody([
     kExprBlock, kAnyRefCode,
       kExprLocalGet, 0,
       kExprGlobalGet, global_index,
-      ...wasmBrOnCastDescFail(0, anyref, wasmRefType(type_index)),
+      ...wasmBrOnCastDescEqFail(0, anyref, wasmRefType(type_index)),
       kExprI32Const, 0, // If branch not taken (cast succeeded), return 0.
       kExprReturn,
     kExprEnd,
@@ -160,13 +160,13 @@ builder.addFunction("br_on_cast_desc_fail_s" + type_index, sig_i_r)
 
   // Custom descriptors relaxes the requirement that the cast target be a
   // subtype of the cast source. We can cast up from nullref.
-  builder.addFunction("br_on_cast_desc_from_null_s" + type_index, sig_i_v)
+  builder.addFunction("br_on_cast_desc_eq_from_null_s" + type_index, sig_i_v)
     .exportFunc()
     .addBody([
       kExprBlock, kAnyRefCode,
         kExprRefNull, kNullRefCode,
         kExprGlobalGet, global_index,
-        ...wasmBrOnCastDesc(0, nullref, wasmRefNullType(type_index)),
+        ...wasmBrOnCastDescEq(0, nullref, wasmRefNullType(type_index)),
         kExprI32Const, 0, // If branch not taken, return 0.
         kExprReturn,
       kExprEnd,
@@ -174,13 +174,13 @@ builder.addFunction("br_on_cast_desc_fail_s" + type_index, sig_i_r)
       kExprI32Const, 1, // If branch taken, return 1.
     ]);
 
-  builder.addFunction("br_on_cast_desc_fail_from_null_s" + type_index, sig_i_v)
+  builder.addFunction("br_on_cast_desc_eq_fail_from_null_s" + type_index, sig_i_v)
     .exportFunc()
     .addBody([
       kExprBlock, kAnyRefCode,
         kExprRefNull, kNullRefCode,
         kExprGlobalGet, global_index,
-        ...wasmBrOnCastDescFail(0, nullref, wasmRefNullType(type_index)),
+        ...wasmBrOnCastDescEqFail(0, nullref, wasmRefNullType(type_index)),
         kExprI32Const, 0, // If branch not taken, return 0.
         kExprReturn,
       kExprEnd,
@@ -278,21 +278,21 @@ assertNotSame(wasm.get_desc_s0(s0), wasm.get_desc_s0(oneshot_s0));
 assertNotSame(wasm.get_desc_s0(oneshot_s0), wasm.get_desc_s0(oneshot_s0a));
 assertNotSame(wasm.get_desc_s1(s1), wasm.get_desc_s1(oneshot_s1));
 
-wasm.cast_desc_s0(s0);
-wasm.cast_desc_s1(s1);
+wasm.cast_desc_eq_s0(s0);
+wasm.cast_desc_eq_s1(s1);
 assertThrows(
-    () => wasm.cast_desc_s1(s0), WebAssembly.RuntimeError, 'illegal cast');
+    () => wasm.cast_desc_eq_s1(s0), WebAssembly.RuntimeError, 'illegal cast');
 assertThrows(
-    () => wasm.cast_desc_s0(s1), WebAssembly.RuntimeError, 'illegal cast');
+    () => wasm.cast_desc_eq_s0(s1), WebAssembly.RuntimeError, 'illegal cast');
 
-wasm.cast_desc_null_s0(s0);
-wasm.cast_desc_null_s1(s1);
-wasm.cast_desc_null_s0(null);
-wasm.cast_desc_null_s1(null);
+wasm.cast_desc_eq_null_s0(s0);
+wasm.cast_desc_eq_null_s1(s1);
+wasm.cast_desc_eq_null_s0(null);
+wasm.cast_desc_eq_null_s1(null);
 assertThrows(
-    () => wasm.cast_desc_null_s1(s0), WebAssembly.RuntimeError, 'illegal cast');
+    () => wasm.cast_desc_eq_null_s1(s0), WebAssembly.RuntimeError, 'illegal cast');
 assertThrows(
-    () => wasm.cast_desc_null_s0(s1), WebAssembly.RuntimeError, 'illegal cast');
+    () => wasm.cast_desc_eq_null_s0(s1), WebAssembly.RuntimeError, 'illegal cast');
 
 let s0_other = wasm.make_s0(33);
 assertEquals(1, wasm.inc_desc_field_s0(s0));
@@ -317,26 +317,26 @@ assertEquals(5, wasm.inc_desc_field_s1(s1));
 assertEquals(6, wasm.inc_desc_field_s0(s1_other));
 assertEquals(7, wasm.inc_desc_field_s0(s1));
 
-assertEquals(1, wasm.br_on_cast_desc_s0(s0));
-assertEquals(0, wasm.br_on_cast_desc_s0(s1));
-assertEquals(1, wasm.br_on_cast_desc_s0(null));
+assertEquals(1, wasm.br_on_cast_desc_eq_s0(s0));
+assertEquals(0, wasm.br_on_cast_desc_eq_s0(s1));
+assertEquals(1, wasm.br_on_cast_desc_eq_s0(null));
 
-assertEquals(0, wasm.br_on_cast_desc_s1(s0));
-assertEquals(1, wasm.br_on_cast_desc_s1(s1));
-assertEquals(1, wasm.br_on_cast_desc_s1(null));
+assertEquals(0, wasm.br_on_cast_desc_eq_s1(s0));
+assertEquals(1, wasm.br_on_cast_desc_eq_s1(s1));
+assertEquals(1, wasm.br_on_cast_desc_eq_s1(null));
 
-assertEquals(0, wasm.br_on_cast_desc_fail_s0(s0));
-assertEquals(1, wasm.br_on_cast_desc_fail_s0(s1));
-assertEquals(1, wasm.br_on_cast_desc_fail_s0(null));
+assertEquals(0, wasm.br_on_cast_desc_eq_fail_s0(s0));
+assertEquals(1, wasm.br_on_cast_desc_eq_fail_s0(s1));
+assertEquals(1, wasm.br_on_cast_desc_eq_fail_s0(null));
 
-assertEquals(1, wasm.br_on_cast_desc_fail_s1(s0));
-assertEquals(0, wasm.br_on_cast_desc_fail_s1(s1));
-assertEquals(1, wasm.br_on_cast_desc_fail_s1(null));
+assertEquals(1, wasm.br_on_cast_desc_eq_fail_s1(s0));
+assertEquals(0, wasm.br_on_cast_desc_eq_fail_s1(s1));
+assertEquals(1, wasm.br_on_cast_desc_eq_fail_s1(null));
 
-assertEquals(1, wasm.br_on_cast_desc_from_null_s0());
-assertEquals(1, wasm.br_on_cast_desc_from_null_s1());
-assertEquals(0, wasm.br_on_cast_desc_fail_from_null_s0());
-assertEquals(0, wasm.br_on_cast_desc_fail_from_null_s1());
+assertEquals(1, wasm.br_on_cast_desc_eq_from_null_s0());
+assertEquals(1, wasm.br_on_cast_desc_eq_from_null_s1());
+assertEquals(0, wasm.br_on_cast_desc_eq_fail_from_null_s0());
+assertEquals(0, wasm.br_on_cast_desc_eq_fail_from_null_s1());
 assertEquals(1, wasm.br_on_cast_from_null_s0());
 assertEquals(1, wasm.br_on_cast_from_null_s1());
 assertEquals(0, wasm.br_on_cast_fail_from_null_s0());
@@ -354,9 +354,9 @@ assertEquals(0, wasm.br_on_cast_fail_from_null_s1());
       builder.addStruct({fields: [], describes: $s0});
       builder.endRecGroup();
 
-      let name = "br_on_cast" + (desc ? "_desc" : "") + (fail ? "_fail" : "");
-      let cast = fail ? (desc ? wasmBrOnCastDescFail : wasmBrOnCastFail) :
-                        (desc ? wasmBrOnCastDesc : wasmBrOnCast);
+      let name = "br_on_cast" + (desc ? "_desc_eq" : "") + (fail ? "_fail" : "");
+      let cast = fail ? (desc ? wasmBrOnCastDescEqFail : wasmBrOnCastFail) :
+                        (desc ? wasmBrOnCastDescEq : wasmBrOnCast);
 
       builder.addFunction(name, sig_v_v).addBody([
         kExprBlock, kAnyRefCode,
@@ -375,5 +375,53 @@ assertEquals(0, wasm.br_on_cast_fail_from_null_s1());
       assertThrowsAsync(
           WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
     }
+  }
+})();
+
+// Using struct.new_desc to allocate a type without a descriptor is invalid.
+(() => {
+  for (let [expr, name] of
+    [[kExprStructNewDesc, "struct.new_desc"],
+      [kExprStructNewDefaultDesc, "struct.new_default_desc"]]) {
+    let builder = new WasmModuleBuilder();
+    let $nodesc = builder.addStruct({});
+    builder.addFunction(`invalid-${name}`, sig_v_v).addBody([
+      kGCPrefix, expr, $nodesc,
+      kExprDrop
+    ]);
+
+    let expected = new RegExp(
+      `.*"invalid-${name}" failed: descriptor allocation used for type 0 ` +
+      'without descriptor.*');
+    let buffer = builder.toBuffer();
+    assertThrowsAsync(
+      WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
+  }
+})();
+
+// Using struct.new to allocate a type with a descriptor is invalid.
+(() => {
+  for (let [expr, name] of
+    [[kExprStructNew, "struct.new"],
+      [kExprStructNewDefault, "struct.new_default"]]) {
+    let builder = new WasmModuleBuilder();
+    builder.startRecGroup();
+    let $desc = builder.nextTypeIndex() + 1;
+    let $withdesc = builder.addStruct({ descriptor: $desc });
+    builder.addStruct({ describes: $withdesc });
+    builder.endRecGroup();
+
+    builder.addFunction(`invalid-${name}`, sig_v_v).addBody([
+      kGCPrefix, kExprStructNewDefault, $desc,
+      kGCPrefix, expr, $withdesc,
+      kExprDrop
+    ]);
+
+    let expected = new RegExp(
+      `.*"invalid-${name}" failed: non-descriptor allocation used for type 0 ` +
+      'with descriptor.*');
+    let buffer = builder.toBuffer();
+    assertThrowsAsync(
+      WebAssembly.compile(buffer), WebAssembly.CompileError, expected);
   }
 })();

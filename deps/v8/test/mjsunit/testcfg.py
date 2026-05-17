@@ -30,7 +30,6 @@ import itertools
 import os
 import re
 
-from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
@@ -43,16 +42,16 @@ NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 # Flags known to misbehave when combining arbitrary mjsunit tests. Can also
 # be compiled regular expressions.
-MISBEHAVING_COMBINED_TESTS_FLAGS= [
-  '--check-handle-count',
-  '--enable-tracing',
-  re.compile('--experimental.*'),
-  '--expose-trigger-failure',
-  re.compile('--harmony.*'),
-  '--mock-arraybuffer-allocator',
-  '--print-ast',
-  re.compile('--trace.*'),
-  '--wasm-lazy-compilation',
+MISBEHAVING_COMBINED_TESTS_FLAGS = [
+    '--check-handle-count',
+    '--enable-tracing',
+    re.compile('--experimental.*'),
+    '--expose-trigger-failure',
+    re.compile('--harmony.*'),
+    '--mock-arraybuffer-allocator',
+    '--print-ast',
+    re.compile('--trace.*'),
+    '--wasm-lazy-compilation',
 ]
 
 
@@ -91,8 +90,10 @@ class TestCase(testcase.D8TestCase):
         files_match = FILES_PATTERN.search(source, files_match.end())
       else:
         break
-    files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
-              for f in files_list ]
+    files = [
+        os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
+        for f in files_list
+    ]
     testfilename = str(self._get_source_path())
 
     if NO_HARNESS_PATTERN.search(source):

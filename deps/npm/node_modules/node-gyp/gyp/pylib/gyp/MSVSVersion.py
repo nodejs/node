@@ -87,7 +87,7 @@ class VisualStudioVersion:
     def _SetupScriptInternal(self, target_arch):
         """Returns a command (with arguments) to be used to set up the
         environment."""
-        assert target_arch in ("x86", "x64"), "target_arch not supported"
+        assert target_arch in ("x86", "x64", "arm64"), "target_arch not supported"
         # If WindowsSDKDir is set and SetEnv.Cmd exists then we are using the
         # depot_tools build tools and should run SetEnv.Cmd to set up the
         # environment. The check for WindowsSDKDir alone is not sufficient because
@@ -109,8 +109,16 @@ class VisualStudioVersion:
             )
 
             # Always use a native executable, cross-compiling if necessary.
-            host_arch = "amd64" if is_host_arch_x64 else "x86"
-            msvc_target_arch = "amd64" if target_arch == "x64" else "x86"
+            host_arch = (
+                "amd64"
+                if is_host_arch_x64
+                else (
+                    "arm64"
+                    if os.environ.get("PROCESSOR_ARCHITECTURE") == "ARM64"
+                    else "x86"
+                )
+            )
+            msvc_target_arch = {"x64": "amd64"}.get(target_arch, target_arch)
             arg = host_arch
             if host_arch != msvc_target_arch:
                 arg += "_" + msvc_target_arch

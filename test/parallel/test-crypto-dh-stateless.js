@@ -7,6 +7,21 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { hasOpenSSL } = require('../common/crypto');
 
+// Error code for a key-type mismatch during (EC)DH. The underlying OpenSSL
+// error code varies by version, and in OpenSSL 4.0 by platform: some builds
+// report a generic internal error instead of a typed key-type mismatch.
+// https://github.com/openssl/openssl/issues/30895
+// TODO(panva): Tighten this check once/if fixed.
+let keyTypeMismatchCode;
+if (hasOpenSSL(4, 0)) {
+  keyTypeMismatchCode =
+    /^ERR_OSSL_EVP_(OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE|INTERNAL_ERROR)$/;
+} else if (hasOpenSSL(3)) {
+  keyTypeMismatchCode = 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE';
+} else {
+  keyTypeMismatchCode = 'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES';
+}
+
 assert.throws(() => crypto.diffieHellman(), {
   name: 'TypeError',
   code: 'ERR_INVALID_ARG_TYPE',
@@ -397,9 +412,7 @@ test(crypto.generateKeyPairSync('x25519'),
     privateKey: crypto.generateKeyPairSync('x448').privateKey,
     publicKey: crypto.generateKeyPairSync('x25519').publicKey,
   };
-  testDHError(options, { code: hasOpenSSL(3) ?
-    'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
-    'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+  testDHError(options, { code: keyTypeMismatchCode });
 }
 
 // Test all key encoding formats
@@ -541,23 +554,21 @@ for (const { privateKey: alicePriv, publicKey: bobPub } of [
     testDHError({
       privateKey: privKey(ec256.privateKey),
       publicKey: pubKey(x25519.publicKey),
-    }, { code: hasOpenSSL(3) ?
-      'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
-      'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+    }, { code: keyTypeMismatchCode });
 
     // Unsupported key type (ed25519)
     testDHError({
       privateKey: privKey(ed25519.privateKey),
       publicKey: pubKey(ed25519.publicKey),
-    }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' });
+    }, { code: hasOpenSSL(4, 0) ?
+      /^ERR_OSSL_EVP_(OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE|INTERNAL_ERROR)$/ :
+      'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' });
 
     // Incompatible key types (x448 + x25519)
     testDHError({
       privateKey: privKey(x448.privateKey),
       publicKey: pubKey(x25519.publicKey),
-    }, { code: hasOpenSSL(3) ?
-      'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE' :
-      'ERR_OSSL_EVP_DIFFERENT_KEY_TYPES' });
+    }, { code: keyTypeMismatchCode });
 
     // Zero x25519 public key
     testDHError({

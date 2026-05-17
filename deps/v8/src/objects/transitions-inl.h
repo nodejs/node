@@ -135,6 +135,7 @@ Tagged<Name> TransitionArray::GetKey(int transition_number) {
 Tagged<Name> TransitionsAccessor::GetKey(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
@@ -201,6 +202,7 @@ Tagged<Map> TransitionArray::GetTarget(int transition_number) {
 Tagged<Map> TransitionsAccessor::GetTarget(int transition_number) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       UNREACHABLE();
@@ -270,9 +272,6 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
     return kNotFound;
   }
 
-  // Do linear search for small arrays, and for searches in the background
-  // thread.
-  const int kMaxElementsForLinearSearch = 8;
   if (number_of_transitions() <= kMaxElementsForLinearSearch ||
       concurrent_search) {
     return LinearSearchName(name, out_insertion_index);
@@ -284,6 +283,9 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
 int TransitionArray::BinarySearchName(Tagged<Name> name,
                                       int* out_insertion_index) {
   int end = number_of_transitions();
+  // Binary search must not be used for small number of descriptors since
+  // the descriptor array is not sorted yet.
+  DCHECK_LT(kMaxElementsForLinearSearch, end);
   uint32_t hash = name->hash();
 
   // Find the first index whose key's hash is greater-than-or-equal-to the
@@ -364,6 +366,8 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
       return kFullTransitionArray;
     } else if (IsPrototypeInfo(heap_object)) {
       return kPrototypeInfo;
+    } else if (IsPrototypeSharedClosureInfo(heap_object)) {
+      return kPrototypeSharedClosureInfo;
     } else {
       DCHECK(IsMap(heap_object));
       return kMigrationTarget;
@@ -488,6 +492,7 @@ std::pair<Handle<String>, Handle<Map>> TransitionsAccessor::ExpectedTransition(
   DisallowGarbageCollection no_gc;
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return {Handle<String>::null(), Handle<Map>::null()};
@@ -530,6 +535,7 @@ void TransitionsAccessor::ForEachTransitionWithKey(
     SideStepCallback side_step_transition_callback) {
   switch (encoding()) {
     case kPrototypeInfo:
+    case kPrototypeSharedClosureInfo:
     case kUninitialized:
     case kMigrationTarget:
       return;

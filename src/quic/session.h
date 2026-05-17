@@ -16,7 +16,6 @@
 #include "cid.h"
 #include "data.h"
 #include "defs.h"
-#include "logstream.h"
 #include "packet.h"
 #include "preferredaddress.h"
 #include "sessionticket.h"
@@ -74,9 +73,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     // HTTP/3 specific options.
     uint64_t max_field_section_size = 0;
-    uint64_t qpack_max_dtable_capacity = 0;
-    uint64_t qpack_encoder_max_dtable_capacity = 0;
-    uint64_t qpack_blocked_streams = 0;
+    uint64_t qpack_max_dtable_capacity = 4096;
+    uint64_t qpack_encoder_max_dtable_capacity = 4096;
+    uint64_t qpack_blocked_streams = 100;
 
     bool enable_connect_protocol = true;
     bool enable_datagrams = true;
@@ -112,6 +111,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // (ALPN negotiated during handshake). Must be called before any
   // application data is received.
   void SetApplication(std::unique_ptr<Application> app);
+  // Controls which datagram to drop when the pending datagram queue is full.
+  enum class DatagramDropPolicy : uint8_t {
+    DROP_OLDEST = 0,  // Drop the oldest queued datagram (default).
+    DROP_NEWEST = 1,  // Drop the incoming datagram.
+  };
+
   // The options used to configure a session. Most of these deal directly with
   // the transport parameters that are exchanged with the remote peer during
   // handshake.
@@ -151,6 +156,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // completion of the tls handshake.
     uint64_t handshake_timeout = UINT64_MAX;
 
+    // The keep-alive timeout in milliseconds. When set to a non-zero value,
+    // ngtcp2 will automatically send PING frames to keep the connection alive
+    // before the idle timeout fires. Set to 0 to disable (default).
+    uint64_t keep_alive_timeout = 0;
+
     // Maximum initial flow control window size for a stream.
     uint64_t max_stream_window = 0;
 
@@ -179,6 +189,21 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
     ngtcp2_cc_algo cc_algorithm = CC_ALGO_CUBIC;
+
+    // Controls which datagram to drop when the pending queue is full.
+    DatagramDropPolicy datagram_drop_policy = DatagramDropPolicy::DROP_OLDEST;
+
+    // Maximum number of SendPendingData attempts before a datagram is
+    // abandoned. When a datagram cannot be sent due to congestion control
+    // or packet size constraints, it remains in the queue and the counter
+    // is incremented. Once the limit is reached, the datagram is dropped
+    // and reported as abandoned. Range: 1-255. Default: 5.
+    uint8_t max_datagram_send_attempts = 5;
+
+    // Multiplier for the Probe Timeout (PTO) used to compute the draining
+    // period duration after receiving CONNECTION_CLOSE. RFC 9000 Section
+    // 10.2 requires at least 3x PTO. Range: 3-255. Default: 3.
+    uint8_t draining_period_multiplier = 3;
 
     // An optional NEW_TOKEN from a previous connection to the same
     // server. When set, the token is included in the Initial packet
@@ -312,6 +337,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   struct Stats;
 
   void HandleQlog(uint32_t flags, const void* data, size_t len);
+  void EmitQlog(uint32_t flags, std::string_view data);
 
  private:
   struct Impl;
@@ -335,6 +361,18 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void Send(Packet::Ptr packet, const PathStorage& path);
   datagram_id SendDatagram(Store&& data);
 
+  // Pending datagram accessors for use by SendPendingData.
+  struct PendingDatagram {
+    datagram_id id;
+    Store data;
+    uint8_t send_attempts = 0;
+  };
+  bool HasPendingDatagrams() const;
+  PendingDatagram& PeekPendingDatagram();
+  void PopPendingDatagram();
+  size_t PendingDatagramCount() const;
+  void DatagramSent(datagram_id id);
+
   // A non-const variation to allow certain modifications.
   Config& config();
 
@@ -343,6 +381,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     DO_NOT_NOTIFY,
   };
   BaseObjectPtr<Stream> FindStream(stream_id id) const;
+  // Returns a copy of the streams map (safe for iteration while streams
+  // are being destroyed).
+  StreamsMap streams() const;
   BaseObjectPtr<Stream> CreateStream(
       stream_id id,
       CreateStreamOption option = CreateStreamOption::NOTIFY,
@@ -422,6 +463,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool wants_session_ticket() const;
   void SetStreamOpenAllowed();
 
+  // Populate state buffer fields from the 0-RTT transport params.
+  // Called after ngtcp2_conn_decode_and_set_0rtt_transport_params
+  // succeeds, so that values like maxDatagramSize are available
+  // before the handshake completes.
+  void PopulateEarlyTransportParamsState();
+
   // It's a terrible name but "wrapped" here means that the Session has been
   // passed out to JavaScript and should be "wrapped" by whatever handler is
   // defined there to manage it.
@@ -471,10 +518,17 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // JavaScript callouts
 
   void EmitClose(const QuicError& error = QuicError());
+  void EmitGoaway(stream_id last_stream_id);
+
+  // Sets the max datagram payload size in the shared state. Used by
+  // Http3ApplicationImpl to block datagram sends when the peer's
+  // SETTINGS_H3_DATAGRAM=0 (RFC 9297 §3).
+  void set_max_datagram_size(uint16_t size);
   void EmitDatagram(Store&& datagram, DatagramReceivedFlags flag);
   void EmitDatagramStatus(datagram_id id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
+  void EmitOrigins(std::vector<std::string>&& origins);
 
   struct ValidatedPath {
     std::shared_ptr<SocketAddress> local;
@@ -487,6 +541,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                           const std::optional<ValidatedPath>& oldPath);
   void EmitSessionTicket(Store&& ticket);
   void EmitNewToken(const uint8_t* token, size_t len);
+  void EmitEarlyDataRejected();
+  void DestroyAllStreams(const QuicError& error);
   void EmitStream(const BaseObjectWeakPtr<Stream>& stream);
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
@@ -495,7 +551,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
                         DatagramReceivedFlags flag);
-  void GenerateNewConnectionId(ngtcp2_cid* cid, size_t len, uint8_t* token);
+  void GenerateNewConnectionId(ngtcp2_cid* cid,
+                               size_t len,
+                               ngtcp2_stateless_reset_token* token);
   bool HandshakeCompleted();
   void HandshakeConfirmed();
   void SelectPreferredAddress(PreferredAddress* preferredAddress);
@@ -503,17 +561,26 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   QuicConnectionPointer InitConnection();
 
   Side side_;
-  ngtcp2_mem allocator_;
+  const ngtcp2_mem* allocator_;
   std::unique_ptr<Impl> impl_;
+  // These flags live on Session (not Impl) so that the NgTcp2CallbackScope
+  // and NgHttp3CallbackScope destructors can safely clear them even after
+  // Impl has been destroyed via MakeCallback re-entrancy during a callback.
+  // The scope is placed at the ngtcp2/nghttp3 entry point (e.g. Receive,
+  // OnTimeout) rather than on individual callbacks, so the deferred destroy
+  // only fires after all callbacks for that entry point have completed.
+  bool in_ngtcp2_callback_scope_ = false;
+  bool in_nghttp3_callback_scope_ = false;
+  bool destroy_deferred_ = false;
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
-  BaseObjectPtr<LogStream> qlog_stream_;
-  BaseObjectPtr<LogStream> keylog_stream_;
-
+  friend struct NgTcp2CallbackScope;
+  friend struct NgHttp3CallbackScope;
   friend class Application;
   friend class DefaultApplication;
   friend class Http3ApplicationImpl;
   friend class Endpoint;
+  friend class SessionManager;
   friend class Stream;
   friend class PendingStream;
   friend class TLSContext;

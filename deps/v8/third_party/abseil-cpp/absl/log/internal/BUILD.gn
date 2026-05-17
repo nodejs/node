@@ -343,3 +343,24 @@ absl_test("fnmatch_test") {
   sources = [ "fnmatch_test.cc" ]
   deps = [ ":fnmatch" ]
 }
+
+absl_source_set("container") {
+  sources = [ "container.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/meta:requires",
+    "//third_party/abseil-cpp/absl/strings",
+  ]
+}
+
+absl_test("container_test") {
+  sources = [ "container_test.cc" ]
+  deps = [
+    ":container",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:str_format",
+    "//third_party/abseil-cpp/absl/types:span",
+  ]
+}

@@ -490,13 +490,17 @@ transitioning macro PerformPromiseThenImpl(
 
 transitioning javascript builtin PerformPromiseThenFunction(
     js-implicit context: NativeContext, receiver: JSAny)(onFulfilled: JSAny,
-    onRejected: JSAny): JSAny {
+    onRejected: JSAny, resultCapability: JSAny): JSAny {
   const jsPromise = Cast<JSPromise>(receiver) otherwise unreachable;
-  const callableOnFulfilled = Cast<Callable>(onFulfilled) otherwise unreachable;
-  const callableOnRejected = Cast<Callable>(onRejected) otherwise unreachable;
+  const callableOnFulfilled =
+      Cast<(Callable | Undefined)>(onFulfilled) otherwise unreachable;
+  const callableOnRejected =
+      Cast<(Callable | Undefined)>(onRejected) otherwise unreachable;
+  const resultPromise =
+      Cast<(JSPromise | Undefined)>(resultCapability) otherwise unreachable;
 
   PerformPromiseThenImpl(
-      jsPromise, callableOnFulfilled, callableOnRejected, Undefined);
+      jsPromise, callableOnFulfilled, callableOnRejected, resultPromise);
   return Undefined;
 }
 

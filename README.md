@@ -451,8 +451,6 @@ For information about the governance of the Node.js project, see
   **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>> (he/him)
 * [vmoroz](https://github.com/vmoroz) -
   **Vladimir Morozov** <<vmorozov@microsoft.com>> (he/him)
-* [VoltrexKeyva](https://github.com/VoltrexKeyva) -
-  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 * [watilde](https://github.com/watilde) -
   **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
 * [zcbenz](https://github.com/zcbenz) -
@@ -717,6 +715,8 @@ For information about the governance of the Node.js project, see
   **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
 * [vkurchatkin](https://github.com/vkurchatkin) -
   **Vladimir Kurchatkin** <<vladimir.kurchatkin@gmail.com>>
+* [VoltrexKeyva](https://github.com/VoltrexKeyva) -
+  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -
   **Vse Mozhet Byt** <<vsemozhetbyt@gmail.com>> (he/him)
 * [watson](https://github.com/watson) -
@@ -747,8 +747,6 @@ maintaining the Node.js project.
   **Sangchul Lee** <<1ilsang.dev@gmail.com>> (he/him)
 * [atlowChemi](https://github.com/atlowChemi) -
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
-* [Ayase-252](https://github.com/Ayase-252) -
-  **Qingyu Deng** <<i@ayase-lab.com>>
 * [bjohansebas](https://github.com/bjohansebas) -
   **Sebastian Beltran** <<bjohansebas@gmail.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
@@ -773,16 +771,12 @@ maintaining the Node.js project.
   **Kevin Eady** <<kevin.c.eady@gmail.com>> (he/him)
 * [marsonya](https://github.com/marsonya) -
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
-* [meixg](https://github.com/meixg) -
-  **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [milesguicent](https://github.com/milesguicent) -
   **Miles Guicent** <<guicent@pm.me>> (he/him)
 * [preveen-stack](https://github.com/preveen-stack) -
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him)
-* [VoltrexKeyva](https://github.com/VoltrexKeyva) -
-  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.

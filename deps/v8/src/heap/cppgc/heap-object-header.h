@@ -126,9 +126,9 @@ class HeapObjectHeader {
   enum class EncodedHalf : uint8_t { kLow, kHigh };
 
   // Used in |encoded_high_|.
-  using FullyConstructedField = v8::base::BitField16<bool, 0, 1>;
-  using UnusedField1 = FullyConstructedField::Next<bool, 1>;
-  using GCInfoIndexField = UnusedField1::Next<GCInfoIndex, 14>;
+  using GCInfoIndexField = v8::base::BitField16<GCInfoIndex, 0, 14>;
+  using UnusedField1 = GCInfoIndexField::Next<bool, 1>;
+  using FullyConstructedField = UnusedField1::Next<bool, 1>;
   // Used in |encoded_low_|.
   using MarkBitField = v8::base::BitField16<bool, 0, 1>;
   using SizeField =
@@ -196,9 +196,9 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   // this write is not observed by the marker, since the sweeper  sets the
   // in-construction bit to 0 and we can rely on that to guarantee a correct
   // answer when checking if objects are in-construction.
-  v8::base::AsAtomicPtr(&encoded_high_)
-      ->store(GCInfoIndexField::encode(gc_info_index),
-              std::memory_order_relaxed);
+  std::atomic_ref<uint16_t>(encoded_high_)
+      .store(GCInfoIndexField::encode(gc_info_index),
+             std::memory_order_relaxed);
   DCHECK(IsInConstruction());
 #ifdef DEBUG
   CheckApiConstants();
@@ -281,14 +281,14 @@ void HeapObjectHeader::Unmark() {
 }
 
 bool HeapObjectHeader::TryMarkAtomic() {
-  auto* atomic_encoded = v8::base::AsAtomicPtr(&encoded_low_);
-  uint16_t old_value = atomic_encoded->load(std::memory_order_relaxed);
+  std::atomic_ref<uint16_t> atomic_encoded(encoded_low_);
+  uint16_t old_value = atomic_encoded.load(std::memory_order_relaxed);
   const uint16_t new_value = old_value | MarkBitField::encode(true);
   if (new_value == old_value) {
     return false;
   }
-  return atomic_encoded->compare_exchange_strong(old_value, new_value,
-                                                 std::memory_order_relaxed);
+  return atomic_encoded.compare_exchange_strong(old_value, new_value,
+                                                std::memory_order_relaxed);
 }
 
 void HeapObjectHeader::MarkNonAtomic() {
@@ -351,8 +351,10 @@ template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
 uint16_t HeapObjectHeader::LoadEncoded() const {
   const uint16_t& half =
       part == EncodedHalf::kLow ? encoded_low_ : encoded_high_;
-  if (mode == AccessMode::kNonAtomic) return half;
-  return v8::base::AsAtomicPtr(&half)->load(memory_order);
+  if constexpr (mode == AccessMode::kNonAtomic) {
+    return half;
+  }
+  return std::atomic_ref(const_cast<uint16_t&>(half)).load(memory_order);
 }
 
 template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
@@ -365,16 +367,16 @@ void HeapObjectHeader::StoreEncoded(uint16_t bits, uint16_t mask) {
   // - MarkObjectAsFullyConstructed (API)
   DCHECK_EQ(0u, bits & ~mask);
   uint16_t& half = part == EncodedHalf::kLow ? encoded_low_ : encoded_high_;
-  if (mode == AccessMode::kNonAtomic) {
+  if constexpr (mode == AccessMode::kNonAtomic) {
     half = (half & ~mask) | bits;
     return;
   }
   // We don't perform CAS loop here assuming that only none of the info that
   // shares the same encoded halfs change at the same time.
-  auto* atomic_encoded = v8::base::AsAtomicPtr(&half);
-  uint16_t value = atomic_encoded->load(std::memory_order_relaxed);
+  std::atomic_ref<uint16_t> atomic_encoded(half);
+  uint16_t value = atomic_encoded.load(std::memory_order_relaxed);
   value = (value & ~mask) | bits;
-  atomic_encoded->store(value, memory_order);
+  atomic_encoded.store(value, memory_order);
 }
 
 }  // namespace internal

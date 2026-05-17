@@ -111,14 +111,13 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                    |
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
 | GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                    |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12                    |
 | GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                      |
 | GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                    |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
 | GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7] |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
-| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4]           |
+| macOS            | x64              | >= 13.5                           | Tier 2       | For notes about compilation see [^4]           |
 | macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
 | AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                |
@@ -227,12 +226,11 @@ If compiling without one of the above, use `configure` with the
 ### Previous versions of this document
 
 Supported platforms and toolchains change with each major version of Node.js.
-This document is only valid for the current major version of Node.js.
-Consult previous versions of this document for older versions of Node.js:
+This document is only valid for the current version of Node.js, and is expected
+to be valid for the entire lifetime of this release line.
 
-* [Node.js 24](https://github.com/nodejs/node/blob/v24.x/BUILDING.md)
-* [Node.js 22](https://github.com/nodejs/node/blob/v22.x/BUILDING.md)
-* [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
+To consult the version of this document for another version, download its source
+tarball and/or browse the git repository checked out at the relevant tag.
 
 ## Building Node.js on supported platforms
 

@@ -162,6 +162,18 @@ def GuessPowerProcessorVersion():
     raise Exception('Unable to guess power processor version')
 
 
+# Check if LSX feature is available on the host LoongArch machine. This feature
+# is required for supporting Simd on V8.
+def IsLoongArchLSXSupported():
+  import subprocess
+  cpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True)
+  cpuinfo_list = cpuinfo.strip().decode("utf-8").splitlines()
+  facilities = "".join(
+      x for x in cpuinfo_list if x.lower().startswith("features"))
+  facilities_list = facilities.split(" ")
+  return "lsx" in facilities_list
+
+
 def UseSimulator(arch):
   machine = platform.machine()
   return (machine and (arch == "arm" or arch == "arm64") and

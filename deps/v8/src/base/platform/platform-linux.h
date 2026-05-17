@@ -22,14 +22,40 @@ namespace base {
 struct V8_BASE_EXPORT MemoryRegion {
   uintptr_t start;
   uintptr_t end;
-  char permissions[5];
-  off_t offset;
+  char raw_permissions[5];
+  PagePermissions permissions;
+  uintptr_t offset;
   dev_t dev;
   ino_t inode;
-  std::string pathname;
+  static constexpr size_t kMaxPathnameSize = 128;
+  char pathname[kMaxPathnameSize];
+};
 
-  // |line| must not contains the tail '\n'.
-  static std::optional<MemoryRegion> FromMapsLine(const char* line);
+// A /proc/self/maps parser that is safe to use in signal handlers.
+// It uses only async-signal-safe functions (open, read, close).
+class V8_BASE_EXPORT SignalSafeMapsParser {
+ public:
+  SignalSafeMapsParser(int fd = -1, bool should_close_fd = true);
+  ~SignalSafeMapsParser();
+
+  // Returns true if the file was successfully opened.
+  bool IsValid() const { return fd_ >= 0; }
+
+  // Reads the next line and extracts the MemoryRegion from it.
+  // Returns a MemoryRegion on success, or std::nullopt on EOF or error.
+  std::optional<MemoryRegion> Next();
+
+ private:
+  bool ReadChar(char* out);
+  bool ReadHex(uintptr_t* out_val, char* out_delim);
+  bool ReadDecimal(uintptr_t* out_val, char* out_delim);
+
+  int fd_;
+  bool should_close_fd_;
+  static constexpr size_t kBufferSize = 1024;
+  char buffer_[kBufferSize];
+  ssize_t buffer_pos_;
+  ssize_t buffer_end_;
 };
 
 // The |fp| parameter is for testing, to pass a fake /proc/self/maps file.

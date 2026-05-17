@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "src/base/platform/time.h"
@@ -170,7 +171,7 @@ MarkerBase::~MarkerBase() {
   if (!marking_worklists_.not_fully_constructed_worklist()->IsEmpty()) {
 #if DEBUG
     DCHECK_NE(StackState::kNoHeapPointers, config_.stack_state);
-    std::unordered_set<HeapObjectHeader*> objects =
+    absl::flat_hash_set<HeapObjectHeader*> objects =
         mutator_marking_state_.not_fully_constructed_worklist().Extract();
     for (HeapObjectHeader* object : objects) DCHECK(object->IsMarked());
 #else
@@ -754,7 +755,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(v8::base::TimeTicks time_deadline,
 void MarkerBase::MarkNotFullyConstructedObjects() {
   // Parallel marking may still be running which is why atomic extraction is
   // required.
-  std::unordered_set<HeapObjectHeader*> objects =
+  absl::flat_hash_set<HeapObjectHeader*> objects =
       mutator_marking_state_.not_fully_constructed_worklist()
           .Extract<AccessMode::kAtomic>();
   if (objects.empty()) {

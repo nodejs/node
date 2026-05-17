@@ -20,7 +20,7 @@ builder.addFunction("main", kSig_v_v).exportFunc()
     kExprLoop, kWasmVoid,
       kExprLocalGet, 0,
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefCastDesc, $struct0,
+      kGCPrefix, kExprRefCastDescEq, $struct0,
       kExprDrop,
       kExprBr, 0,
     kExprEnd,

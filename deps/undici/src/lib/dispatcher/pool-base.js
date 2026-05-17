@@ -189,12 +189,12 @@ class PoolBase extends DispatcherBase {
   }
 
   [kRemoveClient] (client) {
-    client.close(() => {
-      const idx = this[kClients].indexOf(client)
-      if (idx !== -1) {
-        this[kClients].splice(idx, 1)
-      }
-    })
+    const idx = this[kClients].indexOf(client)
+    if (idx !== -1) {
+      this[kClients].splice(idx, 1)
+    }
+
+    client.close(() => {})
 
     this[kNeedDrain] = this[kClients].some(dispatcher => (
       !dispatcher[kNeedDrain] &&

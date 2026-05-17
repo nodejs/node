@@ -416,7 +416,7 @@ if (writer.endSync() < 0) await writer.end();
 writer.fail(err);  // Always synchronous, no fallback needed
 ```
 
-### `writer.desiredSize`
+#### `writer.desiredSize`
 
 * {number|null}
 
@@ -425,7 +425,7 @@ Returns `null` if the writer is closed or the consumer has disconnected.
 
 The value is always non-negative.
 
-### `writer.end([options])`
+#### `writer.end([options])`
 
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this operation. The signal cancels only
@@ -434,7 +434,7 @@ The value is always non-negative.
 
 Signal that no more data will be written.
 
-### `writer.endSync()`
+#### `writer.endSync()`
 
 * Returns: {number} Total bytes written, or `-1` if the writer is not open.
 
@@ -448,7 +448,7 @@ if (result < 0) {
 }
 ```
 
-### `writer.fail(reason)`
+#### `writer.fail(reason)`
 
 * `reason` {any}
 
@@ -457,7 +457,7 @@ or errored, this is a no-op. Unlike `write()` and `end()`, `fail()` is
 unconditionally synchronous because failing a writer is a pure state
 transition with no async work to perform.
 
-### `writer.write(chunk[, options])`
+#### `writer.write(chunk[, options])`
 
 * `chunk` {Uint8Array|string}
 * `options` {Object}
@@ -467,7 +467,7 @@ transition with no async work to perform.
 
 Write a chunk. The promise resolves when buffer space is available.
 
-### `writer.writeSync(chunk)`
+#### `writer.writeSync(chunk)`
 
 * `chunk` {Uint8Array|string}
 * Returns: {boolean} `true` if the write was accepted, `false` if the
@@ -475,7 +475,7 @@ Write a chunk. The promise resolves when buffer space is available.
 
 Synchronous write. Does not block; returns `false` if backpressure is active.
 
-### `writer.writev(chunks[, options])`
+#### `writer.writev(chunks[, options])`
 
 * `chunks` {Uint8Array\[]|string\[]}
 * `options` {Object}
@@ -485,7 +485,7 @@ Synchronous write. Does not block; returns `false` if backpressure is active.
 
 Write multiple chunks as a single batch.
 
-### `writer.writevSync(chunks)`
+#### `writer.writevSync(chunks)`
 
 * `chunks` {Uint8Array\[]|string\[]}
 * Returns: {boolean} `true` if the write was accepted, `false` if the
@@ -521,7 +521,9 @@ Including the `node:` prefix on the module specifier is optional.
 ### `from(input)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `input` {string|ArrayBuffer|ArrayBufferView|Iterable|AsyncIterable|Object}
@@ -561,7 +563,9 @@ run().catch(console.error);
 ### `fromSync(input)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `input` {string|ArrayBuffer|ArrayBufferView|Iterable|Object}
@@ -591,7 +595,9 @@ console.log(textSync(fromSync('hello'))); // 'hello'
 ### `pipeTo(source[, ...transforms], writer[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable|Iterable} The data source.
@@ -648,7 +654,9 @@ run().catch(console.error);
 ### `pipeToSync(source[, ...transforms], writer[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable} The sync data source.
@@ -668,7 +676,9 @@ The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 ### `pull(source[, ...transforms][, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable|Iterable} The data source.
@@ -739,7 +749,9 @@ ac.abort(); // Pipeline throws AbortError on next iteration
 ### `pullSync(source[, ...transforms])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable} The sync data source.
@@ -753,7 +765,9 @@ Synchronous version of [`pull()`][]. All transforms must be synchronous.
 ### `push([...transforms][, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `...transforms` {Function|Object} Optional transforms applied to the
@@ -817,7 +831,9 @@ The writer returned by `push()` conforms to the \[Writer interface]\[].
 ### `duplex([options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `options` {Object}
@@ -895,7 +911,9 @@ run().catch(console.error);
 ### `array(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -910,7 +928,9 @@ Collect all chunks as an array of `Uint8Array` values (without concatenating).
 ### `arrayBuffer(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -925,7 +945,9 @@ Collect all bytes into an `ArrayBuffer`.
 ### `arrayBufferSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -939,7 +961,9 @@ Synchronous version of [`arrayBuffer()`][].
 ### `arraySync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -953,7 +977,9 @@ Synchronous version of [`array()`][].
 ### `bytes(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -986,7 +1012,9 @@ run().catch(console.error);
 ### `bytesSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -1000,7 +1028,9 @@ Synchronous version of [`bytes()`][].
 ### `text(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>}
@@ -1032,7 +1062,9 @@ run().catch(console.error);
 ### `textSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable\<Uint8Array\[]>}
@@ -1049,7 +1081,9 @@ Synchronous version of [`text()`][].
 ### `ondrain(drainable)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `drainable` {Object} An object implementing the drainable protocol.
@@ -1104,7 +1138,9 @@ run().catch(console.error);
 ### `merge(...sources[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `...sources` {AsyncIterable\<Uint8Array\[]>|Iterable\<Uint8Array\[]>} Two or more iterables.
@@ -1137,7 +1173,9 @@ run().catch(console.error);
 ### `tap(callback)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `callback` {Function} `(chunks) => void` Called with each batch.
@@ -1176,7 +1214,9 @@ chunks by the tapping callback; but return values are ignored.
 ### `tapSync(callback)`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `callback` {Function}
@@ -1189,7 +1229,9 @@ Synchronous version of [`tap()`][].
 ### `broadcast([options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `options` {Object}
@@ -1290,7 +1332,9 @@ Alias for `broadcast.cancel()`.
 ### `Broadcast.from(input[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `input` {AsyncIterable|Iterable|Broadcastable}
@@ -1303,7 +1347,9 @@ automatically and pushed to all subscribers.
 ### `share(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {AsyncIterable} The source to share.
@@ -1384,7 +1430,9 @@ Alias for `share.cancel()`.
 ### `Share.from(input[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `input` {AsyncIterable|Shareable}
@@ -1396,7 +1444,9 @@ Create a {Share} from an existing source.
 ### `shareSync(source[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `source` {Iterable} The sync source to share.
@@ -1411,7 +1461,9 @@ Synchronous version of [`share()`][].
 ### `SyncShare.fromSync(input[, options])`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v26.0.0
+ - v25.9.0
 -->
 
 * `input` {Iterable|SyncShareable}
@@ -1422,7 +1474,7 @@ added: v25.9.0
 
 Compression and decompression transforms for use with `pull()`, `pullSync()`,
 `pipeTo()`, and `pipeToSync()` are available via the [`node:zlib/iter`][]
-module. See the [`node:zlib/iter` documentation][] for details.
+module. See the [`node:zlib/iter` documentation][`node:zlib/iter`] for details.
 
 ## Classic stream interop
 
@@ -1840,7 +1892,7 @@ console.log(ready); // Promise { true } -- no backpressure
 * Value: `Symbol.for('Stream.shareProtocol')`
 
 The value must be a function. When called by `Share.from()`, it receives the
-options passed to `Share.from()` and must return an object conforming the the
+options passed to `Share.from()` and must return an object conforming to the
 {Share} interface. The implementation is fully custom -- it can manage the shared
 source, consumers, buffering, and backpressure however it wants.
 
@@ -2069,8 +2121,7 @@ console.log(textSync(stream)); // 'hello world'
 [`bytes()`]: #bytessource-options
 [`from()`]: #frominput
 [`fromSync()`]: #fromsyncinput
-[`node:zlib/iter`]: zlib_iter.md
-[`node:zlib/iter` documentation]: zlib_iter.md
+[`node:zlib/iter`]: zlib.md#iterable-compression
 [`pipeTo()`]: #pipetosource-transforms-writer-options
 [`pull()`]: #pullsource-transforms-options
 [`pullSync()`]: #pullsyncsource-transforms-options

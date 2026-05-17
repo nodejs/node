@@ -22,6 +22,14 @@ const url = require('url');
 }
 
 {
+  assert.throws(() => {
+    url.pathToFileURL('\\\\exa mple\\share\\file.txt', { windows: true });
+  }, {
+    code: 'ERR_INVALID_URL',
+  });
+}
+
+{
   if (isWindows) {
     // UNC path: \\server\share\resource
 

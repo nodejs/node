@@ -256,12 +256,25 @@ class ValueNumberingReducer : public Next {
   }
 
   template <class Op>
+  bool CanGVN(const Op& op) {
+    if (std::is_same_v<Op, PendingLoopPhiOp>) {
+      // Cannot GVN PendingLoopPhis because we are missing the backedge input.
+      return false;
+    }
+    if (op.IsBlockTerminator()) return false;
+    if (std::is_same_v<Op, DeoptimizeIfOp>) {
+      // GVNing DeoptimizeIf even though its effect would otherwise prevent it.
+      return true;
+    }
+    return CanGVN(op.Effects());
+  }
+
+  template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
     if (is_disabled()) return op_idx;
 
     const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
-    if (std::is_same_v<Op, PendingLoopPhiOp> || op.IsBlockTerminator() ||
-        (!CanGVN(op.Effects()) && !std::is_same_v<Op, DeoptimizeIfOp>)) {
+    if (!CanGVN(op)) {
       // GVNing DeoptimizeIf is safe, despite the fact that it has the CanDeopt
       // property, which implies CanLeaveCurrentFunction, which is generally not
       // safe to GVN.
@@ -287,8 +300,17 @@ class ValueNumberingReducer : public Next {
   }
 
   template <class Op>
+  bool NeedsEpochCheck(const Op& op) {
+    if constexpr (std::is_same_v<Op, LoadOp>) {
+      // Immutable loads don't need epoch check.
+      return !op.template Cast<LoadOp>().kind.is_immutable;
+    }
+    return op.Effects().can_read_mutable_memory();
+  }
+
+  template <class Op>
   Entry* Find(const Op& op, size_t* hash_ret = nullptr) {
-    bool needs_epoch_check = op.Effects().can_read_mutable_memory();
+    bool needs_epoch_check = NeedsEpochCheck(op);
     constexpr bool same_block_only = std::is_same_v<Op, PhiOp>;
     size_t hash = ComputeHash<same_block_only>(op, needs_epoch_check);
     size_t start_index = hash & mask_;

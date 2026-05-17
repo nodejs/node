@@ -27,17 +27,17 @@ not contain spaces.
 # See HELP below for additional documentation.
 
 from __future__ import print_function
+from enum import IntEnum
+from pathlib import Path
 import errno
 import os
 import platform
 import re
+import select
+import shutil
 import subprocess
 import sys
-import shutil
 import time
-
-from enum import IntEnum
-from pathlib import Path
 
 USE_PTY = "linux" in sys.platform
 if USE_PTY:
@@ -351,17 +351,26 @@ def _call_with_output(cmd):
   output = []
   try:
     while True:
-      try:
-        data = os.read(parent, 512).decode('utf-8')
-      except OSError as e:
-        if e.errno != errno.EIO: raise
-        break # EIO means EOF on some systems
-      else:
-        if not data: # EOF
-          break
-        print(data, end="")
-        sys.stdout.flush()
-        output.append(data)
+      # Use select with a timeout to read from the pty. This avoids a potential
+      # hang if the subprocess dies unexpectedly (e.g. OOM killer) without
+      # closing the pty, which would cause a blocking os.read to wait forever.
+      ready, _, _ = select.select([parent], [], [], 0.1)
+      if ready:
+        try:
+          data = os.read(parent, 512).decode('utf-8')
+        except OSError as e:
+          if e.errno != errno.EIO:
+            raise
+          break  # EIO means EOF on some systems
+        else:
+          if not data:  # EOF
+            break
+          print(data, end="")
+          sys.stdout.flush()
+          output.append(data)
+      elif p.poll() is not None:
+        # If the process has exited and no data is available, stop waiting.
+        break
   finally:
     os.close(parent)
     while p.poll() is None:

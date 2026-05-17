@@ -1,5 +1,24 @@
 # Changelog
 
+## [12.3.0](https://github.com/nodejs/node-gyp/compare/v12.2.0...v12.3.0) (2026-04-21)
+
+
+### Features
+
+* replace make-fetch-happen with built-in fetch ([#3302](https://github.com/nodejs/node-gyp/issues/3302)) ([393ec2b](https://github.com/nodejs/node-gyp/commit/393ec2be480195b585768eb18ac2d92b858b12db))
+* update gyp-next to v0.22.1 ([#3295](https://github.com/nodejs/node-gyp/issues/3295)) ([f4242fb](https://github.com/nodejs/node-gyp/commit/f4242fb7bf7592d71848bae5c7f8597f2718dc3f))
+
+
+### Bug Fixes
+
+* Switch to URL instead of url.resolve ([#3256](https://github.com/nodejs/node-gyp/issues/3256)) ([#3263](https://github.com/nodejs/node-gyp/issues/3263)) ([46d7576](https://github.com/nodejs/node-gyp/commit/46d75768018d10dc4b5693b35cf58f502425cbbe))
+
+
+### Core
+
+* **deps-dev:** bump neostandard from 0.12.2 to 0.13.0 ([#3289](https://github.com/nodejs/node-gyp/issues/3289)) ([19da158](https://github.com/nodejs/node-gyp/commit/19da1583b3876dce8c97263b168d9dfef637b76b))
+* improve Add-Type with -IgnoreWarnings ([#3280](https://github.com/nodejs/node-gyp/issues/3280)) ([1381458](https://github.com/nodejs/node-gyp/commit/13814583a476c85a84d5ac902c7ffa310120cb88))
+
 ## [12.2.0](https://github.com/nodejs/node-gyp/compare/v12.1.0...v12.2.0) (2026-01-26)
 
 

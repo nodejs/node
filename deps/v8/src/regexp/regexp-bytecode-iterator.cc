@@ -13,12 +13,27 @@ namespace internal {
 
 RegExpBytecodeIterator::RegExpBytecodeIterator(
     DirectHandle<TrustedByteArray> bytecode)
+    : RegExpBytecodeIterator(bytecode, 0) {}
+
+RegExpBytecodeIterator::RegExpBytecodeIterator(
+    DirectHandle<TrustedByteArray> bytecode, int offset)
     : bytecode_(bytecode),
       start_(bytecode->begin()),
       end_(bytecode->end()),
-      cursor_(start_) {
+      cursor_(start_ + offset) {
   Isolate::Current()->main_thread_local_heap()->AddGCEpilogueCallback(
       UpdatePointersCallback, this);
+#ifdef DEBUG
+  if (V8_UNLIKELY(v8_flags.enable_slow_asserts)) {
+    DCHECK_GE(offset, 0);
+    DCHECK_LT(offset, bytecode->length());
+    const uint8_t* start_with_offset = cursor_;
+    cursor_ = start_;
+    while (cursor_ < start_with_offset) advance();
+    // `offset` must not point into the middle of a bytecode.
+    DCHECK_EQ(cursor_, start_with_offset);
+  }
+#endif  // DEBUG
 }
 
 RegExpBytecodeIterator::~RegExpBytecodeIterator() {

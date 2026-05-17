@@ -5,7 +5,7 @@
 # This script must be in the tools directory when it runs because it uses the
 # script source file path to determine directories to work in.
 
-set -e
+set -ex
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 DEPS_DIR="$ROOT/deps"
@@ -40,29 +40,24 @@ compare_dependency_version "undici" "$NEW_VERSION" "$CURRENT_VERSION"
 rm -rf deps/undici/src
 rm -f deps/undici/undici.js
 
-WORKSPACE=$(mktemp -d 2> /dev/null || mktemp -d -t 'tmp')
-echo "$WORKSPACE"
+TARBALL=$(mktemp 2> /dev/null || mktemp -t 'tmp')
+
 cleanup () {
   EXIT_CODE=$?
-  [ -d "$WORKSPACE" ] && rm -rf "$WORKSPACE"
+  [ -e "$TARBALL" ] && rm "$TARBALL"
   exit $EXIT_CODE
 }
 
 trap cleanup INT TERM EXIT
 
-UNDICI_ZIP="undici-$NEW_VERSION"
-cd "$WORKSPACE"
-
 echo "Fetching UNDICI source archive..."
-curl -sL -o "$UNDICI_ZIP.zip" "https://github.com/nodejs/undici/archive/refs/tags/v$NEW_VERSION.zip"
+curl -fsSLo "$TARBALL" "https://github.com/nodejs/undici/archive/refs/tags/v$NEW_VERSION.tar.gz"
 
-log_and_verify_sha256sum "undici" "$UNDICI_ZIP.zip"
+log_and_verify_sha256sum "undici" "$TARBALL"
 
 echo "Unzipping..."
-unzip "$UNDICI_ZIP.zip" -d "src"
-mv "src/$UNDICI_ZIP" "$DEPS_DIR/undici/src"
-rm "$UNDICI_ZIP.zip"
-cd "$ROOT"
+tar -xzf "$TARBALL" -C "$DEPS_DIR/undici"
+mv "$DEPS_DIR/undici"/undici-* "$DEPS_DIR/undici/src"
 
 (
   cd "$DEPS_DIR/undici/src"
@@ -80,7 +75,7 @@ cd "$ROOT"
 
   # Rebuild components from source
   rm lib/llhttp/llhttp*.*
-  "$NODE" "$NPM" install --ignore-scripts
+  "$NODE" "$NPM" ci --ignore-scripts
   "$NODE" "$NPM" run build:wasm > lib/llhttp/wasm_build_env.txt
   "$NODE" "$NPM" run build:node
   "$NODE" "$NPM" prune --production
@@ -96,8 +91,8 @@ cat > "$ROOT/src/undici_version.h" <<EOF
 #endif  // SRC_UNDICI_VERSION_H_
 EOF
 
-mv deps/undici/src/undici-fetch.js deps/undici/undici.js
-cp deps/undici/src/LICENSE deps/undici/LICENSE
+mv "$DEPS_DIR/undici/src/undici-fetch.js" "$DEPS_DIR/undici/undici.js"
+cp "$DEPS_DIR/undici/src/LICENSE" "$DEPS_DIR/undici/LICENSE"
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need

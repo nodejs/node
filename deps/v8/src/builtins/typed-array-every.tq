@@ -10,7 +10,7 @@ const kBuiltinNameEvery: constexpr string = '%TypedArray%.prototype.every';
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.every
 transitioning macro EveryAllElements(
     implicit context: Context)(
-    attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
+    attachedArrayAndLength: typed_array::ValidJSTypedArrayAndLength,
     callbackfn: Callable, thisArg: JSAny): Boolean {
   let witness =
       typed_array::NewAttachedJSTypedArrayWitness(attachedArrayAndLength.array);
@@ -60,16 +60,17 @@ transitioning javascript builtin TypedArrayPrototypeEvery(
     // 3. Let len be IntegerIndexedObjectLength(O).
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)
         otherwise NotTypedArray;
-    const attachedArrayAndLength = EnsureAttachedAndReadLength(array)
-        otherwise IsDetachedOrOutOfBounds;
+    const attachedArrayAndLength = EnsureValidAndReadLength(
+        array, TypedArrayAccessMode::kRead) otherwise Fail;
     // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
     const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
     const thisArg = arguments[1];
     return EveryAllElements(attachedArrayAndLength, callbackfn, thisArg);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameEvery);
-  } label IsDetachedOrOutOfBounds deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameEvery);
+  } label Fail deferred {
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayValidateErrorOperation, kBuiltinNameEvery);
   } label NotCallable deferred {
     ThrowCalledNonCallable(arguments[0]);
   }

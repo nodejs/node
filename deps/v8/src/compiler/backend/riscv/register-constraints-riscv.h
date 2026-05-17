@@ -17,8 +17,8 @@ enum class RiscvRegisterConstraint {
   // Input 0 and 1 are a register group. That is, input 0 is in an even-numbered
   // register and input 1 is in the next odd-numbered register.
   kRegisterGroup,
-  // Input 0 and 1 are at even register indices and are not the same register.
-  kEvenRegisters01,
+  // Input 2 does not overlap with any temp or output register.
+  kNoInput2Overlap,
   // Same as kRegisterGroup, but the group and the destination register must not
   // overlap.
   // In theory we could split this entry into two:

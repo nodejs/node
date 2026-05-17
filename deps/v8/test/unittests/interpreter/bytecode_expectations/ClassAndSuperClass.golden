@@ -24,11 +24,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 16
 bytecodes: [
-  /*  104 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  117 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0), U8(1),
+  /*  104 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
+  /*  117 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0:"method"), FBV(1),
                 B(Star0),
-  /*  117 E> */ B(CallAnyReceiver), R(0), R(this), U8(1), U8(3),
-  /*  126 E> */ B(AddSmi), I8(1), U8(0),
+  /*  117 E> */ B(CallAnyReceiver), R(0), R(this), RegCount8(1), FBV(3),
+  /*  126 E> */ B(AddSmi), I8(1), FBV(0),
   /*  130 S> */ B(Return),
 ]
 constant pool: [
@@ -56,16 +56,16 @@ frame size: 4
 parameter count: 1
 bytecode array length: 24
 bytecodes: [
-  /*  130 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
+  /*  130 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
                 B(Star1),
-                B(LdaConstant), U8(0),
+                B(LdaConstant), U8(0:"x"),
                 B(Star2),
                 B(LdaSmi), I8(2),
                 B(Star3),
                 B(Mov), R(this), R(0),
-  /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper), R(0), U8(4),
-  /*  143 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  156 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0), U8(0),
+  /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper), R(0), RegCount8(4),
+  /*  143 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
+  /*  156 E> */ B(GetNamedPropertyFromSuper), R(this), U8(0:"x"), FBV(0),
   /*  158 S> */ B(Return),
 ]
 constant pool: [
@@ -102,13 +102,13 @@ bytecodes: [
                 B(JumpIfTrue), U8(12),
                 B(ThrowIfNotSuperConstructor), R(4),
                 B(Ldar), R(6),
-  /*  118 E> */ B(Construct), R(4), R(5), U8(1), U8(0),
+  /*  118 E> */ B(Construct), R(4), R(5), RegCount8(1), FBV(0),
                 B(Star4),
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
   /*  128 S> */ B(LdaSmi), I8(2),
-  /*  136 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
+  /*  136 E> */ B(SetNamedProperty), R(this), U8(0:"y_"), FBV(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  141 S> */ B(Return),
@@ -145,13 +145,13 @@ bytecodes: [
                 B(JumpIfTrue), U8(12),
                 B(ThrowIfNotSuperConstructor), R(4),
                 B(Ldar), R(5),
-  /*  117 E> */ B(Construct), R(4), R(0), U8(0), U8(0),
+  /*  117 E> */ B(Construct), R(4), R(0), RegCount8(0), FBV(0),
                 B(Star4),
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
                 B(Mov), R(4), R(this),
   /*  126 S> */ B(LdaSmi), I8(2),
-  /*  134 E> */ B(SetNamedProperty), R(this), U8(0), U8(2),
+  /*  134 E> */ B(SetNamedProperty), R(this), U8(0:"y_"), FBV(2),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  139 S> */ B(Return),

@@ -69,3 +69,22 @@ promise_test(async () => {
     'old reader should still be locking the stream even after garbage collection'));
 
 }, 'Garbage-collecting a ReadableStreamDefaultReader should not unlock its stream');
+
+promise_test(async () => {
+
+  const promise = (() => {
+    const rs = new ReadableStream({
+      pull(controller) {
+        controller.enqueue('words');
+      }
+    });
+    const reader = rs.getReader();
+    return reader.read();
+  })();
+  await garbageCollect();
+  const {value, done} = await promise;
+  // If we get here, the test passed.
+  assert_equals(value, 'words', 'value should be words');
+  assert_false(done, 'we should not be done');
+
+}, 'A ReadableStream and its reader should not be garbage collected while there is a read promise pending');

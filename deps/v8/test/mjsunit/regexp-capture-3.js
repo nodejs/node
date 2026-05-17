@@ -157,10 +157,10 @@ assertEquals("foo  baz", a);
 a = "foo bar baz".replace(/^|bar/g, "*");
 assertEquals("*foo * baz", a);
 
-// We test FilterASCII using regexps that will backtrack forever.  Since
-// a regexp with a non-ASCII character in it can never match an ASCII
-// string we can test that the relevant node is removed by verifying that
-// there is no hang.
+// We test ToNode's filtering of nodes that can't match in one-byte mode, using
+// regexps that will backtrack forever.  Since a regexp with a non-Latin1
+// character in it can never match an Latin1 string we can test that the
+// relevant node is removed by verifying that there is no hang.
 function NoHang(re) {
   "This is an ASCII string that could take forever".match(re);
 }
@@ -181,13 +181,27 @@ NoHang(/(?=Ā)(((.*)*)*x)/);  // Positive lookahead also prunes continuation.
 NoHang(/(æ|ø|Ā)(((.*)*)*x)/);  // All branches of alternation are filtered.
 NoHang(/(a|b|(((.*)*)*x))Ā/);  // 1 out of 3 branches pruned.
 NoHang(/(a|(((.*)*)*x)ă|(((.*)*)*x)Ā)/);  // 2 out of 3 branches pruned.
+NoHang(/(((.*)*)*x)Ā{2}/);  // Unrolled loop.
+NoHang(/(((.*)*)*x)Ā{2,}/);  // Unrolled min.
+NoHang(/(((.*)*)*x)Ā{5,10}/);  // Loop with high min and max.
+NoHang(/(((.*)*)*x)Ā{5,}/);  // Loop with high min and infinite max.
+NoHang(/(((.*)*)*x).{2}Ā/);  // Successor of unrolled loop.
+NoHang(/(((.*)*)*x).{2,}Ā/);  // Successor of unrolled loop.
+NoHang(/(((.*)*)*x).{2,10}Ā/);  // Successor of unrolled loop.
+NoHang(/(((.*)*)*x).{0,2}Ā/);  // Successor of unrolled loop.
+NoHang(/(((.*)*)*x).{5,10}Ā/);  // Successor of loop with guards.
+NoHang(/(((.*)*)*x)(.?){5,10}Ā/);  // Successor of loop with zero length test.
+
+// Another test of ToNode - the body of the ? quantifier can't match on a
+// Latin1 input, but the quantifier still matches.
+assertTrue(/\u0100?/.test("abcd"));
 
 var s = "Don't prune based on a repetition of length 0";
 assertEquals(null, s.match(/å{1,1}prune/));
 assertEquals("prune", (s.match(/å{0,0}prune/)[0]));
 
-// Some very deep regexps where FilterASCII gives up in order not to make the
-// stack overflow.
+// Some very deep regexps where CanMatchLatin1 used to give up in order not to
+// make the stack overflow.
 var regex6 = /a*\u0100*\w/;
 var input0 = "a";
 regex6.exec(input0);

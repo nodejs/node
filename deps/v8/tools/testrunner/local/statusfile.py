@@ -309,6 +309,7 @@ def _ReadSection(section, variables, rules, prefix_rules):
 
 JS_TEST_PATHS = {
     'debugger': [[]],
+    'filecheck': [[]],
     'inspector': [[]],
     'intl': [[]],
     'message': [[]],

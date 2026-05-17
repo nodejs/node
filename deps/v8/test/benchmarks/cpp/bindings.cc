@@ -292,12 +292,11 @@ class UnmanagedBindings : public BindingsBenchmarkBase<UnmanagedBindings> {
                                              WrapperTypeInfo* info,
                                              WrappableBase* wrappable) {
     // Set V8 to C++ reference.
-    int indices[] = {v8::benchmarking::kTypeOffset,
-                     v8::benchmarking::kInstanceOffset};
-    void* values[] = {info, wrappable};
-    START_ALLOW_USE_DEPRECATED()
-    v8_wrapper->SetAlignedPointerInInternalFields(2, indices, values);
-    END_ALLOW_USE_DEPRECATED()
+    v8_wrapper->SetAlignedPointerInInternalField(
+        v8::benchmarking::kTypeOffset, info, v8::kEmbedderDataTypeTagDefault);
+    v8_wrapper->SetAlignedPointerInInternalField(
+        v8::benchmarking::kInstanceOffset, wrappable,
+        v8::kEmbedderDataTypeTagDefault);
     // Set C++ to V8 reference.
     wrappable->SetWrapper(isolate, v8_wrapper);
   }

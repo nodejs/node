@@ -17,6 +17,7 @@
 #include "src/codegen/signature.h"
 #include "src/wasm/signature-hashing.h"
 #include "src/wasm/value-type.h"
+#include "src/wasm/wasm-subtyping.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -59,6 +60,12 @@ struct WasmTypeCheckConfig {
   wasm::ValueType from;
   const wasm::ValueType to;
   SubtypeCheckExactness exactness{kMayBeSubtype};
+
+  bool is_valid() const {
+    return from != wasm::ValueType() && from != wasm::kWasmBottom &&
+           from.is_ref() && to.is_ref() &&
+           wasm::IsSameTypeHierarchy(from.heap_type(), to.heap_type());
+  }
 };
 
 V8_INLINE std::ostream& operator<<(std::ostream& os,

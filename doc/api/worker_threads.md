@@ -513,7 +513,7 @@ parent or child of the current thread.
 If the two threads are parent-children, use the [`require('node:worker_threads').parentPort.postMessage()`][]
 and the [`worker.postMessage()`][] to let the threads communicate.
 
-The example below shows the use of of `postMessageToThread`: it creates 10 nested threads,
+The example below shows the use of `postMessageToThread`: it creates 10 nested threads,
 the last one will try to communicate with the main thread.
 
 ```mjs
@@ -1962,12 +1962,16 @@ this matches its values.
 
 If the worker has stopped, the return value is an empty object.
 
-### `worker.startCpuProfile()`
+### `worker.startCpuProfile([options])`
 
 <!-- YAML
 added: v24.8.0
 -->
 
+* `options` {Object}
+  * `sampleInterval` {number} Requested sampling interval in milliseconds. **Default:** `0`.
+  * `maxBufferSize` {integer} Maximum number of samples to retain.
+    **Default:** `4294967295`.
 * Returns: {Promise}
 
 Starting a CPU profile then return a Promise that fulfills with an error
@@ -1982,7 +1986,7 @@ const worker = new Worker(`
   `, { eval: true });
 
 worker.on('online', async () => {
-  const handle = await worker.startCpuProfile();
+  const handle = await worker.startCpuProfile({ sampleInterval: 1 });
   const profile = await handle.stop();
   console.log(profile);
   worker.terminate();

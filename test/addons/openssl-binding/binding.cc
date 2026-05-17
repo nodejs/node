@@ -46,7 +46,7 @@ inline void Initialize(v8::Local<v8::Object> exports,
                    .ToLocalChecked();
   assert(exports->Set(context, key, value).IsJust());
 
-  const SSL_METHOD* method = TLSv1_2_server_method();
+  const SSL_METHOD* method = TLS_server_method();
   assert(method != nullptr);
 
   key = v8::String::NewFromUtf8(isolate, "hash").ToLocalChecked();

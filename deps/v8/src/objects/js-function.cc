@@ -279,32 +279,32 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  JSDispatchTable& jdt = isolate->js_dispatch_table();
   switch (target_kind) {
     case CodeKind::MAGLEV:
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartMaglevOptimizeJob,
-                                 isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kStartMaglevOptimizeJob,
+                                isolate);
           break;
         case ConcurrencyMode::kSynchronous:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kOptimizeMaglevEager, isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kOptimizeMaglevEager, isolate);
           break;
       }
       break;
     case CodeKind::TURBOFAN_JS:
       switch (mode) {
         case ConcurrencyMode::kConcurrent:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kStartTurbofanOptimizeJob,
-                                 isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kStartTurbofanOptimizeJob,
+                                isolate);
           break;
         case ConcurrencyMode::kSynchronous:
-          jdt->SetTieringRequest(dispatch_handle(),
-                                 TieringBuiltin::kOptimizeTurbofanEager,
-                                 isolate);
+          jdt.SetTieringRequest(dispatch_handle(),
+                                TieringBuiltin::kOptimizeTurbofanEager,
+                                isolate);
           break;
       }
       break;
@@ -835,7 +835,7 @@ void JSFunction::SetPrototype(Isolate* isolate,
   // constructor field so it can be accessed.  Also, set the prototype
   // used for constructing objects to the original object prototype.
   // See ECMA-262 13.2.2.
-  if (IsTheHole(*value) || !IsJSReceiver(*value)) {
+  if (!IsJSReceiver(*value)) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.

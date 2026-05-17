@@ -174,8 +174,9 @@ bool safe_strtou64_base(absl::string_view text, uint64_t* absl_nonnull value,
 bool safe_strtou128_base(absl::string_view text,
                          absl::uint128* absl_nonnull value, int base);
 
-static const int kFastToBufferSize = 32;
-static const int kSixDigitsToBufferSize = 16;
+inline constexpr int kFastToBuffer128Size = 41;
+inline constexpr int kFastToBufferSize = 32;
+inline constexpr int kSixDigitsToBufferSize = 16;
 
 // Helper function for fast formatting of floating-point values.
 // The result is the same as printf's "%g", a.k.a. "%.6g"; that is, six
@@ -188,7 +189,8 @@ size_t SixDigitsToBuffer(double d, char* absl_nonnull buffer);
 // WARNING: These functions may write more characters than necessary, because
 // they are intended for speed. All functions take an output buffer
 // as an argument and return a pointer to the last byte they wrote, which is the
-// terminating '\0'. At most `kFastToBufferSize` bytes are written.
+// terminating '\0'. The maximum size written is `kFastToBufferSize` for 64-bit
+// integers or less, and `kFastToBuffer128Size` for 128-bit integers.
 char* absl_nonnull FastIntToBuffer(int32_t i, char* absl_nonnull buffer)
     ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBufferSize);
 char* absl_nonnull FastIntToBuffer(uint32_t n, char* absl_nonnull out_str)
@@ -197,25 +199,36 @@ char* absl_nonnull FastIntToBuffer(int64_t i, char* absl_nonnull buffer)
     ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBufferSize);
 char* absl_nonnull FastIntToBuffer(uint64_t i, char* absl_nonnull buffer)
     ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBufferSize);
+char* absl_nonnull FastIntToBuffer(int128 i, char* absl_nonnull buffer)
+    ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBuffer128Size);
+char* absl_nonnull FastIntToBuffer(uint128 i, char* absl_nonnull buffer)
+    ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBuffer128Size);
 
-// For enums and integer types that are not an exact match for the types above,
-// use templates to call the appropriate one of the four overloads above.
+// For enums and integer types that are up to 128 bits and are not an exact
+// match for the types above, use templates to call the appropriate one of the
+// four overloads above.
 template <typename int_type>
-char* absl_nonnull FastIntToBuffer(int_type i, char* absl_nonnull buffer)
-    ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBufferSize) {
-  static_assert(sizeof(i) <= 64 / 8,
-                "FastIntToBuffer works only with 64-bit-or-less integers.");
+char* absl_nonnull FastIntToBuffer(int_type i,
+                                          char* absl_nonnull buffer)
+    ABSL_INTERNAL_NEED_MIN_SIZE(
+        buffer, (sizeof(int_type) > 8 ? kFastToBuffer128Size
+                                      : kFastToBufferSize)) {
   // These conditions are constexpr bools to suppress MSVC warning C4127.
   constexpr bool kIsSigned = is_signed<int_type>();
   constexpr bool kUse64Bit = sizeof(i) > 32 / 8;
+  constexpr bool kUse128Bit = sizeof(i) > 64 / 8;
   if (kIsSigned) {
-    if (kUse64Bit) {
+    if constexpr (kUse128Bit) {
+      return FastIntToBuffer(static_cast<int128>(i), buffer);
+    } else if constexpr (kUse64Bit) {
       return FastIntToBuffer(static_cast<int64_t>(i), buffer);
     } else {
       return FastIntToBuffer(static_cast<int32_t>(i), buffer);
     }
   } else {
-    if (kUse64Bit) {
+    if constexpr (kUse128Bit) {
+      return FastIntToBuffer(static_cast<uint128>(i), buffer);
+    } else if constexpr (kUse64Bit) {
       return FastIntToBuffer(static_cast<uint64_t>(i), buffer);
     } else {
       return FastIntToBuffer(static_cast<uint32_t>(i), buffer);

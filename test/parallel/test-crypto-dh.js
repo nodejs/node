@@ -8,7 +8,6 @@ const assert = require('assert');
 const crypto = require('crypto');
 const {
   hasOpenSSL3,
-  hasOpenSSL,
 } = require('../common/crypto');
 
 {
@@ -90,13 +89,10 @@ const {
   }
 
   {
-    // Error message was changed in OpenSSL 3.0.x from 3.0.12, and 3.1.x from 3.1.4.
-    const hasOpenSSL3WithNewErrorMessage = (hasOpenSSL(3, 0, 12) && !hasOpenSSL(3, 1, 0)) ||
-                                           (hasOpenSSL(3, 1, 4));
     assert.throws(() => {
       dh3.computeSecret('');
-    }, { message: hasOpenSSL3 && !hasOpenSSL3WithNewErrorMessage ?
-      'Unspecified validation error' :
+    }, { message: process.features.openssl_is_boringssl ?
+      'Supplied key is invalid' :
       'Supplied key is too small' });
   }
 }
@@ -104,10 +100,24 @@ const {
 // Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
 {
   const g = 0;
-  crypto.createDiffieHellman('abcdef', g);
+  if (process.features.openssl_is_boringssl) {
+    assert.throws(() => crypto.createDiffieHellman('abcdef', g), {
+      code: 'ERR_CRYPTO_OPERATION_FAILED',
+      name: 'Error'
+    });
+  } else {
+    crypto.createDiffieHellman('abcdef', g);
+  }
   crypto.createDiffieHellman('abcdef', 'hex', g);
 }
 
 {
-  crypto.createDiffieHellman('abcdef', Buffer.from([2]));  // OK
+  if (process.features.openssl_is_boringssl) {
+    assert.throws(() => crypto.createDiffieHellman('abcdef', Buffer.from([2])), {
+      code: 'ERR_CRYPTO_OPERATION_FAILED',
+      name: 'Error'
+    });
+  } else {
+    crypto.createDiffieHellman('abcdef', Buffer.from([2]));  // OK
+  }
 }

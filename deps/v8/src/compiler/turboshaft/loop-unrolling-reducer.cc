@@ -154,14 +154,14 @@ StaticCanonicalForLoopMatcher::GetIterCountIfStaticCanonicalForLoop(
   // We have: phi(..., ...) cmp_op cmp_cst
   // eg, for (i = ...; i < 42; ...)
   uint64_t phi_cst;
-  if (matcher_.MatchUnsignedIntegralConstant(phi.input(0), &phi_cst)) {
+  if (matcher_.MatchUnsignedIntegralConstant(phi.forward_edge(), &phi_cst)) {
     // We have: phi(phi_cst, ...) cmp_op cmp_cst
     // eg, for (i = 0; i < 42; ...)
     V<Word> left, right;
     BinOp binop_op;
     WordRepresentation binop_rep;
-    if (MatchWordBinop(phi.input(1), &left, &right, &binop_op, &binop_rep) ||
-        MatchCheckedOverflowBinop(phi.input(1), &left, &right, &binop_op,
+    if (MatchWordBinop(phi.back_edge(), &left, &right, &binop_op, &binop_rep) ||
+        MatchCheckedOverflowBinop(phi.back_edge(), &left, &right, &binop_op,
                                   &binop_rep)) {
       // We have: phi(phi_cst, ... binop_op ...) cmp_op cmp_cst
       // eg, for (i = 0; i < 42; i = ... + ...)

@@ -13,11 +13,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 14
 bytecodes: [
-  /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+  /*   34 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(ToObject), R(0),
-                B(CreateWithContext), R(0), U8(1),
+                B(CreateWithContext), R(0), U8(1:SCOPE_INFO_TYPE),
                 B(PushContext), R(0),
-  /*   50 S> */ B(LdaLookupSlot), U8(2),
+  /*   50 S> */ B(LdaLookupSlot), U8(2:"x"),
   /*   59 S> */ B(Return),
 ]
 constant pool: [

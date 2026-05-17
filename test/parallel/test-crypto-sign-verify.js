@@ -68,7 +68,9 @@ const keySize = 2048;
       });
   }, { message: hasOpenSSL(3) ?
     'error:1C8000A5:Provider routines::illegal or unsupported padding mode' :
-    'bye, bye, error stack' });
+    process.features.openssl_is_boringssl ?
+      'error:0600006d:public key routines:OPENSSL_internal:ILLEGAL_OR_UNSUPPORTED_PADDING_MODE' :
+      'bye, bye, error stack' });
 
   delete Object.prototype.opensslErrorStack;
 }
@@ -347,6 +349,9 @@ assert.throws(
   }, hasOpenSSL(3) ? {
     code: 'ERR_OSSL_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
+  } : process.features.openssl_is_boringssl ? {
+    code: 'ERR_OSSL_EVP_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
+    message: /ILLEGAL_OR_UNSUPPORTED_PADDING_MODE/,
   } : {
     code: 'ERR_OSSL_RSA_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE',
     message: /illegal or unsupported padding mode/,
@@ -418,25 +423,32 @@ assert.throws(
     /Invalid digest/);
 }
 
-[
+for (const pair of [
   { private: fixtures.readKey('ed25519_private.pem', 'ascii'),
     public: fixtures.readKey('ed25519_public.pem', 'ascii'),
+    skip: false,
     algo: null,
     supportsContext: hasOpenSSL(3, 2),
     sigLen: 64,
     raw: true },
   { private: fixtures.readKey('ed448_private.pem', 'ascii'),
     public: fixtures.readKey('ed448_public.pem', 'ascii'),
+    skip: process.features.openssl_is_boringssl,
     algo: null,
     supportsContext: hasOpenSSL(3, 2),
     sigLen: 114,
     raw: true },
   { private: fixtures.readKey('rsa_private_2048.pem', 'ascii'),
     public: fixtures.readKey('rsa_public_2048.pem', 'ascii'),
+    skip: false,
     algo: 'sha1',
     sigLen: 256,
     raw: false },
-].forEach((pair) => {
+]) {
+  if (pair.skip) {
+    common.printSkipMessage('Skipping unsupported test case');
+    continue;
+  }
   const algo = pair.algo;
 
   {
@@ -550,7 +562,7 @@ assert.throws(
       }, { message: 'Context parameter is unsupported' });
     }
   }
-});
+}
 
 // Ed25519ctx: Ed25519 with context string.
 if (hasOpenSSL(3, 2)) {
@@ -618,6 +630,10 @@ if (hasOpenSSL(3, 2)) {
   const keys = [['ec-key.pem', 64], ['dsa_private_1025.pem', 40]];
 
   for (const [file, length] of keys) {
+    if (process.features.openssl_is_boringssl && file.startsWith('dsa_')) {
+      common.printSkipMessage(`Skipping unsupported ${file} test case`);
+      continue;
+    }
     const privKey = fixtures.readKey(file);
     [
       crypto.createSign('sha1').update(data).sign(privKey),
@@ -752,7 +768,7 @@ if (hasOpenSSL(3, 2)) {
   }));
 }
 
-{
+if (!process.features.openssl_is_boringssl) {
   // Test RSA-PSS.
   {
     // This key pair does not restrict the message digest algorithm or salt
@@ -861,6 +877,8 @@ if (hasOpenSSL(3, 2)) {
       }
     }
   }
+} else {
+  common.printSkipMessage('Skipping unsupported RSA-PSS test cases');
 }
 
 // The sign function should not swallow OpenSSL errors.
@@ -873,7 +891,7 @@ if (hasOpenSSL(3, 2)) {
     crypto.sign('sha512', 'message', privateKey);
   }, {
     code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY',
-    message: /digest too big for rsa key/
+    message: /digest too big for rsa key|DIGEST_TOO_BIG_FOR_RSA_KEY/
   });
 }
 
@@ -898,9 +916,13 @@ if (hasOpenSSL(3, 2)) {
 {
   // Ed25519 and Ed448 must use the one-shot methods
   const keys = [{ privateKey: fixtures.readKey('ed25519_private.pem', 'ascii'),
-                  publicKey: fixtures.readKey('ed25519_public.pem', 'ascii') },
-                { privateKey: fixtures.readKey('ed448_private.pem', 'ascii'),
-                  publicKey: fixtures.readKey('ed448_public.pem', 'ascii') }];
+                  publicKey: fixtures.readKey('ed25519_public.pem', 'ascii') }];
+  if (!process.features.openssl_is_boringssl) {
+    keys.push({ privateKey: fixtures.readKey('ed448_private.pem', 'ascii'),
+                publicKey: fixtures.readKey('ed448_public.pem', 'ascii') });
+  } else {
+    common.printSkipMessage('Skipping unsupported Ed448 test case');
+  }
 
   for (const { publicKey, privateKey } of keys) {
     assert.throws(() => {
@@ -915,7 +937,7 @@ if (hasOpenSSL(3, 2)) {
   }
 }
 
-{
+if (!process.features.openssl_is_boringssl) {
   // Dh, x25519 and x448 should not be used for signing/verifying
   // https://github.com/nodejs/node/issues/53742
   for (const algo of ['dh', 'x25519', 'x448']) {
@@ -931,6 +953,8 @@ if (hasOpenSSL(3, 2)) {
       crypto.createVerify('SHA256').update('Test123').verify(publicKey, 'sig');
     }, { code: 'ERR_OSSL_EVP_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE', message: /operation not supported for this keytype/ });
   }
+} else {
+  common.printSkipMessage('Skipping unsupported dh/x25519/x448 test cases');
 }
 
 // Test that sign/verify error messages use correct property paths

@@ -29,8 +29,52 @@
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#include "src/builtins/builtins-iterator-inl.h"
+
 namespace v8 {
 namespace internal {
+
+RUNTIME_FUNCTION(Runtime_IterableForEach) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> iterable = args.at(0);
+  Handle<JSReceiver> callback = args.at<JSReceiver>(1);
+
+  auto smi_visitor = [&](int32_t val) -> bool {
+    HandleScope loop_scope(isolate);
+    DirectHandle<Object> argv[] = {isolate->factory()->NewNumberFromInt(val)};
+    return !Execution::Call(isolate, callback,
+                            isolate->factory()->undefined_value(),
+                            base::VectorOf(argv))
+                .is_null();
+  };
+
+  auto double_visitor = [&](double val) -> bool {
+    HandleScope loop_scope(isolate);
+    DirectHandle<Object> argv[] = {isolate->factory()->NewNumber(val)};
+    return !Execution::Call(isolate, callback,
+                            isolate->factory()->undefined_value(),
+                            base::VectorOf(argv))
+                .is_null();
+  };
+
+  auto generic_visitor = [&](DirectHandle<Object> val) -> bool {
+    HandleScope loop_scope(isolate);
+    DirectHandle<Object> argv[] = {val};
+    return !Execution::Call(isolate, callback,
+                            isolate->factory()->undefined_value(),
+                            base::VectorOf(argv))
+                .is_null();
+  };
+
+  if (IterableForEach(isolate, iterable, smi_visitor, double_visitor,
+                      generic_visitor)
+          .is_null()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   using interpreter::Bytecode;

@@ -9,12 +9,12 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/allocation-result.h"
+#include "src/heap/base-page.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/large-page-metadata.h"
+#include "src/heap/large-page.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/memory-chunk-metadata.h"
-#include "src/heap/page-metadata.h"
+#include "src/heap/normal-page.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-object.h"
 #include "src/utils/utils.h"
@@ -232,16 +232,18 @@ bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
     return false;
   }
 
-  PageMetadata* page = PageMetadata::FromHeapObject(object);
-  Space* space = page->owner();
-  if (space->identity() != NEW_LO_SPACE && space->identity() != LO_SPACE) {
+  LargePage* page;
+  if (!TryCast<LargePage>(BasePage::FromHeapObject(heap_->isolate(), object),
+                          &page)) {
     return false;
   }
+  DCHECK(page->owner()->identity() == NEW_LO_SPACE ||
+         page->owner()->identity() == LO_SPACE);
   DCHECK(page->is_large());
   DCHECK_EQ(page->area_size(), old_object_size);
   CHECK_GT(new_object_size, old_object_size);
-  if (!heap_->memory_allocator()->ResizeLargePage(
-          LargePageMetadata::cast(page), old_object_size, new_object_size)) {
+  if (!heap_->memory_allocator()->ResizeLargePage(page, old_object_size,
+                                                  new_object_size)) {
     if (V8_UNLIKELY(v8_flags.trace_resize_large_object)) {
       heap_->isolate()->PrintWithTimestamp(
           "resizing large object failed: allocation could not be extended\n");
@@ -298,12 +300,6 @@ void HeapAllocator::MarkLinearAllocationAreasBlack() {
   code_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
-void HeapAllocator::UnmarkLinearAllocationsArea() {
-  DCHECK(!v8_flags.black_allocated_pages);
-  old_space_allocator_->UnmarkLinearAllocationArea();
-  trusted_space_allocator_->UnmarkLinearAllocationArea();
-  code_space_allocator_->UnmarkLinearAllocationArea();
-}
 
 void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
   DCHECK(!v8_flags.black_allocated_pages);
@@ -315,15 +311,6 @@ void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
   }
 }
 
-void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
-  DCHECK(!v8_flags.black_allocated_pages);
-  if (shared_space_allocator_) {
-    shared_space_allocator_->UnmarkLinearAllocationArea();
-  }
-  if (shared_trusted_space_allocator_) {
-    shared_trusted_space_allocator_->UnmarkLinearAllocationArea();
-  }
-}
 
 void HeapAllocator::FreeLinearAllocationAreasAndResetFreeLists() {
   DCHECK(v8_flags.black_allocated_pages);
@@ -588,8 +575,7 @@ bool HeapAllocator::IsMostRecentYoungAllocation(Address object_address) {
            object_address < new_space_allocator_->top();
   } else {
     // Otherwise the last young allocation has to be a large object.
-    MemoryChunkMetadata* chunk =
-        MemoryChunkMetadata::FromAddress(heap_->isolate(), last);
+    BasePage* chunk = BasePage::FromAddress(heap_->isolate(), last);
     CHECK(chunk->is_large());
     CHECK_EQ(chunk->owner_identity(), NEW_LO_SPACE);
     // No allocation folding with large objects, so object_address has to match

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbofan
-// Flags: --js-staging
 
 "use strict";
 
@@ -195,7 +194,13 @@ function PrintBuffer(buffer) {
 
 // Detach a buffer to trip the protector up front, to prevent deopts in later
 // tests.
-%ArrayBufferDetach(new ArrayBuffer(8));
+(function() {
+  const ab = new ArrayBuffer(1);
+  const dv1 = new DataView(ab);
+  const dv2 = new DataView(ab);
+  %ArrayBufferDetach(ab);
+  assertThrows(() => dv1.byteLength, TypeError);
+})();
 
 (function() {
 for (let shared of [false, true]) {

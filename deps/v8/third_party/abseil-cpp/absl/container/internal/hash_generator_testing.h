@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/container/internal/hash_policy_testing.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
@@ -40,7 +41,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
-namespace hash_internal {
 namespace generator_internal {
 
 template <class Container, class = void>
@@ -165,7 +165,6 @@ struct UniqueGenerator {
   }
 };
 
-}  // namespace hash_internal
 }  // namespace container_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

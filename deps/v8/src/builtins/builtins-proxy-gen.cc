@@ -63,6 +63,10 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kFlagsOffset, flags);
+#if TAGGED_SIZE_8_BYTES
+  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kPaddingOffset,
+                                 Int32Constant(0));
+#endif
 
   return CAST(proxy);
 }

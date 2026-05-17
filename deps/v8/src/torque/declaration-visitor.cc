@@ -69,10 +69,12 @@ Builtin* DeclarationVisitor::CreateBuiltin(
                                    : varargs ? Builtin::kVarArgsJavaScript
                                              : Builtin::kFixedArgsJavaScript;
   bool has_custom_interface_descriptor = false;
+  bool supports_tsa = false;
   if (decl->kind == AstNode::Kind::kTorqueBuiltinDeclaration) {
     has_custom_interface_descriptor =
         static_cast<TorqueBuiltinDeclaration*>(decl)
             ->has_custom_interface_descriptor;
+    supports_tsa = static_cast<TorqueBuiltinDeclaration*>(decl)->supports_tsa;
   }
 
   if (varargs && !javascript) {
@@ -147,6 +149,7 @@ Builtin* DeclarationVisitor::CreateBuiltin(
   Builtin::Flags flags = Builtin::Flag::kNone;
   if (has_custom_interface_descriptor)
     flags |= Builtin::Flag::kCustomInterfaceDescriptor;
+  if (supports_tsa) flags |= Builtin::Flag::kSupportsTSA;
   Builtin* builtin = Declarations::CreateBuiltin(
       std::move(external_name), std::move(readable_name), kind, flags,
       std::move(signature), std::move(use_counter_name), body);
@@ -238,6 +241,7 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl) {
       TypeVisitor::MakeSignature(decl), decl->body, decl->op);
   macro->SetIdentifierPosition(decl->name->pos);
   macro->SetPosition(decl->pos);
+  if (decl->supports_tsa) macro->SetSupportsTSA(true);
   if (GlobalContext::collect_kythe_data()) {
     KytheData::AddFunctionDefinition(macro);
   }
@@ -337,7 +341,7 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {
-  GlobalContext::AddCppInclude(decl->include_path);
+  GlobalContext::AddCppInclude(decl->include_path, decl->include_selector);
 }
 
 void DeclarationVisitor::DeclareSpecializedTypes(

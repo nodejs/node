@@ -13,17 +13,23 @@
 #include <type_traits>
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
+using v8::JustVoid;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::SharedArrayBuffer;
 using v8::String;
 using v8::Value;
 
@@ -31,230 +37,213 @@ namespace node {
 
 namespace ffi {
 
-bool GetValidatedSize(Environment* env,
-                      Local<Value> value,
-                      const char* label,
-                      size_t* out) {
+Maybe<size_t> GetValidatedSize(Environment* env,
+                               Local<Value> value,
+                               const char* label) {
   if (!value->IsNumber()) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("The ") + label + " must be a number").c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, "The %s must be a number", label);
+    return Nothing<size_t>();
   }
 
   double length = value.As<Number>()->Value();
   if (!std::isfinite(length) || length < 0 || std::floor(length) != length) {
     THROW_ERR_INVALID_ARG_VALUE(
-        env,
-        (std::string("The ") + label + " must be a non-negative integer")
-            .c_str());
-    return false;
+        env, "The %s must be a non-negative integer", label);
+    return Nothing<size_t>();
   }
 
   if (length > static_cast<double>(std::numeric_limits<size_t>::max())) {
-    env->ThrowRangeError(
-        (std::string("The ") + label + " is too large").c_str());
-    return false;
+    THROW_ERR_OUT_OF_RANGE(env, "The %s is too large", label);
+    return Nothing<size_t>();
   }
 
-  *out = static_cast<size_t>(length);
-  return true;
+  return Just(static_cast<size_t>(length));
 }
 
-bool GetValidatedPointerAddress(Environment* env,
-                                Local<Value> value,
-                                const char* label,
-                                uintptr_t* out) {
+Maybe<uintptr_t> GetValidatedPointerAddress(Environment* env,
+                                            Local<Value> value,
+                                            const char* label) {
   if (!value->IsBigInt()) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("The ") + label + " must be a bigint").c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, "The %s must be a bigint", label);
+    return Nothing<uintptr_t>();
   }
 
   bool lossless;
   uint64_t address = value.As<BigInt>()->Uint64Value(&lossless);
   if (!lossless) {
     THROW_ERR_INVALID_ARG_VALUE(
-        env,
-        (std::string("The ") + label + " must be a non-negative bigint")
-            .c_str());
-    return false;
+        env, "The %s must be a non-negative bigint", label);
+    return Nothing<uintptr_t>();
   }
 
   if (address > static_cast<uint64_t>(std::numeric_limits<uintptr_t>::max())) {
-    env->ThrowRangeError(
-        (std::string("The ") + label + " exceeds the platform pointer range")
-            .c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(
+        env, "The %s exceeds the platform pointer range", label);
+    return Nothing<uintptr_t>();
   }
 
-  *out = static_cast<uintptr_t>(address);
-
-  return true;
+  return Just(static_cast<uintptr_t>(address));
 }
 
-bool GetValidatedSignedInt(Environment* env,
-                           Local<Value> value,
-                           int64_t min,
-                           int64_t max,
-                           const char* type_name,
-                           int64_t* out) {
+Maybe<int64_t> GetValidatedSignedInt(Environment* env,
+                                     Local<Value> value,
+                                     int64_t min,
+                                     int64_t max,
+                                     const char* type_name) {
   if (!value->IsNumber()) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("Value must be an ") + type_name).c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, "Value must be an %s", type_name);
+    return Nothing<int64_t>();
   }
 
   double number = value.As<Number>()->Value();
   if (!std::isfinite(number) || std::floor(number) != number || number < min ||
       number > max) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("Value must be an ") + type_name).c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, "Value must be an %s", type_name);
+    return Nothing<int64_t>();
   }
 
-  *out = static_cast<int64_t>(number);
-  return true;
+  return Just(static_cast<int64_t>(number));
 }
 
-bool GetValidatedUnsignedInt(Environment* env,
-                             Local<Value> value,
-                             uint64_t max,
-                             const char* type_name,
-                             uint64_t* out) {
+Maybe<uint64_t> GetValidatedUnsignedInt(Environment* env,
+                                        Local<Value> value,
+                                        uint64_t max,
+                                        const char* type_name) {
   if (!value->IsNumber()) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("Value must be a ") + type_name).c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a %s", type_name);
+    return Nothing<uint64_t>();
   }
 
   double number = value.As<Number>()->Value();
   if (!std::isfinite(number) || std::floor(number) != number || number < 0 ||
       number > static_cast<double>(max)) {
-    THROW_ERR_INVALID_ARG_VALUE(
-        env, (std::string("Value must be a ") + type_name).c_str());
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, "Value must be a %s", type_name);
+    return Nothing<uint64_t>();
   }
 
-  *out = static_cast<uint64_t>(number);
-  return true;
+  return Just(static_cast<uint64_t>(number));
 }
 
-bool ValidatePointerSpan(Environment* env,
-                         uintptr_t raw_ptr,
-                         size_t offset,
-                         size_t length,
-                         const char* error_message) {
+Maybe<void> ValidatePointerSpan(Environment* env,
+                                uintptr_t raw_ptr,
+                                size_t offset,
+                                size_t length,
+                                const char* error_message) {
   if (offset > std::numeric_limits<uintptr_t>::max() - raw_ptr) {
-    env->ThrowRangeError(error_message);
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, error_message);
+    return Nothing<void>();
   }
 
   uintptr_t start = raw_ptr + offset;
   if (length > 0 &&
       length - 1 > std::numeric_limits<uintptr_t>::max() - start) {
-    env->ThrowRangeError(error_message);
-    return false;
+    THROW_ERR_INVALID_ARG_VALUE(env, error_message);
+    return Nothing<void>();
   }
 
-  return true;
+  return JustVoid();
 }
 
-bool ValidateBufferLength(Environment* env, size_t len) {
+Maybe<void> ValidateBufferLength(Environment* env, size_t len) {
   if (len > Buffer::kMaxLength) {
     THROW_ERR_BUFFER_TOO_LARGE(env, "Buffer is too large");
-    return false;
+    return Nothing<void>();
   }
 
-  return true;
+  return JustVoid();
 }
 
-bool ValidateStringLength(Environment* env, size_t len) {
+Maybe<void> ValidateStringLength(Environment* env, size_t len) {
   if (len > static_cast<size_t>(String::kMaxLength)) {
     THROW_ERR_STRING_TOO_LONG(env, "String is too long");
-    return false;
+    return Nothing<void>();
   }
 
-  return true;
+  return JustVoid();
 }
 
-bool GetValidatedPointerAndOffset(Environment* env,
-                                  const FunctionCallbackInfo<Value>& args,
-                                  uint8_t** ptr,
-                                  size_t* offset) {
+Maybe<std::pair<uint8_t*, size_t>> GetValidatedPointerAndOffset(
+    Environment* env, const FunctionCallbackInfo<Value>& args) {
   uintptr_t raw_ptr;
   if (args.Length() < 1 ||
-      !GetValidatedPointerAddress(env, args[0], "pointer", &raw_ptr)) {
-    return false;
+      !GetValidatedPointerAddress(env, args[0], "pointer").To(&raw_ptr)) {
+    return {};
   }
 
   if (raw_ptr == 0) {
-    env->ThrowError("Cannot dereference a null pointer");
-    return false;
+    THROW_ERR_FFI_INVALID_POINTER(env, "Cannot dereference a null pointer");
+    return {};
   }
 
-  *offset = 0;
+  size_t offset = 0;
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    if (!GetValidatedSize(env, args[1], "offset", offset)) {
-      return false;
+    if (!GetValidatedSize(env, args[1], "offset").To(&offset)) {
+      return {};
     }
   }
 
-  if (!ValidatePointerSpan(
+  if (ValidatePointerSpan(
           env,
           raw_ptr,
-          *offset,
+          offset,
           1,
-          "The pointer and offset exceed the platform address range")) {
-    return false;
+          "The pointer and offset exceed the platform address range")
+          .IsNothing()) {
+    return {};
   }
 
-  *ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
-  return true;
+  return Just(std::make_pair(reinterpret_cast<uint8_t*>(raw_ptr), offset));
 }
 
-bool GetValidatedPointerValueAndOffset(Environment* env,
-                                       const FunctionCallbackInfo<Value>& args,
-                                       uint8_t** ptr,
-                                       Local<Value>* value,
-                                       size_t* offset) {
+struct PointerOffsetAndValue {
+  uint8_t* ptr;
+  size_t offset;
+  Local<Value> value;
+};
+
+Maybe<PointerOffsetAndValue> GetValidatedPointerOffsetAndValue(
+    Environment* env, const FunctionCallbackInfo<Value>& args) {
+  size_t offset;
+  Local<Value> value;
   uintptr_t raw_ptr;
   if (args.Length() < 1 ||
-      !GetValidatedPointerAddress(env, args[0], "pointer", &raw_ptr)) {
-    return false;
+      !GetValidatedPointerAddress(env, args[0], "pointer").To(&raw_ptr)) {
+    return {};
   }
 
   if (raw_ptr == 0) {
-    env->ThrowError("Cannot dereference a null pointer");
-    return false;
+    THROW_ERR_FFI_INVALID_POINTER(env, "Cannot dereference a null pointer");
+    return {};
   }
 
   if (args.Length() < 2 || args[1]->IsUndefined()) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Expected an offset argument");
-    return false;
+    return {};
   }
 
-  if (!GetValidatedSize(env, args[1], "offset", offset)) {
-    return false;
+  if (!GetValidatedSize(env, args[1], "offset").To(&offset)) {
+    return {};
   }
 
-  if (!ValidatePointerSpan(
+  if (ValidatePointerSpan(
           env,
           raw_ptr,
-          *offset,
+          offset,
           1,
-          "The pointer and offset exceed the platform address range")) {
-    return false;
+          "The pointer and offset exceed the platform address range")
+          .IsNothing()) {
+    return {};
   }
 
   if (args.Length() < 3 || args[2]->IsUndefined()) {
     THROW_ERR_INVALID_ARG_VALUE(env, "Expected a value argument");
-    return false;
+    return {};
   }
 
-  *value = args[2];
+  value = args[2];
 
-  *ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
-  return true;
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(raw_ptr));
+  return Just(PointerOffsetAndValue{ptr, offset, value});
 }
 
 template <typename T>
@@ -262,20 +251,21 @@ void GetValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
   Isolate* isolate = env->isolate();
-  uint8_t* ptr;
-  size_t offset;
+  std::pair<uint8_t*, size_t> ptr_and_offset;
 
-  if (!GetValidatedPointerAndOffset(env, args, &ptr, &offset)) {
+  if (!GetValidatedPointerAndOffset(env, args).To(&ptr_and_offset)) {
     return;
   }
 
+  auto [ptr, offset] = ptr_and_offset;
   uintptr_t raw_ptr = reinterpret_cast<uintptr_t>(ptr);
-  if (!ValidatePointerSpan(
+  if (ValidatePointerSpan(
           env,
           raw_ptr,
           offset,
           sizeof(T),
-          "The accessed range exceeds the platform address range")) {
+          "The accessed range exceeds the platform address range")
+          .IsNothing()) {
     return;
   }
 
@@ -294,6 +284,8 @@ void GetValue(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, value));
   } else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>) {
     args.GetReturnValue().Set(Number::New(isolate, value));
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -301,21 +293,21 @@ template <typename T>
 void SetValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
-  uint8_t* ptr;
-  Local<Value> value;
-  size_t offset;
+  PointerOffsetAndValue data;
 
-  if (!GetValidatedPointerValueAndOffset(env, args, &ptr, &value, &offset)) {
+  if (!GetValidatedPointerOffsetAndValue(env, args).To(&data)) {
     return;
   }
+  auto [ptr, offset, value] = data;
 
   uintptr_t raw_ptr = reinterpret_cast<uintptr_t>(ptr);
-  if (!ValidatePointerSpan(
+  if (ValidatePointerSpan(
           env,
           raw_ptr,
           offset,
           sizeof(T),
-          "The accessed range exceeds the platform address range")) {
+          "The accessed range exceeds the platform address range")
+          .IsNothing()) {
     return;
   }
 
@@ -324,42 +316,43 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
 
   if constexpr (std::is_same_v<T, int8_t>) {
     int64_t validated;
-    if (!GetValidatedSignedInt(
-            env, value, INT8_MIN, INT8_MAX, "int8", &validated)) {
+    if (!GetValidatedSignedInt(env, value, INT8_MIN, INT8_MAX, "int8")
+             .To(&validated)) {
       return;
     }
     converted = static_cast<T>(validated);
   } else if constexpr (std::is_same_v<T, uint8_t>) {
     uint64_t validated;
-    if (!GetValidatedUnsignedInt(env, value, UINT8_MAX, "uint8", &validated)) {
+    if (!GetValidatedUnsignedInt(env, value, UINT8_MAX, "uint8")
+             .To(&validated)) {
       return;
     }
     converted = static_cast<T>(validated);
   } else if constexpr (std::is_same_v<T, int16_t>) {
     int64_t validated;
-    if (!GetValidatedSignedInt(
-            env, value, INT16_MIN, INT16_MAX, "int16", &validated)) {
+    if (!GetValidatedSignedInt(env, value, INT16_MIN, INT16_MAX, "int16")
+             .To(&validated)) {
       return;
     }
     converted = static_cast<T>(validated);
   } else if constexpr (std::is_same_v<T, uint16_t>) {
     uint64_t validated;
-    if (!GetValidatedUnsignedInt(
-            env, value, UINT16_MAX, "uint16", &validated)) {
+    if (!GetValidatedUnsignedInt(env, value, UINT16_MAX, "uint16")
+             .To(&validated)) {
       return;
     }
     converted = static_cast<T>(validated);
   } else if constexpr (std::is_same_v<T, int32_t>) {
     int64_t validated;
-    if (!GetValidatedSignedInt(
-            env, value, INT32_MIN, INT32_MAX, "int32", &validated)) {
+    if (!GetValidatedSignedInt(env, value, INT32_MIN, INT32_MAX, "int32")
+             .To(&validated)) {
       return;
     }
     converted = static_cast<T>(validated);
   } else if constexpr (std::is_same_v<T, uint32_t>) {
     uint64_t validated;
-    if (!GetValidatedUnsignedInt(
-            env, value, UINT32_MAX, "uint32", &validated)) {
+    if (!GetValidatedUnsignedInt(env, value, UINT32_MAX, "uint32")
+             .To(&validated)) {
       return;
     }
     converted = static_cast<T>(validated);
@@ -377,8 +370,8 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
                                  value,
                                  -static_cast<int64_t>(kMaxSafeJsInteger),
                                  static_cast<int64_t>(kMaxSafeJsInteger),
-                                 "int64",
-                                 &validated)) {
+                                 "int64")
+               .To(&validated)) {
         return;
       }
       converted = static_cast<T>(validated);
@@ -396,11 +389,9 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
       }
     } else if (value->IsNumber()) {
       uint64_t validated;
-      if (!GetValidatedUnsignedInt(env,
-                                   value,
-                                   static_cast<uint64_t>(kMaxSafeJsInteger),
-                                   "uint64",
-                                   &validated)) {
+      if (!GetValidatedUnsignedInt(
+               env, value, static_cast<uint64_t>(kMaxSafeJsInteger), "uint64")
+               .To(&validated)) {
         return;
       }
       converted = static_cast<T>(validated);
@@ -418,6 +409,8 @@ void SetValue(const FunctionCallbackInfo<Value>& args) {
     }
 
     converted = static_cast<T>(number_local->Value());
+  } else {
+    UNREACHABLE();
   }
 
   std::memcpy(ptr + offset, &converted, sizeof(converted));
@@ -520,7 +513,7 @@ void ToString(const FunctionCallbackInfo<Value>& args) {
   }
 
   uintptr_t ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "first argument").To(&ptr)) {
     return;
   }
 
@@ -531,12 +524,12 @@ void ToString(const FunctionCallbackInfo<Value>& args) {
 
   const char* str = reinterpret_cast<const char*>(ptr);
   size_t len = std::strlen(str);
-  if (!ValidateStringLength(env, len)) {
+  if (ValidateStringLength(env, len).IsNothing()) {
     return;
   }
 
   Local<String> out;
-  if (!String::NewFromUtf8(isolate, str, NewStringType::kNormal)
+  if (!String::NewFromUtf8(isolate, str, NewStringType::kNormal, len)
            .ToLocal(&out)) {
     return;
   }
@@ -560,30 +553,32 @@ void ToBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   uintptr_t ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "first argument").To(&ptr)) {
     return;
   }
 
   size_t len;
-  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length", &len)) {
+  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length").To(&len)) {
     return;
   }
 
   if (ptr == 0 && len > 0) {
-    env->ThrowError("Cannot create a buffer from a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(env,
+                                  "Cannot create a buffer from a null pointer");
     return;
   }
 
-  if (!ValidatePointerSpan(
+  if (ValidatePointerSpan(
           env,
           ptr,
           0,
           len,
-          "The pointer and length exceed the platform address range")) {
+          "The pointer and length exceed the platform address range")
+          .IsNothing()) {
     return;
   }
 
-  if (!ValidateBufferLength(env, len)) {
+  if (ValidateBufferLength(env, len).IsNothing()) {
     return;
   }
 
@@ -620,30 +615,32 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   uintptr_t ptr;
-  if (!GetValidatedPointerAddress(env, args[0], "first argument", &ptr)) {
+  if (!GetValidatedPointerAddress(env, args[0], "first argument").To(&ptr)) {
     return;
   }
 
   size_t len;
-  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length", &len)) {
+  if (args.Length() < 2 || !GetValidatedSize(env, args[1], "length").To(&len)) {
     return;
   }
 
   if (ptr == 0 && len > 0) {
-    env->ThrowError("Cannot create an ArrayBuffer from a null pointer");
+    THROW_ERR_FFI_INVALID_POINTER(
+        env, "Cannot create an ArrayBuffer from a null pointer");
     return;
   }
 
-  if (!ValidatePointerSpan(
+  if (ValidatePointerSpan(
           env,
           ptr,
           0,
           len,
-          "The pointer and length exceed the platform address range")) {
+          "The pointer and length exceed the platform address range")
+          .IsNothing()) {
     return;
   }
 
-  if (!ValidateBufferLength(env, len)) {
+  if (ValidateBufferLength(env, len).IsNothing()) {
     return;
   }
 
@@ -666,6 +663,118 @@ void ToArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(ab);
+}
+
+void ExportBytes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  // This needs to be kept alive until the data
+  // is actually copied.
+  ArrayBufferViewContents<uint8_t> view;
+
+  if (args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+      args[0]->IsArrayBufferView()) {
+    view.ReadValue(args[0]);
+    if (view.WasDetached()) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBufferView backing store");
+      return;
+    }
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uintptr_t ptr;
+  if (args.Length() < 2 ||
+      !GetValidatedPointerAddress(env, args[1], "pointer").To(&ptr)) {
+    return;
+  }
+
+  size_t len;
+  if (args.Length() < 3 || !GetValidatedSize(env, args[2], "length").To(&len)) {
+    return;
+  }
+
+  if (len < view.length()) {
+    THROW_ERR_OUT_OF_RANGE(env, "The length must be >= source byte length");
+    return;
+  }
+
+  if (ptr == 0 && view.length() > 0) {
+    THROW_ERR_FFI_INVALID_POINTER(env,
+                                  "Cannot create a buffer from a null pointer");
+    return;
+  }
+
+  if (ValidatePointerSpan(
+          env,
+          ptr,
+          0,
+          len,
+          "The pointer and length exceed the platform address range")
+          .IsNothing()) {
+    return;
+  }
+
+  std::memcpy(reinterpret_cast<void*>(ptr), view.data(), view.length());
+}
+
+void GetRawPointer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kFFI, "");
+
+  if (args.Length() < 1) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env,
+        "The first argument must be a Buffer, ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  uintptr_t ptr = 0;
+  size_t offset = 0;
+  std::shared_ptr<BackingStore> store;
+
+  if (args[0]->IsArrayBuffer()) {
+    store = args[0].As<ArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsSharedArrayBuffer()) {
+    store = args[0].As<SharedArrayBuffer>()->GetBackingStore();
+  } else if (args[0]->IsArrayBufferView()) {
+    // Access the store here to ensure that it exists. Small typed arrays
+    // may not have a store until this point and can instead be stored
+    // entirely in-heap.
+    store = args[0].As<ArrayBufferView>()->Buffer()->GetBackingStore();
+    offset = args[0].As<ArrayBufferView>()->ByteOffset();
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(env,
+                               "The first argument must be a Buffer, "
+                               "ArrayBuffer, or ArrayBufferView");
+    return;
+  }
+
+  // WARNING: There is no inherent guarantee that the pointer returned
+  // from this function will be valid beyond the lifetime of the BackingStore
+  // instance!
+  if (!store) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Invalid ArrayBuffer backing store");
+    return;
+  }
+  ptr = reinterpret_cast<uintptr_t>(store->Data()) + offset;
+
+  args.GetReturnValue().Set(
+      BigInt::NewFromUnsigned(isolate, static_cast<uint64_t>(ptr)));
 }
 
 }  // namespace ffi

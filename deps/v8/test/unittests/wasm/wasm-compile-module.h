@@ -46,9 +46,9 @@ class WasmCompileHelper : public AllStatic {
     std::shared_ptr<TestResolver> resolver = std::make_shared<TestResolver>();
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         GetWasmEngine()->StartStreamingCompilation(
-            isolate, WasmEnabledFeatures::All(), CompileTimeImports{},
-            direct_handle(isolate->context()->native_context(), isolate),
+            WasmEnabledFeatures::All(), CompileTimeImports{},
             "StreamingCompile", resolver);
+    streaming_decoder->InitializeIsolateSpecificInfo(isolate);
     base::RandomNumberGenerator* rng = isolate->random_number_generator();
     for (auto remaining_bytes = bytes; !remaining_bytes.empty();) {
       // Split randomly; with 10% probability do not split.

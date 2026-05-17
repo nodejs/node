@@ -58,18 +58,24 @@ const data = Buffer.from([
 // Bad client! Bad!
 //
 // Fortunately, nghttp2 handles this situation for us by keeping track
-// of the flow control window and responding with a FLOW_CONTROL_ERROR
-// causing the stream to get shut down...
-//
-// At least, that's what is supposed to happen.
+// of the flow control window and sending GOAWAY to end the session.
 
 let client;
 const server = h2.createServer({ settings: { initialWindowSize: 18 } });
+
+server.on('session', common.mustCall((session) => {
+  session.on('error', common.expectsError({
+    code: 'ERR_HTTP2_ERROR',
+    name: 'Error',
+    message: 'Protocol error'
+  }));
+}));
+
 server.on('stream', common.mustCall((stream) => {
   stream.on('error', common.expectsError({
-    code: 'ERR_HTTP2_STREAM_ERROR',
+    code: 'ERR_HTTP2_ERROR',
     name: 'Error',
-    message: 'Stream closed with error code NGHTTP2_FLOW_CONTROL_ERROR'
+    message: 'Protocol error'
   }));
   stream.on('close', common.mustCall(() => {
     server.close(common.mustCall());
@@ -82,10 +88,13 @@ server.on('stream', common.mustCall((stream) => {
 
 server.on('close', common.mustCall());
 
-server.listen(0, () => {
-  client = net.connect(server.address().port, () => {
+server.listen(0, common.mustCall(() => {
+  client = net.connect(server.address().port, common.mustCall(() => {
     client.write(preamble);
     client.write(data);
     client.write(data);
-  });
-});
+
+    // TCP connection is closed by the server
+    client.on('close', common.mustCall());
+  }));
+}));
