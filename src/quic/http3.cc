@@ -177,10 +177,13 @@ class Http3ApplicationImpl final : public Session::Application {
     // When 0-RTT is rejected, destroy the nghttp3 connection and all
     // open streams — ngtcp2 has discarded their internal state.
     // Reset started_ so Start() is called again via on_receive_rx_key
-    // at 1RTT to recreate the nghttp3 connection.
+    // at 1RTT to recreate the nghttp3 connection. Use the
+    // application's internal error code since this is an error
+    // condition (code 0 would be treated as a clean close).
     conn_.reset();
     started_ = false;
-    session().DestroyAllStreams(QuicError::ForApplication(0));
+    session().DestroyAllStreams(
+        QuicError::ForApplication(GetInternalErrorCode()));
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }

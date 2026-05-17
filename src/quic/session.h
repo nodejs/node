@@ -227,6 +227,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // 10.2 requires at least 3x PTO. Range: 3-255. Default: 3.
     uint8_t draining_period_multiplier = 3;
 
+    // The amount of time (in milliseconds) that a stream can be idle
+    // (no data received) before it is automatically destroyed. This
+    // protects against slowloris-style attacks where a peer opens streams
+    // but never sends data, holding server resources indefinitely.
+    // Only applies to peer-initiated streams. Set to 0 to disable.
+    static constexpr uint64_t DEFAULT_STREAM_IDLE_TIMEOUT = 30'000;
+    uint64_t stream_idle_timeout = DEFAULT_STREAM_IDLE_TIMEOUT;
+
     // An optional NEW_TOKEN from a previous connection to the same
     // server. When set, the token is included in the Initial packet
     // to skip address validation. Client-side only.
@@ -569,6 +577,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Has to be called after certain operations that generate packets.
   void UpdatePacketTxTime();
   void UpdateDataStats();
+  void CheckStreamIdleTimeout(uint64_t now);
   void UpdatePath(const PathStorage& path);
 
   void ProcessPendingBidiStreams();

@@ -1270,7 +1270,8 @@ void Stream::NotifyStreamOpened(stream_id id) {
       // Headers were enqueued while the application was not yet known
       // (headers_supported == 0), and the negotiated application does
       // not support headers. This is a fatal mismatch.
-      Destroy(QuicError::ForApplication(0));
+      Destroy(QuicError::ForApplication(
+          session().application().GetInternalErrorCode()));
       return;
     }
     decltype(pending_headers_queue_) queue;
@@ -1345,6 +1346,11 @@ Direction Stream::direction() const {
 
 Session& Stream::session() const {
   return *session_;
+}
+
+uint64_t Stream::last_activity_timestamp() const {
+  uint64_t ts = stats()->received_at;
+  return ts != 0 ? ts : stats()->created_at;
 }
 
 bool Stream::is_local_unidirectional() const {
@@ -1625,6 +1631,7 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 
 void Stream::Destroy(QuicError error) {
   if (stats()->destroyed_at != 0) return;
+
   // Record the destroyed at timestamp before notifying the JavaScript side
   // that the stream is being destroyed.
   STAT_RECORD_TIMESTAMP(Stats, destroyed_at);

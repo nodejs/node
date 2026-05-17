@@ -28,11 +28,7 @@ const { listen, connect } = await import('../common/quic.mjs');
 const serverResetSeen = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall((stream) => {
-    // The cascade-driven destroy of the server-side stream after the
-    // peer reset rejects `stream.closed` with the wire error; the
-    // test does not assert on its specific shape, only that `onreset`
-    // fired with the expected code.
+  serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
       // The DefaultApplication's internal error code is 0x1n, which
@@ -40,6 +36,12 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
       ok(err.message.includes('1n'),
          `expected '1n' in message, got: ${err.message}`);
       serverResetSeen.resolve();
+    });
+
+    // The peer's reset causes stream.closed to reject with the reset
+    // error code.
+    await rejects(stream.closed, {
+      code: 'ERR_QUIC_APPLICATION_ERROR',
     });
   });
 }));
