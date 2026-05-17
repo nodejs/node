@@ -37,6 +37,7 @@ const cert = readKey('agent1-cert.pem');
 
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     servername: 'localhost',
     ciphers: 'TLS_AES_256_GCM_SHA384',
   });
@@ -62,6 +63,7 @@ const cert = readKey('agent1-cert.pem');
 
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     servername: 'localhost',
     groups: 'P-256',
   });

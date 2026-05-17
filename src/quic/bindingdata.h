@@ -164,6 +164,7 @@ class SessionManager;
   V(unacknowledged_packet_threshold, "unacknowledgedPacketThreshold")          \
   V(validate_address, "validateAddress")                                       \
   V(verify_client, "verifyClient")                                             \
+  V(verify_peer_strict, "verifyPeerStrict")                                    \
   V(verify_private_key, "verifyPrivateKey")                                    \
   V(version, "version")
 

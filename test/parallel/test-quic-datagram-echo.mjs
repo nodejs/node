@@ -48,6 +48,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxDatagramFrameSize: 10 },
   // Client receives datagram from server.
   ondatagram: mustCall(function(data) {
