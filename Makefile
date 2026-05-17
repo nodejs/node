@@ -894,6 +894,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 			--ignore $(skip_apidoc_files) \
 			-o out/doc/api \
 			-c ./CHANGELOG.md \
+			-p $(JOBS) \
 			-v $(VERSION) \
 			--type-map doc/type-map.json \
 		) \
