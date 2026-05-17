@@ -113,6 +113,7 @@ class SessionManager;
   V(max_connections_total, "maxConnectionsTotal")                              \
   V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
   V(max_datagram_send_attempts, "maxDatagramSendAttempts")                     \
+  V(stream_idle_timeout, "streamIdleTimeout")                                  \
   V(max_field_section_size, "maxFieldSectionSize")                             \
   V(max_header_length, "maxHeaderLength")                                      \
   V(max_header_pairs, "maxHeaderPairs")                                        \

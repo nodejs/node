@@ -231,6 +231,7 @@ strictEqual(typeof sessionStats.datagramsReceived, 'bigint');
 strictEqual(typeof sessionStats.datagramsSent, 'bigint');
 strictEqual(typeof sessionStats.datagramsAcknowledged, 'bigint');
 strictEqual(typeof sessionStats.datagramsLost, 'bigint');
+strictEqual(typeof sessionStats.streamsIdleTimedOut, 'bigint');
 strictEqual(typeof sessionStats.toJSON(), 'object');
 strictEqual(typeof inspect(sessionStats), 'string');
 streamStats[kFinishClose]();
