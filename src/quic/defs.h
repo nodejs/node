@@ -378,11 +378,13 @@ struct TokenBucket final {
   // hasn't been initialized yet (last_ts == 0). Used for per-host
   // buckets in the address LRU where the rate/burst aren't known
   // at construction time.
-  void InitOnce(double r, double b);
+  void InitOnce(double r, double b, uint64_t now);
 
   // Try to consume one token. Refills based on elapsed time, then
   // attempts to consume. Returns true if the request is allowed.
-  bool consume();
+  // The caller provides the current timestamp to avoid redundant
+  // uv_hrtime() calls in hot paths.
+  bool consume(uint64_t now);
 };
 
 class DebugIndentScope final {

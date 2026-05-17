@@ -2371,13 +2371,15 @@ bool Session::ReadPacket(const uint8_t* data,
       DCHECK(is_server());
       Debug(this, "Receiving packet failed: Server must send a retry packet");
       if (!is_destroyed()) {
-        endpoint().SendRetry(PathDescriptor{
-            version(),
-            config().dcid,
-            config().scid,
-            impl_->local_address_,
-            impl_->remote_address_,
-        });
+        endpoint().SendRetry(
+            PathDescriptor{
+                version(),
+                config().dcid,
+                config().scid,
+                impl_->local_address_,
+                impl_->remote_address_,
+            },
+            uv_hrtime());
         Close(CloseMethod::SILENT);
       }
       return false;
