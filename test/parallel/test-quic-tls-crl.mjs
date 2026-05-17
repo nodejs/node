@@ -38,6 +38,7 @@ const agent3Cert = readKey('agent3-cert.pem');
 
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     ca: [ca2Cert],
     crl: [ca2Crl],
   });
@@ -64,6 +65,7 @@ const agent3Cert = readKey('agent3-cert.pem');
 
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     ca: [ca2Cert],
     crl: [ca2CrlAgent3],
   });

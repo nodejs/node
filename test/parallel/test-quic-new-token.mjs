@@ -40,6 +40,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   servername: 'localhost',
   // Set onnewtoken at connection time to avoid missing the event.
   onnewtoken: mustCall(function(token, address) {

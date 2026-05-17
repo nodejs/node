@@ -500,6 +500,14 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
       SSL_CTX_set_session_cache_mode(
           ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
       SSL_CTX_sess_set_new_cb(ctx.get(), OnNewSession);
+
+      // In strict mode, set SSL_VERIFY_PEER so OpenSSL aborts the
+      // handshake if the server's certificate fails validation. In
+      // non-strict modes, verification still occurs but the handshake
+      // completes regardless — the result is surfaced to JS.
+      if (options_.verify_peer_strict) {
+        SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, nullptr);
+      }
       break;
     }
   }
@@ -706,7 +714,8 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
-      !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
+      !SET(verify_peer_strict) || !SET(enable_early_data) ||
+      !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
       !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
       !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
@@ -730,6 +739,8 @@ std::string TLSContext::Options::ToString() const {
          (verify_client ? std::string("yes") : std::string("no"));
   res += prefix + "reject unauthorized: " +
          (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "verify peer strict: " +
+         (verify_peer_strict ? std::string("yes") : std::string("no"));
   res += prefix + "enable early data: " +
          (enable_early_data ? std::string("yes") : std::string("no"));
   res += prefix + "enable_tls_trace: " +

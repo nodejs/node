@@ -58,6 +58,7 @@ const serverEndpoint = await listen(mustCall((ss) => {
 // --- First connection: establish H3 session, receive ticket ---
 const cs1 = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
   onsessionticket: mustCall(function(ticket) {
     ok(Buffer.isBuffer(ticket));
     ok(ticket.length > 0);
@@ -99,6 +100,7 @@ ok(savedToken);
 // --- Second connection: 0-RTT with H3 ---
 const cs2 = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
 });

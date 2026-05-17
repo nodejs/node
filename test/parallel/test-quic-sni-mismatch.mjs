@@ -44,6 +44,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
   servername: 'wrong.example.com',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 1 },
   onerror: mustCall((err) => {
     strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');

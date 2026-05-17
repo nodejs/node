@@ -71,6 +71,7 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     // Ongoaway fires when the peer sends GOAWAY.
     ongoaway: mustCall(function(lastStreamId) {
       strictEqual(lastStreamId, -1n);

@@ -55,6 +55,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -194,6 +195,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 

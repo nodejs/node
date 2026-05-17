@@ -27,7 +27,9 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.close();
 }));
 
-const clientSession = await connect(serverEndpoint.address);
+const clientSession = await connect(serverEndpoint.address, {
+  verifyPeer: 'manual',
+});
 const clientInfo = await clientSession.opened;
 
 // validationErrorReason is a non-empty string describing

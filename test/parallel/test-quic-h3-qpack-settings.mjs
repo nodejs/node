@@ -71,6 +71,7 @@ async function makeRequest(clientSession, path) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     // Client also disables QPACK dynamic table.
     application: { qpackMaxDTableCapacity: 0, qpackBlockedStreams: 0 },
   });
@@ -108,6 +109,7 @@ async function makeRequest(clientSession, path) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { qpackMaxDTableCapacity: 8192, qpackBlockedStreams: 200 },
   });
   await clientSession.opened;

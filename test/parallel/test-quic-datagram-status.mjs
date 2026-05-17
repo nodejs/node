@@ -45,6 +45,7 @@ let statusValue;
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagramstatus: mustCall((id, status) => {
     strictEqual(typeof id, 'bigint');

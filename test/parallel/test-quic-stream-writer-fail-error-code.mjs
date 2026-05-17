@@ -72,7 +72,9 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
   }, 2);
 }));
 
-const clientSession = await connect(serverEndpoint.address);
+const clientSession = await connect(serverEndpoint.address, {
+  verifyPeer: 'manual',
+});
 await clientSession.opened;
 
 // 1. Plain Error -> session.internalErrorCode (0x1n for non-h3).

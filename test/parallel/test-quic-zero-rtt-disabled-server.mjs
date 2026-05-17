@@ -49,6 +49,7 @@ const serverEndpoint1 = await listen((serverSession) => {
 
 const cs1 = await connect(serverEndpoint1.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   onsessionticket(ticket) {
     savedTicket = ticket;
     gotTicket.resolve();
@@ -77,6 +78,7 @@ const serverEndpoint2 = await listen(async (serverSession) => {
 
 const cs2 = await connect(serverEndpoint2.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
 });

@@ -48,6 +48,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 {
   const cs = await connect(serverEndpoint.address, {
     servername: 'host1.example.com',
+    verifyPeer: 'manual',
     alpn: 'quic-test',
   });
   const info = await cs.opened;
@@ -59,6 +60,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 {
   const cs = await connect(serverEndpoint.address, {
     servername: 'host2.example.com',
+    verifyPeer: 'manual',
     alpn: 'quic-test',
   });
   const info = await cs.opened;
@@ -70,6 +72,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 {
   const cs = await connect(serverEndpoint.address, {
     servername: 'unknown.example.com',
+    verifyPeer: 'manual',
     alpn: 'quic-test',
   });
   const info = await cs.opened;

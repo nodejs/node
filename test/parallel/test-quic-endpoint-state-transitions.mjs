@@ -40,7 +40,10 @@ const cert = readKey('agent1-cert.pem');
   strictEqual(serverEndpoint.closing, false);
   strictEqual(serverEndpoint.destroyed, false);
 
-  const cs = await connect(serverEndpoint.address, { alpn: 'quic-test' });
+  const cs = await connect(serverEndpoint.address, {
+    alpn: 'quic-test',
+    verifyPeer: 'manual',
+  });
   await cs.opened;
   await cs.close();
 
@@ -75,6 +78,7 @@ const cert = readKey('agent1-cert.pem');
   // Connect via 127.0.0.1 since 0.0.0.0 listens on all interfaces.
   const cs = await connect(`127.0.0.1:${addr.port}`, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await cs.opened;
