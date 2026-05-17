@@ -96,6 +96,33 @@ async function testRingbufferGrow() {
   }
 }
 
+// Multiple consumers at the minimum cursor should trim only after the last
+// one advances or detaches.
+async function testFanOutMinCursorTrimming() {
+  const { writer, broadcast: bc } = broadcast({ highWaterMark: 4 });
+  const iter1 = bc.push()[Symbol.asyncIterator]();
+  const iter2 = bc.push()[Symbol.asyncIterator]();
+
+  writer.writeSync(new Uint8Array([1]));
+  writer.writeSync(new Uint8Array([2]));
+  assert.strictEqual(bc.bufferSize, 2);
+
+  assert.strictEqual((await iter1.next()).done, false);
+  assert.strictEqual(bc.bufferSize, 2);
+
+  assert.strictEqual((await iter2.next()).done, false);
+  assert.strictEqual(bc.bufferSize, 1);
+
+  await iter1.return();
+  assert.strictEqual(bc.bufferSize, 1);
+
+  assert.strictEqual((await iter2.next()).done, false);
+  assert.strictEqual(bc.bufferSize, 0);
+
+  writer.endSync();
+  assert.strictEqual((await iter2.next()).done, true);
+}
+
 // Broadcast drainableProtocol after close returns null
 async function testDrainableAfterClose() {
   const { drainableProtocol } = require('stream/iter');
@@ -111,5 +138,6 @@ Promise.all([
   testBroadcastFromSyncIterable(),
   testBroadcastFromSyncIterableStrings(),
   testRingbufferGrow(),
+  testFanOutMinCursorTrimming(),
   testDrainableAfterClose(),
 ]).then(common.mustCall());
