@@ -9,6 +9,8 @@ const {
   push,
   merge,
   text,
+  toAsyncStreamable,
+  toStreamable,
 } = require('stream/iter');
 
 // =============================================================================
@@ -162,6 +164,27 @@ async function testMergeStringSources() {
   assert.ok(combined.includes('world'));
 }
 
+// merge() accepts object-like sources that are normalized via from()
+async function testMergeObjectLikeSources() {
+  const arrayBuffer = new TextEncoder().encode('abc').buffer;
+  const dataView = new DataView(new TextEncoder().encode('def').buffer);
+  const streamable = {
+    [toStreamable]() {
+      return 'ghi';
+    },
+  };
+  const asyncStreamable = {
+    [toAsyncStreamable]() {
+      return Promise.resolve('jkl');
+    },
+  };
+
+  assert.strictEqual(await text(merge(arrayBuffer)), 'abc');
+  assert.strictEqual(await text(merge(dataView)), 'def');
+  assert.strictEqual(await text(merge(streamable)), 'ghi');
+  assert.strictEqual(await text(merge(asyncStreamable)), 'jkl');
+}
+
 Promise.all([
   testMergeTwoSources(),
   testMergeSingleSource(),
@@ -172,4 +195,5 @@ Promise.all([
   testMergeConsumerBreak(),
   testMergeSignalMidIteration(),
   testMergeStringSources(),
+  testMergeObjectLikeSources(),
 ]).then(common.mustCall());
