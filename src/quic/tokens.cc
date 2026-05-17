@@ -155,10 +155,9 @@ ngtcp2_vec GenerateRetryToken(uint8_t* buffer,
                                          odcid,
                                          uv_hrtime());
   DCHECK_GE(ret, 0);
-  DCHECK_LE(ret, RetryToken::kRetryTokenLen);
   DCHECK_EQ(buffer[0], RetryToken::kTokenMagic);
   // This shouldn't be possible but we handle it anyway just to be safe.
-  if (ret == 0) return {nullptr, 0};
+  if (ret <= 0) return {nullptr, 0};
   return {buffer, static_cast<size_t>(ret)};
 }
 
@@ -174,10 +173,9 @@ ngtcp2_vec GenerateRegularToken(uint8_t* buffer,
                                            address.length(),
                                            uv_hrtime());
   DCHECK_GE(ret, 0);
-  DCHECK_LE(ret, RegularToken::kRegularTokenLen);
   DCHECK_EQ(buffer[0], RegularToken::kTokenMagic);
   // This shouldn't be possible but we handle it anyway just to be safe.
-  if (ret == 0) return {nullptr, 0};
+  if (ret <= 0) return {nullptr, 0};
   return {buffer, static_cast<size_t>(ret)};
 }
 }  // namespace
