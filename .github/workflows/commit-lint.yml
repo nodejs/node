@@ -33,4 +33,12 @@ jobs:
       - name: Validate commit message
         run: |
           echo "::add-matcher::.github/workflows/commit-lint-problem-matcher.json"
-          git rev-parse HEAD~${{ steps.nb-of-commits.outputs.minusOne }} | xargs npx -q core-validate-commit --no-validate-metadata --tap
+          minus_one=${{ steps.nb-of-commits.outputs.minusOne }}
+          first_commit="$(git rev-parse HEAD~${minus_one})"
+          first_title="$(git show -s --format=%s "${first_commit}")"
+
+          if [ "${first_title}" = "Initial plan" ] && [ "${minus_one}" -gt 0 ]; then
+            first_commit="$(git rev-parse HEAD~$((minus_one - 1)))"
+          fi
+
+          echo "${first_commit}" | xargs npx -q core-validate-commit --no-validate-metadata --tap
