@@ -37,6 +37,7 @@ ok(quic.QuicEndpoint);
   });
 
   const clientSession = await connect(serverEndpoint.address, {
+    verifyPeer: 'manual',
     onsessionticket(ticket) {
       savedTicket = ticket;
       gotTicket.resolve();

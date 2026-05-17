@@ -51,6 +51,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
 
   // Create the stream BEFORE awaiting opened. The stream is pending

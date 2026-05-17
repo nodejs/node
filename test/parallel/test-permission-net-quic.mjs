@@ -19,7 +19,7 @@ const cert = fixtures.readKey('agent1-cert.pem');
 // Test: connect() should reject with ERR_ACCESS_DENIED
 {
   await assert.rejects(
-    connect('127.0.0.1:12345', { alpn: 'h3' }),
+    connect('127.0.0.1:12345', { alpn: 'h3', verifyPeer: 'manual' }),
     {
       code: 'ERR_ACCESS_DENIED',
       permission: 'Net',

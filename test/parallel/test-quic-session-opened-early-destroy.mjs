@@ -44,6 +44,7 @@ const transportParams = { maxIdleTimeout: 1 };
   }, { transportParams });
 
   const clientSession = await connect(serverEndpoint.address, {
+    verifyPeer: 'manual',
     transportParams,
   });
 
@@ -70,6 +71,7 @@ const transportParams = { maxIdleTimeout: 1 };
   const serverEndpoint = await listen(mustNotCall, { transportParams });
 
   const clientSession = await connect(serverEndpoint.address, {
+    verifyPeer: 'manual',
     transportParams,
   });
 
@@ -96,6 +98,7 @@ const transportParams = { maxIdleTimeout: 1 };
   const clientEndpoint = new QuicEndpoint();
 
   const clientSession = await connect(serverEndpoint.address, {
+    verifyPeer: 'manual',
     transportParams,
     endpoint: clientEndpoint,
   });
@@ -127,6 +130,7 @@ const transportParams = { maxIdleTimeout: 1 };
   }), { transportParams });
 
   const clientSession = await connect(serverEndpoint.address, {
+    verifyPeer: 'manual',
     transportParams,
   });
 

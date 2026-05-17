@@ -53,6 +53,7 @@ const ep1 = await listen(async (serverSession) => {
 
 const cs1 = await connect(ep1.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   onsessionticket: mustCall((ticket) => {
     savedTicket = ticket;
     gotTicket.resolve();
@@ -88,6 +89,7 @@ const ep2 = await listen((serverSession) => {
 
 const cs2 = await connect(ep2.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   sessionTicket: savedTicket,
   token: savedToken,
   onerror(err) { ok(err); },

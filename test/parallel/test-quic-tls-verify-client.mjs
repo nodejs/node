@@ -42,6 +42,7 @@ const clientCert = readKey('agent2-cert.pem');
 
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     keys: [clientKey],
     certs: [clientCert],
   });
@@ -72,6 +73,7 @@ const clientCert = readKey('agent2-cert.pem');
   // Client connects WITHOUT providing a certificate.
   const clientSession = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     onerror: mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
     }),
