@@ -106,7 +106,7 @@ async function testRunnerWatch({
   child.stdout.on('data', (data) => {
     stdout += data.toString();
     currentRun += data.toString();
-    const testRuns = stdout.match(/duration_ms\s\d+/g);
+    const testRuns = stdout.match(/^\S+ duration_ms\s\d+/gm);
     if (testRuns?.length >= 1) ran1.resolve();
     if (testRuns?.length >= 2) ran2.resolve();
   });
@@ -118,18 +118,11 @@ async function testRunnerWatch({
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
 
-    if (useRunApi) {
-      const interval = setInterval(
-        () => writeFileSync(path, content),
-        common.platformTimeout(1000),
-      );
-      await ran2.promise;
-      clearInterval(interval);
-    } else {
-      writeFileSync(path, content);
-      await setTimeout(common.platformTimeout(1000));
-      await ran2.promise;
-    }
+    await performFileOperation(
+      () => writeFileSync(path, content),
+      useRunApi,
+    );
+    await ran2.promise;
 
     runs.push(currentRun);
     child.kill();
