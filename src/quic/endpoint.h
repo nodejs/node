@@ -159,6 +159,17 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     static constexpr uint64_t DEFAULT_IDLE_TIMEOUT = 0;
     uint64_t idle_timeout = DEFAULT_IDLE_TIMEOUT;
 
+    // Optional block list for filtering incoming packets by source address.
+    // When block_list_policy is DENY, packets from addresses matching the
+    // block list are dropped. When ALLOW, only packets from addresses
+    // matching the block list are accepted (all others dropped).
+    enum class BlockListPolicy : uint8_t {
+      DENY,   // Drop packets from matching addresses (blocklist)
+      ALLOW,  // Drop packets from non-matching addresses (allowlist)
+    };
+    std::shared_ptr<SocketAddressBlockList> block_list;
+    BlockListPolicy block_list_policy = BlockListPolicy::DENY;
+
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Endpoint::Config)
     SET_SELF_SIZE(Options)
