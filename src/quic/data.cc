@@ -365,12 +365,12 @@ std::optional<int> QuicError::get_crypto_error() const {
 
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   if ((type() == Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
-      (type() == Type::APPLICATION && code() == NGHTTP3_H3_NO_ERROR) ||
+      (type() == Type::APPLICATION &&
+       (code() == 0 || code() == NGHTTP3_H3_NO_ERROR)) ||
       type() == Type::IDLE_CLOSE) {
-    // Note that we only return undefined for *known* no-error application
-    // codes. It is possible that other application types use other specific
-    // no-error codes, but since we don't know which application is being used,
-    // we'll just return the error code value for those below.
+    // Application code 0 is the default no-error code for raw QUIC
+    // applications (DefaultApplication::GetNoErrorCode() returns 0).
+    // NGHTTP3_H3_NO_ERROR (0x100) is the HTTP/3 no-error code.
     // Idle close is always clean — the session timed out normally.
     return Undefined(env->isolate());
   }
