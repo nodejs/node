@@ -745,38 +745,24 @@ maintaining the Node.js project.
 
 * [1ilsang](https://github.com/1ilsang) -
   **Sangchul Lee** <<1ilsang.dev@gmail.com>> (he/him)
-* [atlowChemi](https://github.com/atlowChemi) -
-  **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
 * [bjohansebas](https://github.com/bjohansebas) -
   **Sebastian Beltran** <<bjohansebas@gmail.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
   **Brian Muenzenmeyer** <<brian.muenzenmeyer@gmail.com>> (he/him)
-* [CanadaHonk](https://github.com/CanadaHonk) -
-  **Oliver Medhurst** <<honk@goose.icu>> (they/them)
-* [daeyeon](https://github.com/daeyeon) -
-  **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
 * [efekrskl](https://github.com/efekrskl) -
   **Efe Karasakal** <<hi@efe.dev>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
-* [gurgunday](https://github.com/gurgunday) -
-  **Gürgün Dayıoğlu** <<hey@gurgun.day>>
 * [haramj](https://github.com/haramj) -
   **Haram Jeong** <<haramj.dev@gmail.com>>
 * [HBSPS](https://github.com/HBSPS) -
   **Wiyeong Seo** <<hbsps.dev@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
-* [KevinEady](https://github.com/KevinEady) -
-  **Kevin Eady** <<kevin.c.eady@gmail.com>> (he/him)
-* [marsonya](https://github.com/marsonya) -
-  **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [milesguicent](https://github.com/milesguicent) -
   **Miles Guicent** <<guicent@pm.me>> (he/him)
 * [preveen-stack](https://github.com/preveen-stack) -
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
-* [RaisinTen](https://github.com/RaisinTen) -
-  **Darshan Sen** <<raisinten@gmail.com>> (he/him)
 
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.
