@@ -285,7 +285,7 @@ const channelsByCollection = diagnostics_channel.tracingChannel({
 #### `diagnostics_channel.boundedChannel(nameOrChannels)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -670,7 +670,7 @@ channel.runStores({ some: 'message' }, () => {
 #### `channel.withStoreScope(data)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -727,7 +727,7 @@ ch.bindStore(store, (message) => {
 ### Class: `RunStoresScope`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1147,7 +1147,7 @@ if (channels.hasSubscribers) {
 ### Class: `BoundedChannel`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1165,7 +1165,7 @@ dynamically.
 #### `boundedChannel.hasSubscribers`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * Returns: {boolean} `true` if any of the individual channels has a subscriber,
@@ -1196,7 +1196,7 @@ if (wc.hasSubscribers) {
 #### `boundedChannel.subscribe(handlers)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `handlers` {Object} Set of channel subscribers
@@ -1239,7 +1239,7 @@ wc.subscribe({
 #### `boundedChannel.unsubscribe(handlers)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `handlers` {Object} Set of channel subscribers
@@ -1282,7 +1282,7 @@ wc.unsubscribe(handlers);
 #### `boundedChannel.run(context, fn[, thisArg[, ...args]])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `context` {Object} Shared object to correlate events through
@@ -1321,7 +1321,7 @@ const result = wc.run({ operationId: '123' }, () => {
 #### `boundedChannel.withScope([context])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `context` {Object} Shared object to correlate events through
@@ -1366,7 +1366,7 @@ const context = { operationId: '123' };
 ### Class: `BoundedChannelScope`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1859,7 +1859,6 @@ Emitted when [`process.execve()`][] is invoked.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
  - v24.15.0
 -->

@@ -48,6 +48,33 @@ const server = tls.Server({
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 }, null).listen(0, common.mustCall(() => {
+  if (process.features.openssl_is_boringssl) {
+    let gotClientError = false;
+    let gotServerError = false;
+    function maybeClose() {
+      if (gotClientError && gotServerError)
+        server.close();
+    }
+
+    server.once('tlsClientError', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_SSL_UNSUPPORTED_PROTOCOL');
+      gotServerError = true;
+      maybeClose();
+    }));
+
+    const client = tls.connect({
+      port: server.address().port,
+      rejectUnauthorized: false,
+      secureProtocol: 'TLSv1_1_method',
+    }, common.mustNotCall());
+    client.once('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION');
+      gotClientError = true;
+      maybeClose();
+    }));
+    return;
+  }
+
   const args = ['s_client', '-quiet', '-tls1_1',
                 '-cipher', (hasOpenSSL(3, 1) ? 'DEFAULT:@SECLEVEL=0' : 'DEFAULT'),
                 '-connect', `127.0.0.1:${server.address().port}`];

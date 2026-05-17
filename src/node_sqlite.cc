@@ -2432,9 +2432,6 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   BufferValue entryPoint(isolate, args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
-  if (*entryPoint == nullptr) {
-    ToNamespacedPath(env, &entryPoint);
-  }
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   char* errmsg = nullptr;

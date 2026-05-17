@@ -522,7 +522,6 @@ Including the `node:` prefix on the module specifier is optional.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -564,7 +563,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -596,7 +594,6 @@ console.log(textSync(fromSync('hello'))); // 'hello'
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -655,7 +652,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -677,7 +673,6 @@ The `writer` must have the `*Sync` methods (`writeSync`, `writevSync`,
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -750,7 +745,6 @@ ac.abort(); // Pipeline throws AbortError on next iteration
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -766,7 +760,6 @@ Synchronous version of [`pull()`][]. All transforms must be synchronous.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -832,7 +825,6 @@ The writer returned by `push()` conforms to the \[Writer interface]\[].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -912,7 +904,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -929,7 +920,6 @@ Collect all chunks as an array of `Uint8Array` values (without concatenating).
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -946,7 +936,6 @@ Collect all bytes into an `ArrayBuffer`.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -962,7 +951,6 @@ Synchronous version of [`arrayBuffer()`][].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -978,7 +966,6 @@ Synchronous version of [`array()`][].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1013,7 +1000,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1029,7 +1015,6 @@ Synchronous version of [`bytes()`][].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1063,7 +1048,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1082,7 +1066,6 @@ Synchronous version of [`text()`][].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1139,7 +1122,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1174,7 +1156,6 @@ run().catch(console.error);
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1215,7 +1196,6 @@ chunks by the tapping callback; but return values are ignored.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1230,7 +1210,6 @@ Synchronous version of [`tap()`][].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1333,7 +1312,6 @@ Alias for `broadcast.cancel()`.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1348,7 +1326,6 @@ automatically and pushed to all subscribers.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1431,7 +1408,6 @@ Alias for `share.cancel()`.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1445,7 +1421,6 @@ Create a {Share} from an existing source.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1462,7 +1437,6 @@ Synchronous version of [`share()`][].
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -1489,7 +1463,7 @@ directly. The minimum contract is described below for each function.
 ### `fromReadable(readable)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1543,7 +1517,7 @@ run();
 ### `fromWritable(writable[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1569,8 +1543,9 @@ the synchronous Writer methods (`writeSync`, `writevSync`, `endSync`) always
 return `false` or `-1`, deferring to the async path. The per-write
 `options.signal` parameter from the Writer interface is also ignored.
 
-The result is cached per instance -- calling `fromWritable()` twice with the
-same stream returns the same Writer.
+The result is cached per instance and backpressure policy -- calling
+`fromWritable()` twice with the same stream and `backpressure` option returns
+the same Writer.
 
 For duck-typed streams that do not expose `writableHighWaterMark`,
 `writableLength`, or similar properties, sensible defaults are used.
@@ -1607,7 +1582,7 @@ run();
 ### `toReadable(source[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1649,7 +1624,7 @@ readable.pipe(createWriteStream('output.gz'));
 ### `toReadableSync(source[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1686,7 +1661,7 @@ console.log(readable.read().toString()); // 'hello world'
 ### `toWritable(writer)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental

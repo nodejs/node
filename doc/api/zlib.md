@@ -51,7 +51,6 @@ const {
   createReadStream,
   createWriteStream,
 } = require('node:fs');
-const process = require('node:process');
 const { createGzip } = require('node:zlib');
 const { pipeline } = require('node:stream');
 
@@ -92,7 +91,6 @@ const {
   createReadStream,
   createWriteStream,
 } = require('node:fs');
-const process = require('node:process');
 const { createGzip } = require('node:zlib');
 const { pipeline } = require('node:stream/promises');
 
@@ -454,10 +452,8 @@ From `zlib/zconf.h`, modified for Node.js usage:
 
 The memory requirements for deflate are (in bytes):
 
-<!-- eslint-disable @stylistic/js/semi -->
-
 ```js
-(1 << (windowBits + 2)) + (1 << (memLevel + 9))
+(1 << (windowBits + 2)) + (1 << (memLevel + 9));
 ```
 
 That is: 128K for `windowBits` = 15 + 128K for `memLevel` = 8

@@ -13,6 +13,8 @@ Node.js process.
 import process from 'node:process';
 ```
 
+<!-- eslint-disable no-restricted-syntax -->
+
 ```cjs
 const process = require('node:process');
 ```
@@ -62,8 +64,6 @@ console.log('This message is displayed first.');
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('beforeExit', (code) => {
   console.log('Process beforeExit event with code: ', code);
 });
@@ -120,8 +120,6 @@ process.on('exit', (code) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('exit', (code) => {
   console.log(`About to exit with code: ${code}`);
 });
@@ -143,8 +141,6 @@ process.on('exit', (code) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('exit', (code) => {
   setTimeout(() => {
     console.log('This will not run');
@@ -221,8 +217,6 @@ process.on('rejectionHandled', (promise) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 const unhandledRejections = new Map();
 process.on('unhandledRejection', (reason, promise) => {
   unhandledRejections.set(promise, reason);
@@ -305,7 +299,6 @@ console.log('This will not run.');
 ```
 
 ```cjs
-const process = require('node:process');
 const fs = require('node:fs');
 
 process.on('uncaughtException', (err, origin) => {
@@ -394,8 +387,6 @@ nonexistentFunc();
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('uncaughtExceptionMonitor', (err, origin) => {
   MyMonitoringTool.logSync(err, origin);
 });
@@ -445,8 +436,6 @@ somePromise.then((res) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('unhandledRejection', (reason, promise) => {
   console.log('Unhandled Rejection at:', promise, 'reason:', reason);
   // Application specific logging, throwing an error, or other logic here
@@ -473,8 +462,6 @@ const resource = new SomeResource();
 ```
 
 ```cjs
-const process = require('node:process');
-
 function SomeResource() {
   // Initially set the loaded status to a rejected promise
   this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
@@ -526,8 +513,6 @@ process.on('warning', (warning) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('warning', (warning) => {
   console.warn(warning.name);    // Print the warning name
   console.warn(warning.message); // Print the warning message
@@ -663,8 +648,6 @@ process.on('SIGTERM', handle);
 ```
 
 ```cjs
-const process = require('node:process');
-
 // Begin reading from stdin so the process does not exit.
 process.stdin.resume();
 
@@ -740,7 +723,6 @@ This feature is not available in [`Worker`][] threads.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -768,8 +750,6 @@ process.addUncaughtExceptionCaptureCallback((err) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.addUncaughtExceptionCaptureCallback((err) => {
   console.error('Caught exception:', err.message);
   return true; // Indicates exception was handled
@@ -1058,30 +1038,28 @@ when running the `./configure` script.
 
 An example of the possible output looks like:
 
-<!-- eslint-skip -->
-
-```js
+```json
 {
-  target_defaults:
-   { cflags: [],
-     default_configuration: 'Release',
-     defines: [],
-     include_dirs: [],
-     libraries: [] },
-  variables:
+  "target_defaults":
+   { "cflags": [],
+     "default_configuration": "Release",
+     "defines": [],
+     "include_dirs": [],
+     "libraries": [] },
+  "variables":
    {
-     host_arch: 'x64',
-     napi_build_version: 5,
-     node_install_npm: 'true',
-     node_prefix: '',
-     node_shared_cares: 'false',
-     node_shared_http_parser: 'false',
-     node_shared_libuv: 'false',
-     node_shared_zlib: 'false',
-     node_use_openssl: 'true',
-     node_shared_openssl: 'false',
-     target_arch: 'x64',
-     v8_use_snapshot: 1
+     "host_arch": "x64",
+     "napi_build_version": 5,
+     "node_install_npm": "true",
+     "node_prefix": "",
+     "node_shared_cares": "false",
+     "node_shared_http_parser": "false",
+     "node_shared_libuv": "false",
+     "node_shared_zlib": "false",
+     "node_use_openssl": "true",
+     "node_shared_openssl": "false",
+     "target_arch": "x64",
+     "v8_use_snapshot": 1
    }
 }
 ```
@@ -1219,8 +1197,6 @@ process.debugPort = 5858;
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.debugPort = 5858;
 ```
 
@@ -1357,8 +1333,6 @@ process.on('warning', (warning) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('warning', (warning) => {
   console.warn(warning.name);    // 'Warning'
   console.warn(warning.message); // 'Something happened!'
@@ -1450,8 +1424,6 @@ process.on('warning', (warning) => {
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('warning', (warning) => {
   console.warn(warning.name);
   console.warn(warning.message);
@@ -1563,20 +1535,18 @@ See environ(7).
 
 An example of this object looks like:
 
-<!-- eslint-skip -->
-
-```js
+```json
 {
-  TERM: 'xterm-256color',
-  SHELL: '/usr/local/bin/bash',
-  USER: 'maciej',
-  PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
-  PWD: '/Users/maciej',
-  EDITOR: 'vim',
-  SHLVL: '1',
-  HOME: '/Users/maciej',
-  LOGNAME: 'maciej',
-  _: '/usr/local/bin/node'
+  "TERM": "xterm-256color",
+  "SHELL": "/usr/local/bin/bash",
+  "USER": "maciej",
+  "PATH": "~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin",
+  "PWD": "/Users/maciej",
+  "EDITOR": "vim",
+  "SHLVL": "1",
+  "HOME": "/Users/maciej",
+  "LOGNAME": "maciej",
+  "_": "/usr/local/bin/node"
 }
 ```
 
@@ -1705,10 +1675,8 @@ Results in `process.execArgv`:
 
 And `process.argv`:
 
-<!-- eslint-disable @stylistic/js/semi -->
-
-```js
-['/usr/local/bin/node', 'script.js', '--version']
+```json
+["/usr/local/bin/node", "script.js", "--version"]
 ```
 
 Refer to [`Worker` constructor][] for the detailed behavior of worker
@@ -1725,10 +1693,8 @@ added: v0.1.100
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
 
-<!-- eslint-disable @stylistic/js/semi -->
-
-```js
-'/usr/local/bin/node'
+```json
+"/usr/local/bin/node"
 ```
 
 ## `process.execve(file[, args[, env]])`
@@ -1738,7 +1704,7 @@ added:
   - v23.11.0
   - v22.15.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62878
     description: A failed `execve(2)` system call now throws an exception
                  instead of aborting the process. Native `AtExit`
@@ -1867,8 +1833,6 @@ if (someConditionNotMet()) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 // How to properly set the exit code while letting
 // the process exit gracefully.
 if (someConditionNotMet()) {
@@ -2410,8 +2374,6 @@ if (process.getegid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getegid) {
   console.log(`Current gid: ${process.getegid()}`);
 }
@@ -2440,8 +2402,6 @@ if (process.geteuid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.geteuid) {
   console.log(`Current uid: ${process.geteuid()}`);
 }
@@ -2470,8 +2430,6 @@ if (process.getgid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getgid) {
   console.log(`Current gid: ${process.getgid()}`);
 }
@@ -2501,8 +2459,6 @@ if (process.getgroups) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getgroups) {
   console.log(process.getgroups()); // [ 16, 21, 297 ]
 }
@@ -2531,8 +2487,6 @@ if (process.getuid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getuid) {
   console.log(`Current uid: ${process.getuid()}`);
 }
@@ -2737,8 +2691,6 @@ kill(process.pid, 'SIGHUP');
 ```
 
 ```cjs
-const process = require('node:process');
-
 process.on('SIGHUP', () => {
   console.log('Got SIGHUP signal.');
 });
@@ -3360,15 +3312,13 @@ tarball.
   * `'Hydrogen'` for the 18.x LTS line beginning with 18.12.0.
     For other LTS Release code names, see [Node.js Changelog Archive](https://github.com/nodejs/node/blob/HEAD/doc/changelogs/CHANGELOG_ARCHIVE.md)
 
-<!-- eslint-skip -->
-
-```js
+```json
 {
-  name: 'node',
-  lts: 'Hydrogen',
-  sourceUrl: 'https://nodejs.org/download/release/v18.12.0/node-v18.12.0.tar.gz',
-  headersUrl: 'https://nodejs.org/download/release/v18.12.0/node-v18.12.0-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v18.12.0/win-x64/node.lib'
+  "name": "node",
+  "lts": "Hydrogen",
+  "sourceUrl": "https://nodejs.org/download/release/v18.12.0/node-v18.12.0.tar.gz",
+  "headersUrl": "https://nodejs.org/download/release/v18.12.0/node-v18.12.0-headers.tar.gz",
+  "libUrl": "https://nodejs.org/download/release/v18.12.0/win-x64/node.lib"
 }
 ```
 
@@ -3854,8 +3804,6 @@ if (process.getegid && process.setegid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getegid && process.setegid) {
   console.log(`Current gid: ${process.getegid()}`);
   try {
@@ -3899,8 +3847,6 @@ if (process.geteuid && process.seteuid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.geteuid && process.seteuid) {
   console.log(`Current uid: ${process.geteuid()}`);
   try {
@@ -3944,8 +3890,6 @@ if (process.getgid && process.setgid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getgid && process.setgid) {
   console.log(`Current gid: ${process.getgid()}`);
   try {
@@ -3989,8 +3933,6 @@ if (process.getgroups && process.setgroups) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getgroups && process.setgroups) {
   try {
     process.setgroups([501]);
@@ -4033,8 +3975,6 @@ if (process.getuid && process.setuid) {
 ```
 
 ```cjs
-const process = require('node:process');
-
 if (process.getuid && process.setuid) {
   console.log(`Current uid: ${process.getuid()}`);
   try {
@@ -4080,7 +4020,6 @@ This implies calling `module.setSourceMapsSupport()` with an option
 added: v9.3.0
 changes:
   - version:
-     - v26.0.0
      - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/61227
     description: Use `process.addUncaughtExceptionCaptureCallback()` to

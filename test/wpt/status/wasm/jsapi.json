@@ -15,13 +15,6 @@
       ]
     }
   },
-  "module/moduleSource.tentative.any.js": {
-    "fail": {
-      "expected": [
-        "AbstractModuleSourceProto toStringTag brand check"
-      ]
-    }
-  },
   "exception/getArg.tentative.any.js": {
     "skip": "track - still tentative / unsupported"
   },

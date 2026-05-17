@@ -2756,7 +2756,7 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental.
@@ -3131,6 +3131,13 @@ Failed to set PSK identity hint. Hint may be too long.
 
 An attempt was made to renegotiate TLS on a socket instance with renegotiation
 disabled.
+
+<a id="ERR_TLS_RENEGOTIATION_UNSUPPORTED"></a>
+
+### `ERR_TLS_RENEGOTIATION_UNSUPPORTED`
+
+An attempt was made to renegotiate TLS, but the TLS implementation does not
+support caller-initiated renegotiation.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 

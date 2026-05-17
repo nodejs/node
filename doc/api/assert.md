@@ -1683,7 +1683,7 @@ If no arguments are passed in at all `message` will be set to the string:
 Be aware that in the `repl` the error message will be different to the one
 thrown in a file! See below for further details.
 
-<!-- eslint-skip -->
+<!-- eslint-disable no-restricted-syntax -->
 
 ```mjs
 import assert from 'node:assert/strict';
@@ -1720,7 +1720,7 @@ assert.ok(0);
 //   assert.ok(0)
 ```
 
-<!-- eslint-skip -->
+<!-- eslint-disable no-restricted-syntax -->
 
 ```cjs
 const assert = require('node:assert/strict');

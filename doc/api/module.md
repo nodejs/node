@@ -179,17 +179,12 @@ added:
   - v20.6.0
   - v18.19.0
 deprecated:
- - v26.0.0
  - v25.9.0
  - v24.15.0
 changes:
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62401
     description: Runtime deprecation (DEP0205).
-  - version: v25.9.0
-    pr-url: https://github.com/nodejs/node/pull/62395
-    description: Documentation-only deprecation (DEP0205). Use
-                 `module.registerHooks()` instead.
   - version:
     - v23.6.1
     - v22.13.1
@@ -1025,7 +1020,7 @@ function load(url, context, nextLoad) {
   };
 }
 
-registerHooks({ resolve });
+registerHooks({ load });
 ```
 
 In a more advanced scenario, this can also be used to transform an unsupported
@@ -1133,8 +1128,6 @@ export async function load(url, context, nextLoad) {
 Unlike synchronous hooks, the asynchronous hooks would not run for these modules loaded in the file
 that calls `register()`:
 
-<!-- eslint-disable no-restricted-globals -->
-
 ```mjs
 // register-hooks.js
 import { register, createRequire } from 'node:module';
@@ -1142,11 +1135,9 @@ register('./hooks.mjs', import.meta.url);
 
 // Asynchronous hooks does not affect modules loaded via custom require()
 // functions created by module.createRequire().
-const userRequire = createRequire(__filename);
+const userRequire = createRequire(import.meta.filename);
 userRequire('./my-app-2.cjs');  // Hooks won't affect this
 ```
-
-<!-- eslint-enable no-restricted-globals -->
 
 ```cjs
 // register-hooks.js

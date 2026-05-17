@@ -3,7 +3,6 @@
 <!-- YAML
 changes:
   - version:
-     - v26.0.0
      - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
@@ -1014,7 +1013,6 @@ The algorithms currently supported include:
 added: v15.0.0
 changes:
   - version:
-     - v26.0.0
      - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
@@ -1136,7 +1134,7 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version: v24.8.0
@@ -1287,7 +1285,7 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v26.0.0
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62706
     description: Added JWK format support for ML-KEM key types.
   - version:
@@ -1907,7 +1905,6 @@ the message.
 added: v24.7.0
 changes:
   - version:
-     - v26.0.0
      - v25.9.0
      - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61875
@@ -1926,7 +1923,6 @@ added: v24.7.0
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
  - v24.15.0
 -->
@@ -2358,7 +2354,6 @@ added: v15.0.0
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2366,7 +2361,6 @@ added:
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2378,7 +2372,6 @@ The optional customization string for KangarooTwelve.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2388,7 +2381,6 @@ added:
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2475,7 +2467,6 @@ added: v24.8.0
 added: v24.8.0
 changes:
   - version:
-     - v26.0.0
      - v25.9.0
      - v24.15.0
     pr-url: https://github.com/nodejs/node/pull/61875
@@ -2494,7 +2485,6 @@ added: v24.8.0
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
  - v24.15.0
 -->
@@ -2774,7 +2764,6 @@ The length (in bytes) of the random salt to use.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2782,7 +2771,6 @@ added:
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2794,7 +2782,6 @@ The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 
@@ -2804,7 +2791,6 @@ added:
 
 <!-- YAML
 added:
- - v26.0.0
  - v25.9.0
 -->
 

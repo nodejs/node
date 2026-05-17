@@ -61,6 +61,38 @@ if (!hasOpenSSL(3, 5)) {
     ['supports-modern.tentative.https.any.js', /ml-(?:kem|dsa)/i]);
 }
 
+if (process.features.openssl_is_boringssl) {
+  skip(
+    'derive_bits_keys/cfrg_curves_bits_curve448.tentative.https.any.js',
+    'derive_bits_keys/cfrg_curves_keys_curve448.tentative.https.any.js',
+    'digest/cshake.tentative.https.any.js',
+    'digest/sha3.tentative.https.any.js',
+    'encrypt_decrypt/chacha20_poly1305.tentative.https.any.js',
+    'generateKey/failures_AES-KW.https.any.js',
+    'generateKey/failures_Ed448.tentative.https.any.js',
+    'generateKey/failures_X448.tentative.https.any.js',
+    'generateKey/failures_chacha20_poly1305.tentative.https.any.js',
+    'generateKey/successes_AES-KW.https.any.js',
+    'generateKey/successes_Ed448.tentative.https.any.js',
+    'generateKey/successes_X448.tentative.https.any.js',
+    'generateKey/successes_chacha20_poly1305.tentative.https.any.js',
+    'import_export/ChaCha20-Poly1305_importKey.tentative.https.any.js',
+    'import_export/okp_importKey_Ed448.tentative.https.any.js',
+    'import_export/okp_importKey_failures_Ed448.tentative.https.any.js',
+    'import_export/okp_importKey_failures_X448.tentative.https.any.js',
+    'import_export/okp_importKey_X448.tentative.https.any.js',
+    'sign_verify/eddsa_curve448.tentative.https.any.js');
+
+  skipSubtests(
+    ['derive_bits_keys/hkdf.https.any.js', /AES-KW/],
+    ['derive_bits_keys/pbkdf2.https.any.js', /AES-KW/],
+    ['import_export/raw_format_aliases.tentative.https.any.js', /AES-KW/],
+    ['import_export/symmetric_importKey.https.any.js', /AES-KW/],
+    ['supports.tentative.https.any.js', /AES-KW/],
+    ['supports-modern.tentative.https.any.js', /ChaCha20-Poly1305/],
+    ['supports-modern.tentative.https.any.js', /^supports returns true for algorithm objects with valid parameters$/]);
+}
+
 function assertNoOverlap(fileSkips, subtestSkips) {
   const subtestSkipFiles = new Set(Object.keys(subtestSkips));
   const overlap = Object.keys(fileSkips).filter((file) => subtestSkipFiles.has(file));

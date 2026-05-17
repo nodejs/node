@@ -175,6 +175,16 @@ KeyObjectData ImportJWKPqcKey(Environment* env, Local<Object> jwk) {
 
   return KeyObjectData::CreateAsymmetric(type, std::move(pkey));
 }
+
+bool IsPqcRawPrivateKeyId(int id) {
+  const PqcAlgorithm* alg = FindPqcAlgorithmById(id);
+  return alg != nullptr && !alg->use_seed;
+}
+
+bool IsPqcSeedKeyId(int id) {
+  const PqcAlgorithm* alg = FindPqcAlgorithmById(id);
+  return alg != nullptr && alg->use_seed;
+}
 #endif
 }  // namespace crypto
 }  // namespace node

@@ -98,7 +98,7 @@ and libc version. The table below lists the support tier for each supported
 combination. A list of [supported compile toolchains](#supported-toolchains) is
 also supplied for tier 1 platforms.
 
-**For production applications, run Node.js on supported platforms only.**
+**For production applications, run Node.js on supported platforms only (Tier 1 or 2).**
 
 Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
@@ -752,7 +752,7 @@ Refs:
   To install it, select the following two optional components:
   * C++ Clang Compiler for Windows (Microsoft.VisualStudio.Component.VC.Llvm.Clang)
   * MSBuild support for LLVM (clang-cl) toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
-* As an alternative to Visual Studio 2026, download Visual Studio 2022 Current channel Version 17.4 from the
+* As an alternative to Visual Studio 2026, download Visual Studio 2022 Current channel Version 17.14 from the
   [Evergreen bootstrappers](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#evergreen-bootstrappers)
   table and install using the same workload and optional component selection as described above.
 * Basic Unix tools required for some tests,
@@ -1045,10 +1045,23 @@ enable FIPS support in Node.js.
 Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
 linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 
-To build Node.js with Temporal support, a Rust toolchain is required:
+Temporal support is enabled by default starting in Node.js 26. Building it
+requires a Rust toolchain:
 
 * rustc >= 1.82 (with LLVM >= 19)
 * cargo >= 1.82
+
+If `--v8-enable-temporal-support` and `--v8-disable-temporal-support` are both
+omitted, `configure.py` probes for `cargo` and `rustc`. If either is missing,
+a warning is printed and Temporal support is disabled.
+
+* Pass `--v8-enable-temporal-support` to `configure.py` to require Temporal
+  support. The build will stop with an error if `cargo` or `rustc` cannot be
+  found.
+* Pass `--v8-disable-temporal-support` to opt out of Temporal support and
+  remove the Rust toolchain requirement.
+
+Passing both options to `configure.py` is an error.
 
 ## Building Node.js with external core modules
 

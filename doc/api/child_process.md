@@ -591,7 +591,6 @@ the error passed to the callback will be an `AbortError`:
 
 ```cjs
 const { fork } = require('node:child_process');
-const process = require('node:process');
 
 if (process.argv[2] === 'child') {
   setTimeout(() => {
@@ -933,7 +932,6 @@ Example of a long-running process, by detaching and also ignoring its parent
 
 ```cjs
 const { spawn } = require('node:child_process');
-const process = require('node:process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
@@ -1077,7 +1075,6 @@ pipes between the parent and child. The value is one of the following:
 
 ```cjs
 const { spawn } = require('node:child_process');
-const process = require('node:process');
 
 // Child will use parent's stdios.
 spawn('prg', [], { stdio: 'inherit' });
@@ -1833,7 +1830,6 @@ process to wait for the child process to exit before exiting itself.
 
 ```cjs
 const { spawn } = require('node:child_process');
-const process = require('node:process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
@@ -2289,7 +2285,6 @@ the child and the parent processes.
 
 ```cjs
 const { spawn } = require('node:child_process');
-const process = require('node:process');
 
 const subprocess = spawn(process.argv[0], ['child_program.js'], {
   detached: true,

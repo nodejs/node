@@ -31,7 +31,7 @@ Last update:
 - url: https://github.com/web-platform-tests/wpt/tree/258f285de0/url
 - urlpattern: https://github.com/web-platform-tests/wpt/tree/f07c03cbed/urlpattern
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
-- wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/65a2134d50/wasm/jsapi
+- wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/288c467d35/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - web-locks: https://github.com/web-platform-tests/wpt/tree/10a122a6bc/web-locks
 - WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/8b5cd267b4/WebCryptoAPI
