@@ -100,6 +100,16 @@ const cases = [
     invalid: [-1, 'a', null, false, true, {}, [], () => {}]
   },
   {
+    key: 'sessionCreationRate',
+    valid: [0, 1, 10, 100.5, 1000, Infinity],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'sessionCreationBurst',
+    valid: [0, 1, 10, 100.5, 1000, Infinity],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
     key: 'validateAddress',
     valid: [true, false, 0, 1, 'a'],
     invalid: [],

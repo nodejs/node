@@ -125,6 +125,8 @@ class SessionManager;
   V(version_negotiation_burst, "versionNegotiationBurst")                      \
   V(immediate_close_rate, "immediateCloseRate")                                \
   V(immediate_close_burst, "immediateCloseBurst")                              \
+  V(session_creation_rate, "sessionCreationRate")                              \
+  V(session_creation_burst, "sessionCreationBurst")                            \
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \

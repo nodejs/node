@@ -95,6 +95,7 @@ const {
   strictEqual(typeof endpoint.stats.statelessResetRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.immediateCloseCount, 'bigint');
   strictEqual(typeof endpoint.stats.immediateCloseRateLimited, 'bigint');
+  strictEqual(typeof endpoint.stats.sessionCreationRateLimited, 'bigint');
 
   deepStrictEqual(Object.keys(endpoint.stats.toJSON()), [
     'connected',
@@ -115,6 +116,7 @@ const {
     'statelessResetRateLimited',
     'immediateCloseCount',
     'immediateCloseRateLimited',
+    'sessionCreationRateLimited',
   ]);
   strictEqual(typeof inspect(endpoint.stats), 'string');
 }
