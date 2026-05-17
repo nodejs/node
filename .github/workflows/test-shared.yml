@@ -203,7 +203,7 @@ jobs:
           [ "$(curl -ISsw "%{http_code}" -o /dev/null "https://nodejs.cachix.org/$(basename ${V8_STORE_PATH%-v8-*}).narinfo")" != "200" ] ||
             echo "ALREADY_CACHED=true" >> "$GITHUB_OUTPUT"
 
-      - uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c  # v17
+      - uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71  # v17
         if: ${{ steps.v8-drv.outputs.ALREADY_CACHED != 'true' }}
         with:
           name: nodejs
