@@ -24,7 +24,7 @@ let client_stream;
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
     stream.resume();
-    stream.on('data', function() {
+    stream.once('data', function() {
       this.write(Buffer.alloc(1));
       process.nextTick(() => client_stream.destroy());
     });
