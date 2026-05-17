@@ -54,6 +54,7 @@ ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
 });
 
 const info = await clientSession.opened;

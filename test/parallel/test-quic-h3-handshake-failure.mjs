@@ -40,6 +40,7 @@ const serverEndpoint = await listen(async (serverSession) => {
 // exists but hasn't started (control streams not yet bound).
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
   // h3 ALPN — must match the server so the H3 application is selected
   // on the server side before we tear it down.
 });

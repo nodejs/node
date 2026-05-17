@@ -207,6 +207,14 @@ class TLSContext final : public MemoryRetainer,
     // This option is only used by the server side.
     bool reject_unauthorized = true;
 
+    // When true, the client will set SSL_VERIFY_PEER so that OpenSSL
+    // aborts the handshake if the server's certificate fails validation.
+    // This is the "strict" verify_peer mode. When false (the default),
+    // the handshake completes regardless and VerifyPeerIdentity is
+    // called after to surface errors to JS. This option is only used
+    // by the client side.
+    bool verify_peer_strict = false;
+
     // When true (the default), the server accepts 0-RTT early data
     // from clients with valid session tickets. When false, early data
     // is disabled and clients must complete a full handshake before
