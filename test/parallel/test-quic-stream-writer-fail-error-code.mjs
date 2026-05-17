@@ -60,7 +60,7 @@ const allDone = Promise.withResolvers();
 const observed = [];
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall((stream) => {
+  serverSession.onstream = mustCall(async (stream) => {
     const i = nextStreamIndex++;
     stream.onreset = mustCall((err) => {
       observed[i] = wireCodeOf(err);
@@ -68,6 +68,11 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
           observed[0] !== undefined && observed[1] !== undefined) {
         allDone.resolve();
       }
+    });
+
+    // The peer's reset causes stream.closed to reject.
+    await assert.rejects(stream.closed, {
+      code: 'ERR_QUIC_APPLICATION_ERROR',
     });
   }, 2);
 }));
