@@ -36,6 +36,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   reuseEndpoint: false,
+  preferredAddressPolicy: 'use',
   onpathvalidation() {
     throw testError;
   },

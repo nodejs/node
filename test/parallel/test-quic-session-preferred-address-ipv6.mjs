@@ -81,6 +81,7 @@ console.log(serverEndpoint.address);
 const clientSession = await connect(serverEndpoint.address, {
   // We don't want this endpoint to reuse either of the two listening endpoints.
   reuseEndpoint: false,
+  preferredAddressPolicy: 'use',
   transportParams: { maxDatagramFrameSize: 1200 },
   ondatagramstatus: mustCall((id, status) => {
     if (++statusCount >= 4) allStatusDone.resolve();
