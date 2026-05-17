@@ -4,20 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gyp-next"
-version = "0.22.1"
+version = "0.22.2"
 authors = [
   { name="Node.js contributors", email="ryzokuken@disroot.org" },
 ]
 description = "A fork of the GYP build system for use in the Node.js projects"
 readme = "README.md"
-license = { file="LICENSE" }
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
-dependencies = ["packaging>=24.0", "setuptools>=69.5.1"]
+dependencies = ["packaging>=24.0", "setuptools>=77.0.3"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
