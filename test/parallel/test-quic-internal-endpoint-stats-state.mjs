@@ -88,9 +88,13 @@ const {
   strictEqual(typeof endpoint.stats.clientSessions, 'bigint');
   strictEqual(typeof endpoint.stats.serverBusyCount, 'bigint');
   strictEqual(typeof endpoint.stats.retryCount, 'bigint');
+  strictEqual(typeof endpoint.stats.retryRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.versionNegotiationCount, 'bigint');
+  strictEqual(typeof endpoint.stats.versionNegotiationRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.statelessResetCount, 'bigint');
+  strictEqual(typeof endpoint.stats.statelessResetRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.immediateCloseCount, 'bigint');
+  strictEqual(typeof endpoint.stats.immediateCloseRateLimited, 'bigint');
 
   deepStrictEqual(Object.keys(endpoint.stats.toJSON()), [
     'connected',
@@ -104,9 +108,13 @@ const {
     'clientSessions',
     'serverBusyCount',
     'retryCount',
+    'retryRateLimited',
     'versionNegotiationCount',
+    'versionNegotiationRateLimited',
     'statelessResetCount',
+    'statelessResetRateLimited',
     'immediateCloseCount',
+    'immediateCloseRateLimited',
   ]);
   strictEqual(typeof inspect(endpoint.stats), 'string');
 }

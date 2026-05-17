@@ -117,8 +117,14 @@ class SessionManager;
   V(idle_timeout, "idleTimeout")                                               \
   V(max_idle_timeout, "maxIdleTimeout")                                        \
   V(max_payload_size, "maxPayloadSize")                                        \
-  V(max_retries, "maxRetries")                                                 \
-  V(max_stateless_resets, "maxStatelessResetsPerHost")                         \
+  V(retry_rate, "retryRate")                                                   \
+  V(retry_burst, "retryBurst")                                                 \
+  V(stateless_reset_rate, "statelessResetRate")                                \
+  V(stateless_reset_burst, "statelessResetBurst")                              \
+  V(version_negotiation_rate, "versionNegotiationRate")                        \
+  V(version_negotiation_burst, "versionNegotiationBurst")                      \
+  V(immediate_close_rate, "immediateCloseRate")                                \
+  V(immediate_close_burst, "immediateCloseBurst")                              \
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
