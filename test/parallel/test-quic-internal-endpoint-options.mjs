@@ -53,13 +53,6 @@ const cases = [
     invalid: [-1, 65536, 1.5, 'a', null, false, true, {}, [], () => {}]
   },
   {
-    key: 'maxStatelessResetsPerHost',
-    valid: [
-      1, 10, 100, 1000, 10000, 10000n,
-    ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
-  },
-  {
     key: 'addressLRUSize',
     valid: [
       1, 10, 100, 1000, 10000, 10000n,
@@ -67,11 +60,44 @@ const cases = [
     invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
   },
   {
-    key: 'maxRetries',
-    valid: [
-      1, 10, 100, 1000, 10000, 10000n,
-    ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    key: 'retryRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'retryBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'statelessResetRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'statelessResetBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'versionNegotiationRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'versionNegotiationBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'immediateCloseRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'immediateCloseBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
   },
   {
     key: 'validateAddress',
