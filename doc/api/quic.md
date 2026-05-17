@@ -726,7 +726,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of QUIC retry attempts on this endpoint. Read only.
+* Type: {bigint} The total number of retry packets sent by this endpoint. Read only.
+
+### `endpointStats.retryRateLimited`
+
+* Type: {bigint} The total number of retry packets dropped by the global rate
+  limiter. Read only. A non-zero value indicates the endpoint is under retry
+  flood pressure.
 
 ### `endpointStats.versionNegotiationCount`
 
@@ -734,7 +740,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of sessions rejected due to QUIC version mismatch. Read only.
+* Type: {bigint} The total number of version negotiation packets sent by this
+  endpoint. Read only.
+
+### `endpointStats.versionNegotiationRateLimited`
+
+* Type: {bigint} The total number of version negotiation packets dropped by
+  the global rate limiter. Read only.
 
 ### `endpointStats.statelessResetCount`
 
@@ -742,7 +754,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of stateless resets handled by this endpoint. Read only.
+* Type: {bigint} The total number of stateless reset packets sent by this
+  endpoint. Read only.
+
+### `endpointStats.statelessResetRateLimited`
+
+* Type: {bigint} The total number of stateless reset packets dropped by the
+  global rate limiter. Read only.
 
 ### `endpointStats.immediateCloseCount`
 
@@ -750,7 +768,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of sessions that were closed before handshake completed. Read only.
+* Type: {bigint} The total number of immediate connection close packets sent
+  by this endpoint. Read only.
+
+### `endpointStats.immediateCloseRateLimited`
+
+* Type: {bigint} The total number of immediate connection close packets
+  dropped by the global rate limiter. Read only.
 
 ## Class: `QuicSession`
 
@@ -2455,25 +2479,69 @@ addresses. When the limit is reached, new connections are refused with
 This limit can also be changed dynamically after construction via
 [`endpoint.maxConnectionsTotal`][].
 
-#### `endpointOptions.maxRetries`
+#### `endpointOptions.retryRate`
 
-<!-- YAML
-added: v23.8.0
--->
+* Type: {number}
+* **Default:** `100`
 
-* Type: {bigint|number}
+The maximum number of QUIC retry packets the endpoint will send per second.
+This is a global rate limit (not per-host) that caps the total server-wide
+retry response rate, preventing spoofed-source floods from consuming unbounded
+resources.
 
-Specifies the maximum number of QUIC retry attempts allowed per remote peer address.
+#### `endpointOptions.retryBurst`
 
-#### `endpointOptions.maxStatelessResetsPerHost`
+* Type: {number}
+* **Default:** `200`
 
-<!-- YAML
-added: v23.8.0
--->
+The maximum burst of retry packets allowed before rate limiting takes effect.
 
-* Type: {bigint|number}
+#### `endpointOptions.statelessResetRate`
 
-Specifies the maximum number of stateless resets that are allowed per remote peer address.
+* Type: {number}
+* **Default:** `100`
+
+The maximum number of stateless reset packets the endpoint will send per second.
+
+#### `endpointOptions.statelessResetBurst`
+
+* Type: {number}
+* **Default:** `200`
+
+The maximum burst of stateless reset packets allowed before rate limiting
+takes effect.
+
+#### `endpointOptions.versionNegotiationRate`
+
+* Type: {number}
+* **Default:** `100`
+
+The maximum number of version negotiation packets the endpoint will send per
+second.
+
+#### `endpointOptions.versionNegotiationBurst`
+
+* Type: {number}
+* **Default:** `200`
+
+The maximum burst of version negotiation packets allowed before rate limiting
+takes effect.
+
+#### `endpointOptions.immediateCloseRate`
+
+* Type: {number}
+* **Default:** `100`
+
+The maximum number of immediate connection close packets the endpoint will
+send per second.
+
+#### `endpointOptions.immediateCloseBurst`
+
+* Type: {number}
+* **Default:** `200`
+
+The maximum burst of immediate connection close packets allowed before rate
+limiting takes effect.
 
 #### `endpointOptions.retryTokenExpiration`
 
