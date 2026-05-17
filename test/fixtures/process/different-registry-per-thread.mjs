@@ -5,6 +5,12 @@ const registeredRefs = [];
 const ref = { foo: 'foo' };
 registeredRefs.push(ref);
 
+process.on('exit', () => {
+  // Keep `ref` strongly reachable until exit so the per-thread finalization
+  // callbacks are tested without depending on GC timing.
+  registeredRefs.length;
+});
+
 if (isMainThread) {
   process.finalization.register(ref, () => {
     process.stdout.write('shutdown on main thread\n');
@@ -13,7 +19,6 @@ if (isMainThread) {
   const worker = new Worker(import.meta.filename);
 
   worker.on('error', (err) => {
-    // Referencing `registeredRefs` here to avoid `ref` being GCed before the worker exits.
     console.log(registeredRefs);
     throw err;
   });
