@@ -56,6 +56,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const c = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await c.opened;
@@ -95,6 +96,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const c = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await c.opened;
@@ -139,6 +141,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const c = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await c.opened;
@@ -187,6 +190,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'example.com',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
     onorigin: mustCall(function() {
       throw new Error('onorigin error');
@@ -251,6 +255,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 1 },
   });
   await clientSession.opened;

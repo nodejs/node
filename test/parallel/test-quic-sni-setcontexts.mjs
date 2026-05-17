@@ -42,6 +42,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 {
   const cs = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 2 },
   });
   const info = await cs.opened;
@@ -58,6 +59,7 @@ endpoint.setSNIContexts(
 {
   const cs = await connect(serverEndpoint.address, {
     alpn: 'quic-test',
+    verifyPeer: 'manual',
     transportParams: { maxIdleTimeout: 2 },
   });
   const info = await cs.opened;

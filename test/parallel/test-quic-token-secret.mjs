@@ -41,6 +41,7 @@ const ep1 = await listen(async (serverSession) => {
 // Get a token from the first server.
 const cs1 = await connect(ep1.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   onnewtoken: mustCall((token) => {
     savedToken = token;
     gotToken.resolve();
@@ -63,6 +64,7 @@ const ep2 = await listen(async (serverSession) => {
 
 const cs2 = await connect(ep2.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   token: savedToken,
 });
 await cs2.opened;
@@ -82,6 +84,7 @@ const ep3 = await listen(async (serverSession) => {
 
 const cs3 = await connect(ep3.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   token: savedToken,
 });
 await cs3.opened;

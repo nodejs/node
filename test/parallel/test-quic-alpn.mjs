@@ -41,6 +41,7 @@ notStrictEqual(serverEndpoint.address, undefined);
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'proto-b',
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 
 await Promise.all([serverOpened.promise, checkSession(clientSession)]);

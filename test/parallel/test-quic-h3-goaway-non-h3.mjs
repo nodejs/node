@@ -45,6 +45,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
   alpn: 'quic-test',
   // Ongoaway must NOT fire for non-H3 sessions.
   ongoaway: mustNotCall(),
