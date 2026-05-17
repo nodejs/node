@@ -703,8 +703,13 @@ robocopy /e doc\api %config%\doc\api
 
 %doc_kit_exe% ^
   generate ^
-  -t legacy-html-all legacy-json-all api-links ^
-  -i doc/api/*.md ^
+  --config-file "file://%~dp0tools\doc\web.doc-kit.config.mjs" ^
+  -o %config%/doc/api/ ^
+  -v %NODE_VERSION%
+
+%doc_kit_exe% ^
+  generate ^
+  -t api-links ^
   -i lib/*.js ^
   -o %config%/doc/api/ ^
   -c file://%~dp0\CHANGELOG.md ^
