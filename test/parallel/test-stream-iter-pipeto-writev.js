@@ -151,6 +151,27 @@ async function testPipeToSyncWritev() {
   assert.ok(batches.some((b) => b.length > 1));
 }
 
+// pipeToSync batches plain Uint8Array chunks for writevSync
+async function testPipeToSyncPlainChunksWritev() {
+  const batches = [];
+  const writes = [];
+  const writer = {
+    writevSync(chunks) { batches.push(chunks); },
+    writeSync(chunk) { writes.push(chunk); return true; },
+    endSync() { return 0; },
+  };
+  function* source() {
+    yield new Uint8Array([1]);
+    yield new Uint8Array([2]);
+    yield new Uint8Array([3]);
+  }
+  const total = pipeToSync(source(), writer);
+  assert.strictEqual(total, 3);
+  assert.strictEqual(batches.length, 1);
+  assert.strictEqual(batches[0].length, 3);
+  assert.strictEqual(writes.length, 0);
+}
+
 // pipeToSync with writer that has write() and writeSync() — writeSync preferred
 async function testPipeToSyncWriteFallback() {
   const syncWrites = [];
@@ -174,5 +195,6 @@ Promise.all([
   testWriteSyncAlwaysFails(),
   testPushWriterBlockSyncFalseAccepted(),
   testPipeToSyncWritev(),
+  testPipeToSyncPlainChunksWritev(),
   testPipeToSyncWriteFallback(),
 ]).then(common.mustCall());

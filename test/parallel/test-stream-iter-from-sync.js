@@ -66,9 +66,10 @@ function testFromSyncGenerator() {
   for (const batch of readable) {
     batches.push(batch);
   }
-  assert.strictEqual(batches.length, 2);
+  assert.strictEqual(batches.length, 1);
+  assert.strictEqual(batches[0].length, 2);
   assert.deepStrictEqual(batches[0][0], new Uint8Array([1, 2]));
-  assert.deepStrictEqual(batches[1][0], new Uint8Array([3, 4]));
+  assert.deepStrictEqual(batches[0][1], new Uint8Array([3, 4]));
 }
 
 function testFromSyncNestedIterables() {
