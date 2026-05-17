@@ -44,6 +44,14 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   static constexpr double DEFAULT_IMMEDIATE_CLOSE_RATE = 100;
   static constexpr double DEFAULT_IMMEDIATE_CLOSE_BURST = 200;
 
+  // Per-host session creation rate limit. This is tracked per validated
+  // remote address in the address LRU, preventing a single source from
+  // churning through sessions faster than the server can handle. Unlike
+  // the global stateless response buckets, this only applies after address
+  // validation (spoofed sources can't reach this path).
+  static constexpr double DEFAULT_SESSION_CREATION_RATE = 50;
+  static constexpr double DEFAULT_SESSION_CREATION_BURST = 100;
+
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
     // The local socket address to which the UDP port will be bound. The port
@@ -82,6 +90,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     double version_negotiation_burst = DEFAULT_VERSION_NEGOTIATION_BURST;
     double immediate_close_rate = DEFAULT_IMMEDIATE_CLOSE_RATE;
     double immediate_close_burst = DEFAULT_IMMEDIATE_CLOSE_BURST;
+
+    // Per-host session creation rate limit. Tracked per validated remote
+    // address in the address LRU. Set to high values for benchmarking
+    // where traffic comes from a single source.
+    double session_creation_rate = DEFAULT_SESSION_CREATION_RATE;
+    double session_creation_burst = DEFAULT_SESSION_CREATION_BURST;
 
     // The validate_address parameter instructs the Endpoint to perform explicit
     // address validation using retry tokens. This is strongly recommended and
@@ -452,6 +466,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     struct Type final {
       uint64_t timestamp;
       bool validated;
+      TokenBucket session_creation_bucket;
     };
 
     static bool CheckExpired(const SocketAddress& address, const Type& type);
