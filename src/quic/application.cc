@@ -724,8 +724,11 @@ class DefaultApplication final : public Session::Application {
 
   void EarlyDataRejected() override {
     // Destroy all open streams — ngtcp2 has already discarded their
-    // internal state when it rejected the early data.
-    session().DestroyAllStreams(QuicError::ForApplication(0));
+    // internal state when it rejected the early data. Use the
+    // application's internal error code since this is an error
+    // condition (code 0 would be treated as a clean close).
+    session().DestroyAllStreams(
+        QuicError::ForApplication(GetInternalErrorCode()));
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }
