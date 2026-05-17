@@ -27,7 +27,9 @@ new SnapshotAgent([options])
   - **ignoreHeaders** `Array<String>` - Headers to ignore during request matching
   - **excludeHeaders** `Array<String>` - Headers to exclude from snapshots (for security)
   - **matchBody** `Boolean` - Whether to include request body in matching. Default: `true`
+  - **normalizeBody** `Function` - Optional function `(body) => string` to normalize the request body before matching (e.g. strip volatile fields like timestamps). Only used when `matchBody` is `true`.
   - **matchQuery** `Boolean` - Whether to include query parameters in matching. Default: `true`
+  - **normalizeQuery** `Function` - Optional function `(query: URLSearchParams) => string` to normalize query parameters before matching (e.g. strip volatile params like cache-busters). Only used when `matchQuery` is `true`.
   - **caseSensitive** `Boolean` - Whether header matching is case-sensitive. Default: `false`
   - **shouldRecord** `Function` - Callback to determine if a request should be recorded
   - **shouldPlayback** `Function` - Callback to determine if a request should be played back
@@ -107,6 +109,27 @@ await agent.saveSnapshots('./custom-snapshots.json')
 ```
 
 ## Advanced Configuration
+
+### Body Matching
+
+By default (`matchBody: true`) the full request body string is included in the snapshot key. Set it to `false` to ignore the body entirely, or use `normalizeBody` to strip volatile fields (like timestamps) before matching:
+
+```javascript
+const agent = new SnapshotAgent({
+  mode: 'playback',
+  snapshotPath: './snapshots.json',
+
+  // Match on everything except the timestamp field
+  normalizeBody: (body) => {
+    if (!body) return ''
+    const parsed = JSON.parse(String(body))
+    delete parsed.timestamp
+    return JSON.stringify(parsed)
+  }
+})
+```
+
+`normalizeBody` receives the raw body (`string | Buffer | null | undefined`) and must return a `string`. It runs at both record and playback time so the hash is consistent. Two requests match the same snapshot whenever their normalized strings are identical.
 
 ### Header Filtering
 

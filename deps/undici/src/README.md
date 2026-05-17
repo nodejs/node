@@ -200,7 +200,9 @@ await fetch('https://example.com', {
 ```
 
 `install()` replaces the global `fetch`, `Headers`, `Response`, `Request`, and
-`FormData` implementations with undici's versions, so they all match.
+`FormData` implementations with undici's versions, so they all match. It also
+installs undici's `WebSocket`, `CloseEvent`, `ErrorEvent`, `MessageEvent`, and
+`EventSource` globals.
 
 Avoid mixing a global `FormData` with `undici.fetch()`, or `undici.FormData`
 with the built-in global `fetch()`.
@@ -283,12 +285,12 @@ const data2 = await getData();
 
 ## Global Installation
 
-Undici provides an `install()` function to add all WHATWG fetch classes to `globalThis`, making them available globally:
+Undici provides an `install()` function to add fetch-related and other web API classes to `globalThis`, making them available globally:
 
 ```js
 import { install } from 'undici'
 
-// Install all WHATWG fetch classes globally
+// Install undici's global web APIs
 install()
 
 // Now you can use fetch classes globally without importing
@@ -316,8 +318,9 @@ The `install()` function adds the following classes to `globalThis`:
 
 When you call `install()`, these globals come from the same undici
 implementation. For example, global `fetch` and global `FormData` will both be
-undici's versions, which is the recommended setup if you want to use undici
-through globals.
+undici's versions, and `WebSocket` and `EventSource` will also come from
+undici, which is the recommended setup if you want to use undici through
+globals.
 
 This is useful for:
 - Polyfilling environments that don't have fetch

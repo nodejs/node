@@ -776,7 +776,7 @@ function isValidHeaderValue (characters) {
   return !headerCharRegex.test(characters)
 }
 
-const rangeHeaderRegex = /^bytes (\d+)-(\d+)\/(\d+)?$/
+const rangeHeaderRegex = /^bytes (\d+)-(\d+)\/(\d+|\*)?$/
 
 /**
  * @typedef {object} RangeHeader
@@ -799,7 +799,7 @@ function parseRangeHeader (range) {
     ? {
         start: parseInt(m[1]),
         end: m[2] ? parseInt(m[2]) : null,
-        size: m[3] ? parseInt(m[3]) : null
+        size: m[3] && m[3] !== '*' ? parseInt(m[3]) : null
       }
     : null
 }

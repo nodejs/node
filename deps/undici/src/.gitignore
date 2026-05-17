@@ -91,3 +91,5 @@ AGENTS.md
 
 # Ignore .githuman
 .githuman
+
+benchmarks/package-lock.json

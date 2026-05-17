@@ -6,6 +6,7 @@ const {
   kNeedDrain,
   kAddClient,
   kGetDispatcher,
+  kHasDispatcher,
   kRemoveClient
 } = require('./pool-base')
 const Client = require('./client')
@@ -114,6 +115,28 @@ class Pool extends PoolBase {
       this[kAddClient](dispatcher)
       return dispatcher
     }
+  }
+
+  [kHasDispatcher] () {
+    const clientTtlOption = this[kOptions].clientTtl
+    for (let i = 0; i < this[kClients].length; i++) {
+      const client = this[kClients][i]
+
+      if (clientTtlOption != null && clientTtlOption > 0 && client.ttl && ((Date.now() - client.ttl) > clientTtlOption)) {
+        this[kRemoveClient](client)
+        i--
+      } else if (!client[kNeedDrain]) {
+        return true
+      }
+    }
+
+    if (!this[kConnections] || this[kClients].length < this[kConnections]) {
+      const dispatcher = this[kFactory](this[kUrl], this[kOptions])
+      this[kAddClient](dispatcher)
+      return true
+    }
+
+    return false
   }
 }
 
