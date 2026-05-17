@@ -47,6 +47,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   reuseEndpoint: false,
+  preferredAddressPolicy: 'use',
   // The onpathvalidation must be set for the JS handler to fire,
   // which in turn publishes to the diagnostics channel.
   onpathvalidation: mustCall(),
