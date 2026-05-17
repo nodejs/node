@@ -434,8 +434,7 @@ void SocketAddressBlockList::AddSocketAddressMask(
   rules_.emplace_front(std::move(rule));
 }
 
-bool SocketAddressBlockList::Apply(
-    const std::shared_ptr<SocketAddress>& address) {
+bool SocketAddressBlockList::Apply(const SocketAddress& address) {
   Mutex::ScopedLock lock(mutex_);
   for (const auto& rule : rules_) {
     if (rule->Apply(address)) return true;
@@ -457,8 +456,8 @@ SocketAddressBlockList::SocketAddressMaskRule::SocketAddressMaskRule(
     : network(network_), prefix(prefix_) {}
 
 bool SocketAddressBlockList::SocketAddressRule::Apply(
-    const std::shared_ptr<SocketAddress>& address) {
-  return this->address->is_match(*address.get());
+    const SocketAddress& address) {
+  return this->address->is_match(address);
 }
 
 std::string SocketAddressBlockList::SocketAddressRule::ToString() {
@@ -470,8 +469,8 @@ std::string SocketAddressBlockList::SocketAddressRule::ToString() {
 }
 
 bool SocketAddressBlockList::SocketAddressRangeRule::Apply(
-    const std::shared_ptr<SocketAddress>& address) {
-  return *address.get() >= *start.get() && *address.get() <= *end.get();
+    const SocketAddress& address) {
+  return address >= *start.get() && address <= *end.get();
 }
 
 std::string SocketAddressBlockList::SocketAddressRangeRule::ToString() {
@@ -485,8 +484,8 @@ std::string SocketAddressBlockList::SocketAddressRangeRule::ToString() {
 }
 
 bool SocketAddressBlockList::SocketAddressMaskRule::Apply(
-    const std::shared_ptr<SocketAddress>& address) {
-  return address->is_in_network(*network.get(), prefix);
+    const SocketAddress& address) {
+  return address.is_in_network(*network.get(), prefix);
 }
 
 std::string SocketAddressBlockList::SocketAddressMaskRule::ToString() {
@@ -656,7 +655,7 @@ void SocketAddressBlockListWrap::Check(
   SocketAddressBase* addr;
   ASSIGN_OR_RETURN_UNWRAP(&addr, args[0]);
 
-  args.GetReturnValue().Set(wrap->blocklist_->Apply(addr->address()));
+  args.GetReturnValue().Set(wrap->blocklist_->Apply(*addr->address()));
 }
 
 void SocketAddressBlockListWrap::GetRules(

@@ -11,6 +11,7 @@ if (!hasQuic) {
 
 // Import after the hasQuic check
 const { QuicEndpoint } = await import('node:quic');
+const { BlockList } = await import('node:net');
 
 // Reject invalid options
 ['a', null, false, NaN].forEach((i) => {
@@ -108,6 +109,16 @@ const cases = [
     key: 'sessionCreationBurst',
     valid: [0, 1, 10, 100.5, 1000, Infinity],
     invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'blockList',
+    valid: [new BlockList()],
+    invalid: ['a', 0, null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'blockListPolicy',
+    valid: ['deny', 'allow'],
+    invalid: ['invalid', 0, null, false, true, {}, [], () => {}]
   },
   {
     key: 'validateAddress',

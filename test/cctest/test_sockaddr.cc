@@ -286,11 +286,11 @@ TEST(SocketAddressBlockList, Simple) {
   bl.AddSocketAddress(addr1);
   bl.AddSocketAddress(addr2);
 
-  CHECK(bl.Apply(addr1));
-  CHECK(bl.Apply(addr2));
+  CHECK(bl.Apply(*addr1));
+  CHECK(bl.Apply(*addr2));
 
   bl.RemoveSocketAddress(addr1);
 
-  CHECK(!bl.Apply(addr1));
-  CHECK(bl.Apply(addr2));
+  CHECK(!bl.Apply(*addr1));
+  CHECK(bl.Apply(*addr2));
 }

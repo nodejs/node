@@ -79,7 +79,8 @@ namespace quic {
   V(STATELESS_RESET_RATE_LIMITED, stateless_reset_rate_limited)                \
   V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)                              \
   V(IMMEDIATE_CLOSE_RATE_LIMITED, immediate_close_rate_limited)                \
-  V(SESSION_CREATION_RATE_LIMITED, session_creation_rate_limited)
+  V(SESSION_CREATION_RATE_LIMITED, session_creation_rate_limited)              \
+  V(PACKETS_BLOCKED, packets_blocked)
 
 struct Endpoint::State {
 #define V(_, name, type) type name;
@@ -263,6 +264,42 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
     options.local_address = std::make_shared<SocketAddress>();
     if (!SocketAddress::New("127.0.0.1", 0, options.local_address.get())) {
       THROW_ERR_INVALID_ADDRESS(env);
+      return Nothing<Options>();
+    }
+  }
+
+  // Parse block list option. Expects the C++ SocketAddressBlockListWrap handle
+  // (the JS side extracts [kHandle] before passing it through).
+  Local<Value> block_list_val;
+  if (!params->Get(env->context(), state.block_list_string())
+           .ToLocal(&block_list_val)) {
+    return Nothing<Options>();
+  }
+  if (!block_list_val->IsUndefined()) {
+    if (!SocketAddressBlockListWrap::HasInstance(env, block_list_val)) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "The blockList option must be a BlockList handle");
+      return Nothing<Options>();
+    }
+    auto* wrap =
+        FromJSObject<SocketAddressBlockListWrap>(block_list_val.As<Object>());
+    options.block_list = wrap->blocklist();
+  }
+
+  // Parse block list policy.
+  Local<Value> policy_val;
+  if (!params->Get(env->context(), state.block_list_policy_string())
+           .ToLocal(&policy_val)) {
+    return Nothing<Options>();
+  }
+  if (!policy_val->IsUndefined()) {
+    if (policy_val->StrictEquals(state.allow_string())) {
+      options.block_list_policy = Options::BlockListPolicy::ALLOW;
+    } else if (policy_val->StrictEquals(state.deny_string())) {
+      options.block_list_policy = Options::BlockListPolicy::DENY;
+    } else {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The blockListPolicy option must be 'deny' or 'allow'");
       return Nothing<Options>();
     }
   }
@@ -1317,6 +1354,20 @@ void Endpoint::Receive(const uint8_t* data,
                        const SocketAddress& remote_address) {
   const uint64_t now = uv_hrtime();
 
+  // Block list filtering — applied before any packet processing to
+  // minimize resource expenditure on blocked sources.
+  if (options_.block_list) {
+    bool matched = options_.block_list->Apply(remote_address);
+    bool drop = (options_.block_list_policy == Options::BlockListPolicy::DENY)
+                    ? matched    // deny list: drop if address matches
+                    : !matched;  // allow list: drop if address doesn't match
+    if (drop) {
+      Debug(this, "Packet from %s blocked by block list", remote_address);
+      STAT_INCREMENT(Stats, packets_blocked);
+      return;
+    }
+  }
+
   const auto receive = [&](Session* session,
                            const uint8_t* pkt_data,
                            size_t pkt_len,
@@ -1731,12 +1782,6 @@ void Endpoint::Receive(const uint8_t* data,
     return;
   }
 #endif  // DEBUG
-
-  // TODO(@jasnell): Implement blocklist support
-  // if (block_list_->Apply(remote_address)) [[unlikely]] {
-  //   Debug(this, "Ignoring blocked remote address: %s", remote_address);
-  //   return;
-  // }
 
   Debug(this, "Received %zu-byte packet from %s", len, remote_address);
 

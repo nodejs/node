@@ -189,6 +189,50 @@ object. Each rate limiter has a corresponding counter
 were dropped. A non-zero value indicates the rate limiter is actively
 protecting the endpoint.
 
+#### Block lists
+
+Endpoints can filter incoming packets by source address using a
+[`net.BlockList`][]. The block list is checked before any QUIC processing
+occurs, so blocked packets consume no resources beyond the check itself.
+
+In **deny** mode (the default), packets from addresses in the list are dropped:
+
+```mjs
+import { BlockList } from 'node:net';
+import { listen } from 'node:quic';
+
+const blocked = new BlockList();
+blocked.addSubnet('192.168.1.0', 24);  // Block an entire subnet
+blocked.addAddress('10.0.0.5');        // Block a specific address
+
+const endpoint = await listen(onSession, {
+  endpoint: {
+    blockList: blocked,
+    blockListPolicy: 'deny',
+  },
+  // ...
+});
+```
+
+In **allow** mode, only packets from addresses in the list are accepted:
+
+```mjs
+const trusted = new BlockList();
+trusted.addSubnet('10.0.0.0', 8);
+
+const endpoint = await listen(onSession, {
+  endpoint: {
+    blockList: trusted,
+    blockListPolicy: 'allow',
+  },
+  // ...
+});
+```
+
+The block list is evaluated live — rules added or removed after the endpoint
+is created take effect immediately. The `endpoint.stats.packetsBlocked`
+counter tracks how many packets have been dropped by the filter.
+
 ### Applications
 
 Every `QuicSession` is associated with a single application protocol, negotiated
@@ -830,6 +874,11 @@ added: v23.8.0
 * Type: {bigint} The total number of session creation attempts dropped by the
   per-host rate limiter. Read only. A non-zero value indicates one or more
   remote addresses are creating sessions faster than the configured rate allows.
+
+### `endpointStats.packetsBlocked`
+
+* Type: {bigint} The total number of incoming packets dropped by the
+  block list filter. Read only.
 
 ## Class: `QuicSession`
 
@@ -2428,6 +2477,34 @@ added: v23.8.0
 * Type: {net.SocketAddress | string} The local UDP address and port the endpoint should bind to.
 
 If not specified the endpoint will bind to IPv4 `localhost` on a random port.
+
+#### `endpointOptions.blockList`
+
+* Type: {net.BlockList}
+
+An optional [`net.BlockList`][] instance for filtering incoming packets by
+source address. When configured, every received UDP packet is checked against
+the block list before any QUIC processing occurs, minimizing resource
+expenditure on blocked sources. The block list is evaluated live — rules
+added to the `BlockList` object after the endpoint is created take effect
+immediately.
+
+See [`endpointOptions.blockListPolicy`][] for how matches are interpreted.
+
+#### `endpointOptions.blockListPolicy`
+
+* Type: {string} One of `'deny'` or `'allow'`.
+* **Default:** `'deny'`
+
+Controls how the [`endpointOptions.blockList`][] is interpreted:
+
+* `'deny'` — Packets from addresses matching the block list are dropped.
+  All other addresses are accepted. This is the typical blocklist mode.
+* `'allow'` — Only packets from addresses matching the block list are
+  accepted. All other addresses are dropped. This is an allowlist mode
+  for restricting access to known clients.
+
+If no block list is configured, this option has no effect.
 
 #### `endpointOptions.addressLRUSize`
 
@@ -4275,6 +4352,8 @@ throughput issues caused by flow control.
 [`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
+[`endpointOptions.blockListPolicy`]: #endpointoptionsblocklistpolicy
+[`endpointOptions.blockList`]: #endpointoptionsblocklist
 [`endpointOptions.immediateCloseBurst`]: #endpointoptionsimmediatecloseburst
 [`endpointOptions.immediateCloseRate`]: #endpointoptionsimmediatecloserate
 [`endpointOptions.retryBurst`]: #endpointoptionsretryburst
@@ -4288,6 +4367,7 @@ throughput issues caused by flow control.
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
 [`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
+[`net.BlockList`]: net.md#class-netblocklist
 [`quic.connect()`]: #quicconnectaddress-options
 [`quic.listen()`]: #quiclistenonsession-options
 [`session.close()`]: #sessioncloseoptions
