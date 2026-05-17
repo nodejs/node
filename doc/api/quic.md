@@ -140,6 +140,55 @@ Certificate compression ([RFC 8879][]) can also address this issue by
 compressing the certificate chain during the handshake. However, Node.js does
 not currently support TLS certificate compression.
 
+### Rate limiting
+
+QUIC endpoints include built-in rate limiting to protect against
+denial-of-service attacks. There are two layers of defense:
+
+**Global rate limits** cap the total rate of stateless responses that the
+endpoint will send, regardless of the source address. These protect against
+floods from spoofed source IP addresses, where an attacker rotates through
+many fake source addresses to bypass per-host limits. Four types of stateless
+responses are independently rate-limited:
+
+* **Retry packets** — sent to validate a client's address during connection
+  setup. Configurable via [`endpointOptions.retryRate`][] and
+  [`endpointOptions.retryBurst`][].
+* **Stateless reset packets** — sent when the endpoint receives a packet for an
+  unknown session. Configurable via [`endpointOptions.statelessResetRate`][]
+  and [`endpointOptions.statelessResetBurst`][].
+* **Version negotiation packets** — sent when a client uses an unsupported QUIC
+  version. Configurable via [`endpointOptions.versionNegotiationRate`][] and
+  [`endpointOptions.versionNegotiationBurst`][].
+* **Immediate connection close packets** — sent when the server is busy or a
+  token is invalid. Configurable via [`endpointOptions.immediateCloseRate`][]
+  and [`endpointOptions.immediateCloseBurst`][].
+
+Each rate limit uses a token bucket: the endpoint can send up to the burst
+capacity instantly, and tokens refill at the configured rate per second. When
+the bucket is empty, additional responses of that type are silently dropped.
+The defaults (100 per second, burst of 200) are suitable for most deployments.
+
+**Per-host session creation rate limits** cap how fast a single remote address
+can create new sessions. This is tracked per validated remote address and
+prevents a single client from churning through sessions (rapidly connecting and
+disconnecting) to consume server resources. Configurable via
+[`endpointOptions.sessionCreationRate`][] and
+[`endpointOptions.sessionCreationBurst`][]. The defaults (50 per second, burst
+of 100) are generous enough for legitimate traffic patterns. For benchmarking
+scenarios where traffic comes from a single source, increase these values.
+
+In addition to rate limiting, the endpoint supports **concurrent connection
+limits** via `maxConnectionsPerHost` and `maxConnectionsTotal`, and a
+**busy mode** via [`endpoint.busy`][] that rejects all new connections.
+
+Rate limiting activity can be monitored through the endpoint's statistics
+object. Each rate limiter has a corresponding counter
+(e.g., `endpoint.stats.retryRateLimited`,
+`endpoint.stats.sessionCreationRateLimited`) that tracks how many responses
+were dropped. A non-zero value indicates the rate limiter is actively
+protecting the endpoint.
+
 ### Applications
 
 Every `QuicSession` is associated with a single application protocol, negotiated
@@ -4197,8 +4246,19 @@ throughput issues caused by flow control.
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
+[`endpointOptions.immediateCloseBurst`]: #endpointoptionsimmediatecloseburst
+[`endpointOptions.immediateCloseRate`]: #endpointoptionsimmediatecloserate
+[`endpointOptions.retryBurst`]: #endpointoptionsretryburst
+[`endpointOptions.retryRate`]: #endpointoptionsretryrate
+[`endpointOptions.sessionCreationBurst`]: #endpointoptionssessioncreationburst
+[`endpointOptions.sessionCreationRate`]: #endpointoptionssessioncreationrate
+[`endpointOptions.statelessResetBurst`]: #endpointoptionsstatelessresetburst
+[`endpointOptions.statelessResetRate`]: #endpointoptionsstatelessresetrate
+[`endpointOptions.versionNegotiationBurst`]: #endpointoptionsversionnegotiationburst
+[`endpointOptions.versionNegotiationRate`]: #endpointoptionsversionnegotiationrate
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
 [`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
