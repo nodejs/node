@@ -64,6 +64,7 @@ for (const test of TEST_CASES) {
 
   const isCCM = /^aes-(128|192|256)-ccm$/.test(test.algo);
   const isOCB = /^aes-(128|192|256)-ocb$/.test(test.algo);
+  const isSIV = /^aes-(128|192|256)-siv$/.test(test.algo);
 
   let options;
   if (isCCM || isOCB)
@@ -144,7 +145,7 @@ for (const test of TEST_CASES) {
       crypto.createCipheriv(
         test.algo,
         Buffer.from(test.key, 'hex'),
-        Buffer.alloc(0)
+        isSIV ? Buffer.alloc(1) : Buffer.alloc(0)
       );
     }, errMessages.length);
   }
@@ -200,6 +201,62 @@ for (const test of TEST_CASES) {
       name: 'TypeError',
       message: /Invalid authentication tag length/
     });
+  }
+}
+
+// SIV and GCM-SIV use fixed 16-byte authentication tags.
+{
+  for (const { algo, key, iv } of [
+    {
+      algo: 'aes-128-siv',
+      key: Buffer.alloc(32),
+      iv: null
+    },
+    {
+      algo: 'aes-128-gcm-siv',
+      key: Buffer.alloc(16),
+      iv: Buffer.alloc(12)
+    },
+  ]) {
+    if (!ciphers.includes(algo)) {
+      common.printSkipMessage(`unsupported ${algo} test`);
+      continue;
+    }
+
+    for (const authTagLength of [1, 15, 17]) {
+      assert.throws(() => {
+        crypto.createCipheriv(algo, key, iv, { authTagLength });
+      }, errMessages.authTagLength);
+
+      assert.throws(() => {
+        crypto.createDecipheriv(algo, key, iv, { authTagLength });
+      }, errMessages.authTagLength);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      cipher.update('a');
+      assert.throws(() => {
+        cipher.update('b');
+      }, /Trying to add data in unsupported state/);
+    }
+
+    {
+      const cipher = crypto.createCipheriv(algo, key, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update('authenticated plaintext'),
+        cipher.final(),
+      ]);
+      const authTag = cipher.getAuthTag();
+      authTag[0] ^= 1;
+
+      const decipher = crypto.createDecipheriv(algo, key, iv);
+      decipher.setAuthTag(authTag);
+      decipher.update(ciphertext);
+      assert.throws(() => {
+        decipher.final();
+      }, /Unsupported state or unable to authenticate data/);
+    }
   }
 }
 

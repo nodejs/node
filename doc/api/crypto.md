@@ -849,8 +849,8 @@ added: v1.0.0
 -->
 
 * Returns: {Buffer} When using an authenticated encryption mode (`GCM`, `CCM`,
-  `OCB`, and `chacha20-poly1305` are currently supported), the
-  `cipher.getAuthTag()` method returns a
+  `OCB`, `SIV`, `GCM-SIV`, and `chacha20-poly1305` are currently
+  supported), the `cipher.getAuthTag()` method returns a
   [`Buffer`][] containing the _authentication tag_ that has been computed from
   the given data.
 
@@ -872,14 +872,14 @@ added: v1.0.0
   * `encoding` {string} The string encoding to use when `buffer` is a string.
 * Returns: {Cipheriv} The same `Cipheriv` instance for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
-`chacha20-poly1305` are
-currently supported), the `cipher.setAAD()` method sets the value used for the
-_additional authenticated data_ (AAD) input parameter.
+When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, `SIV`,
+`GCM-SIV`, and `chacha20-poly1305` are currently supported), the
+`cipher.setAAD()` method sets the value used for the _additional authenticated
+data_ (AAD) input parameter.
 
-The `plaintextLength` option is optional for `GCM` and `OCB`. When using `CCM`,
-the `plaintextLength` option must be specified and its value must match the
-length of the plaintext in bytes. See [CCM mode][].
+The `plaintextLength` option is optional for `GCM`, `OCB`, `SIV`, and
+`GCM-SIV`. When using `CCM`, the `plaintextLength` option must be specified and
+its value must match the length of the plaintext in bytes. See [CCM mode][].
 
 The `cipher.setAAD()` method must be called before [`cipher.update()`][].
 
@@ -1172,14 +1172,14 @@ changes:
   * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipheriv} The same `Decipheriv` instance for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
-`chacha20-poly1305` are
-currently supported), the `decipher.setAAD()` method sets the value used for the
-_additional authenticated data_ (AAD) input parameter.
+When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, `SIV`,
+`GCM-SIV`, and `chacha20-poly1305` are currently supported), the
+`decipher.setAAD()` method sets the value used for the _additional
+authenticated data_ (AAD) input parameter.
 
-The `options` argument is optional for `GCM`. When using `CCM`, the
-`plaintextLength` option must be specified and its value must match the length
-of the ciphertext in bytes. See [CCM mode][].
+The `options` argument is optional for `GCM`, `OCB`, `SIV`, and `GCM-SIV`.
+When using `CCM`, the `plaintextLength` option must be specified and its value
+must match the length of the ciphertext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
@@ -1219,18 +1219,18 @@ changes:
 * `encoding` {string} String encoding to use when `buffer` is a string.
 * Returns: {Decipheriv} The same `Decipheriv` instance for method chaining.
 
-When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
-`chacha20-poly1305` are
-currently supported), the `decipher.setAuthTag()` method is used to pass in the
-received _authentication tag_. If no tag is provided, or if the cipher text
-has been tampered with, [`decipher.final()`][] will throw, indicating that the
-cipher text should be discarded due to failed authentication. If the tag length
-is invalid according to [NIST SP 800-38D][] or does not match the value of the
+When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, `SIV`,
+`GCM-SIV`, and `chacha20-poly1305` are currently supported), the
+`decipher.setAuthTag()` method is used to pass in the received
+_authentication tag_. If no tag is provided, or if the cipher text has been
+tampered with, [`decipher.final()`][] will throw, indicating that the cipher
+text should be discarded due to failed authentication. If the tag length is
+invalid according to [NIST SP 800-38D][] or does not match the value of the
 `authTagLength` option, `decipher.setAuthTag()` will throw an error.
 
 The `decipher.setAuthTag()` method must be called before [`decipher.update()`][]
-for `CCM` mode or before [`decipher.final()`][] for `GCM` and `OCB` modes and
-`chacha20-poly1305`.
+for `CCM`, `SIV`, and `GCM-SIV` modes or before [`decipher.final()`][] for
+`GCM` and `OCB` modes and `chacha20-poly1305`.
 `decipher.setAuthTag()` can only be called once.
 
 When passing a string as the authentication tag, please consider
@@ -3543,6 +3543,9 @@ operations. The specific constants currently defined are described in
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63411
+    description: Ciphers in SIV and GCM-SIV modes are now supported.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
   - version: v26.0.0
@@ -3595,7 +3598,9 @@ cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
 option is not required but can be used to set the length of the authentication
 tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
-For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
+For `SIV`, `GCM-SIV`, and `chacha20-poly1305`, the `authTagLength` option
+defaults to 16 bytes. `SIV` and `GCM-SIV` only support 16-byte authentication
+tags.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will
@@ -3622,6 +3627,9 @@ given IV will be.
 <!-- YAML
 added: v0.1.94
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63411
+    description: Ciphers in SIV and GCM-SIV modes are now supported.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63188
     description: Passing a CryptoKey as `key` is no longer supported.
@@ -3670,7 +3678,9 @@ cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][].
 For AES-GCM and `chacha20-poly1305`, the `authTagLength` option defaults to 16
-bytes and must be set to a different value if a different length is used.
+bytes and must be set to a different value if a different length is used. For
+`SIV` and `GCM-SIV`, the `authTagLength` option defaults to 16 bytes and only
+16-byte authentication tags are supported.
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will
@@ -4724,15 +4734,17 @@ added: v15.0.0
   * `ivLength` {number} A test IV length.
 * Returns: {Object}
   * `name` {string} The name of the cipher
-  * `nid` {number} The nid of the cipher
-  * `blockSize` {number} The block size of the cipher in bytes. This property
-    is omitted when `mode` is `'stream'`.
-  * `ivLength` {number} The expected or default initialization vector length in
-    bytes. This property is omitted if the cipher does not use an initialization
+  * `nid` {number|undefined} The nid of the cipher. This property is `undefined` if the
+    cipher has no OpenSSL nid.
+  * `blockSize` {number|undefined} The block size of the cipher in bytes. This property
+    is `undefined` when `mode` is `'stream'`.
+  * `ivLength` {number|undefined} The expected or default initialization vector length in
+    bytes. This property is `undefined` if the cipher does not use an initialization
     vector.
   * `keyLength` {number} The expected or default key length in bytes.
   * `mode` {string} The cipher mode. One of `'cbc'`, `'ccm'`, `'cfb'`, `'ctr'`,
-    `'ecb'`, `'gcm'`, `'ocb'`, `'ofb'`, `'stream'`, `'wrap'`, `'xts'`.
+    `'ecb'`, `'gcm'`, `'gcm-siv'`, `'ocb'`, `'ofb'`, `'siv'`, `'stream'`,
+    `'wrap'`, `'xts'`.
 
 Returns information about a given cipher.
 
@@ -6588,6 +6600,35 @@ try {
 
 console.log(receivedPlaintext);
 ```
+
+### SIV and GCM-SIV modes
+
+`SIV`[^openssl30] and `GCM-SIV`[^openssl32] are supported [AEAD algorithms][]
+when supported by OpenSSL. Applications which use these modes must adhere to
+certain restrictions when using the cipher API:
+
+* The authentication tag length is fixed at 16 bytes.
+* `AES-SIV` keys are twice the named AES key size: `aes-128-siv` requires a
+  32-byte key, `aes-192-siv` requires a 48-byte key, and `aes-256-siv`
+  requires a 64-byte key.
+* `AES-SIV` ciphers do not use an initialization vector. Pass `null` or a
+  zero-length `iv` to [`crypto.createCipheriv()`][] or
+  [`crypto.createDecipheriv()`][].
+* `AES-SIV` does not have a separate nonce or IV parameter. RFC 5297 defines
+  `AES-SIV` over an ordered list of associated-data inputs. Each `setAAD()`
+  call supplies one input in that list. If a protocol uses a nonce with
+  `AES-SIV`, call `setAAD(nonce)` after the other associated-data inputs and
+  before `update()`.
+* `AES-GCM-SIV` ciphers require a 12-byte initialization vector.
+* When decrypting, the authentication tag must be set via `setAuthTag()` before
+  calling `update()`.
+* Using stream methods such as `write(data)`, `end(data)` or `pipe()` might
+  fail as these modes cannot handle more than one chunk of data per instance.
+* As these modes process the whole message at once, `update()` must be called
+  exactly once.
+* Even though calling `update()` is sufficient to encrypt/decrypt the message,
+  applications _must_ call `final()` to compute or verify the authentication
+  tag.
 
 ### FIPS mode
 

@@ -1,4 +1,36 @@
 module.exports = [
+  // RFC 5297, Appendix A.1
+  { algo: 'aes-128-siv',
+    key: 'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0' +
+         'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff',
+    iv: '',
+    plain: '112233445566778899aabbccddee',
+    plainIsHex: true,
+    aad: '101112131415161718191a1b1c1d1e1f2021222324252627',
+    ct: '40c02b9690c4dc04daef7f6afe5c',
+    tag: '85632d07c6e8f37f950acd320a2ecc93', tampered: false },
+
+  // RFC 8452, Appendix C.1
+  { algo: 'aes-128-gcm-siv',
+    key: '36864200e0eaf5284d884a0e77d31646',
+    iv: 'bae8e37fc83441b16034566b',
+    plain: '7a806c',
+    plainIsHex: true,
+    aad: '46bb91c3c5',
+    ct: 'af60eb',
+    tag: '711bd85bc1e4d3e0a462e074eea428a8', tampered: false },
+
+  // RFC 8452, Appendix C.2
+  { algo: 'aes-256-gcm-siv',
+    key: 'bae8e37fc83441b16034566b7a806c46' +
+         'bb91c3c5aedb64a6c590bc84d1a5e269',
+    iv: 'e4b47801afc0577e34699b9e',
+    plain: '671fdd',
+    plainIsHex: true,
+    aad: '4fbdc66f14',
+    ct: '0eaccb',
+    tag: '93da9bb81333aee0c785b240d319719d', tampered: false },
+
   { algo: 'aes-128-gcm',
     key: '6970787039613669314d623455536234',
     iv: '583673497131313748307652', plain: 'Hello World!',
