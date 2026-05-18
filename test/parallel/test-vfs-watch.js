@@ -14,7 +14,7 @@ const vfs = require('node:vfs');
   {
     const myVfs = vfs.create();
     myVfs.writeFileSync('/lf.txt', 'a');
-    const w = myVfs.watch('/lf.txt', () => {});
+    const w = myVfs.watch('/lf.txt', common.mustNotCall());
     w.close();
   }
 
@@ -23,7 +23,7 @@ const vfs = require('node:vfs');
     const myVfs = vfs.create();
     myVfs.writeFileSync('/r.txt', 'a');
     const w = myVfs.watch('/r.txt');
-    const fn = () => {};
+    const fn = common.mustNotCall();
     w.on('change', fn);
     w.removeListener('change', fn);
     w.on('change', fn);

@@ -14,7 +14,7 @@ const vfs = require('node:vfs');
   let data = '';
 
   stream.on('open', common.mustCall((fd) => {
-    assert.ok((fd & 0x40000000) !== 0);
+    assert.notStrictEqual(fd & 0x40000000, 0);
   }));
 
   stream.on('ready', common.mustCall());
@@ -201,8 +201,8 @@ const vfs = require('node:vfs');
 
   stream.on('close', common.mustCall());
 
-  stream.on('data', () => {});
-
+  // start flowing the stream
+  stream.resume();
   stream.on('end', common.mustCall(() => {
     // With autoClose: false, close should not be emitted automatically
     // We need to manually destroy the stream
@@ -234,7 +234,7 @@ const { pipeline } = require('stream/promises');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/sm.txt', 'abc');
   const rs = myVfs.createReadStream('/sm.txt', { start: 10 });
-  rs.on('data', () => assert.fail('no data expected'));
+  rs.on('data', common.mustNotCall('no data expected'));
   rs.on('end', common.mustCall());
 }
 
@@ -243,7 +243,7 @@ const { pipeline } = require('stream/promises');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/empty.txt', '');
   const rs = myVfs.createReadStream('/empty.txt');
-  rs.on('data', () => assert.fail('no data expected'));
+  rs.on('data', common.mustNotCall('no data expected'));
   rs.on('end', common.mustCall());
 }
 

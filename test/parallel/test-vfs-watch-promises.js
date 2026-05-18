@@ -27,9 +27,16 @@ const vfs = require('node:vfs');
     myVfs.writeFileSync('/q.txt', 'a');
     const iter = myVfs.promises.watch('/q.txt', { interval: 25 });
     myVfs.writeFileSync('/q.txt', 'longer-changed');
-    const r = await iter.next();
-    if (!r.done) assert.strictEqual(r.value.eventType, 'change');
-    await iter.return();
+    assert.partialDeepStrictEqual(await iter.next(), {
+      done: false,
+      value: {
+        eventType: 'change',
+      }
+    });
+    assert.deepStrictEqual(await iter.return(), {
+      done: true,
+      value: undefined,
+    });
   }
 
   // A change while a next() is pending shifts the resolver
@@ -41,16 +48,27 @@ const vfs = require('node:vfs');
     myVfs.writeFileSync('/q2.txt', 'longer-changed');
     const r = await pending;
     if (!r.done) assert.strictEqual(r.value.eventType, 'change');
-    await iter.return();
+    assert.partialDeepStrictEqual(await pending, {
+      done: false,
+      value: {
+        eventType: 'change',
+      }
+    });
+    assert.deepStrictEqual(await iter.return(), {
+      done: true,
+      value: undefined,
+    });
   }
 
   // throw() closes the watcher and resolves with done:true
   {
     const myVfs = vfs.create();
     myVfs.writeFileSync('/q3.txt', 'a');
-    const iter = myVfs.promises.watch('/q3.txt', { interval: 1000 });
+    const iter = myVfs.promises.watch('/q3.txt', { interval: 25 });
     const r = await iter.throw(new Error('go away'));
-    assert.strictEqual(r.done, true);
+    assert.deepStrictEqual(r, { done: true, value: undefined });
+    myVfs.writeFileSync('/q3.txt', 'b');
+    assert.deepStrictEqual(await iter.next(), { done: true, value: undefined });
   }
 
   // Close while a resolver is pending — drains via the 'close' handler

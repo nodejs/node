@@ -13,8 +13,8 @@ const myVfs = vfs.create();
 // Read of a nonexistent file emits 'error'
 {
   const stream = myVfs.createReadStream('/missing.txt');
-  stream.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ENOENT');
+  stream.on('error', common.expectsError({
+    code: 'ENOENT',
   }));
 }
 
@@ -24,8 +24,8 @@ const myVfs = vfs.create();
   const fd = myVfs.openSync('/x.txt');
   const rs = myVfs.createReadStream('/x.txt', { fd, autoClose: false });
   myVfs.closeSync(fd);
-  rs.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'EBADF');
+  rs.on('error', common.expectsError({
+    code: 'EBADF',
   }));
   rs.resume();
 }
@@ -37,16 +37,14 @@ const myVfs = vfs.create();
   const fd = myVfs.openSync('/cl.txt');
   const rs = myVfs.createReadStream('/cl.txt', { fd, autoClose: true });
   myVfs.closeSync(fd);
-  rs.on('error', common.mustCall());
+  rs.on('error', common.expectsError());
   rs.resume();
 }
 
 // WriteStream synchronously failing to open → destroys on next tick
 {
   const ws = myVfs.createWriteStream('/missing-dir/foo.txt', { flags: 'wx' });
-  ws.on('error', common.mustCall((err) => {
-    assert.ok(err);
-  }));
+  ws.on('error', common.expectsError());
 }
 
 // WriteStream destroyed before write() — covers the destroyed-true branch
@@ -63,8 +61,6 @@ const myVfs = vfs.create();
   const fd = myVfs.openSync('/wfd.txt', 'w');
   const ws = myVfs.createWriteStream('/wfd.txt', { fd, autoClose: false });
   myVfs.closeSync(fd);
-  ws.on('error', common.mustCall((err) => {
-    assert.ok(err);
-  }));
+  ws.on('error', common.expectsError());
   ws.write('x');
 }

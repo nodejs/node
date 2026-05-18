@@ -20,8 +20,7 @@ const vfs = require('node:vfs');
     const watcher = myVfs.watch('/parent', { interval: 25 });
     const changed = once(watcher, 'change');
     myVfs.writeFileSync('/parent/file.txt', 'longer-content-changed');
-    const [, filename] = await changed;
-    assert.strictEqual(filename, 'file.txt');
+    assert.deepStrictEqual(await changed, ['change', 'file.txt']);
     watcher.close();
   }
 
@@ -33,7 +32,7 @@ const vfs = require('node:vfs');
     const watcher = myVfs.watch('/d', { interval: 25 });
     const changed = once(watcher, 'change');
     myVfs.writeFileSync('/d/new.txt', 'x');
-    await changed;
+    assert.deepStrictEqual(await changed, ['rename', 'new.txt']);
     watcher.close();
   }
 
@@ -46,7 +45,7 @@ const vfs = require('node:vfs');
     const watcher = myVfs.watch('/dd', { interval: 25 });
     const evt = once(watcher, 'change');
     myVfs.unlinkSync('/dd/goes.txt');
-    await evt;
+    assert.deepStrictEqual(await evt, ['rename', 'goes.txt']);
     watcher.close();
   }
 
@@ -58,7 +57,6 @@ const vfs = require('node:vfs');
     myVfs.writeFileSync('/gone/f.txt', 'x');
     const watcher = myVfs.watch('/gone', { interval: 25 });
     myVfs.rmSync('/gone', { recursive: true });
-    await new Promise((r) => setTimeout(r, 60));
     watcher.close();
   }
 })().then(common.mustCall());

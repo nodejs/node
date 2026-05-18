@@ -12,7 +12,7 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/a.txt', 'x');
-  myVfs.watchFile('/a.txt', { interval: 50, persistent: false }, () => {});
+  myVfs.watchFile('/a.txt', { interval: 50, persistent: false }, common.mustNotCall());
   myVfs.unwatchFile('/a.txt');
 }
 
@@ -20,25 +20,17 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/dw.txt', 'a');
-  const listener = () => {};
+  const listener = common.mustNotCall();
   myVfs.watchFile('/dw.txt', listener);
   myVfs.unwatchFile('/dw.txt', listener);
-}
-
-// Listener as 2nd argument (no options object)
-{
-  const myVfs = vfs.create();
-  myVfs.writeFileSync('/lf.txt', 'a');
-  const listener = () => {};
-  myVfs.watchFile('/lf.txt', listener);
-  myVfs.unwatchFile('/lf.txt', listener);
+  myVfs.writeFileSync('/dw.txt', 'b');
 }
 
 // Double unwatch is a no-op
 {
   const myVfs = vfs.create();
   myVfs.writeFileSync('/sw.txt', 'a');
-  const listener = () => {};
+  const listener = common.mustNotCall();
   myVfs.watchFile('/sw.txt', { interval: 25 }, listener);
   myVfs.unwatchFile('/sw.txt', listener);
   myVfs.unwatchFile('/sw.txt', listener);
@@ -52,8 +44,8 @@ const vfs = require('node:vfs');
     assert.strictEqual(prev.mode, 0);
     myVfs.unwatchFile('/missing.txt', listener);
   }
-  myVfs.watchFile('/missing.txt', { interval: 50, persistent: false }, listener);
-  setTimeout(() => myVfs.writeFileSync('/missing.txt', 'x'), 100);
+  myVfs.watchFile('/missing.txt', { interval: 50, persistent: false }, common.mustCall(listener));
+  setImmediate(() => myVfs.writeFileSync('/missing.txt', 'x'));
 }
 
 // Content change fires the listener with curr/prev stats

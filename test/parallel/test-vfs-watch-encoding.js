@@ -16,6 +16,6 @@ const vfs = require('node:vfs');
   myVfs.writeFileSync('/bf.txt', 'longer-content-changed');
   const [eventType, filename] = await changed;
   assert.strictEqual(eventType, 'change');
-  assert.ok(Buffer.isBuffer(filename));
+  assert.deepStrictEqual(filename, Buffer.from('bf.txt'));
   watcher.close();
 })().then(common.mustCall());

@@ -12,10 +12,9 @@ const vfs = require('node:vfs');
   {
     const myVfs = vfs.create();
     myVfs.writeFileSync('/file.txt', 'a');
-    const ac = new AbortController();
-    ac.abort();
-    const watcher = myVfs.watch('/file.txt', { signal: ac.signal });
-    watcher.close();
+    const watcher = myVfs.watch('/file.txt', { signal: AbortSignal.abort() });
+    watcher.on('change', common.mustNotCall());
+    setImmediate(() => myVfs.writeFileSync('/file.txt', 'b'));
   }
 
   // Aborting after construction triggers close
@@ -24,17 +23,16 @@ const vfs = require('node:vfs');
     myVfs.writeFileSync('/file.txt', 'a');
     const ac = new AbortController();
     const watcher = myVfs.watch('/file.txt', { signal: ac.signal });
+    watcher.on('change', common.mustNotCall());
     ac.abort();
-    watcher.close();
+    setImmediate(() => myVfs.writeFileSync('/file.txt', 'b'));
   }
 
   // promises.watch with pre-aborted signal resolves done immediately
   {
     const myVfs = vfs.create();
     myVfs.writeFileSync('/p.txt', 'a');
-    const ac = new AbortController();
-    ac.abort();
-    const iter = myVfs.promises.watch('/p.txt', { signal: ac.signal });
+    const iter = myVfs.promises.watch('/p.txt', { signal: AbortSignal.abort() });
     const r = await iter.next();
     assert.strictEqual(r.done, true);
   }

@@ -14,9 +14,10 @@ const vfs = require('node:vfs');
     myVfs.mkdirSync('/d/sub', { recursive: true });
     myVfs.writeFileSync('/d/sub/a.txt', 'x');
     const watcher = myVfs.watch('/d', { interval: 25, recursive: true });
-    const changed = once(watcher, 'change');
+    watcher.on('change', common.mustCall(1)); // Making sure the event listener is called only once
+    const changedPromise = once(watcher, 'change');
     myVfs.writeFileSync('/d/sub/b.txt', 'new');
-    await changed;
+    await changedPromise;
     watcher.close();
   }
 
@@ -26,9 +27,10 @@ const vfs = require('node:vfs');
     myVfs.mkdirSync('/r/sub', { recursive: true });
     myVfs.writeFileSync('/r/sub/file.txt', 'x');
     const watcher = myVfs.watch('/r', { interval: 25, recursive: true });
-    const changed = once(watcher, 'change');
+    watcher.on('change', common.mustCall(1)); // Making sure the event listener is called only once
+    const changedPromise = once(watcher, 'change');
     myVfs.writeFileSync('/r/sub/file.txt', 'longer-content-changed');
-    await changed;
+    await changedPromise;
     watcher.close();
   }
 })().then(common.mustCall());
