@@ -201,7 +201,7 @@ const vfs = require('node:vfs');
 
   stream.on('close', common.mustCall());
 
-  // start flowing the stream
+  // Start flowing the stream
   stream.resume();
   stream.on('end', common.mustCall(() => {
     // With autoClose: false, close should not be emitted automatically

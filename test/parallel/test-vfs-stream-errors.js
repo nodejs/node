@@ -5,7 +5,6 @@
 // destroyed streams, and write to a path under a missing parent.
 
 const common = require('../common');
-const assert = require('assert');
 const vfs = require('node:vfs');
 
 const myVfs = vfs.create();
