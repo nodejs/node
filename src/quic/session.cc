@@ -51,7 +51,6 @@ using v8::Local;
 using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
@@ -3464,10 +3463,7 @@ void Session::EmitClose(const QuicError& error) {
   // codes leave the slot as undefined. See QuicError::name() for the
   // matching path on stream-level errors.
   if (const char* n = error.name()) {
-    if (!String::NewFromUtf8(env()->isolate(), n, NewStringType::kInternalized)
-             .ToLocal(&argv[3])) {
-      return;
-    }
+    argv[3] = BindingData::Get(env()).error_name_string(n);
   }
 
   MakeCallback(

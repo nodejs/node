@@ -8,6 +8,7 @@
 #include <openssl/ssl.h>
 #include <string_bytes.h>
 #include <v8.h>
+#include "bindingdata.h"
 #include "data.h"
 #include "defs.h"
 #include "util.h"
@@ -26,9 +27,7 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Nothing;
-using v8::String;
 using v8::Uint8Array;
 using v8::Undefined;
 using v8::Value;
@@ -461,10 +460,7 @@ MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
   // codes leave the slot as undefined.
   if (const char* n = name()) {
-    if (!String::NewFromUtf8(env->isolate(), n, NewStringType::kInternalized)
-             .ToLocal(&argv[3])) {
-      return {};
-    }
+    argv[3] = BindingData::Get(env).error_name_string(n);
   }
 
   return Array::New(env->isolate(), argv, arraysize(argv)).As<Value>();
