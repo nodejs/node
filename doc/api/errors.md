@@ -2473,8 +2473,9 @@ compiled with ICU support.
 added: REPLACEME
 -->
 
-An attempt was made to use features that require [`Temporal`][], but Node.js was
-compiled with `Temporal` support disabled.
+An attempt was made to use features that require [`Temporal`][], but Node.js was not
+compiled with `Temporal` support or it has been disabled in the current environment
+(for example, when running with `--no-harmony-temporal`).
 
 <a id="ERR_NO_TYPESCRIPT"></a>
 
