@@ -25,7 +25,7 @@ await checkProxiedFetch({
 shutdown();
 proxy2.close();
 
-// Verify request did NOT go through original proxy, but the overriden one.
+// Verify request did NOT go through original proxy, but the overridden one.
 assert.deepStrictEqual(proxyLogs, []);
 
 // FIXME(undici:4083): undici currently always tunnels the request over
