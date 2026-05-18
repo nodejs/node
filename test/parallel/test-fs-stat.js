@@ -224,9 +224,20 @@ fs.lstat(__filename, undefined, common.mustCall());
 
 {
   // Test that the throwIfNoEntry option works and returns undefined
+  const path = 'does_not_exist';
   const opts = { throwIfNoEntry: false };
-  assert.ok(!(fs.statSync('./wont_exists', opts)));
-  fs.stat('./wont_exists', opts, common.mustSucceed((err, stats) => {
+
+  const assertResult = (stats) => {
+    // eslint-disable-next-line node-core/must-call-assert
     assert.strictEqual(stats, undefined);
-  }));
+  };
+
+  assertResult(fs.statSync(path, opts));
+  assertResult(fs.lstatSync(path, opts));
+
+  fs.stat(path, opts, common.mustSucceed(assertResult));
+  fs.lstat(path, opts, common.mustSucceed(assertResult));
+
+  fs.promises.stat(path, opts).then(assertResult).then(common.mustCall());
+  fs.promises.lstat(path, opts).then(assertResult).then(common.mustCall());
 }
