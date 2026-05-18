@@ -3,7 +3,6 @@ import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { writeFileSync, readFileSync } from 'node:fs';
-import { setTimeout } from 'node:timers/promises';
 import { NodeInstance } from '../common/inspector-helper.js';
 
 
@@ -12,10 +11,7 @@ if (common.isIBMi)
 
 common.skipIfInspectorDisabled();
 
-let gettingDebuggedPid = false;
-
 async function getDebuggedPid(instance, waitForLog = true) {
-  gettingDebuggedPid = true;
   const session = await instance.connectInspectorSession();
   await session.send({ method: 'Runtime.enable' });
   if (waitForLog) {
@@ -25,19 +21,22 @@ async function getDebuggedPid(instance, waitForLog = true) {
     'method': 'Runtime.evaluate', 'params': { 'expression': 'process.pid' }
   })).result;
   session.disconnect();
-  gettingDebuggedPid = false;
   return innerPid;
 }
 
-function restart(file) {
+// Triggers a single restart and resolves when the restarted child prints "safe to debug now".
+function restartAndWaitForReady(file, instance) {
+  const ready = new Promise((resolve) => {
+    instance.on('stdout', (data) => {
+      if (data?.includes('safe to debug now')) {
+        resolve();
+      }
+    });
+  });
   writeFileSync(file, readFileSync(file));
-  const interval = setInterval(() => {
-    if (!gettingDebuggedPid) {
-      writeFileSync(file, readFileSync(file));
-    }
-  }, common.platformTimeout(500));
-  return () => clearInterval(interval);
+  return ready;
 }
+
 
 describe('watch mode - inspect', () => {
   it('should start debugger on inner process', async () => {
@@ -51,11 +50,9 @@ describe('watch mode - inspect', () => {
     const pids = [instance.pid];
     pids.push(await getDebuggedPid(instance));
     instance.resetPort();
-    const stopRestarting = restart(file);
+    await restartAndWaitForReady(file, instance);
     pids.push(await getDebuggedPid(instance));
-    stopRestarting();
 
-    await setTimeout(common.platformTimeout(500));
     await instance.kill();
 
     // There should be a process per restart and one per parent process.
