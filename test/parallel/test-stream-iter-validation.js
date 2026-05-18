@@ -3,8 +3,9 @@
 
 const common = require('../common');
 const assert = require('assert');
+const { Writable } = require('stream');
 const {
-  from, fromSync, pull, pullSync, pipeTo,
+  from, fromSync, fromWritable, pull, pullSync, pipeTo,
   push, duplex, broadcast, Broadcast, share, shareSync,
   Share, SyncShare,
   bytes, bytesSync, text, textSync,
@@ -160,6 +161,17 @@ assert.throws(() => broadcast({ backpressure: 'bad' }), { code: 'ERR_INVALID_ARG
 // Broadcast.from rejects non-iterable input
 assert.throws(() => Broadcast.from(42), { code: 'ERR_INVALID_ARG_TYPE' });
 assert.throws(() => Broadcast.from('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
+
+// =============================================================================
+// fromWritable() validation
+// =============================================================================
+{
+  const writable = new Writable({ write(chunk, encoding, cb) { cb(); } });
+  const writer = fromWritable(writable);
+  assert.throws(() => writer.writev('bad'), { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => writer.writev(42), { code: 'ERR_INVALID_ARG_TYPE' });
+  writer.endSync();
+}
 
 // =============================================================================
 // share() / shareSync() validation
