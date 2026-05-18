@@ -1597,6 +1597,7 @@ IGNORED_SUITES = [
   'benchmark',
   'doctool',
   'embedding',
+  'ffi',
   'internet',
   'js-native-api',
   'node-api',

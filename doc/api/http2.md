@@ -4846,6 +4846,30 @@ response.writeEarlyHints({
 });
 ```
 
+#### `response.writeInformation(statusCode[, headers])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `statusCode` {number} An HTTP 1xx informational status code, between `100`
+  and `199` inclusive, excluding `101` (Switching Protocols) which is not
+  allowed in HTTP/2.
+* `headers` {Object} An optional object of headers to send with the
+  informational response.
+
+Sends an arbitrary HTTP 1xx informational response, equivalent in HTTP/2 to a
+`HEADERS` frame whose `:status` pseudo-header is a 1xx code. May be called
+multiple times before the final response. After the final response headers
+have been sent, this method is a no-op and returns `false`.
+
+This is the generic equivalent of [`response.writeContinue()`][] and
+[`response.writeEarlyHints()`][].
+
+```js
+response.writeInformation(110, { 'X-Progress': '50%' });
+```
+
 #### `response.writeHead(statusCode[, statusMessage][, headers])`
 
 <!-- YAML
@@ -5055,6 +5079,7 @@ you need to implement any fall-back behavior yourself.
 [`response.write()`]: #responsewritechunk-encoding-callback
 [`response.write(data, encoding)`]: http.md#responsewritechunk-encoding-callback
 [`response.writeContinue()`]: #responsewritecontinue
+[`response.writeEarlyHints()`]: #responsewriteearlyhintshints
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
 [`server.close()`]: #serverclosecallback
 [`server.maxHeadersCount`]: http.md#servermaxheaderscount

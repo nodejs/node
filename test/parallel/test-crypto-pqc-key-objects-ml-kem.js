@@ -4,10 +4,6 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-if (process.features.openssl_is_boringssl) {
-  common.skip('Skipping unsupported ML-KEM key tests');
-}
-
 const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
@@ -104,7 +100,7 @@ for (const [asymmetricKeyType, pubLen] of [
     }
   }
 
-  if (!hasOpenSSL(3, 5)) {
+  if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
     assert.throws(() => createPublicKey(keys.public), {
       code: hasOpenSSL(3) ? 'ERR_OSSL_EVP_DECODE_ERROR' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
     });
@@ -114,16 +110,28 @@ for (const [asymmetricKeyType, pubLen] of [
         code: hasOpenSSL(3) ? 'ERR_OSSL_UNSUPPORTED' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
       });
     }
+  } else if (process.features.openssl_is_boringssl && asymmetricKeyType === 'ml-kem-512') {
+    // BoringSSL does not support ML-KEM-512.
+    assert.throws(() => createPublicKey(keys.public),
+                  { code: 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM' });
+    for (const pem of [keys.private, keys.private_seed_only, keys.private_priv_only]) {
+      assert.throws(() => createPrivateKey(pem),
+                    { code: 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM' });
+    }
   } else {
     const publicKey = createPublicKey(keys.public);
     assertPublicKey(publicKey);
 
     {
-      for (const [pem, hasSeed] of [
-        [keys.private, true],
-        [keys.private_seed_only, true],
-        [keys.private_priv_only, false],
-      ]) {
+      const entries = process.features.openssl_is_boringssl ?
+        // BoringSSL only supports the seed-only PKCS#8 private key encoding.
+        [[keys.private_seed_only, true]] :
+        [
+          [keys.private, true],
+          [keys.private_seed_only, true],
+          [keys.private_priv_only, false],
+        ];
+      for (const [pem, hasSeed] of entries) {
         const pubFromPriv = createPublicKey(pem);
         assertPublicKey(pubFromPriv);
         assertPrivateKey(createPrivateKey(pem), hasSeed);

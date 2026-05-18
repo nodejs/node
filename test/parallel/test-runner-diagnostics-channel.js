@@ -119,6 +119,26 @@ test('context is available in async operations within test', async () => {
   assert.strictEqual(valueInTimeout, testName);
 });
 
+test('bindStore propagates store to end and error subscribers', async () => {
+  // Spawn a fixture that records `als.getStore()` at end/error publish time so
+  // we can assert subscribers see the bound store, not undefined.
+  const fixturePath = join(__dirname, '../fixtures/test-runner/diagnostics-channel-bindstore-end.js');
+  const result = spawnSync(process.execPath, [fixturePath], { encoding: 'utf8' });
+  // The fixture contains an intentionally failing test, so exit is non-zero.
+  assert.notStrictEqual(result.status, 0);
+  const line = result.stdout.split('\n').find((l) => l.includes('storeAtEnd'));
+  assert.ok(line, `expected storeAtEnd line in stdout:\n${result.stdout}`);
+  const { storeAtEnd, storeAtError } = JSON.parse(line);
+  assert.deepStrictEqual(storeAtEnd, {
+    '<root>': '<root>',
+    'passing test': 'passing test',
+    'failing test': 'failing test',
+  });
+  assert.deepStrictEqual(storeAtError, {
+    'failing test': 'failing test',
+  });
+});
+
 test('error events fire for failing tests in fixture', async () => {
   // Run the fixture test that intentionally fails
   const fixturePath = join(__dirname, '../fixtures/test-runner/diagnostics-channel-error-test.js');

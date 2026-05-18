@@ -28,16 +28,9 @@ const kDerivedKeyTypes = [
   ['HMAC', 256, 'SHA-256', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-384', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-512', 'sign', 'verify'],
+  ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
+  ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
 ];
-
-if (!process.features.openssl_is_boringssl) {
-  kDerivedKeyTypes.push(
-    ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
-    ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
-  );
-} else {
-  common.printSkipMessage('Skipping unsupported AES-KW test cases');
-}
 
 const kPasswords = {
   short: '5040737377307264',

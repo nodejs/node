@@ -26,14 +26,9 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
 {
   for (const length of [128, 192, 256]) {
     const key = createSecretKey(randomBytes(length >> 3));
-    let algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
+    const algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
     if (length === 256)
       algorithms.push('ChaCha20-Poly1305');
-
-    if (process.features.openssl_is_boringssl) {
-      algorithms = algorithms.filter((a) => a !== 'AES-KW' && a !== 'ChaCha20-Poly1305');
-      common.printSkipMessage('Skipping unsupported AES-KW/ChaCha20-Poly1305 test cases');
-    }
 
     for (const algorithm of algorithms) {
       const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
@@ -200,7 +195,7 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
   }
 }
 
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     const { publicKey, privateKey } = generateKeyPairSync(name.toLowerCase());
     assert.throws(() => {

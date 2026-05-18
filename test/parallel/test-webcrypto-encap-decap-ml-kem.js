@@ -7,8 +7,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -253,12 +253,16 @@ async function testDecapsulateBits({ name, publicKeyPem, privateKeyPem, results 
 (async function() {
   const variations = [];
 
-  vectors.forEach((vector) => {
+  for (const vector of vectors) {
+    if (process.features.openssl_is_boringssl && vector.name === 'ML-KEM-512') {
+      common.printSkipMessage(`Skipping unsupported ${vector.name} test`);
+      continue;
+    }
     variations.push(testEncapsulateKey(vector));
     variations.push(testEncapsulateBits(vector));
     variations.push(testDecapsulateKey(vector));
     variations.push(testDecapsulateBits(vector));
-  });
+  }
 
   await Promise.all(variations);
 })().then(common.mustCall());

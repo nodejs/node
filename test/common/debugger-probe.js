@@ -1,12 +1,6 @@
 'use strict';
 
 const assert = require('assert');
-const fixtures = require('./fixtures');
-const path = require('path');
-
-function debuggerFixturePath(name) {
-  return path.relative(process.cwd(), fixtures.path('debugger', name));
-}
 
 // Work around a pre-existing inspector issue: if the debuggee exits too quickly
 // the inspector can segfault while tearing down. For now normalize the segfault
@@ -49,9 +43,4 @@ function assertProbeText(output, expected) {
 module.exports = {
   assertProbeJson,
   assertProbeText,
-  missScript: debuggerFixturePath('probe-miss.js'),
-  probeScript: debuggerFixturePath('probe.js'),
-  throwScript: debuggerFixturePath('probe-throw.js'),
-  probeTypesScript: debuggerFixturePath('probe-types.js'),
-  timeoutScript: debuggerFixturePath('probe-timeout.js'),
 };
