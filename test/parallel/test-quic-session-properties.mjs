@@ -11,12 +11,16 @@
 // All three cached.
 // All three return undefined after destroy.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, hasCrypto } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
-import { X509Certificate } from 'node:crypto';
 
 const { ok, strictEqual } = assert;
+
+if (!hasCrypto)
+  skip('missing crypto');
+
+const { X509Certificate } = await import('node:crypto');
 
 // The QUIC test helpers configure both sides with the agent1 fixture cert,
 const expectedCert = new X509Certificate(fixtures.readKey('agent1-cert.pem'));
