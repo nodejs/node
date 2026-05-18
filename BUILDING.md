@@ -755,6 +755,10 @@ Refs:
 * As an alternative to Visual Studio 2026, download Visual Studio 2022 Current channel Version 17.14 from the
   [Evergreen bootstrappers](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#evergreen-bootstrappers)
   table and install using the same workload and optional component selection as described above.
+* To install the Rust toolchain, required for Temporal support introduced in Node.js 26,
+  ensure Visual Studio is already installed, then run `rustup-init.exe` downloaded from
+  [Install Rust](https://rust-lang.org/tools/install/),
+  choosing the default: "Proceed with standard installation".
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
