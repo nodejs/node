@@ -25,7 +25,7 @@ await checkProxiedRequest({
 shutdown();
 proxy2.close();
 
-// Verify request did NOT go through original proxy, but the overriden one.
+// Verify request did NOT go through original proxy, but the overridden one.
 assert.deepStrictEqual(proxyLogs, []);
 
 const expectedLogs = [{
