@@ -114,4 +114,34 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.status, 0);
   });
+
+  it('should exclude dotfile test files from coverage by default', async () => {
+    const report = [
+      '# start of coverage report',
+      '# --------------------------------------------------------------',
+      '# file          | line % | branch % | funcs % | uncovered lines',
+      '# --------------------------------------------------------------',
+      '# logic-file.js |  66.67 |   100.00 |   50.00 | 5-7',
+      '# --------------------------------------------------------------',
+      '# all files     |  66.67 |   100.00 |   50.00 | ',
+      '# --------------------------------------------------------------',
+      '# end of coverage report',
+    ].join('\n');
+
+    const args = [
+      '--no-experimental-strip-types',
+      '--test',
+      '--experimental-test-coverage',
+      '--test-reporter=tap',
+      'test/.dotfile.cjs',
+    ];
+    const result = spawnSync(process.execPath, args, {
+      env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+      cwd: tmpdir.path
+    });
+
+    assert.strictEqual(result.stderr.toString(), '');
+    assert(result.stdout.toString().includes(report));
+    assert.strictEqual(result.status, 0);
+  });
 });
