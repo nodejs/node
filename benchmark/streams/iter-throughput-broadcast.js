@@ -128,9 +128,11 @@ function benchIter(chunk, numConsumers, datasize, n, totalOps) {
     let remaining = datasize;
     while (remaining > 0) {
       const size = Math.min(remaining, chunk.length);
-      remaining -= size;
       const buf = size === chunk.length ? chunk : chunk.subarray(0, size);
-      writer.writeSync(buf);
+      if (!writer.writeSync(buf)) {
+        await writer.write(buf);
+      }
+      remaining -= size;
     }
     writer.endSync();
 
