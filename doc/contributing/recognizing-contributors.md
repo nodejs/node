@@ -49,29 +49,3 @@ making a request in the #nodejs-social channel in the OpenJS Foundation slack.
 We trust that collaborators will only request amplification when they believe
 the event is relevant to the Node.js community and the content of the post is
 in line with the norms of the project.
-
-## Bi-monthly contributor spotlight
-
-The contributor spotlight program showcases individual(s) or teams who have
-made signification contributions to the project. Anybody who is not
-a member of the Technical Steering Committee (TSC) and has made a
-notable contribution to the project can be nominated. They DO NOT need
-to be a collaborator, team member etc.
-
-The work of the team or individual(s) will be showcased on the
-Node.js social channels and, if warranted, through a blog post created by the
-OpenJS marketing staff along with the team or individual(s) which will
-be published on [openjsf.org](https://openjsf.org/).
-
-Nominations can be made through this web form:
-[Contributor Spotlight nomination](https://forms.gle/dXBXZn8yu83HLJ57A)
-
-Nominations will be reviewed/approved by the Technical Steering Committee (TSC)
-on a regular basis as scheduled by the TSC chair. The TSC will also
-recommend the order in which approved nominations are processed
-by the OpenJS marketing staff.
-
-Before any work proceeds on an approved nomination the individual(s)
-or team will be contacted to confirm they want to participate. Social
-content and or spotlight blog post will only be published after the
-team or individual(s) have confirmed they are happy with the content.
