@@ -330,6 +330,7 @@ class Http2Stream : public AsyncWrap,
 
   // Destroy this stream instance and free all held memory.
   void Destroy();
+  void FlushPendingWrites(int status);
 
   bool is_destroyed() const {
     return flags_ & kStreamStateDestroyed;

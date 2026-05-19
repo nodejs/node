@@ -2,6 +2,7 @@
 // https://github.com/nodejs/node/issues/33156
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -23,11 +24,20 @@ let client_stream;
 
 server.on('session', common.mustCall(function(session) {
   session.on('stream', common.mustCall(function(stream) {
+    let writes = 0;
+    let writeCallbacks = 0;
+
     stream.resume();
-    stream.on('data', function() {
-      this.write(Buffer.alloc(1));
+    stream.on('data', common.mustCallAtLeast(function() {
+      writes++;
+      this.write(Buffer.alloc(1), common.mustCall(() => {
+        writeCallbacks++;
+      }));
       process.nextTick(() => client_stream.destroy());
-    });
+    }));
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(writeCallbacks, writes);
+    }));
   }));
 }));
 

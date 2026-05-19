@@ -1316,7 +1316,11 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
     if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
       // Skip to destroy
       stream->Destroy();
+    } else if (!stream->is_destroyed()) {
+      stream->FlushPendingWrites(0);
     }
+  } else {
+    stream->FlushPendingWrites(0);
   }
   return 0;
 }
@@ -2376,12 +2380,7 @@ void Http2Stream::Destroy() {
       // Free any remaining outgoing data chunks here. This should be done
       // here because it's possible for destroy to have been called while
       // we still have queued outbound writes.
-      while (!queue_.empty()) {
-        NgHttp2StreamWrite& head = queue_.front();
-        if (head.req_wrap)
-          WriteWrap::FromObject(head.req_wrap)->Done(UV_ECANCELED);
-        queue_.pop();
-      }
+      FlushPendingWrites(UV_ECANCELED);
 
       // We can destroy the stream now if there are no writes for it
       // already on the socket. Otherwise, we'll wait for the garbage collector
@@ -2401,6 +2400,14 @@ void Http2Stream::Destroy() {
   EmitStatistics();
 }
 
+void Http2Stream::FlushPendingWrites(int status) {
+  while (!queue_.empty()) {
+    NgHttp2StreamWrite& head = queue_.front();
+    DecrementAvailableOutboundLength(head.buf.len);
+    if (head.req_wrap) WriteWrap::FromObject(head.req_wrap)->Done(status);
+    queue_.pop();
+  }
+}
 
 // Initiates a response on the Http2Stream using data provided via the
 // StreamBase Streams API.
@@ -2618,7 +2625,7 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
                          uv_stream_t* send_handle) {
   CHECK_NULL(send_handle);
   Http2Scope h2scope(this);
-  if (!is_writable() || is_destroyed()) {
+  if (!is_writable() || is_destroyed() || is_closed()) {
     return UV_EOF;
   }
   Debug(this, "queuing %d buffers to send", nbufs);
@@ -2788,7 +2795,6 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
                       reinterpret_cast<const uint8_t*>(nghttp2_strerror(val))));
   }
 }
-
 
 // Serializes the settings object into a Buffer instance that
 // would be suitable, for instance, for creating the Base64
