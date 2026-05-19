@@ -157,8 +157,15 @@ test('rerun preserves the original duration on the replayed pass', async () => {
   const durationFixture = fixtures.path('test-runner', 'rerun-duration.js');
   const args = ['--test-rerun-failures', stateFile, durationFixture];
 
-  await common.spawnPromisified(process.execPath, args);
-  await common.spawnPromisified(process.execPath, args);
+  const first = await common.spawnPromisified(process.execPath, args);
+  assert.doesNotMatch(first.stdout, /passed on attempt/,
+                      'no replay marker should appear on the initial run');
+
+  const second = await common.spawnPromisified(process.execPath, args);
+  assert.match(second.stdout, /passing slow test[^\n]*\(passed on attempt 0\)/,
+               'spec reporter should mark the replayed test on the retry');
+  assert.doesNotMatch(second.stdout, /always failing[^\n]*\(passed on attempt/,
+                      'the failing test must not show the replay marker');
 
   const raw = JSON.parse(await readFile(stateFile, 'utf8'));
   const passKey = Object.keys(raw[0]).find((k) => raw[0][k].name === 'passing slow test');
