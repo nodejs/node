@@ -34,7 +34,5 @@ const vfs = require('node:vfs');
 // Mkdtemp callback variant — error path (parent doesn't exist)
 {
   const myVfs = vfs.create();
-  myVfs.mkdtemp('/missing/prefix-', common.mustCall((err) => {
-    assert.ok(err);
-  }));
+  myVfs.mkdtemp('/missing/prefix-', common.expectsError());
 }

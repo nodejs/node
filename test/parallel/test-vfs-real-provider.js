@@ -84,8 +84,8 @@ fs.mkdirSync(testDir, { recursive: true });
 
   const dirents = realVfs.readdirSync('/readdir-test', { withFileTypes: true });
   assert.strictEqual(dirents.length, 3);
-  assert.ok(dirents.find((d) => d.name === 'a.txt' && d.isFile()));
-  assert.ok(dirents.find((d) => d.name === 'subdir' && d.isDirectory()));
+  assert.ok(dirents.some((d) => d.name === 'a.txt' && d.isFile()));
+  assert.ok(dirents.some((d) => d.name === 'subdir' && d.isDirectory()));
 
   fs.unlinkSync(path.join(testDir, 'readdir-test', 'a.txt'));
   fs.unlinkSync(path.join(testDir, 'readdir-test', 'b.txt'));

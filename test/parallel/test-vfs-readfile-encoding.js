@@ -18,5 +18,4 @@ assert.throws(
 // Valid encodings should work
 assert.strictEqual(myVfs.readFileSync('/file.txt', 'utf8'), 'x');
 assert.strictEqual(myVfs.readFileSync('/file.txt', { encoding: 'utf8' }), 'x');
-const buf = myVfs.readFileSync('/file.txt');
-assert.ok(Buffer.isBuffer(buf));
+assert.deepStrictEqual(myVfs.readFileSync('/file.txt'), Buffer.from('x'));

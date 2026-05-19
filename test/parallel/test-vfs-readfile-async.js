@@ -19,6 +19,6 @@ myVfs.readFile('/async-read.txt', common.mustSucceed((data) => {
   assert.strictEqual(data.toString(), 'async content');
 }));
 
-myVfs.readFile('/missing.txt', common.mustCall((err) => {
-  assert.strictEqual(err.code, 'ENOENT');
+myVfs.readFile('/missing.txt', common.expectsError({
+  code: 'ENOENT',
 }));

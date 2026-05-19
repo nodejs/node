@@ -48,7 +48,7 @@ assert.ok(
   v.mkdirSync('/d/sub');
   v.symlinkSync('a.txt', '/d/lnk');
   const dirents = v.readdirSync('/d', { withFileTypes: true });
-  assert.ok(dirents.find((d) => d.name === 'a.txt' && d.isFile()));
-  assert.ok(dirents.find((d) => d.name === 'sub' && d.isDirectory()));
-  assert.ok(dirents.find((d) => d.name === 'lnk' && d.isSymbolicLink()));
+  assert.ok(dirents.some((d) => d.name === 'a.txt' && d.isFile()));
+  assert.ok(dirents.some((d) => d.name === 'sub' && d.isDirectory()));
+  assert.ok(dirents.some((d) => d.name === 'lnk' && d.isSymbolicLink()));
 }

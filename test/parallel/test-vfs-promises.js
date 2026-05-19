@@ -10,19 +10,16 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.writeFileSync('/test.txt', 'hello world');
 
-  myVfs.readFile('/test.txt', common.mustCall((err, data) => {
-    assert.strictEqual(err, null);
+  myVfs.readFile('/test.txt', common.mustSucceed((data) => {
     assert.ok(Buffer.isBuffer(data));
     assert.strictEqual(data.toString(), 'hello world');
   }));
 
-  myVfs.readFile('/test.txt', 'utf8', common.mustCall((err, data) => {
-    assert.strictEqual(err, null);
+  myVfs.readFile('/test.txt', 'utf8', common.mustSucceed((data) => {
     assert.strictEqual(data, 'hello world');
   }));
 
-  myVfs.readFile('/test.txt', { encoding: 'utf8' }, common.mustCall((err, data) => {
-    assert.strictEqual(err, null);
+  myVfs.readFile('/test.txt', { encoding: 'utf8' }, common.mustSucceed((data) => {
     assert.strictEqual(data, 'hello world');
   }));
 }
@@ -31,9 +28,8 @@ const vfs = require('node:vfs');
 {
   const myVfs = vfs.create();
 
-  myVfs.readFile('/nonexistent.txt', common.mustCall((err, data) => {
-    assert.strictEqual(err.code, 'ENOENT');
-    assert.strictEqual(data, undefined);
+  myVfs.readFile('/nonexistent.txt', common.expectsError({
+    code: 'ENOENT',
   }));
 }
 
@@ -42,9 +38,8 @@ const vfs = require('node:vfs');
   const myVfs = vfs.create();
   myVfs.mkdirSync('/mydir', { recursive: true });
 
-  myVfs.readFile('/mydir', common.mustCall((err, data) => {
-    assert.strictEqual(err.code, 'EISDIR');
-    assert.strictEqual(data, undefined);
+  myVfs.readFile('/mydir', common.expectsError({
+    code: 'EISDIR',
   }));
 }
 
@@ -54,22 +49,19 @@ const vfs = require('node:vfs');
   myVfs.mkdirSync('/dir', { recursive: true });
   myVfs.writeFileSync('/file.txt', 'content');
 
-  myVfs.stat('/file.txt', common.mustCall((err, stats) => {
-    assert.strictEqual(err, null);
+  myVfs.stat('/file.txt', common.mustSucceed((stats) => {
     assert.strictEqual(stats.isFile(), true);
     assert.strictEqual(stats.isDirectory(), false);
     assert.strictEqual(stats.size, 7);
   }));
 
-  myVfs.stat('/dir', common.mustCall((err, stats) => {
-    assert.strictEqual(err, null);
+  myVfs.stat('/dir', common.mustSucceed((stats) => {
     assert.strictEqual(stats.isFile(), false);
     assert.strictEqual(stats.isDirectory(), true);
   }));
 
-  myVfs.stat('/nonexistent', common.mustCall((err, stats) => {
-    assert.strictEqual(err.code, 'ENOENT');
-    assert.strictEqual(stats, undefined);
+  myVfs.stat('/nonexistent', common.expectsError({
+    code: 'ENOENT',
   }));
 }
 

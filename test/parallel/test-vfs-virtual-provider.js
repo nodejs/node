@@ -47,10 +47,9 @@ const vfs = require('node:vfs');
 
 // Read-only provider: write primitives throw EROFS instead of NOT_IMPL.
 {
-  class RO extends vfs.VirtualProvider {
+  const p = new class extends vfs.VirtualProvider {
     get readonly() { return true; }
-  }
-  const p = new RO();
+  }();
   for (const method of ['mkdirSync', 'rmdirSync', 'unlinkSync',
                         'renameSync', 'linkSync', 'symlinkSync']) {
     assert.throws(() => p[method]('/x', '/y'),
