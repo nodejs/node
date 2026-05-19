@@ -3,7 +3,7 @@ import Dispatcher from './dispatcher'
 import buildConnector from './connector'
 import TClientStats from './client-stats'
 
-type ClientConnectOptions = Omit<Dispatcher.ConnectOptions, 'origin'>
+type ClientConnectOptions<TOpaque = null> = Omit<Dispatcher.ConnectOptions<TOpaque>, 'origin'>
 
 /**
  * A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default.
@@ -20,12 +20,12 @@ export class Client extends Dispatcher {
   readonly stats: TClientStats
 
   // Override dispatcher APIs.
-  override connect (
-    options: ClientConnectOptions
-  ): Promise<Dispatcher.ConnectData>
-  override connect (
-    options: ClientConnectOptions,
-    callback: (err: Error | null, data: Dispatcher.ConnectData) => void
+  override connect<TOpaque = null> (
+    options: ClientConnectOptions<TOpaque>
+  ): Promise<Dispatcher.ConnectData<TOpaque>>
+  override connect<TOpaque = null> (
+    options: ClientConnectOptions<TOpaque>,
+    callback: (err: Error | null, data: Dispatcher.ConnectData<TOpaque>) => void
   ): void
 }
 

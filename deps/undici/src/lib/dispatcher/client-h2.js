@@ -28,6 +28,7 @@ const {
   kHTTP2Session,
   kHTTP2InitialWindowSize,
   kHTTP2ConnectionWindowSize,
+  kHostAuthority,
   kResume,
   kSize,
   kHTTPContext,
@@ -44,8 +45,7 @@ const kOpenStreams = Symbol('open streams')
 const kRequestStreamId = Symbol('request stream id')
 const kRequestStream = Symbol('request stream')
 const kRequestStreamCleanup = Symbol('request stream cleanup')
-const kRequestStreamOnData = Symbol('request stream on data')
-const kRequestStreamOnCloseError = Symbol('request stream on close error')
+const kRequestStreamState = Symbol('request stream state')
 const kReceivedGoAway = Symbol('received goaway')
 
 let extractBody
@@ -107,8 +107,9 @@ function detachRequestFromStream (request) {
 
 function bindRequestToStream (request, stream, cleanup) {
   const previousCleanup = request[kRequestStreamCleanup]
+  const previousStream = request[kRequestStream]
   detachRequestFromStream(request)
-  previousCleanup?.()
+  previousCleanup?.(previousStream)
   request[kRequestStreamId] = stream.id
   request[kRequestStream] = stream
   request[kRequestStreamCleanup] = cleanup
@@ -116,8 +117,9 @@ function bindRequestToStream (request, stream, cleanup) {
 
 function clearRequestStream (request) {
   const cleanup = request[kRequestStreamCleanup]
+  const stream = request[kRequestStream]
   detachRequestFromStream(request)
-  cleanup?.()
+  cleanup?.(stream)
 }
 
 function canRetryRequestAfterGoAway (request) {
@@ -516,25 +518,158 @@ function closeStreamSession (stream) {
 function onUpgradeStreamClose () {
   this.off('error', noop)
 
-  const failUpgradeStream = this[kRequestStreamOnCloseError]
-  this[kRequestStreamOnCloseError] = null
+  const state = this[kRequestStreamState]
+  this[kRequestStreamState] = null
 
-  failUpgradeStream(new InformationalError('HTTP/2: stream closed before response headers'))
+  failUpgradeStream(state, new InformationalError('HTTP/2: stream closed before response headers'))
   closeStreamSession(this)
 }
 
 function onRequestStreamClose () {
-  const onData = this[kRequestStreamOnData]
-
-  this[kRequestStreamOnData] = null
   this.off('data', onData)
   this.off('error', noop)
   closeStreamSession(this)
+  this[kRequestStreamState] = null
 }
 
 // https://www.rfc-editor.org/rfc/rfc7230#section-3.3.2
 function shouldSendContentLength (method) {
   return method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && method !== 'TRACE' && method !== 'CONNECT'
+}
+
+function buildRequestHeaders (reqHeaders) {
+  const headers = {}
+
+  for (let n = 0; n < reqHeaders.length; n += 2) {
+    const key = reqHeaders[n + 0]
+    const val = reqHeaders[n + 1]
+    const current = headers[key]
+
+    if (key === 'cookie') {
+      if (current != null) {
+        headers[key] = Array.isArray(current) ? (current.push(val), current) : [current, val]
+      } else {
+        headers[key] = val
+      }
+
+      continue
+    }
+
+    if (typeof val === 'string') {
+      headers[key] = current ? `${current}, ${val}` : val
+      continue
+    }
+
+    for (let i = 0; i < val.length; i++) {
+      headers[key] = headers[key] ? `${headers[key]}, ${val[i]}` : val[i]
+    }
+  }
+
+  return headers
+}
+
+function removeUpgradeStreamListeners (stream) {
+  stream.off('response', onUpgradeResponse)
+  stream.off('error', onUpgradeStreamError)
+  stream.off('end', onUpgradeStreamEnd)
+  stream.off('timeout', onUpgradeStreamTimeout)
+  stream.off('error', noop)
+}
+
+function releaseUpgradeStream (stream) {
+  if (stream == null) {
+    return
+  }
+
+  const state = stream[kRequestStreamState]
+  if (state == null) {
+    return
+  }
+
+  const { request } = state
+
+  if (request[kRequestStream] === stream) {
+    detachRequestFromStream(request)
+  }
+
+  removeUpgradeStreamListeners(stream)
+
+  if (!stream.destroyed && !stream.closed) {
+    stream.once('error', noop)
+  }
+}
+
+function failUpgradeStream (state, err) {
+  if (state == null) {
+    return
+  }
+
+  const { request } = state
+  if (state.responseReceived || request.aborted || request.completed) {
+    return
+  }
+
+  releaseUpgradeStream(state.stream)
+  state.abort(err, true)
+}
+
+function onUpgradeStreamError () {
+  const state = this[kRequestStreamState]
+
+  if (typeof this.rstCode === 'number' && this.rstCode !== 0) {
+    failUpgradeStream(state, new InformationalError(`HTTP/2: "stream error" received - code ${this.rstCode}`))
+  } else {
+    failUpgradeStream(state, new InformationalError('HTTP/2: stream errored before response headers'))
+  }
+}
+
+function onUpgradeStreamEnd () {
+  failUpgradeStream(this[kRequestStreamState], new InformationalError('HTTP/2: stream half-closed (remote)'))
+}
+
+function onUpgradeStreamTimeout () {
+  const state = this[kRequestStreamState]
+  failUpgradeStream(state, new InformationalError(`HTTP/2: "stream timeout after ${state.requestTimeout}"`))
+}
+
+function onUpgradeResponse (headers, _flags) {
+  const stream = this
+  const state = stream[kRequestStreamState]
+  const { request } = state
+
+  state.responseReceived = true
+
+  const statusCode = headers[HTTP2_HEADER_STATUS]
+  delete headers[HTTP2_HEADER_STATUS]
+
+  request.onRequestUpgrade(statusCode, headers, stream)
+
+  if (request.aborted || request.completed) {
+    return
+  }
+
+  removeUpgradeStreamListeners(stream)
+  detachRequestFromStream(request)
+  state.finalizeRequest()
+}
+
+function setupUpgradeStream (stream, state) {
+  const { request, requestTimeout, session } = state
+
+  stream[kHTTP2Stream] = true
+  stream[kHTTP2Session] = session
+  stream[kRequestStreamState] = state
+  state.stream = stream
+
+  bindRequestToStream(request, stream, releaseUpgradeStream)
+  stream.once('response', onUpgradeResponse)
+  stream.on('error', onUpgradeStreamError)
+  stream.once('end', onUpgradeStreamEnd)
+  stream.on('timeout', onUpgradeStreamTimeout)
+  stream.once('close', onUpgradeStreamClose)
+
+  ++session[kOpenStreams]
+  stream.setTimeout(requestTimeout)
 }
 
 function writeH2 (client, request) {
@@ -548,42 +683,12 @@ function writeH2 (client, request) {
     return false
   }
 
-  const headers = {}
-  for (let n = 0; n < reqHeaders.length; n += 2) {
-    const key = reqHeaders[n + 0]
-    const val = reqHeaders[n + 1]
-
-    if (key === 'cookie') {
-      if (headers[key] != null) {
-        headers[key] = Array.isArray(headers[key]) ? (headers[key].push(val), headers[key]) : [headers[key], val]
-      } else {
-        headers[key] = val
-      }
-
-      continue
-    }
-
-    if (Array.isArray(val)) {
-      for (let i = 0; i < val.length; i++) {
-        if (headers[key]) {
-          headers[key] += `, ${val[i]}`
-        } else {
-          headers[key] = val[i]
-        }
-      }
-    } else if (headers[key]) {
-      headers[key] += `, ${val}`
-    } else {
-      headers[key] = val
-    }
-  }
+  const headers = buildRequestHeaders(reqHeaders)
 
   /** @type {import('node:http2').ClientHttp2Stream} */
   let stream = null
 
-  const { hostname, port } = client[kUrl]
-
-  headers[HTTP2_HEADER_AUTHORITY] = host || `${hostname}${port ? `:${port}` : ''}`
+  headers[HTTP2_HEADER_AUTHORITY] = host || client[kHostAuthority]
   headers[HTTP2_HEADER_METHOD] = method
 
   let requestFinalized = false
@@ -662,82 +767,14 @@ function writeH2 (client, request) {
   if (upgrade || method === 'CONNECT') {
     session.ref()
 
-    const setupUpgradeStream = (stream) => {
-      let responseReceived = false
-
-      const removeUpgradeStreamListeners = () => {
-        stream.off('response', onUpgradeResponse)
-        stream.off('error', onUpgradeStreamError)
-        stream.off('end', onUpgradeStreamEnd)
-        stream.off('timeout', onUpgradeStreamTimeout)
-        stream.off('error', noop)
-      }
-
-      const releaseUpgradeStream = () => {
-        if (request[kRequestStream] === stream) {
-          detachRequestFromStream(request)
-        }
-
-        removeUpgradeStreamListeners()
-
-        if (!stream.destroyed && !stream.closed) {
-          stream.once('error', noop)
-        }
-      }
-
-      const failUpgradeStream = (err) => {
-        if (responseReceived || request.aborted || request.completed) {
-          return
-        }
-
-        releaseUpgradeStream()
-        abort(err, true)
-      }
-
-      const onUpgradeStreamError = () => {
-        if (typeof stream.rstCode === 'number' && stream.rstCode !== 0) {
-          failUpgradeStream(new InformationalError(`HTTP/2: "stream error" received - code ${stream.rstCode}`))
-        } else {
-          failUpgradeStream(new InformationalError('HTTP/2: stream errored before response headers'))
-        }
-      }
-
-      const onUpgradeStreamEnd = () => {
-        failUpgradeStream(new InformationalError('HTTP/2: stream half-closed (remote)'))
-      }
-
-      const onUpgradeStreamTimeout = () => {
-        failUpgradeStream(new InformationalError(`HTTP/2: "stream timeout after ${requestTimeout}"`))
-      }
-
-      const onUpgradeResponse = (headers, _flags) => {
-        responseReceived = true
-
-        const statusCode = headers[HTTP2_HEADER_STATUS]
-        delete headers[HTTP2_HEADER_STATUS]
-
-        request.onRequestUpgrade(statusCode, headers, stream)
-
-        if (request.aborted || request.completed) {
-          return
-        }
-
-        removeUpgradeStreamListeners()
-        detachRequestFromStream(request)
-        finalizeRequest()
-      }
-
-      bindRequestToStream(request, stream, releaseUpgradeStream)
-      stream.once('response', onUpgradeResponse)
-      stream.on('error', onUpgradeStreamError)
-      stream.once('end', onUpgradeStreamEnd)
-      stream.on('timeout', onUpgradeStreamTimeout)
-      stream[kHTTP2Session] = session
-      stream[kRequestStreamOnCloseError] = failUpgradeStream
-      stream.once('close', onUpgradeStreamClose)
-
-      ++session[kOpenStreams]
-      stream.setTimeout(requestTimeout)
+    const upgradeState = {
+      abort,
+      finalizeRequest,
+      request,
+      requestTimeout,
+      responseReceived: false,
+      session,
+      stream: null
     }
 
     if (upgrade === 'websocket') {
@@ -767,8 +804,7 @@ function writeH2 (client, request) {
         session.unref()
         return false
       }
-      stream[kHTTP2Stream] = true
-      setupUpgradeStream(stream)
+      setupUpgradeStream(stream, upgradeState)
       return true
     }
 
@@ -782,8 +818,7 @@ function writeH2 (client, request) {
       session.unref()
       return false
     }
-    stream[kHTTP2Stream] = true
-    setupUpgradeStream(stream)
+    setupUpgradeStream(stream, upgradeState)
 
     return true
   }
@@ -805,7 +840,10 @@ function writeH2 (client, request) {
   const expectsPayload = (
     method === 'PUT' ||
     method === 'POST' ||
-    method === 'PATCH'
+    method === 'PATCH' ||
+    method === 'QUERY' ||
+    method === 'PROPFIND' ||
+    method === 'PROPPATCH'
   )
 
   if (body && typeof body.read === 'function') {
@@ -865,151 +903,40 @@ function writeH2 (client, request) {
   }
 
   // TODO(metcoder95): add support for sending trailers
-  const shouldEndStream = body === null
+  const shouldEndStream = body === null || contentLength === 0
+  const state = {
+    abort,
+    body,
+    client,
+    contentLength,
+    expectsPayload,
+    finalizeRequest,
+    request,
+    requestTimeout,
+    responseReceived: false,
+    session,
+    stream: null
+  }
+
   if (expectContinue) {
     headers[HTTP2_HEADER_EXPECT] = '100-continue'
-    stream = requestStream(headers, { endStream: shouldEndStream, signal })
-    if (stream == null) {
-      return false
-    }
-    stream[kHTTP2Stream] = true
-    bindRequestToStream(request, stream, null)
-  } else {
-    stream = requestStream(headers, {
-      endStream: shouldEndStream,
-      signal
-    })
-    if (stream == null) {
-      return false
-    }
-    stream[kHTTP2Stream] = true
-    bindRequestToStream(request, stream, null)
   }
+
+  stream = requestStream(headers, { endStream: shouldEndStream, signal })
+  if (stream == null) {
+    return false
+  }
+  stream[kHTTP2Stream] = true
+  stream[kRequestStreamState] = state
+  state.stream = stream
+  bindRequestToStream(request, stream, null)
 
   // Increment counter as we have new streams open
   ++session[kOpenStreams]
   stream.setTimeout(requestTimeout)
 
-  // Track whether we received a response (headers)
-  let responseReceived = false
-  const onData = (chunk) => {
-    if (request.aborted || request.completed) {
-      return
-    }
-
-    if (request.onResponseData(chunk) === false) {
-      stream.pause()
-    }
-  }
-
-  const removeRequestStreamListeners = () => {
-    stream.off('error', noop)
-    stream.off('continue', writeBodyH2)
-    stream.off('response', onResponse)
-    stream.off('end', onEnd)
-    stream.off('error', onError)
-    stream.off('frameError', onFrameError)
-    stream.off('aborted', onAborted)
-    stream.off('timeout', onTimeout)
-    stream.off('trailers', onTrailers)
-    stream.off('data', onData)
-  }
-
-  const releaseRequestStream = () => {
-    if (request[kRequestStream] === stream) {
-      detachRequestFromStream(request)
-    }
-
-    removeRequestStreamListeners()
-
-    if (!stream.destroyed && !stream.closed) {
-      stream.once('error', noop)
-    }
-  }
-
-  const onResponse = (headers) => {
-    stream.off('response', onResponse)
-
-    const statusCode = headers[HTTP2_HEADER_STATUS]
-    delete headers[HTTP2_HEADER_STATUS]
-    request.onResponseStarted()
-    responseReceived = true
-
-    // Due to the stream nature, it is possible we face a race condition
-    // where the stream has been assigned, but the request has been aborted
-    // the request remains in-flight and headers hasn't been received yet
-    // for those scenarios, best effort is to destroy the stream immediately
-    // as there's no value to keep it open.
-    if (request.aborted) {
-      releaseRequestStream()
-      return
-    }
-
-    if (request.onResponseStart(Number(statusCode), headers, stream.resume.bind(stream), '') === false) {
-      stream.pause()
-    }
-
-    stream.on('data', onData)
-  }
-
-  const onEnd = () => {
-    stream.off('end', onEnd)
-
-    releaseRequestStream()
-    // If we received a response, this is a normal completion
-    if (responseReceived) {
-      if (!request.aborted && !request.completed) {
-        request.onResponseEnd({})
-      }
-
-      finalizeRequest()
-    } else {
-      // Stream ended without receiving a response - this is an error
-      // (e.g., server destroyed the stream before sending headers)
-      abort(new InformationalError('HTTP/2: stream half-closed (remote)'), true)
-    }
-  }
-
   stream[kHTTP2Session] = session
-  stream[kRequestStreamOnData] = onData
   stream.once('close', onRequestStreamClose)
-
-  const onError = function (err) {
-    stream.off('error', onError)
-
-    releaseRequestStream()
-    abort(err)
-  }
-
-  const onFrameError = (type, code) => {
-    stream.off('frameError', onFrameError)
-
-    releaseRequestStream()
-    abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
-  }
-
-  const onAborted = () => {
-    stream.off('data', onData)
-  }
-
-  const onTimeout = () => {
-    releaseRequestStream()
-
-    const err = new InformationalError(`HTTP/2: "stream timeout after ${requestTimeout}"`)
-    abort(err)
-  }
-
-  const onTrailers = (trailers) => {
-    stream.off('trailers', onTrailers)
-
-    if (request.aborted || request.completed) {
-      return
-    }
-
-    releaseRequestStream()
-    request.onResponseEnd(trailers)
-    finalizeRequest()
-  }
 
   bindRequestToStream(request, stream, releaseRequestStream)
   if (expectContinue) {
@@ -1024,74 +951,195 @@ function writeH2 (client, request) {
   stream.once('trailers', onTrailers)
 
   if (!expectContinue) {
-    writeBodyH2()
+    writeBodyH2.call(stream)
   }
 
   return true
+}
 
-  function writeBodyH2 () {
-    if (!body || contentLength === 0) {
-      writeBuffer(
-        abort,
-        stream,
-        null,
-        client,
-        request,
-        client[kSocket],
-        contentLength,
-        expectsPayload
-      )
-    } else if (util.isBuffer(body)) {
-      writeBuffer(
-        abort,
-        stream,
-        body,
-        client,
-        request,
-        client[kSocket],
-        contentLength,
-        expectsPayload
-      )
-    } else if (util.isBlobLike(body)) {
-      if (typeof body.stream === 'function') {
-        writeIterable(
-          abort,
-          stream,
-          body.stream(),
-          client,
-          request,
-          client[kSocket],
-          contentLength,
-          expectsPayload
-        )
-      } else {
-        writeBlob(
-          abort,
-          stream,
-          body,
-          client,
-          request,
-          client[kSocket],
-          contentLength,
-          expectsPayload
-        )
-      }
-    } else if (util.isStream(body)) {
-      writeStream(
-        abort,
-        client[kSocket],
-        expectsPayload,
-        stream,
-        body,
-        client,
-        request,
-        contentLength
-      )
-    } else if (util.isIterable(body)) {
+function removeRequestStreamListeners (stream) {
+  stream.off('error', noop)
+  stream.off('continue', writeBodyH2)
+  stream.off('response', onResponse)
+  stream.off('end', onEnd)
+  stream.off('error', onError)
+  stream.off('frameError', onFrameError)
+  stream.off('aborted', onAborted)
+  stream.off('timeout', onTimeout)
+  stream.off('trailers', onTrailers)
+  stream.off('data', onData)
+}
+
+function releaseRequestStream (stream) {
+  if (stream == null) {
+    return
+  }
+
+  const state = stream[kRequestStreamState]
+  if (state == null) {
+    return
+  }
+
+  const { request } = state
+
+  if (request[kRequestStream] === stream) {
+    detachRequestFromStream(request)
+  }
+
+  removeRequestStreamListeners(stream)
+
+  if (!stream.destroyed && !stream.closed) {
+    stream.once('error', noop)
+  }
+}
+
+function onData (chunk) {
+  const stream = this
+  const { request } = stream[kRequestStreamState]
+
+  if (request.aborted || request.completed) {
+    return
+  }
+
+  if (request.onResponseData(chunk) === false) {
+    stream.pause()
+  }
+}
+
+function onResponse (headers) {
+  const stream = this
+  const state = stream[kRequestStreamState]
+  const { request } = state
+
+  stream.off('response', onResponse)
+
+  const statusCode = headers[HTTP2_HEADER_STATUS]
+  delete headers[HTTP2_HEADER_STATUS]
+  request.onResponseStarted()
+  state.responseReceived = true
+
+  // Due to the stream nature, it is possible we face a race condition
+  // where the stream has been assigned, but the request has been aborted
+  // the request remains in-flight and headers hasn't been received yet
+  // for those scenarios, best effort is to destroy the stream immediately
+  // as there's no value to keep it open.
+  if (request.aborted) {
+    releaseRequestStream(stream)
+    return
+  }
+
+  if (request.onResponseStart(Number(statusCode), headers, stream.resume.bind(stream), '') === false) {
+    stream.pause()
+  }
+
+  stream.on('data', onData)
+}
+
+function onEnd () {
+  const stream = this
+  const state = stream[kRequestStreamState]
+  const { request } = state
+
+  stream.off('end', onEnd)
+
+  releaseRequestStream(stream)
+  // If we received a response, this is a normal completion
+  if (state.responseReceived) {
+    if (!request.aborted && !request.completed) {
+      request.onResponseEnd({})
+    }
+
+    state.finalizeRequest()
+  } else {
+    // Stream ended without receiving a response - this is an error
+    // (e.g., server destroyed the stream before sending headers)
+    state.abort(new InformationalError('HTTP/2: stream half-closed (remote)'), true)
+  }
+}
+
+function onError (err) {
+  const stream = this
+  const state = stream[kRequestStreamState]
+
+  stream.off('error', onError)
+
+  releaseRequestStream(stream)
+  state.abort(err)
+}
+
+function onFrameError (type, code) {
+  const stream = this
+  const state = stream[kRequestStreamState]
+
+  stream.off('frameError', onFrameError)
+
+  releaseRequestStream(stream)
+  state.abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
+}
+
+function onAborted () {
+  this.off('data', onData)
+}
+
+function onTimeout () {
+  const stream = this
+  const state = stream[kRequestStreamState]
+
+  releaseRequestStream(stream)
+
+  const err = new InformationalError(`HTTP/2: "stream timeout after ${state.requestTimeout}"`)
+  state.abort(err)
+}
+
+function onTrailers (trailers) {
+  const stream = this
+  const state = stream[kRequestStreamState]
+  const { request } = state
+
+  stream.off('trailers', onTrailers)
+
+  if (request.aborted || request.completed) {
+    return
+  }
+
+  releaseRequestStream(stream)
+  request.onResponseEnd(trailers)
+  state.finalizeRequest()
+}
+
+function writeBodyH2 () {
+  const stream = this
+  const state = stream[kRequestStreamState]
+  const { abort, body, client, contentLength, expectsPayload, request } = state
+
+  if (!body || contentLength === 0) {
+    writeBuffer(
+      abort,
+      stream,
+      null,
+      client,
+      request,
+      client[kSocket],
+      contentLength,
+      expectsPayload
+    )
+  } else if (util.isBuffer(body)) {
+    writeBuffer(
+      abort,
+      stream,
+      body,
+      client,
+      request,
+      client[kSocket],
+      contentLength,
+      expectsPayload
+    )
+  } else if (util.isBlobLike(body)) {
+    if (typeof body.stream === 'function') {
       writeIterable(
         abort,
         stream,
-        body,
+        body.stream(),
         client,
         request,
         client[kSocket],
@@ -1099,8 +1147,41 @@ function writeH2 (client, request) {
         expectsPayload
       )
     } else {
-      assert(false)
+      writeBlob(
+        abort,
+        stream,
+        body,
+        client,
+        request,
+        client[kSocket],
+        contentLength,
+        expectsPayload
+      )
     }
+  } else if (util.isStream(body)) {
+    writeStream(
+      abort,
+      client[kSocket],
+      expectsPayload,
+      stream,
+      body,
+      client,
+      request,
+      contentLength
+    )
+  } else if (util.isIterable(body)) {
+    writeIterable(
+      abort,
+      stream,
+      body,
+      client,
+      request,
+      client[kSocket],
+      contentLength,
+      expectsPayload
+    )
+  } else {
+    assert(false)
   }
 }
 
@@ -1159,8 +1240,6 @@ function writeStream (abort, socket, expectsPayload, h2stream, body, client, req
 }
 
 async function writeBlob (abort, h2stream, body, client, request, socket, contentLength, expectsPayload) {
-  assert(contentLength === body.size, 'blob body must have content length')
-
   try {
     if (contentLength != null && contentLength !== body.size) {
       throw new RequestContentLengthMismatchError()
