@@ -6,7 +6,6 @@
 
 require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const assert = require('assert');
 
 // Without the flag, requiring node:vfs throws ERR_UNKNOWN_BUILTIN_MODULE.
 {
