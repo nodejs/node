@@ -309,7 +309,6 @@ class ELDHistogram final : public HandleWrap, public HistogramImpl {
  private:
   static void PrepareCB(uv_prepare_t* handle);
   static void CheckCB(uv_check_t* handle);
-  static void PrepareCloseCB(uv_handle_t* handle);
   void OnStart(StartFlags flags = StartFlags::RESET);
   void OnStop();
 

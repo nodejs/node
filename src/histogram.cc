@@ -555,25 +555,11 @@ void ELDHistogram::OnStop() {
   uv_prepare_stop(&prepare_handle_);
 }
 
-void ELDHistogram::PrepareCloseCB(uv_handle_t* handle) {
-  ELDHistogram* self = static_cast<ELDHistogram*>(handle->data);
-  uv_close(reinterpret_cast<uv_handle_t*>(&self->check_handle_),
-           HandleWrap::OnClose);
-}
-
 void ELDHistogram::Close(Local<Value> close_callback) {
   if (IsHandleClosing()) return;
   OnStop();
-  state_ = kClosing;
-
-  if (!close_callback.IsEmpty() && close_callback->IsFunction() &&
-      !persistent().IsEmpty()) {
-    object()
-        ->Set(env()->context(), env()->handle_onclose_symbol(), close_callback)
-        .Check();
-  }
-
-  uv_close(reinterpret_cast<uv_handle_t*>(&prepare_handle_), PrepareCloseCB);
+  HandleWrap::Close(close_callback);
+  uv_close(reinterpret_cast<uv_handle_t*>(&prepare_handle_), nullptr);
 }
 
 void ELDHistogram::Start(const FunctionCallbackInfo<Value>& args) {
