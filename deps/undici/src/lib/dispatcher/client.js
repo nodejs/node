@@ -52,6 +52,7 @@ const {
   kOnError,
   kHTTPContext,
   kMaxConcurrentStreams,
+  kHostAuthority,
   kHTTP2InitialWindowSize,
   kHTTP2ConnectionWindowSize,
   kResume,
@@ -246,6 +247,7 @@ class Client extends DispatcherBase {
     }
 
     this[kUrl] = util.parseOrigin(url)
+    this[kHostAuthority] = `${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}`
     this[kConnector] = connect
     this[kPipelining] = pipelining != null ? pipelining : 1
     this[kMaxHeadersSize] = maxHeaderSize
@@ -257,7 +259,7 @@ class Client extends DispatcherBase {
     this[kLocalAddress] = localAddress != null ? localAddress : null
     this[kResuming] = 0 // 0, idle, 1, scheduled, 2 resuming
     this[kNeedDrain] = 0 // 0, idle, 1, scheduled, 2 resuming
-    this[kHostHeader] = `host: ${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}\r\n`
+    this[kHostHeader] = `host: ${this[kHostAuthority]}\r\n`
     this[kBodyTimeout] = bodyTimeout != null ? bodyTimeout : 300e3
     this[kHeadersTimeout] = headersTimeout != null ? headersTimeout : 300e3
     this[kStrictContentLength] = strictContentLength == null ? true : strictContentLength

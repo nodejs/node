@@ -1,17 +1,17 @@
 # Global Installation
 
-Undici provides an `install()` function to add all WHATWG fetch classes to `globalThis`, making them available globally without requiring imports.
+Undici provides an `install()` function to add fetch-related and other web API classes to `globalThis`, making them available globally without requiring imports.
 
 ## `install()`
 
-Install all WHATWG fetch classes globally on `globalThis`.
+Install undici's global web APIs on `globalThis`.
 
 **Example:**
 
 ```js
 import { install } from 'undici'
 
-// Install all WHATWG fetch classes globally  
+// Install undici's global web APIs
 install()
 
 // Now you can use fetch classes globally without importing
@@ -74,6 +74,8 @@ await fetch('https://example.com', {
 
 After `install()`, `fetch`, `Headers`, `Response`, `Request`, and `FormData`
 all come from the installed `undici` package, so they work as a matching set.
+`WebSocket`, `CloseEvent`, `ErrorEvent`, `MessageEvent`, and `EventSource`
+also come from the installed `undici` package.
 
 If you do not want to install globals, import both from `undici` instead:
 
@@ -135,5 +137,5 @@ test('fetch API test', async () => {
 
 - The `install()` function overwrites any existing global implementations
 - Classes installed are undici's implementations, not Node.js built-ins
-- This provides access to undici's latest features and performance improvements
+- This provides access to undici's latest fetch, WebSocket, and EventSource features and performance improvements
 - The global installation persists for the lifetime of the process

@@ -46,7 +46,9 @@ const { hashId, isUrlExcludedFactory, normalizeHeaders, createHeaderFilters } = 
  * @property {Array<string>} [ignoreHeaders=[]] - Headers to ignore for matching
  * @property {Array<string>} [excludeHeaders=[]] - Headers to exclude from matching
  * @property {boolean} [matchBody=true] - Whether to match request body
- * @property {boolean} [matchQuery=true] - Whether to match query properties
+ * @property {(body: string|Buffer|null|undefined) => string} [normalizeBody] - Function to normalize the body before matching (e.g. strip timestamps)
+ * @property {boolean} [matchQuery=true] - Whether to match query parameters
+ * @property {(query: URLSearchParams) => string} [normalizeQuery] - Function to normalize query parameters before matching (e.g. strip volatile params)
  * @property {boolean} [caseSensitive=false] - Whether header matching is case-sensitive
  */
 
@@ -80,6 +82,37 @@ const { hashId, isUrlExcludedFactory, normalizeHeaders, createHeaderFilters } = 
  */
 
 /**
+ * Normalizes the URL string used for request matching.
+ *
+ * @param {URL} url - Parsed request URL
+ * @param {boolean} matchQuery - Whether to include query parameters in matching
+ * @param {((query: URLSearchParams) => string)|undefined} normalizeQuery - Optional normalization function
+ * @returns {string} - URL string for hashing
+ */
+function normalizeUrlForMatching (url, matchQuery, normalizeQuery) {
+  if (matchQuery === false) return `${url.origin}${url.pathname}`
+  if (normalizeQuery) {
+    const normalized = String(normalizeQuery(url.searchParams) ?? '')
+    return normalized ? `${url.origin}${url.pathname}?${normalized}` : `${url.origin}${url.pathname}`
+  }
+  return url.toString()
+}
+
+/**
+ * Normalizes the body value used for request matching.
+ *
+ * @param {string|Buffer|null|undefined} body - Raw request body
+ * @param {boolean} matchBody - Whether to include the body in matching
+ * @param {((body: string|Buffer|null|undefined) => string)|undefined} normalizeBody - Optional normalization function
+ * @returns {string} - Body string for hashing
+ */
+function normalizeBodyForMatching (body, matchBody, normalizeBody) {
+  if (matchBody === false) return ''
+  if (normalizeBody) return String(normalizeBody(body) ?? '')
+  return body ? String(body) : ''
+}
+
+/**
  * Formats a request for consistent snapshot storage
  * Caches normalized headers to avoid repeated processing
  *
@@ -99,9 +132,9 @@ function formatRequestKey (opts, headerFilters, matchOptions = {}) {
 
   return {
     method: opts.method || 'GET',
-    url: matchOptions.matchQuery !== false ? url.toString() : `${url.origin}${url.pathname}`,
+    url: normalizeUrlForMatching(url, matchOptions.matchQuery, matchOptions.normalizeQuery),
     headers: filterHeadersForMatching(normalized, headerFilters, matchOptions),
-    body: matchOptions.matchBody !== false && opts.body ? String(opts.body) : ''
+    body: normalizeBodyForMatching(opts.body, matchOptions.matchBody, matchOptions.normalizeBody)
   }
 }
 
@@ -250,7 +283,9 @@ class SnapshotRecorder {
       ignoreHeaders: options.ignoreHeaders || [],
       excludeHeaders: options.excludeHeaders || [],
       matchBody: options.matchBody !== false, // default: true
+      normalizeBody: options.normalizeBody || undefined,
       matchQuery: options.matchQuery !== false, // default: true
+      normalizeQuery: options.normalizeQuery || undefined,
       caseSensitive: options.caseSensitive || false
     }
 
