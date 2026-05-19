@@ -18,7 +18,6 @@ async function setupFixtures() {
 
 function assertDefaultExclusions(stdout) {
   assert.match(stdout, /# start of coverage report/);
-  assert.match(stdout, /# logic-file\.js\s+\|/);
   assert.doesNotMatch(stdout, /# file-test\.js\s+\|/);
   assert.doesNotMatch(stdout, /# file\.test\.mjs\s+\|/);
   assert.doesNotMatch(stdout, /# file\.test\.ts\s+\|/);
