@@ -66,13 +66,15 @@ async function testBroadcastFromMultipleConsumers() {
 async function testAbortSignal() {
   const ac = new AbortController();
   const { broadcast: bc } = broadcast({ signal: ac.signal });
-  const iter = bc.push()[Symbol.asyncIterator]();
-  const read = iter.next();
-  const rejected = assert.rejects(read, { name: 'AbortError' });
+  const consumer = bc.push();
 
   ac.abort();
 
-  await rejected;
+  const batches = [];
+  for await (const batch of consumer) {
+    batches.push(batch);
+  }
+  assert.strictEqual(batches.length, 0);
 }
 
 async function testAlreadyAbortedSignal() {
@@ -82,12 +84,11 @@ async function testAlreadyAbortedSignal() {
   const { broadcast: bc } = broadcast({ signal: ac.signal });
   const consumer = bc.push();
 
-  await assert.rejects(async () => {
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of consumer) {
-      assert.fail('Should not reach here');
-    }
-  }, { name: 'AbortError' });
+  const batches = [];
+  for await (const batch of consumer) {
+    batches.push(batch);
+  }
+  assert.strictEqual(batches.length, 0);
 }
 
 // =============================================================================
