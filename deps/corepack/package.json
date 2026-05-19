@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.34.7",
+  "version": "0.35.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,44 +10,43 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": "^20.10.0 || ^22.11.0 || >=24.0.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "exports": {
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.11.0+sha224.209a3e277c6bbc03df6e4206fbfcb0c1621c27ecf0688f79a0c619f0",
+  "packageManager": "yarn@4.14.1+sha224.88b7a7244bbd9040380c417f7eb556d85c67640b651f113cb4c72113",
   "devDependencies": {
     "@types/debug": "^4.1.5",
-    "@types/node": "^20.4.6",
+    "@types/node": "^22.0.0",
     "@types/proxy-from-env": "^1",
     "@types/semver": "^7.1.0",
     "@types/which": "^3.0.0",
     "@yarnpkg/eslint-config": "^3.0.0",
     "@yarnpkg/fslib": "^3.0.0-rc.48",
     "@zkochan/cmd-shim": "^6.0.0",
-    "better-sqlite3": "^11.7.2",
     "clipanion": "patch:clipanion@npm%3A3.2.1#~/.yarn/patches/clipanion-npm-3.2.1-fc9187f56c.patch",
     "debug": "^4.1.1",
-    "esbuild": "^0.27.0",
+    "esbuild": "^0.28.0",
     "eslint": "^9.22.0",
-    "proxy-from-env": "^1.1.0",
     "semver": "^7.6.3",
     "supports-color": "^10.0.0",
     "tar": "^7.5.11",
     "tsx": "^4.16.2",
     "typescript": "^5.7.3",
-    "undici": "^6.24.0",
     "v8-compile-cache": "^2.3.0",
-    "vitest": "^3.0.5",
-    "which": "^5.0.0"
+    "vitest": "^4.0.5",
+    "which": "^7.0.0"
   },
-  "resolutions": {
-    "undici-types": "6.x"
+  "dependenciesMeta": {
+    "esbuild": {
+      "built": true
+    }
   },
   "scripts": {
     "build": "run clean && run build:bundle && tsx ./mkshims.ts",
-    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node18.17.0 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
+    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node22.22.2 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
     "clean": "run rimraf dist shims",
     "corepack": "tsx ./sources/_cli.ts",
     "lint": "eslint .",
