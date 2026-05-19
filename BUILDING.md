@@ -796,6 +796,7 @@ easily. These files will install the following
 * `Python 3.14`
 * `Visual Studio 2022` (Build Tools, Community, Professional or Enterprise Edition) and
   "Desktop development with C++" workload, Clang and ClangToolset optional components
+* `Rust Toolchain MSVC`
 * `NetWide Assembler`
 
 The following Desired State Configuration (DSC) files are available:
