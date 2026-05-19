@@ -27,6 +27,7 @@ class SignBase : public BaseObject {
     PublicKey,
     MalformedSignature,
     ContextUnsupported,
+    PrehashUnsupported,
   };
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
@@ -101,7 +102,8 @@ struct SignConfiguration final : public MemoryRetainer {
     kHasNone = 0,
     kHasSaltLength = 1,
     kHasPadding = 2,
-    kHasContextString = 4
+    kHasContextString = 4,
+    kHasPrehashed = 8,
   };
 
   CryptoJobMode job_mode;
