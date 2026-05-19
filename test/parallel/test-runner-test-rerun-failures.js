@@ -89,6 +89,7 @@ const getStateFile = async () => {
   res.forEach((entry) => {
     for (const item in entry) {
       delete entry[item].children;
+      delete entry[item].duration_ms;
     }
   });
   return res;
@@ -150,6 +151,20 @@ test('test should pass on third rerun with `--test`', async () => {
   assert.match(stdout, /fail 0/);
   assert.match(stdout, /suites 2/);
   assert.deepStrictEqual(await getStateFile(), expectedStateFile);
+});
+
+test('rerun preserves the original duration on the replayed pass', async () => {
+  const durationFixture = fixtures.path('test-runner', 'rerun-duration.js');
+  const args = ['--test-rerun-failures', stateFile, durationFixture];
+
+  await common.spawnPromisified(process.execPath, args);
+  await common.spawnPromisified(process.execPath, args);
+
+  const raw = JSON.parse(await readFile(stateFile, 'utf8'));
+  const passKey = Object.keys(raw[0]).find((k) => raw[0][k].name === 'passing slow test');
+  assert.ok(passKey, 'expected the passing test to be recorded on attempt 0');
+  assert.ok(raw[0][passKey].duration_ms > 0, 'expected a measurable duration on attempt 0');
+  assert.strictEqual(raw[1][passKey].duration_ms, raw[0][passKey].duration_ms);
 });
 
 test('using `run` api', async () => {
