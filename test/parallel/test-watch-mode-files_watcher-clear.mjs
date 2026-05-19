@@ -4,7 +4,6 @@ import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import { writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { setTimeout as sleep } from 'node:timers/promises';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -15,16 +14,26 @@ const originalSetTimeout = timers.setTimeout;
 const originalClearTimeout = timers.clearTimeout;
 const { promise, resolve } = Promise.withResolvers();
 let debounceTimer;
+let debounceTimerCallback;
 let debounceTimerCleared = false;
 
 timers.setTimeout = function(fn, delay, ...args) {
-  const timer = originalSetTimeout(fn, delay, ...args);
   if (delay === 1000) {
+    const timer = {
+      __proto__: null,
+      ref() { return this; },
+      unref() { return this; },
+    };
     debounceTimer = timer;
-    debounceTimer.ref();
+    debounceTimerCallback = () => {
+      if (!debounceTimerCleared) {
+        fn(...args);
+      }
+    };
     resolve();
+    return timer;
   }
-  return timer;
+  return originalSetTimeout(fn, delay, ...args);
 };
 
 timers.clearTimeout = function(timer) {
@@ -51,7 +60,7 @@ try {
 
   watcher.clear();
   assert.strictEqual(debounceTimerCleared, true);
-  await sleep(1100);
+  debounceTimerCallback();
 } finally {
   timers.setTimeout = originalSetTimeout;
   timers.clearTimeout = originalClearTimeout;
