@@ -13,74 +13,42 @@ const stateFile = fixtures.path('test-runner', 'rerun-state.json');
 beforeEach(() => rm(stateFile, { force: true }));
 afterEach(() => rm(stateFile, { force: true }));
 
+const F = 'test/fixtures/test-runner/rerun.js';
+
+const passOnceState = {
+  [`${F}:9:1`]: { passed_on_attempt: 0, name: 'ok' },
+  [`${F}:17:3`]: { passed_on_attempt: 0, name: 'ambiguous (expectedAttempts=0)' },
+  [`${F}:39:1/${F}:29:13/${F}:30:16`]: { passed_on_attempt: 0, name: '2 levels deep' },
+  [`${F}:39:1/${F}:29:13`]: { passed_on_attempt: 0, name: 'nested' },
+  [`${F}:39:1/${F}:35:13`]: { passed_on_attempt: 0, name: 'ok' },
+  [`${F}:39:1`]: { passed_on_attempt: 0, name: 'nested ambiguous (expectedAttempts=0)' },
+  [`${F}:40:1/${F}:29:13/${F}:30:16`]: { passed_on_attempt: 0, name: '2 levels deep' },
+  [`${F}:40:1/${F}:35:13`]: { passed_on_attempt: 0, name: 'ok' },
+  [`${F}:43:1/${F}:44:3/${F}:45:13`]: { passed_on_attempt: 0, name: 'nested' },
+  [`${F}:43:1/${F}:44:3`]: { passed_on_attempt: 0, name: 'passed on first attempt' },
+  [`${F}:43:1/${F}:47:3`]: { passed_on_attempt: 0, name: 'a' },
+  [`${F}:43:1`]: { passed_on_attempt: 0, name: 'describe rerun' },
+  [`${F}:64:1/${F}:65:3/${F}:59:7`]: { passed_on_attempt: 0, name: 'shared sub A' },
+  [`${F}:64:1/${F}:65:3/${F}:60:7`]: { passed_on_attempt: 0, name: 'shared sub B' },
+  [`${F}:64:1/${F}:65:3`]: { passed_on_attempt: 0, name: 'first caller' },
+  [`${F}:64:1/${F}:66:3/${F}:59:7`]: { passed_on_attempt: 0, name: 'shared sub A' },
+  [`${F}:64:1/${F}:66:3/${F}:60:7`]: { passed_on_attempt: 0, name: 'shared sub B' },
+  [`${F}:64:1/${F}:66:3`]: { passed_on_attempt: 0, name: 'second caller' },
+  [`${F}:64:1`]: { passed_on_attempt: 0, name: 'rerun with ambiguous shared helper' },
+};
+
 const expectedStateFile = [
+  { ...passOnceState },
   {
-    'test/fixtures/test-runner/rerun.js:9:1': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:17:3': { passed_on_attempt: 0, name: 'ambiguous (expectedAttempts=0)' },
-    'test/fixtures/test-runner/rerun.js:30:16': { passed_on_attempt: 0, name: '2 levels deep' },
-    'test/fixtures/test-runner/rerun.js:29:13': { passed_on_attempt: 0, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:35:13': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:39:1': { passed_on_attempt: 0, name: 'nested ambiguous (expectedAttempts=0)' },
-    'test/fixtures/test-runner/rerun.js:30:16:(1)': { passed_on_attempt: 0, name: '2 levels deep' },
-    'test/fixtures/test-runner/rerun.js:35:13:(1)': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:45:13': { passed_on_attempt: 0, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:44:3': { passed_on_attempt: 0, name: 'passed on first attempt' },
-    'test/fixtures/test-runner/rerun.js:47:3': { passed_on_attempt: 0, name: 'a' },
-    'test/fixtures/test-runner/rerun.js:43:1': { passed_on_attempt: 0, name: 'describe rerun' },
-    'test/fixtures/test-runner/rerun.js:59:7': { passed_on_attempt: 0, name: 'shared sub A' },
-    'test/fixtures/test-runner/rerun.js:60:7': { passed_on_attempt: 0, name: 'shared sub B' },
-    'test/fixtures/test-runner/rerun.js:65:3': { passed_on_attempt: 0, name: 'first caller' },
-    'test/fixtures/test-runner/rerun.js:59:7:(1)': { passed_on_attempt: 0, name: 'shared sub A' },
-    'test/fixtures/test-runner/rerun.js:60:7:(1)': { passed_on_attempt: 0, name: 'shared sub B' },
-    'test/fixtures/test-runner/rerun.js:66:3': { passed_on_attempt: 0, name: 'second caller' },
-    'test/fixtures/test-runner/rerun.js:64:1': { passed_on_attempt: 0, name: 'rerun with ambiguous shared helper' },
+    ...passOnceState,
+    [`${F}:17:3:(1)`]: { passed_on_attempt: 1, name: 'ambiguous (expectedAttempts=1)' },
   },
   {
-    'test/fixtures/test-runner/rerun.js:9:1': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:17:3': { passed_on_attempt: 0, name: 'ambiguous (expectedAttempts=0)' },
-    'test/fixtures/test-runner/rerun.js:17:3:(1)': { passed_on_attempt: 1, name: 'ambiguous (expectedAttempts=1)' },
-    'test/fixtures/test-runner/rerun.js:30:16': { passed_on_attempt: 0, name: '2 levels deep' },
-    'test/fixtures/test-runner/rerun.js:29:13': { passed_on_attempt: 0, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:35:13': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:39:1': { passed_on_attempt: 0, name: 'nested ambiguous (expectedAttempts=0)' },
-    'test/fixtures/test-runner/rerun.js:30:16:(1)': { passed_on_attempt: 0, name: '2 levels deep' },
-    'test/fixtures/test-runner/rerun.js:35:13:(1)': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:45:13': { passed_on_attempt: 0, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:44:3': { passed_on_attempt: 0, name: 'passed on first attempt' },
-    'test/fixtures/test-runner/rerun.js:47:3': { passed_on_attempt: 0, name: 'a' },
-    'test/fixtures/test-runner/rerun.js:43:1': { passed_on_attempt: 0, name: 'describe rerun' },
-    'test/fixtures/test-runner/rerun.js:59:7': { passed_on_attempt: 0, name: 'shared sub A' },
-    'test/fixtures/test-runner/rerun.js:60:7': { passed_on_attempt: 0, name: 'shared sub B' },
-    'test/fixtures/test-runner/rerun.js:65:3': { passed_on_attempt: 0, name: 'first caller' },
-    'test/fixtures/test-runner/rerun.js:59:7:(1)': { passed_on_attempt: 0, name: 'shared sub A' },
-    'test/fixtures/test-runner/rerun.js:60:7:(1)': { passed_on_attempt: 0, name: 'shared sub B' },
-    'test/fixtures/test-runner/rerun.js:66:3': { passed_on_attempt: 0, name: 'second caller' },
-    'test/fixtures/test-runner/rerun.js:64:1': { passed_on_attempt: 0, name: 'rerun with ambiguous shared helper' },
-  },
-  {
-    'test/fixtures/test-runner/rerun.js:3:1': { passed_on_attempt: 2, name: 'should fail on first two attempts' },
-    'test/fixtures/test-runner/rerun.js:9:1': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:17:3': { passed_on_attempt: 0, name: 'ambiguous (expectedAttempts=0)' },
-    'test/fixtures/test-runner/rerun.js:17:3:(1)': { passed_on_attempt: 1, name: 'ambiguous (expectedAttempts=1)' },
-    'test/fixtures/test-runner/rerun.js:30:16': { passed_on_attempt: 0, name: '2 levels deep' },
-    'test/fixtures/test-runner/rerun.js:29:13': { passed_on_attempt: 0, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:35:13': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:39:1': { passed_on_attempt: 0, name: 'nested ambiguous (expectedAttempts=0)' },
-    'test/fixtures/test-runner/rerun.js:30:16:(1)': { passed_on_attempt: 0, name: '2 levels deep' },
-    'test/fixtures/test-runner/rerun.js:29:13:(1)': { passed_on_attempt: 2, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:35:13:(1)': { passed_on_attempt: 0, name: 'ok' },
-    'test/fixtures/test-runner/rerun.js:40:1': { passed_on_attempt: 2, name: 'nested ambiguous (expectedAttempts=1)' },
-    'test/fixtures/test-runner/rerun.js:45:13': { passed_on_attempt: 0, name: 'nested' },
-    'test/fixtures/test-runner/rerun.js:44:3': { passed_on_attempt: 0, name: 'passed on first attempt' },
-    'test/fixtures/test-runner/rerun.js:47:3': { passed_on_attempt: 0, name: 'a' },
-    'test/fixtures/test-runner/rerun.js:43:1': { passed_on_attempt: 0, name: 'describe rerun' },
-    'test/fixtures/test-runner/rerun.js:59:7': { passed_on_attempt: 0, name: 'shared sub A' },
-    'test/fixtures/test-runner/rerun.js:60:7': { passed_on_attempt: 0, name: 'shared sub B' },
-    'test/fixtures/test-runner/rerun.js:65:3': { passed_on_attempt: 0, name: 'first caller' },
-    'test/fixtures/test-runner/rerun.js:59:7:(1)': { passed_on_attempt: 0, name: 'shared sub A' },
-    'test/fixtures/test-runner/rerun.js:60:7:(1)': { passed_on_attempt: 0, name: 'shared sub B' },
-    'test/fixtures/test-runner/rerun.js:66:3': { passed_on_attempt: 0, name: 'second caller' },
-    'test/fixtures/test-runner/rerun.js:64:1': { passed_on_attempt: 0, name: 'rerun with ambiguous shared helper' },
+    ...passOnceState,
+    [`${F}:3:1`]: { passed_on_attempt: 2, name: 'should fail on first two attempts' },
+    [`${F}:17:3:(1)`]: { passed_on_attempt: 1, name: 'ambiguous (expectedAttempts=1)' },
+    [`${F}:40:1/${F}:29:13`]: { passed_on_attempt: 2, name: 'nested' },
+    [`${F}:40:1`]: { passed_on_attempt: 2, name: 'nested ambiguous (expectedAttempts=1)' },
   },
 ];
 
@@ -150,6 +118,21 @@ test('test should pass on third rerun with `--test`', async () => {
   assert.match(stdout, /fail 0/);
   assert.match(stdout, /suites 2/);
   assert.deepStrictEqual(await getStateFile(), expectedStateFile);
+});
+
+test('failures from shared-location subtests are not swallowed on retry', async () => {
+  const crossParentFixture = fixtures.path('test-runner', 'rerun-cross-parent-subtests.js');
+  const args = ['--test-rerun-failures', stateFile, crossParentFixture];
+
+  let { code, stdout, signal } = await common.spawnPromisified(process.execPath, args);
+  assert.strictEqual(signal, null);
+  assert.strictEqual(code, 1);
+  assert.match(stdout, /fail 2/);
+
+  ({ code, stdout, signal } = await common.spawnPromisified(process.execPath, args));
+  assert.strictEqual(signal, null);
+  assert.notStrictEqual(code, 0);
+  assert.doesNotMatch(stdout, /fail 0/, 'B fails -> inner must not be silently passed');
 });
 
 test('using `run` api', async () => {
