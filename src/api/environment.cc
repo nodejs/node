@@ -1056,9 +1056,9 @@ Maybe<bool> InitializeContext(Local<Context> context) {
 
 void RegisterContext(Environment* env,
                      v8::Local<v8::Context> context,
-                     const std::string& name,
-                     const std::string& origin) {
-  ContextInfo info(name, origin);
+                     std::string_view name,
+                     std::string_view origin) {
+  ContextInfo info{std::string(name), std::string(origin)};
   env->AssignToContext(context, nullptr, info);
 }
 

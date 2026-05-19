@@ -579,8 +579,8 @@ NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
 // Node.js promise hooks on the context.
 NODE_EXTERN void RegisterContext(Environment* env,
                                  v8::Local<v8::Context> context,
-                                 const std::string& name = "",
-                                 const std::string& origin = "");
+                                 std::string_view name = "",
+                                 std::string_view origin = "");
 // Unregister the context. Call this when the embedder finished all work with
 // this context.
 NODE_EXTERN void UnregisterContext(Environment* env,
