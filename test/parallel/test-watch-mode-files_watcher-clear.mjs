@@ -13,12 +13,14 @@ const timers = require('node:timers');
 const originalSetTimeout = timers.setTimeout;
 const originalClearTimeout = timers.clearTimeout;
 const { promise, resolve } = Promise.withResolvers();
+const debounce = 1000;
 let debounceTimer;
 let debounceTimerCallback;
 let debounceTimerCleared = false;
 
 timers.setTimeout = function(fn, delay, ...args) {
-  if (delay === 1000) {
+  // Only intercept the FilesWatcher debounce timer configured below.
+  if (delay === debounce) {
     const timer = {
       __proto__: null,
       ref() { return this; },
@@ -50,7 +52,7 @@ try {
   const file = tmpdir.resolve('watcher-clear.js');
   writeFileSync(file, '0');
 
-  const watcher = new FilesWatcher({ debounce: 1000, mode: 'all' });
+  const watcher = new FilesWatcher({ debounce, mode: 'all' });
   watcher.on('changed', common.mustNotCall());
   watcher.watchPath(file, false);
 
