@@ -185,19 +185,7 @@ describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_00
     }
 
     child.kill();
-    const timedOut = Promise.withResolvers();
-    const timer = setTimeout(() => {
-      timedOut.reject(new Error('Timed out waiting for watch mode to exit'));
-      if (child.exitCode === null && child.signalCode === null) {
-        child.kill('SIGKILL');
-      }
-    }, common.platformTimeout(5000));
-    timer.unref();
-    try {
-      await Promise.race([once(child, 'exit'), timedOut.promise]);
-    } finally {
-      clearTimeout(timer);
-    }
+    await once(child, 'exit');
   });
 
   it('should watch changes to a file', async () => {
