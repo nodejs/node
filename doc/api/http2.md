@@ -1337,10 +1337,11 @@ added: v8.4.0
 
 * `headers` {HTTP/2 Headers Object} An object describing the headers
 * `flags` {number} The associated numeric flags
+* `rawHeaders` {HTTP/2 Raw Headers}
 
 The `'trailers'` event is emitted when a block of headers associated with
-trailing header fields is received. The listener callback is passed the
-[HTTP/2 Headers Object][] and flags associated with the headers.
+trailing header fields is received. The listener callback is passed the [HTTP/2 Headers Object][], flags associated
+with the headers, and the headers in raw format (see [HTTP/2 Raw Headers][]).
 
 This event might not be emitted if `http2stream.end()` is called
 before trailers are received and the incoming data is not being read or
@@ -1694,10 +1695,11 @@ added: v8.4.0
 
 * `headers` {HTTP/2 Headers Object}
 * `flags` {number}
+* `rawHeaders` {HTTP/2 Raw Headers}
 
 The `'push'` event is emitted when response headers for a Server Push stream
-are received. The listener callback is passed the [HTTP/2 Headers Object][] and
-flags associated with the headers.
+are received. The listener callback is passed the [HTTP/2 Headers Object][], flags associated
+with the headers, and the headers in raw format (see [HTTP/2 Raw Headers][]).
 
 ```js
 stream.on('push', (headers, flags) => {
