@@ -5,6 +5,7 @@ const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { rm, readFile } = require('node:fs/promises');
+const { relative } = require('node:path');
 const { setTimeout } = require('node:timers/promises');
 const { test, beforeEach, afterEach, run } = require('node:test');
 
@@ -153,6 +154,82 @@ test('test should pass on third rerun with `--test`', async () => {
   assert.match(stdout, /fail 0/);
   assert.match(stdout, /suites 2/);
   assert.deepStrictEqual(await getStateFile(), expectedStateFile);
+});
+
+test('failing test is not swallowed when siblings share its source location', async () => {
+  // Regression coverage for https://github.com/nodejs/node/issues/63424.
+  //
+  // The fixture runs the 4-sibling group (D, E pass; F fails; G passes)
+  // before the 3-sibling group from the issue (A pass, B fails, C pass) so
+  // that the passing sibling at global position 2 (E) ends up recorded at
+  // base:(1). With the runner-side off-by-one reintroduced, the buggy
+  // counter on retry collides every sibling after the first onto base:(1)
+  // and matches the failing F (and B) against E's "passed" entry, replacing
+  // their assert.fail with a synthetic noop and reporting exit 0.
+  //
+  // The state-file shape additionally pins down the writer-side bugs: the
+  // writer off-by-one or its prior pass-only counting both shift the
+  // recorded slots away from the expected base:(N) layout.
+  const fixturePath = fixtures.path('test-runner', 'rerun-shared-helper-swallows-failure.mjs');
+  const args = ['--test-rerun-failures', stateFile, fixturePath];
+
+  // getStateFile() normalises backslashes to '/'; match that on Windows.
+  const fixtureKey = relative(process.cwd(), fixturePath).replaceAll('\\', '/');
+  const innerLoc = `${fixtureKey}:25:13`;
+  const passingInner = { passed_on_attempt: 0, name: 'inner' };
+  const expectedInnerSlots = {
+    [innerLoc]: passingInner,                  // D
+    [`${innerLoc}:(1)`]: passingInner,         // E   - fills the slot a buggy runner aliases F/B onto
+    [`${innerLoc}:(3)`]: passingInner,         // G   - :(2) reserved for F's failure
+    [`${innerLoc}:(4)`]: passingInner,         // A
+    [`${innerLoc}:(6)`]: passingInner,         // C   - :(5) reserved for B's failure
+  };
+  const passingParents = {
+    [`${fixtureKey}:37:3`]: 'D passes',
+    [`${fixtureKey}:38:3`]: 'E passes',
+    [`${fixtureKey}:40:3`]: 'G passes',
+    [`${fixtureKey}:48:3`]: 'A passes',
+    [`${fixtureKey}:50:3`]: 'C passes',
+  };
+  const failingParentSlots = [
+    `${fixtureKey}:39:3`,                      // F fails
+    `${fixtureKey}:49:3`,                      // B fails
+  ];
+  const failingInnerSlots = [`${innerLoc}:(2)`, `${innerLoc}:(5)`];
+
+  function assertAttempt(state, attemptIndex) {
+    for (const [key, expected] of Object.entries(expectedInnerSlots)) {
+      assert.deepStrictEqual(state[attemptIndex][key], expected, `attempt ${attemptIndex} missing or wrong entry for ${key}`);
+    }
+    for (const [key, name] of Object.entries(passingParents)) {
+      assert.strictEqual(state[attemptIndex][key]?.name, name, `attempt ${attemptIndex} missing parent ${name} at ${key}`);
+      assert.strictEqual(state[attemptIndex][key]?.passed_on_attempt, 0);
+    }
+    for (const key of failingInnerSlots) {
+      assert.strictEqual(state[attemptIndex][key], undefined, `attempt ${attemptIndex} should not record failing inner at ${key}`);
+    }
+    for (const key of failingParentSlots) {
+      assert.strictEqual(state[attemptIndex][key], undefined, `attempt ${attemptIndex} should not record failing parent at ${key}`);
+    }
+  }
+
+  // Attempt 0: F and B fail.
+  let { code, signal } = await common.spawnPromisified(process.execPath, args);
+  assert.strictEqual(code, 1);
+  assert.strictEqual(signal, null);
+  let state = await getStateFile();
+  assert.strictEqual(state.length, 1);
+  assertAttempt(state, 0);
+
+  // Attempt 1: F and B must STILL fail. Before the fix this run reported
+  // exit 0 because the failing tests were matched to passing siblings'
+  // previous-attempt slots and replaced with synthetic noops.
+  ({ code, signal } = await common.spawnPromisified(process.execPath, args));
+  assert.strictEqual(code, 1);
+  assert.strictEqual(signal, null);
+  state = await getStateFile();
+  assert.strictEqual(state.length, 2);
+  assertAttempt(state, 1);
 });
 
 test('rerun preserves the original duration on the replayed pass', async () => {
