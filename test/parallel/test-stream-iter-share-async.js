@@ -134,6 +134,7 @@ async function testShareCancelWithReason() {
 
 async function testShareAbortSignal() {
   const ac = new AbortController();
+  const reason = new Error('share aborted');
   const enc = new TextEncoder();
   async function* source() {
     yield [enc.encode('a')];
@@ -149,8 +150,11 @@ async function testShareAbortSignal() {
 
   await fast.next();
   const read = fast.next();
-  const rejected = assert.rejects(read, { name: 'AbortError' });
-  ac.abort();
+  const rejected = assert.rejects(read, common.mustCall((error) => {
+    assert.strictEqual(error, reason);
+    return true;
+  }));
+  ac.abort(reason);
 
   await rejected;
 }
