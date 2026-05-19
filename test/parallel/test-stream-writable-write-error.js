@@ -31,7 +31,7 @@ function test(autoDestroy) {
   {
     const w = new Writable({
       autoDestroy,
-      _write() {}
+      write() {}
     });
     w.end();
     expectError(w, ['asd'], 'ERR_STREAM_WRITE_AFTER_END');
@@ -40,7 +40,7 @@ function test(autoDestroy) {
   {
     const w = new Writable({
       autoDestroy,
-      _write() {}
+      write() {}
     });
     w.destroy();
   }
@@ -48,7 +48,7 @@ function test(autoDestroy) {
   {
     const w = new Writable({
       autoDestroy,
-      _write() {}
+      write() {}
     });
     expectError(w, [null], 'ERR_STREAM_NULL_VALUES', true);
   }
@@ -56,18 +56,26 @@ function test(autoDestroy) {
   {
     const w = new Writable({
       autoDestroy,
-      _write() {}
+      write() {}
     });
     expectError(w, [{}], 'ERR_INVALID_ARG_TYPE', true);
   }
 
   {
     const w = new Writable({
-      decodeStrings: false,
       autoDestroy,
-      _write() {}
+      write() {}
     });
-    expectError(w, ['asd', 'noencoding'], 'ERR_UNKNOWN_ENCODING', true);
+    expectError(w, ['asd', 'buffer'], 'ERR_UNKNOWN_ENCODING', true);
+  }
+
+  {
+    const w = new Writable({
+      autoDestroy,
+      decodeStrings: false,
+      write() {}
+    });
+    expectError(w, ['asd', 'buffer'], 'ERR_UNKNOWN_ENCODING', true);
   }
 }
 
