@@ -12,8 +12,8 @@
 namespace node::quic {
 
 #define NGTCP2_SUCCESS 0
-#define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
-#define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
+#define NGTCP2_ERR(V) ((V) != NGTCP2_SUCCESS)
+#define NGTCP2_OK(V) ((V) == NGTCP2_SUCCESS)
 
 #define IF_QUIC_DEBUG(env)                                                     \
   if (env->enabled_debug_list()->enabled(DebugCategory::QUIC)) [[unlikely]]
@@ -79,6 +79,39 @@ bool SetOption(Environment* env,
       return false;
     }
     options->*member = num->Value();
+  }
+  return true;
+}
+
+template <typename Opt, uint16_t Opt::*member>
+bool SetOption(Environment* env,
+               Opt* options,
+               const v8::Local<v8::Object>& object,
+               const v8::Local<v8::String>& name) {
+  v8::Local<v8::Value> value;
+  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
+  if (!value->IsUndefined()) {
+    if (!value->IsUint32()) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The %s option must be an uint16", nameStr);
+      return false;
+    }
+    v8::Local<v8::Uint32> num;
+    if (!value->ToUint32(env->context()).ToLocal(&num)) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The %s option must be an uint16", nameStr);
+      return false;
+    }
+    uint32_t val = num->Value();
+    if (val > 0xFFFF) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The %s option must fit in a uint16", nameStr);
+      return false;
+    }
+    options->*member = static_cast<uint16_t>(val);
   }
   return true;
 }
@@ -205,7 +238,7 @@ uint64_t GetStat(Stats* stats) {
   if (!GetConstructorTemplate(env)                                             \
            ->InstanceTemplate()                                                \
            ->NewInstance(env->context())                                       \
-           .ToLocal(&obj)) {                                                   \
+           .ToLocal(&name)) {                                                  \
     return ret;                                                                \
   }
 
@@ -214,7 +247,7 @@ uint64_t GetStat(Stats* stats) {
   if (!GetConstructorTemplate(env)                                             \
            ->InstanceTemplate()                                                \
            ->NewInstance(env->context())                                       \
-           .ToLocal(&obj)) {                                                   \
+           .ToLocal(&name)) {                                                  \
     return;                                                                    \
   }
 
@@ -285,8 +318,14 @@ enum class StreamPriority : uint8_t {
 };
 
 enum class StreamPriorityFlags : uint8_t {
-  NONE,
   NON_INCREMENTAL,
+  INCREMENTAL,
+};
+
+enum class HeadersSupportState : uint8_t {
+  UNKNOWN,
+  SUPPORTED,
+  UNSUPPORTED,
 };
 
 enum class PathValidationResult : uint8_t {
@@ -298,6 +337,7 @@ enum class PathValidationResult : uint8_t {
 enum class DatagramStatus : uint8_t {
   ACKNOWLEDGED,
   LOST,
+  ABANDONED,
 };
 
 #define CC_ALGOS(V)                                                            \

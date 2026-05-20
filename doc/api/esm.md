@@ -569,8 +569,6 @@ console.log(cjs === cjsSugar);
 This Module Namespace Exotic Object can be directly observed either when using
 `import * as m from 'cjs'` or a dynamic import:
 
-<!-- eslint-skip -->
-
 ```js
 import * as m from 'cjs';
 console.log(m);

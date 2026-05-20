@@ -71,7 +71,11 @@ const { sleep } = require('internal/util');
         // The values are non-deterministic, so we just check that a value is
         // present, as opposed to a specific value.
         assert(histogram.count > 0, `Expected samples to be recorded, got count=${histogram.count}`);
-        assert(histogram.min > 0);
+        // Min can legitimately be 0: the underlying HDR histogram has a
+        // lowest discernible value of 1us, so samples whose delta falls in
+        // the [0, 1us) bucket are reported as 0. A negative value would
+        // indicate a bug.
+        assert(histogram.min >= 0);
         assert(histogram.max > 0);
         assert(histogram.stddev > 0);
         assert(histogram.mean > 0);

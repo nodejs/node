@@ -1,12 +1,11 @@
 'use strict'
 
-const net = require('node:net')
 const { URL } = require('node:url')
 
 let tls // include tls conditionally since it is not always available
 const DispatcherBase = require('./dispatcher-base')
 const { InvalidArgumentError } = require('../core/errors')
-const { Socks5Client } = require('../core/socks5-client')
+const { Socks5Client, STATES } = require('../core/socks5-client')
 const { kDispatch, kClose, kDestroy } = require('../core/symbols')
 const Pool = require('./pool')
 const buildConnector = require('../core/connect')
@@ -17,7 +16,8 @@ const debug = debuglog('undici:socks5-proxy')
 const kProxyUrl = Symbol('proxy url')
 const kProxyHeaders = Symbol('proxy headers')
 const kProxyAuth = Symbol('proxy auth')
-const kPool = Symbol('pool')
+const kProxyProtocol = Symbol('proxy protocol')
+const kPools = Symbol('pools')
 const kConnector = Symbol('connector')
 
 // Static flag to ensure warning is only emitted once per process
@@ -52,6 +52,7 @@ class Socks5ProxyAgent extends DispatcherBase {
 
     this[kProxyUrl] = url
     this[kProxyHeaders] = options.headers || {}
+    this[kProxyProtocol] = options.proxyTls ? 'https:' : 'http:'
 
     // Extract auth from URL or options
     this[kProxyAuth] = {
@@ -65,8 +66,8 @@ class Socks5ProxyAgent extends DispatcherBase {
       servername: options.proxyTls?.servername || url.hostname
     })
 
-    // Pool for the actual HTTP connections (with SOCKS5 tunnel connect function)
-    this[kPool] = null
+    // Pools for the actual HTTP connections (with SOCKS5 tunnel connect function), keyed by origin
+    this[kPools] = new Map()
   }
 
   /**
@@ -81,25 +82,20 @@ class Socks5ProxyAgent extends DispatcherBase {
     // Connect to the SOCKS5 proxy
     const socketReady = Promise.withResolvers()
 
-    const onSocketConnect = () => {
-      socket.removeListener('error', onSocketError)
-      socketReady.resolve(socket)
-    }
-
-    const onSocketError = (err) => {
-      socket.removeListener('connect', onSocketConnect)
-      socketReady.reject(err)
-    }
-
-    const socket = net.connect({
+    this[kConnector]({
+      hostname: proxyHost,
       host: proxyHost,
-      port: proxyPort
+      port: proxyPort,
+      protocol: this[kProxyProtocol]
+    }, (err, socket) => {
+      if (err) {
+        socketReady.reject(err)
+      } else {
+        socketReady.resolve(socket)
+      }
     })
 
-    socket.once('connect', onSocketConnect)
-    socket.once('error', onSocketError)
-
-    await socketReady.promise
+    const socket = await socketReady.promise
 
     // Create SOCKS5 client
     const socks5Client = new Socks5Client(socket, this[kProxyAuth])
@@ -133,7 +129,7 @@ class Socks5ProxyAgent extends DispatcherBase {
     }
 
     // Check if already authenticated (for NO_AUTH method)
-    if (socks5Client.state === 'authenticated') {
+    if (socks5Client.state === STATES.AUTHENTICATED) {
       clearTimeout(authenticationTimeout)
       authenticationReady.resolve()
     } else {
@@ -177,15 +173,17 @@ class Socks5ProxyAgent extends DispatcherBase {
   /**
    * Dispatch a request through the SOCKS5 proxy
    */
-  async [kDispatch] (opts, handler) {
+  [kDispatch] (opts, handler) {
     const { origin } = opts
 
     debug('dispatching request to', origin, 'via SOCKS5')
 
     try {
-      // Create Pool with custom connect function if we don't have one yet
-      if (!this[kPool] || this[kPool].destroyed || this[kPool].closed) {
-        this[kPool] = new Pool(origin, {
+      const originKey = String(origin)
+      let pool = this[kPools].get(originKey)
+      // Create a Pool per origin so requests are not routed to the wrong host
+      if (!pool || pool.destroyed || pool.closed) {
+        pool = new Pool(origin, {
           pipelining: opts.pipelining,
           connections: opts.connections,
           connect: async (connectOpts, callback) => {
@@ -225,14 +223,19 @@ class Socks5ProxyAgent extends DispatcherBase {
             }
           }
         })
+        this[kPools].set(originKey, pool)
       }
 
-      // Dispatch the request through the pool
-      return this[kPool][kDispatch](opts, handler)
+      // Dispatch the request through the per-origin pool
+      return pool[kDispatch](opts, handler)
     } catch (err) {
       debug('dispatch error:', err)
-      if (typeof handler.onError === 'function') {
+      if (typeof handler.onResponseError === 'function') {
+        handler.onResponseError(null, err)
+        return false
+      } else if (typeof handler.onError === 'function') {
         handler.onError(err)
+        return false
       } else {
         throw err
       }
@@ -240,15 +243,21 @@ class Socks5ProxyAgent extends DispatcherBase {
   }
 
   async [kClose] () {
-    if (this[kPool]) {
-      await this[kPool].close()
+    const closePromises = []
+    for (const pool of this[kPools].values()) {
+      closePromises.push(pool.close())
     }
+    this[kPools].clear()
+    await Promise.all(closePromises)
   }
 
   async [kDestroy] (err) {
-    if (this[kPool]) {
-      await this[kPool].destroy(err)
+    const destroyPromises = []
+    for (const pool of this[kPools].values()) {
+      destroyPromises.push(pool.destroy(err))
     }
+    this[kPools].clear()
+    await Promise.all(destroyPromises)
   }
 }
 

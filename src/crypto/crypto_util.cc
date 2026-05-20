@@ -139,7 +139,7 @@ void InitCryptoOnce() {
 
   OPENSSL_init_ssl(0, settings);
 
-#if OPENSSL_WITH_PQC
+#if OPENSSL_WITH_OPENSSL_PQC
   // Configure all loaded providers to prefer seed-only format for ML-KEM and
   // ML-DSA private keys in PKCS#8 export, falling back to priv-only when a
   // seed is not available. The provider encoder reads these parameters at
@@ -479,9 +479,9 @@ ByteSource ByteSource::FromBuffer(Local<Value> buffer, bool ntc) {
 ByteSource ByteSource::FromSecretKeyBytes(
     Environment* env,
     Local<Value> value) {
-  // A key can be passed as a string, buffer or KeyObject with type 'secret'.
-  // If it is a string, we need to convert it to a buffer. We are not doing that
-  // in JS to avoid creating an unprotected copy on the heap.
+  // JS normalizes secret KeyObject/CryptoKey inputs to a KeyObjectHandle.
+  // Strings are converted here instead of in JS to avoid creating an
+  // unprotected copy on the heap.
   return value->IsString() || IsAnyBufferSource(value)
              ? ByteSource::FromStringOrBuffer(env, value)
              : ByteSource::FromSymmetricKeyObjectHandle(value);
@@ -553,44 +553,51 @@ Maybe<void> Decorate(Environment* env,
         c = ToUpper(c);
     }
 
-#define OSSL_ERROR_CODES_MAP(V)                                               \
-    V(SYS)                                                                    \
-    V(BN)                                                                     \
-    V(RSA)                                                                    \
-    V(DH)                                                                     \
-    V(EVP)                                                                    \
-    V(BUF)                                                                    \
-    V(OBJ)                                                                    \
-    V(PEM)                                                                    \
-    V(DSA)                                                                    \
-    V(X509)                                                                   \
-    V(ASN1)                                                                   \
-    V(CONF)                                                                   \
-    V(CRYPTO)                                                                 \
-    V(EC)                                                                     \
-    V(SSL)                                                                    \
-    V(BIO)                                                                    \
-    V(PKCS7)                                                                  \
-    V(X509V3)                                                                 \
-    V(PKCS12)                                                                 \
-    V(RAND)                                                                   \
-    V(DSO)                                                                    \
-    V(ENGINE)                                                                 \
-    V(OCSP)                                                                   \
-    V(UI)                                                                     \
-    V(COMP)                                                                   \
-    V(ECDSA)                                                                  \
-    V(ECDH)                                                                   \
-    V(OSSL_STORE)                                                             \
-    V(FIPS)                                                                   \
-    V(CMS)                                                                    \
-    V(TS)                                                                     \
-    V(HMAC)                                                                   \
-    V(CT)                                                                     \
-    V(ASYNC)                                                                  \
-    V(KDF)                                                                    \
-    V(SM2)                                                                    \
-    V(USER)                                                                   \
+#ifdef OPENSSL_IS_BORINGSSL
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
+#else
+#define OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)                                   \
+  V(PKCS12)                                                                    \
+  V(DSO)                                                                       \
+  V(OSSL_STORE)                                                                \
+  V(FIPS)                                                                      \
+  V(TS)                                                                        \
+  V(CT)                                                                        \
+  V(ASYNC)                                                                     \
+  V(KDF)                                                                       \
+  V(SM2)
+#endif
+
+#define OSSL_ERROR_CODES_MAP(V)                                                \
+  V(SYS)                                                                       \
+  V(BN)                                                                        \
+  V(RSA)                                                                       \
+  V(DH)                                                                        \
+  V(EVP)                                                                       \
+  V(BUF)                                                                       \
+  V(OBJ)                                                                       \
+  V(PEM)                                                                       \
+  V(DSA)                                                                       \
+  V(X509)                                                                      \
+  V(ASN1)                                                                      \
+  V(CONF)                                                                      \
+  V(CRYPTO)                                                                    \
+  V(EC)                                                                        \
+  V(SSL)                                                                       \
+  V(BIO)                                                                       \
+  V(PKCS7)                                                                     \
+  V(X509V3)                                                                    \
+  V(RAND)                                                                      \
+  V(ENGINE)                                                                    \
+  V(OCSP)                                                                      \
+  V(UI)                                                                        \
+  V(COMP)                                                                      \
+  V(ECDSA)                                                                     \
+  V(ECDH)                                                                      \
+  V(CMS)                                                                       \
+  V(HMAC)                                                                      \
+  V(USER)                                                                      \
+  OSSL_ERROR_CODES_MAP_OPENSSL_ONLY(V)
 
 #define V(name) case ERR_LIB_##name: lib = #name "_"; break;
     const char* lib = "";
@@ -600,6 +607,7 @@ Maybe<void> Decorate(Environment* env,
     }
 #undef V
 #undef OSSL_ERROR_CODES_MAP
+#undef OSSL_ERROR_CODES_MAP_OPENSSL_ONLY
     // Don't generate codes like "ERR_OSSL_SSL_".
     if (lib && strcmp(lib, "SSL_") == 0)
       prefix = "";
@@ -728,7 +736,6 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = args[0].As<Uint32>()->Value();
 
   auto data = DataPointer::SecureAlloc(len);
-  CHECK(data.isSecure());
   if (!data) {
     return THROW_ERR_OPERATION_FAILED(env, "Allocation failed");
   }

@@ -98,7 +98,7 @@ and libc version. The table below lists the support tier for each supported
 combination. A list of [supported compile toolchains](#supported-toolchains) is
 also supplied for tier 1 platforms.
 
-**For production applications, run Node.js on supported platforms only.**
+**For production applications, run Node.js on supported platforms only (Tier 1 or 2).**
 
 Node.js does not support a platform version if a vendor has expired support
 for it. In other words, Node.js does not support running on End-of-Life (EoL)
@@ -111,14 +111,13 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10                    |
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8           |
 | GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24                    |
-| GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12                    |
 | GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8                      |
 | GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                                    |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                                |
 | GNU/Linux        | riscv64          | kernel >= 5.19, glibc >= 2.36     | Experimental | GCC >= 14 or Clang >= 19 for native builds[^7] |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                                      |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                                |
-| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4]           |
+| macOS            | x64              | >= 13.5                           | Tier 2       | For notes about compilation see [^4]           |
 | macOS            | arm64            | >= 13.5                           | Tier 1       |                                                |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                                |
 | AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                                |
@@ -227,12 +226,11 @@ If compiling without one of the above, use `configure` with the
 ### Previous versions of this document
 
 Supported platforms and toolchains change with each major version of Node.js.
-This document is only valid for the current major version of Node.js.
-Consult previous versions of this document for older versions of Node.js:
+This document is only valid for the current version of Node.js, and is expected
+to be valid for the entire lifetime of this release line.
 
-* [Node.js 24](https://github.com/nodejs/node/blob/v24.x/BUILDING.md)
-* [Node.js 22](https://github.com/nodejs/node/blob/v22.x/BUILDING.md)
-* [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
+To consult the version of this document for another version, download its source
+tarball and/or browse the git repository checked out at the relevant tag.
 
 ## Building Node.js on supported platforms
 
@@ -754,9 +752,13 @@ Refs:
   To install it, select the following two optional components:
   * C++ Clang Compiler for Windows (Microsoft.VisualStudio.Component.VC.Llvm.Clang)
   * MSBuild support for LLVM (clang-cl) toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
-* As an alternative to Visual Studio 2026, download Visual Studio 2022 Current channel Version 17.4 from the
+* As an alternative to Visual Studio 2026, download Visual Studio 2022 Current channel Version 17.14 from the
   [Evergreen bootstrappers](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history#evergreen-bootstrappers)
   table and install using the same workload and optional component selection as described above.
+* To install the Rust toolchain, required for Temporal support introduced in Node.js 26,
+  ensure Visual Studio is already installed, then run `rustup-init.exe` downloaded from
+  [Install Rust](https://rust-lang.org/tools/install/),
+  choosing the default: "Proceed with standard installation".
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
@@ -794,6 +796,7 @@ easily. These files will install the following
 * `Python 3.14`
 * `Visual Studio 2022` (Build Tools, Community, Professional or Enterprise Edition) and
   "Desktop development with C++" workload, Clang and ClangToolset optional components
+* `Rust Toolchain MSVC`
 * `NetWide Assembler`
 
 The following Desired State Configuration (DSC) files are available:
@@ -1047,10 +1050,23 @@ enable FIPS support in Node.js.
 Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
 linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 
-To build Node.js with Temporal support, a Rust toolchain is required:
+Temporal support is enabled by default starting in Node.js 26. Building it
+requires a Rust toolchain:
 
 * rustc >= 1.82 (with LLVM >= 19)
 * cargo >= 1.82
+
+If `--v8-enable-temporal-support` and `--v8-disable-temporal-support` are both
+omitted, `configure.py` probes for `cargo` and `rustc`. If either is missing,
+a warning is printed and Temporal support is disabled.
+
+* Pass `--v8-enable-temporal-support` to `configure.py` to require Temporal
+  support. The build will stop with an error if `cargo` or `rustc` cannot be
+  found.
+* Pass `--v8-disable-temporal-support` to opt out of Temporal support and
+  remove the Rust toolchain requirement.
+
+Passing both options to `configure.py` is an error.
 
 ## Building Node.js with external core modules
 

@@ -100,7 +100,7 @@ for (const [asymmetricKeyType, pubLen] of [
     }
   }
 
-  if (!hasOpenSSL(3, 5)) {
+  if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
     assert.throws(() => createPublicKey(keys.public), {
       code: hasOpenSSL(3) ? 'ERR_OSSL_EVP_DECODE_ERROR' : 'ERR_OSSL_EVP_UNSUPPORTED_ALGORITHM',
     });
@@ -115,11 +115,15 @@ for (const [asymmetricKeyType, pubLen] of [
     assertPublicKey(publicKey);
 
     {
-      for (const [pem, hasSeed] of [
-        [keys.private, true],
-        [keys.private_seed_only, true],
-        [keys.private_priv_only, false],
+      for (const [pem, hasSeed, seedOnly] of [
+        [keys.private, true, false],
+        [keys.private_seed_only, true, true],
+        [keys.private_priv_only, false, false],
       ]) {
+        if (process.features.openssl_is_boringssl && !seedOnly) {
+          common.printSkipMessage('Skipping unsupported private key format test');
+          continue;
+        }
         const pubFromPriv = createPublicKey(pem);
         assertPublicKey(pubFromPriv);
         assertPrivateKey(createPrivateKey(pem), hasSeed);

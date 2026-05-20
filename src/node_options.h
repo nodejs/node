@@ -217,6 +217,7 @@ class EnvironmentOptions : public Options {
   std::string test_isolation = "process";
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
   std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;

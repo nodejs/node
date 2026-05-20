@@ -44,6 +44,8 @@ if (r.arrayBuffers > 0) {
   const after = process.memoryUsage();
   assert.ok(after.external - r.external >= size,
             `${after.external} - ${r.external} >= ${size}`);
-  assert.strictEqual(after.arrayBuffers - r.arrayBuffers, size,
-                     `${after.arrayBuffers} - ${r.arrayBuffers} === ${size}`);
+  // `arrayBuffers` is process-wide, so unrelated backing stores may be freed
+  // between the two snapshots. Check that the live ArrayBuffer is included.
+  assert.ok(after.arrayBuffers >= size,
+            `${after.arrayBuffers} >= ${size}`);
 }

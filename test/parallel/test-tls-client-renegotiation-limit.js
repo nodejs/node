@@ -31,6 +31,11 @@ if (!opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
 }
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').testRenegotiationUnsupported();
+  return;
+}
+
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');

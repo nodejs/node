@@ -1354,10 +1354,10 @@ Emitted when dispatcher is no longer busy.
 
 ## Parameter: `UndiciHeaders`
 
-* `Record<string, string | string[] | undefined> | string[] | Iterable<[string, string | string[] | undefined]> | null`
+* `Record<string, number | string | string[] | undefined> | string[] | Iterable<[string, string | string[] | undefined]> | null`
 
 Header arguments such as `options.headers` in [`Client.dispatch`](/docs/docs/api/Client.md#clientdispatchoptions-handlers) can be specified in three forms:
-* As an object specified by the `Record<string, string | string[] | undefined>` (`IncomingHttpHeaders`) type.
+* As an object specified by the `Record<string, number | string | string[] | undefined>` (`OutgoingHttpHeaders`) type.
 * As an array of strings. An array representation of a header list must have an even length, or an `InvalidArgumentError` will be thrown.
 * As an iterable that can encompass `Headers`, `Map`, or a custom iterator returning key-value pairs.
 Keys are lowercase and values are not modified.

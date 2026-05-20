@@ -177,7 +177,7 @@ test('ffi exportString and exportBuffer copy data into native memory', () => {
     const viewSource = new Uint16Array([0x0102, 0x0304, 0x0506]);
     const middleBytes = new Uint8Array(viewSource.buffer, 2, 2);
     ffi.exportArrayBufferView(middleBytes, viewPtr, 2);
-    assert.deepStrictEqual([...ffi.toBuffer(viewPtr, 2)], [0x04, 0x03]);
+    assert.deepStrictEqual([...ffi.toBuffer(viewPtr, 2)], [...middleBytes]);
 
     const bufferViewPtr = alloc(8);
     const bufferView = Buffer.from([1, 7, 2, 8, 3]);

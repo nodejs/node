@@ -10,13 +10,7 @@ let bufIdx = BUFFER_SIZE
 
 const randomFillSync = runtimeFeatures.has('crypto')
   ? require('node:crypto').randomFillSync
-  // not full compatibility, but minimum.
-  : function randomFillSync (buffer, _offset, _size) {
-    for (let i = 0; i < buffer.length; ++i) {
-      buffer[i] = Math.random() * 255 | 0
-    }
-    return buffer
-  }
+  : null
 
 function generateMask () {
   if (bufIdx === BUFFER_SIZE) {

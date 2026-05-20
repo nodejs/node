@@ -61,7 +61,6 @@ console.log(query.all());
 ```
 
 ```cjs
-'use strict';
 const { DatabaseSync } = require('node:sqlite');
 const database = new DatabaseSync(':memory:');
 
@@ -298,7 +297,7 @@ added: v22.5.0
 Closes the database connection. An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3_close_v2()`][].
 
-### `database.loadExtension(path)`
+### `database.loadExtension(path[, entryPoint])`
 
 <!-- YAML
 added:
@@ -307,10 +306,35 @@ added:
 -->
 
 * `path` {string} The path to the shared library to load.
+* `entryPoint` {string} The name of the extension's entry-point function. When
+  omitted, SQLite derives the entry point from the shared library's filename;
+  pass this argument explicitly when the derived name does not match.
 
 Loads a shared library into the database connection. This method is a wrapper
 around [`sqlite3_load_extension()`][]. It is required to enable the
 `allowExtension` option when constructing the `DatabaseSync` instance.
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+const database = new DatabaseSync(':memory:', { allowExtension: true });
+
+// Load using the entry point derived from the filename.
+database.loadExtension('./decimal.dylib');
+
+// Override the entry point when the derived name does not match.
+database.loadExtension('./base64.dylib', 'sqlite3_base64_init');
+```
+
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+const database = new DatabaseSync(':memory:', { allowExtension: true });
+
+// Load using the entry point derived from the filename.
+database.loadExtension('./decimal.dylib');
+
+// Override the entry point when the derived name does not match.
+database.loadExtension('./base64.dylib', 'sqlite3_base64_init');
+```
 
 ### `database.enableLoadExtension(allow)`
 
@@ -538,7 +562,7 @@ the constructor. An exception is thrown if the database is already open.
 ### `database.serialize([dbName])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `dbName` {string} Name of the database to serialize. This can be `'main'`
@@ -573,7 +597,7 @@ console.log(buffer.length); // Prints the byte length of the database
 ### `database.deserialize(buffer[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `buffer` {Uint8Array} A binary representation of a database, such as the

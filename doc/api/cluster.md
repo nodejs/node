@@ -49,7 +49,6 @@ if (cluster.isPrimary) {
 const cluster = require('node:cluster');
 const http = require('node:http');
 const numCPUs = require('node:os').availableParallelism();
-const process = require('node:process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -318,7 +317,6 @@ if (cluster.isPrimary) {
 const cluster = require('node:cluster');
 const http = require('node:http');
 const numCPUs = require('node:os').availableParallelism();
-const process = require('node:process');
 
 if (cluster.isPrimary) {
 
@@ -541,7 +539,6 @@ if (cluster.isPrimary) {
 const cluster = require('node:cluster');
 const http = require('node:http');
 const numCPUs = require('node:os').availableParallelism();
-const process = require('node:process');
 
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);

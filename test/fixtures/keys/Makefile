@@ -2,6 +2,7 @@ all: \
   ca1-cert.pem \
   ca2-cert.pem \
   ca2-crl.pem \
+  ca2-crl-agent3.pem \
   ca3-cert.pem \
   ca4-cert.pem \
   ca5-cert.pem \
@@ -101,6 +102,8 @@ all: \
   ml_dsa_44_private.pem \
   ml_dsa_44_private_seed_only.pem \
   ml_dsa_44_private_priv_only.pem \
+  ml_dsa_44_private_encrypted.pem \
+  ml_dsa_44_private_encrypted.der \
   ml_dsa_44_public.pem \
   ml_dsa_65_private.pem \
   ml_dsa_65_private_seed_only.pem \
@@ -123,6 +126,8 @@ all: \
   ml_kem_768_private.pem \
   ml_kem_768_private_seed_only.pem \
   ml_kem_768_private_priv_only.pem \
+  ml_kem_768_private_encrypted.pem \
+  ml_kem_768_private_encrypted.der \
   ml_kem_768_public.pem \
   ml_kem_1024_private.pem \
   ml_kem_1024_private_seed_only.pem \
@@ -528,6 +533,28 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent4-cert.pem
 		-gencrl \
 		-out ca2-crl.pem \
 		-passin 'pass:password'
+
+#
+# Make CRL with agent3 being rejected
+# Uses a separate temporary database so the ca2-crl.pem revocation of agent4
+# does not contaminate this CRL.
+#
+ca2-crl-agent3.pem: ca2-key.pem ca2-cert.pem ca2.cnf agent3-cert.pem
+	@> ca2-crl-agent3-database.txt
+	@sed 's/ca2-database/ca2-crl-agent3-database/' ca2.cnf > ca2-crl-agent3.cnf
+	openssl ca -revoke agent3-cert.pem \
+		-keyfile ca2-key.pem \
+		-cert ca2-cert.pem \
+		-config ca2-crl-agent3.cnf \
+		-passin 'pass:password'
+	openssl ca \
+		-keyfile ca2-key.pem \
+		-cert ca2-cert.pem \
+		-config ca2-crl-agent3.cnf \
+		-gencrl \
+		-out ca2-crl-agent3.pem \
+		-passin 'pass:password'
+	@rm -f ca2-crl-agent3.cnf ca2-crl-agent3-database.txt*
 
 #
 # agent5 is signed by ca2 (client cert)
@@ -1005,6 +1032,12 @@ ml_dsa_44_private_priv_only.pem: ml_dsa_44_private.pem
 ml_dsa_44_public.pem: ml_dsa_44_private.pem
 	openssl pkey -in ml_dsa_44_private.pem -pubout -out ml_dsa_44_public.pem
 
+ml_dsa_44_private_encrypted.pem: ml_dsa_44_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-dsa.output_formats=seed-only -in ml_dsa_44_private_seed_only.pem -passout 'pass:password' -out ml_dsa_44_private_encrypted.pem
+
+ml_dsa_44_private_encrypted.der: ml_dsa_44_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-dsa.output_formats=seed-only -in ml_dsa_44_private_seed_only.pem -passout 'pass:password' -outform DER -out ml_dsa_44_private_encrypted.der
+
 ml_dsa_65_private.pem:
 	openssl genpkey -algorithm ml-dsa-65 -out ml_dsa_65_private.pem
 
@@ -1052,6 +1085,12 @@ ml_kem_768_private_priv_only.pem: ml_kem_768_private.pem
 
 ml_kem_768_public.pem: ml_kem_768_private.pem
 	openssl pkey -in ml_kem_768_private.pem -pubout -out ml_kem_768_public.pem
+
+ml_kem_768_private_encrypted.pem: ml_kem_768_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-kem.output_formats=seed-only -in ml_kem_768_private_seed_only.pem -passout 'pass:password' -out ml_kem_768_private_encrypted.pem
+
+ml_kem_768_private_encrypted.der: ml_kem_768_private_seed_only.pem
+	openssl pkcs8 -topk8 -v2 aes-256-cbc -provparam ml-kem.output_formats=seed-only -in ml_kem_768_private_seed_only.pem -passout 'pass:password' -outform DER -out ml_kem_768_private_encrypted.der
 
 ml_kem_1024_private.pem:
 	openssl genpkey -algorithm ml-kem-1024 -out ml_kem_1024_private.pem
@@ -1161,7 +1200,7 @@ irrelevant_san_correct_subject-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out irrelevant_san_correct_subject-key.pem
 
 clean:
-	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
+	rm -f *.pfx *.pem *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
 	@> fake-startcom-root-database.txt
 
 test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify

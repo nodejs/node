@@ -219,6 +219,79 @@ async function testPipeToSyncMinimalWriter() {
   assert.strictEqual(chunks.length > 0, true);
 }
 
+async function testPipeToSyncIterableFastPathWritesIncrementally() {
+  let pulled = 0;
+  let firstWritePulled = 0;
+  const chunks = [];
+  function* source() {
+    for (let i = 0; i < 3; i++) {
+      pulled++;
+      yield new Uint8Array([0x61 + i]);
+    }
+  }
+  const writer = {
+    write: common.mustNotCall(),
+    writeSync(chunk) {
+      if (firstWritePulled === 0) {
+        firstWritePulled = pulled;
+      }
+      chunks.push(chunk);
+      return true;
+    },
+  };
+
+  const totalBytes = await pipeTo(source(), writer);
+  assert.strictEqual(totalBytes, 3);
+  assert.strictEqual(firstWritePulled, 1);
+  assert.deepStrictEqual(chunks, [
+    new Uint8Array([0x61]),
+    new Uint8Array([0x62]),
+    new Uint8Array([0x63]),
+  ]);
+}
+
+async function testPipeToSyncIterableFastPathWriteFallback() {
+  const asyncWrites = [];
+  const writer = {
+    writeSync(chunk) {
+      return chunk[0] !== 0x62;
+    },
+    async write(chunk) {
+      asyncWrites.push(chunk);
+    },
+  };
+  function* source() {
+    yield new Uint8Array([0x61]);
+    yield new Uint8Array([0x62]);
+    yield new Uint8Array([0x63]);
+  }
+
+  const totalBytes = await pipeTo(source(), writer);
+  assert.strictEqual(totalBytes, 3);
+  assert.deepStrictEqual(asyncWrites, [new Uint8Array([0x62])]);
+}
+
+async function testPipeToSyncIterableFastPathAsyncValue() {
+  const chunks = [];
+  const writer = {
+    write: common.mustNotCall(),
+    writeSync(chunk) {
+      chunks.push(chunk);
+      return true;
+    },
+  };
+  function* source() {
+    yield Promise.resolve('a');
+    yield new Uint8Array([0x62]);
+  }
+
+  const totalBytes = await pipeTo(source(), writer);
+  assert.strictEqual(totalBytes, 2);
+  const result = new TextDecoder().decode(
+    new Uint8Array(chunks.reduce((acc, c) => [...acc, ...c], [])));
+  assert.strictEqual(result, 'ab');
+}
+
 Promise.all([
   testPipeToSync(),
   testPipeTo(),
@@ -234,4 +307,7 @@ Promise.all([
   testPipeToSyncPreventClose(),
   testPipeToMinimalWriter(),
   testPipeToSyncMinimalWriter(),
+  testPipeToSyncIterableFastPathWritesIncrementally(),
+  testPipeToSyncIterableFastPathWriteFallback(),
+  testPipeToSyncIterableFastPathAsyncValue(),
 ]).then(common.mustCall());

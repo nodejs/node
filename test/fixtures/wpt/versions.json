@@ -72,7 +72,7 @@
     "path": "streams"
   },
   "url": {
-    "commit": "7a3645b79ade98a05066a09ce88e143daac31535",
+    "commit": "258f285de043b79e44324228c0fd800b38d21879",
     "path": "url"
   },
   "urlpattern": {
@@ -84,7 +84,7 @@
     "path": "user-timing"
   },
   "wasm/jsapi": {
-    "commit": "65a2134d50",
+    "commit": "288c467d350ec4b8e4fbc7f2ccb6119293186611",
     "path": "wasm/jsapi"
   },
   "wasm/webapi": {
@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "2cb332d71030ba0200610d72b94bb1badf447418",
+    "commit": "8b5cd267b480d75bce41aa306bebbd07ce414fa5",
     "path": "WebCryptoAPI"
   },
   "webidl": {

@@ -5,7 +5,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { pipeTo, pipeToSync } = require('stream/iter');
+const { setImmediate: setImmediatePromise } = require('timers/promises');
+const { pipeTo, pipeToSync, push, text } = require('stream/iter');
 
 // Multi-chunk batch with writevSync (sync success path)
 async function testWritevSyncSuccess() {
@@ -104,6 +105,35 @@ async function testWriteSyncAlwaysFails() {
   assert.strictEqual(total, 2);
 }
 
+// PushWriter block mode accepts sync writes even when returning false for
+// backpressure. pipeTo must wait for drain, not retry the same write.
+async function assertPushWriterBlockPipeTo(source, expected, expectedTotal) {
+  const { writer, readable } = push({
+    highWaterMark: 1,
+    backpressure: 'block',
+  });
+
+  const pipe = pipeTo(source, writer);
+  await setImmediatePromise();
+  const data = await text(readable);
+  const total = await pipe;
+
+  assert.strictEqual(data, expected);
+  assert.strictEqual(total, expectedTotal);
+}
+
+async function testPushWriterBlockSyncFalseAccepted() {
+  await assertPushWriterBlockPipeTo((async function*() {
+    yield [new Uint8Array([97])];
+    yield [new Uint8Array([98])];
+  })(), 'ab', 2);
+
+  await assertPushWriterBlockPipeTo((async function*() {
+    yield [new Uint8Array([97, 98])];
+    yield [new Uint8Array([99]), new Uint8Array([100])];
+  })(), 'abcd', 4);
+}
+
 // pipeToSync with writevSync
 async function testPipeToSyncWritev() {
   const batches = [];
@@ -119,6 +149,27 @@ async function testPipeToSyncWritev() {
   pipeToSync(source(), writer);
   // Multi-chunk batch should have used writevSync
   assert.ok(batches.some((b) => b.length > 1));
+}
+
+// pipeToSync batches plain Uint8Array chunks for writevSync
+async function testPipeToSyncPlainChunksWritev() {
+  const batches = [];
+  const writes = [];
+  const writer = {
+    writevSync(chunks) { batches.push(chunks); },
+    writeSync(chunk) { writes.push(chunk); return true; },
+    endSync() { return 0; },
+  };
+  function* source() {
+    yield new Uint8Array([1]);
+    yield new Uint8Array([2]);
+    yield new Uint8Array([3]);
+  }
+  const total = pipeToSync(source(), writer);
+  assert.strictEqual(total, 3);
+  assert.strictEqual(batches.length, 1);
+  assert.strictEqual(batches[0].length, 3);
+  assert.strictEqual(writes.length, 0);
 }
 
 // pipeToSync with writer that has write() and writeSync() — writeSync preferred
@@ -142,6 +193,8 @@ Promise.all([
   testWritevSyncFails(),
   testWriteSyncFailsMidBatch(),
   testWriteSyncAlwaysFails(),
+  testPushWriterBlockSyncFalseAccepted(),
   testPipeToSyncWritev(),
+  testPipeToSyncPlainChunksWritev(),
   testPipeToSyncWriteFallback(),
 ]).then(common.mustCall());

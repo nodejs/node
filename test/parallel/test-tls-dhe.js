@@ -26,6 +26,11 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
+if (process.features.openssl_is_boringssl) {
+  require('../common/boringssl').assertFiniteFieldDheUnsupported();
+  return;
+}
+
 const {
   opensslCli,
   hasOpenSSL,

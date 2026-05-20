@@ -4,7 +4,12 @@ const common = require('../common');
 common.skipIfFFIMissing();
 
 const assert = require('node:assert');
+const { endianness } = require('node:os');
 const { test } = require('node:test');
+
+if (endianness() === 'BE') {
+  common.skip('shared-buffer FFI is disabled on big-endian hosts');
+}
 
 // Capture the unpatched DynamicLibrary.prototype.getFunction BEFORE loading
 // `node:ffi`, which patches it. The SB-metadata test below uses the raw

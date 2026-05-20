@@ -181,6 +181,68 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   return WebCryptoCipherStatus::OK;
 }
 
+#ifdef OPENSSL_IS_BORINGSSL
+// AES Key Wrap using BoringSSL's low-level AES_wrap_key / AES_unwrap_key.
+// BoringSSL does not expose EVP_aes_*_wrap via the
+// EVP_CIPHER registry, so the EVP-based AES_Cipher path is unusable for
+// AES-KW. This matches Chromium's WebCrypto AES-KW implementation.
+WebCryptoCipherStatus AES_KW_Cipher(Environment* env,
+                                    const KeyObjectData& key_data,
+                                    WebCryptoCipherMode cipher_mode,
+                                    const AESCipherConfig& params,
+                                    const ByteSource& in,
+                                    ByteSource* out) {
+  CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
+
+  const unsigned key_bits =
+      static_cast<unsigned>(key_data.GetSymmetricKeySize()) * 8;
+  const auto key_bytes =
+      reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey());
+  const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
+
+  AES_KEY aes_key;
+  if (encrypt) {
+    // Input must be a multiple of 8 bytes and at least 16 bytes.
+    if (in.size() < 16 || in.size() % 8 != 0) {
+      return WebCryptoCipherStatus::FAILED;
+    }
+    if (AES_set_encrypt_key(key_bytes, key_bits, &aes_key) != 0) {
+      return WebCryptoCipherStatus::FAILED;
+    }
+    auto buf = DataPointer::Alloc(in.size() + 8);
+    int len = AES_wrap_key(&aes_key,
+                           nullptr,
+                           static_cast<unsigned char*>(buf.get()),
+                           in.data<unsigned char>(),
+                           in.size());
+    if (len < 0 || static_cast<size_t>(len) != in.size() + 8) {
+      return WebCryptoCipherStatus::FAILED;
+    }
+    *out = ByteSource::Allocated(buf.release());
+  } else {
+    // Input must be a multiple of 8 bytes and at least 24 bytes.
+    if (in.size() < 24 || in.size() % 8 != 0) {
+      return WebCryptoCipherStatus::FAILED;
+    }
+    if (AES_set_decrypt_key(key_bytes, key_bits, &aes_key) != 0) {
+      return WebCryptoCipherStatus::FAILED;
+    }
+    auto buf = DataPointer::Alloc(in.size() - 8);
+    int len = AES_unwrap_key(&aes_key,
+                             nullptr,
+                             static_cast<unsigned char*>(buf.get()),
+                             in.data<unsigned char>(),
+                             in.size());
+    if (len < 0 || static_cast<size_t>(len) != in.size() - 8) {
+      return WebCryptoCipherStatus::FAILED;
+    }
+    *out = ByteSource::Allocated(buf.release());
+  }
+
+  return WebCryptoCipherStatus::OK;
+}
+#endif  // OPENSSL_IS_BORINGSSL
+
 // The AES_CTR implementation here takes it's inspiration from the chromium
 // implementation here:
 // https://github.com/chromium/chromium/blob/7af6cfd/components/webcrypto/algorithms/aes_ctr.cc
@@ -464,6 +526,19 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
       UNREACHABLE();
   }
 #undef V
+
+#ifdef OPENSSL_IS_BORINGSSL
+  // On BoringSSL the KW variants have no backing EVP_CIPHER; they use
+  // low-level AES_wrap_key / AES_unwrap_key instead.
+  const bool is_kw = params->variant == AESKeyVariant::KW_128 ||
+                     params->variant == AESKeyVariant::KW_192 ||
+                     params->variant == AESKeyVariant::KW_256;
+
+  if (is_kw) {
+    UseDefaultIV(params);
+    return JustVoid();
+  }
+#endif
 
   if (!params->cipher) {
     THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);

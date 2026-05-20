@@ -14,6 +14,7 @@ const kOnConnect = Symbol('onConnect')
 const kOnDisconnect = Symbol('onDisconnect')
 const kOnConnectionError = Symbol('onConnectionError')
 const kGetDispatcher = Symbol('get dispatcher')
+const kHasDispatcher = Symbol('has dispatcher')
 const kAddClient = Symbol('add client')
 const kRemoveClient = Symbol('remove client')
 
@@ -162,10 +163,26 @@ class PoolBase extends DispatcherBase {
       this[kQueued]++
     } else if (!dispatcher.dispatch(opts, handler)) {
       dispatcher[kNeedDrain] = true
-      this[kNeedDrain] = !this[kGetDispatcher]()
+      this[kNeedDrain] = !this[kHasDispatcher]()
     }
 
     return !this[kNeedDrain]
+  }
+
+  [kHasDispatcher] () {
+    for (let i = 0; i < this[kClients].length; i++) {
+      const dispatcher = this[kClients][i]
+
+      if (
+        !dispatcher[kNeedDrain] &&
+        dispatcher.closed !== true &&
+        dispatcher.destroyed !== true
+      ) {
+        return true
+      }
+    }
+
+    return false
   }
 
   [kAddClient] (client) {
@@ -189,14 +206,14 @@ class PoolBase extends DispatcherBase {
   }
 
   [kRemoveClient] (client) {
-    client.close(() => {
-      const idx = this[kClients].indexOf(client)
-      if (idx !== -1) {
-        this[kClients].splice(idx, 1)
-      }
-    })
+    const idx = this[kClients].indexOf(client)
+    if (idx !== -1) {
+      this[kClients].splice(idx, 1)
+    }
 
-    this[kNeedDrain] = this[kClients].some(dispatcher => (
+    client.close(() => {})
+
+    this[kNeedDrain] = !this[kClients].some(dispatcher => (
       !dispatcher[kNeedDrain] &&
       dispatcher.closed !== true &&
       dispatcher.destroyed !== true
@@ -210,5 +227,6 @@ module.exports = {
   kNeedDrain,
   kAddClient,
   kRemoveClient,
-  kGetDispatcher
+  kGetDispatcher,
+  kHasDispatcher
 }

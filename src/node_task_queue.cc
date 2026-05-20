@@ -19,9 +19,7 @@ using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Just;
 using v8::kPromiseHandlerAddedAfterReject;
-using v8::kPromiseRejectAfterResolved;
 using v8::kPromiseRejectWithNoHandler;
-using v8::kPromiseResolveAfterResolved;
 using v8::Local;
 using v8::Maybe;
 using v8::Number;
@@ -53,7 +51,11 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
 
   Environment* env = Environment::GetCurrent(isolate);
 
-  if (env == nullptr || !env->can_call_into_js()) return;
+  if (env == nullptr || !env->can_call_into_js() ||
+      (event != kPromiseRejectWithNoHandler &&
+       event != kPromiseHandlerAddedAfterReject)) {
+    return;
+  }
 
   Local<Function> callback = env->promise_reject_callback();
   // The promise is rejected before JS land calls SetPromiseRejectCallback
@@ -77,10 +79,6 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
                   "rejections",
                   "unhandled", unhandledRejections,
                   "handledAfter", rejectionsHandledAfter);
-  } else if (event == kPromiseResolveAfterResolved) {
-    value = message.GetValue();
-  } else if (event == kPromiseRejectAfterResolved) {
-    value = message.GetValue();
   } else {
     return;
   }
@@ -173,8 +171,6 @@ static void Initialize(Local<Object> target,
   Local<Object> events = Object::New(isolate);
   NODE_DEFINE_CONSTANT(events, kPromiseRejectWithNoHandler);
   NODE_DEFINE_CONSTANT(events, kPromiseHandlerAddedAfterReject);
-  NODE_DEFINE_CONSTANT(events, kPromiseResolveAfterResolved);
-  NODE_DEFINE_CONSTANT(events, kPromiseRejectAfterResolved);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(isolate, "promiseRejectEvents"),

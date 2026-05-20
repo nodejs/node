@@ -194,7 +194,7 @@ directly through the process arguments.
 ### `--allow-ffi`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1.1 - Active development
@@ -786,7 +786,7 @@ added:
 - v20.15.0
 changes:
   - version:
-    - REPLACEME
+    - v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62132
     description: Node.js now automatically disables the trap handler when there is not
                  enough virtual memory available at startup to allocate one cage.
@@ -1064,7 +1064,8 @@ The alias `--experimental-default-config-file` is equivalent to
 `--experimental-config-file` without an argument.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. `vX.Y.Z`
-in the `$schema` must be replaced with the version of Node.js you are using.
+in the `$schema` must be replaced with the version of Node.js you are using or
+`latest-vX.x` for the latest version of that major release line.
 
 ```json
 {
@@ -1090,6 +1091,44 @@ The configuration file supports namespace-specific options:
 * The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
 
 * Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
+
+The configuration file can target a specific Node.js major version with
+`nodeVersion`:
+
+```json
+{
+  "nodeVersion": 25,
+  "nodeOptions": {
+    "watch-path": "src"
+  }
+}
+```
+
+To keep multiple version-specific configurations in the same file, use the
+`configs` array. Node.js will use the first entry whose `nodeVersion` matches
+the current Node.js major version:
+
+```json
+{
+  "$schema": "https://nodejs.org/dist/latest-v26.x/docs/node-config-schema.json",
+  "configs": [
+    {
+      "nodeVersion": 25,
+      "config": {
+        "$schema": "https://nodejs.org/dist/latest-v25.x/docs/node-config-schema.json",
+        "nodeOptions": {
+          "watch-path": "src"
+        }
+      }
+    }
+  ]
+}
+```
+
+When `configs` is used, the top level may only contain `$schema` and
+`configs`. Each `configs` item must define an integer `nodeVersion` and an
+object `config`. A single top-level config does not require `nodeVersion`, but
+if present it must match the current Node.js major version.
 
 When a namespace is present in the
 configuration file, Node.js automatically enables the corresponding flag
@@ -1143,12 +1182,12 @@ node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolat
 The priority in configuration is as follows:
 
 1. NODE\_OPTIONS and command-line options
-2. Configuration file
-3. Dotenv NODE\_OPTIONS
+2. Dotenv NODE\_OPTIONS
+3. Configuration file
 
 Values in the configuration file will not override the values in the environment
-variables and command-line options, but will override the values in the `NODE_OPTIONS`
-env file parsed by the `--env-file` flag.
+variables, command-line options, or the `NODE_OPTIONS` env file parsed by the
+`--env-file` flag.
 
 Keys cannot be duplicated within the same or different namespaces.
 
@@ -1186,7 +1225,7 @@ Enable exposition of [EventSource Web API][] on the global scope.
 ### `--experimental-ffi`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1325,7 +1364,8 @@ Enable experimental support for storage inspection
 ### `--experimental-stream-iter`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 > Stability: 1 - Experimental
@@ -1372,6 +1412,23 @@ changes:
 Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
+
+### `--experimental-test-tag-filter=<tag>`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+> Stability: 1.0 - Early development
+
+Run only tests whose tag set contains `<tag>`. Tests declare tags via the
+`tags` option on `test()`, `it()`, `suite()`, or `describe()`; tags
+inherit from suites to nested tests by union. Filtering is
+case-insensitive.
+
+The flag may be specified more than once; tests must contain **every**
+filter value to run. See [Test tags][] for details on declaring and
+inheriting tags.
 
 ### `--experimental-vm-modules`
 
@@ -2836,7 +2893,7 @@ option set. This flag is not necessary when test isolation is disabled.
 ### `--test-random-seed`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 Set the seed used to randomize test execution order. This applies to both test
@@ -2850,7 +2907,7 @@ This flag cannot be used with `--watch` or `--test-rerun-failures`.
 ### `--test-randomize`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 Randomize test execution order. This applies to both test file execution order
@@ -4303,6 +4360,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
 [Source Map]: https://tc39.es/ecma426/
+[Test tags]: test.md#test-tags
 [TypeScript type-stripping]: typescript.md#type-stripping
 [V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html

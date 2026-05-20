@@ -1,9 +1,9 @@
 # FFI
 
-<!--introduced_in=REPLACEME-->
+<!--introduced_in=v26.1.0-->
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -30,15 +30,17 @@ const ffi = require('node:ffi');
 This module is only available under the `node:` scheme in builds with FFI
 support and is gated by the `--experimental-ffi` flag.
 
-Bundled libffi support currently targets:
+Building Node.js with `node:ffi` support is available via the bundled `libffi` on
+platforms where `libffi` provides a compatible static backend, or via a
+shared `libffi` using the `--shared-ffi` configure flag.
+The unofficial GN build does not support `node:ffi`.
 
-* macOS on `arm64` and `x64`
-* Windows on `arm64` and `x64`
-* FreeBSD on `arm`, `arm64`, and `x64`
-* Linux on `arm`, `arm64`, and `x64`
+The following targets are not supported by bundled libffi:
 
-Other targets require building Node.js against a shared libffi with
-`--shared-ffi`. The unofficial GN build does not support `node:ffi`.
+* `s390x`.
+* `mips`, `mipsel`, and `mips64el` on targets other than FreeBSD, Linux, and
+  OpenBSD.
+* `ppc64` on Android, CloudABI, iOS, OpenHarmony, OS/400, Solaris, and Windows.
 
 When using the [Permission Model][], FFI APIs are
 restricted unless the [`--allow-ffi`][] flag is provided.
@@ -140,7 +142,7 @@ const signature = {
 ## `ffi.suffix`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * {string}
@@ -162,7 +164,7 @@ const path = `libsqlite3.${suffix}`;
 ## `ffi.dlopen(path[, definitions])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `path` {string|null} Path to a dynamic library, or `null` to resolve symbols
@@ -222,7 +224,7 @@ console.log(functions.add_i32(20, 22));
 ## `ffi.dlclose(handle)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `handle` {DynamicLibrary}
@@ -234,7 +236,7 @@ This is equivalent to calling `handle.close()`.
 ## `ffi.dlsym(handle, symbol)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `handle` {DynamicLibrary}
@@ -248,7 +250,7 @@ This is equivalent to calling `handle.getSymbol(symbol)`.
 ## Class: `DynamicLibrary`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 Represents a loaded dynamic library.
@@ -328,7 +330,7 @@ closed.
 ### `library[Symbol.dispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 Calls `library.close()`. This allows `DynamicLibrary` instances to be used with
@@ -532,7 +534,7 @@ process.
 ## `ffi.toString(pointer)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `pointer` {bigint}
@@ -557,7 +559,7 @@ const value = toString(ptr);
 ## `ffi.toBuffer(pointer, length[, copy])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `pointer` {bigint}
@@ -588,7 +590,7 @@ memory or crash the process.
 ## `ffi.toArrayBuffer(pointer, length[, copy])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `pointer` {bigint}
@@ -612,7 +614,7 @@ entire exposed range.
 ## `ffi.exportString(string, pointer, length[, encoding])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `string` {string}
@@ -635,7 +637,7 @@ available storage. This function does not allocate memory on its own.
 ## `ffi.exportBuffer(buffer, pointer, length)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `buffer` {Buffer}
@@ -654,7 +656,7 @@ available storage. This function does not allocate memory on its own.
 ## `ffi.exportArrayBuffer(arrayBuffer, pointer, length)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `arrayBuffer` {ArrayBuffer}
@@ -671,7 +673,7 @@ available storage. This function does not allocate memory on its own.
 ## `ffi.exportArrayBufferView(arrayBufferView, pointer, length)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `arrayBufferView` {ArrayBufferView}
@@ -688,7 +690,7 @@ available storage. This function does not allocate memory on its own.
 ## `ffi.getRawPointer(source)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `source` {Buffer|ArrayBuffer|ArrayBufferView}

@@ -1669,12 +1669,6 @@ def is_arch_armv7():
   return cc_macros_cache.get('__ARM_ARCH') == '7'
 
 
-def is_arch_armv6():
-  """Check for ARMv6 instructions"""
-  cc_macros_cache = cc_macros()
-  return cc_macros_cache.get('__ARM_ARCH') == '6'
-
-
 def is_arm_hard_float_abi():
   """Check for hardfloat or softfloat eabi on ARM"""
   # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
@@ -1758,7 +1752,7 @@ def configure_arm(o):
     arm_fpu = 'vfpv3'
     o['variables']['arm_version'] = '7'
   else:
-    o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
+    o['variables']['arm_version'] = 'default'
 
   o['variables']['arm_thumb'] = 0      # -marm
   o['variables']['arm_float_abi'] = arm_float_abi
@@ -2316,17 +2310,20 @@ def configure_sqlite(o):
   configure_library('sqlite', o, pkgname='sqlite3')
 
 def bundled_ffi_supported(os_name, target_arch):
-  supported = {
-    'freebsd': {'arm', 'arm64', 'x64'},
-    'linux': {'arm', 'arm64', 'x64'},
-    'mac': {'arm64', 'x64'},
-    'win': {'arm64', 'x64'},
-  }
-
   if target_arch == 'x86':
     target_arch = 'ia32'
 
-  return target_arch in supported.get(os_name, set())
+  if target_arch in {'arm', 'arm64', 'ia32', 'x64', 'x86_64',
+                     'riscv64', 'loong64'}:
+    return True
+
+  if target_arch in {'mips', 'mipsel', 'mips64el'}:
+    return os_name in {'freebsd', 'linux', 'openbsd'}
+
+  if target_arch == 'ppc64':
+    return os_name in {'aix', 'freebsd', 'linux', 'mac', 'openbsd'}
+
+  return False
 
 def configure_ffi(o):
   use_ffi = not options.without_ffi
