@@ -13,5 +13,5 @@ myVfs.writeFileSync('/hello.txt', 'hello from vfs');
 (async () => {
   const fh = await myVfs.promises.open('/hello.txt', 'r');
   assert.ok(fh);
-  assert.ok(typeof fh === 'number' || typeof fh === 'object');
+  assert.ok(typeof fh === 'number');
 })().then(common.mustCall());
