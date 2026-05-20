@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: Cannot read private member #x from an object whose class did not declare it
+  eq(o) { return this.#x === o.#x; }
+                               ^
+TypeError: Cannot read private member #x from an object whose class did not declare it
+    at X.eq (*%(basename)s:7:32)
+    at *%(basename)s:10:9

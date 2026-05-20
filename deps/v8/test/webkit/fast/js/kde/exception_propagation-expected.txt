@@ -1,0 +1,96 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+KDE JS Test
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS func_ret_with_ex_func is 4
+PASS func_ret_from_ex_throw_args is 4
+PASS set_from_throw_func_args is 4
+PASS set_from_func_throw_args is 4
+PASS set_from_before_func_throw_args is 1
+PASS function_param_order is 'abc'
+PASS new_param_order is 'abc'
+PASS elision_param_order is 'abc'
+PASS comma_order is 'abc'
+PASS OpEqEq_part1 is 1
+PASS OpEqEq_part2 is 4
+PASS OpNotEq_part1 is 1
+PASS OpNotEq_part2 is 4
+PASS OpStrEq_part1 is 1
+PASS OpStrEq_part2 is 4
+PASS OpStrNEq_part1 is 1
+PASS OpStrNEq_part2 is 4
+PASS OpLess_part1 is 1
+PASS OpLess_part2 is 4
+PASS OpLessEq_part1 is 1
+PASS OpLessEq_part2 is 4
+PASS OpGreater_part1 is 1
+PASS OpGreater_part2 is 4
+PASS OpGreaterEq_part1 is 1
+PASS OpGreaterEq_part2 is 4
+PASS OpAnd_part1 is 1
+PASS OpAnd_part2 is 4
+PASS OpOr_part1 is 1
+PASS OpOr_part2 is 4
+PASS OpBitAnd_part1 is 1
+PASS OpBitAnd_part2 is 4
+PASS OpBitXOr_part1 is 1
+PASS OpBitXOr_part2 is 4
+PASS OpBitOr_part1 is 1
+PASS OpBitOr_part2 is 4
+PASS OpLShift_part1 is 1
+PASS OpLShift_part2 is 4
+PASS OpRShift_part1 is 1
+PASS OpRShift_part2 is 4
+PASS OpURShift_part1 is 1
+PASS OpURShift_part2 is 4
+PASS OpInstanceOf_part1 is 1
+PASS OpInstanceOf_part2 is 4
+PASS set_from_if_stmt is 4
+PASS set_from_if_else_stmt is 4
+PASS set_from_else_in_if_else_stmt is 4
+PASS comma_left is 1
+PASS comma_left is 4
+PASS vardecl_assign_throws is 4
+PASS var_assign_before_throw_run is true
+PASS var_assign_after_throw_run is false
+PASS do_val is 5
+PASS while_val is 4
+PASS for_val_part1_throw2 is 1
+PASS for_val_part1_throw3 is 1
+PASS for_val_part2_throw1 is 4
+PASS for_val_part2_throw3 is 1
+PASS for_val_part3_throw1 is 4
+PASS for_val_part3_throw2 is 4
+PASS for_val_part1_throwbody is 1
+PASS for_val_part2_throwbody is 1
+PASS for_val_part3_throwbody is 4
+PASS set_inside_with_throw is 4
+PASS set_inside_with_cantconverttoobject is 4
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -1,0 +1,11 @@
+include_rules = [
+  # Allow Maglev to depend on TurboFan data structures.
+  # TODO(v8:7700): Clean up these dependencies by extracting common code to a
+  # separate directory.
+  "+src/compiler",
+]
+specific_include_rules = {
+  "maglev-graph-builder\.h": [
+    "+src/interpreter/interpreter-intrinsics.h",
+  ],
+}

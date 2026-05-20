@@ -1,0 +1,1 @@
+throw Symbol('symbol descriptor');

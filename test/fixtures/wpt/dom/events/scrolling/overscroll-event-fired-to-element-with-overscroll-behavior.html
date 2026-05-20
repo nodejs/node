@@ -1,0 +1,92 @@
+<!DOCTYPE HTML>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<style>
+#overscrollXDiv {
+  width: 600px;
+  height: 600px;
+  overflow: scroll;
+  overscroll-behavior-x: contain;
+}
+#overscrollYDiv {
+  width: 500px;
+  height: 500px;
+  overflow: scroll;
+  overscroll-behavior-y: none;
+}
+#targetDiv {
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+}
+.content {
+  width:800px;
+  height:800px;
+}
+</style>
+
+<body style="margin:0" onload=runTest()>
+<div id="overscrollXDiv">
+  <div class=content>
+    <div id="overscrollYDiv">
+      <div class=content>
+        <div id="targetDiv">
+          <div class="content">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+var overscrolled_x_delta = 0;
+var overscrolled_y_delta = 0;
+function onOverscrollX(event) {
+  assert_false(event.cancelable);
+  assert_false(event.bubbles);
+  overscrolled_x_delta = event.deltaX;
+}
+function onOverscrollY(event) {
+  assert_false(event.cancelable);
+  assert_false(event.bubbles);
+  overscrolled_y_delta = event.deltaY;
+}
+// Test that both "onoverscroll" and addEventListener("overscroll"... work.
+document.getElementById('overscrollXDiv').onoverscroll = onOverscrollX;
+document.getElementById('overscrollYDiv').
+    addEventListener("overscroll", onOverscrollY);
+
+function runTest() {
+  promise_test (async (t) => {
+    // Make sure that no overscroll event is sent to document or target_div.
+    document.addEventListener("overscroll",
+        t.unreached_func("Document got unexpected overscroll event."));
+    target_div.addEventListener("overscroll",
+        t.unreached_func("target_div got unexpected overscroll event."));
+    await waitForCompositorCommit();
+    // Scroll up on target div and wait for the element with overscroll-y to get
+    // overscroll event.
+    await touchScrollInTarget(300, target_div, 'up');
+    await waitFor(() => { return overscrolled_y_delta < 0; },
+        'Expected element did not receive overscroll event after scroll up on ' +
+        'target.');
+    assert_equals(target_div.scrollTop, 0);
+
+    // Scroll left on target div and wait for the element with overscroll-x to
+    // get overscroll event.
+    await touchScrollInTarget(300, target_div, 'left');
+    await waitFor(() => { return overscrolled_x_delta < 0; },
+        'Expected element did not receive overscroll event after scroll left ' +
+        'on target.');
+    assert_equals(target_div.scrollLeft, 0);
+  }, 'Tests that the last element in the cut scroll chain gets overscroll ' +
+     'event when no element scrolls by touch.');
+}
+</script>

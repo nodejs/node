@@ -1,0 +1,75 @@
+{
+  "file": "nested-scopes.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 28,
+          "column": 0
+        },
+        "name": null,
+        "kind": null,
+        "isStackFrame": false,
+        "variables": [],
+        "children": [
+          {
+            "start": {
+              "line": 10,
+              "column": 0
+            },
+            "end": {
+              "line": 27,
+              "column": 0
+            },
+            "name": "originalFunctionFoo",
+            "kind": null,
+            "isStackFrame": true,
+            "variables": [],
+            "children": [
+              {
+                "start": {
+                  "line": 15,
+                  "column": 2
+                },
+                "end": {
+                  "line": 26,
+                  "column": 2
+                },
+                "name": "innerOriginalFunction",
+                "kind": null,
+                "isStackFrame": true,
+                "variables": [],
+                "children": [
+                  {
+                    "start": {
+                      "line": 20,
+                      "column": 4
+                    },
+                    "end": {
+                      "line": 25,
+                      "column": 4
+                    },
+                    "name": null,
+                    "kind": "block",
+                    "isStackFrame": false,
+                    "variables": [],
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "ranges": []
+}

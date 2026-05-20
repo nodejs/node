@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "names": [],
+  "file": "simple.js",
+  "sources": ["simple-original.js"],
+  "sourcesContent": ["\"Hello World\""],
+  "mappings": ";CAAA;A",
+  "rangeMappings": ";A;"
+}

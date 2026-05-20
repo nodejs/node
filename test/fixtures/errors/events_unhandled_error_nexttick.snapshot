@@ -1,0 +1,10 @@
+node:events:<line>
+      throw er; // Unhandled 'error' event
+      ^
+
+Error
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/events_unhandled_error_nexttick.js:6:12)
+Emitted 'error' event at:
+    at <project-root>/test/fixtures/errors/events_unhandled_error_nexttick.js:8:22
+
+Node.js <node-version>

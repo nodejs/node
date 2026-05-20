@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/gc.js"></script>
+<script>
+async_test(t => {
+    const c1 = new BroadcastChannel('blob');
+    const c2 = new BroadcastChannel('blob');
+    const c3 = new BroadcastChannel('blob');
+
+    let readCount = 0;
+    c2.onmessage = t.step_func(e => {
+        // check blob
+        assert_true('blob' in e.data);
+        assert_true(e.data.blob instanceof Blob);
+        assert_equals(e.data.blob.size, 6);
+        const reader = new FileReader();
+        reader.onerror = t.unreached_func();
+        reader.onload = t.step_func(() => {
+            assert_equals(reader.result, 'foobar');
+            if (++readCount == 2)
+              t.done();
+          });
+        reader.readAsText(e.data.blob);
+      });
+    c3.onmessage = c2.onmessage;
+    (() => {
+      c1.postMessage({blob: new Blob(['foo', 'bar'])});
+    })();
+    garbageCollect();
+  }, 'Blobs work on BroadcastChannel');
+
+async_test(t => {
+    const c1 = new BroadcastChannel('blobworker');
+    const c2 = new BroadcastChannel('blobworker');
+    const events = [];
+
+    const verifyEvents = function() {
+        assert_equals(events.length, 5);
+        assert_equals(events[0], 'from worker');
+        assert_equals(events[1], 'from worker');
+        assert_true(events[2].blob instanceof Blob);
+        assert_equals(events[2].blob.size, 11);
+        assert_true(events[3].blob instanceof Blob);
+        assert_equals(events[3].blob.size, 11);
+        assert_equals(events[4], 'done');
+        const reader = new FileReader();
+        reader.onerror = t.unreached_func();
+        reader.onload = t.step_func(() => {
+            assert_equals(reader.result, 'hello-world');
+            t.done();
+          });
+        reader.readAsText(events[3].blob);
+    };
+
+    let receivedDone = false;
+    let receivedWorkerDone = false;
+
+    c1.onmessage = e => events.push(e.data);
+    c2.onmessage = e => events.push(e.data);
+    c2.addEventListener('message', t.step_func(e => {
+        if (e.data.blob)
+          c1.postMessage('done');
+        if (e.data === 'done')
+          receivedDone = true;
+        if (receivedDone && receivedWorkerDone)
+          verifyEvents();
+      }));
+
+    const worker = new Worker('resources/worker.js');
+    worker.onmessage = t.step_func(e => {
+        receivedWorkerDone = true;
+        if (receivedDone && receivedWorkerDone)
+          verifyEvents();
+      });
+    worker.postMessage({channel: 'blobworker'});
+    worker.postMessage({blob: ['hello-world']});
+
+  }, 'Blobs work with workers on BroadcastChannel');
+
+</script>

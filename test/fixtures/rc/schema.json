@@ -1,0 +1,6 @@
+{
+  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
+  "nodeOptions": {
+    "max-http-header-size": 10
+  }
+}

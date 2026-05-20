@@ -1,0 +1,15 @@
+Tests that Liftoff does not merge opcodes while stepping
+
+Running test: test
+Setting breakpoint at offset 33.
+Paused at offset 33: [0 (i32)]
+Paused at offset 35: [0 (i32), 0 (i32)]
+Paused at offset 36: [0 (i32), 1 (i32)]
+Paused at offset 33: [-1 (i32)]
+Paused at offset 35: [-1 (i32), -1 (i32)]
+Paused at offset 36: [-1 (i32), 0 (i32)]
+Paused at offset 38: [-1 (i32)]
+Paused at offset 33: [13 (i32)]
+Paused at offset 35: [13 (i32), 13 (i32)]
+Paused at offset 36: [13 (i32), 0 (i32)]
+Paused at offset 38: [13 (i32)]

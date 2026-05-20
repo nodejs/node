@@ -1,0 +1,5 @@
+include_rules = [
+  "+libplatform",
+  "+perfetto",
+  "+protos/perfetto",
+]

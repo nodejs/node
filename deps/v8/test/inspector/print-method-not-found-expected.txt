@@ -1,0 +1,2 @@
+Test that the test runner prints if a non-existent method is called
+Error: Called non-existent method. 'Runtime.method_does_not_exist' wasn't found code: -32601

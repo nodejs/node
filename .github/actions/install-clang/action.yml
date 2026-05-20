@@ -1,0 +1,15 @@
+name: Install Clang
+description: Installs a specific Clang version. Useful if the GitHub runner does not have it by default.
+inputs:
+  clang-version:
+    description: The Clang major version to install
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install Clang
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-${{ inputs.clang-version }}

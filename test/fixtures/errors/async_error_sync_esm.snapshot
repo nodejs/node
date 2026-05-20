@@ -1,0 +1,6 @@
+Error: test
+    at one (<project-root>/test/fixtures/async-error.js:4:9)
+    at two (<project-root>/test/fixtures/async-error.js:17:9)
+    at async three (<project-root>/test/fixtures/async-error.js:20:3)
+    at async four (<project-root>/test/fixtures/async-error.js:24:3)
+    at async main (file://<project-root>/test/fixtures/errors/async_error_sync_esm.mjs:6:5)

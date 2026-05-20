@@ -1,0 +1,13 @@
+'use strict';
+const common = require('../common');
+const repl = require('repl');
+const zlib = require('zlib');
+
+// Just use builtin stream inherited from Duplex
+const putIn = zlib.createGzip();
+const testMe = repl.start('', putIn, function(cmd, context, filename,
+                                              callback) {
+  callback(null, cmd);
+});
+
+testMe.complete('', common.mustSucceed());

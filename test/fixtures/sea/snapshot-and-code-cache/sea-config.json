@@ -1,0 +1,6 @@
+{
+  "main": "snapshot.js",
+  "output": "sea-prep.blob",
+  "useSnapshot": true,
+  "useCodeCache": true
+}

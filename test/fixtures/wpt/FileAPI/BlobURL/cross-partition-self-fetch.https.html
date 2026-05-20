@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="/common/utils.js"></script>
+<script src="/common/dispatcher/dispatcher.js"></script>
+<!-- Pull in executor_path needed by newPopup / newIframe -->
+<script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"></script>
+<!-- Pull in importScript / newPopup / newIframe -->
+<script src="/html/anonymous-iframe/resources/common.js"></script>
+<script src="resources/common.js"></script>
+<body>
+<script>
+
+// Creates a Blob URL for an HTML document that fetches itself and sends the result to the
+// specified response queue UUID. This is somewhat contrived but aims to test a more common
+// scenario where a Blob URL with a video/audio mime type is navigated to and has an HTML document
+// created for to allow media controls to be present. In that scenario the Blob URL will be used
+// via a "src" attribute, resulting in a first-party resource load.
+const create_blob_url_and_send_js = (fetch_response_uuid, iframe_response_uuid) => `
+  const blob_url_iframe_html = \`
+    <!doctype html>
+    <base href="\${window.location.href}">
+    <script src="/html/cross-origin-embedder-policy/credentialless/resources/common.js"><\/script>
+    <script src="/html/anonymous-iframe/resources/common.js"><\/script>
+    <script src="/common/utils.js"><\/script>
+    <script src="/common/dispatcher/dispatcher.js"><\/script>
+    <script>
+      (async () => {
+        try {
+          const response = await fetch(window.location.href);
+          await response.text();
+          send("${fetch_response_uuid}", "success");
+        } catch (e) {
+          send("${fetch_response_uuid}", "failure");
+        }
+      })();
+    <\/script>
+  \`;
+  const blob = new Blob([blob_url_iframe_html], {type: 'text/html'});
+  const blob_url = URL.createObjectURL(blob);
+  send("${iframe_response_uuid}", blob_url);
+`;
+
+promise_test(t => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const iframe_response_uuid = token();
+      const fetch_response_uuid = token();
+      const response_queue_uuid = token();
+
+      const [cross_site_iframe_uuid, same_site_iframe_uuid] =
+            await create_test_iframes(t, response_queue_uuid);
+
+      await send(cross_site_iframe_uuid,
+                 create_blob_url_and_send_js(fetch_response_uuid, iframe_response_uuid));
+
+      const blob_url = await receive(iframe_response_uuid);
+
+      window.open(blob_url);
+
+      const fetch_result = await receive(fetch_response_uuid);
+
+      assert_equals(fetch_result, "success", "Blob URL created in a cross-partition context should be able to fetch itself in a same-partition context.");
+
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}, "Blob URL created in a cross-partition context can fetch itself in a same-partition context.");
+
+</script>
+</body>

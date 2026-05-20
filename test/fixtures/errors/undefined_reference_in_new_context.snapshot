@@ -1,0 +1,11 @@
+before
+evalmachine.<anonymous>:1
+Error.stackTraceLimit = 5; foo.bar = 5;
+                           ^
+
+ReferenceError: foo is not defined
+    at evalmachine.<anonymous>:1:28
+    at <node-internal-frames>
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/undefined_reference_in_new_context.js:29:4)
+
+Node.js <node-version>

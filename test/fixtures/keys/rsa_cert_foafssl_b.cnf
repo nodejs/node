@@ -1,0 +1,28 @@
+# The following 'foafssl' cert is used in test/parallel/test-https-foafssl.js.
+# It requires a SAN like 'http://example.com/#me'. More info here:
+# https://www.w3.org/wiki/Foaf+ssl
+
+[ req ]
+days                   = 99999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+x509_extensions        = v3_ca
+
+[ req_distinguished_name ]
+C                      = UK
+ST                     = "FOAF+SSL Auth Certificate"
+L                      = Rhys Jones
+O                      = node.js
+OU                     = Test TLS Certificate
+CN                     = localhost
+emailAddress           = alex@aub.dev
+
+[ req_attributes ]
+
+[ v3_ca ]
+basicConstraints       = CA:FALSE
+subjectAltName         = @alt_names
+
+[ alt_names ]
+URI                    = http://example.com/\#me

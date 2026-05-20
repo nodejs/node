@@ -1,0 +1,6 @@
+{
+  "nodeOptions": {
+    "strip-types": true,
+    "strip-types": false
+  }
+}

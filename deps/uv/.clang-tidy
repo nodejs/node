@@ -1,0 +1,47 @@
+---
+# Configuration file for clang-tidy
+# This configuration is tailored for the libuv C library project
+
+# Use default checks with minimal necessary disables
+Checks:
+  # don't suggest reordering struct definitions
+  - -clang-analyzer-optin.performance.Padding
+  # allow memcpy (instead of memcpy_s)
+  - -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+  # allow strcpy
+  - -clang-analyzer-security.insecureAPI.strcpy
+  # allow TBAA
+  - -clang-analyzer-unix.MallocSizeof
+  # always allow `if () statement;` instead of `if () { statement; }`
+  - -readability-braces-around-statements
+  # allow any use of case and _ conventions in names
+  - -readability-identifier-naming
+  # allow defining a function prototype without naming all arguments
+  - -readability-named-parameter
+  # allow 1u instead of 1U constants
+  - -readability-uppercase-literal-suffix
+
+# Configure specific check options
+CheckOptions:
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'uv_.*_t'
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '2'
+  - key: readability-function-size.LineThreshold
+    value: '150'
+  - key: readability-function-size.StatementThreshold
+    value: '80'
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: 'true'
+
+# Header filter - only analyze project files, not system headers
+HeaderFilterRegex: '^.*/(src|include|test)/.*\.(h|c)$'
+
+# Format style for fix suggestions
+FormatStyle: file
+
+# Treat warnings as errors
+WarningsAsErrors: false
+
+# Use color, even when run through a program like ninja
+UseColor: true

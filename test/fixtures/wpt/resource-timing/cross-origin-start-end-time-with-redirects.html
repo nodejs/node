@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates the values in resource timing for cross-origin
+redirects.</title>
+<link rel="author" title="Noam Rosenthal" href="noam@webkit.org">
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/entry-invariants.js"></script>
+</head>
+<body>
+<script>
+const {REMOTE_ORIGIN} = get_host_info();
+const delay = 2
+const blank_page = `/resource-timing/resources/blank_page_green.htm`;
+const destUrl = `/common/slow-redirect.py?delay=${delay}&location=${REMOTE_ORIGIN}/${blank_page}`;
+
+const timeBefore = performance.now()
+attribute_test(load.iframe, destUrl, entry => {
+    assert_equals(entry.startTime, entry.fetchStart, 'startTime and fetchStart should be equal');
+    assert_greater_than(entry.startTime, timeBefore, 'startTime and fetchStart should be greater than the time before fetching');
+    // See https://github.com/w3c/resource-timing/issues/264
+    assert_less_than(Math.round(entry.startTime - timeBefore), delay * 1000, 'startTime should not expose redirect delays');
+}, "Verify that cross-origin resources don't implicitly expose their redirect timings")
+
+</script>
+</body>
+</html>
