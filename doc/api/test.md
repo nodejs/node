@@ -482,7 +482,7 @@ tests must satisfy **both** requirements in order to be executed.
 ## Test tags
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1646,7 +1646,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `testTagFilters` option.
   - version:
@@ -1884,7 +1884,7 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `tags` option.
   - version:
@@ -4234,7 +4234,7 @@ the second attempt is `1`, and so on. This property is useful in conjunction wit
 ### `context.tags`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1.0 - Early development
@@ -4462,7 +4462,7 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63221
     description: Added the `tags` option.
   - version:

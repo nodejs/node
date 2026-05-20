@@ -236,7 +236,7 @@ debug>
 added:
   - v26.1.0
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63286
     description: JSON report schema bumped to v2. Probe `target` is now
         `{ suffix, line, column? }` instead of an array. Each "hit" event carries a
