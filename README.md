@@ -317,8 +317,6 @@ For information about the governance of the Node.js project, see
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
 * [dario-piotrowicz](https://github.com/dario-piotrowicz) -
   **Dario Piotrowicz** <<dario.piotrowicz@gmail.com>> (he/him)
-* [debadree25](https://github.com/debadree25) -
-  **Debadree Chatterjee** <<debadree333@gmail.com>> (he/him)
 * [deokjinkim](https://github.com/deokjinkim) -
   **Deokjin Kim** <<deokjin81.kim@gmail.com>> (he/him)
 * [edsadr](https://github.com/edsadr) -
@@ -365,8 +363,6 @@ For information about the governance of the Node.js project, see
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [jazelly](https://github.com/jazelly) -
   **Jason Zhang** <<xzha4350@gmail.com>> (he/him)
-* [JonasBa](https://github.com/JonasBa) -
-  **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [juanarbol](https://github.com/juanarbol) -
@@ -507,6 +503,8 @@ For information about the governance of the Node.js project, see
   **David Cai** <<davidcai1993@yahoo.com>> (he/him)
 * [davisjam](https://github.com/davisjam) -
   **Jamie Davis** <<davisjam@vt.edu>> (he/him)
+* [debadree25](https://github.com/debadree25) -
+  **Debadree Chatterjee** <<debadree333@gmail.com>> (he/him)
 * [devnexen](https://github.com/devnexen) -
   **David Carlier** <<devnexen@gmail.com>>
 * [devsnek](https://github.com/devsnek) -
@@ -571,6 +569,8 @@ For information about the governance of the Node.js project, see
   **João Reis** <<reis@janeasystems.com>>
 * [joesepi](https://github.com/joesepi) -
   **Joe Sepi** <<sepi@joesepi.com>> (he/him)
+* [JonasBa](https://github.com/JonasBa) -
+  **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joshgav](https://github.com/joshgav) -
   **Josh Gavant** <<josh.gavant@outlook.com>>
 * [julianduque](https://github.com/julianduque) -
