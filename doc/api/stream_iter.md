@@ -220,7 +220,7 @@ that closes when the bucket is full:
 
 * **Pending writes (the hose)** -- writes waiting for slot space. After
   the consumer drains, pending writes are promoted into the now-empty
-  slots and their promises resolve.
+  slots and their promises settle.
 
 How each policy uses these buffers:
 
@@ -430,7 +430,7 @@ The value is always non-negative.
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this operation. The signal cancels only
     the pending `end()` call; it does not fail the writer itself.
-* Returns: {Promise\<number>} Total bytes written.
+* Returns: {Promise} Fulfills with the total number of bytes written.
 
 Signal that no more data will be written.
 
@@ -463,9 +463,9 @@ transition with no async work to perform.
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
     only the pending `write()` call; it does not fail the writer itself.
-* Returns: {Promise\<void>}
+* Returns: {Promise} Fulfills with `undefined` when buffer space is available.
 
-Write a chunk. The promise resolves when buffer space is available.
+Write a chunk.
 
 #### `writer.writeSync(chunk)`
 
@@ -481,7 +481,7 @@ Synchronous write. Does not block; returns `false` if backpressure is active.
 * `options` {Object}
   * `signal` {AbortSignal} Cancel just this write operation. The signal cancels
     only the pending `writev()` call; it does not fail the writer itself.
-* Returns: {Promise\<void>}
+* Returns: {Promise}
 
 Write multiple chunks as a single batch.
 
@@ -603,7 +603,7 @@ added: REPLACEME
     the source ends. **Default:** `false`.
   * `preventFail` {boolean} If `true`, do not call `writer.fail()` on
     error. **Default:** `false`.
-* Returns: {Promise\<number>} Total bytes written.
+* Returns: {Promise} Fulfills with the total number of bytes written.
 
 Pipe a source through transforms into a writer. If the writer has a
 `writev(chunks)` method, entire batches are passed in a single call (enabling
@@ -903,7 +903,7 @@ added: REPLACEME
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<Uint8Array\[]>}
+* Returns: {Promise} Fulfills with an array of `Uint8Array` objects.
 
 Collect all chunks as an array of `Uint8Array` values (without concatenating).
 
@@ -918,7 +918,7 @@ added: REPLACEME
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<ArrayBuffer>}
+* Returns: {Promise} Fulfills with an `ArrayBuffer` object.
 
 Collect all bytes into an `ArrayBuffer`.
 
@@ -961,7 +961,7 @@ added: REPLACEME
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<Uint8Array>}
+* Returns: {Promise} Fulfills with an `Uint8Array` object.
 
 Collect all bytes from a stream into a single `Uint8Array`.
 
@@ -1009,7 +1009,7 @@ added: REPLACEME
   * `signal` {AbortSignal}
   * `limit` {number} Maximum number of bytes to consume. If the total bytes
     collected exceeds limit, an `ERR_OUT_OF_RANGE` error is thrown
-* Returns: {Promise\<string>}
+* Returns: {Promise} Fulfills with a `string`.
 
 Collect all bytes and decode as text.
 
@@ -1053,11 +1053,11 @@ added: REPLACEME
 -->
 
 * `drainable` {Object} An object implementing the drainable protocol.
-* Returns: {Promise\<boolean>|null}
+* Returns: {Promise|null}
 
-Wait for a drainable writer's backpressure to clear. Returns a promise that
-resolves to `true` when the writer can accept more data, or `null` if the
-object does not implement the drainable protocol.
+Wait for a drainable writer's backpressure to clear. Returns `null` if
+the object does not implement the drainable protocol, or a promise that
+fulfills with `true` when the writer can accept more data.
 
 ```mjs
 import { push, ondrain, text } from 'node:stream/iter';
@@ -1768,8 +1768,8 @@ text(consumer).then(console.log); // 'hello'
 * Value: `Symbol.for('Stream.drainableProtocol')`
 
 Implement to make a writer compatible with `ondrain()`. The method should
-return a promise that resolves when backpressure clears, or `null` if no
-backpressure.
+return `null` if no backpressure, or a promise that fulfills with a truthy value
+when backpressure clears.
 
 ```mjs
 import { ondrain } from 'node:stream/iter';
@@ -1975,8 +1975,8 @@ console.log(textSync(consumer)); // 'hello'
 The value must be a function that converts the object into a streamable value.
 When the object is encountered anywhere in the streaming pipeline (as a source
 passed to `from()`, or as a value returned from a transform), this method is
-called to produce the actual data. It may return (or resolve to) any streamable
-value: a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
+called to produce the actual data. It may return any value that resolves to:
+a string, `Uint8Array`, `AsyncIterable`, `Iterable`, or another streamable
 object.
 
 ```mjs
