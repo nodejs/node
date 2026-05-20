@@ -15,3 +15,23 @@ const OutgoingMessage = http.OutgoingMessage;
   }));
   msg.on('error', common.mustNotCall());
 }
+
+{
+  const msg = new OutgoingMessage();
+  msg.destroy();
+
+  assert.strictEqual(msg._writeRaw('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  })), false);
+  msg.on('error', common.mustNotCall());
+}
+
+{
+  const msg = new OutgoingMessage();
+  msg.socket = { destroyed: true };
+
+  assert.strictEqual(msg._writeRaw('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
+  })), false);
+  msg.on('error', common.mustNotCall());
+}
