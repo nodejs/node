@@ -20,6 +20,10 @@ const server = createServer(common.mustCall((req, res) => {
   res.on('finish', listener);
   // Everywhere else, 'close' is emitted
   res.on('close', listener);
+  res.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ECONNRESET');
+    assert.strictEqual(err.message, 'aborted');
+  }));
 
   get(`http://127.0.0.1:${internal.address().port}`, common.mustCall((inner) => {
     inner.pipe(res);
