@@ -641,12 +641,14 @@ enum Flags : uint64_t {
 };
 }  // namespace EnvironmentFlags
 
+// Bit 0 is a config-level flag (kWithoutCodeCache).
+// Bits 1..31 are dynamically assigned at runtime to env-affecting boolean
+// options that carry affects_snapshot=true, in alphabetical order by flag
+// name.  The mapping is computed by GetSnapshotAffectingOptions() so there are
+// no named constants for those bits here.
 enum class SnapshotFlags : uint32_t {
   kDefault = 0,
   // Whether code cache should be generated as part of the snapshot.
-  // Code cache reduces the time spent on compiling functions included
-  // in the snapshot at the expense of a bigger snapshot size and
-  // potentially breaking portability of the snapshot.
   kWithoutCodeCache = 1 << 0,
 };
 

@@ -21,7 +21,6 @@ const fixtureC = fixtures.path('printC.js');
 const fixtureD = fixtures.path('define-global.js');
 const fixtureE = fixtures.path('intrinsic-mutation.js');
 const fixtureF = fixtures.path('print-intrinsic-mutation-name.js');
-const fixtureG = fixtures.path('worker-from-argv.js');
 const fixtureThrows = fixtures.path('throws_error4.js');
 const fixtureIsPreloading = fixtures.path('ispreloading.js');
 
@@ -64,18 +63,53 @@ common.spawnPromisified(nodeBinary, [...preloadOption(fixtureA), '-e', 'console.
   }
 ));
 
-// Test that preload can be used with --frozen-intrinsics
-common.spawnPromisified(nodeBinary, ['--frozen-intrinsics', ...preloadOption(fixtureE), fixtureF]).then(common.mustCall(
-  ({ stdout }) => {
-    assert.strictEqual(stdout, 'smoosh\n');
+// Test that preload can be used alongside other flags
+{
+  // Flags that would interfere with test output or require special configuration
+  const excludedFlags = new Set([
+    '--abort-on-uncaught-exception',
+    '--build-snapshot',
+    '--completion-bash',
+    '--cpu-prof',
+    '--enable-etw-stack-walking',
+    '--enable-fips',
+    '--force-fips',
+    '--frozen-intrinsics',
+    '--heap-prof',
+    '--node-memory-debug',
+    '--prof',
+    '--prof-process',
+    '--test',
+    '--test-only',
+    '--v8-options',
+    '--watch',
+    '--watch-preserve-output',
+  ]);
+
+  const helpText = childProcess.execFileSync(nodeBinary, ['--help'], { encoding: 'utf8' });
+  const flagsToTest = helpText
+    .split('\n')
+    .filter((line) => line.startsWith('  --') && !line.includes('='))
+    .map((line) => {
+      const trimmed = line.trimStart();
+      const end = trimmed.indexOf(' ');
+      // Strip trailing comma that appears on wrapped help lines
+      return (end === -1 ? trimmed : trimmed.slice(0, end)).replace(/,$/, '');
+    })
+    .filter((flag) => flag.length > 2 &&
+      !flag.startsWith('--experimental-') &&
+      // --allow-* flags require --permission and cannot be used standalone
+      !flag.startsWith('--allow-') &&
+      !excludedFlags.has(flag));
+
+  for (const flag of flagsToTest) {
+    common.spawnPromisified(nodeBinary, [flag, ...preloadOption(fixtureE), fixtureF]).then(common.mustCall(
+      ({ stdout }) => {
+        assert.strictEqual(stdout, 'smoosh\n');
+      }
+    ));
   }
-));
-common.spawnPromisified(nodeBinary, ['--frozen-intrinsics', ...preloadOption(fixtureE), fixtureG, fixtureF])
-  .then(common.mustCall(
-    ({ stdout }) => {
-      assert.strictEqual(stdout, 'smoosh\n');
-    }
-  ));
+}
 
 // Test that preload can be used with stdin
 const stdinProc = childProcess.spawn(
