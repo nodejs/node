@@ -1102,6 +1102,7 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
         static_cast<PropertyAttribute>(ReadOnly));
 
     SetProtoMethod(isolate, tmpl, "close", DynamicLibrary::Close);
+    SetProtoDispose(isolate, tmpl, DynamicLibrary::Close);
     SetProtoMethod(isolate, tmpl, "getFunction", DynamicLibrary::GetFunction);
     SetProtoMethod(isolate, tmpl, "getFunctions", DynamicLibrary::GetFunctions);
     SetProtoMethod(isolate, tmpl, "getSymbol", DynamicLibrary::GetSymbol);
