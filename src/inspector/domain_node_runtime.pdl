@@ -1,0 +1,22 @@
+# Support for inspecting node process state.
+experimental domain NodeRuntime
+  # Enable the NodeRuntime events except by `NodeRuntime.waitingForDisconnect`.
+  command enable
+
+  # Disable NodeRuntime events
+  command disable
+
+  # Enable the `NodeRuntime.waitingForDisconnect`.
+  command notifyWhenWaitingForDisconnect
+    parameters
+      boolean enabled
+
+  # This event is fired instead of `Runtime.executionContextDestroyed` when
+  # enabled.
+  # It is fired when the Node process finished all code execution and is
+  # waiting for all frontends to disconnect.
+  event waitingForDisconnect
+
+  # This event is fired when the runtime is waiting for the debugger. For
+  # example, when inspector.waitingForDebugger is called
+  event waitingForDebugger

@@ -1,0 +1,8 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in NonOpaque::foo: Method `NonOpaque_foo` takes a reference to a struct as a self parameter, which isn't allowed. Backend must support struct_refs.
+Lowering error in Opaque::bar: found &T in output where T is a custom type, but not opaque. T = NonOpaque
+Lowering error in Opaque::baz: found &T in input where T is a struct. The backend must support struct_refs.
+Lowering error in Opaque::quux: found Box<T> in output where T is a custom type but not opaque. non-opaques can't be behind pointers. T = NonOpaque

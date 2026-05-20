@@ -1,0 +1,101 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: File API (https://w3c.github.io/FileAPI/)
+
+[Exposed=(Window,Worker), Serializable]
+interface Blob {
+  constructor(optional sequence<BlobPart> blobParts,
+              optional BlobPropertyBag options = {});
+
+  readonly attribute unsigned long long size;
+  readonly attribute DOMString type;
+
+  // slice Blob into byte-ranged chunks
+  Blob slice(optional [Clamp] long long start,
+            optional [Clamp] long long end,
+            optional DOMString contentType);
+
+  // read from the Blob.
+  [NewObject] ReadableStream stream();
+  [NewObject] Promise<USVString> text();
+  [NewObject] Promise<ArrayBuffer> arrayBuffer();
+  [NewObject] Promise<Uint8Array> bytes();
+};
+
+enum EndingType { "transparent", "native" };
+
+dictionary BlobPropertyBag {
+  DOMString type = "";
+  EndingType endings = "transparent";
+};
+
+typedef (BufferSource or Blob or USVString) BlobPart;
+
+[Exposed=(Window,Worker), Serializable]
+interface File : Blob {
+  constructor(sequence<BlobPart> fileBits,
+              USVString fileName,
+              optional FilePropertyBag options = {});
+  readonly attribute DOMString name;
+  readonly attribute long long lastModified;
+};
+
+dictionary FilePropertyBag : BlobPropertyBag {
+  long long lastModified;
+};
+
+[Exposed=(Window,Worker), Serializable]
+interface FileList {
+  getter File? item(unsigned long index);
+  readonly attribute unsigned long length;
+};
+
+[Exposed=(Window,Worker)]
+interface FileReader: EventTarget {
+  constructor();
+  // async read methods
+  undefined readAsArrayBuffer(Blob blob);
+  undefined readAsBinaryString(Blob blob);
+  undefined readAsText(Blob blob, optional DOMString encoding);
+  undefined readAsDataURL(Blob blob);
+
+  undefined abort();
+
+  // states
+  const unsigned short EMPTY = 0;
+  const unsigned short LOADING = 1;
+  const unsigned short DONE = 2;
+
+  readonly attribute unsigned short readyState;
+
+  // File or Blob data
+  readonly attribute (DOMString or ArrayBuffer)? result;
+
+  readonly attribute DOMException? error;
+
+  // event handler content attributes
+  attribute EventHandler onloadstart;
+  attribute EventHandler onprogress;
+  attribute EventHandler onload;
+  attribute EventHandler onabort;
+  attribute EventHandler onerror;
+  attribute EventHandler onloadend;
+};
+
+[Exposed=(DedicatedWorker,SharedWorker)]
+interface FileReaderSync {
+  constructor();
+  // Synchronously return strings
+
+  ArrayBuffer readAsArrayBuffer(Blob blob);
+  DOMString readAsBinaryString(Blob blob);
+  DOMString readAsText(Blob blob, optional DOMString encoding);
+  DOMString readAsDataURL(Blob blob);
+};
+
+[Exposed=(Window,DedicatedWorker,SharedWorker)]
+partial interface URL {
+  static DOMString createObjectURL((Blob or MediaSource) obj);
+  static undefined revokeObjectURL(DOMString url);
+};

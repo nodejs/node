@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates the render blocking status of resources.</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<!-- Start of test cases -->
+<script>
+    // Dynamic style using document.write in head
+    document.write(`
+        <link rel=stylesheet
+              href='resources/empty_style.css?stylesheet-head-dynamic-docWrite'>
+    `);
+    document.write(`
+        <link rel=stylesheet
+              href='resources/empty_style.css?stylesheet-head-dynamic-docWrite-print'
+              media=print>
+    `);
+</script>
+
+<link rel=stylesheet href="resources/empty_style.css?stylesheet-head">
+<link rel=stylesheet href="resources/empty_style.css?stylesheet-head-media-print"
+      media=print>
+<link rel="alternate stylesheet"
+      href="resources/empty_style.css?stylesheet-head-alternate">
+<link rel=preload as=style href="resources/empty_style.css?link-style-head-preload">
+<link rel=preload as=style href="resources/empty_style.css?link-style-preload-used">
+<link rel=stylesheet href="resources/importer.css?stylesheet-importer-head">
+<link rel=stylesheet id="link-head-remove-attr" blocking="render"
+    href="resources/empty_style.css?stylesheet-head-blocking-render-remove-attr">
+<link rel=modulepreload href="resources/empty_script.js?link-head-modulepreload">
+
+<style>@import url(resources/empty_style.css?stylesheet-inline-imported);</style>
+<style media=print>
+    @import url(resources/empty_style.css?stylesheet-inline-imported-print);
+</style>
+</head>
+
+<body>
+
+<link rel=stylesheet href="resources/empty_style.css?stylesheet-body">
+<link rel=stylesheet href="resources/importer.css?stylesheet-importer-body">
+<link rel=stylesheet href="resources/empty_style.css?stylesheet-body-media-print"
+      media=print>
+<link rel=stylesheet blocking="render"
+    href="resources/empty_style.css?stylesheet-body-blocking-render">
+
+<!-- https://html.spec.whatwg.org/multipage/urls-and-fetching.html#blocking-attributes
+     mentions that an element is potentially render-blocking if its blocking
+     tokens set contains "render", or if it is implicitly potentially
+     render-blocking. By default, an element is not implicitly potentially
+     render-blocking.
+     https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet
+     specifies that a link element of type stylesheet is implicitly potentially
+     render-blocking only if the element was created by its node document's parser. -->
+<script>
+    // Dynamic style using document.write in body
+    document.write(`
+        <link rel=stylesheet
+              href='resources/empty_style.css?stylesheet-body-dynamic-docWrite'>
+    `);
+    document.write(`
+        <link rel=stylesheet
+              href='resources/empty_style.css?stylesheet-body-dynamic-docWrite-print'
+              media=print>
+    `);
+
+    // Dynamic style using innerHTML
+    document.head.innerHTML += `
+        <link rel=stylesheet
+              href='resources/empty_style.css?stylesheet-head-dynamic-innerHTML'>
+    `;
+    document.head.innerHTML += `
+        <link rel=stylesheet
+              href='resources/empty_style.css?stylesheet-head-dynamic-innerHTML-print'
+              media=print>
+    `;
+    document.head.innerHTML += `
+        <link rel=stylesheet blocking=render
+              href='resources/empty_style.css?stylesheet-head-blocking-render-dynamic-innerHTML'>
+    `;
+
+    // Dynamic style using DOM API
+    var link = document.createElement("link");
+    link.href = "resources/empty_style.css?stylesheet-head-dynamic-dom";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+
+    // Add a dynamic render-blocking style with DOM API
+    link = document.createElement("link");
+    link.href = "resources/empty_style.css?stylesheet-head-blocking-render-dynamic-dom";
+    link.rel = "stylesheet";
+    link.blocking = "render";
+    document.head.appendChild(link);
+
+    // Dynamic style preload using DOM API
+    link = document.createElement("link");
+    link.href = "resources/empty_style.css?link-style-head-preload-dynamic-dom";
+    link.rel = "preload";
+    link.as = "style";
+    document.head.appendChild(link);
+
+    // Dynamic module via modulepreload using DOM API
+    link = document.createElement("link");
+    link.href = "resources/empty_script.js?link-head-modulepreload-dynamic-dom";
+    link.rel = "modulepreload";
+    document.head.appendChild(link);
+
+    // Add a style preload with DOM API to be used later
+    link = document.createElement("link");
+    link.href = "resources/empty_style.css?link-style-preload-used-dynamic";
+    link.rel = "preload";
+    link.as = "style";
+    document.head.appendChild(link);
+    // Use the preload
+    link = document.createElement("link");
+    link.href = "resources/empty_style.css?link-style-preload-used-dynamic";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+
+    // Dynamic inline CSS
+    // Add an inline CSS importer
+    document.write(`
+        <style>
+            @import url('resources/empty_style.css?stylesheet-inline-imported-dynamic-docwrite')
+        </style>
+    `);
+    document.write(`
+        <style media=print>
+            @import url('resources/empty_style.css?stylesheet-inline-imported-dynamic-docwrite-print')
+        </style>
+    `);
+
+    // Add a dynamic inline CSS importer using DOM API
+    let style = document.createElement("style");
+    style.textContent = "@import url('resources/empty_style.css?stylesheet-inline-imported-dynamic-dom')";
+    document.head.appendChild(style);
+
+    // Add a dynamic render-blocking inline CSS importer
+    style = document.createElement("style");
+    style.textContent = "@import url('resources/empty_style.css?stylesheet-inline-imported-blocking-render-dynamic-dom')";
+    style.blocking = "render";
+    document.head.appendChild(style);
+
+    // Dynamic CSS importer
+    document.write(`
+        <link rel=stylesheet href='resources/importer_dynamic.css'>
+    `);
+    document.write(`
+        <link rel=stylesheet href='resources/importer_print.css' media=print>
+    `);
+
+    // Removing blocking render attribute after request is made
+    const sheet = document.getElementById("link-head-remove-attr");
+    sheet.blocking = "";
+</script>
+
+<link rel=stylesheet href="resources/empty_style.css?link-style-preload-used">
+
+<script>
+
+const wait_for_onload = () => {
+  return new Promise(resolve => {
+    window.addEventListener("load", resolve);
+})};
+
+promise_test(
+  async () => {
+    const expectedRenderBlockingStatus = {
+        'stylesheet-head-dynamic-docWrite': 'blocking',
+        'stylesheet-head-dynamic-docWrite-print': 'non-blocking',
+        'stylesheet-head': 'blocking',
+        'stylesheet-head-media-print' : 'non-blocking',
+        'stylesheet-head-alternate' : 'non-blocking',
+        'link-style-head-preload' : 'non-blocking',
+        'stylesheet-importer-head' : 'blocking',
+        'stylesheet-head-blocking-render-remove-attr' : 'blocking',
+        'link-head-modulepreload' : 'non-blocking',
+        'stylesheet-inline-imported' : 'blocking',
+        'stylesheet-inline-imported-print' : 'non-blocking',
+        'stylesheet-body': 'non-blocking',
+        'stylesheet-importer-body' : 'non-blocking',
+        'stylesheet-body-media-print' : 'non-blocking',
+        'stylesheet-body-blocking-render' : 'non-blocking',
+        'stylesheet-body-dynamic-docWrite' : 'non-blocking',
+        'stylesheet-body-dynamic-docWrite-print': 'non-blocking',
+        'stylesheet-head-dynamic-innerHTML' : 'non-blocking',
+        'stylesheet-head-dynamic-innerHTML-print' : 'non-blocking',
+        'stylesheet-head-blocking-render-dynamic-innerHTML' : 'blocking',
+        'stylesheet-head-dynamic-dom' : 'non-blocking',
+        'stylesheet-head-blocking-render-dynamic-dom' : 'blocking',
+        'link-style-head-preload-dynamic-dom' : 'non-blocking',
+        'link-head-modulepreload-dynamic-dom' : 'non-blocking',
+        'link-style-preload-used' : 'non-blocking',
+        'link-style-preload-used-dynamic' : 'non-blocking',
+        'stylesheet-inline-imported-dynamic-docwrite': 'blocking',
+        'stylesheet-inline-imported-dynamic-docwrite-print' : 'non-blocking',
+        'stylesheet-inline-imported-dynamic-dom' : 'non-blocking',
+        'stylesheet-inline-imported-blocking-render-dynamic-dom' : 'blocking',
+        'stylesheet-imported' : 'blocking',
+        'stylesheet-imported-print' : 'non-blocking',
+        'stylesheet-imported-dynamic' : 'non-blocking'
+    };
+
+    await wait_for_onload();
+
+    const entry_list = performance.getEntriesByType("resource");
+    for (entry of entry_list) {
+        if (entry.name.includes("empty_style.css") ||
+                entry.name.includes("importer.css") ||
+                entry.name.includes("empty_script.js")) {
+            key = entry.name.split("?").pop();
+            expectedStatus = expectedRenderBlockingStatus[key];
+            assert_equals(entry.renderBlockingStatus, expectedStatus,
+                `render blocking status for ${entry.name} should be ${expectedStatus}`);
+        }
+    }
+}, "Validate render blocking status of link resources in PerformanceResourceTiming");
+
+</script>

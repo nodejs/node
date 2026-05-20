@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm [Default] toJSON() creates result object in its realm</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#default-tojson-steps">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="support/create-realm.js"></script>
+
+<body>
+<script>
+promise_test(async t => {
+    const other = await createRealm(t);
+    const json = other.DOMRectReadOnly.prototype.toJSON.call(new DOMRectReadOnly());
+
+    assert_equals(Object.getPrototypeOf(json), other.Object.prototype);
+}, "Cross-realm [Default] toJSON() creates result object in its realm");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const json = other.DOMQuad.prototype.toJSON.call(new DOMQuad());
+
+    assert_equals(Object.getPrototypeOf(json.p1), DOMPoint.prototype);
+}, "Cross-realm [Default] toJSON() converts its interface attributes to ECMAScript values of correct realm");
+</script>
+</body>

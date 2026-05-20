@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Unexpected token ','
+function foo(b, a, a,,) { return a }
+                     ^
+SyntaxError: Unexpected token ','

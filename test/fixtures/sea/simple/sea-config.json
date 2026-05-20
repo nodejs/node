@@ -1,0 +1,6 @@
+
+{
+  "main": "sea.js",
+  "output": "snapshot.blob",
+  "disableExperimentalSEAWarning": true
+}

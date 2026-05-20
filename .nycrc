@@ -1,0 +1,21 @@
+{
+  "exclude": [
+    "coverage/**",
+    "test/**",
+    "tools/**",
+    "benchmark/**",
+    "deps/**"
+  ],
+  "reporter": [
+    "html",
+    "text",
+    "cobertura"
+  ],
+  "lines": 95,
+  "branches": "93",
+  "statements": "95",
+  "temp-directory": "coverage/tmp",
+  "omit-relative": false,
+  "resolve": "./lib",
+  "wrapper-length": 0
+}

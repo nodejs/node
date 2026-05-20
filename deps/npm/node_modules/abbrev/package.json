@@ -1,0 +1,41 @@
+{
+  "name": "abbrev",
+  "version": "4.0.0",
+  "description": "Like ruby's abbrev module, but in js",
+  "author": "GitHub Inc.",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "node --test",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "snap": "node --test --test-update-snapshots",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "test:cover": "node --test --experimental-test-coverage --test-timeout=3000 --test-coverage-lines=100 --test-coverage-functions=100 --test-coverage-branches=100"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/abbrev-js.git"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.0",
+    "@npmcli/template-oss": "4.26.1"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.26.1",
+    "publish": true,
+    "testRunner": "node:test",
+    "latestCiVersion": 24
+  }
+}

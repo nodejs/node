@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: Cannot write private member #x to an object whose class did not declare it
+  setX(o, val) { o.#x = val; }
+                      ^
+TypeError: Cannot write private member #x to an object whose class did not declare it
+    at X.setX (*%(basename)s:7:23)
+    at *%(basename)s:10:9

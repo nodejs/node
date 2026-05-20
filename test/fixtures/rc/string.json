@@ -1,0 +1,5 @@
+{
+  "nodeOptions": {
+    "test-reporter": "dot"
+  }
+}

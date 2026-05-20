@@ -1,0 +1,306 @@
+- after() called
+▶ describe hooks
+  ✔ 1 (*ms)
+  ✔ 2 (*ms)
+  ▶ nested
+    ✔ nested 1 (*ms)
+    ✔ nested 2 (*ms)
+  ✔ nested (*ms)
+✔ describe hooks (*ms)
+✔ describe hooks - no subtests (*ms)
+▶ before throws
+  ✖ 1
+  ✖ 2
+✖ before throws (*ms)
+✖ before throws - no subtests (*ms)
+▶ after throws
+  ✔ 1 (*ms)
+  ✔ 2 (*ms)
+✖ after throws (*ms)
+✖ after throws - no subtests (*ms)
+▶ beforeEach throws
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ beforeEach throws (*ms)
+▶ afterEach throws
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ afterEach throws (*ms)
+▶ afterEach when test fails
+  ✖ 1 (*ms)
+  ✔ 2 (*ms)
+✖ afterEach when test fails (*ms)
+▶ afterEach throws and test fails
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ afterEach throws and test fails (*ms)
+▶ test hooks
+  ✔ 1 (*ms)
+  ✔ 2 (*ms)
+  ▶ nested
+    ✔ nested 1 (*ms)
+    ✔ nested 2 (*ms)
+  ✔ nested (*ms)
+✔ test hooks (*ms)
+✔ test hooks - no subtests (*ms)
+▶ t.before throws
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ t.before throws (*ms)
+✖ t.before throws - no subtests (*ms)
+▶ t.after throws
+  ✔ 1 (*ms)
+  ✔ 2 (*ms)
+✖ t.after throws (*ms)
+✖ t.after throws - no subtests (*ms)
+▶ t.beforeEach throws
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ t.beforeEach throws (*ms)
+▶ t.afterEach throws
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ t.afterEach throws (*ms)
+▶ afterEach when test fails
+  ✖ 1 (*ms)
+  ✔ 2 (*ms)
+✖ afterEach when test fails (*ms)
+▶ afterEach context when test passes
+  ✔ 1 (*ms)
+✔ afterEach context when test passes (*ms)
+▶ afterEach context when test fails
+  ✖ 1 (*ms)
+✖ afterEach context when test fails (*ms)
+▶ afterEach throws and test fails
+  ✖ 1 (*ms)
+  ✖ 2 (*ms)
+✖ afterEach throws and test fails (*ms)
+✖ t.after() is called if test body throws (*ms)
+ℹ - after() called
+▶ run after when before throws
+  ✖ 1
+✖ run after when before throws (*ms)
+▶ test hooks - async
+  ✔ 1 (*ms)
+  ✔ 2 (*ms)
+✔ test hooks - async (*ms)
+ℹ before 1 called
+ℹ before 2 called
+ℹ after 1 called
+ℹ after 2 called
+ℹ tests 52
+ℹ suites 12
+ℹ pass 22
+ℹ fail 27
+ℹ cancelled 3
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms *
+
+✖ failing tests:
+
+test at test/fixtures/test-runner/output/hooks.js:74:3
+✖ 1
+  'test did not finish before its parent and was cancelled'
+
+test at test/fixtures/test-runner/output/hooks.js:75:3
+✖ 2
+  'test did not finish before its parent and was cancelled'
+
+test at test/fixtures/test-runner/output/hooks.js:72:1
+✖ before throws (*ms)
+  Error: before
+      at SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:73:24)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:78:1
+✖ before throws - no subtests (*ms)
+  Error: before
+      at SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:79:24)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:83:1
+✖ after throws (*ms)
+  Error: after
+      at SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:84:23)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:89:1
+✖ after throws - no subtests (*ms)
+  Error: after
+      at SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:90:23)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:95:3
+✖ 1 (*ms)
+  Error: beforeEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:94:28)
+      at <node-internal-frames>
+      at new Promise (<anonymous>)
+
+test at test/fixtures/test-runner/output/hooks.js:96:3
+✖ 2 (*ms)
+  Error: beforeEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:94:28)
+      at <node-internal-frames>
+      at async Promise.all (index 0)
+
+test at test/fixtures/test-runner/output/hooks.js:101:3
+✖ 1 (*ms)
+  Error: afterEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:100:27)
+      at <node-internal-frames>
+      at async Promise.all (index 0)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:102:3
+✖ 2 (*ms)
+  Error: afterEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:100:27)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:107:3
+✖ 1 (*ms)
+  Error: test
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:107:25)
+      at <node-internal-frames>
+      at new Promise (<anonymous>)
+      at <node-internal-frames>
+      at Array.map (<anonymous>)
+
+test at test/fixtures/test-runner/output/hooks.js:113:3
+✖ 1 (*ms)
+  Error: test
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:113:25)
+      at <node-internal-frames>
+      at new Promise (<anonymous>)
+      at <node-internal-frames>
+      at Array.map (<anonymous>)
+
+test at test/fixtures/test-runner/output/hooks.js:114:3
+✖ 2 (*ms)
+  Error: afterEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:112:27)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:172:11
+✖ 1 (*ms)
+  Error: before
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:26)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:5)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:173:11
+✖ 2 (*ms)
+  Error: before
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:26)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:5)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:169:1
+✖ t.before throws (*ms)
+  Error: before
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:26)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:171:5)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:176:1
+✖ t.before throws - no subtests (*ms)
+  Error: before
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:178:26)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:178:5)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:181:1
+✖ t.after throws (*ms)
+  Error: after
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:183:25)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:188:1
+✖ t.after throws - no subtests (*ms)
+  Error: after
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:190:25)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:197:11
+✖ 1 (*ms)
+  Error: beforeEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:196:30)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:197:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:198:11
+✖ 2 (*ms)
+  Error: beforeEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:196:30)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:198:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:204:11
+✖ 1 (*ms)
+  Error: afterEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:203:29)
+      at <node-internal-frames>
+      at async TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:204:3)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:205:11
+✖ 2 (*ms)
+  Error: afterEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:203:29)
+      at <node-internal-frames>
+      at async TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:205:3)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:212:11
+✖ 1 (*ms)
+  Error: test
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:212:35)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:212:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:232:11
+✖ 1 (*ms)
+  Error: test
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:226:15)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:238:11
+✖ 1 (*ms)
+  Error: test
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:238:35)
+      at <node-internal-frames>
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:238:11)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:239:11
+✖ 2 (*ms)
+  Error: afterEach
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:237:29)
+      at <node-internal-frames>
+      at async TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:239:3)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:242:1
+✖ t.after() is called if test body throws (*ms)
+  Error: bye
+      at TestContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:246:9)
+      at <node-internal-frames>
+
+test at test/fixtures/test-runner/output/hooks.js:254:3
+✖ 1
+  'test did not finish before its parent and was cancelled'
+
+test at test/fixtures/test-runner/output/hooks.js:249:1
+✖ run after when before throws (*ms)
+  Error: before
+      at SuiteContext.<anonymous> (<project-root>/test/fixtures/test-runner/output/hooks.js:253:24)
+      at <node-internal-frames>

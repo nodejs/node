@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title> Calling stopPropagation() prior to dispatchEvent() </title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id=log></div>
+
+<table id="table" border="1" style="display: none">
+    <tbody id="table-body">
+    <tr id="table-row">
+        <td id="table-cell">Shady Grove</td>
+        <td>Aeolian</td>
+    </tr>
+    <tr id="parent">
+        <td id="target">Over the river, Charlie</td>
+        <td>Dorian</td>
+    </tr>
+    </tbody>
+</table>
+
+<script>
+test(function() {
+    var event = "foo";
+    var target = document.getElementById("target");
+    var parent = document.getElementById("parent");
+    var tbody = document.getElementById("table-body");
+    var table = document.getElementById("table");
+    var body = document.body;
+    var html = document.documentElement;
+    var current_targets = [window, document, html, body, table, tbody, parent, target];
+    var expected_targets = [];
+    var actual_targets = [];
+    var expected_phases = [];
+    var actual_phases = [];
+
+    var test_event = function(evt) {
+        actual_targets.push(evt.currentTarget);
+        actual_phases.push(evt.eventPhase);
+    };
+
+    for (var i = 0; i < current_targets.length; ++i) {
+        current_targets[i].addEventListener(event, test_event, true);
+        current_targets[i].addEventListener(event, test_event, false);
+    }
+
+    var evt = document.createEvent("Event");
+    evt.initEvent(event, true, true);
+    evt.stopPropagation();
+    target.dispatchEvent(evt);
+
+    assert_array_equals(actual_targets, expected_targets, "actual_targets");
+    assert_array_equals(actual_phases, expected_phases, "actual_phases");
+});
+</script>
+</body>
+</html>

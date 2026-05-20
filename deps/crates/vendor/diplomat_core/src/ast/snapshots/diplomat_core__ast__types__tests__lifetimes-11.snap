@@ -1,0 +1,9 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { DiplomatSliceMut<'a, f32> }, None)"
+---
+PrimitiveSlice:
+  - - Named: a
+    - Mutable
+  - f32
+  - Diplomat

@@ -1,0 +1,10 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Crimes: Found FFI-unsafe type &'a str in struct field Crimes.slice1, consider using DiplomatUtf8Str<'a>
+Lowering error in Crimes: Found FFI-unsafe type &'a DiplomatStr in struct field Crimes.slice1, consider using DiplomatStrSlice<'a>
+Lowering error in Crimes: Found FFI-unsafe type &'a [u8] in struct field Crimes.slice2, consider using DiplomatSlice<'a,u8>
+Lowering error in Crimes: Found FFI-unsafe type Box<str> in struct field Crimes.slice3, consider using DiplomatOwnedUtf8Str
+Lowering error in Crimes: Found FFI-unsafe type Box<DiplomatStr> in struct field Crimes.slice3, consider using DiplomatOwnedStrSlice
+Lowering error in Crimes: Found FFI-unsafe type Box<[u8]> in struct field Crimes.slice4, consider using Box<[u8]>

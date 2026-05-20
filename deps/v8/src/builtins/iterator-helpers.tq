@@ -1,0 +1,1355 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// --- Utilities
+
+namespace iterator {
+
+macro IsIteratorHelperExhausted(helper: JSIteratorHelper): bool {
+  return helper.state ==
+      SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kCompleted);
+}
+
+macro MarkIteratorHelperAsExhausted(helper: JSIteratorHelper): void {
+  helper.state =
+      SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kCompleted);
+}
+
+macro IsIteratorHelperExecuting(helper: JSIteratorHelper): bool {
+  return helper.state ==
+      SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kExecuting);
+}
+
+// When a generator's state is ~executing~, attempts to reenter via next() or
+// return() throw a TypeError. See step 6 in ES #sec-generatorvalidate.
+macro ThrowIfIteratorHelperExecuting(
+    implicit context: Context)(helper: JSIteratorHelper): void {
+  if (IsIteratorHelperExecuting(helper)) {
+    ThrowTypeError(MessageTemplate::kGeneratorRunning);
+  }
+}
+
+macro MarkIteratorHelperAsExecuting(helper: JSIteratorHelper): void {
+  dcheck(!IsIteratorHelperExecuting(helper));
+  helper.state =
+      SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kExecuting);
+}
+
+macro IteratorHelperIsSuspendedStart(helper: JSIteratorHelper): bool {
+  return helper.state ==
+      SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart);
+}
+
+macro MarkIteratorHelperAsFinishedExecuting(helper: JSIteratorHelper): void {
+  dcheck(IsIteratorHelperExecuting(helper));
+  helper.state =
+      SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedYield);
+}
+
+// https://tc39.es/ecma262/#sec-getiteratordirect
+transitioning macro GetIteratorDirect(
+    implicit context: Context)(obj: JSReceiver): IteratorRecord {
+  // 1. Let nextMethod be ? Get(obj, "next").
+  const nextMethod = GetProperty(obj, kNextString);
+
+  // 2. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]:
+  //    nextMethod, [[Done]]: false }.
+  // 3. Return iteratorRecord.
+  return IteratorRecord{object: obj, next: nextMethod};
+}
+
+// --- Dispatch functions for all iterator helpers
+
+// https://tc39.es/ecma262/#sec-%iteratorhelperprototype%.next
+transitioning javascript builtin IteratorHelperPrototypeNext(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  // 1. Return ? GeneratorResume(this value, undefined, "Iterator Helper").
+
+  // Iterator helpers are specified as generators but we implement them as
+  // direct iterators.
+  const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'Iterator Helper.prototype.next', receiver);
+
+  ThrowIfIteratorHelperExecuting(helper);
+
+  if (IsIteratorHelperExhausted(helper)) {
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  typeswitch (helper) {
+    case (mapHelper: JSIteratorMapHelper): {
+      return IteratorMapHelperNext(mapHelper);
+    }
+    case (filterHelper: JSIteratorFilterHelper): {
+      return IteratorFilterHelperNext(filterHelper);
+    }
+    case (takeHelper: JSIteratorTakeHelper): {
+      return IteratorTakeHelperNext(takeHelper);
+    }
+    case (dropHelper: JSIteratorDropHelper): {
+      return IteratorDropHelperNext(dropHelper);
+    }
+    case (flatMapHelper: JSIteratorFlatMapHelper): {
+      return IteratorFlatMapHelperNext(flatMapHelper);
+    }
+    case (concatHelper: JSIteratorConcatHelper): {
+      return IteratorConcatHelperNext(concatHelper);
+    }
+    case (Object): {
+      unreachable;
+    }
+  }
+}
+
+// https://tc39.es/ecma262/#sec-%iteratorhelperprototype%.return
+transitioning javascript builtin IteratorHelperPrototypeReturn(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSObject {
+  // 1. Let O be this value.
+  // 2. Perform ? RequireInternalSlot(O, [[UnderlyingIterator]]).
+  // 3. Assert: O has a [[GeneratorState]] slot.
+  const helper = Cast<JSIteratorHelper>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver,
+      'Iterator Helper.prototype.return', receiver);
+
+  // Iterator helpers are specified as generators. The net effect of this
+  // method is to close the underlying and return { value: undefined, done:
+  // true }. We first handle the easy cases, where the state is EXECUTING or
+  // COMPLETED.
+  ThrowIfIteratorHelperExecuting(helper);
+  if (IsIteratorHelperExhausted(helper)) {
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  // 4. If O.[[GeneratorState]] is suspendedStart, then
+  if (IteratorHelperIsSuspendedStart(helper)) {
+    // a. Set O.[[GeneratorState]] to completed.
+    MarkIteratorHelperAsExhausted(helper);
+    // b. NOTE: Once a generator enters the completed state it never leaves
+    //    it and its associated execution context is never resumed. Any
+    //    execution state associated with O can be discarded at this point.
+    // c. Perform ? IteratorCloseAll(O.[[UnderlyingIterators]],
+    //    NormalCompletion(unused)).
+    typeswitch (helper) {
+      case (JSIteratorConcatHelper): {
+        // The JSIteratorConcatHelper completed before ever starting.
+        // In this case, there is no underlying iterator.
+      }
+      case (simpleHelper: JSIteratorHelperSimple): {
+        // Simple iterator helpers have just one underlying iterator.
+        try {
+          IteratorClose(simpleHelper.underlying_iterator);
+        } catch (e, message) {
+          ReThrowWithMessage(context, e, message);
+        }
+      }
+      case (Object): {
+        unreachable;
+      }
+    }
+    // d. Return CreateIterResultObject(undefined, true).
+    return AllocateJSIteratorResult(Undefined, True);
+  }
+
+  // 5. Let C be ReturnCompletion(undefined).
+  // 6. Return ? GeneratorResumeAbrupt(O, C, "Iterator Helper").
+  // The following is executed as part of GeneratorResumeAbrupt.
+  MarkIteratorHelperAsExecuting(helper);
+  try {
+    typeswitch (helper) {
+      case (flatMapHelper: JSIteratorFlatMapHelper): {
+        try {
+          // Iterator.prototype.flatMap, step 6.b.viii.4.b:
+          // i. Let backupCompletion be
+          //    Completion(IteratorClose(innerIterator, completion)).
+          IteratorClose(flatMapHelper.inner_iterator);
+        } catch (e, message) {
+          // ii. IfAbruptCloseIterator(backupCompletion, iterated).
+          IteratorCloseOnException(flatMapHelper.underlying_iterator.object);
+          MarkIteratorHelperAsExhausted(flatMapHelper);
+          ReThrowWithMessage(context, e, message);
+        }
+        // iii. Return ? IteratorClose(iterated, completion).
+        IteratorClose(flatMapHelper.underlying_iterator);
+      }
+      case (simpleHelper: JSIteratorHelperSimple): {
+        // Standard generator body cleanup logic for simple iterator helpers
+        // and abrupt completions:
+        // Return ? IteratorClose(iterated, completion).
+        IteratorClose(simpleHelper.underlying_iterator);
+      }
+      case (Object): {
+        unreachable;
+      }
+    }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+
+  MarkIteratorHelperAsExhausted(helper);
+  return AllocateJSIteratorResult(Undefined, True);
+}
+
+// --- map helper
+
+macro NewJSIteratorMapHelper(
+    implicit context: Context)(underlying: IteratorRecord,
+    mapper: Callable): JSIteratorMapHelper {
+  return new JSIteratorMapHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_MAP_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    mapper: mapper,
+    counter: 0
+  };
+}
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.map
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeMap(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    mapper: JSAny): JSIteratorMapHelper {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.map';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(mapper) is false, then
+    //     a. Let error be ThrowCompletion(a newly created TypeError object).
+    //     b. Return ? IteratorClose(iterated , error).
+    const mapper = Cast<Callable>(mapper)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // Step 6 implemented in IteratorMapHelperNext
+
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //    %IteratorHelperPrototype%).
+    // 8. Set result.[[UnderlyingIterator]] to iterated.
+    // 9. Return result.
+    return NewJSIteratorMapHelper(iterated, mapper);
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(mapper);
+  }
+}
+
+transitioning builtin IteratorMapHelperNext(
+    implicit context: Context)(helper: JSIteratorMapHelper): JSAny {
+  // a. Let counter be 0.
+  // (Done when creating JSIteratorMapHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  MarkIteratorHelperAsExecuting(helper);
+  const counter = helper.counter;
+
+  try {
+    // b. Repeat,
+    let next: JSReceiver;
+    try {
+      // i. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // ii. If next is false, return undefined.
+      MarkIteratorHelperAsExhausted(helper);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // iii. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    try {
+      // iv. Let mapped be Completion(
+      //     Call(mapper, undefined, « value, 𝔽(counter) »)).
+      const mapped = Call(context, helper.mapper, Undefined, value, counter);
+
+      // viii. Set counter to counter + 1.
+      // (Done out of order. Iterator helpers are specified as generators with
+      // yields but we implement them as direct iterators.)
+      helper.counter = counter + 1;
+
+      // vi. Let completion be Completion(Yield(mapped)).
+      MarkIteratorHelperAsFinishedExecuting(helper);
+      return AllocateJSIteratorResult(mapped, False);
+
+      // vii. IfAbruptCloseIterator(completion, iterated).
+      // (Done in IteratorHelperPrototypeReturn.)
+    } catch (e, message) {
+      // v. IfAbruptCloseIterator(mapped, iterated).
+      IteratorCloseOnException(helper.underlying_iterator.object);
+      ReThrowWithMessage(context, e, message);
+    }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+}
+
+// --- filter helper
+
+macro NewJSIteratorFilterHelper(
+    implicit context: Context)(underlying: IteratorRecord,
+    predicate: Callable): JSIteratorFilterHelper {
+  return new JSIteratorFilterHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_FILTER_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    predicate: predicate,
+    counter: 0
+  };
+}
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.filter
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeFilter(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    predicate: JSAny): JSIteratorFilterHelper {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.filter';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]:  O ,
+    // [[NextMethod]]: undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //     a. Let error be ThrowCompletion(a newly created TypeError object).
+    //     b. Return ? IteratorClose(iterated , error).
+
+    const predicate = Cast<Callable>(predicate)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // Step 6 implemented in IteratorFilterHelperNext
+
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //    %IteratorHelperPrototype%).
+    // 8. Set result.[[UnderlyingIterator]] to iterated.
+    // 9. Return result.
+    return NewJSIteratorFilterHelper(iterated, predicate);
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(predicate);
+  }
+}
+
+transitioning builtin IteratorFilterHelperNext(
+    implicit context: Context)(helper: JSIteratorFilterHelper): JSAny {
+  // a. Let counter be 0.
+  // (Done when creating JSIteratorFilterHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  MarkIteratorHelperAsExecuting(helper);
+
+  try {
+    while (true) {
+      const counter = helper.counter;
+
+      // b. Repeat,
+      let next: JSReceiver;
+      try {
+        // i. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        // ii. If next is false, return undefined.
+        MarkIteratorHelperAsExhausted(helper);
+        return AllocateJSIteratorResult(Undefined, True);
+      }
+
+      // iii. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      try {
+        // iv. Let selected be Completion(
+        //     Call(predicate, undefined, « value, 𝔽(counter) »)).
+        const selected =
+            Call(context, helper.predicate, Undefined, value, counter);
+
+        // vii. Set counter to counter + 1.
+        // (Done out of order. Iterator helpers are specified as generators with
+        // yields but we implement them as direct iterators.)
+        helper.counter = counter + 1;
+
+        // vi. If ToBoolean(selected) is true, then
+        if (ToBoolean(selected)) {
+          // 1. Let completion be Completion(Yield(value)).
+          MarkIteratorHelperAsFinishedExecuting(helper);
+          return AllocateJSIteratorResult(value, False);
+          // 2. IfAbruptCloseIterator(completion, iterated).
+          // (Done in IteratorHelperPrototypeReturn.)
+        }
+      } catch (e, message) {
+        // v. IfAbruptCloseIterator(selected, iterated).
+        IteratorCloseOnException(helper.underlying_iterator.object);
+        ReThrowWithMessage(context, e, message);
+      }
+    }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+  unreachable;
+}
+
+// --- take helper
+
+macro NewJSIteratorTakeHelper(
+    implicit context: Context)(underlying: IteratorRecord,
+    limit: Number): JSIteratorTakeHelper {
+  return new JSIteratorTakeHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_TAKE_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    remaining: limit
+  };
+}
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.take
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeTake(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    limit: JSAny): JSIteratorTakeHelper {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.take';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+
+    let numLimit: Number;
+    try {
+      // 4. Let numLimit be Completion(ToNumber(limit)).
+      numLimit = ToNumber_Inline(limit);
+    } catch (e, message) {
+      // 5. IfAbruptCloseIterator(numLimit, iterated).
+      IteratorCloseOnException(o);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    // 6. If numLimit is NaN, then
+    //   a. Let error be ThrowCompletion(a newly created RangeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+    if (NumberIsNaN(numLimit)) goto RangeError(o);
+
+    // 7. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    const integerLimit = ToInteger_Inline(numLimit);
+
+    // 8. If integerLimit < 0, then
+    //  a. Let error be ThrowCompletion(a newly created RangeError object).
+    //  b. Return ? IteratorClose(iterated, error).
+    if (integerLimit < 0) goto RangeError(o);
+
+    // 9. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // Step 10 implemented in IteratorTakeHelperNext
+
+    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //    %IteratorHelperPrototype%).
+    // 12. Set result.[[UnderlyingIterator]] to iterated.
+    // 13. Return result.
+    return NewJSIteratorTakeHelper(iterated, integerLimit);
+  } label RangeError(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowRangeError(MessageTemplate::kMustBePositive, limit);
+  }
+}
+
+transitioning builtin IteratorTakeHelperNext(
+    implicit context: Context)(helper: JSIteratorTakeHelper): JSAny {
+  // a. Let remaining be integerLimit.
+  // (Done when creating JSIteratorTakeHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  MarkIteratorHelperAsExecuting(helper);
+  const remaining = helper.remaining;
+
+  try {
+    // b. Repeat,
+    let next: JSReceiver;
+
+    // i. If remaining is 0, then
+    if (remaining == 0) {
+      // 1. Return ? IteratorClose(iterated, NormalCompletion(undefined)).
+      MarkIteratorHelperAsExhausted(helper);
+      IteratorClose(helper.underlying_iterator);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // ii. If remaining is not +∞, then
+    if (!NumberIsSomeInfinity(remaining)) {
+      // 1. Set remaining to remaining - 1.
+      helper.remaining = remaining - 1;
+    }
+
+    try {
+      // iii. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // iv. If next is false, return undefined.
+      MarkIteratorHelperAsExhausted(helper);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // v. Let completion be Completion(Yield(? IteratorValue(next))).
+    const value = IteratorValue(next, fastIteratorResultMap);
+    MarkIteratorHelperAsFinishedExecuting(helper);
+    return AllocateJSIteratorResult(value, False);
+
+    // vi. IfAbruptCloseIterator(completion, iterated).
+    // (Done in IteratorHelperPrototypeReturn.)
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+}
+
+// --- drop helper
+
+macro NewJSIteratorDropHelper(
+    implicit context: Context)(underlying: IteratorRecord,
+    limit: Number): JSIteratorDropHelper {
+  return new JSIteratorDropHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_DROP_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    remaining: limit
+  };
+}
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.drop
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeDrop(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    limit: JSAny): JSIteratorDropHelper {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.drop';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+
+    let numLimit: Number;
+    try {
+      // 4. Let numLimit be Completion(ToNumber(limit)).
+      numLimit = ToNumber_Inline(limit);
+    } catch (e, message) {
+      // 5. IfAbruptCloseIterator(numLimit, iterated).
+      IteratorCloseOnException(o);
+      ReThrowWithMessage(context, e, message);
+    }
+
+    // 6. If numLimit is NaN, then
+    //   a. Let error be ThrowCompletion(a newly created RangeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+    if (NumberIsNaN(numLimit)) goto RangeError(o);
+
+    // 7. Let integerLimit be ! ToIntegerOrInfinity(numLimit).
+    const integerLimit = ToInteger_Inline(numLimit);
+
+    // 8. If integerLimit < 0, then
+    //   a. Let error be ThrowCompletion(a newly created RangeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+    if (integerLimit < 0) goto RangeError(o);
+
+    // 9. Let iterated be ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // Step 10 implemented in IteratorDropHelperNext
+
+    // 11. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //    %IteratorHelperPrototype%).
+    // 12. Set result.[[UnderlyingIterator]] to iterated.
+    // 13. Return result.
+    return NewJSIteratorDropHelper(iterated, integerLimit);
+  } label RangeError(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowRangeError(MessageTemplate::kMustBePositive, limit);
+  }
+}
+
+transitioning builtin IteratorDropHelperNext(
+    implicit context: Context)(helper: JSIteratorDropHelper): JSAny {
+  // a. Let remaining be integerLimit.
+  // (Done when creating JSIteratorDropHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  MarkIteratorHelperAsExecuting(helper);
+  let remaining = helper.remaining;
+
+  try {
+    // b. Repeat, while remaining > 0,
+    let next: JSReceiver;
+
+    try {
+      while (remaining > 0) {
+        // i. If remaining is not +∞, then
+        if (!NumberIsSomeInfinity(remaining)) {
+          // 1. Set remaining to remaining - 1.
+          remaining = remaining - 1;
+          helper.remaining = remaining;
+        }
+
+        // ii. Let next be ? IteratorStep(iterated).
+        IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+            otherwise Done;
+      }
+
+      // c. Repeat,
+      // i. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      // ii. If next is false, return undefined.
+      MarkIteratorHelperAsExhausted(helper);
+      return AllocateJSIteratorResult(Undefined, True);
+    }
+
+    // iii. Let completion be Completion(Yield(? IteratorValue(next))).
+    const value = IteratorValue(next, fastIteratorResultMap);
+    MarkIteratorHelperAsFinishedExecuting(helper);
+    return AllocateJSIteratorResult(value, False);
+
+    // iv. IfAbruptCloseIterator(completion, iterated).
+    // (Done in IteratorHelperPrototypeReturn.)
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+}
+
+// --- flatMap helper
+
+const kFlatMapMethodName: constexpr string = 'Iterator.prototype.flatMap';
+
+macro NewJSIteratorFlatMapHelper(
+    implicit context: Context)(underlying: IteratorRecord,
+    mapper: Callable): JSIteratorFlatMapHelper {
+  return new JSIteratorFlatMapHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_FLAT_MAP_HELPER_MAP_INDEX),
+    properties_or_hash: kEmptyFixedArray,
+    elements: kEmptyFixedArray,
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator: underlying,
+    mapper: mapper,
+    counter: 0,
+    inner_iterator: underlying
+  };
+}
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.flatmap
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeFlatMap(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    mapper: JSAny): JSIteratorFlatMapHelper {
+  try {
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(
+        MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //     a. Let error be ThrowCompletion(a newly created TypeError object).
+    //     b. Return ? IteratorClose(iterated , error).
+    const mapper = Cast<Callable>(mapper)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // Step 6 implemented in IteratorFlatMapHelperNext
+
+    // 7. Let result be CreateIteratorFromClosure(closure, "Iterator Helper",
+    //    %IteratorHelperPrototype%).
+    // 8. Set result.[[UnderlyingIterator]] to iterated.
+    // 9. Return result.
+    return NewJSIteratorFlatMapHelper(iterated, mapper);
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, kFlatMapMethodName);
+  }
+}
+
+transitioning builtin IteratorFlatMapHelperNext(
+    implicit context: Context)(helper: JSIteratorFlatMapHelper): JSAny {
+  // a. Let counter be 0.
+  // (Done when creating JSIteratorFlatMapHelper.)
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  let innerAlive = !IteratorHelperIsSuspendedStart(helper);
+  MarkIteratorHelperAsExecuting(helper);
+
+  try {
+    while (true) {
+      const counter = helper.counter;
+      // b. Repeat,
+      if (!innerAlive) {
+        let next: JSReceiver;
+        try {
+          // i. Let next be ? IteratorStep(iterated).
+          next = IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+              otherwise Done;
+        } label Done {
+          // ii. If next is false, return undefined.
+          MarkIteratorHelperAsExhausted(helper);
+          return AllocateJSIteratorResult(Undefined, True);
+        }
+
+        // iii. Let value be ? IteratorValue(next).
+        const value = IteratorValue(next, fastIteratorResultMap);
+
+        try {
+          // iv. Let mapped be Completion(
+          //     Call(mapper, undefined, « value, 𝔽(counter) »)).
+          const mapped =
+              Call(context, helper.mapper, Undefined, value, counter);
+          const mappedIter = Cast<JSReceiver>(mapped)
+              otherwise ThrowTypeError(
+              MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
+
+          // vi. Let innerIterator be Completion(GetIteratorFlattenable(mapped,
+          //     reject-strings)).
+          helper.inner_iterator = GetIteratorFlattenable(mappedIter);
+
+          // viii. Let innerAlive be true.
+          innerAlive = true;
+
+        } catch (e, message) {
+          // v. IfAbruptCloseIterator(mapped, iterated)
+          IteratorCloseOnException(helper.underlying_iterator.object);
+          ReThrowWithMessage(context, e, message);
+        }
+        // x. Set counter to counter + 1.
+        helper.counter = counter + 1;
+      }
+
+      // ix. Repeat, while innerAlive is true,
+      try {
+        // 1. Let innerNext be Completion(IteratorStep(innerIterator)).
+        let innerNext: JSReceiver;
+        innerNext = IteratorStep(helper.inner_iterator, fastIteratorResultMap)
+            otherwise Done;
+
+        // 4. Else,
+        //    a. Let innerValue be Completion(IteratorValue(innerNext)).
+        const innerValue = IteratorValue(innerNext, fastIteratorResultMap);
+
+        // c. Let completion be Completion(Yield(innerValue)).
+        MarkIteratorHelperAsFinishedExecuting(helper);
+        return AllocateJSIteratorResult(innerValue, False);
+
+        // d. If completion is an abrupt completion, then
+        //    i. Let backupCompletion be Completion(IteratorClose(innerIterator,
+        // completion)).
+        //    ii. IfAbruptCloseIterator(backupCompletion, iterated).
+        //    iii. Return ? IteratorClose(completion, iterated).
+        // Done in IteratorHelperPrototypeReturn.
+
+      } catch (e, message) {
+        // 2. IfAbruptCloseIterator(innerNext, iterated)
+        IteratorCloseOnException(helper.underlying_iterator.object);
+        ReThrowWithMessage(context, e, message);
+      } label Done {
+        // 3. If innerNext is false, then
+        //    a. Set innerAlive to false.
+        innerAlive = false;
+      }
+    }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+  unreachable;
+}
+
+// --- reduce helper
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.reduce
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeReduce(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.reduce';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    let reducer = arguments[0];
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //     a. Let error be ThrowCompletion(a newly created TypeError object).
+    //     b. Return ? IteratorClose(iterated , error).
+    reducer = Cast<Callable>(reducer)
+        otherwise goto CloseIteratorAndThrow(o, reducer);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    const fastIteratorResultMap = GetIteratorResultMap();
+    let next: JSReceiver;
+    let accumulator: JSAny;
+    let counter: Number;
+
+    // 6. If initialValue is not present, then
+    if (arguments.length == 1) {
+      //   a. Let next be ? IteratorStep(iterated).
+      //   b. If next is false, throw a TypeError exception.
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise ThrowTypeError(
+          MessageTemplate::kIteratorReduceNoInitial, methodName);
+      //   c. Let accumulator be ? IteratorValue(next).
+      accumulator = IteratorValue(next, fastIteratorResultMap);
+      //   d. Let counter be 1.
+      counter = 1;
+    } else {
+      // 7. Else,
+      //   a. Let accumulator be initialValue.
+      accumulator = arguments[1];
+      //   b. Let counter be 0.
+      counter = 0;
+    }
+
+    // 8. Repeat,
+    while (true) {
+      try {
+        //  a. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(iterated, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        //  b. If next is false, return accumulator.
+        return accumulator;
+      }
+
+      //  c. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      try {
+        //  d. Let result be Completion(Call(reducer, undefined, « accumulator,
+        //  value, 𝔽(counter) »)).
+        const result =
+            Call(context, reducer, Undefined, accumulator, value, counter);
+
+        //  f. Set accumulator to result.[[Value]].
+        accumulator = result;
+
+        //  g. Set counter to counter + 1.
+        counter = counter + 1;
+
+      } catch (e, message) {
+        //  e. IfAbruptCloseIterator(result, iterated).
+        IteratorCloseOnException(o);
+        ReThrowWithMessage(context, e, message);
+      }
+    }
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver, reducer: JSAny)
+  deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(reducer);
+  }
+  unreachable;
+}
+
+// --- toArray helper
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.toarray
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeToArray(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+  const methodName: constexpr string = 'Iterator.prototype.toArray';
+
+  // 1. Let O be the this value.
+  // 2. If O is not an Object, throw a TypeError exception.
+  const o = Cast<JSReceiver>(receiver)
+      otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+  // 3. Let iterated be ? GetIteratorDirect(O).
+  const iterated = GetIteratorDirect(o);
+  // 4. Let items be a new empty List.
+  let items = growable_fixed_array::NewGrowableFixedArray();
+
+  const fastIteratorResultMap = GetIteratorResultMap();
+  let next: JSReceiver;
+
+  // 5. Repeat,
+  while (true) {
+    try {
+      //  a. Let next be ? IteratorStep(iterated).
+      next = IteratorStep(iterated, fastIteratorResultMap)
+          otherwise Done;
+    } label Done {
+      //  b. If next is false, return CreateArrayFromList(items).
+      return items.ToJSArray();
+    }
+
+    //  c. Let value be ? IteratorValue(next).
+    const value = IteratorValue(next, fastIteratorResultMap);
+
+    //  d. Append value to items.
+    items.Push(value);
+  }
+  unreachable;
+}
+
+// --- forEach helper
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.foreach
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeForEach(
+    js-implicit context: NativeContext, receiver: JSAny)(fn: JSAny): JSAny {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.forEach';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //     a. Let error be ThrowCompletion(a newly created TypeError object).
+    //     b. Return ? IteratorClose(iterated , error).
+    const fn = Cast<Callable>(fn)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // 6. Let counter be 0.
+    let counter: Number = 0;
+
+    const fastIteratorResultMap = GetIteratorResultMap();
+
+    // 7. Repeat,
+    while (true) {
+      let next: JSReceiver;
+      try {
+        //  a. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(iterated, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        //  b. If next is false, return undefined.
+        return Undefined;
+      }
+
+      //  c. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      try {
+        //  d. Let result be Completion(Call(fn, undefined, « value, 𝔽(counter)
+        //  »)).
+        Call(context, fn, Undefined, value, counter);
+
+        //  f. Set counter to counter + 1.
+        counter = counter + 1;
+      } catch (e, message) {
+        //  e. IfAbruptCloseIterator(result, iterated).
+        IteratorCloseOnException(o);
+        ReThrowWithMessage(context, e, message);
+      }
+    }
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(fn);
+  }
+  unreachable;
+}
+
+// --- some helper
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.some
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeSome(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    predicate: JSAny): JSAny {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.some';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //   a. Let error be ThrowCompletion(a newly created TypeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+
+    const predicate = Cast<Callable>(predicate)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // 6. Let counter be 0.
+    let counter: Number = 0;
+
+    const fastIteratorResultMap = GetIteratorResultMap();
+
+    // 7. Repeat,
+    while (true) {
+      let next: JSReceiver;
+      try {
+        //  a. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(iterated, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        //  b. If next is false, return false.
+        return False;
+      }
+
+      //  c. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      let result: JSAny;
+      try {
+        //  d. Let result be Completion(Call(predicate, undefined, « value,
+        //  𝔽(counter) »)).
+        result = Call(context, predicate, Undefined, value, counter);
+      } catch (e, message) {
+        //  e. IfAbruptCloseIterator(result, iterated).
+        IteratorCloseOnException(o);
+        ReThrowWithMessage(context, e, message);
+      }
+
+      //  f. If ToBoolean(result) is true, return ? IteratorClose(iterated,
+      //  NormalCompletion(true)).
+      if (ToBoolean(result) == true) {
+        IteratorClose(iterated);
+        return True;
+      }
+
+      //  g. Set counter to counter + 1.
+      counter = counter + 1;
+    }
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(predicate);
+  }
+  unreachable;
+}
+
+// --- every helper
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.every
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeEvery(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    predicate: JSAny): JSAny {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.every';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //   a. Let error be ThrowCompletion(a newly created TypeError object).
+    //   b. Return ? IteratorClose(iterated, error).
+
+    const predicate = Cast<Callable>(predicate)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // 6. Let counter be 0.
+    let counter: Number = 0;
+
+    const fastIteratorResultMap = GetIteratorResultMap();
+
+    // 7. Repeat,
+    while (true) {
+      let next: JSReceiver;
+      try {
+        //  a. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(iterated, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        //  b. If next is false, return true.
+        return True;
+      }
+
+      //  c. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      let result: JSAny;
+      try {
+        //  d. Let result be Completion(Call(predicate, undefined, « value,
+        //  𝔽(counter) »)).
+        result = Call(context, predicate, Undefined, value, counter);
+      } catch (e, message) {
+        //  e. IfAbruptCloseIterator(result, iterated).
+        IteratorCloseOnException(o);
+        ReThrowWithMessage(context, e, message);
+      }
+
+      //  f. If ToBoolean(result) is false, return ? IteratorClose(iterated,
+      //  NormalCompletion(false)).
+      if (ToBoolean(result) == false) {
+        IteratorClose(iterated);
+        return False;
+      }
+
+      //  g. Set counter to counter + 1.
+      counter = counter + 1;
+    }
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(predicate);
+  }
+  unreachable;
+}
+
+// --- find helper
+
+// https://tc39.es/ecma262/#sec-iteratorprototype.find
+@incrementUseCounter('v8::Isolate::kIteratorMethods')
+transitioning javascript builtin IteratorPrototypeFind(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    predicate: JSAny): JSAny {
+  try {
+    const methodName: constexpr string = 'Iterator.prototype.find';
+
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    const o = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, methodName);
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: O, [[NextMethod]]:
+    // undefined, [[Done]]: false }.
+    // 4. If IsCallable(predicate) is false, then
+    //     a. Let error be ThrowCompletion(a newly created TypeError object).
+    //     b. Return ? IteratorClose(iterated , error).
+    const predicate = Cast<Callable>(predicate)
+        otherwise goto CloseIteratorAndThrow(o);
+
+    // 5. Set iterated to ? GetIteratorDirect(O).
+    const iterated = GetIteratorDirect(o);
+
+    // 6. Let counter be 0.
+    let counter: Number = 0;
+
+    const fastIteratorResultMap = GetIteratorResultMap();
+
+    // 7. Repeat,
+    while (true) {
+      let next: JSReceiver;
+      try {
+        //  a. Let next be ? IteratorStep(iterated).
+        next = IteratorStep(iterated, fastIteratorResultMap)
+            otherwise Done;
+      } label Done {
+        //  b. If next is false, return undefined.
+        return Undefined;
+      }
+
+      //  c. Let value be ? IteratorValue(next).
+      const value = IteratorValue(next, fastIteratorResultMap);
+
+      let result: JSAny;
+      try {
+        //  d. Let result be Completion(Call(predicate, undefined, « value,
+        //  𝔽(counter) »)).
+        result = Call(context, predicate, Undefined, value, counter);
+      } catch (e, message) {
+        //  e. IfAbruptCloseIterator(result, iterated).
+        IteratorCloseOnException(o);
+        ReThrowWithMessage(context, e, message);
+      }
+
+      //  f. If ToBoolean(result) is true, return ? IteratorClose(iterated,
+      //  NormalCompletion(value)).
+      if (ToBoolean(result) == true) {
+        IteratorClose(iterated);
+        return value;
+      }
+
+      //  g. Set counter to counter + 1.
+      counter = counter + 1;
+    }
+  } label CloseIteratorAndThrow(iteratorObject: JSReceiver) deferred {
+    IteratorCloseOnException(iteratorObject);
+    ThrowCalledNonCallable(predicate);
+  }
+  unreachable;
+}
+
+// --- concat helper
+
+const kConcatMethodName: constexpr string = 'Iterator.concat';
+
+macro NewJSIteratorConcatHelper(
+    implicit context: Context)(iterables: FixedArray): JSIteratorConcatHelper {
+  dcheck(SmiUntag(iterables.length) % 2 == 0);
+  return new JSIteratorConcatHelper{
+    map: *NativeContextSlot(ContextSlot::ITERATOR_CONCAT_HELPER_MAP_INDEX),
+    properties_or_hash: EmptyFixedArrayConstant(),
+    elements: EmptyFixedArrayConstant(),
+    state:
+        SmiTag<JSIteratorHelperState>(JSIteratorHelperState::kSuspendedStart),
+    underlying_iterator:
+    IteratorRecord{object: GetIteratorPrototype(), next: Undefined},
+    iterables: iterables,
+    current: SmiConstant(0)
+  };
+}
+
+// https://tc39.es/proposal-iterator-sequencing/#sec-iterator.concat
+transitioning javascript builtin IteratorConcat(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...items): JSIteratorConcatHelper {
+  // 1. Let iterables be a new empty List.
+  const iterables = items.length == 0 ?
+      kEmptyFixedArray :
+      AllocateZeroedFixedArray(2 * items.length);
+
+  // 2. For each element item of items, do
+  for (let i: intptr = 0; i < items.length; ++i) {
+    const item = items[i];
+    // a. If item is not an Object, throw a TypeError exception.
+    if (!Is<JSReceiver>(item)) {
+      ThrowTypeError(MessageTemplate::kCalledOnNonObject, kConcatMethodName);
+    }
+
+    // b. Let method be ? GetMethod(item, %Symbol.iterator%).
+    // c. If method is undefined, throw a TypeError exception.
+    const method = GetMethod(item, IteratorSymbolConstant())
+        otherwise ThrowTypeError(MessageTemplate::kNotIterable, item);
+
+    // d. Append the Record { [[OpenMethod]]: method, [[Iterable]]: item } to
+    // iterables.
+    iterables.objects[2 * i] = method;
+    iterables.objects[2 * i + 1] = item;
+  }
+
+  // Step 3 implemented in IteratorConcatHelperNext.
+
+  // 4. Let gen be CreateIteratorFromClosure(closure, "Iterator Helper",
+  //    %IteratorHelperPrototype%, « [[UnderlyingIterators]] »).
+  // 5. Set gen.[[UnderlyingIterators]] to a new empty List.
+  // 6. Return gen.
+  return NewJSIteratorConcatHelper(iterables);
+}
+
+transitioning builtin IteratorConcatHelperNext(
+    implicit context: Context)(helper: JSIteratorConcatHelper): JSAny {
+  // 3. Let closure be a new Abstract Closure with no parameters that captures
+  //    iterables and performs the following steps when called:
+  let innerAlive = !IteratorHelperIsSuspendedStart(helper);
+  MarkIteratorHelperAsExecuting(helper);
+  try {
+    // a. For each Record iterable of iterables, do
+    while (true) {
+      if (!innerAlive) {
+        if (helper.current >= helper.iterables.length) {
+          MarkIteratorHelperAsExhausted(helper);
+          return AllocateJSIteratorResult(Undefined, True);
+        }
+
+        // i. Let iter be ? Call(iterable.[[OpenMethod]],
+        // iterable.[[Iterable]]).
+        const method: JSAny =
+            Cast<JSAny>(helper.iterables.objects[helper.current])
+            otherwise unreachable;
+        const iterable: JSReceiver =
+            Cast<JSReceiver>(helper.iterables.objects[helper.current + 1])
+            otherwise unreachable;
+        const iter = Call(context, method, iterable);
+
+        // ii. If iter is not an Object, throw a TypeError exception.
+        const iterObj = Cast<JSReceiver>(iter)
+            otherwise ThrowTypeError(MessageTemplate::kNotIterable, iter);
+
+        // iii. Let iteratorRecord be ? GetIteratorDirect(iter).
+        const iteratorRecord = GetIteratorDirect(iterObj);
+        helper.underlying_iterator = iteratorRecord;
+
+        // iv. Let innerAlive be true.
+        innerAlive = true;
+      }
+
+      const fastIteratorResultMap = GetIteratorResultMap();
+
+      try {
+        // v. Repeat, while innerAlive is true,
+        //    1. Let innerValue be ? IteratorStepValue(iteratorRecord).
+        const nextResult =
+            IteratorStep(helper.underlying_iterator, fastIteratorResultMap)
+            otherwise InnerDone;
+        // 3. Else,
+        //    a. Let completion be Completion(Yield(innerValue)).
+        const value = IteratorValue(nextResult, fastIteratorResultMap);
+        MarkIteratorHelperAsFinishedExecuting(helper);
+        return AllocateJSIteratorResult(value, False);
+      } catch (e, message) {
+        //    b. If completion is an abrupt completion, then
+        //       i. Return ? IteratorClose(iteratorRecord, completion).
+        IteratorCloseOnException(helper.underlying_iterator.object);
+        MarkIteratorHelperAsExhausted(helper);
+        ReThrowWithMessage(context, e, message);
+      } label InnerDone {
+        // 2. If innerValue is done, then
+        //    a. Set innerAlive to false.
+        innerAlive = false;
+        helper.current = helper.current + 2;
+        continue;
+      }
+    }
+  } catch (e, message) {
+    MarkIteratorHelperAsExhausted(helper);
+    ReThrowWithMessage(context, e, message);
+  }
+  // b. Return ReturnCompletion(undefined).
+  unreachable;
+}
+
+}  // namespace iterator

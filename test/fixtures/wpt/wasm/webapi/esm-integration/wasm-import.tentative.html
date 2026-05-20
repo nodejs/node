@@ -1,0 +1,34 @@
+<!doctype html>
+<title>Errors for imports of WebAssembly modules</title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+    setup({allow_uncaught_exception: true});
+
+    const test_load = async_test(
+        "Invalid imports for WebAssembly modules should error.");
+
+    window.log = [];
+    window.addEventListener("error", ev => {
+      test_load.step(() => assert_equals(ev.error.constructor, WebAssembly.LinkError));
+      log.push(ev.message);
+    });
+
+    window.addEventListener("load", test_load.step_func_done(ev => {
+      assert_equals(log[1], 1);
+      assert_equals(log[3], 2);
+      assert_equals(log[5], 3);
+      assert_equals(log[7], 4);
+    }));
+
+    function unreachable() { log.push("unexpected"); }
+</script>
+<script type="module" src="./resources/wasm-import-func.wasm"
+    onerror="unreachable()" onload="log.push(1)"></script>
+<script type="module" src="./resources/wasm-import-memory.wasm"
+    onerror="unreachable()" onload="log.push(2)"></script>
+<script type="module" src="./resources/wasm-import-table.wasm"
+    onerror="unreachable()" onload="log.push(3)"></script>
+<script type="module" src="./resources/wasm-import-global.wasm"
+    onerror="unreachable()" onload="log.push(4)"></script>
