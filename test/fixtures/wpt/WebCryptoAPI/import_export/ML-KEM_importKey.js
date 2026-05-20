@@ -3,14 +3,14 @@ var subtle = crypto.subtle;
 function runTests(algorithmName) {
   var algorithm = { name: algorithmName };
   var data = keyData[algorithmName];
-  // var jwkData = {jwk: {kty: data.jwk.kty, alg: data.jwk.alg, pub: data.jwk.pub}};
-
-  // TODO: add JWK when its definition is done in IETF JOSE WG
+  var jwkData = {
+    jwk: { kty: data.jwk.kty, alg: data.jwk.alg, pub: data.jwk.pub },
+  };
 
   [true, false].forEach(function (extractable) {
     // Test public keys first
     allValidUsages(data.publicUsages, true).forEach(function (usages) {
-      ['spki', /*'jwk',*/ 'raw-public'].forEach(function (format) {
+      ['spki', 'jwk', 'raw-public'].forEach(function (format) {
         if (format === 'jwk') {
           // Not all fields used for public keys
           testFormat(
@@ -36,7 +36,7 @@ function runTests(algorithmName) {
 
     // Next, test private keys
     allValidUsages(data.privateUsages).forEach(function (usages) {
-      ['pkcs8', /*'jwk',*/ 'raw-seed'].forEach(function (format) {
+      ['pkcs8', 'jwk', 'raw-seed'].forEach(function (format) {
         testFormat(format, algorithm, data, algorithmName, usages, extractable);
       });
     });
