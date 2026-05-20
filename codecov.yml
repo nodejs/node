@@ -1,0 +1,19 @@
+comment:
+  # Only show diff and files changed:
+  layout: diff, files
+  # Don't post if no changes in coverage:
+  require_changes: true
+
+codecov:
+  notify:
+    # Wait for all coverage builds:
+    # - coverage-linux.yml
+    # - coverage-windows.yml [manually disabled see #50489]
+    # - coverage-linux-without-intl.yml
+    after_n_builds: 2
+
+coverage:
+  # Useful for blocking Pull Requests that don't meet a particular coverage threshold.
+  status:
+    project: off
+    patch: off

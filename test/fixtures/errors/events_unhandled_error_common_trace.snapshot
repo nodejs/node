@@ -1,0 +1,12 @@
+node:events:<line>
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: foo:bar
+    at bar (<project-root>/test/fixtures/errors/events_unhandled_error_common_trace.js:9:12)
+    at foo (<project-root>/test/fixtures/errors/events_unhandled_error_common_trace.js:12:10)
+Emitted 'error' event at:
+    at quux (<project-root>/test/fixtures/errors/events_unhandled_error_common_trace.js:19:6)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/events_unhandled_error_common_trace.js:22:1)
+
+Node.js <node-version>

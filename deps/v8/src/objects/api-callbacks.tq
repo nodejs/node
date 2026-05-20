@@ -1,0 +1,64 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+bitfield struct InterceptorInfoFlags extends uint31 {
+  can_intercept_symbols: bool: 1 bit;
+  non_masking: bool: 1 bit;
+  named: bool: 1 bit;
+  has_no_side_effect: bool: 1 bit;
+  has_new_callbacks_signature: bool: 1 bit;
+}
+
+extern class InterceptorInfo extends HeapObject {
+  data: Object;
+  flags: InterceptorInfoFlags;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  getter: ExternalPointer;
+  setter: ExternalPointer;
+  query: ExternalPointer;
+  descriptor: ExternalPointer;
+  deleter: ExternalPointer;
+  enumerator: ExternalPointer;
+  definer: ExternalPointer;
+}
+
+@cppObjectLayoutDefinition
+extern class AccessCheckInfo extends Struct {
+  callback: Foreign|Zero|Undefined;
+  named_interceptor: InterceptorInfo|Zero|Undefined;
+  indexed_interceptor: InterceptorInfo|Zero|Undefined;
+  data: Object;
+}
+
+type SideEffectType extends int32 constexpr 'SideEffectType';
+
+bitfield struct AccessorInfoFlags extends uint32 {
+  is_sloppy: bool: 1 bit;
+  replace_on_access: bool: 1 bit;
+  getter_side_effect_type: SideEffectType: 2 bit;
+  setter_side_effect_type: SideEffectType: 2 bit;
+  initial_attributes: PropertyAttributes: 3 bit;
+}
+
+extern class AccessorInfo extends HeapObject {
+  data: Object;
+  // This name is used for the two purposes:
+  // 1) for native accessor properties added to an object template via Api this
+  //    field stores property name until the object template is instantiated,
+  // 2) CPU profiler machinery uses this name for mapping getter/setter
+  //    C++ function pointers back to property name. Note that this mapping
+  //    might be incorrect in case a getter/setter C++ callbacks are used for
+  //    multiple different properties (for example, see
+  //    Accessors::MakeModuleNamespaceEntryInfo).
+  name: Name;
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the getter C function.
+  getter: ExternalPointer;
+  setter: ExternalPointer;
+  flags: AccessorInfoFlags;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}

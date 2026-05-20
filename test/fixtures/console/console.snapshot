@@ -1,0 +1,3 @@
+Trace: foo
+    at Object.<anonymous> (<project-root>/test/fixtures/console/console.js:5:9)
+    at <node-internal-frames>

@@ -1,0 +1,6 @@
+{
+  "main": "sea.js",
+  "output": "sea",
+  "executable": "copy",
+  "disableExperimentalSEAWarning": true
+}

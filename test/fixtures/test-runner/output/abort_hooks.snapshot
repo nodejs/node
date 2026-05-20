@@ -1,0 +1,164 @@
+before
+2.1
+2.2
+after
+beforeEach
+4.1
+afterEach
+4.2
+TAP version 13
+# Subtest: 1 before describe
+    # Subtest: test 1
+    not ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:11:3'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: test 2
+    not ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:14:3'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..2
+not ok 1 - 1 before describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:4:1'
+  failureType: 'hookFailed'
+  error: 'This operation was aborted'
+  code: 20
+  name: 'AbortError'
+  stack: |-
+    <node-internal-frames>
+    before.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:8:8)
+    <node-internal-frames>
+  ...
+# Subtest: 2 after describe
+    # Subtest: test 1
+    ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    # Subtest: test 2
+    ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    1..2
+not ok 2 - 2 after describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:19:1'
+  failureType: 'hookFailed'
+  error: 'This operation was aborted'
+  code: 20
+  name: 'AbortError'
+  stack: |-
+    <node-internal-frames>
+    after.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:23:8)
+    <node-internal-frames>
+  ...
+# Subtest: 3 beforeEach describe
+    # Subtest: test 1
+    not ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:41:3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        <node-internal-frames>
+        beforeEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:38:8)
+        <node-internal-frames>
+      ...
+    # Subtest: test 2
+    not ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:44:3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        <node-internal-frames>
+        beforeEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:38:8)
+        <node-internal-frames>
+      ...
+    1..2
+not ok 3 - 3 beforeEach describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:34:1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: 4 afterEach describe
+    # Subtest: test 1
+    not ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:56:3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        <node-internal-frames>
+        afterEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:53:8)
+        <node-internal-frames>
+      ...
+    # Subtest: test 2
+    not ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:59:3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        <node-internal-frames>
+        afterEach.signal (<project-root>/test/fixtures/test-runner/output/abort_hooks.js:53:8)
+        <node-internal-frames>
+      ...
+    1..2
+not ok 4 - 4 afterEach describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '<project-root>/test/fixtures/test-runner/output/abort_hooks.js:49:1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..4
+# tests 8
+# suites 4
+# pass 2
+# fail 4
+# cancelled 2
+# skipped 0
+# todo 0
+# duration_ms *

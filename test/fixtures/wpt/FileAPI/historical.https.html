@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>Historical features</title>
+  <script src="/resources/testharness.js"></script>
+  <script src="/resources/testharnessreport.js"></script>
+  <script src="/service-workers/service-worker/resources/test-helpers.sub.js"></script>
+ </head>
+ <body>
+  <div id="log"></div>
+  <script>
+    var removedFromWindow = [
+        'toNativeLineEndings',
+        'FileError',
+        'FileException',
+        'FileHandle',
+        'FileRequest',
+        'MutableFile',
+    ];
+
+    removedFromWindow.forEach(function(name) {
+        test(function() {
+            assert_false(name in window);
+        }, '"' + name + '" should not be supported');
+    });
+
+    test(function() {
+        var b = new Blob();
+        var prefixes = ['op', 'moz', 'webkit', 'ms'];
+        for (var i = 0; i < prefixes.length; ++i) {
+            assert_false(prefixes[i]+'Slice' in b, "'"+prefixes[i]+"Slice' in b");
+            assert_false(prefixes[i]+'Slice' in Blob.prototype, "'"+prefixes[i]+"Slice in Blob.prototype");
+        }
+    }, 'Blob should not support slice prefixed');
+
+    test(function() {
+        var prefixes = ['', 'O', 'Moz', 'WebKit', 'MS'];
+        for (var i = 0; i < prefixes.length; ++i) {
+            assert_false(prefixes[i]+'BlobBuilder' in window, prefixes[i]+'BlobBuilder');
+        }
+    }, 'BlobBuilder should not be supported.');
+
+    test(function() {
+        assert_false('createFor' in URL);
+    }, 'createFor method should not be supported');
+
+    test(function() {
+        var b = new Blob();
+        assert_false('close' in b, 'close in b');
+        assert_false('close' in Blob.prototype, 'close in Blob.prototype');
+        assert_false('isClosed' in b, 'isClosed in b');
+        assert_false('isClosed' in Blob.prototype, 'isClosed in Blob.prototype');
+    }, 'Blob.close() should not be supported');
+
+    test(() => {
+      const f = new File([], "");
+      assert_false("lastModifiedDate" in f);
+      assert_false("lastModifiedDate" in File.prototype);
+    }, "File's lastModifiedDate should not be supported");
+
+    service_worker_test('support/historical-serviceworker.js', 'Service worker test setup');
+  </script>
+ </body>
+</html>

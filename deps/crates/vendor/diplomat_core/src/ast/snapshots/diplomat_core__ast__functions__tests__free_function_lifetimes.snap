@@ -1,0 +1,35 @@
+---
+source: core/src/ast/functions.rs
+expression: "Function::from_syn(&syn::parse_quote!\n{ fn some_func<'a>(a : &'a SomeType) -> Option<&'a SomeType> {} },\n&Attrs::default())"
+---
+name: some_func
+abi_name: diplomat_external_some_func
+params:
+  - name: a
+    ty:
+      Reference:
+        - Named: a
+        - Immutable
+        - Named:
+            path:
+              elements:
+                - SomeType
+            lifetimes: []
+    attrs: {}
+output_type:
+  Option:
+    - Reference:
+        - Named: a
+        - Immutable
+        - Named:
+            path:
+              elements:
+                - SomeType
+            lifetimes: []
+    - Stdlib
+lifetimes:
+  a: []
+attrs: {}
+docs:
+  - ""
+  - []

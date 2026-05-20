@@ -1,0 +1,62 @@
+{
+  "name": "npm-audit-report",
+  "version": "7.0.0",
+  "description": "Given a response from the npm security api, render it into a variety of security reports",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "tap",
+    "snap": "tap",
+    "lint": "npm run eslint",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "lintfix": "npm run eslint -- --fix",
+    "posttest": "npm run lint",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "keywords": [
+    "npm",
+    "security",
+    "report",
+    "audit"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^5.0.0",
+    "@npmcli/template-oss": "4.27.1",
+    "chalk": "^5.2.0",
+    "tap": "^16.0.0"
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-audit-report.git"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/npm-audit-report/issues"
+  },
+  "homepage": "https://github.com/npm/npm-audit-report#readme",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.27.1",
+    "publish": true
+  }
+}

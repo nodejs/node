@@ -1,0 +1,1 @@
+setTimeout(console.count, 0) doesn't crash with enabled async stacks.

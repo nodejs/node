@@ -1,0 +1,32 @@
+---
+source: core/src/ast/modules.rs
+expression: "Module::from_syn(&syn::parse_quote!\n{\n    #[diplomat::bridge] mod ffi\n    {\n        struct Foo {} impl Foo\n        {\n            pub fn pub_fn() { unimplemented!() } pub(crate) fn pub_crate_fn()\n            { unimplemented!() } pub(super) fn pub_super_fn()\n            { unimplemented!() } fn priv_fn() { unimplemented!() }\n        }\n    }\n}, true)"
+---
+name: ffi
+imports: []
+declared_types:
+  Foo:
+    Struct:
+      name: Foo
+      docs:
+        - ""
+        - []
+      lifetimes: {}
+      fields: []
+      methods:
+        - name: pub_fn
+          docs:
+            - ""
+            - []
+          abi_name: Foo_pub_fn
+          self_param: ~
+          params: []
+          return_type: ~
+          lifetime_env: {}
+          attrs: {}
+      output_only: false
+      attrs: {}
+declared_traits: {}
+declared_functions: {}
+sub_modules: []
+attrs: {}

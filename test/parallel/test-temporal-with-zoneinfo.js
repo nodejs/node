@@ -1,0 +1,21 @@
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+
+if (!common.hasTemporal) {
+  common.skip('Temporal is not enabled');
+}
+
+// TODO(legendecas): bundle zoneinfo data for small ICU and without ICU builds.
+if (!common.hasFullICU) {
+  common.skip('Time zone support unavailable when not built with full ICU');
+}
+// TODO(aduh95): fix zoneinfo support with system-icu.
+if (process.config.variables.icu_system) {
+  common.skip('Time zone support unavailable on --with-intl=system-icu builds');
+}
+
+// Use globalThis.Temporal to workaround linter complaints.
+assert.strictEqual(typeof globalThis.Temporal, 'object');
+const pdt = globalThis.Temporal.Instant.from('1969-07-20T20:17:00Z');
+assert.strictEqual(pdt.toString(), '1969-07-20T20:17:00Z');

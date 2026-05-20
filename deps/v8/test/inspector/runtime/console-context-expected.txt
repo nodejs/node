@@ -1,0 +1,96 @@
+Tests console.context
+
+Running test: testConsoleContextMethod
+console.context description:
+{
+    className : Function
+    description : function context() { [native code] }
+    objectId : <objectId>
+    type : function
+}
+console.context() methods:
+[
+    [0] : assert
+    [1] : clear
+    [2] : count
+    [3] : countReset
+    [4] : debug
+    [5] : dir
+    [6] : dirXml
+    [7] : error
+    [8] : group
+    [9] : groupCollapsed
+    [10] : groupEnd
+    [11] : info
+    [12] : log
+    [13] : profile
+    [14] : profileEnd
+    [15] : table
+    [16] : time
+    [17] : timeEnd
+    [18] : timeLog
+    [19] : timeStamp
+    [20] : trace
+    [21] : warn
+]
+
+Running test: testDefaultConsoleContext
+undefined
+undefined
+undefined
+
+Running test: testAnonymousConsoleContext
+anonymous#2
+anonymous#3
+anonymous#4
+
+Running test: testNamedConsoleContext
+named-context#6
+named-context#6
+named-context#6
+
+Running test: testTwoConsoleContextsWithTheSameName
+named-context#7
+named-context#8
+
+Running test: testConsoleCountInDifferentConsoleContexts
+[
+    [0] : {
+        type : string
+        value : 239: 1
+    }
+]
+[
+    [0] : {
+        type : string
+        value : 239: 1
+    }
+]
+
+Running test: testConsoleCountForNamedConsoleContext
+[
+    [0] : {
+        type : string
+        value : 239: 1
+    }
+]
+[
+    [0] : {
+        type : string
+        value : 239: 2
+    }
+]
+
+Running test: testConsoleTimeInDifferentConsoleContexts
+[
+    [0] : {
+        type : string
+        value : foo: 1 ms
+    }
+]
+[
+    [0] : {
+        type : string
+        value : foo: 2 ms
+    }
+]

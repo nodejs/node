@@ -1,0 +1,8 @@
+before
+<project-root>/test/fixtures/console/stack_overflow.js:39
+JSON.stringify(array);
+     ^
+
+[RangeError: Maximum call stack size exceeded]
+
+Node.js <node-version>

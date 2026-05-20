@@ -1,0 +1,17 @@
+Test for Debugger.evaluateOnCallFrame and locals blocklist reuse
+
+Running test: testContextChainNotInsideFunction
+{
+    className : Function
+    description : class C {}
+    objectId : <objectId>
+    type : function
+}
+
+Running test: testContextChainInsideFunction
+{
+    className : Function
+    description : class C {}
+    objectId : <objectId>
+    type : function
+}

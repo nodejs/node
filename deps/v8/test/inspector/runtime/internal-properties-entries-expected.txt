@@ -1,0 +1,788 @@
+Checks internal [[Entries]] in Runtime.getProperties output
+
+Running test: maps
+expression: new Map([[1,2],[3,4]])
+[
+    [0] : {
+        key : 1
+        value : 2
+    }
+    [1] : {
+        key : 3
+        value : 4
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {1 => 2}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 1
+                value : {
+                    className : Object
+                    description : {3 => 4}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: new Map()
+[
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 0
+                    type : number
+                    value : 0
+                }
+                writable : true
+            }
+        ]
+    }
+}
+
+Running test: mapIterators
+expression: new Map([[1,2],[3,4]]).entries()
+[
+    [0] : {
+        key : 1
+        value : 2
+    }
+    [1] : {
+        key : 3
+        value : 4
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {1 => 2}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 1
+                value : {
+                    className : Object
+                    description : {3 => 4}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Map([[1,2],[3,4]]).entries(); it.next(); it
+[
+    [0] : {
+        key : 3
+        value : 4
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {3 => 4}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Map([[1,2],[3,4]]).keys(); it.next(); it
+[
+    [0] : {
+        value : 3
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 3
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Map([[1,2],[3,4]]).values(); it.next(); it
+[
+    [0] : {
+        value : 4
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 4
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Map([[1,2],[3,4]]).entries(); it.next(); it.next(); it
+[
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 0
+                    type : number
+                    value : 0
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: new Map([[1, undefined], [2, () => 42], [3, /abc/], [4, new Error()]]).entries()
+[
+    [0] : {
+        key : 1
+    }
+    [1] : {
+        key : 2
+        value : {
+        }
+    }
+    [2] : {
+        key : 3
+        value : {
+        }
+    }
+    [3] : {
+        key : 4
+        value : {
+        }
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {1 => undefined}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 1
+                value : {
+                    className : Object
+                    description : {2 => () => 42}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 2
+                value : {
+                    className : Object
+                    description : {3 => /abc/}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 3
+                value : {
+                    className : Object
+                    description : {4 => Error     at <anonymous>:1:57}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [4] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 4
+                    type : number
+                    value : 4
+                }
+                writable : true
+            }
+        ]
+    }
+}
+
+Running test: sets
+expression: new Set([1,2])
+[
+    [0] : {
+        value : 1
+    }
+    [1] : {
+        value : 2
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 1
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 1
+                value : {
+                    className : Object
+                    description : 2
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: new Set()
+[
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 0
+                    type : number
+                    value : 0
+                }
+                writable : true
+            }
+        ]
+    }
+}
+
+Running test: setIterators
+expression: new Set([1,2]).values()
+[
+    [0] : {
+        value : 1
+    }
+    [1] : {
+        value : 2
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 1
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 1
+                value : {
+                    className : Object
+                    description : 2
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [2] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 2
+                    type : number
+                    value : 2
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Set([1,2]).values(); it.next(); it
+[
+    [0] : {
+        value : 2
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 2
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Set([1,2]).keys(); it.next(); it
+[
+    [0] : {
+        value : 2
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : 2
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Set([1,2]).entries(); it.next(); it
+[
+    [0] : {
+        key : 2
+        value : 2
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {2 => 2}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: it = new Set([1,2]).values(); it.next(); it.next(); it
+[
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 0
+                    type : number
+                    value : 0
+                }
+                writable : true
+            }
+        ]
+    }
+}
+
+Running test: weakMaps
+expression: new WeakMap()
+[
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 0
+                    type : number
+                    value : 0
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: new WeakMap([[{ a: 2 }, 42]])
+[
+    [0] : {
+        key : {
+            a : 2
+        }
+        value : 42
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : {Object => 42}
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+
+Running test: weakSets
+expression: new WeakSet()
+[
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 0
+                    type : number
+                    value : 0
+                }
+                writable : true
+            }
+        ]
+    }
+}
+expression: new WeakSet([{a:2}])
+[
+    [0] : {
+        value : {
+            a : 2
+        }
+    }
+]
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : 0
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    subtype : internal#entry
+                    type : object
+                }
+                writable : true
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : length
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}

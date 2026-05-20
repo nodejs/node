@@ -1,0 +1,148 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>[PutForwards] behavior</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="author" title="Jens Widell" href="mailto:jl@opera.com">
+<link rel="help" href="https://webidl.spec.whatwg.org/#PutForwards">
+
+<script>
+test(() => {
+  var getter_called = false;
+  var element = document.createElement("div");
+  var element_style = element.style;
+  var descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "style");
+
+  Object.defineProperty(element, "style", {
+    get: function () {
+      getter_called = true;
+      return element_style;
+    },
+    set: descriptor.set
+  });
+
+  element.style = "color: green";
+
+  assert_true(getter_called, "Overridden getter should be called");
+  assert_equals(element_style.color, "green", "Put forwarding still works");
+}, "Overriding getter of [PutForwards] attribute");
+
+test(() => {
+  var setter_called = false;
+  var element = document.createElement("div");
+  var element_style = element.style;
+  var descriptor = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, "cssText");
+
+  Object.defineProperty(element_style, "cssText", {
+    get: descriptor.get,
+    set: function (v) {
+      setter_called = true;
+      descriptor.set.call(this, v);
+    }
+  });
+
+  element.style = "color: green";
+
+  assert_true(setter_called, "Overridden setter should be called");
+  assert_equals(element_style.color, "green", "Put forwarding still works");
+}, "Overriding setter of [PutForwards] target attribute");
+
+test(() => {
+  var element = document.createElement("div");
+  var element_style = element.style;
+  var fake_style = { cssText: "original" };
+  var descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "style");
+
+  Object.defineProperty(element, "style", {
+    get: function () {
+      return fake_style;
+    },
+    set: descriptor.set
+  });
+
+  element.style = "color: green";
+
+  assert_equals(element_style.cssText, "", "Original value intact");
+  assert_equals(fake_style.cssText, "color: green", "Fake style object updated");
+}, "Overriding target of [PutForwards] attribute");
+
+test(() => {
+  var element = document.createElement("div");
+  var descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "style");
+
+  Object.defineProperty(element, "style", {
+    get: function () {
+      throw new SyntaxError();
+    },
+    set: descriptor.set
+  });
+
+  assert_throws_js(SyntaxError, () => {
+    element.style = "color: green";
+  });
+}, "Exception propagation from getter of [PutForwards] attribute");
+
+test(() => {
+  var element = document.createElement("div");
+  var element_style = element.style;
+  var descriptor = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, "cssText");
+
+  Object.defineProperty(element_style, "cssText", {
+    get: descriptor.get,
+    set: function (v) {
+      throw new SyntaxError();
+    }
+  });
+
+  assert_throws_js(SyntaxError, () => {
+    element.style = "color: green";
+  });
+}, "Exception propagation from setter of [PutForwards] target attribute");
+
+test(() => {
+  var element = document.createElement("div");
+  var descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "style");
+
+  Object.defineProperty(element, "style", {
+    get: function () {
+      return null;
+    },
+    set: descriptor.set
+  });
+
+  assert_throws_js(TypeError, () => {
+    element.style = "color: green";
+  });
+}, "TypeError when getter of [PutForwards] attribute returns non-object");
+
+
+test(() => {
+  var element = document.createElement("div");
+
+  var element_style = element.style;
+  Object.defineProperty(element.style, "cssText", {
+    value: null,
+    writable: false,
+  });
+
+  element.style = "color: green";
+  assert_equals(element.style, element_style);
+  assert_equals(element.style.cssText, null);
+}, "Does not throw when setter of [PutForwards] attribute returns false");
+
+function test_token_list(elementName, attribute, target, value) {
+  test(() => {
+    var element=document.createElement(elementName);
+    assert_true(element[attribute] instanceof DOMTokenList,"The attribute is a DOMTokenList");
+    element[attribute]=value;
+    assert_equals(element.getAttribute(target),value,"Setting the attribute is reflected in the target");
+    element[attribute]="";
+    assert_equals(element.getAttribute(target),"","Clearing the attribute is reflected in the target");
+  },"Setting "+elementName+"."+attribute+" to "+value+" is reflected in "+target)
+}
+
+test_token_list("a","relList","rel","noreferrer");
+test_token_list("area","relList","rel","noreferrer");
+test_token_list("form","relList","rel","noreferrer");
+test_token_list("link","relList","rel","stylesheet");
+</script>
