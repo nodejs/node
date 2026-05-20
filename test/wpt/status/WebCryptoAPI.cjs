@@ -36,6 +36,8 @@ if (!hasOpenSSL(3, 0)) {
     'generateKey/successes_kmac.tentative.https.any.js',
     'import_export/AES-OCB_importKey.tentative.https.any.js',
     'import_export/KMAC_importKey.tentative.https.any.js',
+    'serialization/aes-ocb.tentative.https.any.js',
+    'serialization/kmac.tentative.https.any.js',
     'sign_verify/kmac.tentative.https.any.js');
 }
 
@@ -55,6 +57,8 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
     'generateKey/successes_ML-KEM.tentative.https.any.js',
     'import_export/ML-DSA_importKey.tentative.https.any.js',
     'import_export/ML-KEM_importKey.tentative.https.any.js',
+    'serialization/mldsa.tentative.https.any.js',
+    'serialization/mlkem.tentative.https.any.js',
     'sign_verify/mldsa.tentative.https.any.js');
 
   skipSubtests(
@@ -75,6 +79,8 @@ if (process.features.openssl_is_boringssl) {
     'import_export/okp_importKey_failures_Ed448.tentative.https.any.js',
     'import_export/okp_importKey_failures_X448.tentative.https.any.js',
     'import_export/okp_importKey_X448.tentative.https.any.js',
+    'serialization/ed448.tentative.https.any.js',
+    'serialization/x448.tentative.https.any.js',
     'sign_verify/eddsa_curve448.tentative.https.any.js');
 
   skipSubtests(
@@ -83,6 +89,7 @@ if (process.features.openssl_is_boringssl) {
     ['generateKey/failures_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/successes_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
     ['import_export/ML-KEM_importKey.tentative.https.any.js', /ml-kem-512/i],
+    ['serialization/mlkem.tentative.https.any.js', /ml-kem-512/i],
     ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
 }
 
