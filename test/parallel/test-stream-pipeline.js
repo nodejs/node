@@ -270,7 +270,10 @@ tmpdir.refresh();
 
 {
   const server = http.createServer(common.mustCallAtLeast((req, res) => {
-    pipeline(req, res, common.mustSucceed());
+    pipeline(req, res, common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ECONNRESET');
+      assert.strictEqual(err.message, 'aborted');
+    }));
   }));
 
   server.listen(0, common.mustCall(() => {
