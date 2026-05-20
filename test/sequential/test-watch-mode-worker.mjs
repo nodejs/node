@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, renameSync, unlinkSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -14,9 +14,20 @@ if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
 function restart(file, content = readFileSync(file)) {
-  writeFileSync(file, content);
-  const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(250));
-  return () => clearInterval(timer);
+  // Use atomic writes to avoid flakiness: write to a temp file, then rename.
+  // writeFileSync is not atomic (it truncates the file before writing),
+  // which can cause the ESM loader to read an empty/partial file.
+  const tmpFile = file + '.tmp';
+  const write = () => {
+    writeFileSync(tmpFile, content);
+    renameSync(tmpFile, file);
+  };
+  write();
+  const timer = setInterval(write, common.platformTimeout(2500));
+  return () => {
+    clearInterval(timer);
+    try { unlinkSync(tmpFile); } catch { /* best-effort cleanup */ }
+  };
 }
 
 let tmpFiles = 0;
