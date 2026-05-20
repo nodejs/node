@@ -288,6 +288,16 @@ class Arborist extends Base {
     return ret
   }
 
+  // Build an ideal tree (or reuse an already-built one) and return the
+  // resulting lockfile contents as a string, without writing to disk.
+  // Useful for callers that want to inspect, diff, or store a lockfile
+  // somewhere other than the project's `package-lock.json`.
+  async lockfileString (options = {}) {
+    await this.buildIdealTree(options)
+
+    return this.idealTree.meta.toString(options)
+  }
+
   async dedupe (options = {}) {
     // allow the user to set options on the ctor as well.
     // XXX: deprecate separate method options objects.

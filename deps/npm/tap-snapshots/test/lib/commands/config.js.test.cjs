@@ -16,7 +16,10 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "access": null,
   "all": false,
   "allow-same-version": false,
+  "allow-directory": "all",
+  "allow-file": "all",
   "allow-git": "all",
+  "allow-remote": "all",
   "also": null,
   "audit": true,
   "audit-level": null,
@@ -192,7 +195,10 @@ exports[`test/lib/commands/config.js TAP config list --long > output matches sna
 _auth = (protected)
 access = null
 all = false
+allow-directory = "all"
+allow-file = "all"
 allow-git = "all"
+allow-remote = "all"
 allow-same-version = false
 also = null
 audit = true
