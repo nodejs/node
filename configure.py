@@ -225,6 +225,14 @@ parser.add_argument("--enable-thin-lto",
     help="Enable compiling with thin lto of a binary. This feature is only available "
          "on windows.")
 
+parser.add_argument("--lto-jobs",
+    action="store",
+    dest="lto_jobs",
+    default=None,
+    help="Set the number of parallel LTO code generation jobs during linking. "
+         "Defaults to the number of CPU cores. Lower values reduce peak memory "
+         "usage at the cost of longer link times. Only effective with LTO enabled.")
+
 parser.add_argument("--link-module",
     action="append",
     dest="linked_module",
@@ -1995,6 +2003,7 @@ def configure_node(o):
 
   o['variables']['enable_lto'] = b(options.enable_lto)
   o['variables']['enable_thin_lto'] = b(options.enable_thin_lto)
+  o['variables']['lto_jobs'] = options.lto_jobs or ''
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
