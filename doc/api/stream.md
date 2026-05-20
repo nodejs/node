@@ -3013,7 +3013,7 @@ const server = http.createServer((req, res) => {
 <!-- YAML
 added: v16.9.0
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/62562
     description: Marking the API stable.
   - version:

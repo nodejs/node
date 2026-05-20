@@ -4552,7 +4552,7 @@ removed in a future version of Node.js.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63121
     description: Documentation-only deprecation.
 -->

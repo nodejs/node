@@ -7530,7 +7530,7 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/60789
     description: Added `Temporal.Instant` support.
   - version:

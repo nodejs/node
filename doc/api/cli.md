@@ -1415,7 +1415,7 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 ### `--experimental-test-tag-filter=<tag>`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1.0 - Early development
