@@ -47,6 +47,7 @@ const path = require('path');
       assert.match(cli.output, /Use `run` to start the app again/);
     })
     .then(() => cli.command('run'))
+    .then(() => cli.waitFor(/ ok\n/))
     .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => {
@@ -63,9 +64,9 @@ const path = require('path');
       );
     })
     .then(() => cli.command('restart'))
-    .then(() => cli.waitFor(/Debugger attached\./))
-    .then(() => cli.waitForPrompt())
+    .then(() => cli.waitFor(/ ok\n/))
     .then(() => cli.waitForInitialBreak())
+    .then(() => cli.waitForPrompt())
     .then(() => {
       assert.deepStrictEqual(
         cli.breakInfo,
@@ -79,6 +80,7 @@ const path = require('path');
       assert.match(cli.output, /Use `run` to start the app again/);
     })
     .then(() => cli.command('run'))
+    .then(() => cli.waitFor(/ ok\n/))
     .then(() => cli.waitForInitialBreak())
     .then(() => cli.waitForPrompt())
     .then(() => {
