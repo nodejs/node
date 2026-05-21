@@ -58,6 +58,7 @@ async function doWriteBufferAndCancel() {
 
 const dest = path.resolve(tmpDir, 'tmp.txt');
 const otherDest = path.resolve(tmpDir, 'tmp-2.txt');
+const errorDest = path.resolve(tmpDir, 'tmp-error.txt');
 const stream = Readable.from(['a', 'b', 'c']);
 const stream2 = Readable.from(['ümlaut', ' ', 'sechzig']);
 const iterable = {
@@ -82,6 +83,15 @@ function iterableWith(value) {
     }
   };
 }
+
+function createEarlyErrorStream(error) {
+  const stream = new Readable({
+    read() {}
+  });
+  process.nextTick(() => stream.destroy(error));
+  return stream;
+}
+
 const bufferIterable = {
   expected: 'abc',
   *[Symbol.iterator]() {
@@ -107,6 +117,25 @@ async function doWriteStream() {
     const data = fs.readFileSync(dest, 'utf-8');
     assert.deepStrictEqual(data, expected);
   } finally {
+    await fileHandle.close();
+  }
+}
+
+async function doWriteStreamError() {
+  const fileHandle = await open(errorDest, 'w+');
+  const error = new Error('early file handle writeFile stream error');
+  const stream = createEarlyErrorStream(error);
+  const uncaughtException = common.mustNotCall(
+    'stream errors should reject FileHandle.writeFile()');
+
+  process.once('uncaughtException', uncaughtException);
+  try {
+    await assert.rejects(
+      fileHandle.writeFile(stream),
+      { message: error.message }
+    );
+  } finally {
+    process.removeListener('uncaughtException', uncaughtException);
     await fileHandle.close();
   }
 }
@@ -256,6 +285,7 @@ async function doWriteFromCurrentPosition() {
   await doWriteBufferAndCancel();
   await doWriteString();
   await doWriteStream();
+  await doWriteStreamError();
   await doWriteStreamWithCancel();
   await doWriteIterable();
   await doWriteInvalidIterable();
