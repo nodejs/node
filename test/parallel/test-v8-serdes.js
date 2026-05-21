@@ -184,7 +184,7 @@ const hostObject = new (internalBinding('js_stream').JSStream)();
     Consider opening an issue as a heads up at https://github.com/nodejs/node/issues/new
   `;
 
-  const desStr = 'ff0f6f2203666f6f5e007b01';
+  const desStr = 'ff106f2203666f6f5e007b01';
 
   const desBuf = Buffer.from(desStr, 'hex');
   const des = new v8.DefaultDeserializer(desBuf);
