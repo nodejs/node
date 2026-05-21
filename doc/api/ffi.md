@@ -124,15 +124,15 @@ such as `0` and `1`; JavaScript `true` and `false` are not accepted.
 
 Functions and callbacks are described with signature objects.
 
-Supported fields:
+Signature objects may contain the following properties, both of which are
+optional:
 
-* `result`, `return`, or `returns` for the return type.
-* `parameters` or `arguments` for the parameter type list.
+* `result` {string} A [type name][type names] specifying the return type of the
+  function or callback. **Default:** `'void'`.
+* `parameters` {string\[]} An array of [type names][] specifying the parameter
+  type list of the function or callback. **Default:** `[]`.
 
-Only one return-type field and one parameter-list field may be present in a
-single signature object.
-
-```cjs
+```js
 const signature = {
   result: 'i32',
   parameters: ['i32', 'i32'],
@@ -727,3 +727,4 @@ and keep callback and pointer lifetimes explicit on the native side.
 [`--allow-ffi`]: cli.md#--allow-ffi
 [`ffi.toBuffer(pointer, length, copy)`]: #ffitobufferpointer-length-copy
 [`using`]: https://tc39.es/proposal-explicit-resource-management/#sec-using-declarations
+[type names]: #type-names

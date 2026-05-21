@@ -85,7 +85,6 @@
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
-  V(arguments_string, "arguments")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
   V(backup_string, "backup")                                                   \
@@ -329,8 +328,6 @@
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
   V(result_string, "result")                                                   \
-  V(return_string, "return")                                                   \
-  V(returns_string, "returns")                                                 \
   V(return_arrays_string, "returnArrays")                                      \
   V(salt_length_string, "saltLength")                                          \
   V(search_string, "search")                                                   \

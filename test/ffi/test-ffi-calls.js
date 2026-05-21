@@ -156,7 +156,7 @@ test('ffi callbacks can be registered and invoked', () => {
     (ptr) => seen.push(ffi.toString(ptr)),
   );
   const binaryCallback = lib.registerCallback(
-    { arguments: ['i32', 'i32'], returns: 'i32' },
+    { parameters: ['i32', 'i32'], result: 'i32' },
     (a, b) => a + b,
   );
 

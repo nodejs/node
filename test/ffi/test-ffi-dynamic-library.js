@@ -41,8 +41,8 @@ test('dlopen resolves symbols from the current process with null path', {
 test('dlopen resolves functions from definitions', () => {
   const { lib, functions } = ffi.dlopen(libraryPath, {
     add_i32: fixtureSymbols.add_i32,
-    add_f32: { returns: 'f32', arguments: ['f32', 'f32'] },
-    add_u64: { return: 'u64', parameters: ['u64', 'u64'] },
+    add_f32: { result: 'f32', parameters: ['f32', 'f32'] },
+    add_u64: { result: 'u64', parameters: ['u64', 'u64'] },
   });
 
   try {
@@ -73,8 +73,8 @@ test('DynamicLibrary exposes functions and symbols', () => {
   try {
     const addI32 = lib.getFunction('add_i32', fixtureSymbols.add_i32);
     const addU64 = lib.getFunction('add_u64', {
-      returns: 'u64',
-      arguments: ['u64', 'u64'],
+      result: 'u64',
+      parameters: ['u64', 'u64'],
     });
     const addI32Ptr = lib.getSymbol('add_i32');
 
@@ -85,7 +85,7 @@ test('DynamicLibrary exposes functions and symbols', () => {
 
     const functions = lib.getFunctions({
       add_f32: { result: 'f32', parameters: ['f32', 'f32'] },
-      add_i64: { return: 'i64', arguments: ['i64', 'i64'] },
+      add_i64: { result: 'i64', parameters: ['i64', 'i64'] },
     });
 
     assert.strictEqual(functions.add_f32(10, 32), 42);
@@ -303,22 +303,6 @@ test('dynamic library APIs validate failures and bad signatures', () => {
       name: 'TypeError',
       message: 'Signature of function add_i32 must be an object',
     });
-
-    assert.throws(() => {
-      lib.getFunction('add_i32', {
-        result: 'i32',
-        return: 'i32',
-        parameters: ['i32', 'i32'],
-      });
-    }, /must have either 'returns', 'return' or 'result' property/);
-
-    assert.throws(() => {
-      lib.getFunction('add_i32', {
-        result: 'i32',
-        parameters: ['i32', 'i32'],
-        arguments: ['i32', 'i32'],
-      });
-    }, /must have either 'parameters' or 'arguments' property/);
 
     assert.throws(() => {
       lib.getFunction('add_i32', { result: 'bogus', parameters: [] });
