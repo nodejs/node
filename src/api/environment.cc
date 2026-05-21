@@ -2,6 +2,7 @@
 #if HAVE_OPENSSL
 #include "crypto/crypto_util.h"
 #endif  // HAVE_OPENSSL
+#include "env.h"
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
@@ -932,6 +933,18 @@ Maybe<bool> InitializeContext(Local<Context> context) {
     return Nothing<bool>();
   }
   return Just(true);
+}
+
+void RegisterContext(Environment* env,
+                     v8::Local<v8::Context> context,
+                     std::string_view name,
+                     std::string_view origin) {
+  ContextInfo info{std::string(name), std::string(origin)};
+  env->AssignToContext(context, nullptr, info);
+}
+
+void UnregisterContext(Environment* env, v8::Local<v8::Context> context) {
+  env->UnassignFromContext(context);
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {
