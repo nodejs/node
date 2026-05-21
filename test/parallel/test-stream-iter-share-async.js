@@ -309,6 +309,24 @@ async function testShareMultipleConsumersConcurrentPull() {
   assert.strictEqual(t3, expected);
 }
 
+async function testShareConsumerConcurrentNextCalls() {
+  async function* source() {
+    const enc = new TextEncoder();
+    yield [enc.encode('first')];
+    yield [enc.encode('second')];
+  }
+
+  const shared = share(source());
+  const it = shared.pull()[Symbol.asyncIterator]();
+  const first = it.next();
+  const second = it.next();
+
+  const [r1, r2] = await Promise.all([first, second]);
+  const dec = new TextDecoder();
+  assert.strictEqual(dec.decode(r1.value[0]), 'first');
+  assert.strictEqual(dec.decode(r2.value[0]), 'second');
+}
+
 // share() accepts string source directly (normalized via from())
 async function testShareStringSource() {
   const shared = share('hello-share');
@@ -330,5 +348,6 @@ Promise.all([
   testShareLateJoiningConsumer(),
   testShareConsumerBreak(),
   testShareMultipleConsumersConcurrentPull(),
+  testShareConsumerConcurrentNextCalls(),
   testShareStringSource(),
 ]).then(common.mustCall());
