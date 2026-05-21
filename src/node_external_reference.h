@@ -42,8 +42,7 @@ class ExternalReferenceRegistry {
   // Registers both the underlying function pointer
   // and the corresponding CFunctionInfo.
   void Register(const v8::CFunction& c_func) {
-    RegisterT(c_func.GetAddress());
-    RegisterT(c_func.GetTypeInfo());
+    RegisterT(&c_func);
   }
 
   // This can be called only once.
