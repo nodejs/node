@@ -3435,6 +3435,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63435
+    description: Added `parentId` to test events that carry a `testId`.
   - version:
     - v20.0.0
     - v19.9.0
@@ -3522,6 +3525,9 @@ Emitted when code coverage is enabled and all tests have completed.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
   * `tags` {string\[]} The flattened lowercased tags declared on the test
     and its ancestor suites, in declaration order. Empty for untagged tests.
     See [Test tags][].
@@ -3548,6 +3554,9 @@ The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
   * `tags` {string\[]} The flattened lowercased tags declared on the test
     and its ancestor suites, in declaration order. Empty for untagged tests.
     See [Test tags][].
@@ -3592,6 +3601,9 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
   * `tags` {string\[]} The flattened lowercased tags declared on the test
     and its ancestor suites, in declaration order. Empty for untagged tests.
     See [Test tags][].
@@ -3621,6 +3633,9 @@ Emitted when a test is enqueued for execution.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
   * `tags` {string\[]} The flattened lowercased tags declared on the test
     and its ancestor suites, in declaration order. Empty for untagged tests.
     See [Test tags][].
@@ -3681,6 +3696,9 @@ since the parent runner only knows about file-level tests. When using
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
   * `tags` {string\[]} The flattened lowercased tags declared on the test
     and its ancestor suites, in declaration order. Empty for untagged tests.
     See [Test tags][].
@@ -3723,6 +3741,9 @@ defined.
     `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
+  * `parentId` {number|undefined} The `testId` of the enclosing test, or
+    `undefined` for top-level tests. Lets custom reporters track lineage
+    when concurrent siblings at the same nesting level interleave.
   * `tags` {string\[]} The flattened lowercased tags declared on the test
     and its ancestor suites, in declaration order. Empty for untagged tests.
     See [Test tags][].
