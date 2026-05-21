@@ -43,9 +43,6 @@ class ExternalReferenceRegistry {
   // and the corresponding CFunctionInfo.
   void Register(const v8::CFunction& c_func) {
     RegisterT(&c_func);
-    // TODO(joyeecheung): remove below when V8 14.8 lands.
-    RegisterT(c_func.GetAddress());
-    RegisterT(c_func.GetTypeInfo());
   }
 
   // This can be called only once.
