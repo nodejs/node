@@ -122,6 +122,12 @@ it unaffected by userland.
 Whenever a conditional feature graduates, it should be added to regular primordials
 and removed from staging primordials.
 
+Staging primordials do not automatically adopt every new global object, and do not
+replicate nested objects recursively. For example, no internal code requires
+`TemporalPlainMonthDay*`, so there's no need to create primordials for it. If
+you're adding experimental feature that requires new staging primordial, add it
+to the internal module.
+
 ### Lazy-loaded staging primordials
 
 Some internal modules are used in early bootstrap, and staging primordials module

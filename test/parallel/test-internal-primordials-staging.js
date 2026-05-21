@@ -24,10 +24,6 @@ const throwify = (name) => new Proxy({}, {
 const { primordials } = require('internal/test/binding');
 const primordialsStaging = require('internal/primordials_staging');
 const originalGlobals = {};
-const notGlobals = new Set([
-  'Uint8ArrayFromBase64',
-  'Uint8ArrayFromHex',
-]);
 
 for (const [ name, primordialStaging ] of Object.entries(primordialsStaging)) {
   // Sometimes conditional primordial might exist depending on environment
@@ -42,7 +38,8 @@ for (const [ name, primordialStaging ] of Object.entries(primordialsStaging)) {
     continue;
   }
 
-  if (!notGlobals.has(name)) {
+  // Test that top-level global objects mutation doesn't affect us
+  if (globalThis[name] !== undefined) {
     originalGlobals[name] = globalThis[name];
     globalThis[name] = throwify(name);
     assert.strictEqual(originalGlobals[name], primordialStaging);
@@ -53,7 +50,8 @@ for (const [ name, primordialStaging ] of Object.entries(primordialsStaging)) {
 if (primordialsStaging.Temporal !== undefined || globalThis.Temporal !== undefined) {
   // Safe Temporal must work
   {
-    const { Temporal: { Instant, Now } } = primordialsStaging;
+    const { Temporal: { Instant, Now }, TemporalInstant } = primordialsStaging;
+    assert.strictEqual(TemporalInstant, Instant);
     assert.ok(Now.instant() instanceof Instant);
     assert.strictEqual(new Instant(123456789n).epochMilliseconds, 123);
   }
@@ -62,7 +60,7 @@ if (primordialsStaging.Temporal !== undefined || globalThis.Temporal !== undefin
   {
     assert.throws(() => {
       // eslint-disable-next-line no-unused-vars
-      const { Temporal: { Instant, Now } } = globalThis;
+      const { Temporal: { Instant, Now }, TemporalInstant } = globalThis;
     }, {
       code: 'ERR_ASSERTION',
     });
