@@ -21,10 +21,10 @@ const diagnosticEvent = {
 const chunks = await toArray(serializer([diagnosticEvent]));
 const defaultSerializer = new DefaultSerializer();
 defaultSerializer.writeHeader();
-const headerLength = defaultSerializer.releaseBuffer().length;
-const headerOnly = Buffer.from([0xff, 0x0f]);
-const oversizedLengthHeader = Buffer.from([0xff, 0x0f, 0x7f, 0xff, 0xff, 0xff]);
-const truncatedLengthHeader = Buffer.from([0xff, 0x0f, 0x00, 0x01, 0x00, 0x00]);
+const headerOnly = Buffer.from(defaultSerializer.releaseBuffer());
+const headerLength = headerOnly.length;
+const oversizedLengthHeader = Buffer.concat([headerOnly, Buffer.from([0x7f, 0xff, 0xff, 0xff])]);
+const truncatedLengthHeader = Buffer.concat([headerOnly, Buffer.from([0x00, 0x01, 0x00, 0x00])]);
 // Expected stdout for oversizedLengthHeader: first byte is emitted via
 // String.fromCharCode (byte-by-byte fallback in #drainRawBuffer), remaining
 // bytes go through the nonSerialized UTF-8 decode path in #processRawBuffer.
@@ -94,10 +94,10 @@ describe('v8 deserializer', common.mustCall(() => {
 
   it('should not hang when buffer starts with v8Header followed by oversized length', async () => {
     // Regression test for https://github.com/nodejs/node/issues/62693
-    // FF 0F is the v8 serializer header; the next 4 bytes are read as a
-    // big-endian message size.  0x7FFFFFFF far exceeds any actual buffer
-    // size, causing #processRawBuffer to make no progress and
-    // #drainRawBuffer to loop forever without the no-progress guard.
+    // The v8 serializer header is followed by 4 bytes read as a big-endian
+    // message size. 0x7FFFFFFF far exceeds any actual buffer size, causing
+    // #processRawBuffer to make no progress and #drainRawBuffer to loop
+    // forever without the no-progress guard.
     const reported = await collectReported([oversizedLengthHeader]);
     assert.partialDeepStrictEqual(
       reported,
@@ -117,14 +117,14 @@ describe('v8 deserializer', common.mustCall(() => {
   });
 
   it('should flush v8Header-only bytes as stdout when stream ends', async () => {
-    // Just the two-byte v8 header with no size field at all.
+    // Just the v8 header bytes with no size field at all.
     const reported = await collectReported([headerOnly]);
     assert(reported.every((event) => event.type === 'test:stdout'));
     assert.strictEqual(collectStdout(reported), headerOnly.toString('latin1'));
   });
 
   it('should resync and parse valid messages after false v8 header', async () => {
-    // A false v8 header (FF 0F + oversized length) followed by a
+    // A false v8 header (header bytes + oversized length) followed by a
     // legitimate serialized message. The parser must skip the corrupt
     // bytes and still deserialize the real message.
     const reported = await collectReported([
