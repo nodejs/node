@@ -2473,7 +2473,9 @@ class ModuleDecoderImpl : public Decoder {
     // Flags 0..7 are valid (3 bits).
     bool is_valid() const { return (flags & ~0x7) == 0; }
     bool has_maximum() const { return flags & 0x1; }
-    SharedFlag is_shared() const { return SharedFlag(flags & 0x2); }
+    SharedFlag is_shared() const {
+      return (flags & 0x2) ? SharedFlag::kYes : SharedFlag::kNo;
+    }
     bool is_64bit() const { return flags & 0x4; }
     AddressType address_type() const {
       return is_64bit() ? AddressType::kI64 : AddressType::kI32;
