@@ -2281,7 +2281,7 @@ changes:
 Creates a new [`tls.Server`][]. The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
-The `ticketKeys` options is automatically shared between `node:cluster` module
+The `ticketKeys` option is automatically shared between `node:cluster` module
 workers.
 
 The following illustrates a simple echo server:
