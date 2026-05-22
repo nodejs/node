@@ -87,23 +87,25 @@ Array [
 
 exports[`test/lib/commands/publish.js TAP json > new package json 1`] = `
 {
-  "id": "@npmcli/test-package@1.0.0",
-  "name": "@npmcli/test-package",
-  "version": "1.0.0",
-  "size": "{size}",
-  "unpackedSize": 95,
-  "shasum": "{sha}",
-  "integrity": "{integrity}",
-  "filename": "npmcli-test-package-1.0.0.tgz",
-  "files": [
-    {
-      "path": "package.json",
-      "size": "{size}",
-      "mode": 420
-    }
-  ],
-  "entryCount": 1,
-  "bundled": []
+  "@npmcli/test-package": {
+    "id": "@npmcli/test-package@1.0.0",
+    "name": "@npmcli/test-package",
+    "version": "1.0.0",
+    "size": "{size}",
+    "unpackedSize": 95,
+    "shasum": "{sha}",
+    "integrity": "{integrity}",
+    "filename": "npmcli-test-package-1.0.0.tgz",
+    "files": [
+      {
+        "path": "package.json",
+        "size": "{size}",
+        "mode": 420
+      }
+    ],
+    "entryCount": 1,
+    "bundled": []
+  }
 }
 `
 
@@ -204,6 +206,7 @@ Object {
     "man/man1/npm-search.1",
     "man/man1/npm-set.1",
     "man/man1/npm-shrinkwrap.1",
+    "man/man1/npm-stage.1",
     "man/man1/npm-star.1",
     "man/man1/npm-stars.1",
     "man/man1/npm-start.1",
@@ -258,7 +261,7 @@ exports[`test/lib/commands/publish.js TAP no auth dry-run > must match snapshot 
 
 exports[`test/lib/commands/publish.js TAP no auth dry-run > warns about auth being needed 1`] = `
 Array [
-  "This command requires you to be logged in to https://registry.npmjs.org/ (dry-run)",
+  "publish This command requires you to be logged in to https://registry.npmjs.org/ (dry-run)",
 ]
 `
 

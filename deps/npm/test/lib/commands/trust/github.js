@@ -35,7 +35,7 @@ t.test('github with all options provided', async t => {
 
   registry.trustCreate({ packageName })
 
-  await npm.exec('trust', ['github', packageName, '--yes', '--file', 'workflow.yml', '--repository', 'owner/repo', '--environment', 'production'])
+  await npm.exec('trust', ['github', packageName, '--yes', '--file', 'workflow.yml', '--repository', 'owner/repo', '--environment', 'production', '--allow-publish'])
 })
 
 t.test('github with invalid repository format', async t => {
@@ -61,7 +61,7 @@ t.test('github with invalid repository format', async t => {
   })
 
   await t.rejects(
-    npm.exec('trust', ['github', packageName, '--yes', '--file', 'workflow.yml', '--repository', 'invalid']),
+    npm.exec('trust', ['github', packageName, '--yes', '--file', 'workflow.yml', '--repository', 'invalid', '--allow-publish']),
     { message: /must be specified in the format owner\/repository/ }
   )
 })
@@ -89,7 +89,7 @@ t.test('github with file as path', async t => {
   })
 
   await t.rejects(
-    npm.exec('trust', ['github', packageName, '--yes', '--file', '.github/workflows/ci.yml', '--repository', 'owner/repo']),
+    npm.exec('trust', ['github', packageName, '--yes', '--file', '.github/workflows/ci.yml', '--repository', 'owner/repo', '--allow-publish']),
     { message: /must be just a file not a path/ }
   )
 })
@@ -124,7 +124,7 @@ t.test('github without environment', async t => {
 
   registry.trustCreate({ packageName })
 
-  await npm.exec('trust', ['github', packageName, '--yes', '--file', 'workflow.yml', '--repository', 'owner/repo'])
+  await npm.exec('trust', ['github', packageName, '--yes', '--file', 'workflow.yml', '--repository', 'owner/repo', '--allow-publish'])
 })
 
 t.test('bodyToOptions with all fields', t => {
