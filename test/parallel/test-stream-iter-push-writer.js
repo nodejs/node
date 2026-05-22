@@ -61,12 +61,9 @@ async function testWriteWithSignalRejects() {
 async function testWriteWithPreAbortedSignal() {
   const { writer, readable } = push({ highWaterMark: 1 });
 
-  const ac = new AbortController();
-  ac.abort();
-
   // Pre-aborted signal should reject immediately
   await assert.rejects(
-    writer.write('data', { signal: ac.signal }),
+    writer.write('data', { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 

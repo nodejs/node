@@ -147,10 +147,7 @@ async function testShareAbortSignal() {
 }
 
 async function testShareAlreadyAborted() {
-  const ac = new AbortController();
-  ac.abort();
-
-  const shared = share(from('data'), { signal: ac.signal });
+  const shared = share(from('data'), { signal: AbortSignal.abort() });
   const consumer = shared.pull();
 
   const batches = [];

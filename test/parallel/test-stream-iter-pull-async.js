@@ -41,14 +41,11 @@ async function testPullStatefulTransform() {
 }
 
 async function testPullWithAbortSignal() {
-  const ac = new AbortController();
-  ac.abort();
-
   async function* gen() {
     yield [new Uint8Array([1])];
   }
 
-  const result = pull(gen(), { signal: ac.signal });
+  const result = pull(gen(), { signal: AbortSignal.abort() });
   await assert.rejects(
     async () => {
       // eslint-disable-next-line no-unused-vars

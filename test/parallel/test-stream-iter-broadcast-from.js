@@ -78,10 +78,7 @@ async function testAbortSignal() {
 }
 
 async function testAlreadyAbortedSignal() {
-  const ac = new AbortController();
-  ac.abort();
-
-  const { broadcast: bc } = broadcast({ signal: ac.signal });
+  const { broadcast: bc } = broadcast({ signal: AbortSignal.abort() });
   const consumer = bc.push();
 
   const batches = [];
