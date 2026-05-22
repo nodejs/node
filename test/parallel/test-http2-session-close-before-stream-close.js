@@ -1,9 +1,10 @@
 'use strict';
 
 // Regression test: when the server abruptly destroys the underlying socket,
-// the client session 'close' event must fire before any stream 'close'
-// callback can observe session.closed/session.destroyed as true.
-// See https://github.com/nodejs/node/issues/<issue>
+// session.request() must not throw synchronously inside a stream 'close'
+// callback. Instead it should return a stream that emits 'error' async with
+// ERR_HTTP2_INVALID_SESSION, giving session lifecycle handlers a chance to
+// clear their cached session reference before any retry occurs.
 
 const common = require('../common');
 if (!common.hasCrypto)
@@ -36,33 +37,34 @@ server.on('stream', (stream, headers) => {
 server.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server.address().port}`);
 
-  let sessionCloseFired = false;
-
-  session.on('close', common.mustCall(() => {
-    sessionCloseFired = true;
-    server.close();
-  }));
-
-  // We accept that an error may or may not fire, but it must fire before
-  // any stream close callback sees session.destroyed.
+  session.on('close', common.mustCall(() => server.close()));
   session.on('error', () => {});
 
   const req = session.request({ ':path': '/close' });
   req.resume();
   req.on('response', () => {});
+  req.on('error', () => {}); // socket may emit ECONNRESET on abrupt close
 
-  // The stream 'close' event must not observe the session as destroyed
-  // before the session 'close' event has fired.
   req.on('close', common.mustCall(() => {
-    // If the session is already destroyed, the session 'close' event must
-    // have already been emitted (sessionCloseFired === true).
-    if (session.destroyed) {
-      assert.strictEqual(
-        sessionCloseFired,
-        true,
-        'session "close" event must fire before stream "close" callback ' +
-        'observes session.destroyed === true',
-      );
+    if (!session.destroyed) return;
+
+    // session.request() must NOT throw synchronously even though the session
+    // is already destroyed. It should return a stream that errors async.
+    let threw = false;
+    let req2;
+    try {
+      req2 = session.request({ ':path': '/again' });
+    } catch {
+      threw = true;
     }
+
+    assert.strictEqual(threw, false,
+      'session.request() must not throw synchronously inside a stream close callback');
+
+    // The returned stream should asynchronously emit ERR_HTTP2_INVALID_SESSION
+    req2.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_HTTP2_INVALID_SESSION');
+    }));
+    req2.resume();
   }));
 }));
