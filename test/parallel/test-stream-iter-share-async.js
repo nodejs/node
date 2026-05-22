@@ -150,10 +150,7 @@ async function testShareAbortSignal() {
 
   await fast.next();
   const read = fast.next();
-  const rejected = assert.rejects(read, common.mustCall((error) => {
-    assert.strictEqual(error, reason);
-    return true;
-  }));
+  const rejected = assert.rejects(read, (error) => error === reason);
   ac.abort(reason);
 
   await rejected;
