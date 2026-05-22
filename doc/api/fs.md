@@ -780,7 +780,9 @@ Read from a file and write to an array of {ArrayBufferView}s
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/57775
     description: Now accepts an additional `signal` property to allow aborting the operation.
   - version: v10.5.0
@@ -1034,16 +1036,16 @@ added:
     Set this to match the reader's `chunkSize` for optimal `pipeTo()`
     performance. **Default:** `131072` (128 KB).
 * Returns: {Object}
-  * `write(chunk[, options])` {Function} Returns {Promise\<void>}.
+  * `write(chunk[, options])` {Function} Returns {Promise}.
     Accepts `Uint8Array`, `Buffer`, or string (UTF-8 encoded).
     * `chunk` {Buffer|TypedArray|DataView|string}
     * `options` {Object}
       * `signal` {AbortSignal} If the signal is already aborted, the write
         rejects with `AbortError` without performing I/O.
-  * `writev(chunks[, options])` {Function} Returns {Promise\<void>}. Uses
+  * `writev(chunks[, options])` {Function} Returns {Promise}. Uses
     scatter/gather I/O via a single `writev()` syscall. Accepts mixed
     `Uint8Array`/string arrays.
-    * `chunks` {Array\<Buffer|TypedArray|DataView|string>}
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]|string\[]}
     * `options` {Object}
       * `signal` {AbortSignal} If the signal is already aborted, the write
         rejects with `AbortError` without performing I/O.
@@ -1055,10 +1057,10 @@ added:
     * `chunk` {Buffer|TypedArray|DataView|string}
   * `writevSync(chunks)` {Function} Returns {boolean}. Synchronous batch
     write. Same fallback semantics as `writeSync()`.
-    * `chunks` {Array\<Buffer|TypedArray|DataView|string>}
-  * `end([options])` {Function} Returns {Promise\<number>} total bytes
-    written. Idempotent: returns `totalBytesWritten` if already closed,
-    returns the pending promise if already closing. Rejects if the writer
+    * `chunks` {Buffer\[]|TypedArray\[]|DataView\[]|string\[]}
+  * `end([options])` {Function} Returns {Promise}, fulfills with the total
+    number of bytes written. Idempotent: returns `totalBytesWritten` if already
+    closed, returns the pending promise if already closing. Rejects if the writer
     is in an errored state.
     * `options` {Object}
       * `signal` {AbortSignal} If the signal is already aborted, `end()`
@@ -1354,7 +1356,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -2815,7 +2819,7 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
-    that resolves to `true` or `false` **Default:** `undefined`.
+    that fulfills with `true` or `false`. **Default:** `undefined`.
     * `src` {string} source path to copy.
     * `dest` {string} destination path to copy to.
     * Returns: {boolean|Promise} A value that is coercible to `boolean` or
@@ -3475,7 +3479,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -5086,7 +5092,9 @@ The `atime` and `mtime` arguments follow these rules:
 <!-- YAML
 added: v0.5.10
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/61870
     description: Added `throwIfNoEntry` option.
   - version: v19.1.0
@@ -6065,7 +6073,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62695
     description: Add support for the `followSymlinks` option.
   - version:
@@ -7533,7 +7543,7 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/60789
     description: Added `Temporal.Instant` support.
   - version:
@@ -8033,7 +8043,9 @@ Optimal transfer block size.
 #### `statfs.frsize`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {number|bigint}

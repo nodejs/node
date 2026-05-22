@@ -43,9 +43,9 @@ const {
     isListening: false,
     isClosing: false,
     isBusy: false,
-    maxConnectionsPerHost: 0,
-    maxConnectionsTotal: 0,
-    pendingCallbacks: '0',
+    maxConnectionsPerHost: 100,
+    maxConnectionsTotal: 10_000,
+    pendingCallbacks: 0,
   });
 
   endpoint.busy = true;

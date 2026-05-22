@@ -810,7 +810,7 @@ changes:
 Type: Revoked
 
 The [`events.listenerCount(emitter, eventName)`][] API was deprecated, as it
-provided identical fuctionality to [`emitter.listenerCount(eventName)`][]. The
+provided identical functionality to [`emitter.listenerCount(eventName)`][]. The
 deprecation was revoked because this function has been repurposed to also
 accept {EventTarget} arguments.
 
@@ -4562,7 +4562,7 @@ removed in a future version of Node.js.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63121
     description: Documentation-only deprecation.
 -->

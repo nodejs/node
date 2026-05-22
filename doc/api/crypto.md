@@ -5850,7 +5850,9 @@ cryptographic pseudorandom number generator.
 ### `crypto.randomUUIDv7([options])`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * `options` {Object}
@@ -6102,7 +6104,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: v26.0.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6132,7 +6136,7 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string | null | undefined}
-* `data` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `callback` {Function}
   * `err` {Error}
@@ -6231,7 +6235,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: v26.0.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6264,9 +6270,9 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string|null|undefined}
-* `data` {ArrayBuffer| Buffer|TypedArray|DataView}
+* `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-* `signature` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `signature` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView}
 * `callback` {Function}
   * `err` {Error}
   * `result` {boolean}
@@ -6657,7 +6663,7 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS</code></td>
-    <td>Instructs OpenSSL to disable a SSL 3.0/TLS 1.0 vulnerability
+    <td>Instructs OpenSSL to disable an SSL 3.0/TLS 1.0 vulnerability
     workaround added in OpenSSL 0.9.6d.</td>
   </tr>
   <tr>

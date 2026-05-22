@@ -18,6 +18,7 @@ const kProxyTls = Symbol('proxy tls settings')
 const kConnectEndpoint = Symbol('connect endpoint function')
 const kConnectEndpointHTTP1 = Symbol('connect endpoint function (http/1.1 only)')
 const kTunnelProxy = Symbol('tunnel proxy')
+const proxyAuthorization = 'proxy-authorization'
 
 function defaultProtocolPort (protocol) {
   return protocol === 'https:' ? 443 : 80
@@ -298,6 +299,10 @@ function buildHeaders (headers) {
     const headersPair = {}
 
     for (let i = 0; i < headers.length; i += 2) {
+      if (isProxyAuthorizationHeader(headers[i])) {
+        throwProxyAuthError()
+      }
+
       headersPair[headers[i]] = headers[i + 1]
     }
 
@@ -316,11 +321,23 @@ function buildHeaders (headers) {
  * It should be removed in the next major version for performance reasons
  */
 function throwIfProxyAuthIsSent (headers) {
-  const existProxyAuth = headers && Object.keys(headers)
-    .find((key) => key.toLowerCase() === 'proxy-authorization')
-  if (existProxyAuth) {
-    throw new InvalidArgumentError('Proxy-Authorization should be sent in ProxyAgent constructor')
+  for (const key in headers) {
+    if (isProxyAuthorizationHeader(key)) {
+      throwProxyAuthError()
+    }
   }
+}
+
+/**
+ * @param {string} key
+ * @returns {boolean}
+ */
+function isProxyAuthorizationHeader (key) {
+  return key.length === proxyAuthorization.length && key.toLowerCase() === proxyAuthorization
+}
+
+function throwProxyAuthError () {
+  throw new InvalidArgumentError('Proxy-Authorization should be sent in ProxyAgent constructor')
 }
 
 module.exports = ProxyAgent

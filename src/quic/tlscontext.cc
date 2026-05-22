@@ -30,13 +30,16 @@ using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::X509Pointer;
+using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferView;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::String;
 using v8::Undefined;
 using v8::Value;
 
@@ -47,7 +50,7 @@ namespace quic {
 namespace {
 
 // Temporarily wraps an SSL pointer but does not take ownership.
-// Use by a few of the TLSSession methods that need access to the SSL*
+// Used by a few of the TLSSession methods that need access to the SSL*
 // pointer held by the OSSLContext but cannot take ownership of it.
 class SSLPointerRef final {
  public:
@@ -95,7 +98,7 @@ template <typename T, typename Opt, std::vector<T> Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const Local<Object>& object,
-               const Local<v8::String>& name) {
+               const Local<String>& name) {
   Local<Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
 
@@ -105,7 +108,7 @@ bool SetOption(Environment* env,
 
   if (value->IsArray()) {
     auto context = env->context();
-    auto values = value.As<v8::Array>();
+    auto values = value.As<Array>();
     uint32_t count = values->Length();
     for (uint32_t n = 0; n < count; n++) {
       Local<Value> item;
@@ -125,7 +128,7 @@ bool SetOption(Environment* env,
         }
       } else if constexpr (std::is_same<T, Store>::value) {
         if (item->IsArrayBufferView()) {
-          Store store = Store::CopyFrom(item.As<v8::ArrayBufferView>());
+          Store store = Store::CopyFrom(item.As<ArrayBufferView>());
           (options->*member).push_back(std::move(store));
         } else if (item->IsArrayBuffer()) {
           Store store = Store::CopyFrom(item.As<ArrayBuffer>());
@@ -154,7 +157,7 @@ bool SetOption(Environment* env,
       }
     } else if constexpr (std::is_same<T, Store>::value) {
       if (value->IsArrayBufferView()) {
-        Store store = Store::CopyFrom(value.As<v8::ArrayBufferView>());
+        Store store = Store::CopyFrom(value.As<ArrayBufferView>());
         (options->*member).push_back(std::move(store));
       } else if (value->IsArrayBuffer()) {
         Store store = Store::CopyFrom(value.As<ArrayBuffer>());
@@ -185,7 +188,7 @@ void OSSLContext::reset() {
   if (ctx_) {
     // The SSL object inside the ngtcp2 ctx may not have been set if
     // SSL creation failed. Guard against null before clearing app data.
-    if (SSL* ssl = ngtcp2_crypto_ossl_ctx_get_ssl(ctx_); ssl != nullptr) {
+    if (SSL* ssl = *this; ssl != nullptr) {
       SSL_set_app_data(ssl, nullptr);
     }
     // connection_ is set during Initialize(). If Initialize() was
@@ -222,7 +225,7 @@ void OSSLContext::Initialize(SSL* ssl,
   connection_ = connection;
 }
 
-std::string OSSLContext::get_cipher_name() const {
+std::string_view OSSLContext::get_cipher_name() const {
   return SSL_get_cipher_name(*this);
 }
 

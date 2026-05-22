@@ -2470,7 +2470,7 @@ compiled with ICU support.
 ### `ERR_NO_TEMPORAL`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 An attempt was made to use features that require [`Temporal`][], but Node.js was not
@@ -2668,7 +2668,7 @@ Opening a QUIC stream failed.
 ### `ERR_QUIC_STREAM_ABORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -2681,7 +2681,7 @@ or session with an explicit application or transport error code.
 ### `ERR_QUIC_STREAM_RESET`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -2768,7 +2768,9 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 > Stability: 1 - Experimental.

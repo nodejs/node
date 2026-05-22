@@ -26,6 +26,7 @@ set target_arch=x64
 set ltcg=
 set thin_lto=
 set lto=
+set lto_jobs=
 set pgo_generate=
 set pgo_use=
 set target_env=
@@ -110,6 +111,7 @@ if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="thin-lto"      set thin_lto=1&goto arg-ok
 if /i "%1"=="lto"           set lto=1&goto arg-ok
+if /i "%1"=="lto-jobs"      set "lto_jobs=%2"&goto arg-ok-2
 if /i "%1"=="pgo-generate"  set pgo_generate=1&goto arg-ok
 if /i "%1"=="pgo-use"       set pgo_use=1&goto arg-ok
 if /i "%1"=="v8temporal"    set v8temporal=1&goto arg-ok
@@ -187,6 +189,20 @@ goto next-arg
 
 :args-done
 
+if defined build_release (
+  set config=Release
+  set package=1
+  set msi=1
+  set licensertf=1
+  set download_arg="--download=all"
+  set i18n_arg=full-icu
+  set projgen=1
+  set cctest=1
+  set thin_lto=1
+  @REM Parallel LTO link jobs can cause OOM issues, so we limit it to 2 by default for release builds in the release CI.
+  set lto_jobs=2
+)
+
 :: LTO mutual exclusion
 set lto_count=0
 if defined ltcg       set /a lto_count+=1
@@ -206,18 +222,6 @@ if defined pgo_generate if defined pgo_use (
   echo   pgo-generate : build instrumented binary, then profile it
   echo   pgo-use      : rebuild using the collected profile data
   exit /b 1
-)
-
-if defined build_release (
-  set config=Release
-  set package=1
-  set msi=1
-  set licensertf=1
-  set download_arg="--download=all"
-  set i18n_arg=full-icu
-  set projgen=1
-  set cctest=1
-  set ltcg=1
 )
 
 if defined msi     set stage_package=1
@@ -243,6 +247,7 @@ if defined nonpm            set configure_flags=%configure_flags% --without-npm
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined thin_lto         set configure_flags=%configure_flags% --enable-thin-lto
 if defined lto              set configure_flags=%configure_flags% --enable-lto
+if defined lto_jobs         set configure_flags=%configure_flags% --lto-jobs=%lto_jobs%
 if defined pgo_generate     set configure_flags=%configure_flags% --enable-pgo-generate
 if defined pgo_use          set configure_flags=%configure_flags% --enable-pgo-use
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
@@ -908,7 +913,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [build-addons/build-js-native-api-tests/build-node-api-tests/build-ffi-tests] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [thin-lto] [lto] [pgo-generate] [pgo-use] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [build-addons/build-js-native-api-tests/build-node-api-tests/build-ffi-tests] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [thin-lto] [lto] [lto-jobs number-of-jobs] [pgo-generate] [pgo-use] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
@@ -922,6 +927,7 @@ echo   vcbuild.bat no-cctest                : skip building cctest.exe
 echo   vcbuild.bat ccache c:\ccache\        : use ccache to speed build
 echo   vcbuild.bat thin-lto                 : builds with Thin LTO applied globally to all targets
 echo   vcbuild.bat lto                      : builds with Full LTO applied globally to all targets
+echo   vcbuild.bat thin-lto lto-jobs 2      : builds with Thin LTO applied globally to all targets and limits parallel LTO link jobs (reduces peak memory usage)
 echo   vcbuild.bat pgo-generate             : builds instrumented binary for PGO (profile first, then rebuild with pgo-use)
 echo   vcbuild.bat pgo-use                  : builds optimized binary using PGO profile data
 goto exit

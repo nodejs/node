@@ -72,4 +72,5 @@ const info = await clientSession.opened;
 partialDeepStrictEqual(info, check);
 
 await serverOpened.promise;
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

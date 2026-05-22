@@ -5,7 +5,6 @@ import fixtures from '../common/fixtures.js';
 import assert from 'node:assert';
 import { once } from 'events';
 import { runProxiedRequest } from '../common/proxy-server.js';
-import http from 'node:http';
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -25,35 +24,20 @@ await once(server, 'listening');
 const serverHost = `localhost:${server.address().port}`;
 const requestUrl = `https://${serverHost}/test`;
 
-let maxRetries = 10;
 let foundRefused = false;
-while (maxRetries-- > 0) {
-  // Make it fail on connection refused by connecting to a port of a closed server.
-  // If it succeeds, get a different port and retry.
-  const proxy = http.createServer((req, res) => {
-    res.destroy();
-  });
-  proxy.listen(0);
-  await once(proxy, 'listening');
-  const port = proxy.address().port;
-  proxy.close();
-  await once(proxy, 'close');
+const port = 10;
+console.log(`Trying proxy at port ${port}`);
+const { stderr } = await runProxiedRequest({
+  NODE_USE_ENV_PROXY: 1,
+  REQUEST_URL: requestUrl,
+  HTTPS_PROXY: `http://127.0.0.1:${port}`,
+  NO_PROXY: '',
+  no_proxy: '',
+  NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'fake-startcom-root-cert.pem'),
+  REQUEST_TIMEOUT: 5000,
+});
 
-  console.log(`Trying proxy at port ${port}`);
-  const { stderr } = await runProxiedRequest({
-    NODE_USE_ENV_PROXY: 1,
-    REQUEST_URL: requestUrl,
-    HTTPS_PROXY: `http://localhost:${port}`,
-    NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'fake-startcom-root-cert.pem'),
-    REQUEST_TIMEOUT: 5000,
-  });
-
-  foundRefused = /Error.*connect ECONNREFUSED/.test(stderr);
-  if (foundRefused) {
-    // The proxy client should get a connection refused error.
-    break;
-  }
-}
+foundRefused = /Error.*connect ECONNREFUSED/.test(stderr);
 
 server.close();
 assert(foundRefused, 'Expected ECONNREFUSED error from proxy request');

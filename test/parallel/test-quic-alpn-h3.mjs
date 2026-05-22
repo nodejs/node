@@ -43,4 +43,5 @@ async function checkClient() {
 }
 
 await Promise.all([serverOpened.promise, checkClient()]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

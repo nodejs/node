@@ -121,8 +121,6 @@ declare namespace Dispatcher {
     bodyTimeout?: number | null;
     /** Whether the request should stablish a keep-alive or not. Default `false` */
     reset?: boolean;
-    /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
-    throwOnError?: boolean;
     /** For H2, it appends the expect: 100-continue header, and halts the request body until a 100-continue is received from the remote server */
     expectContinue?: boolean;
   }

@@ -366,7 +366,7 @@ changes:
 
 The module compile cache can be enabled either using the [`module.enableCompileCache()`][]
 method or the [`NODE_COMPILE_CACHE=dir`][] environment variable. After it is enabled,
-whenever Node.js compiles a CommonJS, a ECMAScript Module, or a TypeScript module, it will
+whenever Node.js compiles a CommonJS, an ECMAScript Module, or a TypeScript module, it will
 use on-disk [V8 code cache][] persisted in the specified directory to speed up the compilation.
 This may slow down the first load of a module graph, but subsequent loads of the same module
 graph may get a significant speedup if the contents of the modules do not change.
@@ -1962,9 +1962,19 @@ generated code.
 
 #### `sourceMap.payload`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62830
+    description: The object is frozen.
+-->
+
 * Returns: {Object}
 
 Getter for the payload used to construct the [`SourceMap`][] instance.
+
+The returned object is frozen with [`Object.freeze()`][], and the same
+reference is returned on every access. Do not mutate the returned object.
 
 #### `sourceMap.findEntry(lineOffset, columnOffset)`
 
@@ -2050,6 +2060,7 @@ returned object contains the following keys:
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1
 [`NODE_V8_COVERAGE=dir`]: cli.md#node_v8_coveragedir
+[`Object.freeze()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
 [`SourceMap`]: #class-modulesourcemap
 [`initialize`]: #initialize
 [`module.constants.compileCacheStatus`]: #moduleconstantscompilecachestatus

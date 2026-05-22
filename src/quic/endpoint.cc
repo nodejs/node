@@ -29,7 +29,6 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBufferView;
-using v8::BackingStore;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
@@ -198,7 +197,7 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
   if (!SET(retry_token_expiration) || !SET(token_expiration) ||
       !SET(max_stateless_resets) || !SET(address_lru_size) ||
       !SET(max_retries) || !SET(validate_address) ||
-      !SET(disable_stateless_reset) || !SET(ipv6_only) ||
+      !SET(disable_stateless_reset) || !SET(ipv6_only) || !SET(reuse_port) ||
 #ifdef DEBUG
       !SET(rx_loss) || !SET(tx_loss) ||
 #endif
@@ -266,6 +265,7 @@ std::string Endpoint::Options::ToString() const {
   res += prefix + "reset token secret: " + reset_token_secret.ToString();
   res += prefix + "token secret: " + token_secret.ToString();
   res += prefix + "ipv6 only: " + boolToString(ipv6_only);
+  res += prefix + "reuse port: " + boolToString(reuse_port);
   res += prefix +
          "udp receive buffer size: " + std::to_string(udp_receive_buffer_size);
   res +=
@@ -303,7 +303,10 @@ class Endpoint::UDP::Impl final : public HandleWrap {
                    reinterpret_cast<uv_handle_t*>(&handle_),
                    PROVIDER_QUIC_UDP),
         endpoint_(endpoint) {
-    CHECK_EQ(uv_udp_init(endpoint->env()->event_loop(), &handle_), 0);
+    CHECK_EQ(uv_udp_init_ex(endpoint->env()->event_loop(),
+                            &handle_,
+                            AF_UNSPEC | UV_UDP_RECVMMSG),
+             0);
     handle_.data = this;
   }
 
@@ -312,10 +315,26 @@ class Endpoint::UDP::Impl final : public HandleWrap {
   SET_SELF_SIZE(Impl)
 
  private:
+  // Pre-allocated receive buffer sized for recvmmsg batching. libuv's
+  // recvmmsg path partitions the alloc buffer into 64KB chunks (one per
+  // datagram). With kRecvBatchSize chunks we can receive up to that many
+  // packets in a single recvmmsg syscall. ngtcp2_conn_read_pkt is
+  // synchronous — it copies what it needs — so the buffer is safely
+  // reused across batches.
+  // libuv's recvmmsg partitions the buffer into UV__UDP_DGRAM_MAXSIZE (64KB)
+  // chunks regardless of actual packet size. QUIC packets are ~1200 bytes,
+  // so most of each 64KB chunk is wasted. We use a modest batch size to
+  // balance syscall reduction against memory usage.
+  static constexpr size_t kDgramMaxSize = 65536;  // UV__UDP_DGRAM_MAXSIZE
+  static constexpr size_t kRecvBatchSize = 5;
+  static constexpr size_t kRecvBufferSize = kDgramMaxSize * kRecvBatchSize;
+  std::array<char, kRecvBufferSize> recv_buf_ = {};
+
   static void OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf) {
-    *buf = From(handle)->env()->allocate_managed_buffer(suggested_size);
+    auto* impl = From(handle);
+    *buf = uv_buf_init(impl->recv_buf_.data(), kRecvBufferSize);
   }
 
   static void OnReceive(uv_udp_t* handle,
@@ -327,26 +346,32 @@ class Endpoint::UDP::Impl final : public HandleWrap {
     DCHECK_NOT_NULL(impl);
     DCHECK_NOT_NULL(impl->endpoint_);
 
-    auto release_buf = [&]() {
-      if (buf->base != nullptr) impl->env()->release_managed_buffer(*buf);
-    };
+    // UV_UDP_MMSG_FREE signals the end of a recvmmsg batch — the
+    // buffer can be reused. Since our buffer is pre-allocated and
+    // persistent, there is nothing to free.
+    if (flags & UV_UDP_MMSG_FREE) {
+      return;
+    }
 
     // Nothing to do in these cases. Specifically, if the nread
     // is zero or we have received a partial packet, we are just
-    // going to ignore it.
+    // going to ignore it. No buffer release needed — recv_buf_
+    // is pre-allocated and reused.
     if (nread == 0 || flags & UV_UDP_PARTIAL) {
-      release_buf();
       return;
     }
 
     if (nread < 0) {
-      release_buf();
       impl->endpoint_->Destroy(CloseContext::RECEIVE_FAILURE,
                                static_cast<int>(nread));
       return;
     }
 
-    impl->endpoint_->Receive(uv_buf_init(buf->base, static_cast<size_t>(nread)),
+    // UV_UDP_MMSG_CHUNK is set for each packet in a recvmmsg batch.
+    // Processing is the same as for a single-message receive — ngtcp2
+    // copies what it needs synchronously from the buf slice.
+    impl->endpoint_->Receive(reinterpret_cast<const uint8_t*>(buf->base),
+                             static_cast<size_t>(nread),
                              SocketAddress(addr));
   }
 
@@ -375,17 +400,18 @@ Endpoint::UDP::~UDP() {
 }
 
 int Endpoint::UDP::Bind(const Options& options) {
-  if (is_bound_) return UV_EALREADY;
+  if (flags_.is_bound) return UV_EALREADY;
   if (is_closed_or_closing()) return UV_EBADF;
 
   int flags = 0;
   if (options.local_address->family() == AF_INET6 && options.ipv6_only)
     flags |= UV_UDP_IPV6ONLY;
+  if (options.reuse_port) flags |= UV_UDP_REUSEPORT;
   int err = uv_udp_bind(&impl_->handle_, options.local_address->data(), flags);
   int size;
 
   if (!err) {
-    is_bound_ = true;
+    flags_.is_bound = true;
     size = static_cast<int>(options.udp_receive_buffer_size);
     if (size > 0) {
       err = uv_recv_buffer_size(reinterpret_cast<uv_handle_t*>(&impl_->handle_),
@@ -424,34 +450,34 @@ void Endpoint::UDP::Unref() {
 
 int Endpoint::UDP::Start() {
   if (is_closed_or_closing()) return UV_EBADF;
-  if (is_started_) return 0;
+  if (flags_.is_started) return 0;
   int err = uv_udp_recv_start(&impl_->handle_, Impl::OnAlloc, Impl::OnReceive);
-  is_started_ = (err == 0);
+  flags_.is_started = (err == 0);
   return err;
 }
 
 void Endpoint::UDP::Stop() {
-  if (is_closed_or_closing() || !is_started_) return;
+  if (is_closed_or_closing() || !flags_.is_started) return;
   USE(uv_udp_recv_stop(&impl_->handle_));
-  is_started_ = false;
+  flags_.is_started = false;
 }
 
 void Endpoint::UDP::Close() {
   if (is_closed_or_closing()) return;
   DCHECK(impl_);
   Stop();
-  is_bound_ = false;
-  is_closed_ = true;
+  flags_.is_bound = false;
+  flags_.is_closed = true;
   impl_->Close();
   impl_.reset();
 }
 
 bool Endpoint::UDP::is_bound() const {
-  return is_bound_;
+  return flags_.is_bound;
 }
 
 bool Endpoint::UDP::is_closed() const {
-  return is_closed_;
+  return flags_.is_closed;
 }
 
 bool Endpoint::UDP::is_closed_or_closing() const {
@@ -490,6 +516,24 @@ int Endpoint::UDP::Send(Packet::Ptr packet) {
     ArenaPool<Packet>::Release(raw);
   }
   return err;
+}
+
+int Endpoint::UDP::TrySend(const Packet::Ptr& packet) {
+  DCHECK(packet);
+  if (is_closed_or_closing()) return UV_EBADF;
+  uv_buf_t buf = *packet;
+  return uv_udp_try_send(
+      &impl_->handle_, &buf, 1, packet->destination().data());
+}
+
+int Endpoint::UDP::TrySendBatch(uv_buf_t* bufs[],
+                                unsigned int nbufs[],
+                                struct sockaddr* addrs[],
+                                size_t count) {
+  DCHECK_GT(count, 0);
+  if (is_closed_or_closing()) return UV_EBADF;
+  return uv_udp_try_send2(
+      &impl_->handle_, static_cast<unsigned int>(count), bufs, nbufs, addrs, 0);
 }
 
 void Endpoint::UDP::MemoryInfo(MemoryTracker* tracker) const {
@@ -714,7 +758,9 @@ void Endpoint::RemoveSession(const CID& cid,
     }
   }
   if (primary_session_count_ > 0 && --primary_session_count_ == 0) {
-    udp_.Unref();
+    if (!is_listening()) {
+      udp_.Unref();
+    }
     session_manager().RemoveSession(cid);
     // The endpoint may be idle (no sessions, not listening). MaybeDestroy
     // handles both closing (immediate destroy) and idle timeout (start
@@ -812,6 +858,111 @@ void Endpoint::Send(Packet::Ptr packet) {
   STAT_INCREMENT(Stats, packets_sent);
 }
 
+void Endpoint::SendOrTrySend(Packet::Ptr packet) {
+#ifdef DEBUG
+  if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
+    return;
+  }
+#endif
+
+  if (is_closed() || is_closing() || !packet || packet->length() == 0) {
+    return;
+  }
+
+  Debug(this, "TrySend %s", packet->ToString());
+
+  // Attempt synchronous send. On success (returns number of bytes sent),
+  // the packet is delivered immediately — no callback overhead, no
+  // waiting for the next poll cycle.
+  int err = udp_.TrySend(packet);
+  if (err >= 0) {
+    // Synchronous send succeeded.
+    STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
+    STAT_INCREMENT(Stats, packets_sent);
+    // Ptr destructor releases back to arena pool.
+    return;
+  }
+
+  if (err == UV_EAGAIN) {
+    // Socket not writable or async sends are queued. Fall back to the
+    // async path — the packet will be queued and flushed on the next
+    // POLLOUT cycle.
+    Debug(this, "TrySend got EAGAIN, falling back to async Send");
+    return Send(std::move(packet));
+  }
+
+  // Other errors are fatal.
+  Debug(this, "TrySend failed with error %d", err);
+  Destroy(CloseContext::SEND_FAILURE, err);
+}
+
+void Endpoint::SendBatch(Packet::Ptr* packets, size_t count) {
+  if (count == 0) return;
+
+#ifdef DEBUG
+  if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
+    for (size_t i = 0; i < count; i++) packets[i].reset();
+    return;
+  }
+#endif
+
+  if (is_closed() || is_closing()) {
+    for (size_t i = 0; i < count; i++) packets[i].reset();
+    return;
+  }
+
+  static constexpr size_t kMaxBatch = 64;
+  DCHECK_LE(count, kMaxBatch);
+
+  // Build libuv argument arrays directly from the Ptr array.
+  // Packets with zero length are released and skipped.
+  uv_buf_t bufs[kMaxBatch];
+  uv_buf_t* buf_ptrs[kMaxBatch];
+  unsigned int nbufs[kMaxBatch];
+  struct sockaddr* addrs[kMaxBatch];
+  // Map from valid-index back to the original packets[] index.
+  size_t index_map[kMaxBatch];
+  size_t valid_count = 0;
+
+  for (size_t i = 0; i < count; i++) {
+    if (!packets[i] || packets[i]->length() == 0) {
+      packets[i].reset();
+      continue;
+    }
+    bufs[valid_count] = *packets[i];
+    buf_ptrs[valid_count] = &bufs[valid_count];
+    nbufs[valid_count] = 1;
+    addrs[valid_count] =
+        const_cast<struct sockaddr*>(packets[i]->destination().data());
+    index_map[valid_count] = i;
+    valid_count++;
+  }
+
+  if (valid_count == 0) return;
+
+  // Attempt synchronous batched send via sendmmsg.
+  int sent = udp_.TrySendBatch(buf_ptrs, nbufs, addrs, valid_count);
+
+  if (sent > 0) {
+    // Packets [0, sent) were delivered synchronously.
+    // Release them immediately — no async callback needed.
+    for (size_t i = 0; i < static_cast<size_t>(sent); i++) {
+      size_t idx = index_map[i];
+      STAT_INCREMENT_N(Stats, bytes_sent, packets[idx]->length());
+      STAT_INCREMENT(Stats, packets_sent);
+      packets[idx].reset();
+    }
+  }
+
+  // Any unsent packets (EAGAIN, partial send, or total failure) fall
+  // back to async uv_udp_send.
+  size_t start = (sent > 0) ? static_cast<size_t>(sent) : 0;
+  for (size_t i = start; i < valid_count; i++) {
+    size_t idx = index_map[i];
+    Send(std::move(packets[idx]));
+  }
+}
+
 void Endpoint::SendRetry(const PathDescriptor& options) {
   // Generating and sending retry packets does consume some system resources,
   // and it is possible for a malicious peer to trigger sending a large number
@@ -840,22 +991,31 @@ void Endpoint::SendRetry(const PathDescriptor& options) {
 
 void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
   Debug(this, "Sending version negotiation on path %s", options);
-  // While creating and sending a version negotiation packet does consume a
-  // small amount of system resources, and while it is fairly trivial for a
-  // malicious peer to force a version negotiation to be sent, these are more
-  // trivial to create than the cryptographically generated retry and stateless
-  // reset packets. If the packet is sent, then we'll at least increment the
-  // version_negotiation_count statistic so that application code can keep an
-  // eye on it.
+  // A malicious peer can trivially force version negotiation packets by
+  // sending packets with unsupported QUIC versions, potentially from
+  // spoofed source addresses. Rate-limit per remote host to prevent
+  // amplification attacks.
+  const auto exceeds_limits = [&] {
+    SocketAddressInfoTraits::Type* counts =
+        addr_validation_lru_.Peek(options.remote_address);
+    auto count = counts != nullptr ? counts->version_negotiation_count : 0;
+    return count >= kMaxVersionNegotiations;
+  };
+
+  if (exceeds_limits()) {
+    Debug(this,
+          "Version negotiation rate limit exceeded for %s",
+          options.remote_address);
+    return;
+  }
+
   auto packet = Packet::CreateVersionNegotiationPacket(*this, options);
   if (packet) {
+    addr_validation_lru_.Upsert(options.remote_address)
+        ->version_negotiation_count++;
     STAT_INCREMENT(Stats, version_negotiation_count);
     Send(std::move(packet));
   }
-
-  // If creating the packet is unsuccessful, we just drop things on the floor.
-  // It's not worth committing any further resources to this one packet. We
-  // might want to log the failure at some point tho.
 }
 
 bool Endpoint::SendStatelessReset(const PathDescriptor& options,
@@ -902,11 +1062,28 @@ void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
         "Sending immediate connection close on path %s with reason %s",
         options,
         reason);
-  // While it is possible for a malicious peer to cause us to create a large
-  // number of these, generating them is fairly trivial.
+  // A malicious peer can trigger immediate connection close packets by
+  // sending Initial packets with invalid tokens or when the server is
+  // busy. Rate-limit per remote host to prevent amplification attacks.
+  const auto exceeds_limits = [&] {
+    SocketAddressInfoTraits::Type* counts =
+        addr_validation_lru_.Peek(options.remote_address);
+    auto count = counts != nullptr ? counts->immediate_close_count : 0;
+    return count >= kMaxImmediateCloses;
+  };
+
+  if (exceeds_limits()) {
+    Debug(this,
+          "Immediate connection close rate limit exceeded for %s",
+          options.remote_address);
+    return;
+  }
+
   auto packet =
       Packet::CreateImmediateConnectionClosePacket(*this, options, reason);
   if (packet) {
+    addr_validation_lru_.Upsert(options.remote_address)
+        ->immediate_close_count++;
     STAT_INCREMENT(Stats, immediate_close_count);
     Send(std::move(packet));
   }
@@ -1117,24 +1294,39 @@ void Endpoint::CloseGracefully() {
   MaybeDestroy();
 }
 
-void Endpoint::Receive(const uv_buf_t& buf,
+void Endpoint::Receive(const uint8_t* data,
+                       size_t len,
                        const SocketAddress& remote_address) {
   const auto receive = [&](Session* session,
-                           Store&& store,
+                           const uint8_t* pkt_data,
+                           size_t pkt_len,
                            const SocketAddress& local_address,
                            const SocketAddress& remote_address,
                            const CID& dcid,
                            const CID& scid) {
     DCHECK_NOT_NULL(session);
     if (session->is_destroyed()) return;
-    size_t len = store.length();
-    if (session->Receive(std::move(store), local_address, remote_address)) {
-      STAT_INCREMENT_N(Stats, bytes_received, len);
+    // Use ReadPacket (no SendPendingDataScope) so that multiple packets
+    // received in the same I/O burst are processed before any responses
+    // are generated. The deferred flush via BindingData's uv_check
+    // callback calls SendPendingData once per dirty session after all
+    // packets in the burst have been read.
+    if (session->ReadPacket(pkt_data, pkt_len, local_address, remote_address)) {
+      STAT_INCREMENT_N(Stats, bytes_received, pkt_len);
       STAT_INCREMENT(Stats, packets_received);
+    }
+    // Schedule the session for deferred SendPendingData if it hasn't
+    // been scheduled already in this burst.
+    if (!session->is_destroyed() && !session->flags_.pending_flush) {
+      session->flags_.pending_flush = true;
+      BindingData::Get(env()).ScheduleSessionFlush(
+          BaseObjectPtr<Session>(session));
     }
   };
 
-  const auto accept = [&](const Session::Config& config, Store&& store) {
+  const auto accept = [&](const Session::Config& config,
+                          const uint8_t* pkt_data,
+                          size_t pkt_len) {
     // One final check. If the endpoint is closed, closing, or is not listening
     // as a server, then we cannot accept the initial packet.
     if (is_closed() || is_closing() || !is_listening()) return;
@@ -1164,7 +1356,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
       return;
 
     receive(session.get(),
-            std::move(store),
+            pkt_data,
+            pkt_len,
             config.local_address,
             config.remote_address,
             config.dcid,
@@ -1174,7 +1367,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
   const auto acceptInitialPacket = [&](const uint32_t version,
                                        const CID& dcid,
                                        const CID& scid,
-                                       Store&& store,
+                                       const uint8_t* pkt_data,
+                                       size_t pkt_len,
                                        const SocketAddress& local_address,
                                        const SocketAddress& remote_address) {
     // If we're not listening as a server, do not accept an initial packet.
@@ -1184,8 +1378,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
 
     // This is our first condition check... A minimal check to see if ngtcp2 can
     // even recognize this packet as a quic packet.
-    ngtcp2_vec vec = store;
-    if (ngtcp2_accept(&hd, vec.base, vec.len) != NGTCP2_SUCCESS) {
+    if (ngtcp2_accept(&hd, pkt_data, pkt_len) != NGTCP2_SUCCESS) {
       // Per the ngtcp2 docs, ngtcp2_accept returns 0 if the check was
       // successful, or an error code if it was not. Currently there's only one
       // documented error code (NGTCP2_ERR_INVALID_ARGUMENT) but we'll handle
@@ -1423,7 +1616,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
       }
     }
 
-    accept(config, std::move(store));
+    accept(config, pkt_data, pkt_len);
   };
 
   // When a received packet contains a QUIC short header but cannot be matched
@@ -1439,14 +1632,15 @@ void Endpoint::Receive(const uv_buf_t& buf,
   // possible to avoid a DOS vector.
   const auto maybeStatelessReset = [&](const CID& dcid,
                                        const CID& scid,
-                                       Store& store,
+                                       const uint8_t* pkt_data,
+                                       size_t pkt_len,
                                        const SocketAddress& local_address,
                                        const SocketAddress& remote_address) {
     // Support for stateless resets can be disabled by the application. If that
     // case, or if the packet is too short to contain a reset token, then we
     // skip the remaining checks.
     if (options_.disable_stateless_reset ||
-        store.length() < NGTCP2_STATELESS_RESET_TOKENLEN) {
+        pkt_len < NGTCP2_STATELESS_RESET_TOKENLEN) {
       return false;
     }
 
@@ -1454,20 +1648,21 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // NGTCP2_STATELESS_RESET_TOKENLEN bytes in the received packet. If it is a
     // stateless reset then then rest of the bytes in the packet are garbage
     // that we'll ignore.
-    ngtcp2_vec vec = store;
-    vec.base += (vec.len - NGTCP2_STATELESS_RESET_TOKENLEN);
+    const uint8_t* token_pos =
+        pkt_data + (pkt_len - NGTCP2_STATELESS_RESET_TOKENLEN);
 
     // If a Session has been associated with the token, then it is a valid
     // stateless reset token. We need to dispatch it to the session to be
     // processed.
     auto* session = session_manager().FindSessionByStatelessResetToken(
-        StatelessResetToken(vec.base));
+        StatelessResetToken(token_pos));
     if (session != nullptr) {
       // If the session happens to have been destroyed already, we'll
       // just ignore the packet.
       if (!session->is_destroyed()) [[likely]] {
         receive(session,
-                std::move(store),
+                pkt_data,
+                pkt_len,
                 local_address,
                 remote_address,
                 dcid,
@@ -1495,22 +1690,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
   //   return;
   // }
 
-  Debug(this, "Received %zu-byte packet from %s", buf.len, remote_address);
+  Debug(this, "Received %zu-byte packet from %s", len, remote_address);
 
-  // The managed buffer here contains the received packet. We do not yet know
-  // at this point if it is a valid QUIC packet. We need to do some basic
-  // checks. It is critical at this point that we do as little work as possible
-  // to avoid a DOS vector.
-  std::shared_ptr<BackingStore> backing = env()->release_managed_buffer(buf);
-  if (!backing) [[unlikely]] {
-    // At this point something bad happened and we need to treat this as a fatal
-    // case. There's likely no way to test this specific condition reliably.
-    return Destroy(CloseContext::RECEIVE_FAILURE, UV_ENOMEM);
-  }
-
-  Store store(std::move(backing), buf.len, 0);
-
-  ngtcp2_vec vec = store;
   ngtcp2_version_cid pversion_cid;
 
   // This is our first check to see if the received data can be processed as a
@@ -1519,7 +1700,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
   // valid QUIC header but there is still no guarantee that the packet can be
   // successfully processed.
   switch (ngtcp2_pkt_decode_version_cid(
-      &pversion_cid, vec.base, vec.len, NGTCP2_MAX_CIDLEN)) {
+      &pversion_cid, data, len, NGTCP2_MAX_CIDLEN)) {
     case 0:
       break;  // Supported version, continue processing.
     case NGTCP2_ERR_VERSION_NEGOTIATION: {
@@ -1597,7 +1778,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // necessary here. We want to return immediately without committing any
     // further resources.
     if (pversion_cid.version == 0 &&
-        maybeStatelessReset(dcid, scid, store, addr, remote_address)) {
+        maybeStatelessReset(dcid, scid, data, len, addr, remote_address)) {
       Debug(this, "Packet was a stateless reset");
       return;  // Stateless reset! Don't do any further processing.
     }
@@ -1612,17 +1793,13 @@ void Endpoint::Receive(const uv_buf_t& buf,
       SendStatelessReset(
           PathDescriptor{
               pversion_cid.version, dcid, scid, addr, remote_address},
-          store.length());
+          len);
       return;
     }
 
     // Process the packet as an initial packet...
-    return acceptInitialPacket(pversion_cid.version,
-                               dcid,
-                               scid,
-                               std::move(store),
-                               addr,
-                               remote_address);
+    return acceptInitialPacket(
+        pversion_cid.version, dcid, scid, data, len, addr, remote_address);
   }
 
   if (session->is_destroyed()) [[unlikely]] {
@@ -1634,7 +1811,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
   // If we got here, the dcid matched the scid of a known local session. Yay!
   // The session will take over any further processing of the packet.
   Debug(this, "Dispatching packet to known session");
-  receive(session.get(), std::move(store), addr, remote_address, dcid, scid);
+  receive(session.get(), data, len, addr, remote_address, dcid, scid);
 
   // It is important to note that the session may have been destroyed during
   // the call to receive(...). If that's the case, the session object still

@@ -7,7 +7,7 @@ const {
   fullyReadBody,
   extractMimeType
 } = require('./util')
-const { FormData, setFormDataState } = require('./formdata')
+const { FormData, setFormDataState, getFormDataBoundary } = require('./formdata')
 const { webidl } = require('../webidl')
 const assert = require('node:assert')
 const { isErrored, isDisturbed } = require('node:stream')
@@ -16,11 +16,6 @@ const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
 const { parseJSONFromBytes } = require('../infra')
 const { utf8DecodeBytes } = require('../../encoding')
-const { runtimeFeatures } = require('../../util/runtime-features.js')
-
-const random = runtimeFeatures.has('crypto')
-  ? require('node:crypto').randomInt
-  : (max) => Math.floor(Math.random() * max)
 
 const textEncoder = new TextEncoder()
 function noop () {}
@@ -106,7 +101,7 @@ function extractBody (object, keepalive = false) {
     // Set source to a copy of the bytes held by object.
     source = webidl.util.getCopyOfBytesHeldByBufferSource(object)
   } else if (webidl.is.FormData(object)) {
-    const boundary = `----formdata-undici-0${`${random(1e11)}`.padStart(11, '0')}`
+    const boundary = getFormDataBoundary(object)
     const prefix = `--${boundary}\r\nContent-Disposition: form-data`
 
     /*! formdata-polyfill. MIT License. Jimmy Wärting <https://jimmy.warting.se/opensource> */

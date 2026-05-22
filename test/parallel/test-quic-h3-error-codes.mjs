@@ -70,7 +70,7 @@ const decoder = new TextDecoder();
     code: 'ERR_QUIC_APPLICATION_ERROR',
   });
 
-  serverEndpoint.close();
+  await serverEndpoint.close();
 }
 
 // Graceful close with no explicit error code.
@@ -118,5 +118,6 @@ const decoder = new TextDecoder();
   // Graceful close - session close promise resolves
   // because H3_NO_ERROR is a clean close.
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

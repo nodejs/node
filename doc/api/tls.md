@@ -1212,7 +1212,7 @@ added: v9.9.0
 -->
 
 * Returns: {Buffer|undefined} The latest `Finished` message that has been
-  sent to the socket as part of a SSL/TLS handshake, or `undefined` if
+  sent to the socket as part of an SSL/TLS handshake, or `undefined` if
   no `Finished` message has been sent yet.
 
 As the `Finished` messages are message digests of the complete handshake
@@ -1355,7 +1355,7 @@ added: v9.9.0
 -->
 
 * Returns: {Buffer|undefined} The latest `Finished` message that is expected
-  or has actually been received from the socket as part of a SSL/TLS handshake,
+  or has actually been received from the socket as part of an SSL/TLS handshake,
   or `undefined` if there is no `Finished` message so far.
 
 As the `Finished` messages are message digests of the complete handshake
