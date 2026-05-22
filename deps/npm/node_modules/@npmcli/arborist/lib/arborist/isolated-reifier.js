@@ -97,7 +97,9 @@ module.exports = cls => class IsolatedReifier extends cls {
     }
     this.counter = 0
 
-    this.idealGraph.workspaces = await Promise.all(Array.from(idealTree.fsChildren.values(), w => this.#workspaceProxy(w)))
+    // Skip extraneous fsChildren: workspaces removed from the root manifest can linger in fsChildren via the lockfile, and re-materializing them here would re-create a directory the user just deleted.
+    const fsChildren = Array.from(idealTree.fsChildren.values()).filter(w => !w.extraneous)
+    this.idealGraph.workspaces = await Promise.all(fsChildren.map(w => this.#workspaceProxy(w)))
     const processed = new Set()
     const queue = [idealTree, ...idealTree.fsChildren]
     while (queue.length !== 0) {
