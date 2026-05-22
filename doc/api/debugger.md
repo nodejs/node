@@ -237,6 +237,10 @@ added:
   - v24.16.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63437
+    description: Add `probe_failure` terminal `error` event for inspector-side mid-session
+        failures, and `error.details` for additional context on per-hit and terminal errors.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/63286
     description: JSON report schema bumped to v2. Probe `target` is now
         `{ suffix, line, column? }` instead of an array. Each "hit" event carries a
@@ -382,7 +386,10 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
         "value": 55443456,
         "description": "55443456"
       }
-      // If the expression throws, "error" is present instead of "result".
+      // If the probe expression throws, fails, or never completes, the entry
+      // carries an `error` field instead of `result` with the shape
+      // `{ message: string, details?: object }`. The `message` and `details`
+      // content is informational only and may change between releases.
     },
     {
       "probe": 0,
@@ -414,8 +421,19 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
       //      "error": {
       //       "code": "probe_target_exit",
       //       "exitCode": 1,
-      //       "stderr": "[Error: boom]",
+      //       "stderr": "Error: boom",
       //       "message": "Target exited with code 1 before probes: app.js:10"
+      //      }
+      //    }
+      // 5. {
+      //      "event": "error",
+      //      "pending": [1],
+      //      "error": {
+      //       "code": "probe_failure",
+      //       "probe": 0,
+      //       "stderr": "...",
+      //       "message": "Target process exited during probe evaluation before probes: app.js:12. If the failure repeats, review the probe expression.",
+      //       "details": { "lastCdpMethod": "Debugger.evaluateOnCallFrame" }
       //      }
       //    }
     }
@@ -423,15 +441,20 @@ $ node inspect --json --probe cli.js:5 --expr 'rss' cli.js
 }
 ```
 
-### Output and exit codes from the probed process
+### Output and exit codes
 
 Probe mode only prints the final probe report to stdout, and otherwise silences
 stdout/stderr from the child process. When the probing session ends,
-`node inspect` typically exits with code `0` and prints a final report to
-stdout. If the child process exits with a non-zero code before the
-probe session ends, the final report records a terminal `error` event along
-with the exit code and captured child stderr. The probing process itself
-still exits with code `0` in this case.
+the probing process typically exits with code `0` and prints a final report to
+stdout. If the child process exits with a non-zero code before the probe
+session ends, or the probe session cannot complete for another reason, the
+final report records a terminal `error` event.
+
+When `error.code` is `'probe_failure'` or `'probe_timeout'`, the probing process
+exits with a non-zero code, indicating recorded hits may be incomplete.
+In this case, `error.message` will contain recovery hints, and `error.probe`,
+when present, is an index into the report's `probes` array that identifies
+the possible culprit probe on a best-effort basis to help guide debugging.
 
 Invalid arguments and fatal launch or connect failures may cause the
 probing process to exit with a non-zero code and print an error message
