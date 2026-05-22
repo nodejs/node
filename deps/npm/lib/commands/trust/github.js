@@ -1,6 +1,7 @@
 const Definition = require('@npmcli/config/lib/definitions/definition.js')
 const globalDefinitions = require('@npmcli/config/lib/definitions/definitions.js')
 const TrustCommand = require('../../trust-cmd.js')
+const { trustDefinitions } = require('../../trust-cmd.js')
 const path = require('node:path')
 
 class TrustGitHub extends TrustCommand {
@@ -16,7 +17,7 @@ class TrustGitHub extends TrustCommand {
   static entityKey = 'repository'
 
   static usage = [
-    '[package] --file [--repo|--repository] [--env|--environment] [-y|--yes]',
+    '[package] --file [--repo|--repository] [--env|--environment] [--allow-publish] [--allow-stage-publish] [-y|--yes]',
   ]
 
   static definitions = [
@@ -38,6 +39,8 @@ class TrustGitHub extends TrustCommand {
       description: 'CI environment name',
       alias: ['env'],
     }),
+    trustDefinitions['allow-publish'],
+    trustDefinitions['allow-stage-publish'],
     // globals are alphabetical
     globalDefinitions['dry-run'],
     globalDefinitions.json,
