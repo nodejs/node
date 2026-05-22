@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
@@ -8,7 +9,8 @@ const { setTimeout } = require('node:timers/promises');
 const { test, beforeEach, afterEach, run } = require('node:test');
 
 const fixture = fixtures.path('test-runner', 'rerun.js');
-const stateFile = fixtures.path('test-runner', 'rerun-state.json');
+tmpdir.refresh();
+const stateFile = tmpdir.resolve('rerun-state.json');
 
 beforeEach(() => rm(stateFile, { force: true }));
 afterEach(() => rm(stateFile, { force: true }));
