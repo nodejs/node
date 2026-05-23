@@ -51,6 +51,7 @@ class OSSLContext final {
 
   bool set_alpn_protocols(std::string_view protocols) const;
   bool set_hostname(std::string_view hostname) const;
+  bool set_verify_hostname(std::string_view hostname) const;
   bool set_early_data_enabled() const;
   bool set_transport_params(const ngtcp2_vec& tp) const;
 
@@ -214,6 +215,13 @@ class TLSContext final : public MemoryRetainer,
     // called after to surface errors to JS. This option is only used
     // by the client side.
     bool verify_peer_strict = false;
+
+    // When true, OpenSSL verifies that the server's certificate matches
+    // the servername (hostname verification via SSL_set1_host). Should
+    // be true for 'strict' and 'auto' verifyPeer modes, false for
+    // 'manual'. Without this, a valid certificate for any domain would
+    // be accepted. This option is only used by the client side.
+    bool verify_hostname = false;
 
     // When true (the default), the server accepts 0-RTT early data
     // from clients with valid session tickets. When false, early data
