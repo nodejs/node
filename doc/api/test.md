@@ -883,7 +883,7 @@ inherit Node.js options from the parent process, including those specified in
 test runner functionality:
 
 * `--test` - Prevented to avoid recursive test execution
-* `--experimental-test-coverage` - Managed by the test runner
+* `--test-coverage` - Managed by the test runner
 * `--experimental-test-tag-filter` - Filter expressions are validated by the parent
   process and re-emitted to child processes
 * `--watch` - Watch mode is handled at the parent level
@@ -900,9 +900,9 @@ and configuration files are inherited by the child processes.
 
 ## Collecting code coverage
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
-When Node.js is started with the [`--experimental-test-coverage`][]
+When Node.js is started with the [`--test-coverage`][]
 command-line flag, code coverage is collected and statistics are reported once
 all tests have completed. If the [`NODE_V8_COVERAGE`][] environment variable is
 used to specify a code coverage directory, the generated V8 coverage files are
@@ -949,7 +949,7 @@ There is also an lcov reporter that will generate an lcov file which can be
 used as an in depth coverage report.
 
 ```bash
-node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
+node --test --test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
 ```
 
 * No test results are reported by this reporter.
@@ -1466,7 +1466,7 @@ The following built-reporters are supported:
 
 * `lcov`
   The `lcov` reporter outputs test coverage when used with the
-  [`--experimental-test-coverage`][] flag.
+  [`--test-coverage`][] flag.
 
 The exact output of these reporters is subject to change between versions of
 Node.js, and should not be relied on programmatically. If programmatic access
@@ -5182,7 +5182,6 @@ test.describe('my suite', (suite) => {
 [`'test:summary'`]: #event-testsummary
 [`'test:watch:drained'`]: #event-testwatchdrained
 [`'test:watch:restarted'`]: #event-testwatchrestarted
-[`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--experimental-test-tag-filter`]: cli.md#--experimental-test-tag-filtertag
 [`--import`]: cli.md#--importmodule
@@ -5190,6 +5189,7 @@ test.describe('my suite', (suite) => {
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
+[`--test-coverage`]: cli.md#--test-coverage
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
