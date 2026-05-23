@@ -618,8 +618,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
       !SET(cc_algorithm) || !SET(draining_period_multiplier) ||
-      !SET(max_datagram_send_attempts) ||
-      !SET(stream_idle_timeout)) {
+      !SET(max_datagram_send_attempts) || !SET(stream_idle_timeout)) {
     return Nothing<Options>();
   }
 
@@ -2831,8 +2830,8 @@ void Session::ShutdownStream(stream_id id, QuicError error) {
 
 void Session::ShutdownStreamWrite(stream_id id, QuicError error) {
   DCHECK(!is_destroyed());
-  Debug(this, "Shutting down stream %" PRIi64 " write with error %s",
-        id, error);
+  Debug(
+      this, "Shutting down stream %" PRIi64 " write with error %s", id, error);
   SendPendingDataScope send_scope(this);
   error_code code;
   if (error.type() == QuicError::Type::APPLICATION) {
@@ -3058,17 +3057,15 @@ void Session::CheckStreamIdleTimeout(uint64_t now) {
 
     uint64_t last_activity = stream->last_activity_timestamp();
     if (last_activity > 0 && (now - last_activity) > timeout_ns) {
-      Debug(this,
-            "Stream %" PRId64 " idle timeout exceeded, destroying",
-            id);
+      Debug(this, "Stream %" PRId64 " idle timeout exceeded, destroying", id);
       // Notify the peer before destroying. ShutdownStream sends both
       // STOP_SENDING and RESET_STREAM as appropriate, using the
       // application's no-error code for non-APPLICATION errors (since
       // these frames carry application-level error codes per RFC 9000).
       // Without this, the peer's stream sits orphaned until the
       // session closes.
-      auto error = QuicError::ForTransport(NGTCP2_ERR_PROTO,
-                                           "stream idle timeout");
+      auto error =
+          QuicError::ForTransport(NGTCP2_ERR_PROTO, "stream idle timeout");
       ShutdownStream(id, error);
       stream->Destroy(error);
       STAT_INCREMENT(Stats, streams_idle_timed_out);
