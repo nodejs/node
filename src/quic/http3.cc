@@ -28,8 +28,8 @@ namespace quic {
 
 namespace {
 constexpr uint8_t kSessionTicketAppDataVersion = 1;
-// Layout: [type(1)][version(1)][crc(4)][payload(34)] = 40 bytes
-constexpr size_t kSessionTicketAppDataSize = 40;
+// Layout: [type(1)][version(1)][crc(4)][payload(35)] = 41 bytes
+constexpr size_t kSessionTicketAppDataSize = 41;
 constexpr size_t kSessionTicketAppDataHeaderSize = 6;  // type + version + crc
 constexpr size_t kSessionTicketAppDataPayloadSize =
     kSessionTicketAppDataSize - kSessionTicketAppDataHeaderSize;
@@ -389,8 +389,9 @@ class Http3ApplicationImpl final : public Session::Application {
     WriteBE64(payload + 8, options_.qpack_max_dtable_capacity);
     WriteBE64(payload + 16, options_.qpack_encoder_max_dtable_capacity);
     WriteBE64(payload + 24, options_.qpack_blocked_streams);
-    payload[32] = options_.enable_connect_protocol ? 1 : 0;
+    payload[32] = options_.enable_connect_protocol ? 1 : 0; // May be bitfield should be used!
     payload[33] = options_.enable_datagrams ? 1 : 0;
+    payload[34] = options_.enable_webtransport ? 1 : 0;
 
     uLong crc = crc32(0L, Z_NULL, 0);
     crc = crc32(crc, payload, kSessionTicketAppDataPayloadSize);
@@ -443,32 +444,36 @@ class Http3ApplicationImpl final : public Session::Application {
     uint64_t stored_qpack_blocked_streams = ReadBE64(payload + 24);
     bool stored_enable_connect_protocol = payload[32] != 0;
     bool stored_enable_datagrams = payload[33] != 0;
+    bool stored_enable_webtransport = payload[34] != 0;
 
     Debug(&session(),
           "Ticket app data: stored mfss=%" PRIu64 " qmdc=%" PRIu64
-          " qemdc=%" PRIu64 " qbs=%" PRIu64 " ecp=%d ed=%d",
+          " qemdc=%" PRIu64 " qbs=%" PRIu64 " ecp=%d ed=%d ew=%d",
           stored_max_field_section_size,
           stored_qpack_max_dtable_capacity,
           stored_qpack_encoder_max_dtable_capacity,
           stored_qpack_blocked_streams,
           stored_enable_connect_protocol,
-          stored_enable_datagrams);
+          stored_enable_datagrams,
+          stored_enable_webtransport);
     Debug(&session(),
           "Current opts: mfss=%" PRIu64 " qmdc=%" PRIu64 " qemdc=%" PRIu64
-          " qbs=%" PRIu64 " ecp=%d ed=%d",
+          " qbs=%" PRIu64 " ecp=%d ed=%d ew %d",
           options_.max_field_section_size,
           options_.qpack_max_dtable_capacity,
           options_.qpack_encoder_max_dtable_capacity,
           options_.qpack_blocked_streams,
           options_.enable_connect_protocol,
-          options_.enable_datagrams);
+          options_.enable_datagrams,
+          options_.enable_webtransport);
     if (options_.max_field_section_size < stored_max_field_section_size ||
         options_.qpack_max_dtable_capacity < stored_qpack_max_dtable_capacity ||
         options_.qpack_encoder_max_dtable_capacity <
             stored_qpack_encoder_max_dtable_capacity ||
         options_.qpack_blocked_streams < stored_qpack_blocked_streams ||
         (stored_enable_connect_protocol && !options_.enable_connect_protocol) ||
-        (stored_enable_datagrams && !options_.enable_datagrams)) {
+        (stored_enable_datagrams && !options_.enable_datagrams) ||
+        (stored_enable_webtransport && !options_.enable_webtransport)) {
       Debug(&session(), "Ticket app data REJECTED");
       return SessionTicket::AppData::Status::TICKET_IGNORE_RENEW;
     }
@@ -491,7 +496,8 @@ class Http3ApplicationImpl final : public Session::Application {
            options_.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
            (!ticket.enable_connect_protocol ||
             options_.enable_connect_protocol) &&
-           (!ticket.enable_datagrams || options_.enable_datagrams);
+           (!ticket.enable_datagrams || options_.enable_datagrams) &&
+           (!ticket.enable_webtransport || options_.enable_webtransport);
   }
 
   void ReceiveStreamClose(Stream* stream,
@@ -994,6 +1000,7 @@ class Http3ApplicationImpl final : public Session::Application {
   void OnReceiveSettings(const nghttp3_proto_settings* settings) {
     options_.enable_connect_protocol = settings->enable_connect_protocol;
     options_.enable_datagrams = settings->h3_datagram;
+    options_.enable_webtransport = settings->wt_enabled;
     options_.max_field_section_size = settings->max_field_section_size;
     options_.qpack_blocked_streams = settings->qpack_blocked_streams;
     options_.qpack_max_dtable_capacity = settings->qpack_max_dtable_capacity;
