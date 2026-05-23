@@ -261,6 +261,18 @@ bool OSSLContext::set_hostname(std::string_view hostname) const {
                   const_cast<char*>(name.c_str())) == 1;
 }
 
+bool OSSLContext::set_verify_hostname(std::string_view hostname) const {
+  // SSL_set1_host tells OpenSSL to verify the peer certificate's
+  // subject name (SAN/CN) matches this hostname. This is separate
+  // from SSL_set_tlsext_host_name which only sets the SNI extension.
+  static const char* kDefaultHostname = "localhost";
+  if (hostname.empty()) {
+    return SSL_set1_host(*this, kDefaultHostname) == 1;
+  } else {
+    return SSL_set1_host(*this, hostname.data()) == 1;
+  }
+}
+
 bool OSSLContext::set_early_data_enabled() const {
   return SSL_set_quic_tls_early_data_enabled(*this, 1) == 1;
 }
@@ -714,12 +726,13 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
-      !SET(verify_peer_strict) || !SET(enable_early_data) ||
-      !SET(enable_tls_trace) || !SET(alpn) || !SET(servername) ||
-      !SET(ciphers) || !SET(groups) || !SET(verify_private_key) ||
-      !SET(keylog) || !SET(port) || !SET(authoritative) ||
-      !SET_VECTOR(crypto::KeyObjectData, keys) || !SET_VECTOR(Store, certs) ||
-      !SET_VECTOR(Store, ca) || !SET_VECTOR(Store, crl)) {
+      !SET(verify_hostname) || !SET(verify_peer_strict) ||
+      !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
+      !SET(servername) || !SET(ciphers) || !SET(groups) ||
+      !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
+      !SET(authoritative) || !SET_VECTOR(crypto::KeyObjectData, keys) ||
+      !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
+      !SET_VECTOR(Store, crl)) {
     return Nothing<Options>();
   }
 
@@ -852,6 +865,14 @@ void TLSSession::Initialize(
         validation_error_ = "Failed to set server name";
         ossl_context_.reset();
         return;
+      }
+
+      if (options.verify_hostname) {
+        if (!ossl_context_.set_verify_hostname(options.servername)) {
+          validation_error_ = "Failed to set verify hostname";
+          ossl_context_.reset();
+          return;
+        }
       }
 
       if (maybeSessionTicket.has_value()) {

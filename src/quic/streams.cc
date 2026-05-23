@@ -1891,6 +1891,7 @@ void Stream::EmitClose(const QuicError& error) {
 }
 
 void Stream::EmitHeaders() {
+  STAT_RECORD_TIMESTAMP(Stats, received_at);
   // state()->wants_headers will be set from the javascript side if the
   // stream object has a handler for the headers event.
   if (!env()->can_call_into_js() || !state()->wants_headers) {
