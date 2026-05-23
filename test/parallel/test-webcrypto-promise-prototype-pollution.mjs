@@ -1,23 +1,39 @@
+// Flags: --expose-internals
+
 import * as common from '../common/index.mjs';
 import assert from 'node:assert';
+import { createRequire } from 'node:module';
 
 if (!common.hasCrypto) common.skip('missing crypto');
 
-// WebCrypto subtle methods must not leak intermediate values
-// through Promise.prototype.then or constructor pollution.
+// WebCrypto subtle methods must not leak intermediate values through
+// Promise.prototype.then, constructor/species, thenable assimilation, or
+// inherited accessors on internally-created JWK/result objects.
 // Regression test for https://github.com/nodejs/node/pull/61492
 // and https://github.com/nodejs/node/issues/59699.
+//
+// When adding WebCrypto algorithms:
+// - Add a fixture with addFixture() below. Prefer the shared fixture builders
+//   unless an algorithm needs operation-specific parameters.
+// - Add new operation names to operationOrder and implement that operation on
+//   every affected fixture.
+// - Add new "get key length" algorithms to keyLengthTargets, unless the
+//   algorithm is itself a KDF whose getKeyLength() result is null; those belong
+//   in nullKeyLengthAlgorithms.
+// The registry assertions at the bottom make missing updates fail loudly.
 
-import { hasOpenSSL } from '../common/crypto.js';
-
+const require = createRequire(import.meta.url);
+const { kSupportedAlgorithms } = require('internal/crypto/util');
 const { subtle } = globalThis.crypto;
 
 Promise.prototype.then = common.mustNotCall('Promise.prototype.then');
 
+const data = new TextEncoder().encode('prototype pollution');
+
 // WebCrypto methods return native promises. Re-wrapping a promise with
 // PromiseResolve() or chaining it with Promise.prototype.then can read
 // user-mutated constructor/species accessors.
-async function assertNoPromiseConstructorAccess(name, fn) {
+function assertNoPromiseConstructorAccess(name, fn) {
   const constructorDescriptor =
     Object.getOwnPropertyDescriptor(Promise.prototype, 'constructor');
   const speciesDescriptor =
@@ -43,7 +59,7 @@ async function assertNoPromiseConstructorAccess(name, fn) {
       constructorDescriptor);
     Object.defineProperty(Promise, Symbol.species, speciesDescriptor);
   }
-  return await promise;
+  return promise;
 }
 
 // Exercise each export format through the same promise-constructor guard.
@@ -96,6 +112,11 @@ function assertNoInheritedObjectThenAccess(name, fn) {
     fn);
 }
 
+function assertCryptoKeyResult(name, fn) {
+  return assertNoInheritedCryptoKeyThenAccess(name, () =>
+    assertNoPromiseConstructorAccess(name, fn));
+}
+
 // wrapKey('jwk') stringifies an internally exported JWK. The spec does this
 // in a fresh global, so inherited toJSON hooks from the current global must
 // not observe or replace key material.
@@ -131,7 +152,9 @@ async function assertNoInheritedToJSONAccess(name, fn) {
 }
 
 // JWK export creates and fills a result object. The exported members must be
-// own data properties, not writes that can observe inherited accessors.
+// own data properties, not writes that can observe inherited accessors. Keep
+// this list complete: if exportKey('jwk') starts returning a new JWK member,
+// this helper must poison that member on Object.prototype too.
 async function assertNoInheritedJwkPropertyAccess(name, fn) {
   const properties = [
     'alg',
@@ -153,6 +176,7 @@ async function assertNoInheritedJwkPropertyAccess(name, fn) {
     'x',
     'y',
   ];
+  const handledProperties = new Set(properties);
   const descriptors = new Map();
   for (const property of properties) {
     descriptors.set(
@@ -165,8 +189,9 @@ async function assertNoInheritedJwkPropertyAccess(name, fn) {
       set: common.mustNotCall(`${name} Object.prototype.${property} setter`),
     });
   }
+  let result;
   try {
-    return await fn();
+    result = await fn();
   } finally {
     for (const property of properties) {
       const descriptor = descriptors.get(property);
@@ -177,6 +202,16 @@ async function assertNoInheritedJwkPropertyAccess(name, fn) {
       }
     }
   }
+
+  if (result !== null && typeof result === 'object') {
+    for (const property of Object.keys(result)) {
+      assert(
+        handledProperties.has(property),
+        `${name} returned unhandled JWK property ${property}`);
+    }
+  }
+
+  return result;
 }
 
 // unwrapKey('jwk') parses a JWK and then converts it to the JsonWebKey IDL
@@ -292,389 +327,786 @@ async function assertNoRawSharedKeyObjectThenAccess(name, fn) {
   }
 }
 
-await assertNoPromiseConstructorAccess('digest', () =>
-  subtle.digest('SHA-256', new Uint8Array([1, 2, 3])));
-
-const secretKey = await assertNoPromiseConstructorAccess(
-  'generateKey secret',
-  () => subtle.generateKey(
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-
-const extractableKeyPair = await assertNoPromiseConstructorAccess('generateKey pair', () =>
-  subtle.generateKey(
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    true,
-    ['sign', 'verify']));
-
-const rawKey = globalThis.crypto.getRandomValues(new Uint8Array(32));
-
-const importedKey = await assertNoPromiseConstructorAccess('importKey', () =>
-  subtle.importKey(
-    'raw',
-    rawKey,
-    { name: 'AES-CBC', length: 256 },
-    false,
-    ['encrypt', 'decrypt']));
-
-await assertNoInheritedCryptoKeyThenAccess('importKey', () =>
-  subtle.importKey(
-    'raw',
-    rawKey,
-    { name: 'AES-CBC', length: 256 },
-    false,
-    ['encrypt', 'decrypt']));
-
-await assertNoInheritedJwkPropertyAccess('exportKey jwk secret', () =>
-  assertExportKeyNoPromiseConstructorAccess(
-    'jwk secret',
-    'jwk',
-    secretKey));
-await assertNoInheritedObjectThenAccess('exportKey jwk secret', () =>
-  subtle.exportKey('jwk', secretKey));
-await assertNoInheritedJwkPropertyAccess('exportKey jwk public', () =>
-  assertExportKeyNoPromiseConstructorAccess(
-    'jwk public',
-    'jwk',
-    extractableKeyPair.publicKey));
-await assertNoInheritedObjectThenAccess('exportKey jwk public', () =>
-  subtle.exportKey('jwk', extractableKeyPair.publicKey));
-await assertNoInheritedJwkPropertyAccess('exportKey jwk private', () =>
-  assertExportKeyNoPromiseConstructorAccess(
-    'jwk private',
-    'jwk',
-    extractableKeyPair.privateKey));
-await assertNoInheritedObjectThenAccess('exportKey jwk private', () =>
-  subtle.exportKey('jwk', extractableKeyPair.privateKey));
-await assertNoInheritedArrayBufferThenAccess('exportKey raw secret', () =>
-  subtle.exportKey('raw', secretKey));
-await assertExportKeyNoPromiseConstructorAccess(
-  'raw secret',
-  'raw',
-  secretKey);
-await assertNoInheritedArrayBufferThenAccess('exportKey spki', () =>
-  subtle.exportKey('spki', extractableKeyPair.publicKey));
-await assertExportKeyNoPromiseConstructorAccess(
-  'spki',
-  'spki',
-  extractableKeyPair.publicKey);
-await assertNoInheritedArrayBufferThenAccess('exportKey pkcs8', () =>
-  subtle.exportKey('pkcs8', extractableKeyPair.privateKey));
-await assertExportKeyNoPromiseConstructorAccess(
-  'pkcs8',
-  'pkcs8',
-  extractableKeyPair.privateKey);
-await assertNoInheritedArrayBufferThenAccess('exportKey raw-public', () =>
-  subtle.exportKey('raw-public', extractableKeyPair.publicKey));
-await assertExportKeyNoPromiseConstructorAccess(
-  'raw-public',
-  'raw-public',
-  extractableKeyPair.publicKey);
-
-const iv = globalThis.crypto.getRandomValues(new Uint8Array(16));
-const plaintext = new TextEncoder().encode('Hello, world!');
-
-const ciphertext = await assertNoPromiseConstructorAccess('encrypt', () =>
-  subtle.encrypt({ name: 'AES-CBC', iv }, importedKey, plaintext));
-
-await assertNoPromiseConstructorAccess('decrypt', () =>
-  subtle.decrypt({ name: 'AES-CBC', iv }, importedKey, ciphertext));
-
-const signingKey = await subtle.generateKey(
-  { name: 'HMAC', hash: 'SHA-256' },
-  false,
-  ['sign', 'verify']);
-
-const data = new TextEncoder().encode('test data');
-
-const signature = await assertNoPromiseConstructorAccess('sign', () =>
-  subtle.sign('HMAC', signingKey, data));
-
-await assertNoPromiseConstructorAccess('verify', () =>
-  subtle.verify('HMAC', signingKey, signature, data));
-
-const pbkdf2Key = await subtle.importKey(
-  'raw', rawKey, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
-
-await assertNoPromiseConstructorAccess('deriveBits', () =>
-  subtle.deriveBits(
-    { name: 'PBKDF2', salt: rawKey, iterations: 1000, hash: 'SHA-256' },
-    pbkdf2Key,
-    256));
-
-await assertNoPromiseConstructorAccess('deriveBits PBKDF2 zero-length', () =>
-  subtle.deriveBits(
-    { name: 'PBKDF2', salt: rawKey, iterations: 1000, hash: 'SHA-256' },
-    pbkdf2Key,
-    0));
-
-const hkdfKey = await subtle.importKey(
-  'raw', rawKey, 'HKDF', false, ['deriveBits']);
-
-await assertNoPromiseConstructorAccess('deriveBits HKDF zero-length', () =>
-  subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: rawKey, info: rawKey },
-    hkdfKey,
-    0));
-
-const ecdhKeyPair = await subtle.generateKey(
-  { name: 'ECDH', namedCurve: 'P-256' },
-  false,
-  ['deriveBits']);
-
-await assertNoPromiseConstructorAccess('deriveBits ECDH', () =>
-  subtle.deriveBits(
-    { name: 'ECDH', public: ecdhKeyPair.publicKey },
-    ecdhKeyPair.privateKey,
-    256));
-
-await assertNoPromiseConstructorAccess('deriveKey', () =>
-  subtle.deriveKey(
-    { name: 'PBKDF2', salt: rawKey, iterations: 1000, hash: 'SHA-256' },
-    pbkdf2Key,
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-await assertNoInheritedArrayBufferThenAccess('deriveKey', () =>
-  subtle.deriveKey(
-    { name: 'PBKDF2', salt: rawKey, iterations: 1000, hash: 'SHA-256' },
-    pbkdf2Key,
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-await assertNoInheritedCryptoKeyThenAccess('deriveKey result', () =>
-  subtle.deriveKey(
-    { name: 'PBKDF2', salt: rawKey, iterations: 1000, hash: 'SHA-256' },
-    pbkdf2Key,
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-
-const wrappingKey = await subtle.generateKey(
-  { name: 'AES-KW', length: 256 }, true, ['wrapKey', 'unwrapKey']);
-
-const keyToWrap = await subtle.generateKey(
-  { name: 'AES-CBC', length: 256 }, true, ['encrypt', 'decrypt']);
-
-const wrapped = await assertNoPromiseConstructorAccess('wrapKey', () =>
-  subtle.wrapKey('raw', keyToWrap, wrappingKey, 'AES-KW'));
-
-const wrappedJwk = await assertNoInheritedJwkPropertyAccess('wrapKey jwk', () =>
-  assertNoInheritedToJSONAccess('wrapKey jwk', () =>
-    assertNoUserMutableEncodeAccess('wrapKey jwk', () =>
-      assertNoPromiseConstructorAccess('wrapKey jwk', () =>
-        subtle.wrapKey('jwk', keyToWrap, wrappingKey, 'AES-KW')))));
-
-await assertNoPromiseConstructorAccess('unwrapKey', () =>
-  subtle.unwrapKey(
-    'raw',
-    wrapped,
-    wrappingKey,
-    'AES-KW',
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-await assertNoInheritedArrayBufferThenAccess('unwrapKey', () =>
-  subtle.unwrapKey(
-    'raw',
-    wrapped,
-    wrappingKey,
-    'AES-KW',
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-await assertNoInheritedCryptoKeyThenAccess('unwrapKey result', () =>
-  subtle.unwrapKey(
-    'raw',
-    wrapped,
-    wrappingKey,
-    'AES-KW',
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-
-await assertNoUserMutableDecodeAccess('unwrapKey jwk', () =>
-  assertNoPromiseConstructorAccess('unwrapKey jwk', () =>
-    subtle.unwrapKey(
-      'jwk',
-      wrappedJwk,
-      wrappingKey,
-      'AES-KW',
-      { name: 'AES-CBC', length: 256 },
-      true,
-      ['encrypt', 'decrypt'])));
-await assertNoInheritedArrayBufferThenAccess('unwrapKey jwk', () =>
-  subtle.unwrapKey(
-    'jwk',
-    wrappedJwk,
-    wrappingKey,
-    'AES-KW',
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-await assertNoInheritedCryptoKeyThenAccess('unwrapKey jwk result', () =>
-  subtle.unwrapKey(
-    'jwk',
-    wrappedJwk,
-    wrappingKey,
-    'AES-KW',
-    { name: 'AES-CBC', length: 256 },
-    true,
-    ['encrypt', 'decrypt']));
-
-{
-  const jwkUnwrappingKey = await subtle.generateKey(
-    { name: 'AES-CBC', length: 128 },
-    true,
-    ['encrypt', 'unwrapKey']);
-
-  {
-    const iv = globalThis.crypto.getRandomValues(new Uint8Array(16));
-    const validWrappedJwk = await subtle.encrypt(
-      { name: 'AES-CBC', iv },
-      jwkUnwrappingKey,
-      Buffer.from('{"kty":"oct","k":"AAAAAAAAAAAAAAAAAAAAAA"}'));
-
-    await assertNoUserMutableDecodeAccess('unwrapKey jwk AES-CBC', () =>
-      assertNoPromiseConstructorAccess('unwrapKey jwk AES-CBC', () =>
-        subtle.unwrapKey(
-          'jwk',
-          validWrappedJwk,
-          jwkUnwrappingKey,
-          { name: 'AES-CBC', iv },
-          { name: 'AES-CBC', length: 128 },
-          true,
-          ['encrypt'])));
-    await assertNoInheritedCryptoKeyThenAccess(
-      'unwrapKey jwk AES-CBC result',
-      () => subtle.unwrapKey(
-        'jwk',
-        validWrappedJwk,
-        jwkUnwrappingKey,
-        { name: 'AES-CBC', iv },
-        { name: 'AES-CBC', length: 128 },
-        true,
-        ['encrypt']));
-  }
-
-  {
-    const iv = globalThis.crypto.getRandomValues(new Uint8Array(16));
-    const wrappedRawKey = await subtle.encrypt(
-      { name: 'AES-CBC', iv },
-      jwkUnwrappingKey,
-      rawKey);
-
-    await assertNoPromiseConstructorAccess('unwrapKey raw AES-CBC', () =>
-      subtle.unwrapKey(
-        'raw',
-        wrappedRawKey,
-        jwkUnwrappingKey,
-        { name: 'AES-CBC', iv },
-        { name: 'AES-CBC', length: 256 },
-        true,
-        ['encrypt']));
-    await assertNoInheritedArrayBufferThenAccess('unwrapKey raw AES-CBC', () =>
-      subtle.unwrapKey(
-        'raw',
-        wrappedRawKey,
-        jwkUnwrappingKey,
-        { name: 'AES-CBC', iv },
-        { name: 'AES-CBC', length: 256 },
-        true,
-        ['encrypt']));
-    await assertNoInheritedCryptoKeyThenAccess(
-      'unwrapKey raw AES-CBC result',
-      () => subtle.unwrapKey(
-        'raw',
-        wrappedRawKey,
-        jwkUnwrappingKey,
-        { name: 'AES-CBC', iv },
-        { name: 'AES-CBC', length: 256 },
-        true,
-        ['encrypt']));
-  }
-
-  {
-    const iv = globalThis.crypto.getRandomValues(new Uint8Array(16));
-    const missingKtyWrappedJwk = await subtle.encrypt(
-      { name: 'AES-CBC', iv },
-      jwkUnwrappingKey,
-      Buffer.from('{"k":"AAAAAAAAAAAAAAAAAAAAAA"}'));
-
-    await assertMissingJwkKtyIgnoresPrototype(() =>
-      subtle.unwrapKey(
-        'jwk',
-        missingKtyWrappedJwk,
-        jwkUnwrappingKey,
-        { name: 'AES-CBC', iv },
-        { name: 'AES-CBC', length: 128 },
-        true,
-        ['encrypt']));
-  }
+function algorithm(name, params = {}) {
+  return { name, ...params };
 }
 
-await assertNoPromiseConstructorAccess('getPublicKey', () =>
-  subtle.getPublicKey(extractableKeyPair.privateKey, ['verify']));
-await assertNoInheritedCryptoKeyThenAccess('getPublicKey', () =>
-  subtle.getPublicKey(extractableKeyPair.privateKey, ['verify']));
+function rsaAlgorithm(name) {
+  return algorithm(name, {
+    modulusLength: 1024,
+    publicExponent: new Uint8Array([1, 0, 1]),
+    hash: 'SHA-256',
+  });
+}
 
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
-  const kemPair = await subtle.generateKey(
-    { name: 'ML-KEM-768' }, true,
-    ['encapsulateKey', 'encapsulateBits', 'decapsulateKey', 'decapsulateBits']);
+function importRsaAlgorithm(name) {
+  return algorithm(name, { hash: 'SHA-256' });
+}
 
-  await assertNoInheritedArrayBufferThenAccess('exportKey raw-seed', () =>
-    subtle.exportKey('raw-seed', kemPair.privateKey));
-  await assertExportKeyNoPromiseConstructorAccess(
-    'raw-seed',
-    'raw-seed',
-    kemPair.privateKey);
+function exportArrayBuffer(name, format, key) {
+  return assertNoInheritedArrayBufferThenAccess(`exportKey ${format} ${name}`, () =>
+    assertExportKeyNoPromiseConstructorAccess(`${format} ${name}`, format, key));
+}
 
-  const { ciphertext: ct1 } =
-    await assertNoRawSharedKeyObjectThenAccess('encapsulateKey', () =>
-      assertNoPromiseConstructorAccess('encapsulateKey', () =>
+function exportJwk(name, key) {
+  return assertNoInheritedJwkPropertyAccess(`exportKey jwk ${name}`, () =>
+    assertNoInheritedObjectThenAccess(`exportKey jwk ${name}`, () =>
+      assertExportKeyNoPromiseConstructorAccess(`jwk ${name}`, 'jwk', key)));
+}
+
+function importCryptoKey(name, format, keyData, importAlgorithm, extractable, usages) {
+  return assertCryptoKeyResult(`importKey ${format} ${name}`, () =>
+    subtle.importKey(format, keyData, importAlgorithm, extractable, usages));
+}
+
+async function getKeyToWrap() {
+  if (getKeyToWrap.key === undefined) {
+    getKeyToWrap.key = await subtle.generateKey(
+      algorithm('AES-CBC', { length: 128 }),
+      true,
+      ['encrypt']);
+  }
+  return getKeyToWrap.key;
+}
+
+function addCommonKeyExportTests(fixture) {
+  fixture.exportKey = async (ctx) => {
+    if (fixture.rawFormat !== undefined)
+      ctx.raw = await exportArrayBuffer(fixture.name, fixture.rawFormat, ctx.key);
+    ctx.jwk = await exportJwk(fixture.name, ctx.key);
+  };
+  fixture.importKey = async (ctx) => {
+    if (fixture.rawFormat !== undefined) {
+      ctx.importedRaw = await importCryptoKey(
+        fixture.name,
+        fixture.rawFormat,
+        ctx.raw,
+        fixture.importAlgorithm,
+        true,
+        fixture.usages);
+    }
+    ctx.importedJwk = await importCryptoKey(
+      fixture.name,
+      'jwk',
+      ctx.jwk,
+      fixture.importAlgorithm,
+      true,
+      fixture.usages);
+  };
+}
+
+function secretKeyFixture(options) {
+  const fixture = {
+    ...options,
+    generateKey: async (ctx) => {
+      ctx.key = await assertNoPromiseConstructorAccess(`generateKey ${options.name}`, () =>
+        subtle.generateKey(options.generateAlgorithm, true, options.usages));
+    },
+  };
+
+  addCommonKeyExportTests(fixture);
+
+  if (options.encryptAlgorithm !== undefined) {
+    fixture.encrypt = async (ctx) => {
+      ctx.ciphertext = await assertNoPromiseConstructorAccess(`encrypt ${options.name}`, () =>
+        subtle.encrypt(options.encryptAlgorithm, ctx.key, data));
+    };
+    fixture.decrypt = async (ctx) => {
+      await assertNoPromiseConstructorAccess(`decrypt ${options.name}`, () =>
+        subtle.decrypt(options.encryptAlgorithm, ctx.key, ctx.ciphertext));
+    };
+  }
+
+  if (options.signAlgorithm !== undefined) {
+    fixture.sign = async (ctx) => {
+      ctx.signature = await assertNoPromiseConstructorAccess(`sign ${options.name}`, () =>
+        subtle.sign(options.signAlgorithm, ctx.key, data));
+    };
+    fixture.verify = async (ctx) => {
+      await assertNoPromiseConstructorAccess(`verify ${options.name}`, () =>
+        subtle.verify(options.signAlgorithm, ctx.key, ctx.signature, data));
+    };
+  }
+
+  if (options.wrapAlgorithm !== undefined) {
+    fixture.wrapKey = async (ctx) => {
+      const keyToWrap = await getKeyToWrap();
+      ctx.wrappedRawSecret = await assertNoPromiseConstructorAccess(
+        `wrapKey raw-secret ${options.name}`,
+        () => subtle.wrapKey('raw-secret', keyToWrap, ctx.key, options.wrapAlgorithm));
+      ctx.wrappedJwk = await assertNoInheritedJwkPropertyAccess(
+        `wrapKey jwk ${options.name}`,
+        () => assertNoInheritedToJSONAccess(
+          `wrapKey jwk ${options.name}`,
+          () => assertNoUserMutableEncodeAccess(
+            `wrapKey jwk ${options.name}`, () =>
+              assertNoPromiseConstructorAccess(`wrapKey jwk ${options.name}`, () =>
+                subtle.wrapKey('jwk', keyToWrap, ctx.key, options.wrapAlgorithm)))));
+    };
+    fixture.unwrapKey = async (ctx) => {
+      await assertNoInheritedArrayBufferThenAccess(`unwrapKey raw-secret ${options.name}`, () =>
+        assertCryptoKeyResult(`unwrapKey raw-secret ${options.name} result`, () =>
+          subtle.unwrapKey(
+            'raw-secret',
+            ctx.wrappedRawSecret,
+            ctx.key,
+            options.wrapAlgorithm,
+            algorithm('AES-CBC', { length: 128 }),
+            true,
+            ['encrypt'])));
+      await assertNoUserMutableDecodeAccess(`unwrapKey jwk ${options.name}`, () =>
+        assertNoInheritedArrayBufferThenAccess(`unwrapKey jwk ${options.name}`, () =>
+          assertCryptoKeyResult(`unwrapKey jwk ${options.name} result`, () =>
+            subtle.unwrapKey(
+              'jwk',
+              ctx.wrappedJwk,
+              ctx.key,
+              options.wrapAlgorithm,
+              algorithm('AES-CBC', { length: 128 }),
+              true,
+              ['encrypt']))));
+    };
+  }
+
+  return fixture;
+}
+
+function pairKeyFixture(options) {
+  const fixture = {
+    ...options,
+    generateKey: async (ctx) => {
+      ctx.keyPair = await assertNoPromiseConstructorAccess(`generateKey ${options.name}`, () =>
+        subtle.generateKey(options.generateAlgorithm, true, options.usages));
+    },
+    exportKey: async (ctx) => {
+      if (options.spki !== false) {
+        ctx.spki = await exportArrayBuffer(`${options.name} public`, 'spki', ctx.keyPair.publicKey);
+        ctx.pkcs8 = await exportArrayBuffer(`${options.name} private`, 'pkcs8', ctx.keyPair.privateKey);
+      }
+      if (options.rawPublic === true) {
+        ctx.rawPublic = await exportArrayBuffer(
+          `${options.name} public`,
+          'raw-public',
+          ctx.keyPair.publicKey);
+      }
+      if (options.rawSeed === true) {
+        ctx.rawSeed = await exportArrayBuffer(
+          `${options.name} private`,
+          'raw-seed',
+          ctx.keyPair.privateKey);
+      }
+      ctx.publicJwk = await exportJwk(`${options.name} public`, ctx.keyPair.publicKey);
+      ctx.privateJwk = await exportJwk(`${options.name} private`, ctx.keyPair.privateKey);
+    },
+    importKey: async (ctx) => {
+      if (options.spki !== false) {
+        ctx.importedSpki = await importCryptoKey(
+          `${options.name} public`,
+          'spki',
+          ctx.spki,
+          options.importAlgorithm,
+          true,
+          options.publicUsages);
+        ctx.importedPkcs8 = await importCryptoKey(
+          `${options.name} private`,
+          'pkcs8',
+          ctx.pkcs8,
+          options.importAlgorithm,
+          true,
+          options.privateUsages);
+      }
+      if (options.rawPublic === true) {
+        ctx.importedRawPublic = await importCryptoKey(
+          `${options.name} public`,
+          'raw-public',
+          ctx.rawPublic,
+          options.importAlgorithm,
+          true,
+          options.publicUsages);
+      }
+      if (options.rawSeed === true) {
+        ctx.importedRawSeed = await importCryptoKey(
+          `${options.name} private`,
+          'raw-seed',
+          ctx.rawSeed,
+          options.importAlgorithm,
+          true,
+          options.privateUsages);
+      }
+      ctx.importedPublicJwk = await importCryptoKey(
+        `${options.name} public`,
+        'jwk',
+        ctx.publicJwk,
+        options.importAlgorithm,
+        true,
+        options.publicUsages);
+      ctx.importedPrivateJwk = await importCryptoKey(
+        `${options.name} private`,
+        'jwk',
+        ctx.privateJwk,
+        options.importAlgorithm,
+        true,
+        options.privateUsages);
+    },
+  };
+
+  if (options.signAlgorithm !== undefined) {
+    fixture.sign = async (ctx) => {
+      ctx.signature = await assertNoPromiseConstructorAccess(`sign ${options.name}`, () =>
+        subtle.sign(options.signAlgorithm, ctx.keyPair.privateKey, data));
+    };
+    fixture.verify = async (ctx) => {
+      await assertNoPromiseConstructorAccess(`verify ${options.name}`, () =>
+        subtle.verify(options.signAlgorithm, ctx.keyPair.publicKey, ctx.signature, data));
+    };
+  }
+
+  if (options.encryptAlgorithm !== undefined) {
+    fixture.encrypt = async (ctx) => {
+      ctx.ciphertext = await assertNoPromiseConstructorAccess(`encrypt ${options.name}`, () =>
+        subtle.encrypt(options.encryptAlgorithm, ctx.keyPair.publicKey, data));
+    };
+    fixture.decrypt = async (ctx) => {
+      await assertNoPromiseConstructorAccess(`decrypt ${options.name}`, () =>
+        subtle.decrypt(options.encryptAlgorithm, ctx.keyPair.privateKey, ctx.ciphertext));
+    };
+  }
+
+  if (options.deriveAlgorithm !== undefined) {
+    fixture.deriveBits = async (ctx) => {
+      ctx.peerKeyPair ??= await subtle.generateKey(
+        options.generateAlgorithm,
+        true,
+        options.usages);
+      ctx.derivedBits = await assertNoPromiseConstructorAccess(`deriveBits ${options.name}`, () =>
+        subtle.deriveBits(
+          options.deriveAlgorithm(ctx.peerKeyPair.publicKey),
+          ctx.keyPair.privateKey,
+          options.deriveLength));
+    };
+    fixture.extra = async (ctx) => {
+      ctx.peerKeyPair ??= await subtle.generateKey(
+        options.generateAlgorithm,
+        true,
+        options.usages);
+      await assertNoInheritedArrayBufferThenAccess(`deriveKey ${options.name}`, () =>
+        assertCryptoKeyResult(`deriveKey ${options.name} result`, () =>
+          subtle.deriveKey(
+            options.deriveAlgorithm(ctx.peerKeyPair.publicKey),
+            ctx.keyPair.privateKey,
+            algorithm('AES-CBC', { length: 128 }),
+            true,
+            ['encrypt'])));
+    };
+  }
+
+  fixture.getPublicKey = async (ctx) => {
+    await assertCryptoKeyResult(`getPublicKey ${options.name}`, () =>
+      subtle.getPublicKey(ctx.keyPair.privateKey, options.publicUsages));
+  };
+
+  return fixture;
+}
+
+function kdfFixture(options) {
+  return {
+    ...options,
+    importKey: async (ctx) => {
+      ctx.key = await importCryptoKey(
+        options.name,
+        options.rawFormat,
+        new Uint8Array(32).fill(1),
+        options.importAlgorithm,
+        false,
+        ['deriveBits', 'deriveKey']);
+    },
+    deriveBits: async (ctx) => {
+      await assertNoPromiseConstructorAccess(`deriveBits ${options.name}`, () =>
+        subtle.deriveBits(options.deriveAlgorithm, ctx.key, 256));
+    },
+    extra: async (ctx) => {
+      await assertNoInheritedArrayBufferThenAccess(`deriveKey ${options.name}`, () =>
+        assertCryptoKeyResult(`deriveKey ${options.name} result`, () =>
+          subtle.deriveKey(
+            options.deriveAlgorithm,
+            ctx.key,
+            algorithm('AES-CBC', { length: 128 }),
+            true,
+            ['encrypt'])));
+    },
+  };
+}
+
+function kemFixture(options) {
+  const fixture = pairKeyFixture({
+    ...options,
+    usages: [
+      'encapsulateKey',
+      'encapsulateBits',
+      'decapsulateKey',
+      'decapsulateBits',
+    ],
+    publicUsages: ['encapsulateKey', 'encapsulateBits'],
+    privateUsages: ['decapsulateKey', 'decapsulateBits'],
+    rawPublic: true,
+    rawSeed: true,
+  });
+
+  fixture.encapsulate = async (ctx) => {
+    ctx.encapsulatedBits = await assertNoPromiseConstructorAccess(
+      `encapsulateBits ${options.name}`, () =>
+        subtle.encapsulateBits(algorithm(options.name), ctx.keyPair.publicKey));
+    ctx.encapsulatedKey = await assertNoRawSharedKeyObjectThenAccess(
+      `encapsulateKey ${options.name}`,
+      () => assertNoPromiseConstructorAccess(`encapsulateKey ${options.name}`, () =>
         subtle.encapsulateKey(
-          { name: 'ML-KEM-768' },
-          kemPair.publicKey,
+          algorithm(options.name),
+          ctx.keyPair.publicKey,
           'HKDF',
           false,
           ['deriveBits'])));
+  };
+  fixture.decapsulate = async (ctx) => {
+    await assertNoPromiseConstructorAccess(`decapsulateBits ${options.name}`, () =>
+      subtle.decapsulateBits(
+        algorithm(options.name),
+        ctx.keyPair.privateKey,
+        ctx.encapsulatedBits.ciphertext));
+    await assertNoInheritedArrayBufferThenAccess(`decapsulateKey ${options.name}`, () =>
+      assertCryptoKeyResult(`decapsulateKey ${options.name} result`, () =>
+        subtle.decapsulateKey(
+          algorithm(options.name),
+          ctx.keyPair.privateKey,
+          ctx.encapsulatedKey.ciphertext,
+          'HKDF',
+          false,
+          ['deriveBits'])));
+  };
 
-  await assertNoPromiseConstructorAccess('decapsulateKey', () =>
-    subtle.decapsulateKey(
-      { name: 'ML-KEM-768' },
-      kemPair.privateKey,
-      ct1,
-      'HKDF',
-      false,
-      ['deriveBits']));
-  await assertNoInheritedArrayBufferThenAccess('decapsulateKey', () =>
-    subtle.decapsulateKey(
-      { name: 'ML-KEM-768' },
-      kemPair.privateKey,
-      ct1,
-      'HKDF',
-      false,
-      ['deriveBits']));
-  await assertNoInheritedCryptoKeyThenAccess('decapsulateKey result', () =>
-    subtle.decapsulateKey(
-      { name: 'ML-KEM-768' },
-      kemPair.privateKey,
-      ct1,
-      'HKDF',
-      false,
-      ['deriveBits']));
+  return fixture;
+}
 
-  const { ciphertext: ct2 } =
-    await assertNoPromiseConstructorAccess('encapsulateBits', () =>
-      subtle.encapsulateBits(
-        { name: 'ML-KEM-768' },
-        kemPair.publicKey));
+// The fixture registry mirrors kSupportedAlgorithms by algorithm name. Each
+// fixture supplies the public SubtleCrypto calls needed to exercise the
+// registered operations for that algorithm.
+const fixtures = new Map();
 
-  await assertNoPromiseConstructorAccess('decapsulateBits', () =>
-    subtle.decapsulateBits(
-      { name: 'ML-KEM-768' },
-      kemPair.privateKey,
-      ct2));
+function addFixture(name, fixture) {
+  fixtures.set(name, fixture);
+}
+
+for (const name of ['AES-CBC', 'AES-CTR', 'AES-GCM', 'AES-OCB']) {
+  const encryptAlgorithms = {
+    'AES-CBC': algorithm(name, { iv: new Uint8Array(16) }),
+    'AES-CTR': algorithm(name, { counter: new Uint8Array(16), length: 64 }),
+    'AES-GCM': algorithm(name, {
+      iv: new Uint8Array(12),
+      additionalData: new Uint8Array(1),
+      tagLength: 128,
+    }),
+    'AES-OCB': algorithm(name, {
+      iv: new Uint8Array(15),
+      additionalData: new Uint8Array(1),
+      tagLength: 128,
+    }),
+  };
+  addFixture(name, secretKeyFixture({
+    name,
+    generateAlgorithm: algorithm(name, { length: 128 }),
+    importAlgorithm: algorithm(name),
+    usages: ['encrypt', 'decrypt'],
+    rawFormat: 'raw-secret',
+    encryptAlgorithm: encryptAlgorithms[name],
+  }));
+}
+
+addFixture('AES-KW', secretKeyFixture({
+  name: 'AES-KW',
+  generateAlgorithm: algorithm('AES-KW', { length: 128 }),
+  importAlgorithm: algorithm('AES-KW'),
+  usages: ['wrapKey', 'unwrapKey'],
+  rawFormat: 'raw-secret',
+  wrapAlgorithm: 'AES-KW',
+}));
+
+addFixture('ChaCha20-Poly1305', secretKeyFixture({
+  name: 'ChaCha20-Poly1305',
+  generateAlgorithm: algorithm('ChaCha20-Poly1305'),
+  importAlgorithm: algorithm('ChaCha20-Poly1305'),
+  usages: ['encrypt', 'decrypt'],
+  rawFormat: 'raw-secret',
+  encryptAlgorithm: algorithm('ChaCha20-Poly1305', {
+    iv: new Uint8Array(12),
+    additionalData: new Uint8Array(1),
+    tagLength: 128,
+  }),
+}));
+
+addFixture('HMAC', secretKeyFixture({
+  name: 'HMAC',
+  generateAlgorithm: algorithm('HMAC', { hash: 'SHA-256', length: 256 }),
+  importAlgorithm: algorithm('HMAC', { hash: 'SHA-256' }),
+  usages: ['sign', 'verify'],
+  rawFormat: 'raw-secret',
+  signAlgorithm: 'HMAC',
+}));
+
+for (const name of ['KMAC128', 'KMAC256']) {
+  addFixture(name, secretKeyFixture({
+    name,
+    generateAlgorithm: algorithm(name, {
+      length: name === 'KMAC128' ? 128 : 256,
+    }),
+    importAlgorithm: algorithm(name),
+    usages: ['sign', 'verify'],
+    rawFormat: 'raw-secret',
+    signAlgorithm: algorithm(name, { outputLength: 256 }),
+  }));
+}
+
+for (const name of ['RSASSA-PKCS1-v1_5', 'RSA-PSS']) {
+  addFixture(name, pairKeyFixture({
+    name,
+    generateAlgorithm: rsaAlgorithm(name),
+    importAlgorithm: importRsaAlgorithm(name),
+    usages: ['sign', 'verify'],
+    publicUsages: ['verify'],
+    privateUsages: ['sign'],
+    signAlgorithm: name === 'RSA-PSS' ?
+      algorithm(name, { saltLength: 32 }) :
+      algorithm(name),
+  }));
+}
+
+addFixture('RSA-OAEP', pairKeyFixture({
+  name: 'RSA-OAEP',
+  generateAlgorithm: rsaAlgorithm('RSA-OAEP'),
+  importAlgorithm: importRsaAlgorithm('RSA-OAEP'),
+  usages: ['encrypt', 'decrypt'],
+  publicUsages: ['encrypt'],
+  privateUsages: ['decrypt'],
+  encryptAlgorithm: algorithm('RSA-OAEP', { label: new Uint8Array(1) }),
+}));
+
+addFixture('ECDSA', pairKeyFixture({
+  name: 'ECDSA',
+  generateAlgorithm: algorithm('ECDSA', { namedCurve: 'P-256' }),
+  importAlgorithm: algorithm('ECDSA', { namedCurve: 'P-256' }),
+  usages: ['sign', 'verify'],
+  publicUsages: ['verify'],
+  privateUsages: ['sign'],
+  rawPublic: true,
+  signAlgorithm: algorithm('ECDSA', { hash: 'SHA-256' }),
+}));
+
+addFixture('ECDH', pairKeyFixture({
+  name: 'ECDH',
+  generateAlgorithm: algorithm('ECDH', { namedCurve: 'P-256' }),
+  importAlgorithm: algorithm('ECDH', { namedCurve: 'P-256' }),
+  usages: ['deriveBits', 'deriveKey'],
+  publicUsages: [],
+  privateUsages: ['deriveBits', 'deriveKey'],
+  rawPublic: true,
+  deriveAlgorithm: (publicKey) => algorithm('ECDH', { public: publicKey }),
+  deriveLength: 256,
+}));
+
+for (const name of ['Ed25519', 'Ed448']) {
+  addFixture(name, pairKeyFixture({
+    name,
+    generateAlgorithm: algorithm(name),
+    importAlgorithm: algorithm(name),
+    usages: ['sign', 'verify'],
+    publicUsages: ['verify'],
+    privateUsages: ['sign'],
+    rawPublic: true,
+    signAlgorithm: algorithm(name),
+  }));
+}
+
+for (const name of ['X25519', 'X448']) {
+  addFixture(name, pairKeyFixture({
+    name,
+    generateAlgorithm: algorithm(name),
+    importAlgorithm: algorithm(name),
+    usages: ['deriveBits', 'deriveKey'],
+    publicUsages: [],
+    privateUsages: ['deriveBits', 'deriveKey'],
+    rawPublic: true,
+    deriveAlgorithm: (publicKey) => algorithm(name, { public: publicKey }),
+    deriveLength: name === 'X25519' ? 256 : 448,
+  }));
+}
+
+for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+  addFixture(name, pairKeyFixture({
+    name,
+    generateAlgorithm: algorithm(name),
+    importAlgorithm: algorithm(name),
+    usages: ['sign', 'verify'],
+    publicUsages: ['verify'],
+    privateUsages: ['sign'],
+    rawPublic: true,
+    rawSeed: true,
+    signAlgorithm: algorithm(name),
+  }));
+}
+
+for (const name of [
+  'ML-KEM-512',
+  'ML-KEM-768',
+  'ML-KEM-1024',
+]) {
+  addFixture(name, kemFixture({
+    name,
+    generateAlgorithm: algorithm(name),
+    importAlgorithm: algorithm(name),
+  }));
+}
+
+for (const name of ['HKDF', 'PBKDF2']) {
+  addFixture(name, kdfFixture({
+    name,
+    importAlgorithm: name,
+    rawFormat: 'raw-secret',
+    deriveAlgorithm: name === 'HKDF' ?
+      algorithm(name, {
+        hash: 'SHA-256',
+        salt: new Uint8Array(8),
+        info: new Uint8Array(8),
+      }) :
+      algorithm(name, {
+        hash: 'SHA-256',
+        salt: new Uint8Array(8),
+        iterations: 1,
+      }),
+  }));
+}
+
+for (const name of ['Argon2d', 'Argon2i', 'Argon2id']) {
+  addFixture(name, kdfFixture({
+    name,
+    importAlgorithm: name,
+    rawFormat: 'raw-secret',
+    deriveAlgorithm: algorithm(name, {
+      memory: 32,
+      passes: 1,
+      parallelism: 1,
+      nonce: new Uint8Array(16),
+    }),
+  }));
+}
+
+function digestAlgorithm(name) {
+  if (name === 'cSHAKE128')
+    return algorithm(name, { outputLength: 256 });
+  if (name === 'cSHAKE256')
+    return algorithm(name, { outputLength: 512 });
+  if (name === 'TurboSHAKE128')
+    return algorithm(name, { outputLength: 256 });
+  if (name === 'TurboSHAKE256')
+    return algorithm(name, { outputLength: 512 });
+  if (name === 'KT128')
+    return algorithm(name, { outputLength: 256 });
+  if (name === 'KT256')
+    return algorithm(name, { outputLength: 512 });
+  return name;
+}
+
+for (const name of [
+  'SHA-1',
+  'SHA-256',
+  'SHA-384',
+  'SHA-512',
+  'SHA3-256',
+  'SHA3-384',
+  'SHA3-512',
+  'cSHAKE128',
+  'cSHAKE256',
+  'TurboSHAKE128',
+  'TurboSHAKE256',
+  'KT128',
+  'KT256',
+]) {
+  addFixture(name, {
+    name,
+    digest: async () => {
+      await assertNoPromiseConstructorAccess(`digest ${name}`, () =>
+        subtle.digest(digestAlgorithm(name), data));
+    },
+  });
+}
+
+// deriveKey() is the only public API that performs the "get key length"
+// registry operation. Keep this table in sync with algorithms that can be a
+// concrete derived-key target.
+const keyLengthTargets = {
+  'AES-CBC': {
+    algorithm: algorithm('AES-CBC', { length: 128 }),
+    usages: ['encrypt'],
+  },
+  'AES-CTR': {
+    algorithm: algorithm('AES-CTR', { length: 128 }),
+    usages: ['encrypt'],
+  },
+  'AES-GCM': {
+    algorithm: algorithm('AES-GCM', { length: 128 }),
+    usages: ['encrypt'],
+  },
+  'AES-KW': {
+    algorithm: algorithm('AES-KW', { length: 128 }),
+    usages: ['wrapKey'],
+  },
+  'AES-OCB': {
+    algorithm: algorithm('AES-OCB', { length: 128 }),
+    usages: ['encrypt'],
+  },
+  'ChaCha20-Poly1305': {
+    algorithm: algorithm('ChaCha20-Poly1305'),
+    usages: ['encrypt'],
+  },
+  'HMAC': {
+    algorithm: algorithm('HMAC', { hash: 'SHA-256', length: 256 }),
+    usages: ['sign'],
+  },
+  'KMAC128': {
+    algorithm: algorithm('KMAC128', { length: 128 }),
+    usages: ['sign'],
+  },
+  'KMAC256': {
+    algorithm: algorithm('KMAC256', { length: 256 }),
+    usages: ['sign'],
+  },
+};
+
+function getSupportedAlgorithmOperations() {
+  const algorithms = new Map();
+  for (const operation of Object.keys(kSupportedAlgorithms)) {
+    if (operation === 'get key length')
+      continue;
+    for (const name of Object.keys(kSupportedAlgorithms[operation])) {
+      if (!algorithms.has(name))
+        algorithms.set(name, new Set());
+      algorithms.get(name).add(operation);
+    }
+  }
+  return algorithms;
+}
+
+// This is the list of supported public registry operations that this file
+// exercises. A new operation name must be added here before the registry
+// assertion below will pass.
+const operationOrder = [
+  'digest',
+  'generateKey',
+  'exportKey',
+  'importKey',
+  'encrypt',
+  'decrypt',
+  'sign',
+  'verify',
+  'deriveBits',
+  'encapsulate',
+  'decapsulate',
+  'wrapKey',
+  'unwrapKey',
+];
+
+const coveredOperations = new Set([
+  ...operationOrder,
+  'get key length',
+]);
+
+for (const operation of Object.keys(kSupportedAlgorithms)) {
+  assert(
+    coveredOperations.has(operation),
+    `missing prototype pollution operation coverage for ${operation}`);
+}
+
+const supportedAlgorithms = getSupportedAlgorithmOperations();
+for (const [name, operations] of supportedAlgorithms) {
+  const fixture = fixtures.get(name);
+  assert(fixture, `missing prototype pollution fixture for ${name}`);
+
+  const ctx = { __proto__: null };
+  for (const operation of operationOrder) {
+    if (!operations.has(operation))
+      continue;
+    assert.strictEqual(
+      typeof fixture[operation],
+      'function',
+      `missing prototype pollution coverage for ${name} ${operation}`);
+    await fixture[operation](ctx);
+  }
+
+  if (typeof fixture.getPublicKey === 'function' &&
+      ctx.keyPair?.privateKey !== undefined) {
+    await fixture.getPublicKey(ctx);
+  }
+  if (typeof fixture.extra === 'function')
+    await fixture.extra(ctx);
+}
+
+const getKeyLengthAlgorithms =
+  Object.keys(kSupportedAlgorithms['get key length'] ?? {});
+// KDF base algorithms return null from getKeyLength(). They still need to be
+// listed explicitly so a newly registered get-key-length algorithm does not
+// silently skip prototype-pollution coverage.
+const nullKeyLengthAlgorithms = [
+  'HKDF',
+  'PBKDF2',
+  'Argon2d',
+  'Argon2i',
+  'Argon2id',
+];
+const pbkdf2Key = await subtle.importKey(
+  'raw-secret',
+  new Uint8Array(32).fill(1),
+  'PBKDF2',
+  false,
+  ['deriveKey']);
+for (const name of getKeyLengthAlgorithms) {
+  const target = keyLengthTargets[name];
+  if (target === undefined) {
+    assert(
+      nullKeyLengthAlgorithms.includes(name),
+      `missing get key length coverage for ${name}`);
+    continue;
+  }
+
+  await assertCryptoKeyResult(`get key length ${name}`, () =>
+    subtle.deriveKey(
+      algorithm('PBKDF2', {
+        hash: 'SHA-256',
+        salt: new Uint8Array(8),
+        iterations: 1,
+      }),
+      pbkdf2Key,
+      target.algorithm,
+      true,
+      target.usages));
+}
+
+// Keep one explicit unwrapKey('jwk') negative case: the parsed object must not
+// inherit kty from Object.prototype when the wrapped JSON does not have it.
+{
+  const jwkUnwrappingKey = await subtle.generateKey(
+    algorithm('AES-CBC', { length: 128 }),
+    true,
+    ['encrypt', 'unwrapKey']);
+  const iv = new Uint8Array(16);
+  const missingKtyWrappedJwk = await subtle.encrypt(
+    algorithm('AES-CBC', { iv }),
+    jwkUnwrappingKey,
+    new TextEncoder().encode('{"k":"AAAAAAAAAAAAAAAAAAAAAA"}'));
+
+  await assertMissingJwkKtyIgnoresPrototype(() =>
+    subtle.unwrapKey(
+      'jwk',
+      missingKtyWrappedJwk,
+      jwkUnwrappingKey,
+      algorithm('AES-CBC', { iv }),
+      algorithm('AES-CBC', { length: 128 }),
+      true,
+      ['encrypt']));
 }
