@@ -1386,25 +1386,6 @@ added:
 
 Enable the experimental [`node:stream/iter`][] module.
 
-### `--experimental-test-coverage`
-
-<!-- YAML
-added:
-  - v19.7.0
-  - v18.15.0
-changes:
-  - version:
-    - v20.1.0
-    - v18.17.0
-    pr-url: https://github.com/nodejs/node/pull/47686
-    description: This option can be used with `--test`.
--->
-
-When used in conjunction with the `node:test` module, a code coverage report is
-generated as part of the test runner output. If no tests are run, a coverage
-report is not generated. See the documentation on
-[collecting code coverage from tests][] for more details.
-
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
@@ -2770,6 +2751,30 @@ The maximum number of test files that the test runner CLI will execute
 concurrently. If `--test-isolation` is set to `'none'`, this flag is ignored and
 concurrency is one. Otherwise, concurrency defaults to
 `os.availableParallelism() - 1`.
+
+### `--test-coverage`
+
+<!-- YAML
+added:
+  - v19.7.0
+  - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63507
+    description: Renamed from `--experimental-test-coverage`. The legacy name is
+                 still accepted as an alias.
+  - version:
+    - v20.1.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47686
+    description: This option can be used with `--test`.
+-->
+
+Enable code coverage collection in the test runner. If no tests are run, a
+coverage report is not generated. See the documentation on
+[collecting code coverage from tests][] for more details.
+
+The legacy `--experimental-test-coverage` flag is supported as an alias.
 
 ### `--test-coverage-branches=threshold`
 

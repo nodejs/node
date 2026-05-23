@@ -774,12 +774,6 @@ Use this flag to enable ShadowRealm support.
 .It Fl -experimental-storage-inspection
 Enable experimental support for storage inspection
 .
-.It Fl -experimental-test-coverage
-When used in conjunction with the \fBnode:test\fR module, a code coverage report is
-generated as part of the test runner output. If no tests are run, a coverage
-report is not generated. See the documentation on
-collecting code coverage from tests for more details.
-.
 .It Fl -experimental-test-module-mocks
 Enable module mocking in the test runner.
 This feature requires \fB--allow-worker\fR if used with the Permission Model.
@@ -1351,6 +1345,12 @@ The maximum number of test files that the test runner CLI will execute
 concurrently. If \fB--test-isolation\fR is set to \fB'none'\fR, this flag is ignored and
 concurrency is one. Otherwise, concurrency defaults to
 \fBos.availableParallelism() - 1\fR.
+.
+.It Fl -test-coverage
+Enable code coverage collection in the test runner. If no tests are run, a
+coverage report is not generated. See the documentation on collecting code
+coverage from tests for more details.
+The legacy \fB--experimental-test-coverage\fR flag is supported as an alias.
 .
 .It Fl -test-coverage-branches Ns = Ns Ar threshold
 Require a minimum percent of covered branches. If code coverage does not reach

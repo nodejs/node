@@ -60,7 +60,7 @@ for (const coverage of coverages) {
   test(`test passing ${coverage.flag}`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=25`,
       '--test-reporter', 'tap',
@@ -77,7 +77,7 @@ for (const coverage of coverages) {
   test(`test passing ${coverage.flag} with custom reporter`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=25`,
       '--test-reporter', reporter,
@@ -93,7 +93,7 @@ for (const coverage of coverages) {
   test(`test failing ${coverage.flag} with red color`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=99`,
       '--test-reporter', 'spec',
@@ -113,7 +113,7 @@ for (const coverage of coverages) {
   test(`test failing ${coverage.flag}`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=99`,
       '--test-reporter', 'tap',
@@ -130,7 +130,7 @@ for (const coverage of coverages) {
   test(`test failing ${coverage.flag} with custom reporter`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=99`,
       '--test-reporter', reporter,
@@ -146,7 +146,7 @@ for (const coverage of coverages) {
   test(`test out-of-range ${coverage.flag} (too high)`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=101`,
       fixture,
@@ -160,7 +160,7 @@ for (const coverage of coverages) {
   test(`test out-of-range ${coverage.flag} (too low)`, () => {
     const result = spawnSync(process.execPath, [
       '--test',
-      '--experimental-test-coverage',
+      '--test-coverage',
       '--test-coverage-exclude=!test/**',
       `${coverage.flag}=-1`,
       fixture,
