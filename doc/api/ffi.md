@@ -127,15 +127,15 @@ Functions and callbacks are described with signature objects.
 Signature objects may contain the following properties, both of which are
 optional:
 
-* `result` {string} A [type name][type names] specifying the return type of the
+* `return` {string} A [type name][type names] specifying the return type of the
   function or callback. **Default:** `'void'`.
-* `parameters` {string\[]} An array of [type names][] specifying the parameter
+* `arguments` {string\[]} An array of [type names][] specifying the argument
   type list of the function or callback. **Default:** `[]`.
 
 ```js
 const signature = {
-  result: 'i32',
-  parameters: ['i32', 'i32'],
+  return: 'i32',
+  arguments: ['i32', 'i32'],
 };
 ```
 
@@ -193,7 +193,7 @@ import { dlopen } from 'node:ffi';
 
 {
   using handle = dlopen('./mylib.so', {
-    add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
+    add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
   });
   console.log(handle.functions.add_i32(20, 22));
 } // handle.lib.close() is invoked automatically here.
@@ -203,8 +203,8 @@ import { dlopen } from 'node:ffi';
 import { dlopen } from 'node:ffi';
 
 const { lib, functions } = dlopen('./mylib.so', {
-  add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
-  string_length: { parameters: ['pointer'], result: 'u64' },
+  add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
+  string_length: { arguments: ['pointer'], return: 'u64' },
 });
 
 console.log(functions.add_i32(20, 22));
@@ -214,8 +214,8 @@ console.log(functions.add_i32(20, 22));
 const { dlopen } = require('node:ffi');
 
 const { lib, functions } = dlopen('./mylib.so', {
-  add_i32: { parameters: ['i32', 'i32'], result: 'i32' },
-  string_length: { parameters: ['pointer'], result: 'u64' },
+  add_i32: { arguments: ['i32', 'i32'], return: 'i32' },
+  string_length: { arguments: ['pointer'], return: 'u64' },
 });
 
 console.log(functions.add_i32(20, 22));
@@ -356,8 +356,8 @@ const { DynamicLibrary } = require('node:ffi');
 
 const lib = new DynamicLibrary('./mylib.so');
 const add = lib.getFunction('add_i32', {
-  parameters: ['i32', 'i32'],
-  result: 'i32',
+  arguments: ['i32', 'i32'],
+  return: 'i32',
 });
 
 console.log(add(20, 22));
@@ -407,7 +407,7 @@ const { DynamicLibrary } = require('node:ffi');
 const lib = new DynamicLibrary('./mylib.so');
 
 const callback = lib.registerCallback(
-  { parameters: ['i32'], result: 'i32' },
+  { arguments: ['i32'], return: 'i32' },
   (value) => value * 2,
 );
 ```
@@ -417,7 +417,7 @@ Callbacks are subject to the following restrictions:
 * They must be invoked on the same system thread where they were created.
 * They must not throw exceptions.
 * They must not return promises.
-* They must return a value compatible with the declared result type.
+* They must return a value compatible with the declared return type.
 * They must not call `library.close()` on their owning library while running.
 * They must not unregister themselves while running.
 
@@ -465,7 +465,7 @@ JavaScript `number` values that match the declared type.
 
 For 64-bit integer types (`i64` and `u64`), pass JavaScript `bigint` values.
 
-For pointer-like parameters:
+For pointer-like arguments:
 
 * `null` and `undefined` are passed as null pointers.
 * `string` values are copied to temporary NUL-terminated UTF-8 strings for the

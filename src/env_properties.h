@@ -48,8 +48,8 @@
   V(async_id_symbol, "async_id_symbol")                                        \
   V(ffi_sb_shared_buffer_symbol, "ffi_sb_shared_buffer_symbol")                \
   V(ffi_sb_invoke_slow_symbol, "ffi_sb_invoke_slow_symbol")                    \
-  V(ffi_sb_params_symbol, "ffi_sb_params_symbol")                              \
-  V(ffi_sb_result_symbol, "ffi_sb_result_symbol")                              \
+  V(ffi_sb_arguments_symbol, "ffi_sb_arguments_symbol")                        \
+  V(ffi_sb_return_symbol, "ffi_sb_return_symbol")                              \
   V(constructor_key_symbol, "constructor_key_symbol")                          \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
@@ -85,6 +85,7 @@
   V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
+  V(arguments_string, "arguments")                                             \
   V(async_ids_stack_string, "async_ids_stack")                                 \
   V(attributes_string, "attributes")                                           \
   V(backup_string, "backup")                                                   \
@@ -292,7 +293,6 @@
   V(password_string, "password")                                               \
   V(path_string, "path")                                                       \
   V(pathname_string, "pathname")                                               \
-  V(parameters_string, "parameters")                                           \
   V(pending_handle_string, "pendingHandle")                                    \
   V(permission_string, "permission")                                           \
   V(phase_string, "phase")                                                     \
@@ -329,6 +329,7 @@
   V(resource_string, "resource")                                               \
   V(result_string, "result")                                                   \
   V(return_arrays_string, "returnArrays")                                      \
+  V(return_string, "return")                                                   \
   V(salt_length_string, "saltLength")                                          \
   V(search_string, "search")                                                   \
   V(servername_string, "servername")                                           \

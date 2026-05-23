@@ -83,14 +83,14 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
                                                 std::string_view name,
                                                 Local<Object> signature) {
   Local<Context> context = env->context();
-  Local<String> result_key = env->result_string();
-  Local<String> parameters_key = env->parameters_string();
+  Local<String> return_key = env->return_string();
+  Local<String> arguments_key = env->arguments_string();
 
-  bool has_result;
-  bool has_parameters;
+  bool has_return;
+  bool has_arguments;
 
-  if (!signature->Has(context, result_key).To(&has_result) ||
-      !signature->Has(context, parameters_key).To(&has_parameters)) {
+  if (!signature->Has(context, return_key).To(&has_return) ||
+      !signature->Has(context, arguments_key).To(&has_arguments)) {
     return {};
   }
 
@@ -100,9 +100,9 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
   std::vector<std::string> arg_type_names;
 
   Isolate* isolate = env->isolate();
-  if (has_result) {
+  if (has_return) {
     Local<Value> return_type_val;
-    if (!signature->Get(context, result_key).ToLocal(&return_type_val)) {
+    if (!signature->Get(context, return_key).ToLocal(&return_type_val)) {
       return {};
     }
 
@@ -125,9 +125,9 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
     return_type_name = return_type_str.ToString();
   }
 
-  if (has_parameters) {
+  if (has_arguments) {
     Local<Value> arguments_val;
-    if (!signature->Get(context, parameters_key).ToLocal(&arguments_val)) {
+    if (!signature->Get(context, arguments_key).ToLocal(&arguments_val)) {
       return {};
     }
 
