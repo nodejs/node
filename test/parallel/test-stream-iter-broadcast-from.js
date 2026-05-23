@@ -70,11 +70,12 @@ async function testAbortSignal() {
 
   ac.abort();
 
-  const batches = [];
-  for await (const batch of consumer) {
-    batches.push(batch);
-  }
-  assert.strictEqual(batches.length, 0);
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of consumer) {
+      assert.fail('Should not reach here');
+    }
+  }, { name: 'AbortError' });
 }
 
 async function testAlreadyAbortedSignal() {
@@ -84,11 +85,12 @@ async function testAlreadyAbortedSignal() {
   const { broadcast: bc } = broadcast({ signal: ac.signal });
   const consumer = bc.push();
 
-  const batches = [];
-  for await (const batch of consumer) {
-    batches.push(batch);
-  }
-  assert.strictEqual(batches.length, 0);
+  await assert.rejects(async () => {
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of consumer) {
+      assert.fail('Should not reach here');
+    }
+  }, { name: 'AbortError' });
 }
 
 // =============================================================================
