@@ -619,6 +619,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             NoOp{},
 #endif
             kAllowedInEnvvar);
+  AddOption("--experimental-vfs",
+            "experimental node:vfs module",
+            &EnvironmentOptions::experimental_vfs,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
