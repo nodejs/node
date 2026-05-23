@@ -420,8 +420,7 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   auto isShared = args[0]->IsSharedArrayBuffer();
 
-  if (!(args[0]->IsArrayBuffer() || isShared ||
-        args[0]->IsArrayBufferView())) {
+  if (!(args[0]->IsArrayBuffer() || isShared || args[0]->IsArrayBufferView())) {
     return node::THROW_ERR_INVALID_ARG_TYPE(
         env->isolate(),
         "The \"list\" argument must be an instance of SharedArrayBuffer, "

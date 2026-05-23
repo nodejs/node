@@ -572,8 +572,7 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
 
-  if (buffer_length == 0)
-    return args.GetReturnValue().SetEmptyString();
+  if (buffer_length == 0) return args.GetReturnValue().SetEmptyString();
 
   size_t start = 0;
   size_t end = 0;
