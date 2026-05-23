@@ -133,6 +133,18 @@ async function testConsumerBreakWriteSyncReturnsFalse() {
   assert.strictEqual(writer.desiredSize, null);
 }
 
+async function testPendingNextSettlesAfterReturn() {
+  const { readable } = push();
+  const iter = readable[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  await iter.return();
+
+  const result = await pendingNext;
+  assert.strictEqual(result.done, true);
+  assert.strictEqual(result.value, undefined);
+}
+
 async function testPushWithTransforms() {
   const upper = (chunks) => {
     if (chunks === null) return null;
@@ -175,6 +187,7 @@ Promise.all([
   testAbortSignal(),
   testPreAbortedSignal(),
   testConsumerBreakWriteSyncReturnsFalse(),
+  testPendingNextSettlesAfterReturn(),
   testPushWithTransforms(),
   testInvalidBackpressure(),
 ]).then(common.mustCall());
