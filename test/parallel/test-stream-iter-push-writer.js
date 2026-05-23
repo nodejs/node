@@ -232,6 +232,25 @@ async function testEndAsyncReturnValue() {
   await consume;
 }
 
+async function testEndAfterEndSyncWaitsForDrain() {
+  const { writer, readable } = push();
+  writer.writeSync('hello');
+  assert.strictEqual(writer.endSync(), -1);
+
+  let ended = false;
+  const end = writer.end().then((n) => {
+    ended = true;
+    return n;
+  });
+
+  await Promise.resolve();
+  assert.strictEqual(ended, false);
+
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of readable) { /* drain */ }
+  assert.strictEqual(await end, 5);
+}
+
 async function testWriteUint8Array() {
   const { writer, readable } = push();
   writer.write(new Uint8Array([72, 73])); // 'HI'
@@ -413,6 +432,7 @@ Promise.all([
   testOndrainProtocolErrorPropagates(),
   testFail(),
   testEndAsyncReturnValue(),
+  testEndAfterEndSyncWaitsForDrain(),
   testWriteUint8Array(),
   testOndrainWaitsForDrain(),
   testConsumerThrowRejectsWrites(),
