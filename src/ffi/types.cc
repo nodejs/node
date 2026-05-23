@@ -164,6 +164,15 @@ Maybe<FunctionSignature> ParseFunctionSignature(Environment* env,
       if (!ToFFIType(env, arg_str.ToStringView()).To(&arg_type)) {
         return {};
       }
+      if (arg_type == &ffi_type_void) {
+        THROW_ERR_INVALID_ARG_VALUE(
+            env,
+            "Argument %u of function %s must not be 'void'; "
+            "use an empty array for no-argument functions",
+            i,
+            name);
+        return {};
+      }
 
       args.push_back(arg_type);
       arg_type_names.emplace_back(arg_str.ToString());
