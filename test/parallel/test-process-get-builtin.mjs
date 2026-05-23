@@ -38,6 +38,8 @@ if (!hasIntl) {
 }
 // TODO(@jasnell): Remove this once node:quic graduates from unflagged.
 publicBuiltins.delete('node:quic');
+// Remove this once node:vfs graduates from unflagged.
+publicBuiltins.delete('node:vfs');
 
 if (!hasInspector) {
   publicBuiltins.delete('inspector');

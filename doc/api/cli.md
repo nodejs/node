@@ -1450,6 +1450,16 @@ The flag may be specified more than once; tests must contain **every**
 filter value to run. See [Test tags][] for details on declaring and
 inheriting tags.
 
+### `--experimental-vfs`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental [`node:vfs`][] module.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -3783,6 +3793,7 @@ one is included in the list below.
 * `--experimental-stream-iter`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
+* `--experimental-vfs`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--force-context-aware`
@@ -4426,6 +4437,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
+[`node:vfs`]: vfs.md
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
