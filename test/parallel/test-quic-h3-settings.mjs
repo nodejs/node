@@ -5,6 +5,7 @@
 // maxHeaderLength enforcement - reject headers exceeding byte length
 // enableConnectProtocol setting (accepted without error)
 // enableDatagrams setting (accepted without error)
+// enableWebtransport setting (accepted without error)
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';

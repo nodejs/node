@@ -23,6 +23,7 @@ const customAppOptions = {
   qpackBlockedStreams: 50n,
   enableConnectProtocol: false,
   enableDatagrams: false,
+  enableWebtransport: false,
 };
 
 const serverDone = Promise.withResolvers();
@@ -51,6 +52,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
     assert.strictEqual(opts.enableConnectProtocol,
                        customAppOptions.enableConnectProtocol);
     assert.strictEqual(opts.enableDatagrams, customAppOptions.enableDatagrams);
+    assert.strictEqual(opts.enableWebtransport, customAppOptions.enableWebtransport);
 
     stream.writer.endSync();
     await stream.closed;
