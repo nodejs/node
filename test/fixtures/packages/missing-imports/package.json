@@ -1,0 +1,6 @@
+{
+  "name": "missing-imports",
+  "imports": {
+    "#missing": "./does-not-exist.js"
+  }
+}

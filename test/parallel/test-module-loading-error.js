@@ -91,6 +91,7 @@ assert.throws(
   () => { require('../fixtures/packages/is-dir'); },
   common.isAIX ? { code: 'ERR_INVALID_PACKAGE_CONFIG' } : {
     code: 'MODULE_NOT_FOUND',
-    message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/
+    message: /Cannot find module '\.\.\/fixtures\/packages\/is-dir'/,
+    requireStack: [__filename],
   }
 );
