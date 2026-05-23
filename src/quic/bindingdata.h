@@ -90,6 +90,7 @@ class SessionManager;
   V(enable_connect_protocol, "enableConnectProtocol")                          \
   V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
+  V(enable_webtransport, "enableWebtransport")                                 \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \
