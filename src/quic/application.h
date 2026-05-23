@@ -25,6 +25,7 @@ struct Http3TicketData {
   uint64_t qpack_blocked_streams;
   bool enable_connect_protocol;
   bool enable_datagrams;
+  bool enable_webtransport;
 };
 using PendingTicketAppData =
     std::variant<std::monostate, DefaultTicketData, Http3TicketData>;
