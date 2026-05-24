@@ -3695,7 +3695,7 @@ exception are given to the completion callback.
 added: v0.1.30
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/57775
+    pr-url: https://github.com/nodejs/node/pull/63143
     description: Accepts an additional `signal` option to allow aborting the
                  operation.
   - version: v18.0.0
