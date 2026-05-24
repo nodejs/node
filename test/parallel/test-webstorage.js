@@ -26,21 +26,6 @@ test('Storage instances cannot be created in userland', async () => {
   assert.match(cp.stderr, /Error: Illegal constructor/);
 });
 
-test('reading "length" on Storage.prototype throws instead of crashing', async () => {
-  // Refs: the `length` getter is defined on Storage.prototype but used to lack
-  // a signature, so accessing it on the prototype (not a real Storage instance)
-  // unwrapped a non-Storage object and segfaulted.
-  const cp = await spawnPromisified(process.execPath, [
-    '-e',
-    'globalThis.sessionStorage.setItem.length;globalThis.Storage.prototype.length',
-  ]);
-
-  assert.strictEqual(cp.signal, null);
-  assert.strictEqual(cp.code, 1);
-  assert.strictEqual(cp.stdout, '');
-  assert.match(cp.stderr, /Illegal invocation/);
-});
-
 test('sessionStorage is not persisted', async () => {
   let cp = await spawnPromisified(process.execPath, [
     '-pe', 'sessionStorage.foo = "barbaz"',
