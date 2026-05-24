@@ -2465,6 +2465,18 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
+<a id="ERR_NO_TEMPORAL"></a>
+
+### `ERR_NO_TEMPORAL`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+An attempt was made to use features that require [`Temporal`][], but Node.js was not
+compiled with `Temporal` support or it has been disabled in the current environment
+(for example, when running with `--no-harmony-temporal`).
+
 <a id="ERR_NO_TYPESCRIPT"></a>
 
 ### `ERR_NO_TYPESCRIPT`
@@ -2656,7 +2668,7 @@ Opening a QUIC stream failed.
 ### `ERR_QUIC_STREAM_ABORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -2669,7 +2681,7 @@ or session with an explicit application or transport error code.
 ### `ERR_QUIC_STREAM_RESET`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -2756,7 +2768,9 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 > Stability: 1 - Experimental.
@@ -4472,6 +4486,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
+[`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 [`Writable`]: stream.md#class-streamwritable
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag

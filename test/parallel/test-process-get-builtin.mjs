@@ -36,8 +36,12 @@ if (!hasIntl) {
   publicBuiltins.delete('inspector');
   publicBuiltins.delete('trace_events');
 }
+// TODO(@jasnell): Remove this once node:dtls graduates from unflagged.
+publicBuiltins.delete('node:dtls');
 // TODO(@jasnell): Remove this once node:quic graduates from unflagged.
 publicBuiltins.delete('node:quic');
+// Remove this once node:vfs graduates from unflagged.
+publicBuiltins.delete('node:vfs');
 
 if (!hasInspector) {
   publicBuiltins.delete('inspector');

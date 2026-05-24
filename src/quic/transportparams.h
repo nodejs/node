@@ -164,6 +164,9 @@ class TransportParams final {
                      size_t len,
                      Version version = Version::V1) const;
 
+  // Returns a JavaScript object representing the transport parameters.
+  v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
+
  private:
   void SetPreferredAddress(const SocketAddress& address);
   void GeneratePreferredAddressToken(Session* session);

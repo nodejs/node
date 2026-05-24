@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 
 const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
@@ -8,7 +9,8 @@ const { setTimeout } = require('node:timers/promises');
 const { test, beforeEach, afterEach, run } = require('node:test');
 
 const fixture = fixtures.path('test-runner', 'rerun.js');
-const stateFile = fixtures.path('test-runner', 'rerun-state.json');
+tmpdir.refresh();
+const stateFile = tmpdir.resolve('rerun-state.json');
 
 beforeEach(() => rm(stateFile, { force: true }));
 afterEach(() => rm(stateFile, { force: true }));
@@ -89,6 +91,7 @@ const getStateFile = async () => {
   res.forEach((entry) => {
     for (const item in entry) {
       delete entry[item].children;
+      delete entry[item].duration_ms;
     }
   });
   return res;
@@ -150,6 +153,27 @@ test('test should pass on third rerun with `--test`', async () => {
   assert.match(stdout, /fail 0/);
   assert.match(stdout, /suites 2/);
   assert.deepStrictEqual(await getStateFile(), expectedStateFile);
+});
+
+test('rerun preserves the original duration on the replayed pass', async () => {
+  const durationFixture = fixtures.path('test-runner', 'rerun-duration.js');
+  const args = ['--test-rerun-failures', stateFile, durationFixture];
+
+  const first = await common.spawnPromisified(process.execPath, args);
+  assert.doesNotMatch(first.stdout, /passed on attempt/,
+                      'no replay marker should appear on the initial run');
+
+  const second = await common.spawnPromisified(process.execPath, args);
+  assert.match(second.stdout, /passing slow test[^\n]*\(passed on attempt 0\)/,
+               'spec reporter should mark the replayed test on the retry');
+  assert.doesNotMatch(second.stdout, /always failing[^\n]*\(passed on attempt/,
+                      'the failing test must not show the replay marker');
+
+  const raw = JSON.parse(await readFile(stateFile, 'utf8'));
+  const passKey = Object.keys(raw[0]).find((k) => raw[0][k].name === 'passing slow test');
+  assert.ok(passKey, 'expected the passing test to be recorded on attempt 0');
+  assert.ok(raw[0][passKey].duration_ms > 0, 'expected a measurable duration on attempt 0');
+  assert.strictEqual(raw[1][passKey].duration_ms, raw[0][passKey].duration_ms);
 });
 
 test('using `run` api', async () => {

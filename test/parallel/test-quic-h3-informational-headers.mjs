@@ -112,4 +112,5 @@ strictEqual(decoder.decode(body), responseBody);
 strictEqual(stream.headers[':status'], '200');
 
 await Promise.all([stream.closed, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

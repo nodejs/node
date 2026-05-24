@@ -619,8 +619,8 @@ if (hasOpenSSL(3, 2)) {
   assert.throws(() => crypto.sign(null, data, input), errObj);
   assert.throws(() => crypto.verify(null, data, input, sig), errObj);
 
-  errObj.message = 'The "signature" argument must be an instance of ' +
-                   'Buffer, TypedArray, or DataView.' +
+  errObj.message = 'The "signature" argument must be of type string or an instance of ' +
+                   'ArrayBuffer, Buffer, TypedArray, or DataView.' +
                    common.invalidArgTypeHelper(input);
   assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
 });
@@ -1018,4 +1018,40 @@ if (!process.features.openssl_is_boringssl) {
     code: 'ERR_INVALID_ARG_VALUE',
     message: /key\.format/,
   });
+}
+
+// crypto.verify accepts ArrayBuffer and SharedArrayBuffer for data and signature
+{
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const dataBuffer = Buffer.from('Hello world');
+
+  // Data as ArrayBuffer
+  {
+    const ab = dataBuffer.buffer.slice(dataBuffer.byteOffset, dataBuffer.byteOffset + dataBuffer.byteLength);
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    assert.strictEqual(crypto.verify('SHA256', ab, publicKey, sig), true);
+  }
+
+  // Data as SharedArrayBuffer
+  {
+    const sab = new SharedArrayBuffer(dataBuffer.length);
+    new Uint8Array(sab).set(dataBuffer);
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    assert.strictEqual(crypto.verify('SHA256', sab, publicKey, sig), true);
+  }
+
+  // Signature as ArrayBuffer
+  {
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    const sigAB = sig.buffer.slice(sig.byteOffset, sig.byteOffset + sig.byteLength);
+    assert.strictEqual(crypto.verify('SHA256', dataBuffer, publicKey, sigAB), true);
+  }
+
+  // Signature as SharedArrayBuffer
+  {
+    const sig = crypto.sign('SHA256', dataBuffer, privateKey);
+    const sigSAB = new SharedArrayBuffer(sig.length);
+    new Uint8Array(sigSAB).set(sig);
+    assert.strictEqual(crypto.verify('SHA256', dataBuffer, publicKey, sigSAB), true);
+  }
 }

@@ -510,8 +510,7 @@ HashConfig& HashConfig::operator=(HashConfig&& other) noexcept {
 
 void HashConfig::MemoryInfo(MemoryTracker* tracker) const {
   // If the Job is sync, then the HashConfig does not own the data.
-  if (mode == kCryptoJobAsync)
-    tracker->TrackFieldWithSize("in", in.size());
+  if (IsCryptoJobAsync(mode)) tracker->TrackFieldWithSize("in", in.size());
 }
 
 MaybeLocal<Value> HashTraits::EncodeOutput(Environment* env,
@@ -542,9 +541,7 @@ Maybe<void> HashTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->in = mode == kCryptoJobAsync
-      ? data.ToCopy()
-      : data.ToByteSource();
+  params->in = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   unsigned int expected = EVP_MD_size(params->digest);
   params->length = expected;

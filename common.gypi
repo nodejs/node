@@ -272,6 +272,13 @@
                   },
                 },
               },],
+              ['(enable_thin_lto=="true" or enable_lto=="true") and lto_jobs!=""', {
+                'msvs_settings': {
+                  'VCLinkerTool': {
+                    'AdditionalOptions': ['/opt:lldltojobs=<(lto_jobs)'],
+                  },
+                },
+              },],
             ],
             'target_conditions': [
               ['_toolset=="target"', {

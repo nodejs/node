@@ -2548,7 +2548,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: v26.1.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/61556
     description: Add support for hexadecimal colors.
   - version:

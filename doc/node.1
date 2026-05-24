@@ -719,6 +719,9 @@ If present, Node.js will look for a
 \fBnode.config.json\fR file in the current working directory and load it as a
 configuration file.
 .
+.It Fl -experimental-dtls
+Enable experimental support for the DTLS protocol.
+.
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
 .
@@ -753,6 +756,11 @@ Enable experimental support for the QUIC protocol.
 .It Fl -experimental-stream-iter
 Enable the experimental
 .Sy node:stream/iter
+module.
+.
+.It Fl -experimental-vfs
+Enable the experimental
+.Sy node:vfs
 module.
 .
 .It Fl -experimental-sea-config
@@ -1914,6 +1922,8 @@ one is included in the list below.
 .It
 \fB--experimental-detect-module\fR
 .It
+\fB--experimental-dtls\fR
+.It
 \fB--experimental-eventsource\fR
 .It
 \fB--experimental-ffi\fR
@@ -1939,6 +1949,8 @@ one is included in the list below.
 \fB--experimental-test-isolation\fR
 .It
 \fB--experimental-top-level-await\fR
+.It
+\fB--experimental-vfs\fR
 .It
 \fB--experimental-vm-modules\fR
 .It

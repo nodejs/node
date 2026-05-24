@@ -31,6 +31,7 @@ class Outdated extends ArboristWorkspaceCmd {
     'global',
     'workspace',
     'before',
+    'min-release-age',
   ]
 
   #tree

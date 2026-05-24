@@ -47,6 +47,20 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // intentionally triggering generation of a large number of retries.
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
+  // Maximum number of version negotiation packets that will be sent to a
+  // given remote host within the LRU tracking window. Version negotiation
+  // packets are cheap to generate but can be used as an amplification
+  // vector with spoofed source addresses.
+  // TODO(@jasnell): Consider making this configurable via Endpoint::Options.
+  static constexpr uint64_t kMaxVersionNegotiations = 10;
+
+  // Maximum number of immediate connection close packets that will be sent
+  // to a given remote host within the LRU tracking window. These are sent
+  // when the server is busy or a token is invalid — a malicious peer could
+  // trigger a large number of them.
+  // TODO(@jasnell): Consider making this configurable via Endpoint::Options.
+  static constexpr uint64_t kMaxImmediateCloses = 10;
+
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
     // The local socket address to which the UDP port will be bound. The port
@@ -134,6 +148,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // flag on the underlying uv_udp_t.
     bool ipv6_only = false;
 
+    // When true, multiple endpoints (across separate processes) can bind to
+    // the same address:port and the kernel will load-balance incoming UDP
+    // datagrams across them. This sets the UV_UDP_REUSEPORT flag on the
+    // underlying uv_udp_t. Supported on Linux 3.9+ and DragonFlyBSD 3.6+.
+    bool reuse_port = false;
+
     uint32_t udp_receive_buffer_size = 0;
     uint32_t udp_send_buffer_size = 0;
 
@@ -208,6 +228,20 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   void Send(Packet::Ptr packet);
 
+  // Attempt synchronous send via uv_udp_try_send. If the socket is
+  // writable, the packet is sent immediately and the Ptr is released.
+  // If the socket is not writable (UV_EAGAIN), falls back to the
+  // async Send path. Used by the deferred flush callback to avoid
+  // the one-tick latency of async uv_udp_send.
+  void SendOrTrySend(Packet::Ptr packet);
+
+  // Send a batch of packets using uv_udp_try_send2 (sendmmsg) for
+  // synchronous batched delivery. Packets successfully sent are released
+  // immediately. On EAGAIN or partial send, remaining packets fall back
+  // to async uv_udp_send. The Packet::Ptr array is consumed: all entries
+  // will be empty (released or moved) on return.
+  void SendBatch(Packet::Ptr* packets, size_t count);
+
   // Acquire a Packet from the pool. length sets the initial working
   // size (must be <= pool capacity). The slot is always allocated at
   // full capacity to avoid fragmentation.
@@ -281,6 +315,20 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     void Close();
     int Send(Packet::Ptr packet);
 
+    // Synchronous send using uv_udp_try_send. Returns the number of
+    // bytes sent on success, UV_EAGAIN if the socket is not writable
+    // or the send queue is non-empty, or another negative error code.
+    // The Ptr is not consumed — the caller manages the lifecycle.
+    int TrySend(const Packet::Ptr& packet);
+
+    // Synchronous batched send using uv_udp_try_send2 (sendmmsg).
+    // Takes pre-built libuv argument arrays. Returns the number of
+    // messages successfully sent (>= 0), or a negative error code.
+    int TrySendBatch(uv_buf_t* bufs[],
+                     unsigned int nbufs[],
+                     struct sockaddr* addrs[],
+                     size_t count);
+
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.
     SocketAddress local_address() const;
@@ -301,9 +349,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     class Impl;
 
     BaseObjectWeakPtr<Impl> impl_;
-    bool is_bound_ = false;
-    bool is_started_ = false;
-    bool is_closed_ = false;
+    struct Flags {
+      uint8_t is_bound : 1 = 0;
+      uint8_t is_started : 1 = 0;
+      uint8_t is_closed : 1 = 0;
+    };
+    Flags flags_;
   };
 
   bool is_closed() const;
@@ -381,7 +432,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // Ref() causes a listening Endpoint to keep the event loop active.
   JS_METHOD(Ref);
 
-  void Receive(const uv_buf_t& buf, const SocketAddress& from);
+  void Receive(const uint8_t* data, size_t len, const SocketAddress& from);
 
   AliasedStruct<Stats> stats_;
   AliasedStruct<State> state_;
@@ -426,6 +477,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     struct Type final {
       size_t reset_count;
       size_t retry_count;
+      size_t version_negotiation_count;
+      size_t immediate_close_count;
       uint64_t timestamp;
       bool validated;
     };

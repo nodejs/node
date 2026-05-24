@@ -68,6 +68,8 @@ class RetryHandler {
     this.start = 0
     this.end = null
     this.etag = null
+    this.statusCode = null
+    this.headers = null
   }
 
   onResponseStartWithRetry (controller, statusCode, headers, statusMessage, err) {
@@ -183,6 +185,8 @@ class RetryHandler {
   onResponseStart (controller, statusCode, headers, statusMessage) {
     this.error = null
     this.retryCount += 1
+    this.statusCode = statusCode
+    this.headers = headers
 
     if (statusCode >= 300) {
       const err = new RequestRetryError('Request failed', statusCode, {
@@ -320,6 +324,16 @@ class RetryHandler {
     }
 
     if (!this.error) {
+      // Verify that the received body length matches the expected range
+      // when we have a finite end position (from Content-Length or Content-Range)
+      if (this.end != null && Number.isFinite(this.end)) {
+        if (this.start !== this.end + 1) {
+          throw new RequestRetryError('Content-Range mismatch', this.statusCode, {
+            headers: this.headers,
+            data: { count: this.retryCount }
+          })
+        }
+      }
       this.retryCount = 0
       return this.handler.onResponseEnd?.(controller, trailers)
     }

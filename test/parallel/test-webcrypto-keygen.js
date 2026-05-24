@@ -297,6 +297,17 @@ if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   Promise.all(tests).then(common.mustCall());
 }
 
+// Test CryptoKeyPair prototype
+{
+  subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'])
+    .then(common.mustCall((pair) => {
+      assert.strictEqual(Object.getPrototypeOf(pair), Object.prototype);
+    }));
+}
+
 // Test RSA key generation
 {
   async function test(

@@ -45,3 +45,4 @@ const clientSession = await connect(serverEndpoint.address, {
 
 await Promise.all([serverOpened.promise, checkSession(clientSession)]);
 await clientSession.close();
+await serverEndpoint.close();
