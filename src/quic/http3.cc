@@ -389,7 +389,8 @@ class Http3ApplicationImpl final : public Session::Application {
     WriteBE64(payload + 8, options_.qpack_max_dtable_capacity);
     WriteBE64(payload + 16, options_.qpack_encoder_max_dtable_capacity);
     WriteBE64(payload + 24, options_.qpack_blocked_streams);
-    payload[32] = options_.enable_connect_protocol ? 1 : 0; // May be bitfield should be used!
+    payload[32] = options_.enable_connect_protocol ? 1 : 0;
+    // May be bitfield should be used!
     payload[33] = options_.enable_datagrams ? 1 : 0;
     payload[34] = options_.enable_webtransport ? 1 : 0;
 
@@ -573,33 +574,63 @@ class Http3ApplicationImpl final : public Session::Application {
         // If the terminal flag is set, that means that we know we're only
         // sending headers and no body and the stream writable side should be
         // closed immediately because there is no nghttp3_data_reader provided.
-        if (flags != HeadersFlags::TERMINAL) {
+        if (flags != HeadersFlags::TERMINAL
+          && flags != HeadersFlags::WEBTRANSPORT) {
           reader_ptr = &reader;
         }
 
         if (session().is_server()) {
           // If this is a server, we're submitting a response...
-          Debug(&session(),
-                "Submitting %" PRIu64 " response headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_response(*this,
-                                              stream.id(),
-                                              nva.data(),
-                                              nva.length(),
-                                              reader_ptr) == 0;
+          if (flags !=  HeadersFlags::WEBTRANSPORT) {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " response headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            return nghttp3_conn_submit_response(*this,
+                                                stream.id(),
+                                                nva.data(),
+                                                nva.length(),
+                                                reader_ptr) == 0;
+          } else {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " wt resp. headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            if (nghttp3_conn_submit_wt_response(*this,
+                                                stream.id(),
+                                                nva.data(),
+                                                nva.length()) != 0)
+                                                return false;
+            return nghttp3_conn_server_confirm_wt_session(*this,
+                                                          stream.id(),
+                                                          0) == 0;
+          }
         } else {
           // Otherwise we're submitting a request...
-          Debug(&session(),
-                "Submitting %" PRIu64 " request headers for stream %" PRIu64,
-                nva.length(),
-                stream.id());
-          return nghttp3_conn_submit_request(*this,
-                                             stream.id(),
-                                             nva.data(),
-                                             nva.length(),
-                                             reader_ptr,
-                                             const_cast<Stream*>(&stream)) == 0;
+          if (flags !=  HeadersFlags::WEBTRANSPORT) {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " request headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            return nghttp3_conn_submit_request(*this,
+                                               stream.id(),
+                                               nva.data(),
+                                               nva.length(),
+                                               reader_ptr,
+                                               const_cast<Stream*>(&stream))
+                                              == 0;
+          } else {
+            Debug(&session(),
+                  "Submitting %" PRIu64 " wt req. headers for stream %" PRIu64,
+                  nva.length(),
+                  stream.id());
+            return nghttp3_conn_submit_wt_request(*this,
+                                               stream.id(),
+                                               nva.data(),
+                                               nva.length(),
+                                               const_cast<Stream*>(&stream))
+                                              == 0;
+          }
         }
         break;
       }
