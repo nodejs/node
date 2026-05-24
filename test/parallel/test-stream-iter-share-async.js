@@ -197,10 +197,7 @@ async function testShareAbortSignalWhileSourcePullPending() {
 }
 
 async function testShareAlreadyAborted() {
-  const ac = new AbortController();
-  ac.abort();
-
-  const shared = share(from('data'), { signal: ac.signal });
+  const shared = share(from('data'), { signal: AbortSignal.abort() });
   const consumer = shared.pull();
 
   await assert.rejects(async () => {
