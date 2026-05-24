@@ -545,6 +545,16 @@ and [`url.format()`][] methods would produce.
 
 #### `url.searchParams`
 
+<!-- YAML
+changes:
+  - version:
+    - v7.3.0
+    - v6.13.0
+    pr-url: https://github.com/nodejs/node/pull/9484
+    description: The returned `URLSearchParams` object now correctly
+                 represents the query parameters of the `URL` object.
+-->
+
 * Type: {URLSearchParams}
 
 Gets the [`URLSearchParams`][] object representing the query parameters of the
@@ -859,7 +869,7 @@ changes:
 
 The `URLSearchParams` API provides read and write access to the query of a
 `URL`. The `URLSearchParams` class can also be used standalone with one of the
-four following constructors.
+five following constructors.
 The `URLSearchParams` class is also available on the global object.
 
 The WHATWG `URLSearchParams` interface and the [`querystring`][] module have
@@ -925,6 +935,19 @@ console.log(params.toString());
 // Prints 'user=abc&query=xyz'
 ```
 
+#### `new URLSearchParams(urlSearchParams)`
+
+<!-- YAML
+added:
+  - v7.5.0
+  - v6.13.0
+-->
+
+* `urlSearchParams` {URLSearchParams} A `URLSearchParams` object
+
+Instantiate a new `URLSearchParams` object with search parameters cloned from
+the provided `urlSearchParams` object.
+
 #### `new URLSearchParams(obj)`
 
 <!-- YAML
@@ -965,10 +988,9 @@ added:
 
 Instantiate a new `URLSearchParams` object with an iterable map in a way that
 is similar to {Map}'s constructor. `iterable` can be an `Array` or any
-iterable object. That means `iterable` can be another `URLSearchParams`, in
-which case the constructor will simply create a clone of the provided
-`URLSearchParams`. Elements of `iterable` are key-value pairs, and can
-themselves be any iterable object.
+iterable object. A `URLSearchParams` object can also be used as input. See
+`new URLSearchParams(urlSearchParams)`. Elements of `iterable` are key-value
+pairs, and can themselves be any iterable object.
 
 Duplicate keys are allowed.
 
