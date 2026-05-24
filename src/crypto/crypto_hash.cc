@@ -641,18 +641,27 @@ bool HashTraits::DeriveBits(Environment* env,
   if (has_cshake_params) {
     // At most two params plus terminator.
     OSSL_PARAM ossl_params[3];
+    // OpenSSL's cSHAKE provider expects UTF-8 params but currently handles
+    // function names as C strings, so keep NUL-terminated storage alive until
+    // EVP_MD_CTX_set_params() returns.
+    std::string function_name;
+    std::string customization;
     int idx = 0;
     if (params.function_name.size() > 0) {
-      ossl_params[idx++] = OSSL_PARAM_construct_utf8_string(
-          OSSL_DIGEST_PARAM_FUNCTION_NAME,
-          const_cast<char*>(params.function_name.data<char>()),
-          params.function_name.size());
+      function_name.assign(params.function_name.data<char>(),
+                           params.function_name.size());
+      ossl_params[idx++] =
+          OSSL_PARAM_construct_utf8_string(OSSL_DIGEST_PARAM_FUNCTION_NAME,
+                                           function_name.data(),
+                                           function_name.size());
     }
     if (params.customization.size() > 0) {
-      ossl_params[idx++] = OSSL_PARAM_construct_utf8_string(
-          OSSL_DIGEST_PARAM_CUSTOMIZATION,
-          const_cast<char*>(params.customization.data<char>()),
-          params.customization.size());
+      customization.assign(params.customization.data<char>(),
+                           params.customization.size());
+      ossl_params[idx++] =
+          OSSL_PARAM_construct_utf8_string(OSSL_DIGEST_PARAM_CUSTOMIZATION,
+                                           customization.data(),
+                                           customization.size());
     }
     ossl_params[idx] = OSSL_PARAM_construct_end();
     if (EVP_MD_CTX_set_params(ctx.get(), ossl_params) != 1) [[unlikely]] {
