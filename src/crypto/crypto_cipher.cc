@@ -93,6 +93,11 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
     // If it is, then the getCipherInfo will succeed with the given
     // values.
     auto ctx = CipherCtxPointer::New();
+    if (!ctx) {
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Failed to allocate cipher context");
+    }
+
     if (!ctx.init(cipher, true)) {
       return;
     }
@@ -338,7 +343,10 @@ void CipherBase::CommonInit(const char* cipher_type,
   MarkPopErrorOnReturn mark_pop_error_on_return;
   CHECK(!ctx_);
   ctx_ = CipherCtxPointer::New();
-  CHECK(ctx_);
+  if (!ctx_) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env(), "Failed to allocate cipher context");
+  }
 
   if (cipher.isWrapMode()) {
     ctx_.setAllowWrap();
