@@ -511,6 +511,21 @@ with either a `QuicEndpoint` or `EndpointOptions` as the argument.
 At most, any single `QuicEndpoint` can only be configured to listen as
 a server once.
 
+## `quic.listEndpoints([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {object}
+  * `active` {boolean} If `true` (the default), only returns endpoints that are
+    active (not destroyed, not closing, and not busy). If `false` returns all
+    endpoints.
+* Returns: {quic.QuicEndpoint\[]}
+
+Returns the list of all `QuicEndpoint` instances. By default, only active
+endpoints are returned.
+
 ## `quic.constants`
 
 <!-- YAML

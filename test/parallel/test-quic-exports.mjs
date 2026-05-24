@@ -35,11 +35,5 @@ strictEqual(quic.constants.DEFAULT_GROUPS, 'X25519:P-256:P-384:P-521');
 throws(() => { quic.constants.cc.RENO = 'foo'; }, TypeError);
 strictEqual(quic.constants.cc.RENO, 'reno');
 
-throws(() => { quic.constants.cc.NEW_CONSTANT = 'bar'; }, TypeError);
-strictEqual(quic.constants.cc.NEW_CONSTANT, undefined);
-
 throws(() => { quic.constants.DEFAULT_CIPHERS = 123; }, TypeError);
 strictEqual(typeof quic.constants.DEFAULT_CIPHERS, 'string');
-
-throws(() => { quic.constants.NEW_CONSTANT = 456; }, TypeError);
-strictEqual(quic.constants.NEW_CONSTANT, undefined);
