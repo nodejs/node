@@ -311,9 +311,7 @@ async function testSignalAlreadyAborted() {
     yield [Buffer.from('should not reach')];
   }
 
-  const ac = new AbortController();
-  ac.abort();
-  const readable = toReadable(gen(), { signal: ac.signal });
+  const readable = toReadable(gen(), { signal: AbortSignal.abort() });
 
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars

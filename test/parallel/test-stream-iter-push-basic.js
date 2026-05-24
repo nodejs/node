@@ -109,9 +109,7 @@ async function testAbortSignal() {
 }
 
 async function testPreAbortedSignal() {
-  const ac = new AbortController();
-  ac.abort();
-  const { readable } = push({ signal: ac.signal });
+  const { readable } = push({ signal: AbortSignal.abort() });
   await assert.rejects(async () => {
     // eslint-disable-next-line no-unused-vars
     for await (const _ of readable) {

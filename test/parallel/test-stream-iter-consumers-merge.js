@@ -55,10 +55,7 @@ async function testMergeEmpty() {
 }
 
 async function testMergeWithAbortSignal() {
-  const ac = new AbortController();
-  ac.abort();
-
-  const merged = merge(from('data'), { signal: ac.signal });
+  const merged = merge(from('data'), { signal: AbortSignal.abort() });
 
   await assert.rejects(
     async () => {
