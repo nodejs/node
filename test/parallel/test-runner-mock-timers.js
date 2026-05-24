@@ -551,11 +551,9 @@ describe('Mock Timers Test Suite', () => {
         it('should abort operation when .abort is called before calling setInterval', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
           const expectedResult = 'result';
-          const controller = new AbortController();
-          controller.abort();
           const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
             ref: true,
-            signal: controller.signal,
+            signal: AbortSignal.abort(),
           });
 
           await assert.rejects(() => p, {
@@ -778,10 +776,8 @@ describe('Mock Timers Test Suite', () => {
           t.mock.timers.enable({ apis: ['setInterval'] });
 
           const interval = 100;
-          const abortController = new AbortController();
-          abortController.abort();
           const intervalIterator = nodeTimersPromises.setInterval(interval, Date.now(), {
-            signal: abortController.signal,
+            signal: AbortSignal.abort(),
           });
 
           const first = intervalIterator.next();
