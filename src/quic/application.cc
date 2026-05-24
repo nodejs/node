@@ -19,9 +19,13 @@
 
 namespace node {
 
+using v8::BigInt;
+using v8::Boolean;
+using v8::DictionaryTemplate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Value;
@@ -112,6 +116,44 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 #undef SET
 
   return Just<Application_Options>(options);
+}
+
+MaybeLocal<Object> Session::Application_Options::ToObject(
+    Environment* env) const {
+  auto& binding_data = BindingData::Get(env);
+  auto tmpl = binding_data.application_options_template();
+  static constexpr std::string_view names[] = {
+      "maxHeaderPairs",
+      "maxHeaderLength",
+      "maxFieldSectionSize",
+      "qpackMaxDtableCapacity",
+      "qpackEncoderMaxDtableCapacity",
+      "qpackBlockedStreams",
+      "enableConnectProtocol",
+      "enableDatagrams",
+  };
+  if (tmpl.IsEmpty()) {
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    binding_data.set_application_options_template(tmpl);
+  }
+  MaybeLocal<Value> values[] = {
+      BigInt::NewFromUnsigned(env->isolate(), max_header_pairs),
+      BigInt::NewFromUnsigned(env->isolate(), max_header_length),
+      BigInt::NewFromUnsigned(env->isolate(), max_field_section_size),
+      BigInt::NewFromUnsigned(env->isolate(), qpack_max_dtable_capacity),
+      BigInt::NewFromUnsigned(env->isolate(),
+                              qpack_encoder_max_dtable_capacity),
+      BigInt::NewFromUnsigned(env->isolate(), qpack_blocked_streams),
+      Boolean::New(env->isolate(), enable_connect_protocol),
+      Boolean::New(env->isolate(), enable_datagrams),
+  };
+  static_assert(std::size(values) == std::size(names));
+
+  auto obj = tmpl->NewInstance(env->context(), values);
+  if (obj->SetPrototypeV2(env->context(), Null(env->isolate())).IsNothing()) {
+    return {};
+  }
+  return obj;
 }
 
 // ============================================================================
@@ -239,7 +281,8 @@ void Session::Application::ReceiveStreamReset(Stream* stream,
 //   < 0 (other): fatal error, session already closed
 ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
                                                       uint8_t* dest,
-                                                      size_t destlen) {
+                                                      size_t destlen,
+                                                      uint64_t ts) {
   CHECK(session_->HasPendingDatagrams());
   auto max_attempts = session_->config().options.max_datagram_send_attempts;
 
@@ -262,9 +305,12 @@ ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
   int accepted = 0;
   int dg_flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
 
+  // PacketInfo for the datagram path. When libuv gains per-socket ECN
+  // marking, the value from ngtcp2 should be forwarded to the send path.
+  PacketInfo dg_pi;
   ssize_t dg_nwrite = ngtcp2_conn_writev_datagram(*session_,
                                                   &path->path,
-                                                  nullptr,
+                                                  dg_pi,
                                                   dest,
                                                   destlen,
                                                   &accepted,
@@ -272,7 +318,7 @@ ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
                                                   dg.id,
                                                   &dgvec,
                                                   1,
-                                                  uv_hrtime());
+                                                  ts);
 
   if (accepted) {
     // Nice, the datagram was accepted!
@@ -329,20 +375,51 @@ void Session::Application::SendPendingData() {
   if (!session().can_send_packets()) [[unlikely]] {
     return;
   }
-  static constexpr size_t kMaxPackets = 32;
+  // Upper bound on packets per SendPendingData call. ngtcp2's send quantum
+  // is typically 64 KB, which at 1200-byte minimum packet size is ~53
+  // packets. 64 covers the worst case with headroom. The actual count per
+  // call is dynamically capped by ngtcp2_conn_get_send_quantum().
+  static constexpr size_t kMaxPackets = 64;
   Debug(session_, "Application sending pending data");
+  // Cache the timestamp once for the entire send loop. ngtcp2 does not
+  // require nanosecond-accurate monotonicity within a single burst —
+  // a single timestamp per SendPendingData call is what other QUIC
+  // implementations use (e.g., quiche, msquic). When kernel-level
+  // packet pacing becomes available via libuv, this timestamp becomes
+  // the base for computing per-packet transmit timestamps.
+  const uint64_t ts = uv_hrtime();
   PathStorage path;
   StreamData stream_data;
 
   bool closed = false;
+
+  // Batch accumulation: packets are collected here and flushed via
+  // Session::SendBatch when the loop exits, the batch is full, or
+  // on early return. This enables synchronous batched delivery via
+  // uv_udp_try_send2 (sendmmsg) from the deferred flush path.
+  Packet::Ptr batch[kMaxPackets];
+  PathStorage batch_paths[kMaxPackets];
+  size_t batch_count = 0;
+
+  auto flush_batch = [&] {
+    if (batch_count == 0) return;
+    session_->SendBatch(batch, batch_paths, batch_count);
+    batch_count = 0;
+  };
+
   auto update_stats = OnScopeLeave([&] {
     if (closed) return;
-    auto& s = session();
-    if (!s.is_destroyed()) [[likely]] {
-      s.UpdatePacketTxTime();
-      s.UpdateTimer();
-      s.UpdateDataStats();
-    }
+    // Flush any remaining accumulated packets before updating stats.
+    flush_batch();
+    if (session().is_destroyed()) [[unlikely]]
+      return;
+
+    // Get a strong pointer to protect against potential destruction during
+    // updating the time and data stats.
+    BaseObjectPtr<Session> s(session_);
+    s->UpdatePacketTxTime();
+    s->UpdateTimer();
+    s->UpdateDataStats();
   });
 
   // The maximum size of packet to create.
@@ -353,7 +430,7 @@ void Session::Application::SendPendingData() {
       kMaxPackets, ngtcp2_conn_get_send_quantum(*session_) / max_packet_size);
   if (max_packet_count == 0) return;
 
-  // The number of packets that have been sent in this call to SendPendingData.
+  // The number of packets that have been prepared in this call.
   size_t packet_send_count = 0;
 
   Packet::Ptr packet;
@@ -367,6 +444,16 @@ void Session::Application::SendPendingData() {
     DCHECK(packet);
     return true;
   };
+
+  // Accumulate a completed packet into the batch.
+  auto enqueue_packet =
+      [&](Packet::Ptr& pkt, size_t len, const PacketInfo& pi) {
+        Debug(session_, "Enqueuing packet with %zu bytes into batch", len);
+        pkt->Truncate(len);
+        pkt->set_pkt_info(pi);
+        path.CopyTo(&batch_paths[batch_count]);
+        batch[batch_count++] = std::move(pkt);
+      };
 
   // We're going to enter a loop here to prepare and send no more than
   // max_packet_count packets.
@@ -405,8 +492,14 @@ void Session::Application::SendPendingData() {
     }
 
     // Awesome, let's write our packet!
-    ssize_t nwrite = WriteVStream(
-        &path, packet->data(), &ndatalen, packet->length(), stream_data);
+    PacketInfo pi;
+    ssize_t nwrite = WriteVStream(&path,
+                                  &pi,
+                                  packet->data(),
+                                  &ndatalen,
+                                  packet->length(),
+                                  stream_data,
+                                  ts);
 
     // When ndatalen is > 0, that's our indication that stream data was accepted
     // in to the packet. Yay!
@@ -493,7 +586,7 @@ void Session::Application::SendPendingData() {
           // if there is one. Otherwise just loop around and keep going.
           if (session_->HasPendingDatagrams()) {
             auto result = TryWritePendingDatagram(
-                &path, packet->data(), packet->length());
+                &path, packet->data(), packet->length(), ts);
             // When result is 0, either the datagram was congestion controlled,
             // didn't fit in the packet, or was abandoned. Skip and continue.
 
@@ -502,8 +595,7 @@ void Session::Application::SendPendingData() {
             if (result > 0) {
               size_t len = result;
               Debug(session_, "Sending packet with %zu bytes", len);
-              packet->Truncate(len);
-              session_->Send(std::move(packet), path);
+              enqueue_packet(packet, len, pi);
               if (++packet_send_count == max_packet_count) return;
             } else if (result < 0) {
               // Any negative result other than NGTCP2_ERR_WRITE_MORE
@@ -540,8 +632,7 @@ void Session::Application::SendPendingData() {
     // is the size of the packet we are sending.
     size_t len = nwrite;
     Debug(session_, "Sending packet with %zu bytes", len);
-    packet->Truncate(len);
-    session_->Send(std::move(packet), path);
+    enqueue_packet(packet, len, pi);
     if (++packet_send_count == max_packet_count) return;
 
     // If there are pending datagrams, try sending them in a fresh packet.
@@ -557,11 +648,10 @@ void Session::Application::SendPendingData() {
         return session_->Close(CloseMethod::SILENT);
       }
       auto result =
-          TryWritePendingDatagram(&path, packet->data(), packet->length());
+          TryWritePendingDatagram(&path, packet->data(), packet->length(), ts);
       if (result > 0) {
         Debug(session_, "Sending datagram packet with %zd bytes", result);
-        packet->Truncate(static_cast<size_t>(result));
-        session_->Send(std::move(packet), path);
+        enqueue_packet(packet, static_cast<size_t>(result), PacketInfo());
         if (++packet_send_count == max_packet_count) return;
       } else if (result < 0 && result != NGTCP2_ERR_WRITE_MORE) {
         // Fatal error — session already closed by TryWritePendingDatagram.
@@ -574,17 +664,21 @@ void Session::Application::SendPendingData() {
 }
 
 ssize_t Session::Application::WriteVStream(PathStorage* path,
+                                           PacketInfo* pi,
                                            uint8_t* dest,
                                            ssize_t* ndatalen,
                                            size_t max_packet_size,
-                                           const StreamData& stream_data) {
+                                           const StreamData& stream_data,
+                                           uint64_t ts) {
   DCHECK_LE(stream_data.count, kMaxVectorCount);
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+  // The PacketInfo out-param is populated by ngtcp2 with the ECN codepoint
+  // to apply when sending this packet. When libuv gains per-socket ECN
+  // marking, the value should be forwarded to the send path.
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
-                                   // TODO(@jasnell): ECN blocked on libuv
-                                   nullptr,
+                                   *pi,
                                    dest,
                                    max_packet_size,
                                    ndatalen,
@@ -592,7 +686,7 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
                                    stream_data.id,
                                    stream_data,
                                    stream_data.count,
-                                   uv_hrtime());
+                                   ts);
 }
 
 // ============================================================================
@@ -603,7 +697,10 @@ class DefaultApplication final : public Session::Application {
   // Marked NOLINT because the cpp linter gets confused about this using
   // statement not being sorted with the using v8 statements at the top
   // of the namespace.
-  using Application::Application;  // NOLINT
+  DefaultApplication(Session* session, const Options& options)
+      : Session::Application(session, options), options_(options) {}
+
+  const Options& options() const override { return options_; }
 
   Session::Application::Type type() const override {
     return Session::Application::Type::DEFAULT;
@@ -774,6 +871,8 @@ class DefaultApplication final : public Session::Application {
       stream->Schedule(&stream_queue_);
     }
   }
+
+  Options options_;
 
   Stream::Queue stream_queue_;
 };

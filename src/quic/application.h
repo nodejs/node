@@ -38,6 +38,10 @@ class Session::Application : public MemoryRetainer {
   Application(Session* session, const Options& options);
   DISALLOW_COPY_AND_MOVE(Application)
 
+  // Get the active options for this application. These may differ from the
+  // options passed at construction time since some options can be negotiated.
+  virtual const Options& options() const = 0;
+
   // The type of Application, exposed via the session state so JS
   // can observe which Application was selected after ALPN negotiation.
   // This is used primarily for testing/debugging.
@@ -267,14 +271,19 @@ class Session::Application : public MemoryRetainer {
   // the datagram is either congestion limited or was abandoned
   ssize_t TryWritePendingDatagram(PathStorage* path,
                                   uint8_t* dest,
-                                  size_t destlen);
+                                  size_t destlen,
+                                  uint64_t ts);
 
-  // Write the given stream_data into the buffer.
+  // Write the given stream_data into the buffer. The PacketInfo out-param
+  // is populated by ngtcp2 with per-packet metadata (e.g., ECN codepoint)
+  // that should be applied when sending the packet.
   ssize_t WriteVStream(PathStorage* path,
+                       PacketInfo* pi,
                        uint8_t* buf,
                        ssize_t* ndatalen,
                        size_t max_packet_size,
-                       const StreamData& stream_data);
+                       const StreamData& stream_data,
+                       uint64_t ts);
 
   Session* session_ = nullptr;
 };

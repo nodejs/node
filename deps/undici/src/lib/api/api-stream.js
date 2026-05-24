@@ -1,13 +1,60 @@
 'use strict'
 
 const assert = require('node:assert')
-const { finished } = require('node:stream')
 const { AsyncResource } = require('node:async_hooks')
 const { InvalidArgumentError, InvalidReturnValueError } = require('../core/errors')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
 
 function noop () {}
+
+function getWritableError (stream) {
+  return stream.errored ?? stream.writableErrored ?? stream._writableState?.errored
+}
+
+function createPrematureCloseError () {
+  const err = new Error('Premature close')
+  err.code = 'ERR_STREAM_PREMATURE_CLOSE'
+  return err
+}
+
+function trackWritableLifecycle (stream, callback) {
+  let done = false
+
+  const cleanup = () => {
+    stream.removeListener('close', onClose)
+    stream.removeListener('error', onError)
+    stream.removeListener('finish', onFinish)
+  }
+
+  const finish = (err, fromErrorEvent = false) => {
+    if (done) {
+      return
+    }
+
+    done = true
+    cleanup()
+    callback(err, fromErrorEvent)
+  }
+
+  const onClose = () => {
+    const err = getWritableError(stream)
+    finish(err ?? (!stream.writableFinished ? createPrematureCloseError() : undefined))
+  }
+
+  const onError = (err) => finish(err, true)
+  const onFinish = () => finish()
+
+  stream.on('close', onClose)
+  stream.on('error', onError)
+  stream.on('finish', onFinish)
+
+  if (stream.closed) {
+    process.nextTick(onClose)
+  } else if (stream.writableFinished) {
+    process.nextTick(onFinish)
+  }
+}
 
 class StreamHandler extends AsyncResource {
   constructor (opts, factory, callback) {
@@ -117,20 +164,19 @@ class StreamHandler extends AsyncResource {
       throw new InvalidReturnValueError('expected Writable')
     }
 
-    // TODO: Avoid finished. It registers an unnecessary amount of listeners.
-    finished(res, { readable: false }, (err) => {
+    trackWritableLifecycle(res, (err, fromErrorEvent) => {
       const { callback, res, opaque, trailers, abort } = this
 
       this.res = null
       if (err || !res?.readable) {
-        util.destroy(res, err)
+        util.destroy(res, fromErrorEvent ? undefined : err)
       }
 
       this.callback = null
       this.runInAsyncScope(callback, null, err || null, { opaque, trailers })
 
       if (err) {
-        abort()
+        abort(err)
       }
     })
 

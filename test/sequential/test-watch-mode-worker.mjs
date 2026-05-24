@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -13,9 +13,9 @@ import { createInterface } from 'node:readline';
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
 
-function restart(file, content = readFileSync(file)) {
-  writeFileSync(file, content);
-  const timer = setInterval(() => writeFileSync(file, content), common.platformTimeout(250));
+function restart(file) {
+  appendFileSync(file, '\n');
+  const timer = setInterval(() => appendFileSync(file, '\n'), common.platformTimeout(250));
   return () => clearInterval(timer);
 }
 
@@ -24,6 +24,12 @@ function createTmpFile(content = 'console.log(\'running\');', ext = '.js', basen
   const file = path.join(basename, `${tmpFiles++}${ext}`);
   writeFileSync(file, content);
   return file;
+}
+
+function createTmpDir() {
+  const dir = path.join(tmpdir.path, `${tmpFiles++}`);
+  mkdirSync(dir);
+  return dir;
 }
 
 async function runWriteSucceed({
@@ -78,10 +84,10 @@ async function runWriteSucceed({
 }
 
 tmpdir.refresh();
-const dir = tmpdir.path;
 
 describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
   it('should watch changes to worker - cjs', async () => {
+    const dir = createTmpDir();
     const worker = path.join(dir, 'worker.js');
 
     writeFileSync(worker, `
@@ -109,6 +115,7 @@ const w = new Worker(${JSON.stringify(worker)});
   });
 
   it('should watch changes to worker dependencies - cjs', async () => {
+    const dir = createTmpDir();
     const dep = path.join(dir, 'dep.js');
     const worker = path.join(dir, 'worker.js');
 
@@ -142,6 +149,7 @@ const w = new Worker(${JSON.stringify(worker)});
   });
 
   it('should watch changes to nested worker dependencies - cjs', async () => {
+    const dir = createTmpDir();
     const subDep = path.join(dir, 'sub-dep.js');
     const dep = path.join(dir, 'dep.js');
     const worker = path.join(dir, 'worker.js');
@@ -181,6 +189,7 @@ const w = new Worker(${JSON.stringify(worker)});
   });
 
   it('should watch changes to worker - esm', async () => {
+    const dir = createTmpDir();
     const worker = path.join(dir, 'worker.mjs');
 
     writeFileSync(worker, `
@@ -208,6 +217,7 @@ new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
   });
 
   it('should watch changes to worker dependencies - esm', async () => {
+    const dir = createTmpDir();
     const dep = path.join(dir, 'dep.mjs');
     const worker = path.join(dir, 'worker.mjs');
 
@@ -241,6 +251,7 @@ new Worker(new URL(${JSON.stringify(pathToFileURL(worker))}));
   });
 
   it('should watch changes to nested worker dependencies - esm', async () => {
+    const dir = createTmpDir();
     const subDep = path.join(dir, 'sub-dep.mjs');
     const dep = path.join(dir, 'dep.mjs');
     const worker = path.join(dir, 'worker.mjs');

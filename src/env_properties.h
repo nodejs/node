@@ -415,6 +415,9 @@
   V(ephemeral_key_template, v8::DictionaryTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(dns_ns_record_template, v8::DictionaryTemplate)                            \
+  V(dtls_context_constructor_template, v8::FunctionTemplate)                   \
+  V(dtls_endpoint_constructor_template, v8::FunctionTemplate)                  \
+  V(dtls_session_constructor_template, v8::FunctionTemplate)                   \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
   V(fdclose_constructor_template, v8::ObjectTemplate)                          \
   V(ffi_dynamic_library_constructor_template, v8::FunctionTemplate)            \

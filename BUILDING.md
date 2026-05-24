@@ -175,10 +175,10 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                       |
 | darwin-x64              | macOS 15, Xcode 16 with -mmacosx-version-min=13.5             |
 | darwin-arm64 (and .pkg) | macOS 15 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
-| linux-arm64             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-ppc64le           | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-s390x             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
-| linux-x64               | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-arm64             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-ppc64le           | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-s390x             | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
+| linux-x64               | RHEL 8 with Clang 20.1 and gcc-toolset-14-libatomic-devel[^6] |
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
@@ -237,9 +237,22 @@ tarball and/or browse the git repository checked out at the relevant tag.
 ### Prerequisites
 
 * [A supported version of Python][Python versions] for building and testing.
-* Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`)
+* A Rust toolchain if [building Node.js with Temporal support](#building-nodejs-with-temporal-support)
+  is required (enabled by default starting in Node.js 26).
+* Memory: at least 8GB of RAM is typically required when compiling with 4 parallel jobs (e.g: `make -j4`).
 
 ### Unix and macOS
+
+Consult the official [Install Rust](https://rust-lang.org/tools/install/)
+instructions to install a Rust toolchain, required for Temporal support introduced in Node.js 25.4.0.
+Individual packages such as `rust` and `cargo` in some operating system distributions may be considered
+as an alternative, for example in CI environments.
+Consult with relevant operating system documentation to ensure that packages
+meet the minimum version specified in the
+[Building Node.js with Temporal support](#building-nodejs-with-temporal-support) section,
+as packaged versions may lag behind the `stable` version installed by the official instructions.
+Avoid mixing `rustup` together with `rust` and `cargo` package installations, due to
+potential version conflicts.
 
 #### Unix prerequisites
 
@@ -796,6 +809,7 @@ easily. These files will install the following
 * `Python 3.14`
 * `Visual Studio 2022` (Build Tools, Community, Professional or Enterprise Edition) and
   "Desktop development with C++" workload, Clang and ClangToolset optional components
+* `Rust Toolchain MSVC`
 * `NetWide Assembler`
 
 The following Desired State Configuration (DSC) files are available:
@@ -1054,6 +1068,8 @@ requires a Rust toolchain:
 
 * rustc >= 1.82 (with LLVM >= 19)
 * cargo >= 1.82
+
+Refer to [Install Rust](https://rust-lang.org/tools/install/) for instructions.
 
 If `--v8-enable-temporal-support` and `--v8-disable-temporal-support` are both
 omitted, `configure.py` probes for `cargo` and `rustc`. If either is missing,

@@ -1516,7 +1516,7 @@ changes:
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/25605
     description: The default behavior will return a 431 Request Header
-                 Fields Too Large if a HPE_HEADER_OVERFLOW error occurs.
+                 Fields Too Large if an HPE_HEADER_OVERFLOW error occurs.
   - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/17672
     description: The `rawPacket` is the current buffer that just parsed. Adding
@@ -1542,8 +1542,8 @@ This event is guaranteed to be passed an instance of the {net.Socket} class,
 a subclass of {stream.Duplex}, unless the user specifies a socket
 type other than {net.Socket}.
 
-Default behavior is to try close the socket with a HTTP '400 Bad Request',
-or a HTTP '431 Request Header Fields Too Large' in the case of a
+Default behavior is to try close the socket with an HTTP '400 Bad Request',
+or an HTTP '431 Request Header Fields Too Large' in the case of an
 [`HPE_HEADER_OVERFLOW`][] error. If the socket is not writable or headers
 of the current attached [`http.ServerResponse`][] has been sent, it is
 immediately destroyed.
@@ -2703,7 +2703,7 @@ will result in a [`TypeError`][] being thrown.
 ### `response.writeInformation(statusCode[, headers][, callback])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 * `statusCode` {number} An HTTP 1xx informational status code, between `100`
@@ -2735,7 +2735,7 @@ response.writeInformation(110, { 'X-Progress': '50%' });
 added: v10.0.0
 -->
 
-Sends a HTTP/1.1 102 Processing message to the client, indicating that
+Sends an HTTP/1.1 102 Processing message to the client, indicating that
 the request body should be sent.
 
 ## Class: `http.IncomingMessage`
@@ -3030,7 +3030,9 @@ Calls `message.socket.setTimeout(msecs, callback)`.
 ### `message.signal`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * Type: {AbortSignal}
@@ -3734,7 +3736,7 @@ changes:
     `readableHighWaterMark` and `writableHighWaterMark`. This affects
     `highWaterMark` property of both `IncomingMessage` and `ServerResponse`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
-  * `insecureHTTPParser` {boolean} If set to `true`, it will use a HTTP parser
+  * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
     See [`--insecure-http-parser`][] for more information.
     **Default:** `false`.
@@ -4045,7 +4047,7 @@ changes:
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
-  * `insecureHTTPParser` {boolean} If set to `true`, it will use a HTTP parser
+  * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
     See [`--insecure-http-parser`][] for more information.
     **Default:** `false`

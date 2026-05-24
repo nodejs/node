@@ -13,6 +13,7 @@ const {
   RequestAbortedError
 } = require('../core/errors')
 const util = require('../core/util')
+const { kBodyUsed } = require('../core/symbols')
 const { addSignal, removeSignal } = require('./abort-signal')
 
 function noop () {}
@@ -24,6 +25,9 @@ class PipelineRequest extends Readable {
     super({ autoDestroy: true })
 
     this[kResume] = null
+    // Pipeline request bodies come from a live writable side and cannot be
+    // replayed across redirects or retries, even before any bytes are read.
+    this[kBodyUsed] = true
   }
 
   _read () {

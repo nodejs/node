@@ -1212,6 +1212,17 @@ If present, Node.js will look for a
 `node.config.json` file in the current working directory and load it as a
 configuration file.
 
+### `--experimental-dtls`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for the DTLS protocol. See the
+[dtls documentation][] for details.
+
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -1321,7 +1332,9 @@ top-level awaits, and print their location to help users find them.
 ### `--experimental-quic`
 
 <!-- YAML
-added: v25.0.0
+added:
+ - v25.0.0
+ - v24.16.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1355,6 +1368,7 @@ Use this flag to enable [ShadowRealm][] support.
 <!-- YAML
 added:
   - v25.5.0
+  - v24.16.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1416,7 +1430,7 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 ### `--experimental-test-tag-filter=<tag>`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 > Stability: 1.0 - Early development
@@ -2893,7 +2907,9 @@ option set. This flag is not necessary when test isolation is disabled.
 ### `--test-random-seed`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 Set the seed used to randomize test execution order. This applies to both test
@@ -2907,7 +2923,9 @@ This flag cannot be used with `--watch` or `--test-rerun-failures`.
 ### `--test-randomize`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 Randomize test execution order. This applies to both test file execution order
@@ -3753,6 +3771,7 @@ one is included in the list below.
 * `--experimental-abortcontroller`
 * `--experimental-addon-modules`
 * `--experimental-detect-module`
+* `--experimental-dtls`
 * `--experimental-eventsource`
 * `--experimental-ffi`
 * `--experimental-import-meta-resolve`
@@ -4424,6 +4443,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
+[dtls documentation]: dtls.md
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables_1
 [filtering tests by name]: test.md#filtering-tests-by-name

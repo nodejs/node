@@ -62,7 +62,6 @@
     'uv_sources_win': [
       'include/uv/win.h',
       'src/win/async.c',
-      'src/win/atomicops-inl.h',
       'src/win/core.c',
       'src/win/detect-wakeup.c',
       'src/win/dl.c',

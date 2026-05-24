@@ -81,7 +81,8 @@ async function makeRequest(clientSession, path) {
   await makeRequest(clientSession, '/second');
 
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Custom qpackMaxDTableCapacity = 8192 (larger than default).
@@ -115,5 +116,6 @@ async function makeRequest(clientSession, path) {
   await makeRequest(clientSession, '/beta');
 
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
