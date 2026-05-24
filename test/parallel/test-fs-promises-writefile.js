@@ -67,6 +67,10 @@ function createErroredStream(error) {
   return stream;
 }
 
+function waitForNextTick() {
+  return new Promise((resolve) => process.nextTick(resolve));
+}
+
 const bufferIterable = {
   expected: 'abc',
   *[Symbol.iterator]() {
@@ -135,6 +139,7 @@ async function doWriteAlreadyErroredStream() {
       fsPromises.writeFile(errorDest, stream),
       { message: error.message }
     );
+    await waitForNextTick();
     assert.strictEqual(stream.listenerCount('error'), 0);
   } finally {
     process.removeListener('uncaughtException', uncaughtException);
