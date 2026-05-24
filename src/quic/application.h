@@ -20,6 +20,7 @@ enum class HeadersKind : uint8_t {
 enum class HeadersFlags : uint8_t {
   NONE,
   TERMINAL,
+  WEBTRANSPORT,
 };
 
 // An Application implements the ALPN-protocol specific semantics on behalf
