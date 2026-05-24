@@ -33,12 +33,11 @@ const stream = await clientSession.createBidirectionalStream();
 const w = stream.writer;
 
 // Create an already-aborted signal.
-const ac = new AbortController();
-ac.abort(new Error('already aborted'));
+const signal = AbortSignal.abort(new Error('already aborted'));
 
 // write() with an already-aborted signal should reject immediately.
 await rejects(
-  w.write(encoder.encode('data'), { signal: ac.signal }),
+  w.write(encoder.encode('data'), { signal }),
   { message: 'already aborted' },
 );
 

@@ -161,9 +161,8 @@ test('AbortController inspection depth 1 or null works', () => {
 
 test('AbortSignal reason is set correctly', () => {
   // Test AbortSignal.reason
-  const ac = new AbortController();
-  ac.abort('reason');
-  assert.strictEqual(ac.signal.reason, 'reason');
+  const signal = AbortSignal.abort('reason');
+  assert.strictEqual(signal.reason, 'reason');
 });
 
 test('AbortSignal reasonable is set correctly with AbortSignal.abort()', () => {
