@@ -75,6 +75,14 @@ function createEarlyErrorStream(error) {
   return stream;
 }
 
+function createErroredStream(error) {
+  const stream = new Readable({
+    read() {}
+  });
+  stream.destroy(error);
+  return stream;
+}
+
 const bufferIterable = {
   expected: 'abc',
   *[Symbol.iterator]() {
@@ -117,6 +125,27 @@ async function doWriteStreamError() {
       fileHandle.writeFile(stream),
       { message: error.message }
     );
+    assert.strictEqual(stream.listenerCount('error'), 0);
+  } finally {
+    process.removeListener('uncaughtException', uncaughtException);
+    await fileHandle.close();
+  }
+}
+
+async function doWriteAlreadyErroredStream() {
+  const fileHandle = await open(errorDest, 'w+');
+  const error = new Error('already errored file handle writeFile stream');
+  const stream = createErroredStream(error);
+  const uncaughtException = common.mustNotCall(
+    'already errored streams should reject FileHandle.writeFile()');
+
+  process.once('uncaughtException', uncaughtException);
+  try {
+    await assert.rejects(
+      fileHandle.writeFile(stream),
+      { message: error.message }
+    );
+    assert.strictEqual(stream.listenerCount('error'), 0);
   } finally {
     process.removeListener('uncaughtException', uncaughtException);
     await fileHandle.close();
@@ -220,6 +249,7 @@ async function doWriteInvalidValues() {
   await doWriteAndCancel();
   await doWriteStream();
   await doWriteStreamError();
+  await doWriteAlreadyErroredStream();
   await doWriteStreamWithCancel();
   await doWriteIterable();
   await doWriteInvalidIterable();
