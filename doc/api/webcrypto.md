@@ -1935,7 +1935,7 @@ added:
 added: v24.7.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/63534
     description: Named cSHAKE variants (`KMAC`, `TupleHash`, `ParallelHash`)
                  are now accepted when linked against or built with OpenSSL >= 4.0.
 -->
@@ -1956,7 +1956,7 @@ domain-separate functions built on top of cSHAKE. Accepted values are:
 added: v24.7.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    pr-url: https://github.com/nodejs/node/pull/63534
     description: Non-empty customization is now supported when linked against
                  or built with OpenSSL >= 4.0.
 -->
