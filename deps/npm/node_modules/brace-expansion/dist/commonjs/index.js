@@ -155,7 +155,7 @@ function expand_(str, max, isTop) {
             }
             const pad = n.some(isPadded);
             N = [];
-            for (let i = x; test(i, y); i += incr) {
+            for (let i = x; test(i, y) && N.length < max; i += incr) {
                 let c;
                 if (isAlphaSequence) {
                     c = String.fromCharCode(i);

@@ -458,11 +458,8 @@ async function testWriteWithAbortedSignalRejects() {
   const fh = await open(filePath, 'w');
   const w = fh.writer();
 
-  const ac = new AbortController();
-  ac.abort();
-
   await assert.rejects(
-    w.write(Buffer.from('data'), { signal: ac.signal }),
+    w.write(Buffer.from('data'), { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -479,11 +476,8 @@ async function testWritevWithAbortedSignalRejects() {
   const fh = await open(filePath, 'w');
   const w = fh.writer();
 
-  const ac = new AbortController();
-  ac.abort();
-
   await assert.rejects(
-    w.writev([Buffer.from('a'), Buffer.from('b')], { signal: ac.signal }),
+    w.writev([Buffer.from('a'), Buffer.from('b')], { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -501,11 +495,8 @@ async function testEndWithAbortedSignalRejects() {
 
   await w.write(Buffer.from('data'));
 
-  const ac = new AbortController();
-  ac.abort();
-
   await assert.rejects(
-    w.end({ signal: ac.signal }),
+    w.end({ signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 

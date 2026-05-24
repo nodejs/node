@@ -271,6 +271,12 @@ class NativeCryptoKey : public BaseObject {
   static void CreateCryptoKeyClass(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static v8::MaybeLocal<v8::Value> Create(Environment* env,
+                                          const KeyObjectData& data,
+                                          v8::Local<v8::Value> algorithm,
+                                          uint32_t usages_mask,
+                                          bool extractable);
+
   // True if `value` is a real NativeCryptoKey instance. Uses the
   // FunctionTemplate stored on the Environment as a brand check.
   // Used by `GetSlots` to validate its receiver.

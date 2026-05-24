@@ -123,6 +123,7 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       const stream = run({
         files,
         coverage: true,
+        coverageExcludeGlobs: '!test/**',
         coverageIncludeGlobs: ['test/fixtures/test-runner/coverage.js', 'test/*/v8-coverage/throw.js'],
       });
       stream.on('test:fail', common.mustNotCall());
@@ -157,7 +158,14 @@ describe('require(\'node:test\').run coverage settings', { concurrency: true }, 
       const thresholdErrors = [];
       const originalExitCode = process.exitCode;
       assert.notStrictEqual(originalExitCode, 1);
-      const stream = run({ files, coverage: true, lineCoverage: 99, branchCoverage: 99, functionCoverage: 99 });
+      const stream = run({
+        files,
+        coverage: true,
+        coverageExcludeGlobs: '!test/**',
+        lineCoverage: 99,
+        branchCoverage: 99,
+        functionCoverage: 99,
+      });
       stream.on('test:fail', common.mustNotCall());
       stream.on('test:pass', common.mustCall(1));
       stream.on('test:diagnostic', ({ message }) => {

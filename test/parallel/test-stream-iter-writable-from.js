@@ -336,6 +336,53 @@ async function testRoundTrip() {
 }
 
 // =============================================================================
+// PushWriter writeSync false accepted as backpressure is not retried
+// =============================================================================
+
+async function testPushWriterBlockBackpressureNoDuplicate() {
+  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const writable = toWritable(writer);
+
+  await new Promise((resolve, reject) => {
+    writable.write('a', (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+
+  writable.write('b');
+  writable.end();
+
+  const result = await text(readable);
+  assert.strictEqual(result, 'ab');
+}
+
+// =============================================================================
+// PushWriter writevSync false accepted as backpressure is not retried
+// =============================================================================
+
+async function testPushWriterBlockBackpressureWritevNoDuplicate() {
+  const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
+  const writable = toWritable(writer);
+
+  await new Promise((resolve, reject) => {
+    writable.write('a', (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+
+  writable.cork();
+  writable.write('b');
+  writable.write('c');
+  writable.uncork();
+  writable.end();
+
+  const result = await text(readable);
+  assert.strictEqual(result, 'abc');
+}
+
+// =============================================================================
 // Multiple sequential writes
 // =============================================================================
 
@@ -590,6 +637,8 @@ Promise.all([
   testWriteThrowsSyncPropagation(),
   testEndThrowsSyncPropagation(),
   testRoundTrip(),
+  testPushWriterBlockBackpressureNoDuplicate(),
+  testPushWriterBlockBackpressureWritevNoDuplicate(),
   testSequentialWrites(),
   testSyncCallbackDeferred(),
   testMinimalWriter(),

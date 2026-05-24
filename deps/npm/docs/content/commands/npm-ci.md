@@ -189,6 +189,42 @@ run any pre- or post-scripts.
 
 
 
+#### `allow-directory`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to install dependencies from directories. That
+is, dependencies that point to a directory instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.
+
+`all` allows any directories to be installed. `none` prevents any
+directories from being installed. `root` only allows directories defined in
+your project's package.json to be installed. Also allows directory
+dependencies to be used for other commands like `npm view`
+
+
+
+#### `allow-file`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to install dependencies from tarball files. That
+is, dependencies that point to a local tarball file instead of a version or
+semver range. Please note that this could leave your tree incomplete and
+some packages may not function as intended or designed. Changing this
+setting will not remove dependencies that are already installed.
+
+`all` allows any tarball file to be installed. `none` prevents any tarball
+file from being installed. `root` only allows tarball files defined in your
+project's package.json to be installed. Also allows tarball file
+dependencies to be used for other commands like `npm view`
+
+
+
 #### `allow-git`
 
 * Default: "all"
@@ -197,12 +233,31 @@ run any pre- or post-scripts.
 Limits the ability for npm to fetch dependencies from git references. That
 is, dependencies that point to a git repo instead of a version or semver
 range. Please note that this could leave your tree incomplete and some
-packages may not function as intended or designed.
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.
 
 `all` allows any git dependencies to be fetched and installed. `none`
 prevents any git dependencies from being fetched and installed. `root` only
 allows git dependencies defined in your project's package.json to be fetched
-installed. Also allows git dependencies to be fetched for other commands
+and installed. Also allows git dependencies to be fetched for other commands
+like `npm view`
+
+
+
+#### `allow-remote`
+
+* Default: "all"
+* Type: "all", "none", or "root"
+
+Limits the ability for npm to fetch dependencies from urls. That is,
+dependencies that point to a tarball url instead of a version or semver
+range. Please note that this could leave your tree incomplete and some
+packages may not function as intended or designed. Changing this setting
+will not remove dependencies that are already installed.
+
+`all` allows any url to be installed. `none` prevents any url from being
+installed. `root` only allows urls defined in your project's package.json to
+be installed. Also allows url dependencies to be used for other commands
 like `npm view`
 
 
