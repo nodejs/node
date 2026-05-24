@@ -305,12 +305,15 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
       static_cast<uint8_t>(HeadersFlags::NONE);
   constexpr int QUIC_STREAM_HEADERS_FLAGS_TERMINAL =
       static_cast<uint8_t>(HeadersFlags::TERMINAL);
+  constexpr int QUIC_STREAM_HEADERS_FLAGS_WEBTRANSPORT =
+      static_cast<uint8_t>(HeadersFlags::WEBTRANSPORT);
 
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_HINTS);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_INITIAL);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_KIND_TRAILING);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_NONE);
   NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_TERMINAL);
+  NODE_DEFINE_CONSTANT(target, QUIC_STREAM_HEADERS_FLAGS_WEBTRANSPORT);
 
   Realm::GetCurrent(realm->context())->AddBindingData<BindingData>(target);
 }
