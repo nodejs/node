@@ -256,3 +256,30 @@ for (const { args, expected } of badargs) {
     ['p', 1], ['parallelization', 1],
   ].forEach((arg) => testParameter(...arg));
 }
+
+// `-0` keylen must not abort the process via the native binding's
+// IsInt32() assertion. Assert that `-0` produces the same outcome as
+// `+0` (which differs by OpenSSL build).
+{
+  let posError;
+  let posResult;
+  try {
+    posResult = crypto.scryptSync('', '', 0);
+  } catch (err) {
+    posError = err;
+  }
+  let negError;
+  let negResult;
+  try {
+    negResult = crypto.scryptSync('', '', -0);
+  } catch (err) {
+    negError = err;
+  }
+  if (posError !== undefined) {
+    assert.strictEqual(negError?.message, posError.message);
+  } else {
+    assert.deepStrictEqual(negResult, posResult);
+  }
+
+  crypto.scrypt('', '', -0, common.mustCall());
+}
