@@ -1482,7 +1482,7 @@ link(2) documentation for more detail.
 added: v10.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/57775
+    pr-url: https://github.com/nodejs/node/pull/63143
     description: Accepts an additional `signal` option to allow aborting the
                  operation.
   - version: v10.5.0
