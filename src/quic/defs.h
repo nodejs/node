@@ -309,6 +309,7 @@ enum class HeadersKind : uint8_t {
 enum class HeadersFlags : uint8_t {
   NONE,
   TERMINAL,
+  WEBTRANSPORT
 };
 
 enum class StreamPriority : uint8_t {

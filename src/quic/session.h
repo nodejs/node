@@ -83,7 +83,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     bool enable_connect_protocol = true;
     bool enable_datagrams = true;
-    bool enable_webtransport = false; // for a client always enabling it, may be good
+    // for a client always enabling wt, may be good
+    bool enable_webtransport = false;
 
     operator const nghttp3_settings() const;
 
