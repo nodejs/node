@@ -72,6 +72,7 @@ enum class SessionListenerFlags : uint32_t {
   SESSION_TICKET = 1 << 3,
   NEW_TOKEN = 1 << 4,
   ORIGIN = 1 << 5,
+  APPLICATION = 1 << 6
 };
 
 inline SessionListenerFlags operator|(SessionListenerFlags a,
@@ -3605,8 +3606,6 @@ void Session::EmitApplication() {
   if (is_destroyed()) return;
   if (!env()->can_call_into_js()) return;
 
-  CallbackScope<Session> cb_scope(this);
-
   if (!has_application()) {
     // The application has not yet been selected (ALPN negotiation is not
     // yet complete on the server) or the session has been destroyed. In
@@ -3614,6 +3613,14 @@ void Session::EmitApplication() {
     // Should not happen, but we bail out
     return;
   }
+
+  if (!HasListenerFlag(impl_->state()->listener_flags,
+                       SessionListenerFlags::APPLICATION)) [[likely]] {
+    return;
+  }
+
+  CallbackScope<Session> cb_scope(this);
+
   Local<Value> argv;
   auto& options = application().options();
   if (options.ToObject(env()).ToLocal(&argv)) {
