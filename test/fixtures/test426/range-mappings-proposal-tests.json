@@ -37,6 +37,13 @@
       "sourceMapIsValid": false
     },
     {
+      "name": "rangeMappingsInvalidVLQZero",
+      "description": "VLQ of zero is invalid because offsets are 1-based",
+      "baseFile": "invalid-vlq-zero.js",
+      "sourceMapFile": "invalid-vlq-zero.js.map",
+      "sourceMapIsValid": false
+    },
+    {
       "name": "rangeMappingsOutOfRange",
       "description": "Test an invalid range mapping which is outside the mappings length",
       "baseFile": "out-of-range.js",

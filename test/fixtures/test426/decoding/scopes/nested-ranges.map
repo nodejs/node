@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "file": "nested-ranges.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "global",
+    "foo",
+    "function"
+  ],
+  "scopes": "BCAAA,BHBACE,CEA,CFA,ECAA,EGCC,FC,FG"
+}

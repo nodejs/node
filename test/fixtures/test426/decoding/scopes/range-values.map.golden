@@ -1,0 +1,119 @@
+{
+  "file": "range-values.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 10,
+          "column": 0
+        },
+        "name": null,
+        "kind": "global",
+        "isStackFrame": false,
+        "variables": [
+          "x",
+          "y",
+          "z"
+        ],
+        "children": [
+          {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 5,
+              "column": 0
+            },
+            "name": null,
+            "kind": "block",
+            "isStackFrame": false,
+            "variables": [
+              "a"
+            ],
+            "children": []
+          }
+        ]
+      }
+    }
+  ],
+  "ranges": [
+    {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 0,
+        "column": 10
+      },
+      "definitionIndex": 0,
+      "stackFrameType": "none",
+      "callSite": null,
+      "bindings": [
+        [
+          {
+            "binding": "x_val",
+            "from": {
+              "line": 0,
+              "column": 0
+            }
+          }
+        ],
+        [
+          {
+            "binding": null,
+            "from": {
+              "line": 0,
+              "column": 0
+            }
+          }
+        ],
+        [
+          {
+            "binding": "z_val",
+            "from": {
+              "line": 0,
+              "column": 0
+            }
+          }
+        ]
+      ],
+      "children": [
+        {
+          "start": {
+            "line": 0,
+            "column": 2
+          },
+          "end": {
+            "line": 0,
+            "column": 4
+          },
+          "definitionIndex": 1,
+          "stackFrameType": "none",
+          "callSite": null,
+          "bindings": [
+            [
+              {
+                "binding": "a_val",
+                "from": {
+                  "line": 0,
+                  "column": 2
+                }
+              }
+            ]
+          ],
+          "children": []
+        }
+      ]
+    }
+  ]
+}
