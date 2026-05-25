@@ -131,6 +131,31 @@ async function testMergeConsumerBreak() {
   assert.strictEqual(source1Return && source2Return, true);
 }
 
+async function testMergeDoesNotDrainIdleSources() {
+  function source(n) {
+    return {
+      pulls: 0,
+      async *[Symbol.asyncIterator]() {
+        while (this.pulls < n) {
+          yield [Buffer.from(`${++this.pulls}`)];
+        }
+      },
+    };
+  }
+
+  const source1 = source(5);
+  const source2 = source(5);
+  const iterator = merge(source1, source2)[Symbol.asyncIterator]();
+
+  await iterator.next();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.ok(source1.pulls <= 1);
+  assert.ok(source2.pulls <= 1);
+
+  await iterator.return?.();
+}
+
 async function testMergeSignalMidIteration() {
   const ac = new AbortController();
   async function* slowSource() {
@@ -190,6 +215,7 @@ Promise.all([
   testMergeSyncSources(),
   testMergeSourceError(),
   testMergeConsumerBreak(),
+  testMergeDoesNotDrainIdleSources(),
   testMergeSignalMidIteration(),
   testMergeStringSources(),
   testMergeObjectLikeSources(),
