@@ -1751,7 +1751,6 @@ static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
 
 static int xFilter(void* pCtx, const char* zTab) {
   auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
-  if (!ctx->filterCallback) return 1;
   return ctx->filterCallback(zTab) ? 1 : 0;
 }
 
@@ -1855,7 +1854,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       db->connection_,
       buf.length(),
       const_cast<void*>(static_cast<const void*>(buf.data())),
-      xFilter,
+      context.filterCallback ? xFilter : nullptr,
       xConflict,
       static_cast<void*>(&context));
   if (r == SQLITE_OK) {
