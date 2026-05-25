@@ -160,6 +160,10 @@ const decoder = new TextDecoder();
       this.writer.writeSync(encoder.encode('settings-ok'));
       this.writer.endSync();
     }),
+    onapplication: mustCall((appopt) => {
+      strictEqual(appopt.enableDatagrams, true);
+      strictEqual(appopt.enableConnectProtocol, true); // I have no idea why it is false
+    })
   });
 
   const clientSession = await connect(serverEndpoint.address, {
