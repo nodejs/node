@@ -5,5 +5,5 @@
   "sources": ["simple-original.js"],
   "sourcesContent": ["\"Hello World\""],
   "mappings": ";CAAA;A",
-  "rangeMappings": ";A"
+  "rangeMappings": ";B"
 }

@@ -5,5 +5,5 @@
   "sources": ["newline-semantics-original.js"],
   "sourcesContent": ["1234\n5678"],
   "mappings": "CAAA;GACG",
-  "rangeMappings": "A;"
+  "rangeMappings": "B;"
 }
