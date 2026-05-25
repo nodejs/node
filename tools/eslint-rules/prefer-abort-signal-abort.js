@@ -118,8 +118,7 @@ module.exports = {
             return isAbortReference(reference, abortStatement, name);
           });
 
-          if (references.length !== 2 ||
-              signalReferences.length !== 1 ||
+          if (references.length !== (1 + signalReferences.length) ||
               abortReferences.length !== 1) {
             continue;
           }
