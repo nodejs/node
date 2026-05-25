@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   analyze:
+    if: github.repository == 'nodejs/node'
     name: Analyze
     runs-on: ubuntu-slim
     permissions:
