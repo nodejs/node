@@ -16,76 +16,76 @@ new RuleTester().run('prefer-abort-signal-abort', rule, {
   valid: [
     'const signal = AbortSignal.abort();',
     `
-const controller = new AbortController();
-controller.abort();
-controller.abort();
-fn(controller.signal);
-`,
+      const controller = new AbortController();
+      controller.abort();
+      controller.abort();
+      fn(controller.signal);
+    `,
     `
-const controller = new AbortController();
-controller.abort();
-fn(controller.signal, controller.signal);
-`,
+      const controller = new AbortController();
+      controller.abort();
+      fn(controller.signal, controller.signal);
+    `,
     `
-const controller = new AbortController();
-controller.abort();
-console.log(controller);
-fn(controller.signal);
-`,
+      const controller = new AbortController();
+      controller.abort();
+      console.log(controller);
+      fn(controller.signal);
+    `,
     `
-const controller = new AbortController();
-// This comment should not be removed.
-controller.abort();
-fn(controller.signal);
-`,
+      const controller = new AbortController();
+      // This comment should not be removed.
+      controller.abort();
+      fn(controller.signal);
+    `,
     `
-const controller = new AbortController();
-setImmediate(() => controller.abort());
-fn(controller.signal);
-`,
+      const controller = new AbortController();
+      setImmediate(() => controller.abort());
+      fn(controller.signal);
+    `,
     `
-const controller = new AbortController();
-controller.abort('reason', 'extra');
-fn(controller.signal);
-`,
+      const controller = new AbortController();
+      controller.abort('reason', 'extra');
+      fn(controller.signal);
+    `,
   ],
   invalid: [
     {
       code: `
-const controller = new AbortController();
-controller.abort();
-fn(controller.signal);
-`,
+        const controller = new AbortController();
+        controller.abort();
+        fn(controller.signal);
+      `,
       errors: [{ message }],
       output: `
-fn(AbortSignal.abort());
-`,
+        fn(AbortSignal.abort());
+      `,
     },
     {
       code: `
-const abortController = new AbortController();
-abortController.abort(new Error('aborted'));
-fn({ signal: abortController.signal });
-`,
+        const abortController = new AbortController();
+        abortController.abort(new Error('aborted'));
+        fn({ signal: abortController.signal });
+      `,
       errors: [{ message }],
       output: `
-fn({ signal: AbortSignal.abort(new Error('aborted')) });
-`,
+        fn({ signal: AbortSignal.abort(new Error('aborted')) });
+      `,
     },
     {
       code: `
-{
-  const ac = new AbortController();
-  ac.abort();
-  await wait({ signal: ac.signal });
-}
-`,
+        {
+          const ac = new AbortController();
+          ac.abort();
+          await wait({ signal: ac.signal });
+        }
+      `,
       errors: [{ message }],
       output: `
-{
-  await wait({ signal: AbortSignal.abort() });
-}
-`,
+        {
+          await wait({ signal: AbortSignal.abort() });
+        }
+      `,
     },
   ]
 });
