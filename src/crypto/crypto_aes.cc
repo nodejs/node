@@ -118,7 +118,17 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   }
 
   size_t total = 0;
-  int buf_len = data_len + ctx.getBlockSize() + (encrypt ? tag_len : 0);
+  const int block_size = ctx.getBlockSize();
+  if (block_size < 0) {
+    return WebCryptoCipherStatus::FAILED;
+  }
+  int buf_len;
+  if (!TryGetIntCipherOutputLength(
+          data_len,
+          static_cast<size_t>(block_size) + (encrypt ? tag_len : 0),
+          &buf_len)) {
+    return WebCryptoCipherStatus::FAILED;
+  }
   int out_len;
 
   ncrypto::Buffer<const unsigned char> buffer = {
@@ -154,7 +164,7 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
 
   total += out_len;
   CHECK_LE(out_len, buf_len);
-  out_len = ctx.getBlockSize();
+  out_len = block_size;
   if (!ctx.update({}, ptr + total, &out_len, true)) {
     return WebCryptoCipherStatus::FAILED;
   }
