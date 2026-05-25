@@ -3270,6 +3270,19 @@ added: v23.8.0
   datagram was never sent on the wire (dropped due to queue overflow,
   send attempt limit exceeded, or frame size rejection).
 
+### Callback: `OnApplicationCallback`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+* `this` {quic.QuicSession}
+* `applicationoption` {quic.QuicSession}
+
+The callback function that is invoked when application options change.
+E.g. for http/3 settings are included in applications options and
+may arrive after the connection is established.
+
 ### Callback: `OnPathValidationCallback`
 
 <!-- YAML
