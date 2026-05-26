@@ -1900,8 +1900,7 @@ def configure_node(o):
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
   else:
-    o['variables']['node_use_node_snapshot'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
 
   # Do not use code cache when Node.js is built for collecting coverage of itself, this allows more
   # precise coverage for the JS built-ins.
@@ -1909,8 +1908,7 @@ def configure_node(o):
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-    o['variables']['node_use_node_code_cache'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_code_cache'] = b(not cross_compiling)
 
   if options.write_snapshot_as_array_literals is not None:
      o['variables']['node_write_snapshot_as_array_literals'] = b(options.write_snapshot_as_array_literals)
