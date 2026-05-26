@@ -83,10 +83,11 @@ class StringBytes {
                                           size_t buflen,
                                           enum encoding encoding);
 
-  // Like Encode(..., UTF8) but does not re-validate. Input must be valid UTF-8.
-  static v8::MaybeLocal<v8::Value> EncodeValidUtf8(v8::Isolate* isolate,
-                                                   const char* buf,
-                                                   size_t buflen);
+  // Like Encode(..., UTF8) but skips UTF-8 validation. Caller must guarantee
+  // that buf contains valid UTF-8.
+  static v8::MaybeLocal<v8::Value> EncodeValidatedUTF8(v8::Isolate* isolate,
+                                                        const char* buf,
+                                                        size_t buflen);
 
   // Warning: This reverses endianness on BE platforms, even though the
   // signature using uint16_t implies that it should not.

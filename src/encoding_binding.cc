@@ -471,14 +471,21 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
       return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
           env->isolate(), "The encoded data was not valid for encoding utf-8");
     }
+
+    Local<Value> ret;
+    // Data is already validated as UTF-8 above; skip redundant re-validation.
+    if (StringBytes::EncodeValidatedUTF8(env->isolate(), data, length)
+            .ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
+    return;
   }
 
   if (length == 0) return args.GetReturnValue().SetEmptyString();
 
   Local<Value> ret;
   v8::MaybeLocal<Value> encoded =
-      has_fatal ? StringBytes::EncodeValidUtf8(env->isolate(), data, length)
-                : StringBytes::Encode(env->isolate(), data, length, UTF8);
+      StringBytes::Encode(env->isolate(), data, length, UTF8);
   if (encoded.ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
