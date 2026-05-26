@@ -85,6 +85,7 @@ When reporting security vulnerabilities, reporters must adhere to the following 
 
 4. **Report Quality**
    * Provide clear, detailed steps to reproduce the vulnerability.
+   * Include reproducible code written in JavaScript.
    * Include only the minimum proof of concept required to demonstrate the issue.
    * Remove any malicious payloads or components that could cause harm.
 
