@@ -85,7 +85,7 @@ class StringBytes {
 
   // Like Encode(..., UTF8) but skips UTF-8 validation. Caller must guarantee
   // that buf contains valid UTF-8.
-  static v8::MaybeLocal<v8::Value> EncodeValidatedUTF8(v8::Isolate* isolate,
+  static v8::MaybeLocal<v8::Value> EncodeKnownValidUTF8(v8::Isolate* isolate,
                                                         const char* buf,
                                                         size_t buflen);
 

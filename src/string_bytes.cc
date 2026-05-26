@@ -537,11 +537,11 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
     }                                                                          \
   } while (0)
 
-// Converts known-valid, known-non-ASCII UTF-8 (buflen >= 32) to a V8 string
-// via the fast UTF-16 path. Callers must ensure buflen is range-checked.
+// Converts known-valid UTF-8 (buflen >= 32) to a V8 string via the fast
+// UTF-16 path. Callers must ensure buflen is range-checked.
 static MaybeLocal<Value> EncodeKnownValidNonAsciiUTF8(Isolate* isolate,
-                                                       const char* buf,
-                                                       size_t buflen) {
+                                                      const char* buf,
+                                                      size_t buflen) {
   size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
   if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
     isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
@@ -555,12 +555,11 @@ static MaybeLocal<Value> EncodeKnownValidNonAsciiUTF8(Isolate* isolate,
       });
 }
 
-MaybeLocal<Value> StringBytes::EncodeValidatedUTF8(Isolate* isolate,
+MaybeLocal<Value> StringBytes::EncodeKnownValidUTF8(Isolate* isolate,
                                                     const char* buf,
                                                     size_t buflen) {
   buflen = keep_buflen_in_range(buflen);
-  if (buflen >= 32)
-    return EncodeKnownValidNonAsciiUTF8(isolate, buf, buflen);
+  if (buflen >= 32) return EncodeKnownValidNonAsciiUTF8(isolate, buf, buflen);
   Local<String> str;
   if (!String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen)
            .ToLocal(&str))

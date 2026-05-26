@@ -474,7 +474,7 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
     Local<Value> ret;
     // Data is already validated as UTF-8 above; skip redundant re-validation.
-    if (StringBytes::EncodeValidatedUTF8(env->isolate(), data, length)
+    if (StringBytes::EncodeKnownValidUTF8(env->isolate(), data, length)
             .ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
     }
