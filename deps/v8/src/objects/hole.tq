@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@cppObjectLayoutDefinition
+@doNotGenerateCppClass
 @doNotGenerateInstanceTypeCheck
 extern class Hole extends HeapObject {}
 
-@cppObjectLayoutDefinition
+@doNotGenerateCppClass
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
 extern class TheHole extends Hole {}
 
-@cppObjectLayoutDefinition
+@doNotGenerateCppClass
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
 extern class PromiseHole extends Hole {}

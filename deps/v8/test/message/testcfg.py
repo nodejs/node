@@ -25,11 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
-import re
-
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 from testrunner.outproc import message
 
@@ -57,13 +53,7 @@ class TestCase(testcase.D8TestCase):
     return [self._get_source_path()]
 
   def _expected_fail(self):
-    path = self.path
-    while path:
-      head, tail = os.path.split(path)
-      if tail == 'fail':
-        return True
-      path = head
-    return False
+    return 'fail' in self.path.parts
 
   def _get_cmd_params(self):
     params = super(TestCase, self)._get_cmd_params()

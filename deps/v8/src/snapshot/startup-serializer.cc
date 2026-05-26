@@ -66,6 +66,7 @@ StartupSerializer::StartupSerializer(
     : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
       shared_heap_serializer_(shared_heap_serializer),
       accessor_infos_(isolate->heap()),
+      interceptor_infos_(isolate->heap()),
       function_template_infos_(isolate->heap()) {
   InitializeCodeAddressMap();
 
@@ -88,11 +89,17 @@ StartupSerializer::StartupSerializer(
 }
 
 StartupSerializer::~StartupSerializer() {
-  for (DirectHandle<AccessorInfo> info : accessor_infos_) {
-    RestoreExternalReferenceRedirector(isolate(), *info);
-  }
-  for (DirectHandle<FunctionTemplateInfo> info : function_template_infos_) {
-    RestoreExternalReferenceRedirector(isolate(), *info);
+  if (USE_SIMULATOR_BOOL) {
+    // Restore redirections removed during serialization.
+    for (DirectHandle<AccessorInfo> info : accessor_infos_) {
+      info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+    }
+    for (DirectHandle<InterceptorInfo> info : interceptor_infos_) {
+      info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+    }
+    for (DirectHandle<FunctionTemplateInfo> info : function_template_infos_) {
+      info->RestoreCallbackRedirectionAfterDeserialization(isolate());
+    }
   }
   OutputStatistics("StartupSerializer");
 }
@@ -125,11 +132,16 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   if (USE_SIMULATOR_BOOL && IsAccessorInfo(*obj, cage_base)) {
     // Wipe external reference redirects in the accessor info.
     auto info = Cast<AccessorInfo>(obj);
-    info->remove_getter_redirection(isolate());
+    info->RemoveCallbackRedirectionForSerialization(isolate());
     accessor_infos_.Push(*info);
+  } else if (USE_SIMULATOR_BOOL && IsInterceptorInfo(*obj, cage_base)) {
+    // Wipe external reference redirects in the interceptor info.
+    auto info = Cast<InterceptorInfo>(obj);
+    info->RemoveCallbackRedirectionForSerialization(isolate());
+    interceptor_infos_.Push(*info);
   } else if (USE_SIMULATOR_BOOL && IsFunctionTemplateInfo(*obj, cage_base)) {
     auto info = Cast<FunctionTemplateInfo>(obj);
-    info->remove_callback_redirection(isolate());
+    info->RemoveCallbackRedirectionForSerialization(isolate());
     function_template_infos_.Push(*info);
   } else if (IsScript(*obj, cage_base) &&
              Cast<Script>(obj)->IsUserJavaScript()) {

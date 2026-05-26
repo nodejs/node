@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-update----11121">
+<h1 id="----npm-update----11150">
     <span>npm-update</span>
-    <span class="version">@11.12.1</span>
+    <span class="version">@11.15.0</span>
 </h1>
 <span class="description">Update packages</span>
 </header>
@@ -201,7 +201,7 @@ npm command-line interface
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre><code class="language-bash">npm update [&lt;pkg&gt;...]
 
-aliases: up, upgrade, udpate
+aliases: u, up, upgrade, udpate
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command will update all the packages listed to the latest version (specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver constraints of both your package and its dependencies (if they also require the same package).</p>
@@ -429,7 +429,11 @@ command will error.</p>
 <code>--before</code> filter, the most recent version less than or equal to that tag
 will be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though
 <code>latest</code> is <code>2.0</code>.</p>
-<p>This config cannot be used with: <code>min-release-age</code></p>
+<p>If <code>before</code> and <code>min-release-age</code> are both set in the same source, <code>before</code>
+wins (an explicit absolute date overrides a relative window). Across
+sources, the standard precedence applies (cli &gt; env &gt; project &gt; user &gt;
+global), so a higher-priority source can always relax or override a
+lower-priority one.</p>
 <h4 id="min-release-age"><code>min-release-age</code></h4>
 <ul>
 <li>Default: null</li>
@@ -440,8 +444,11 @@ available more than the given number of days ago will be installed. If there
 are no versions available for the current set of dependencies, the command
 will error.</p>
 <p>This flag is a complement to <code>before</code>, which accepts an exact date instead
-of a relative number of days.</p>
-<p>This config cannot be used with: <code>before</code></p>
+of a relative number of days. The two may coexist (e.g. <code>min-release-age</code> in
+your <code>.npmrc</code> is preserved when npm internally spawns a sub-process with
+<code>--before</code> while preparing a <code>git:</code> or <code>github:</code> dependency); when both
+apply, <code>before</code> wins within a single source and across sources the standard
+precedence rules apply.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>

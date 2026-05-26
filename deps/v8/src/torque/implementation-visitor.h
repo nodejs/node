@@ -541,7 +541,7 @@ class ImplementationVisitor {
   VisitResult InlineMacro(Macro* macro,
                           std::optional<LocationReference> this_reference,
                           const std::vector<VisitResult>& arguments,
-                          const std::vector<Block*> label_blocks);
+                          const std::vector<Block*>& label_blocks);
   void VisitMacroCommon(Macro* macro);
   void Visit(ExternMacro* macro) {}
   void Visit(TorqueMacro* macro);
@@ -584,6 +584,10 @@ class ImplementationVisitor {
   const Type* Visit(ExpressionStatement* stmt);
   const Type* Visit(DebugStatement* stmt);
   const Type* Visit(AssertStatement* stmt);
+  const Type* Visit(TypeswitchStatement* stmt) {
+    // This should have been desugared before.
+    UNREACHABLE();
+  }
 
   void BeginGeneratedFiles();
   void EndGeneratedFiles();

@@ -39,6 +39,33 @@ using ::testing::MatchesRegex;
 using ::testing::Not;
 using ::testing::Ref;
 
+TEST(StatusMatcherTest, AbslExpectAssertOk) {
+  ABSL_EXPECT_OK(absl::OkStatus());
+  ABSL_ASSERT_OK(absl::OkStatus());
+  EXPECT_NONFATAL_FAILURE(ABSL_EXPECT_OK(absl::InternalError("Smigla error")),
+                          "Smigla error");
+  EXPECT_FATAL_FAILURE(ABSL_ASSERT_OK(absl::InternalError("Smigla error")),
+                       "Smigla error");
+}
+
+TEST(StatusMatcherTest, ExpectAssertOk) {
+#ifdef ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
+  EXPECT_OK(absl::OkStatus());
+  ASSERT_OK(absl::OkStatus());
+  EXPECT_NONFATAL_FAILURE(EXPECT_OK(absl::InternalError("Smigla error")),
+                          "Smigla error");
+  EXPECT_FATAL_FAILURE(ASSERT_OK(absl::InternalError("Smigla error")),
+                       "Smigla error");
+#else
+#ifdef EXPECT_OK
+  static_assert(false, "EXPECT_OK defined despite being turned off.");
+#endif  // EXPECT_OK
+#ifdef ASSERT_OK
+  static_assert(false, "ASSERT_OK defined despite being turned off.");
+#endif  // ASSERT_OK
+#endif  // ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
+}
+
 TEST(StatusMatcherTest, StatusIsOk) { EXPECT_THAT(absl::OkStatus(), IsOk()); }
 
 TEST(StatusMatcherTest, StatusOrIsOk) {

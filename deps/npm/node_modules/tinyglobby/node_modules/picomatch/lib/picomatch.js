@@ -233,6 +233,14 @@ picomatch.scan = (input, options) => scan(input, options);
  * Compile a regular expression from the `state` object returned by the
  * [parse()](#parse) method.
  *
+ * ```js
+ * const picomatch = require('picomatch');
+ * const state = picomatch.parse('*.js');
+ * // picomatch.compileRe(state[, options]);
+ *
+ * console.log(picomatch.compileRe(state));
+ * //=> /^(?:(?!\.)(?=.)[^/]*?\.js)$/
+ * ```
  * @param {Object} `state`
  * @param {Object} `options`
  * @param {Boolean} `returnOutput` Intended for implementors, this argument allows you to return the raw output from the parser.
@@ -268,10 +276,10 @@ picomatch.compileRe = (state, options, returnOutput = false, returnState = false
  *
  * ```js
  * const picomatch = require('picomatch');
- * const state = picomatch.parse('*.js');
- * // picomatch.compileRe(state[, options]);
+ * // picomatch.makeRe(state[, options]);
  *
- * console.log(picomatch.compileRe(state));
+ * const result = picomatch.makeRe('*.js');
+ * console.log(result);
  * //=> /^(?:(?!\.)(?=.)[^/]*?\.js)$/
  * ```
  * @param {String} `state` The object returned from the `.parse` method.

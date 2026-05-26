@@ -40,14 +40,16 @@ class JSCreateLoweringTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
-  Node* FrameState(Handle<SharedFunctionInfo> shared, Node* outer_frame_state) {
+  Node* FrameState(Handle<SharedFunctionInfo> shared, Node* outer_frame_state,
+                   int parameter_count = 1) {
     Node* state_values =
         graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
     return graph()->NewNode(
-        common()->FrameState(
-            BytecodeOffset::None(), OutputFrameStateCombine::Ignore(),
-            common()->CreateFrameStateFunctionInfo(
-                FrameStateType::kUnoptimizedFunction, 1, 0, 0, shared, {})),
+        common()->FrameState(BytecodeOffset::None(),
+                             OutputFrameStateCombine::Ignore(),
+                             common()->CreateFrameStateFunctionInfo(
+                                 FrameStateType::kUnoptimizedFunction,
+                                 parameter_count, 0, 0, shared, {})),
         state_values, state_values, state_values, NumberConstant(0),
         UndefinedConstant(), outer_frame_state);
   }
@@ -127,8 +129,12 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
   Node* const effect = graph()->start();
   Handle<SharedFunctionInfo> shared =
       CanonicalHandle(isolate()->regexp_function()->shared());
-  Node* const frame_state_outer = FrameState(shared, graph()->start());
-  Node* const frame_state_inner = FrameState(shared, frame_state_outer);
+  Node* const frame_state_outer =
+      FrameState(shared, graph()->start(),
+                 shared->internal_formal_parameter_count_with_receiver());
+  Node* const frame_state_inner =
+      FrameState(shared, frame_state_outer,
+                 shared->internal_formal_parameter_count_with_receiver());
   Reduction r = Reduce(graph()->NewNode(
       javascript()->CreateArguments(CreateArgumentsType::kRestParameter),
       closure, context, frame_state_inner, effect));

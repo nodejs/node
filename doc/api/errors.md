@@ -2465,6 +2465,18 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
+<a id="ERR_NO_TEMPORAL"></a>
+
+### `ERR_NO_TEMPORAL`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+An attempt was made to use features that require [`Temporal`][], but Node.js was not
+compiled with `Temporal` support or it has been disabled in the current environment
+(for example, when running with `--no-harmony-temporal`).
+
 <a id="ERR_NO_TYPESCRIPT"></a>
 
 ### `ERR_NO_TYPESCRIPT`
@@ -2651,6 +2663,32 @@ added:
 
 Opening a QUIC stream failed.
 
+<a id="ERR_QUIC_STREAM_ABORTED"></a>
+
+### `ERR_QUIC_STREAM_ABORTED`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+> Stability: 1 - Experimental
+
+The Node.js error code for a [`QuicError`][] thrown to abort a QUIC stream
+or session with an explicit application or transport error code.
+
+<a id="ERR_QUIC_STREAM_RESET"></a>
+
+### `ERR_QUIC_STREAM_RESET`
+
+<!-- YAML
+added: v26.2.0
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC stream was reset by the peer. The error includes the reset code
+provided by the peer.
+
 <a id="ERR_QUIC_TRANSPORT_ERROR"></a>
 
 ### `ERR_QUIC_TRANSPORT_ERROR`
@@ -2730,7 +2768,9 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 > Stability: 1 - Experimental.
@@ -3064,7 +3104,7 @@ The context must be a `SecureContext`.
 
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
 
-The specified  `secureProtocol` method is invalid. It is  either unknown, or
+The specified `secureProtocol` method is invalid. It is either unknown, or
 disabled because it is insecure.
 
 <a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>
@@ -3105,6 +3145,13 @@ Failed to set PSK identity hint. Hint may be too long.
 
 An attempt was made to renegotiate TLS on a socket instance with renegotiation
 disabled.
+
+<a id="ERR_TLS_RENEGOTIATION_UNSUPPORTED"></a>
+
+### `ERR_TLS_RENEGOTIATION_UNSUPPORTED`
+
+An attempt was made to renegotiate TLS, but the TLS implementation does not
+support caller-initiated renegotiation.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 
@@ -4436,8 +4483,10 @@ An error occurred trying to allocate memory. This should never happen.
 [`MessagePort`]: worker_threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
+[`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
+[`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
 [`Writable`]: stream.md#class-streamwritable
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag

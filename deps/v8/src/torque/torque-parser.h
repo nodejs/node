@@ -14,6 +14,11 @@ namespace torque {
 // Adds the parsed input to {CurrentAst}
 void ParseTorque(const std::string& input);
 
+Expression* MakeCall(Identifier* callee,
+                     const std::vector<TypeExpression*>& generic_arguments,
+                     const std::vector<Expression*>& arguments,
+                     const std::vector<Statement*>& otherwise);
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

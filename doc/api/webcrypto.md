@@ -2,7 +2,8 @@
 
 <!-- YAML
 changes:
-  - version: v25.9.0
+  - version:
+     - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -513,8 +514,8 @@ const decrypted = new TextDecoder().decode(await crypto.subtle.decrypt(
 
 ## Algorithm matrix
 
-The tables details the algorithms supported by the Node.js Web Crypto API
-implementation and the APIs supported for each:
+The following tables detail the algorithms supported by the Node.js Web
+Crypto API implementation and the APIs supported for each:
 
 ### Key Management APIs
 
@@ -755,7 +756,7 @@ Valid key usages depend on the key algorithm (identified by
 | `'ECDSA'`                            |            | ✔                  |                        |              |                   |
 | `'Ed25519'`                          |            | ✔                  |                        |              |                   |
 | `'Ed448'`[^secure-curves]            |            | ✔                  |                        |              |                   |
-| `'HDKF'`                             |            |                    | ✔                      |              |                   |
+| `'HKDF'`                             |            |                    | ✔                      |              |                   |
 | `'HMAC'`                             |            | ✔                  |                        |              |                   |
 | `'KMAC128'`[^modern-algos]           |            | ✔                  |                        |              |                   |
 | `'KMAC256'`[^modern-algos]           |            | ✔                  |                        |              |                   |
@@ -849,7 +850,7 @@ The algorithms currently supported include:
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
 
-### `subtle.decapsulateKey(decapsulationAlgorithm, decapsulationKey, ciphertext, sharedKeyAlgorithm, extractable, usages)`
+### `subtle.decapsulateKey(decapsulationAlgorithm, decapsulationKey, ciphertext, sharedKeyAlgorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v24.7.0
@@ -862,7 +863,7 @@ added: v24.7.0
 * `ciphertext` {ArrayBuffer|TypedArray|DataView|Buffer}
 * `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
-* `usages` {string\[]} See [Key usages][].
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {CryptoKey} upon success.
 
 A message recipient uses their asymmetric private key to decrypt an
@@ -960,7 +961,7 @@ The algorithms currently supported include:
 * `'X25519'`
 * `'X448'`[^secure-curves]
 
-### `subtle.deriveKey(algorithm, baseKey, derivedKeyAlgorithm, extractable, keyUsages)`
+### `subtle.deriveKey(algorithm, baseKey, derivedKeyType, extractable, keyUsages)`
 
 <!-- YAML
 added: v15.0.0
@@ -979,7 +980,7 @@ changes:
 
 * `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|Argon2Params}
 * `baseKey` {CryptoKey}
-* `derivedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
+* `derivedKeyType` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
 * `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
@@ -988,11 +989,11 @@ changes:
 
 Using the method and parameters specified in `algorithm`, and the keying
 material provided by `baseKey`, this method attempts to generate
-a new {CryptoKey} based on the method and parameters in `derivedKeyAlgorithm`.
+a new {CryptoKey} based on the method and parameters in `derivedKeyType`.
 
 Calling this method is equivalent to calling [`subtle.deriveBits()`][] to
 generate raw keying material, then passing the result into the
-[`subtle.importKey()`][] method using the `deriveKeyAlgorithm`, `extractable`, and
+[`subtle.importKey()`][] method using the `derivedKeyType`, `extractable`, and
 `keyUsages` parameters as input.
 
 The algorithms currently supported include:
@@ -1011,7 +1012,8 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: v25.9.0
+  - version:
+     - v25.9.0
     pr-url: https://github.com/nodejs/node/pull/62183
     description: TurboSHAKE and KangarooTwelve algorithms
       are now supported.
@@ -1071,7 +1073,7 @@ The algorithms currently supported include:
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
 
-### `subtle.encapsulateKey(encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable, usages)`
+### `subtle.encapsulateKey(encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v24.7.0
@@ -1083,7 +1085,7 @@ added: v24.7.0
 * `encapsulationKey` {CryptoKey}
 * `sharedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams|KmacImportParams}
 * `extractable` {boolean}
-* `usages` {string\[]} See [Key usages][].
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with {EncapsulatedKey} upon success.
 
 Uses a message recipient's asymmetric public key to encrypt a temporary symmetric key.
@@ -1132,6 +1134,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: v26.1.0
+    pr-url: https://github.com/nodejs/node/pull/62706
+    description: Added JWK format support for ML-KEM key types.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
@@ -1190,9 +1195,9 @@ specification.
 | `'ML-DSA-44'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-65'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-87'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
-| `'ML-KEM-512'`[^modern-algos]        | ✔        | ✔         |         |         |                | ✔              | ✔            |
-| `'ML-KEM-768'`[^modern-algos]        | ✔        | ✔         |         |         |                | ✔              | ✔            |
-| `'ML-KEM-1024'`[^modern-algos]       | ✔        | ✔         |         |         |                | ✔              | ✔            |
+| `'ML-KEM-512'`[^modern-algos]        | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-KEM-768'`[^modern-algos]        | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-KEM-1024'`[^modern-algos]       | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'RSA-OAEP'`                         | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSA-PSS'`                          | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSASSA-PKCS1-v1_5'`                | ✔        | ✔         | ✔       |         |                |                |              |
@@ -1280,6 +1285,9 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: v26.1.0
+    pr-url: https://github.com/nodejs/node/pull/62706
+    description: Added JWK format support for ML-KEM key types.
   - version:
      - v25.9.0
      - v24.15.0
@@ -1348,16 +1356,16 @@ The algorithms currently supported include:
 | `'ECDSA'`                            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'Ed25519'`                          | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'Ed448'`[^secure-curves]            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
-| `'HDKF'`                             |          |           |         | ✔       | ✔              |                |              |
+| `'HKDF'`                             |          |           |         | ✔       | ✔              |                |              |
 | `'HMAC'`                             |          |           | ✔       | ✔       | ✔              |                |              |
 | `'KMAC128'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
 | `'KMAC256'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
 | `'ML-DSA-44'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-65'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'ML-DSA-87'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
-| `'ML-KEM-512'`[^modern-algos]        | ✔        | ✔         |         |         |                | ✔              | ✔            |
-| `'ML-KEM-768'`[^modern-algos]        | ✔        | ✔         |         |         |                | ✔              | ✔            |
-| `'ML-KEM-1024'`[^modern-algos]       | ✔        | ✔         |         |         |                | ✔              | ✔            |
+| `'ML-KEM-512'`[^modern-algos]        | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-KEM-768'`[^modern-algos]        | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-KEM-1024'`[^modern-algos]       | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'PBKDF2'`                           |          |           |         | ✔       | ✔              |                |              |
 | `'RSA-OAEP'`                         | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSA-PSS'`                          | ✔        | ✔         | ✔       |         |                |                |              |
@@ -1411,7 +1419,7 @@ The algorithms currently supported include:
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`
 
-### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgo, unwrappedKeyAlgo, extractable, keyUsages)`
+### `subtle.unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgorithm, unwrappedKeyAlgorithm, extractable, keyUsages)`
 
 <!-- YAML
 added: v15.0.0
@@ -1431,8 +1439,8 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `unwrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
-* `unwrappedKeyAlgo` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
+* `unwrapAlgorithm` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
+* `unwrappedKeyAlgorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams|KmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -1444,8 +1452,8 @@ In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. This method attempts to decrypt a wrapped
 key and create a {CryptoKey} instance. It is equivalent to calling
 [`subtle.decrypt()`][] first on the encrypted key data (using the `wrappedKey`,
-`unwrapAlgo`, and `unwrappingKey` arguments as input) then passing the results
-to the [`subtle.importKey()`][] method using the `unwrappedKeyAlgo`,
+`unwrapAlgorithm`, and `unwrappingKey` arguments as input) then passing the results
+to the [`subtle.importKey()`][] method using the `unwrappedKeyAlgorithm`,
 `extractable`, and `keyUsages` arguments as inputs. If successful, the returned
 promise is resolved with a {CryptoKey} object.
 
@@ -1472,14 +1480,14 @@ The unwrapped key algorithms supported include:
 * `'Ed25519'`
 * `'Ed448'`[^secure-curves]
 * `'HMAC'`
-* `'KMAC128'`[^secure-curves]
-* `'KMAC256'`[^secure-curves]
+* `'KMAC128'`[^modern-algos]
+* `'KMAC256'`[^modern-algos]
 * `'ML-DSA-44'`[^modern-algos]
 * `'ML-DSA-65'`[^modern-algos]
 * `'ML-DSA-87'`[^modern-algos]
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
-* `'ML-KEM-1024'`[^modern-algos]v
+* `'ML-KEM-1024'`[^modern-algos]
 * `'RSA-OAEP'`
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`
@@ -1525,15 +1533,15 @@ The algorithms currently supported include:
 * `'Ed25519'`
 * `'Ed448'`[^secure-curves]
 * `'HMAC'`
-* `'KMAC128'`[^secure-curves]
-* `'KMAC256'`[^secure-curves]
+* `'KMAC128'`[^modern-algos]
+* `'KMAC256'`[^modern-algos]
 * `'ML-DSA-44'`[^modern-algos]
 * `'ML-DSA-65'`[^modern-algos]
 * `'ML-DSA-87'`[^modern-algos]
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`
 
-### `subtle.wrapKey(format, key, wrappingKey, wrapAlgo)`
+### `subtle.wrapKey(format, key, wrappingKey, wrapAlgorithm)`
 
 <!-- YAML
 added: v15.0.0
@@ -1552,7 +1560,7 @@ changes:
   `'raw-public'`[^modern-algos], or `'raw-seed'`[^modern-algos].
 * `key` {CryptoKey}
 * `wrappingKey` {CryptoKey}
-* `wrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
+* `wrapAlgorithm` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AeadParams}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -1560,10 +1568,10 @@ changes:
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. This method exports the keying material into
 the format identified by `format`, then encrypts it using the method and
-parameters specified by `wrapAlgo` and the keying material provided by
+parameters specified by `wrapAlgorithm` and the keying material provided by
 `wrappingKey`. It is the equivalent to calling [`subtle.exportKey()`][] using
 `format` and `key` as the arguments, then passing the result to the
-[`subtle.encrypt()`][] method using `wrappingKey` and `wrapAlgo` as inputs. If
+[`subtle.encrypt()`][] method using `wrappingKey` and `wrapAlgorithm` as inputs. If
 successful, the returned promise will be resolved with an {ArrayBuffer}
 containing the encrypted key data.
 
@@ -1873,7 +1881,7 @@ added: v24.7.0
 added: v24.7.0
 -->
 
-* Type: {string} Must be `Ed448`[^secure-curves], `'ML-DSA-44'`[^modern-algos],
+* Type: {string} Must be `'Ed448'`[^secure-curves], `'ML-DSA-44'`[^modern-algos],
   `'ML-DSA-65'`[^modern-algos], or `'ML-DSA-87'`[^modern-algos].
 
 #### `contextParams.context`
@@ -1909,7 +1917,7 @@ changes:
 added: v24.7.0
 -->
 
-* Type: {string} Must be `'cSHAKE128'`[^modern-algos] or `'cSHAKE256'`[^modern-algos]
+* Type: {string} Must be `'cSHAKE128'`[^modern-algos] or `'cSHAKE256'`[^modern-algos].
 
 #### `cShakeParams.outputLength`
 
@@ -1929,7 +1937,7 @@ added: v24.7.0
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
-The `functionName` member represents represents the function name, used by NIST to define
+The `functionName` member represents the function name, used by NIST to define
 functions based on cSHAKE.
 The Node.js Web Crypto API implementation only supports zero-length functionName
 which is equivalent to not providing functionName at all.
@@ -1968,9 +1976,9 @@ added: v15.0.0
 
 * Type: {CryptoKey}
 
-ECDH key derivation operates by taking as input one parties private key and
-another parties public key -- using both to generate a common shared secret.
-The `ecdhKeyDeriveParams.public` property is set to the other parties public
+ECDH key derivation operates by taking as input one party's private key and
+another party's public key -- using both to generate a common shared secret.
+The `ecdhKeyDeriveParams.public` property is set to the other party's public
 key.
 
 ### Class: `EcdsaParams`
@@ -2345,13 +2353,15 @@ added: v15.0.0
 ### Class: `KangarooTwelveParams`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 #### `kangarooTwelveParams.customization`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
@@ -2361,15 +2371,17 @@ The optional customization string for KangarooTwelve.
 #### `kangarooTwelveParams.name`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
-* Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos]
+* Type: {string} Must be `'KT128'`[^modern-algos] or `'KT256'`[^modern-algos].
 
 #### `kangarooTwelveParams.outputLength`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -2751,13 +2763,15 @@ The length (in bytes) of the random salt to use.
 ### Class: `TurboShakeParams`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 #### `turboShakeParams.domainSeparation`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * Type: {number|undefined}
@@ -2767,15 +2781,17 @@ The optional domain separation byte (0x01-0x7f). Defaults to `0x1f`.
 #### `turboShakeParams.name`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
-* Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos]
+* Type: {string} Must be `'TurboSHAKE128'`[^modern-algos] or `'TurboSHAKE256'`[^modern-algos].
 
 #### `turboShakeParams.outputLength`
 
 <!-- YAML
-added: v25.9.0
+added:
+ - v25.9.0
 -->
 
 * Type: {number} represents the requested output length in bits.
@@ -2799,19 +2815,19 @@ added: v25.9.0
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/
 [`SubtleCrypto.supports()`]: #static-method-subtlecryptosupportsoperation-algorithm-lengthoradditionalalgorithm
 [`subtle.decapsulateBits()`]: #subtledecapsulatebitsdecapsulationalgorithm-decapsulationkey-ciphertext
-[`subtle.decapsulateKey()`]: #subtledecapsulatekeydecapsulationalgorithm-decapsulationkey-ciphertext-sharedkeyalgorithm-extractable-usages
+[`subtle.decapsulateKey()`]: #subtledecapsulatekeydecapsulationalgorithm-decapsulationkey-ciphertext-sharedkeyalgorithm-extractable-keyusages
 [`subtle.decrypt()`]: #subtledecryptalgorithm-key-data
 [`subtle.deriveBits()`]: #subtlederivebitsalgorithm-basekey-length
-[`subtle.deriveKey()`]: #subtlederivekeyalgorithm-basekey-derivedkeyalgorithm-extractable-keyusages
+[`subtle.deriveKey()`]: #subtlederivekeyalgorithm-basekey-derivedkeytype-extractable-keyusages
 [`subtle.digest()`]: #subtledigestalgorithm-data
 [`subtle.encapsulateBits()`]: #subtleencapsulatebitsencapsulationalgorithm-encapsulationkey
-[`subtle.encapsulateKey()`]: #subtleencapsulatekeyencapsulationalgorithm-encapsulationkey-sharedkeyalgorithm-extractable-usages
+[`subtle.encapsulateKey()`]: #subtleencapsulatekeyencapsulationalgorithm-encapsulationkey-sharedkeyalgorithm-extractable-keyusages
 [`subtle.encrypt()`]: #subtleencryptalgorithm-key-data
 [`subtle.exportKey()`]: #subtleexportkeyformat-key
 [`subtle.generateKey()`]: #subtlegeneratekeyalgorithm-extractable-keyusages
 [`subtle.getPublicKey()`]: #subtlegetpublickeykey-keyusages
 [`subtle.importKey()`]: #subtleimportkeyformat-keydata-algorithm-extractable-keyusages
 [`subtle.sign()`]: #subtlesignalgorithm-key-data
-[`subtle.unwrapKey()`]: #subtleunwrapkeyformat-wrappedkey-unwrappingkey-unwrapalgo-unwrappedkeyalgo-extractable-keyusages
+[`subtle.unwrapKey()`]: #subtleunwrapkeyformat-wrappedkey-unwrappingkey-unwrapalgorithm-unwrappedkeyalgorithm-extractable-keyusages
 [`subtle.verify()`]: #subtleverifyalgorithm-key-signature-data
-[`subtle.wrapKey()`]: #subtlewrapkeyformat-key-wrappingkey-wrapalgo
+[`subtle.wrapKey()`]: #subtlewrapkeyformat-key-wrappingkey-wrapalgorithm

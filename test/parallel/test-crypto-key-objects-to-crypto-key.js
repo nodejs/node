@@ -29,6 +29,7 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
     const algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
     if (length === 256)
       algorithms.push('ChaCha20-Poly1305');
+
     for (const algorithm of algorithms) {
       const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
       for (const extractable of [true, false]) {
@@ -97,7 +98,15 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
 }
 
 {
-  for (const algorithm of ['Ed25519', 'Ed448', 'X25519', 'X448']) {
+  const algorithms = ['Ed25519', 'X25519'];
+
+  if (!process.features.openssl_is_boringssl) {
+    algorithms.push('X448', 'Ed448');
+  } else {
+    common.printSkipMessage('Skipping unsupported Ed448/X448 test cases');
+  }
+
+  for (const algorithm of algorithms) {
     const { publicKey, privateKey } = generateKeyPairSync(algorithm.toLowerCase());
     assert.throws(() => {
       publicKey.toCryptoKey(algorithm === 'Ed25519' ? 'X25519' : 'Ed25519', true, []);
@@ -186,7 +195,7 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
   }
 }
 
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
     const { publicKey, privateKey } = generateKeyPairSync(name.toLowerCase());
     assert.throws(() => {

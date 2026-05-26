@@ -52,6 +52,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, TFPipelineData* data,
 
 enum class PhaseKind {
   kTurbofan,
+  kTurbolev,
   kTurboshaft,
 };
 

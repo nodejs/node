@@ -125,7 +125,7 @@ void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
 void MicrotaskQueueBuiltinsAssembler::SetupContinuationPreservedEmbedderData(
     TNode<Microtask> microtask) {
   TNode<Object> continuation_preserved_embedder_data = LoadObjectField(
-      microtask, Microtask::kContinuationPreservedEmbedderDataOffset);
+      microtask, offsetof(Microtask, continuation_preserved_embedder_data_));
   Label continuation_preserved_data_done(this);
   // The isolate's continuation preserved embedder data is cleared at the start
   // of RunMicrotasks and after each microtask, so it only needs to be set if
@@ -152,13 +152,12 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   TNode<Map> microtask_map = LoadMap(microtask);
   TNode<Uint16T> microtask_type = LoadMapInstanceType(microtask_map);
 
-  TVARIABLE(Object, var_exception);
-  Label if_exception(this, Label::kDeferred);
   Label is_callable(this), is_callback(this),
       is_promise_fulfill_reaction_job(this),
       is_promise_reject_reaction_job(this),
       is_promise_resolve_thenable_job(this),
-      is_unreachable(this, Label::kDeferred), done(this);
+      is_unreachable(this, Label::kDeferred),
+      rewind_entered_context_and_done(this), done(this);
 
   int32_t case_values[] = {CALLABLE_TASK_TYPE, CALLBACK_TASK_TYPE,
                            PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
@@ -174,37 +173,50 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   BIND(&is_callable);
   {
     // Enter the context of the {microtask}.
-    TNode<Context> microtask_context =
-        LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
-    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
-    PrepareForContext(native_context, &done);
+    TNode<NativeContext> microtask_context = LoadNativeContext(
+        LoadObjectField<Context>(microtask, offsetof(CallableTask, context_)));
+    PrepareForContext(microtask_context, &done);
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
-#endif
-    TNode<JSReceiver> callable =
-        LoadObjectField<JSReceiver>(microtask, CallableTask::kCallableOffset);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+    TNode<JSReceiver> callable = LoadObjectField<JSReceiver>(
+        microtask, offsetof(CallableTask, callable_));
+
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
       Call(microtask_context, callable, UndefinedConstant());
     }
-    RewindEnteredContext(saved_entered_context_count);
-    SetCurrentContext(current_context);
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     ClearContinuationPreservedEmbedderData();
-#endif
-    Goto(&done);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
+    Goto(&rewind_entered_context_and_done);
+
+    BIND(&if_exception);
+    {
+      // Report unhandled microtask exceptions in respective native context.
+      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
+                  var_exception.value());
+      Goto(&rewind_entered_context_and_done);
+    }
   }
 
   BIND(&is_callback);
   {
     const TNode<Object> microtask_callback =
-        LoadObjectField(microtask, CallbackTask::kCallbackOffset);
+        LoadObjectField(microtask, offsetof(CallbackTask, callback_));
     const TNode<Object> microtask_data =
-        LoadObjectField(microtask, CallbackTask::kDataOffset);
+        LoadObjectField(microtask, offsetof(CallbackTask, data_));
+
+    TNode<Context> microtask_context = current_context;
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
-#endif
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
     // If this turns out to become a bottleneck because of the calls
     // to C++ via CEntry, we can choose to speed them up using a
@@ -216,68 +228,91 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     // But from our current measurements it doesn't seem to be a
     // serious performance problem, even if the microtask is full
     // of CallHandlerTasks (which is not a realistic use case anyways).
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
+      CallRuntime(Runtime::kRunMicrotaskCallback, microtask_context,
                   microtask_callback, microtask_data);
     }
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     ClearContinuationPreservedEmbedderData();
-#endif
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
     Goto(&done);
+
+    BIND(&if_exception);
+    {
+      // Report unhandled microtask exceptions in respective native context.
+      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
+                  var_exception.value());
+      Goto(&done);
+    }
   }
 
   BIND(&is_promise_resolve_thenable_job);
   {
     // Enter the context of the {microtask}.
-    TNode<Context> microtask_context = LoadObjectField<Context>(
-        microtask, PromiseResolveThenableJobTask::kContextOffset);
-    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
-    PrepareForContext(native_context, &done);
+    TNode<NativeContext> microtask_context =
+        LoadNativeContext(LoadObjectField<Context>(
+            microtask, offsetof(PromiseResolveThenableJobTask, context_)));
+    PrepareForContext(microtask_context, &done);
 
     const TNode<Object> promise_to_resolve = LoadObjectField(
-        microtask, PromiseResolveThenableJobTask::kPromiseToResolveOffset);
-    const TNode<Object> then =
-        LoadObjectField(microtask, PromiseResolveThenableJobTask::kThenOffset);
+        microtask,
+        offsetof(PromiseResolveThenableJobTask, promise_to_resolve_));
+    const TNode<Object> then = LoadObjectField(
+        microtask, offsetof(PromiseResolveThenableJobTask, then_));
     const TNode<Object> thenable = LoadObjectField(
-        microtask, PromiseResolveThenableJobTask::kThenableOffset);
+        microtask, offsetof(PromiseResolveThenableJobTask, thenable_));
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
-#endif
-    RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
-                   CAST(promise_to_resolve));
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
+    RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
+                       CAST(promise_to_resolve));
+
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
-      CallBuiltin(Builtin::kPromiseResolveThenableJob, native_context,
+      CallBuiltin(Builtin::kPromiseResolveThenableJob, microtask_context,
                   promise_to_resolve, thenable, then);
     }
 
     RunAllPromiseHooks(PromiseHookType::kAfter, microtask_context,
-                   CAST(promise_to_resolve));
+                       CAST(promise_to_resolve));
 
-    RewindEnteredContext(saved_entered_context_count);
-    SetCurrentContext(current_context);
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
-    Goto(&done);
+
+    Goto(&rewind_entered_context_and_done);
+
+    BIND(&if_exception);
+    {
+      // Report unhandled microtask exceptions in respective native context.
+      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
+                  var_exception.value());
+      Goto(&rewind_entered_context_and_done);
+    }
   }
 
   BIND(&is_promise_fulfill_reaction_job);
   {
     // Enter the context of the {microtask}.
-    TNode<Context> microtask_context = LoadObjectField<Context>(
-        microtask, PromiseReactionJobTask::kContextOffset);
-    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
-    PrepareForContext(native_context, &done);
+    TNode<NativeContext> microtask_context =
+        LoadNativeContext(LoadObjectField<Context>(
+            microtask, offsetof(PromiseReactionJobTask, context_)));
+    PrepareForContext(microtask_context, &done);
 
     const TNode<Object> argument =
-        LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
+        LoadObjectField(microtask, offsetof(PromiseReactionJobTask, argument_));
     const TNode<Object> job_handler =
-        LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
+        LoadObjectField(microtask, offsetof(PromiseReactionJobTask, handler_));
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
-        microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
+        microtask, offsetof(PromiseReactionJobTask, promise_or_capability_)));
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
@@ -287,6 +322,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
                        promise_or_capability);
 
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
       CallBuiltin(Builtin::kPromiseFulfillReactionJob, microtask_context,
@@ -301,25 +338,31 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    RewindEnteredContext(saved_entered_context_count);
-    SetCurrentContext(current_context);
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
+
+    BIND(&if_exception);
+    {
+      // Report unhandled microtask exceptions in respective native context.
+      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
+                  var_exception.value());
+      Goto(&rewind_entered_context_and_done);
+    }
   }
 
   BIND(&is_promise_reject_reaction_job);
   {
     // Enter the context of the {microtask}.
-    TNode<Context> microtask_context = LoadObjectField<Context>(
-        microtask, PromiseReactionJobTask::kContextOffset);
-    TNode<NativeContext> native_context = LoadNativeContext(microtask_context);
-    PrepareForContext(native_context, &done);
+    TNode<NativeContext> microtask_context =
+        LoadNativeContext(LoadObjectField<Context>(
+            microtask, offsetof(PromiseReactionJobTask, context_)));
+    PrepareForContext(microtask_context, &done);
 
     const TNode<Object> argument =
-        LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
+        LoadObjectField(microtask, offsetof(PromiseReactionJobTask, argument_));
     const TNode<Object> job_handler =
-        LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
+        LoadObjectField(microtask, offsetof(PromiseReactionJobTask, handler_));
     const TNode<HeapObject> promise_or_capability = CAST(LoadObjectField(
-        microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset));
+        microtask, offsetof(PromiseReactionJobTask, promise_or_capability_)));
 
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     SetupContinuationPreservedEmbedderData(microtask);
@@ -329,6 +372,8 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     RunAllPromiseHooks(PromiseHookType::kBefore, microtask_context,
                        promise_or_capability);
 
+    TVARIABLE(Object, var_exception);
+    Label if_exception(this, Label::kDeferred);
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
       CallBuiltin(Builtin::kPromiseRejectReactionJob, microtask_context,
@@ -343,19 +388,22 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     ClearContinuationPreservedEmbedderData();
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
-    RewindEnteredContext(saved_entered_context_count);
-    SetCurrentContext(current_context);
-    Goto(&done);
+    Goto(&rewind_entered_context_and_done);
+
+    BIND(&if_exception);
+    {
+      // Report unhandled microtask exceptions in respective native context.
+      CallRuntime(Runtime::kReportMessageFromMicrotask, microtask_context,
+                  var_exception.value());
+      Goto(&rewind_entered_context_and_done);
+    }
   }
 
   BIND(&is_unreachable);
   Unreachable();
 
-  BIND(&if_exception);
+  BIND(&rewind_entered_context_and_done);
   {
-    // Report unhandled exceptions from microtasks.
-    CallRuntime(Runtime::kReportMessageFromMicrotask, GetCurrentContext(),
-                var_exception.value());
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
@@ -376,16 +424,16 @@ void MicrotaskQueueBuiltinsAssembler::IncrementFinishedMicrotaskCount(
 }
 
 TNode<Context> MicrotaskQueueBuiltinsAssembler::GetCurrentContext() {
-  auto ref = ExternalReference::Create(kContextAddress, isolate());
   // TODO(delphick): Add a checked cast. For now this is not possible as context
   // can actually be Tagged<Smi>(0).
-  return TNode<Context>::UncheckedCast(LoadFullTagged(ExternalConstant(ref)));
+  return TNode<Context>::UncheckedCast(
+      LoadFullTagged(IsolateField(IsolateFieldId::kContext)));
 }
 
 void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
     TNode<Context> context) {
-  auto ref = ExternalReference::Create(kContextAddress, isolate());
-  StoreFullTaggedNoWriteBarrier(ExternalConstant(ref), context);
+  StoreFullTaggedNoWriteBarrier(IsolateField(IsolateFieldId::kContext),
+                                context);
 }
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
@@ -519,7 +567,7 @@ void MicrotaskQueueBuiltinsAssembler::RunPromiseHook(
         IsPromiseCapability(promise_or_capability),
         [=, this] {
           return CAST(LoadObjectField(promise_or_capability,
-                                      PromiseCapability::kPromiseOffset));
+                                      offsetof(PromiseCapability, promise_)));
         },
 
         [=] { return promise_or_capability; });

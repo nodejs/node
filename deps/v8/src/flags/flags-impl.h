@@ -16,11 +16,25 @@ namespace v8::internal {
 
 class V8_EXPORT_PRIVATE FlagHelpers {
  public:
-  static char NormalizeChar(char ch);
+  static constexpr char NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 
-  static int FlagNamesCmp(const char* a, const char* b);
+  static constexpr int FlagNamesCmp(const char* a, const char* b) {
+    int i = 0;
+    char ac, bc;
+    do {
+      ac = NormalizeChar(a[i]);
+      bc = NormalizeChar(b[i]);
+      if (ac < bc) return -1;
+      if (ac > bc) return 1;
+      i++;
+    } while (ac != '\0');
+    return 0;
+  }
 
-  static bool EqualNames(const char* a, const char* b);
+  static constexpr bool EqualNames(const char* a, const char* b) {
+    return FlagNamesCmp(a, b) == 0;
+  }
+
   static bool EqualNameWithSuffix(const char* a, const char* b);
 };
 

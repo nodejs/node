@@ -305,6 +305,7 @@ inline void CheckedDecrement(
   USE(old);
 }
 
+// Prefer using `std::atomic_ref<T>`.
 template <typename T>
 V8_INLINE std::atomic<T>* AsAtomicPtr(T* t) {
   static_assert(sizeof(T) == sizeof(std::atomic<T>));
@@ -312,6 +313,10 @@ V8_INLINE std::atomic<T>* AsAtomicPtr(T* t) {
   return reinterpret_cast<std::atomic<T>*>(t);
 }
 
+// Prefer using `std::atomic_ref<T>`. This may require a `const_cast()` to get
+// rid of the const qualifier as `std::atomic_ref<T>` deliberately wants to
+// support all operations (including stores, or read-modify-write) on all
+// instances.
 template <typename T>
 V8_INLINE const std::atomic<T>* AsAtomicPtr(const T* t) {
   static_assert(sizeof(T) == sizeof(std::atomic<T>));

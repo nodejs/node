@@ -24,10 +24,10 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   // 6. Let srcLength be IntegerIndexedObjectLength(O, getSrcBufferByteLength).
   let srcLength: uintptr;
   try {
-    srcLength = LoadJSTypedArrayLengthAndCheckDetached(source)
-        otherwise DetachedOrOutOfBounds;
-  } label DetachedOrOutOfBounds {
-    // 7. If srcLength is out-of-bounds, set srcLength to 0.
+    srcLength =
+        LoadJSTypedArrayLengthAndValidate(source, TypedArrayAccessMode::kRead)
+        otherwise Fail;
+  } label Fail {
     srcLength = 0;
   }
 
@@ -85,6 +85,7 @@ transitioning javascript builtin TypedArrayPrototypeSubArray(
   //   a. Let argumentsList be « buffer, 𝔽(beginByteOffset), 𝔽(newLength) ».
   // 20. Return ? TypedArraySpeciesCreate(O, argumentsList).
   return TypedArraySpeciesCreateByBuffer(
-      methodName, source, buffer, beginByteOffset, newLength);
+      methodName, source, buffer, beginByteOffset, newLength,
+      TypedArrayAccessMode::kRead);
 }
 }

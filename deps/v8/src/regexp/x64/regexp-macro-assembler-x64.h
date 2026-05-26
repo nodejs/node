@@ -5,6 +5,7 @@
 #ifndef V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 #define V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_
 
+#include "src/base/functional/function-ref.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/zone/zone-chunk-list.h"
@@ -18,7 +19,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone, Mode mode,
                           int registers_to_save);
   ~RegExpMacroAssemblerX64() override;
-  int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -63,10 +63,13 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
                             Label* on_match1, Label* on_match2,
                             Label* on_failure) override;
   bool SkipUntilOneOfMaskedUseSimd(int advance_by);
+  bool SkipUntilOneOfMasked3UseSimd(
+      const SkipUntilOneOfMasked3Args& args) override;
+  void SkipUntilOneOfMasked3(const SkipUntilOneOfMasked3Args& args) override;
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
 
   void BindJumpTarget(Label* label) override;
@@ -174,13 +177,15 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   static constexpr int kBackupRsiOffset = kFrameTypeOffset - kSystemPointerSize;
   static constexpr int kBackupRdiOffset = kBackupRsiOffset - kSystemPointerSize;
   static constexpr int kBackupRbxOffset = kBackupRdiOffset - kSystemPointerSize;
-  static constexpr int kNumCalleeSaveRegisters = 3;
-  static constexpr int kLastCalleeSaveRegister = kBackupRbxOffset;
+  static constexpr int kBackupR12Offset = kBackupRbxOffset - kSystemPointerSize;
+  static constexpr int kNumCalleeSaveRegisters = 4;
+  static constexpr int kLastCalleeSaveRegister = kBackupR12Offset;
 #else
   static constexpr int kBackupRbxOffset =
       kNumOutputRegistersOffset - kSystemPointerSize;
-  static constexpr int kNumCalleeSaveRegisters = 1;
-  static constexpr int kLastCalleeSaveRegister = kBackupRbxOffset;
+  static constexpr int kBackupR12Offset = kBackupRbxOffset - kSystemPointerSize;
+  static constexpr int kNumCalleeSaveRegisters = 2;
+  static constexpr int kLastCalleeSaveRegister = kBackupR12Offset;
 #endif
 
   // When adding local variables remember to push space for them in
@@ -228,16 +233,14 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
 
   // The register containing the backtrack stack top. Provides a meaningful
   // name to the register.
-  static constexpr Register backtrack_stackpointer() { return rcx; }
+  static constexpr Register backtrack_stackpointer() { return rbx; }
 
   // The registers containing a self pointer to this code's InstructionStream
   // object.
   static constexpr Register code_object_pointer() { return r8; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument)
-  inline int char_size() { return static_cast<int>(mode_); }
   inline ScaleFactor CharSizeScaleFactor() {
-    switch (mode_) {
+    switch (mode()) {
       case LATIN1:
         return ScaleFactor::times_1;
       case UC16:
@@ -267,24 +270,25 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   inline void SafeReturn();
 
   // Pushes the value of a register on the backtrack stack. Decrements the
-  // stack pointer (rcx) by a word size and stores the register's value there.
+  // backtrack_stackpointer by a word size and stores the register's value
+  // there.
   inline void Push(Register source);
 
-  // Pushes a value on the backtrack stack. Decrements the stack pointer (rcx)
-  // by a word size and stores the value there.
+  // Pushes a value on the backtrack stack. Decrements the
+  // backtrack_stackpointer by a word size and stores the value there.
   inline void Push(Immediate value);
 
   // Pushes the InstructionStream object relative offset of a label on the
-  // backtrack stack (i.e., a backtrack target). Decrements the stack pointer
-  // (rcx) by a word size and stores the value there.
+  // backtrack stack (i.e., a backtrack target). Decrements the
+  // backtrace_stackpointer by a word size and stores the value there.
   inline void Push(Label* label);
 
-  // Pops a value from the backtrack stack. Reads the word at the stack pointer
-  // (rcx) and increments it by a word size.
+  // Pops a value from the backtrack stack. Reads the word at the
+  // backtrack_stackpointer and increments it by a word size.
   inline void Pop(Register target);
 
   // Drops the top value from the backtrack stack without reading it.
-  // Increments the stack pointer (rcx) by a word size.
+  // Increments the backtrack_stackpointer by a word size.
   inline void Drop();
 
   void LoadRegExpStackPointerFromMemory(Register dst);
@@ -293,6 +297,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   void PopRegExpBasePointer(Register scratch_pointer_out, Register scratch);
 
   inline void ReadPositionFromRegister(Register dst, int reg);
+
+  void EmitSkipUntilBitInTableSimdHelper(
+      int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
+      int max_on_match_lookahead, Label* scalar_fallback,
+      base::FunctionRef<void(Register, Register)> on_match);
 
   Isolate* isolate() const { return masm_.isolate(); }
 
@@ -307,9 +316,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerX64
   const NoRootArrayScope no_root_array_scope_;
 
   ZoneChunkList<int> code_relative_fixup_positions_;
-
-  // Which mode to generate code for (LATIN1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

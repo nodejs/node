@@ -285,7 +285,7 @@ const channelsByCollection = diagnostics_channel.tracingChannel({
 #### `diagnostics_channel.boundedChannel(nameOrChannels)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -670,7 +670,7 @@ channel.runStores({ some: 'message' }, () => {
 #### `channel.withStoreScope(data)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -727,7 +727,7 @@ ch.bindStore(store, (message) => {
 ### Class: `RunStoresScope`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -948,7 +948,7 @@ added:
  - v19.9.0
  - v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61766
     description: Custom thenables will no longer be wrapped in native Promises.
                  Non-thenables will be returned with a warning.
@@ -1147,7 +1147,7 @@ if (channels.hasSubscribers) {
 ### Class: `BoundedChannel`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1165,7 +1165,7 @@ dynamically.
 #### `boundedChannel.hasSubscribers`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * Returns: {boolean} `true` if any of the individual channels has a subscriber,
@@ -1196,7 +1196,7 @@ if (wc.hasSubscribers) {
 #### `boundedChannel.subscribe(handlers)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `handlers` {Object} Set of channel subscribers
@@ -1239,7 +1239,7 @@ wc.subscribe({
 #### `boundedChannel.unsubscribe(handlers)`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `handlers` {Object} Set of channel subscribers
@@ -1282,7 +1282,7 @@ wc.unsubscribe(handlers);
 #### `boundedChannel.run(context, fn[, thisArg[, ...args]])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `context` {Object} Shared object to correlate events through
@@ -1321,7 +1321,7 @@ const result = wc.run({ operationId: '123' }, () => {
 #### `boundedChannel.withScope([context])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 * `context` {Object} Shared object to correlate events through
@@ -1366,7 +1366,7 @@ const context = { operationId: '123' };
 ### Class: `BoundedChannelScope`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -1744,7 +1744,7 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 > Stability: 1 - Experimental
 
-##### Event: `'module.require.start'`
+##### Event: `'tracing:module.require:start'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1752,7 +1752,7 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 Emitted when `require()` is executed. See [`start` event][].
 
-##### Event: `'module.require.end'`
+##### Event: `'tracing:module.require:end'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1760,7 +1760,7 @@ Emitted when `require()` is executed. See [`start` event][].
 
 Emitted when a `require()` call returns. See [`end` event][].
 
-##### Event: `'module.require.error'`
+##### Event: `'tracing:module.require:error'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `require()`. Module name.
@@ -1769,7 +1769,7 @@ Emitted when a `require()` call returns. See [`end` event][].
 
 Emitted when a `require()` throws an error. See [`error` event][].
 
-##### Event: `'module.import.asyncStart'`
+##### Event: `'tracing:module.import:asyncStart'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1777,7 +1777,7 @@ Emitted when a `require()` throws an error. See [`error` event][].
 
 Emitted when `import()` is invoked. See [`asyncStart` event][].
 
-##### Event: `'module.import.asyncEnd'`
+##### Event: `'tracing:module.import:asyncEnd'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1785,7 +1785,7 @@ Emitted when `import()` is invoked. See [`asyncStart` event][].
 
 Emitted when `import()` has completed. See [`asyncEnd` event][].
 
-##### Event: `'module.import.error'`
+##### Event: `'tracing:module.import:error'`
 
 * `event` {Object} containing the following properties
   * `id` Argument passed to `import()`. Module name.
@@ -1876,7 +1876,7 @@ process has been created.
 
 Emitted when [`child_process.spawn()`][] encounters an error.
 
-##### Event: `'execve'`
+##### Event: `'process.execve'`
 
 * `execPath` {string}
 * `args` {string\[]}

@@ -5,6 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_GENERATOR_H_
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
+#include "absl/container/flat_hash_set.h"
 #include "src/ast/ast.h"
 #include "src/execution/isolate.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -29,6 +30,13 @@ class TopLevelDeclarationsBuilder;
 class LoopBuilder;
 class BlockCoverageBuilder;
 class BytecodeJumpTable;
+
+struct PrototypeAssignments {
+  Variable* var;
+  HoleCheckMode hole_check_mode;
+  ZoneVector<PrototypeAssignment> properties;
+  absl::flat_hash_set<const AstRawString*> duplicates;
+};
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
@@ -63,24 +71,18 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   }
 
 #ifdef DEBUG
-  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
 #endif
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-  static constexpr int kInitialPropertyCount = 64;
 
   bool IsPrototypeAssignment(
-      Statement* stmt, Variable** var, HoleCheckMode* hole_check_mode,
-      base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                        kInitialPropertyCount>& properties,
-      std::unordered_set<const AstRawString*>& duplicate);
+      Statement* stmt, std::unique_ptr<PrototypeAssignments>* assignments);
+  V8_NOINLINE void VisitConsecutivePrototypeAssignments(
+      std::unique_ptr<PrototypeAssignments> assignments);
 
-  void VisitConsecutivePrototypeAssignments(
-      const base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                              kInitialPropertyCount>& properties,
-      Variable* var, HoleCheckMode hole_check_mode);
   // Visiting function for declarations list and statements are overridden.
   void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);
@@ -340,6 +342,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildGeneratorPrologue();
   void BuildSuspendPoint(int position);
+  void BuildGeneratorEpilogue();
 
   void BuildAwait(int position = kNoSourcePosition);
   void BuildAwait(Expression* await_expr);
@@ -533,7 +536,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                     const AstRawString* name);
   FeedbackSlot GetDummyCompareICSlot();
 
-  int GetCachedCreateClosureSlot(FunctionLiteral* literal);
   int GetNewClosureSlot(FunctionLiteral* literal);
   void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
 

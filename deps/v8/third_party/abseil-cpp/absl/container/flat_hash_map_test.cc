@@ -39,8 +39,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 namespace {
-using ::absl::container_internal::hash_internal::Enum;
-using ::absl::container_internal::hash_internal::EnumClass;
+
 using ::testing::_;
 using ::testing::IsEmpty;
 using ::testing::Pair;

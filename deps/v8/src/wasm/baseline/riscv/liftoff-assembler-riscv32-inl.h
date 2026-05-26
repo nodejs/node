@@ -5,7 +5,7 @@
 #ifndef V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV32_INL_H_
 #define V8_WASM_BASELINE_RISCV_LIFTOFF_ASSEMBLER_RISCV32_INL_H_
 
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/mutable-page.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/riscv/liftoff-assembler-riscv-inl.h"
 #include "src/wasm/wasm-objects.h"

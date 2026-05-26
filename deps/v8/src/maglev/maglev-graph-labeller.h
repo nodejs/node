@@ -132,6 +132,19 @@ class PrintNodeLabel {
   const NodeBase* node_;
 };
 
+class PrintNodeBrief {
+ public:
+  explicit PrintNodeBrief(const NodeBase* node) : node_(node) {}
+
+  void Print(std::ostream& os) const {
+    PrintNodeLabel(node_).Print(os);
+    os << " (" << OpcodeToString(node_->opcode()) << ")";
+  }
+
+ private:
+  const NodeBase* node_;
+};
+
 #else
 
 class PrintNode {
@@ -147,6 +160,12 @@ class PrintNodeLabel {
   void Print(std::ostream& os) const {}
 };
 
+class PrintNodeBrief {
+ public:
+  explicit PrintNodeBrief(const NodeBase* node) {}
+  void Print(std::ostream& os) const {}
+};
+
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
 inline std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {
@@ -156,6 +175,12 @@ inline std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {
 
 inline std::ostream& operator<<(std::ostream& os,
                                 const PrintNodeLabel& printer) {
+  printer.Print(os);
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const PrintNodeBrief& printer) {
   printer.Print(os);
   return os;
 }

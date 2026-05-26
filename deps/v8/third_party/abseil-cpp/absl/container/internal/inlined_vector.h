@@ -795,16 +795,9 @@ auto Storage<T, N, A>::Insert(ConstIterator<A> pos, ValueAdapter values,
                                    move_construction_values,
                                    move_construction.size());
 
-    for (Pointer<A>
-             destination = move_assignment.data() + move_assignment.size(),
-             last_destination = move_assignment.data(),
-             source = move_assignment_values + move_assignment.size();
-         ;) {
-      --destination;
-      --source;
-      if (destination < last_destination) break;
-      *destination = std::move(*source);
-    }
+    std::move_backward(move_assignment_values,
+                       move_assignment_values + move_assignment.size(),
+                       move_assignment.data() + move_assignment.size());
 
     AssignElements<A>(insert_assignment.data(), values,
                       insert_assignment.size());

@@ -565,8 +565,10 @@ class BackupJob : public ThreadPoolWork {
         TryCatch try_catch(env()->isolate());
         USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
+          Local<Value> exception = try_catch.Exception();
           Finalize();
-          resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
+          resolver->Reject(env()->context(), exception).ToChecked();
+          delete this;
           return;
         }
       }
@@ -585,11 +587,15 @@ class BackupJob : public ThreadPoolWork {
     resolver
         ->Resolve(env()->context(), Integer::New(env()->isolate(), total_pages))
         .ToChecked();
+    delete this;
   }
 
   void Finalize() {
     Cleanup();
-    source_->RemoveBackup(this);
+    if (source_) {
+      source_->RemoveBackup(this);
+      source_.reset();
+    }
   }
 
   void Cleanup() {
@@ -610,28 +616,32 @@ class BackupJob : public ThreadPoolWork {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), dest_).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   void HandleBackupError(Local<Promise::Resolver> resolver, int errcode) {
     Local<Object> e;
     if (!CreateSQLiteError(env()->isolate(), errcode).ToLocal(&e)) {
       Finalize();
+      delete this;
       return;
     }
 
     Finalize();
     resolver->Reject(env()->context(), e).ToChecked();
+    delete this;
   }
 
   Environment* env() const { return env_; }
 
   Environment* env_;
-  DatabaseSync* source_;
+  BaseObjectPtr<DatabaseSync> source_;
   Global<Promise::Resolver> resolver_;
   Global<Function> progressFunc_;
   sqlite3* dest_ = nullptr;
@@ -748,7 +758,7 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.HolderV2(), Intercepted::kNo);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -780,7 +790,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.HolderV2(), Intercepted::kNo);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -2227,7 +2237,6 @@ static int xConflict(void* pCtx, int eConflict, sqlite3_changeset_iter* pIter) {
 
 static int xFilter(void* pCtx, const char* zTab) {
   auto ctx = static_cast<ConflictCallbackContext*>(pCtx);
-  if (!ctx->filterCallback) return 1;
   return ctx->filterCallback(zTab) ? 1 : 0;
 }
 
@@ -2338,7 +2347,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       db->connection_,
       buf.length(),
       const_cast<void*>(static_cast<const void*>(buf.data())),
-      xFilter,
+      context.filterCallback ? xFilter : nullptr,
       xConflict,
       static_cast<void*>(&context));
   if (r == SQLITE_OK) {
@@ -2422,9 +2431,6 @@ void DatabaseSync::LoadExtension(const FunctionCallbackInfo<Value>& args) {
   BufferValue entryPoint(isolate, args[1]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
-  if (*entryPoint == nullptr) {
-    ToNamespacedPath(env, &entryPoint);
-  }
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
   char* errmsg = nullptr;

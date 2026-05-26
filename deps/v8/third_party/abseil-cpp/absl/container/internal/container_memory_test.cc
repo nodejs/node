@@ -25,6 +25,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/meta/type_traits.h"
@@ -41,6 +42,16 @@ using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Gt;
 using ::testing::Pair;
+
+#if ABSL_HAVE_BUILTIN(__builtin_infer_alloc_token)
+TEST(Memory, AlignedTypeAllocToken) {
+#if defined(__wasm__)
+  GTEST_SKIP() << "Fails on wasm due to lack of heap partitioning support.";
+#endif
+  EXPECT_GT(__builtin_infer_alloc_token(sizeof(AlignedType<alignof(void*)>)),
+            __builtin_infer_alloc_token(sizeof(int)));
+}
+#endif
 
 TEST(Memory, AlignmentLargerThanBase) {
   std::allocator<int8_t> alloc;

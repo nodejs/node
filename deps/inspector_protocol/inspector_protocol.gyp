@@ -14,7 +14,6 @@
       'crdtp/json.h',
       'crdtp/json_platform.cc',
       'crdtp/json_platform.h',
-      'crdtp/maybe.h',
       'crdtp/parser_handler.h',
       'crdtp/protocol_core.cc',
       'crdtp/protocol_core.h',

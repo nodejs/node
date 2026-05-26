@@ -133,7 +133,9 @@ class EnvironmentOptions : public Options {
   bool experimental_sqlite = HAVE_SQLITE;
   bool experimental_logger = false;
   bool experimental_stream_iter = EXPERIMENTALS_DEFAULT_VALUE;
+  bool experimental_vfs = EXPERIMENTALS_DEFAULT_VALUE;
   bool webstorage = HAVE_SQLITE;
+  bool experimental_dtls = EXPERIMENTALS_DEFAULT_VALUE;
   bool experimental_quic = EXPERIMENTALS_DEFAULT_VALUE;
   std::string localstorage_file;
   bool experimental_global_navigator = true;
@@ -218,6 +220,7 @@ class EnvironmentOptions : public Options {
   std::string test_isolation = "process";
   std::string test_shard;
   std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> experimental_test_tag_filter;
   std::vector<std::string> coverage_include_pattern;
   std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;

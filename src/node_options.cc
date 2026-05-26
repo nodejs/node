@@ -614,6 +614,19 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental node:logger module",
             &EnvironmentOptions::experimental_logger,
             kAllowedInEnvvar);
+  AddOption("--experimental-dtls",
+#if HAVE_DTLS
+            "experimental DTLS support",
+            &EnvironmentOptions::experimental_dtls,
+#else
+            "" /* undocumented when no-op */,
+            NoOp{},
+#endif
+            kAllowedInEnvvar);
+  AddOption("--experimental-vfs",
+            "experimental node:vfs module",
+            &EnvironmentOptions::experimental_vfs,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",
@@ -1005,6 +1018,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern,
             kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--experimental-test-tag-filter",
+            "run tests matching the given tag filter expression",
+            &EnvironmentOptions::experimental_test_tag_filter,
+            kDisallowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",

@@ -17,10 +17,10 @@ fi
 TARBALL_URL=$(curl -fsIo /dev/null -w '%header{Location}' https://github.com/tc39/source-map-tests/archive/HEAD.tar.gz)
 SHA=$(basename "$TARBALL_URL")
 
-if [ "$CURRENT_SHA" = "$SHA" ]; then
-  echo "Already up-to-date"
-  exit 0
-fi
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
+compare_dependency_version "test426-fixtures" "$CURRENT_SHA" "$SHA"
 
 rm -rf "$TARGET_DIR"
 mkdir "$TARGET_DIR"
@@ -32,4 +32,5 @@ mv "$TMP_FILE" "$README"
 
 # The last line of the script should always print the new version,
 # as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$SHA"
+NEW_VERSION=$(echo "$SHA" | head -c 39)
+echo "NEW_VERSION=$NEW_VERSION"

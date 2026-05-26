@@ -130,7 +130,11 @@ class Output(object):
       return self.stdout_bytes.decode('latin-1')
 
   def HasCrashed(self):
-    return self.exit_code < 0 or self.exit_code == CRASH_CODE_FOR_TESTING
+    # The 255 covers V8's exit instead of crashing when fuzzing.
+    return (
+        self.exit_code < 0 or
+        self.exit_code == 255 or
+        self.exit_code == CRASH_CODE_FOR_TESTING)
 
 
 def Execute(args, cwd, timeout=None):

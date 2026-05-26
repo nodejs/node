@@ -11,7 +11,7 @@ const {
   generateKeyPair,
 } = require('crypto');
 
-if (!hasOpenSSL(3, 5)) {
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
   for (const asymmetricKeyType of ['ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87']) {
     assert.throws(() => generateKeyPair(asymmetricKeyType, common.mustNotCall()), {
       code: 'ERR_INVALID_ARG_VALUE',

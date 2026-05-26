@@ -167,7 +167,7 @@ class MockAgent extends Dispatcher {
   }
 
   [kMockAgentSet] (origin, dispatcher) {
-    this[kClients].set(origin, { count: 0, dispatcher })
+    this[kClients].set(origin, dispatcher)
   }
 
   [kFactory] (origin) {
@@ -179,9 +179,9 @@ class MockAgent extends Dispatcher {
 
   [kMockAgentGet] (origin) {
     // First check if we can immediately find it
-    const result = this[kClients].get(origin)
-    if (result?.dispatcher) {
-      return result.dispatcher
+    const dispatcher = this[kClients].get(origin)
+    if (dispatcher) {
+      return dispatcher
     }
 
     // If the origin is not a string create a dummy parent pool and return to user
@@ -192,11 +192,11 @@ class MockAgent extends Dispatcher {
     }
 
     // If we match, create a pool and assign the same dispatches
-    for (const [keyMatcher, result] of Array.from(this[kClients])) {
-      if (result && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
+    for (const [keyMatcher, nonExplicitDispatcher] of Array.from(this[kClients])) {
+      if (nonExplicitDispatcher && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
         const dispatcher = this[kFactory](origin)
         this[kMockAgentSet](origin, dispatcher)
-        dispatcher[kDispatches] = result.dispatcher[kDispatches]
+        dispatcher[kDispatches] = nonExplicitDispatcher[kDispatches]
         return dispatcher
       }
     }
@@ -210,7 +210,7 @@ class MockAgent extends Dispatcher {
     const mockAgentClients = this[kClients]
 
     return Array.from(mockAgentClients.entries())
-      .flatMap(([origin, result]) => result.dispatcher[kDispatches].map(dispatch => ({ ...dispatch, origin })))
+      .flatMap(([origin, dispatcher]) => dispatcher[kDispatches].map(dispatch => ({ ...dispatch, origin })))
       .filter(({ pending }) => pending)
   }
 

@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "src/base/strings.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
@@ -21,7 +22,7 @@ SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
   // For types with custom descriptors, we need to look at their immediate
   // supertype instead of the object's map.
   // See Liftoff's {SubtypeCheck()} for detailed explanation.
-  if (!target.is_index()) {
+  if (!target.has_index()) {
     DCHECK(!target.is_exact());  // The spec only allows exact index types.
     return SubtypeCheckExactness::kMayBeSubtype;
   }
@@ -73,10 +74,16 @@ CallDescriptor* GetContinuationResumeDescriptor(Zone* zone) {
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   // TODO(thibaudm): Add support for arguments and return values.
-  LocationSignature::Builder locations(zone, 0, 1);
-  // Pointer to the resumed StackMemory.
+  LocationSignature::Builder locations(zone, 0, 2);
+  // The WasmFXResume builtin just forwards its register arguments (the stack
+  // pointer and the argument buffer) to the target stack, so expect them to be
+  // in the same registers on stack entry:
   locations.AddParam(LinkageLocation(LinkageLocation::ForRegister(
-      wasm::kGpParamRegisters[0].code(), MachineType::Pointer())));
+      WasmFXResumeDescriptor::GetRegisterParameter(0).code(),
+      MachineType::Pointer())));
+  locations.AddParam(LinkageLocation(LinkageLocation::ForRegister(
+      WasmFXResumeDescriptor::GetRegisterParameter(1).code(),
+      MachineType::Pointer())));
   const RegList kCalleeSaveRegisters;
   const DoubleRegList kCalleeSaveFPRegisters;
   return zone->New<CallDescriptor>(                   // --
@@ -92,7 +99,6 @@ CallDescriptor* GetContinuationResumeDescriptor(Zone* zone) {
       kCalleeSaveFPRegisters,             // callee-saved fp regs
       CallDescriptor::kNoFlags,           // flags
       "wasm-resume",                      // debug name
-      StackArgumentOrder::kDefault,       // order of the arguments in the stack
       RegList{},                          // allocatable registers
       0,                                  // return slot count
       0);                                 // signature hash
@@ -105,9 +111,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
   if (call_kind == kWasmContinuation) {
-    if (fsig->parameter_count() > 0 || fsig->return_count() > 0) {
-      UNIMPLEMENTED();
-    }
     return GetContinuationResumeDescriptor(zone);
   }
   // The extra here is to accommodate the instance object as first parameter
@@ -163,7 +166,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
       kCalleeSaveFPRegisters,             // callee-saved fp regs
       flags,                              // flags
       "wasm-call",                        // debug name
-      StackArgumentOrder::kDefault,       // order of the arguments in the stack
       RegList{},                          // allocatable registers
       return_slots,                       // return slot count
       signature_hash);

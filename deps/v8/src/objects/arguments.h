@@ -151,10 +151,12 @@ class SloppyArgumentsElements
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns: Smi|TheHole.
-  inline Tagged<UnionOf<Smi, Hole>> mapped_entries(int index,
+  inline Tagged<UnionOf<Smi, Hole>> mapped_entries(uint32_t index,
                                                    RelaxedLoadTag) const;
-  inline void set_mapped_entries(int index, Tagged<UnionOf<Smi, Hole>> value);
-  inline void set_mapped_entries(int index, Tagged<UnionOf<Smi, Hole>> value,
+  inline void set_mapped_entries(uint32_t index,
+                                 Tagged<UnionOf<Smi, Hole>> value);
+  inline void set_mapped_entries(uint32_t index,
+                                 Tagged<UnionOf<Smi, Hole>> value,
                                  RelaxedStoreTag);
 
   DECL_PRINTER(SloppyArgumentsElements)

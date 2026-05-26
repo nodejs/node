@@ -6,6 +6,7 @@ const {
   kNeedDrain,
   kAddClient,
   kGetDispatcher,
+  kHasDispatcher,
   kRemoveClient
 } = require('./pool-base')
 const Client = require('./client')
@@ -36,6 +37,7 @@ class Pool extends PoolBase {
     autoSelectFamily,
     autoSelectFamilyAttemptTimeout,
     allowH2,
+    useH2c,
     clientTtl,
     ...options
   } = {}) {
@@ -56,6 +58,7 @@ class Pool extends PoolBase {
         ...tls,
         maxCachedSessions,
         allowH2,
+        useH2c,
         socketPath,
         timeout: connectTimeout,
         ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
@@ -67,7 +70,7 @@ class Pool extends PoolBase {
 
     this[kConnections] = connections || null
     this[kUrl] = util.parseOrigin(origin)
-    this[kOptions] = { ...util.deepClone(options), connect, allowH2, clientTtl, socketPath }
+    this[kOptions] = { ...util.deepClone(options), connect, allowH2, useH2c, clientTtl, socketPath }
     this[kFactory] = factory
 
     this.on('connect', (origin, targets) => {
@@ -95,10 +98,13 @@ class Pool extends PoolBase {
 
   [kGetDispatcher] () {
     const clientTtlOption = this[kOptions].clientTtl
-    for (const client of this[kClients]) {
+    for (let i = 0; i < this[kClients].length; i++) {
+      const client = this[kClients][i]
+
       // check ttl of client and if it's stale, remove it from the pool
       if (clientTtlOption != null && clientTtlOption > 0 && client.ttl && ((Date.now() - client.ttl) > clientTtlOption)) {
         this[kRemoveClient](client)
+        i--
       } else if (!client[kNeedDrain]) {
         return client
       }
@@ -109,6 +115,28 @@ class Pool extends PoolBase {
       this[kAddClient](dispatcher)
       return dispatcher
     }
+  }
+
+  [kHasDispatcher] () {
+    const clientTtlOption = this[kOptions].clientTtl
+    for (let i = 0; i < this[kClients].length; i++) {
+      const client = this[kClients][i]
+
+      if (clientTtlOption != null && clientTtlOption > 0 && client.ttl && ((Date.now() - client.ttl) > clientTtlOption)) {
+        this[kRemoveClient](client)
+        i--
+      } else if (!client[kNeedDrain]) {
+        return true
+      }
+    }
+
+    if (!this[kConnections] || this[kClients].length < this[kConnections]) {
+      const dispatcher = this[kFactory](this[kUrl], this[kOptions])
+      this[kAddClient](dispatcher)
+      return true
+    }
+
+    return false
   }
 }
 

@@ -460,8 +460,7 @@ class ParallelWeakHandlesProcessor {
         young_blocks_(young_blocks),
         num_young_blocks_(num_young_blocks),
         trace_id_(reinterpret_cast<uint64_t>(this) ^
-                  heap_->tracer()->CurrentEpoch(
-                      GCTracer::Scope::SCAVENGER_SCAVENGE)) {}
+                  heap_->tracer()->CurrentEpoch()) {}
 
   void Run() {
     TRACE_GC_NOTE_WITH_FLOW(Derived::kStartNote, trace_id(),

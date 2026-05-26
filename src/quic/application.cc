@@ -1,3 +1,4 @@
+#include "util.h"
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
@@ -18,9 +19,13 @@
 
 namespace node {
 
+using v8::BigInt;
+using v8::Boolean;
+using v8::DictionaryTemplate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::Value;
@@ -34,6 +39,8 @@ const Session::Application_Options Session::Application_Options::kDefault = {};
 Session::Application_Options::operator const nghttp3_settings() const {
   // In theory, Application::Options might contain options for more than just
   // HTTP/3. Here we extract only the properties that are relevant to HTTP/3.
+  // Later if we add more application types we can add more properties or
+  // divide this up into multiple option structs.
   return nghttp3_settings{
       .max_field_section_size = max_field_section_size,
       .qpack_max_dtable_capacity =
@@ -43,11 +50,13 @@ Session::Application_Options::operator const nghttp3_settings() const {
       .qpack_blocked_streams = static_cast<size_t>(qpack_blocked_streams),
       .enable_connect_protocol = enable_connect_protocol,
       .h3_datagram = enable_datagrams,
-      // TODO(@jasnell): Support origin frames?
+      // origin_list is nullptr here because it is set directly on the
+      // nghttp3_settings in Http3ApplicationImpl::InitializeConnection()
+      // from the SNI configuration.
       .origin_list = nullptr,
       .glitch_ratelim_burst = 1000,
       .glitch_ratelim_rate = 33,
-      .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_NONE,
+      .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_EAGER,
   };
 }
 
@@ -106,7 +115,52 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 
 #undef SET
 
+  // Ensure the advertised max_field_section_size in SETTINGS is at least
+  // as large as max_header_length. Otherwise the peer would be told to
+  // restrict headers to a smaller size than what CanAddHeader accepts.
+  if (options.max_field_section_size < options.max_header_length) {
+    options.max_field_section_size = options.max_header_length;
+  }
+
   return Just<Application_Options>(options);
+}
+
+MaybeLocal<Object> Session::Application_Options::ToObject(
+    Environment* env) const {
+  auto& binding_data = BindingData::Get(env);
+  auto tmpl = binding_data.application_options_template();
+  static constexpr std::string_view names[] = {
+      "maxHeaderPairs",
+      "maxHeaderLength",
+      "maxFieldSectionSize",
+      "qpackMaxDtableCapacity",
+      "qpackEncoderMaxDtableCapacity",
+      "qpackBlockedStreams",
+      "enableConnectProtocol",
+      "enableDatagrams",
+  };
+  if (tmpl.IsEmpty()) {
+    tmpl = DictionaryTemplate::New(env->isolate(), names);
+    binding_data.set_application_options_template(tmpl);
+  }
+  MaybeLocal<Value> values[] = {
+      BigInt::NewFromUnsigned(env->isolate(), max_header_pairs),
+      BigInt::NewFromUnsigned(env->isolate(), max_header_length),
+      BigInt::NewFromUnsigned(env->isolate(), max_field_section_size),
+      BigInt::NewFromUnsigned(env->isolate(), qpack_max_dtable_capacity),
+      BigInt::NewFromUnsigned(env->isolate(),
+                              qpack_encoder_max_dtable_capacity),
+      BigInt::NewFromUnsigned(env->isolate(), qpack_blocked_streams),
+      Boolean::New(env->isolate(), enable_connect_protocol),
+      Boolean::New(env->isolate(), enable_datagrams),
+  };
+  static_assert(std::size(values) == std::size(names));
+
+  auto obj = tmpl->NewInstance(env->context(), values);
+  if (obj->SetPrototypeV2(env->context(), Null(env->isolate())).IsNothing()) {
+    return {};
+  }
+  return obj;
 }
 
 // ============================================================================
@@ -139,53 +193,21 @@ bool Session::Application::Start() {
   return true;
 }
 
-bool Session::Application::AcknowledgeStreamData(int64_t stream_id,
-                                                 size_t datalen) {
-  if (auto stream = session().FindStream(stream_id)) [[likely]] {
+bool Session::Application::AcknowledgeStreamData(stream_id id, size_t datalen) {
+  if (auto stream = session().FindStream(id)) [[likely]] {
     stream->Acknowledge(datalen);
-    return true;
   }
-  return false;
-}
-
-void Session::Application::BlockStream(int64_t id) {
-  // By default do nothing.
-}
-
-bool Session::Application::CanAddHeader(size_t current_count,
-                                        size_t current_headers_length,
-                                        size_t this_header_length) {
-  // By default headers are not supported.
-  return false;
-}
-
-bool Session::Application::SendHeaders(const Stream& stream,
-                                       HeadersKind kind,
-                                       const Local<v8::Array>& headers,
-                                       HeadersFlags flags) {
-  // By default do nothing.
-  return false;
-}
-
-void Session::Application::ResumeStream(int64_t id) {
-  // By default do nothing.
-}
-
-void Session::Application::ExtendMaxStreams(EndpointLabel label,
-                                            Direction direction,
-                                            uint64_t max_streams) {
-  // By default do nothing.
-}
-
-void Session::Application::ExtendMaxStreamData(Stream* stream,
-                                               uint64_t max_data) {
-  Debug(session_, "Application extending max stream data");
-  // By default do nothing.
+  // Returning true even when the stream is not found is intentional.
+  // After a stream is destroyed, the peer can still ACK data that was
+  // previously sent. This is benign and should not be treated as an error.
+  return true;
 }
 
 void Session::Application::CollectSessionTicketAppData(
     SessionTicket::AppData* app_data) const {
-  // By default do nothing.
+  // By default, write just the application type byte.
+  uint8_t buf[1] = {static_cast<uint8_t>(type())};
+  app_data->Set(uv_buf_init(reinterpret_cast<char*>(buf), 1));
 }
 
 SessionTicket::AppData::Status
@@ -197,14 +219,39 @@ Session::Application::ExtractSessionTicketAppData(
              : SessionTicket::AppData::Status::TICKET_USE;
 }
 
-void Session::Application::SetStreamPriority(const Stream& stream,
-                                             StreamPriority priority,
-                                             StreamPriorityFlags flags) {
-  // By default do nothing.
+std::optional<PendingTicketAppData> Session::Application::ParseTicketData(
+    const uv_buf_t& data) {
+  if (data.len == 0 || data.base == nullptr) return std::nullopt;
+  auto app_type =
+      static_cast<Type>(reinterpret_cast<const uint8_t*>(data.base)[0]);
+  switch (app_type) {
+    case Type::DEFAULT:
+      return DefaultTicketData{};
+    case Type::HTTP3:
+      return ParseHttp3TicketData(data);
+    default:
+      return std::nullopt;
+  }
 }
 
-StreamPriority Session::Application::GetStreamPriority(const Stream& stream) {
-  return StreamPriority::DEFAULT;
+bool Session::Application::ValidateTicketData(
+    const PendingTicketAppData& data, const Application_Options& options) {
+  if (std::holds_alternative<Http3TicketData>(data)) {
+    // TODO(@jasnell): This validation probably belongs in http3.cc but keeping
+    // it here for now.
+    const auto& ticket = std::get<Http3TicketData>(data);
+    return options.max_field_section_size >= ticket.max_field_section_size &&
+           options.qpack_max_dtable_capacity >=
+               ticket.qpack_max_dtable_capacity &&
+           options.qpack_encoder_max_dtable_capacity >=
+               ticket.qpack_encoder_max_dtable_capacity &&
+           options.qpack_blocked_streams >= ticket.qpack_blocked_streams &&
+           (!ticket.enable_connect_protocol ||
+            options.enable_connect_protocol) &&
+           (!ticket.enable_datagrams || options.enable_datagrams);
+  }
+  // DefaultTicketData always validates.
+  return true;
 }
 
 Packet::Ptr Session::Application::CreateStreamDataPacket() {
@@ -212,42 +259,174 @@ Packet::Ptr Session::Application::CreateStreamDataPacket() {
       session_->remote_address(), session_->max_packet_size(), "stream data");
 }
 
-void Session::Application::StreamClose(Stream* stream, QuicError&& error) {
+void Session::Application::ReceiveStreamClose(Stream* stream,
+                                              QuicError&& error) {
   DCHECK_NOT_NULL(stream);
   stream->Destroy(std::move(error));
 }
 
-void Session::Application::StreamStopSending(Stream* stream,
-                                             QuicError&& error) {
+void Session::Application::ReceiveStreamStopSending(Stream* stream,
+                                                    QuicError&& error) {
   DCHECK_NOT_NULL(stream);
   stream->ReceiveStopSending(std::move(error));
 }
 
-void Session::Application::StreamReset(Stream* stream,
-                                       uint64_t final_size,
-                                       QuicError&& error) {
+void Session::Application::ReceiveStreamReset(Stream* stream,
+                                              uint64_t final_size,
+                                              QuicError&& error) {
   stream->ReceiveStreamReset(final_size, std::move(error));
 }
 
+// Attempts to pack a pending datagram into the current packet.
+// Returns the nwrite value from ngtcp2_conn_writev_datagram.
+// On fatal error, closes the session and returns the error code.
+// The caller should check:
+//   > 0:  packet is complete, send it (pos was NOT advanced — caller
+//         must add nwrite to pos and send)
+//   NGTCP2_ERR_WRITE_MORE: datagram packed, room for more
+//   0:    congestion controlled or doesn't fit, datagram stays in queue
+//   < 0 (other): fatal error, session already closed
+ssize_t Session::Application::TryWritePendingDatagram(PathStorage* path,
+                                                      uint8_t* dest,
+                                                      size_t destlen,
+                                                      uint64_t ts) {
+  CHECK(session_->HasPendingDatagrams());
+  auto max_attempts = session_->config().options.max_datagram_send_attempts;
+
+  // Skip datagrams that have already exceeded the send attempt limit
+  // from a previous SendPendingData cycle.
+  while (session_->HasPendingDatagrams()) {
+    auto& front = session_->PeekPendingDatagram();
+    if (front.send_attempts < max_attempts) break;
+    Debug(session_,
+          "Datagram %" PRIu64 " abandoned after %u attempts",
+          front.id,
+          front.send_attempts);
+    session_->DatagramStatus(front.id, DatagramStatus::ABANDONED);
+    session_->PopPendingDatagram();
+  }
+
+  if (!session_->HasPendingDatagrams()) return 0;
+  auto& dg = session_->PeekPendingDatagram();
+  ngtcp2_vec dgvec = dg.data;
+  int accepted = 0;
+  int dg_flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
+
+  // PacketInfo for the datagram path. When libuv gains per-socket ECN
+  // marking, the value from ngtcp2 should be forwarded to the send path.
+  PacketInfo dg_pi;
+  ssize_t dg_nwrite = ngtcp2_conn_writev_datagram(*session_,
+                                                  &path->path,
+                                                  dg_pi,
+                                                  dest,
+                                                  destlen,
+                                                  &accepted,
+                                                  dg_flags,
+                                                  dg.id,
+                                                  &dgvec,
+                                                  1,
+                                                  ts);
+
+  if (accepted) {
+    // Nice, the datagram was accepted!
+    Debug(session_, "Datagram %" PRIu64 " accepted into packet", dg.id);
+    session_->DatagramSent(dg.id);
+    session_->PopPendingDatagram();
+  } else {
+    Debug(session_, "Datagram %" PRIu64 " not accepted into packet", dg.id);
+  }
+
+  switch (dg_nwrite) {
+    case 0: {
+      // If dg_nwrite is 0, we are either congestion controlled or
+      // there wasn't enough room in the packet for the datagram or
+      // we aren't in a state where we can send.
+      // We'll skip this attempt and return 0.
+      CHECK(!accepted);
+      dg.send_attempts++;
+      return 0;
+    }
+    case NGTCP2_ERR_WRITE_MORE: {
+      // There's still room left in the packet!
+      return NGTCP2_ERR_WRITE_MORE;
+    }
+    case NGTCP2_ERR_INVALID_STATE:
+    case NGTCP2_ERR_INVALID_ARGUMENT: {
+      // Non-fatal error cases. Peer either does not support datagrams
+      // or the datagram is too large for the peer's max.
+      // Abandon the datagram and signal skip by returning std::nullopt.
+      session_->DatagramStatus(dg.id, DatagramStatus::ABANDONED);
+      session_->PopPendingDatagram();
+      return 0;
+    }
+    default: {
+      // Fatal errors: PKT_NUM_EXHAUSTED, CALLBACK_FAILURE, NOMEM, etc.
+      Debug(session_, "Fatal datagram error: %zd", dg_nwrite);
+      session_->SetLastError(QuicError::ForNgtcp2Error(dg_nwrite));
+      session_->Close(CloseMethod::SILENT);
+      return dg_nwrite;
+    }
+  }
+  UNREACHABLE();
+}
+
+// the SendPendingData method is the primary driver for sending data from the
+// application layer. It loops through available stream data and pending
+// datagrams and generates packets to send until there is either no more
+// data to send or we hit the maximum number of packets to send in one go.
+// This method is extremely delicate. A bug in this method can break the
+// entire QUIC implementation; so be very careful when making changes here
+// and make sure to test thoroughly. When in doubt... don't change it.
 void Session::Application::SendPendingData() {
   DCHECK(!session().is_destroyed());
   if (!session().can_send_packets()) [[unlikely]] {
     return;
   }
-  static constexpr size_t kMaxPackets = 32;
+  // Upper bound on packets per SendPendingData call. ngtcp2's send quantum
+  // is typically 64 KB, which at 1200-byte minimum packet size is ~53
+  // packets. 64 covers the worst case with headroom. The actual count per
+  // call is dynamically capped by ngtcp2_conn_get_send_quantum().
+  static constexpr size_t kMaxPackets = 64;
   Debug(session_, "Application sending pending data");
+  // Cache the timestamp once for the entire send loop. ngtcp2 does not
+  // require nanosecond-accurate monotonicity within a single burst —
+  // a single timestamp per SendPendingData call is what other QUIC
+  // implementations use (e.g., quiche, msquic). When kernel-level
+  // packet pacing becomes available via libuv, this timestamp becomes
+  // the base for computing per-packet transmit timestamps.
+  const uint64_t ts = uv_hrtime();
   PathStorage path;
   StreamData stream_data;
 
   bool closed = false;
+
+  // Batch accumulation: packets are collected here and flushed via
+  // Session::SendBatch when the loop exits, the batch is full, or
+  // on early return. This enables synchronous batched delivery via
+  // uv_udp_try_send2 (sendmmsg) from the deferred flush path.
+  Packet::Ptr batch[kMaxPackets];
+  PathStorage batch_paths[kMaxPackets];
+  size_t batch_count = 0;
+
+  auto flush_batch = [&] {
+    if (batch_count == 0) return;
+    session_->SendBatch(batch, batch_paths, batch_count);
+    batch_count = 0;
+  };
+
   auto update_stats = OnScopeLeave([&] {
     if (closed) return;
-    auto& s = session();
-    if (!s.is_destroyed()) [[likely]] {
-      s.UpdatePacketTxTime();
-      s.UpdateTimer();
-      s.UpdateDataStats();
-    }
+    // Flush any remaining accumulated packets before updating stats.
+    flush_batch();
+    if (session().is_destroyed()) [[unlikely]]
+      return;
+
+    // Get a strong pointer to protect against potential destruction during
+    // updating the time and data stats.
+    BaseObjectPtr<Session> s(session_);
+    s->UpdatePacketTxTime();
+    s->UpdateTimer();
+    s->UpdateDataStats();
   });
 
   // The maximum size of packet to create.
@@ -258,25 +437,30 @@ void Session::Application::SendPendingData() {
       kMaxPackets, ngtcp2_conn_get_send_quantum(*session_) / max_packet_size);
   if (max_packet_count == 0) return;
 
-  // The number of packets that have been sent in this call to SendPendingData.
+  // The number of packets that have been prepared in this call.
   size_t packet_send_count = 0;
 
   Packet::Ptr packet;
-  uint8_t* pos = nullptr;
-  uint8_t* begin = nullptr;
 
   auto ensure_packet = [&] {
     if (!packet) {
       packet = CreateStreamDataPacket();
       if (!packet) [[unlikely]]
         return false;
-      pos = begin = packet->data();
     }
     DCHECK(packet);
-    DCHECK_NOT_NULL(pos);
-    DCHECK_NOT_NULL(begin);
     return true;
   };
+
+  // Accumulate a completed packet into the batch.
+  auto enqueue_packet =
+      [&](Packet::Ptr& pkt, size_t len, const PacketInfo& pi) {
+        Debug(session_, "Enqueuing packet with %zu bytes into batch", len);
+        pkt->Truncate(len);
+        pkt->set_pkt_info(pi);
+        path.CopyTo(&batch_paths[batch_count]);
+        batch[batch_count++] = std::move(pkt);
+      };
 
   // We're going to enter a loop here to prepare and send no more than
   // max_packet_count packets.
@@ -302,26 +486,66 @@ void Session::Application::SendPendingData() {
     }
 
     // If we got here, we were at least successful in checking for stream data.
-    // There might not be any stream data to send.
+    // There might not be any stream data to send. If there is no stream data,
+    // that's perfectly fine, we still need to serialize any frames we do have
+    // (pings, acks, datagrams, etc) so we'll just keep going.
     if (stream_data.id >= 0) {
       Debug(session_, "Application using stream data: %s", stream_data);
+    } else {
+      Debug(session_, "No stream data to send");
+    }
+    if (session_->HasPendingDatagrams()) {
+      Debug(session_, "There are pending datagrams to send");
     }
 
     // Awesome, let's write our packet!
-    ssize_t nwrite =
-        WriteVStream(&path, pos, &ndatalen, max_packet_size, stream_data);
+    PacketInfo pi;
+    ssize_t nwrite = WriteVStream(&path,
+                                  &pi,
+                                  packet->data(),
+                                  &ndatalen,
+                                  packet->length(),
+                                  stream_data,
+                                  ts);
 
+    // When ndatalen is > 0, that's our indication that stream data was accepted
+    // in to the packet. Yay!
     if (ndatalen > 0) {
       Debug(session_,
             "Application accepted %zu bytes from stream %" PRIi64
             " into packet",
             ndatalen,
             stream_data.id);
+      if (!StreamCommit(&stream_data, ndatalen)) {
+        // Data was accepted into the packet, but for some reason adjusting
+        // the stream's committed data failed. Treat as fatal.
+        Debug(session_, "Failed to commit accepted bytes in stream");
+        session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+        closed = true;
+        return session_->Close(CloseMethod::SILENT);
+      }
     } else if (stream_data.id >= 0) {
       Debug(session_,
             "Application did not accept any bytes from stream %" PRIi64
             " into packet",
             stream_data.id);
+    }
+
+    // When nwrite is zero, it means we are congestion limited or it is
+    // just not our turn to send something. Re-schedule the stream if it
+    // had unsent data (payload or FIN) so the next timer-triggered
+    // SendPendingData retries it. Without this, a FIN-only send that
+    // hits nwrite=0 is lost forever — the stream already returned EOS
+    // from Pull and won't be re-scheduled by anyone else.
+    // We call Application::ResumeStream directly (not Session::ResumeStream)
+    // to avoid creating a SendPendingDataScope — we're already inside
+    // SendPendingData and re-entering would just hit nwrite=0 again.
+    if (nwrite == 0) {
+      Debug(session_, "Congestion or not our turn to send");
+      if (stream_data.id >= 0 && (stream_data.count > 0 || stream_data.fin)) {
+        ResumeStream(stream_data.id);
+      }
+      return;
     }
 
     // A negative nwrite value indicates either an error or that there is more
@@ -344,7 +568,7 @@ void Session::Application::SendPendingData() {
         case NGTCP2_ERR_STREAM_SHUT_WR: {
           // Indicates that the writable side of the stream should be closed
           // locally or the stream is being reset. In either case, we can't send
-          // any stream data!
+          // data for this stream!
           Debug(session_,
                 "Closing stream %" PRIi64 " for writing",
                 stream_data.id);
@@ -357,16 +581,35 @@ void Session::Application::SendPendingData() {
           if (stream_data.stream) [[likely]] {
             stream_data.stream->EndWritable();
           }
+          // Notify the application that the stream's write side is shut
+          // so it stops queuing data. Without this, GetStreamData would
+          // keep returning the same stream and we'd loop forever.
+          StreamWriteShut(stream_data.id);
           continue;
         }
         case NGTCP2_ERR_WRITE_MORE: {
-          if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
-            Debug(session_,
-                  "Failed to commit stream data while writing packets");
-            session_->SetLastError(
-                QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
-            closed = true;
-            return session_->Close(CloseMethod::SILENT);
+          Debug(session_, "Packet buffer not full, coalesce more data into it");
+          // Room for more in this packet. Try to pack a pending datagram
+          // if there is one. Otherwise just loop around and keep going.
+          if (session_->HasPendingDatagrams()) {
+            auto result = TryWritePendingDatagram(
+                &path, packet->data(), packet->length(), ts);
+            // When result is 0, either the datagram was congestion controlled,
+            // didn't fit in the packet, or was abandoned. Skip and continue.
+
+            // When result is > 0, the packet is done and the result is the
+            // completed size of the packet we're sending.
+            if (result > 0) {
+              size_t len = result;
+              Debug(session_, "Sending packet with %zu bytes", len);
+              enqueue_packet(packet, len, pi);
+              if (++packet_send_count == max_packet_count) return;
+            } else if (result < 0) {
+              // Any negative result other than NGTCP2_ERR_WRITE_MORE
+              // at this point is fatal. The session will have been
+              // closed.
+              if (result != NGTCP2_ERR_WRITE_MORE) return;
+            }
           }
           continue;
         }
@@ -390,61 +633,59 @@ void Session::Application::SendPendingData() {
       session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
       closed = true;
       return session_->Close(CloseMethod::SILENT);
-    } else if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
-      session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
-      closed = true;
-      return session_->Close(CloseMethod::SILENT);
     }
 
-    // When nwrite is zero, it means we are congestion limited or it is
-    // just not our turn now to send something. Stop sending packets.
-    if (nwrite == 0) {
-      // If there was stream data selected, we should reschedule it to try
-      // sending again.
-      if (stream_data.id >= 0) ResumeStream(stream_data.id);
+    // At this point we have a packet prepared to send. The nwrite
+    // is the size of the packet we are sending.
+    size_t len = nwrite;
+    Debug(session_, "Sending packet with %zu bytes", len);
+    enqueue_packet(packet, len, pi);
+    if (++packet_send_count == max_packet_count) return;
 
-      // There might be a partial packet already prepared. If so, send it.
-      size_t datalen = pos - begin;
-      if (datalen) {
-        Debug(session_, "Sending packet with %zu bytes", datalen);
-        packet->Truncate(datalen);
-        session_->Send(std::move(packet), path);
+    // If there are pending datagrams, try sending them in a fresh packet.
+    // This is necessary because ngtcp2_conn_writev_stream only returns
+    // NGTCP2_ERR_WRITE_MORE when there is actual stream data — when no
+    // streams are active, the coalescing path above is never reached and
+    // datagrams would never be sent.
+    if (session_->HasPendingDatagrams()) {
+      if (!ensure_packet()) [[unlikely]] {
+        Debug(session_, "Failed to create packet for datagram");
+        session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+        closed = true;
+        return session_->Close(CloseMethod::SILENT);
       }
-      // If no data, Ptr destructor releases the packet.
-
-      return;
+      auto result =
+          TryWritePendingDatagram(&path, packet->data(), packet->length(), ts);
+      if (result > 0) {
+        Debug(session_, "Sending datagram packet with %zd bytes", result);
+        enqueue_packet(packet, static_cast<size_t>(result), PacketInfo());
+        if (++packet_send_count == max_packet_count) return;
+      } else if (result < 0 && result != NGTCP2_ERR_WRITE_MORE) {
+        // Fatal error — session already closed by TryWritePendingDatagram.
+        return;
+      }
+      // If result == 0 (congestion) or NGTCP2_ERR_WRITE_MORE (datagram
+      // packed but room for more), the loop continues normally.
     }
-
-    // At this point we have a packet prepared to send.
-    pos += nwrite;
-    size_t datalen = pos - begin;
-    Debug(session_, "Sending packet with %zu bytes", datalen);
-    packet->Truncate(datalen);
-    session_->Send(std::move(packet), path);
-
-    // If we have sent the maximum number of packets, we're done.
-    if (++packet_send_count == max_packet_count) {
-      return;
-    }
-
-    // Prepare to loop back around to prepare a new packet.
-    // packet is already empty from the std::move above.
-    pos = begin = nullptr;
   }
 }
 
 ssize_t Session::Application::WriteVStream(PathStorage* path,
+                                           PacketInfo* pi,
                                            uint8_t* dest,
                                            ssize_t* ndatalen,
                                            size_t max_packet_size,
-                                           const StreamData& stream_data) {
+                                           const StreamData& stream_data,
+                                           uint64_t ts) {
   DCHECK_LE(stream_data.count, kMaxVectorCount);
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+  // The PacketInfo out-param is populated by ngtcp2 with the ECN codepoint
+  // to apply when sending this packet. When libuv gains per-socket ECN
+  // marking, the value should be forwarded to the send path.
   return ngtcp2_conn_writev_stream(*session_,
                                    &path->path,
-                                   // TODO(@jasnell): ECN blocked on libuv
-                                   nullptr,
+                                   *pi,
                                    dest,
                                    max_packet_size,
                                    ndatalen,
@@ -452,9 +693,10 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
                                    stream_data.id,
                                    stream_data,
                                    stream_data.count,
-                                   uv_hrtime());
+                                   ts);
 }
 
+// ============================================================================
 // The DefaultApplication is the default implementation of Session::Application
 // that is used for all unrecognized ALPN identifiers.
 class DefaultApplication final : public Session::Application {
@@ -462,7 +704,10 @@ class DefaultApplication final : public Session::Application {
   // Marked NOLINT because the cpp linter gets confused about this using
   // statement not being sorted with the using v8 statements at the top
   // of the namespace.
-  using Application::Application;  // NOLINT
+  DefaultApplication(Session* session, const Options& options)
+      : Session::Application(session, options), options_(options) {}
+
+  const Options& options() const override { return options_; }
 
   Session::Application::Type type() const override {
     return Session::Application::Type::DEFAULT;
@@ -470,7 +715,38 @@ class DefaultApplication final : public Session::Application {
 
   error_code GetNoErrorCode() const override { return 0; }
 
-  bool ReceiveStreamData(int64_t stream_id,
+  // Raw QUIC has no application-defined "general failure" code, so
+  // fall back to the QUIC transport-level INTERNAL_ERROR (0x1) used
+  // by ngtcp2 for unspecified failures.
+  error_code GetInternalErrorCode() const override {
+    return NGTCP2_INTERNAL_ERROR;
+  }
+
+  void EarlyDataRejected() override {
+    // Destroy all open streams — ngtcp2 has already discarded their
+    // internal state when it rejected the early data. Use the
+    // application's internal error code since this is an error
+    // condition (code 0 would be treated as a clean close).
+    session().DestroyAllStreams(
+        QuicError::ForApplication(GetInternalErrorCode()));
+    if (!session().is_destroyed()) {
+      session().EmitEarlyDataRejected();
+    }
+  }
+
+  bool ApplySessionTicketData(const PendingTicketAppData& data) override {
+    return std::holds_alternative<DefaultTicketData>(data);
+  }
+
+  bool ReceiveStreamOpen(stream_id id) override {
+    auto stream = session().CreateStream(id);
+    if (!stream || session().is_destroyed()) [[unlikely]] {
+      return !session().is_destroyed();
+    }
+    return true;
+  }
+
+  bool ReceiveStreamData(stream_id id,
                          const uint8_t* data,
                          size_t datalen,
                          const Stream::ReceiveDataFlags& flags,
@@ -478,10 +754,10 @@ class DefaultApplication final : public Session::Application {
     BaseObjectPtr<Stream> stream;
     if (stream_user_data == nullptr) {
       // This is the first time we're seeing this stream. Implicitly create it.
-      stream = session().CreateStream(stream_id);
-      if (!stream) [[unlikely]] {
-        // We couldn't actually create the stream for whatever reason.
-        Debug(&session(), "Default application failed to create new stream");
+      stream = session().CreateStream(id);
+      if (!stream || session().is_destroyed()) [[unlikely]] {
+        // We couldn't create the stream, or the session was destroyed
+        // during the onstream callback (via MakeCallback re-entrancy).
         return false;
       }
     } else {
@@ -546,7 +822,6 @@ class DefaultApplication final : public Session::Application {
 
           if (count > 0) {
             stream->Schedule(&stream_queue_);
-          } else {
           }
 
           // Not calling done here because we defer committing
@@ -569,12 +844,24 @@ class DefaultApplication final : public Session::Application {
     return 0;
   }
 
-  void ResumeStream(int64_t id) override { ScheduleStream(id); }
+  void ResumeStream(stream_id id) override { ScheduleStream(id); }
 
-  void BlockStream(int64_t id) override {
+  void BlockStream(stream_id id) override {
     if (auto stream = session().FindStream(id)) [[likely]] {
+      // Remove the stream from the send queue. It will be re-scheduled
+      // via ExtendMaxStreamData when the peer grants more flow control.
+      // Without this, SendPendingData would repeatedly pop and retry
+      // the same blocked stream in an infinite loop.
+      stream->Unschedule();
       stream->EmitBlocked();
     }
+  }
+
+  void ExtendMaxStreamData(Stream* stream, uint64_t max_data) override {
+    // The peer granted more flow control for this stream. Re-schedule
+    // it so SendPendingData will resume writing.
+    DCHECK_NOT_NULL(stream);
+    stream->Schedule(&stream_queue_);
   }
 
   bool StreamCommit(StreamData* stream_data, size_t datalen) override {
@@ -589,11 +876,13 @@ class DefaultApplication final : public Session::Application {
   SET_NO_MEMORY_INFO()
 
  private:
-  void ScheduleStream(int64_t id) {
+  void ScheduleStream(stream_id id) {
     if (auto stream = session().FindStream(id)) [[likely]] {
       stream->Schedule(&stream_queue_);
     }
   }
+
+  Options options_;
 
   Stream::Queue stream_queue_;
 };

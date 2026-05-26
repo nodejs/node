@@ -28,7 +28,7 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) { return pc; }
 
 // Store {new_pc} to {pc_address} without signing.
 V8_INLINE void PointerAuthentication::ReplacePC(Address* pc_address,
-                                                Address new_pc, int) {
+                                                Address new_pc, int, int) {
   *pc_address = new_pc;
 }
 

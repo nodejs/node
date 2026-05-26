@@ -296,13 +296,9 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
 int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsUint8Array());
 
   Environment* env = Environment::GetCurrent(args);
-
-  if (!args[1]->IsUint8Array()) {
-    node::THROW_ERR_INVALID_ARG_TYPE(env, "Second argument must be a buffer");
-    return 0;
-  }
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   uv_buf_t buf;
@@ -653,7 +649,8 @@ void StreamBase::GetExternal(const FunctionCallbackInfo<Value>& args) {
   StreamBase* wrap = StreamBase::FromObject(args.This().As<Object>());
   if (wrap == nullptr) return;
 
-  Local<External> ext = External::New(args.GetIsolate(), wrap);
+  Local<External> ext = External::New(
+      args.GetIsolate(), wrap, v8::kExternalPointerTypeTagDefault);
   args.GetReturnValue().Set(ext);
 }
 

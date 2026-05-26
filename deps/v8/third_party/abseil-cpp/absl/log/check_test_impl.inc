@@ -255,6 +255,60 @@ TEST(CHECKTest, TestBinaryChecksWithStringComparison) {
   ABSL_TEST_CHECK_LT(a, "b");
 }
 
+TEST(CHECKDeathTest, CheckWithCharStarAndStringPrintsTheCharStar) {
+  std::string str = "B";
+
+  // When the comparison happens as strings, then we print the CharT* as a
+  // string.
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ("A", str),
+               R"re(Check failed: \"A\" == str \(A vs. B\))re");
+}
+
+#if defined(GTEST_USES_SIMPLE_RE) && GTEST_USES_SIMPLE_RE
+#define POINTER_VALUE_RE R"re(\w*)re"
+#else
+#define POINTER_VALUE_RE R"re((0x)*[0-9a-fA-F]*)re"
+#endif
+
+#define POINTER_VS_POINTER_RE(lhs, rhs) "\\(" lhs " vs. " rhs "\\)"
+
+template <typename CharT>
+void TestCharStarComparison() {
+  // When the comparison happens as pointers, we only print the pointer and not
+  // interpret it as a C-String because it might not be.
+  // Leave the CharTs uninitialized to trigger ASan/MSan failures if we actually
+  // read the pointers.
+  CharT* p1 = new CharT;
+  CharT* p2 = new CharT;
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(p1, p2),
+               R"re(Check failed: p1 == p2 )re" POINTER_VS_POINTER_RE(
+                   POINTER_VALUE_RE, POINTER_VALUE_RE));
+  CharT as_array[10];
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(p1, as_array),
+               R"re(Check failed: p1 == as_array )re" POINTER_VS_POINTER_RE(
+                   POINTER_VALUE_RE, POINTER_VALUE_RE));
+
+  const void* as_void = as_array;
+  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(as_void, p2),
+               R"re(Check failed: as_void == p2 )re" POINTER_VS_POINTER_RE(
+                   POINTER_VALUE_RE, POINTER_VALUE_RE));
+
+  delete p1;
+  delete p2;
+}
+
+TEST(CHECKDeathTest, CheckWithCharStarStringification) {
+  TestCharStarComparison<char>();
+  TestCharStarComparison<signed char>();
+  TestCharStarComparison<unsigned char>();
+  TestCharStarComparison<wchar_t>();
+#if defined(__cpp_char8_t)
+  TestCharStarComparison<char8_t>();
+#endif
+  TestCharStarComparison<char16_t>();
+  TestCharStarComparison<char32_t>();
+}
+
 // For testing using CHECK*() on anonymous enums.
 enum { CASE_A, CASE_B };
 
@@ -339,9 +393,11 @@ TEST(CHECKDeathTest, TestNullValuesAreReportedCleanly) {
 
   a = "xx";
   EXPECT_DEATH(ABSL_TEST_CHECK_EQ(a, b),
-               "Check failed: a == b \\(xx vs. \\(null\\)\\)");
+               R"re(Check failed: a == b )re" POINTER_VS_POINTER_RE(
+                   POINTER_VALUE_RE, "\\(null\\)"));
   EXPECT_DEATH(ABSL_TEST_CHECK_EQ(b, a),
-               "Check failed: b == a \\(\\(null\\) vs. xx\\)");
+               R"re(Check failed: b == a )re" POINTER_VS_POINTER_RE(
+                   "\\(null\\)", POINTER_VALUE_RE));
 
   std::nullptr_t n{};
   EXPECT_DEATH(ABSL_TEST_CHECK_NE(n, nullptr),

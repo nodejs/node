@@ -17,7 +17,10 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -88,52 +91,80 @@ Store::Store(std::unique_ptr<BackingStore> store, size_t length, size_t offset)
   CHECK_LE(length_, store_->ByteLength() - offset_);
 }
 
-Maybe<Store> Store::From(Local<ArrayBuffer> buffer, Local<Value> detach_key) {
-  if (!buffer->IsDetachable()) {
-    return Nothing<Store>();
-  }
-  bool res;
-  auto backing = buffer->GetBackingStore();
+Maybe<Store> Store::From(Local<ArrayBuffer> buffer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   auto length = buffer->ByteLength();
-  if (!buffer->Detach(detach_key).To(&res) || !res) {
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return Nothing<Store>();
   }
-  return Just(Store(std::move(backing), length, 0));
+  if (length > 0) {
+    memcpy(dest->Data(), buffer->Data(), length);
+  }
+  return Just(Store(std::move(dest), length, 0));
 }
 
-Maybe<Store> Store::From(Local<ArrayBufferView> view, Local<Value> detach_key) {
-  if (!view->Buffer()->IsDetachable()) {
-    return Nothing<Store>();
-  }
-  bool res;
-  auto backing = view->Buffer()->GetBackingStore();
+Maybe<Store> Store::From(Local<ArrayBufferView> view) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
-  if (!view->Buffer()->Detach(detach_key).To(&res) || !res) {
+  auto dest = ArrayBuffer::NewBackingStore(
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return Nothing<Store>();
   }
-  return Just(Store(std::move(backing), length, offset));
+  if (length > 0) {
+    memcpy(dest->Data(),
+           static_cast<const uint8_t*>(view->Buffer()->Data()) + offset,
+           length);
+  }
+  return Just(Store(std::move(dest), length, 0));
 }
 
 Store Store::CopyFrom(Local<ArrayBuffer> buffer) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Isolate* isolate = Isolate::GetCurrent();
   auto backing = buffer->GetBackingStore();
   auto length = buffer->ByteLength();
   auto dest = ArrayBuffer::NewBackingStore(
-      isolate, length, v8::BackingStoreInitializationMode::kUninitialized);
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
+    return Store();
+  }
   // copy content
   memcpy(dest->Data(), backing->Data(), length);
   return Store(std::move(dest), length, 0);
 }
 
 Store Store::CopyFrom(Local<ArrayBufferView> view) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Isolate* isolate = Isolate::GetCurrent();
   auto backing = view->Buffer()->GetBackingStore();
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
   auto dest = ArrayBuffer::NewBackingStore(
-      isolate, length, v8::BackingStoreInitializationMode::kUninitialized);
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
   // copy content
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
+    return Store();
+  }
   memcpy(dest->Data(), static_cast<char*>(backing->Data()) + offset, length);
   return Store(std::move(dest), length, 0);
 }
@@ -161,8 +192,7 @@ T Store::convert() const {
   // We can only safely convert to T if we have a valid store.
   CHECK(store_);
   T buf;
-  buf.base =
-      store_ != nullptr ? static_cast<N*>(store_->Data()) + offset_ : nullptr;
+  buf.base = static_cast<N*>(store_->Data()) + offset_;
   buf.len = length_;
   return buf;
 }
@@ -222,6 +252,45 @@ QuicError::QuicError(const ngtcp2_ccerr& error)
     : reason_(reinterpret_cast<const char*>(error.reason), error.reasonlen),
       error_(error),
       ptr_(&error_) {}
+
+QuicError::QuicError(QuicError&& other) noexcept
+    : reason_(std::move(other.reason_)),
+      error_(other.error_),
+      ptr_(other.ptr_ == &other.error_ ? &error_ : other.ptr_) {
+  // Fix up the internal reason pointer after moving.
+  error_.reason = reason_c_str();
+  error_.reasonlen = reason_.length();
+}
+
+QuicError& QuicError::operator=(QuicError&& other) noexcept {
+  if (this != &other) {
+    reason_ = std::move(other.reason_);
+    error_ = other.error_;
+    ptr_ = (other.ptr_ == &other.error_) ? &error_ : other.ptr_;
+    error_.reason = reason_c_str();
+    error_.reasonlen = reason_.length();
+  }
+  return *this;
+}
+
+QuicError::QuicError(const QuicError& other)
+    : reason_(other.reason_),
+      error_(other.error_),
+      ptr_(other.ptr_ == &other.error_ ? &error_ : other.ptr_) {
+  error_.reason = reason_c_str();
+  error_.reasonlen = reason_.length();
+}
+
+QuicError& QuicError::operator=(const QuicError& other) {
+  if (this != &other) {
+    reason_ = other.reason_;
+    error_ = other.error_;
+    ptr_ = (other.ptr_ == &other.error_) ? &error_ : other.ptr_;
+    error_.reason = reason_c_str();
+    error_.reasonlen = reason_.length();
+  }
+  return *this;
+}
 
 const uint8_t* QuicError::reason_c_str() const {
   return reinterpret_cast<const uint8_t*>(reason_.c_str());
@@ -296,11 +365,13 @@ std::optional<int> QuicError::get_crypto_error() const {
 
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   if ((type() == Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
-      (type() == Type::APPLICATION && code() == NGHTTP3_H3_NO_ERROR)) {
-    // Note that we only return undefined for *known* no-error application
-    // codes. It is possible that other application types use other specific
-    // no-error codes, but since we don't know which application is being used,
-    // we'll just return the error code value for those below.
+      (type() == Type::APPLICATION &&
+       (code() == 0 || code() == NGHTTP3_H3_NO_ERROR)) ||
+      type() == Type::IDLE_CLOSE) {
+    // Application code 0 is the default no-error code for raw QUIC
+    // applications (DefaultApplication::GetNoErrorCode() returns 0).
+    // NGHTTP3_H3_NO_ERROR (0x100) is the HTTP/3 no-error code.
+    // Idle close is always clean — the session timed out normally.
     return Undefined(env->isolate());
   }
 

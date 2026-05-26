@@ -13,7 +13,7 @@ frame size: 0
 parameter count: 1
 bytecode array length: 3
 bytecodes: [
-  /*   34 S> */ B(LdaConstant), U8(0),
+  /*   34 S> */ B(LdaConstant), U8(0:HEAP_NUMBER_TYPE [1.2]),
   /*   45 S> */ B(Return),
 ]
 constant pool: [
@@ -30,9 +30,9 @@ frame size: 1
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  /*   42 S> */ B(LdaConstant), U8(0),
+  /*   42 S> */ B(LdaConstant), U8(0:HEAP_NUMBER_TYPE [1.2]),
                 B(Star0),
-  /*   47 S> */ B(LdaConstant), U8(1),
+  /*   47 S> */ B(LdaConstant), U8(1:HEAP_NUMBER_TYPE [2.6]),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -50,9 +50,9 @@ frame size: 1
 parameter count: 1
 bytecode array length: 6
 bytecodes: [
-  /*   42 S> */ B(LdaConstant), U8(0),
+  /*   42 S> */ B(LdaConstant), U8(0:HEAP_NUMBER_TYPE [3.14]),
                 B(Star0),
-  /*   48 S> */ B(LdaConstant), U8(0),
+  /*   48 S> */ B(LdaConstant), U8(0:HEAP_NUMBER_TYPE [3.14]),
   /*   60 S> */ B(Return),
 ]
 constant pool: [

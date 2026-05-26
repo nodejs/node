@@ -219,6 +219,12 @@ def jst(debugger, *args):
 
 
 @lldbCommand
+def jstc(debugger, *args):
+  """Print the current JavaScript stack trace in a concise format"""
+  no_arg_cmd(debugger, "_v8_internal_Print_StackTraceConcise()")
+
+
+@lldbCommand
 def pn(debugger, param, *args):
   """Print a v8 TurboFan graph node"""
   CMD = "_v8_internal_Node_Print((void*)({}))"

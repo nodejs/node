@@ -180,6 +180,11 @@ class Simulator : public SimulatorBase {
   double get_double_from_register_pair(int reg);
   void set_d_register_from_double(int dreg, const double dbl) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    if (InstructionTracingEnabled()) {
+      PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+             i::RegisterName(i::DoubleRegister::from_code(dreg)),
+             base::bit_cast<int64_t>(dbl));
+    }
     fp_registers_[dreg] = base::bit_cast<int64_t>(dbl);
   }
   double get_double_from_d_register(int dreg) {
@@ -188,6 +193,10 @@ class Simulator : public SimulatorBase {
   }
   void set_d_register(int dreg, int64_t value) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    if (InstructionTracingEnabled()) {
+      PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+             i::RegisterName(i::DoubleRegister::from_code(dreg)), value);
+    }
     fp_registers_[dreg] = value;
   }
   int64_t get_d_register(int dreg) {

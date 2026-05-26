@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <string_view>
 
 #include "src/torque/ast.h"
 #include "src/torque/global-context.h"
@@ -15,16 +16,16 @@
 
 namespace v8::internal::torque {
 
-QualifiedName QualifiedName::Parse(std::string qualified_name) {
+QualifiedName QualifiedName::Parse(std::string_view qualified_name) {
   std::vector<std::string> qualifications;
   while (true) {
     size_t namespace_delimiter_index = qualified_name.find("::");
     if (namespace_delimiter_index == std::string::npos) break;
-    qualifications.push_back(
+    qualifications.emplace_back(
         qualified_name.substr(0, namespace_delimiter_index));
     qualified_name = qualified_name.substr(namespace_delimiter_index + 2);
   }
-  return QualifiedName(std::move(qualifications), qualified_name);
+  return QualifiedName(std::move(qualifications), std::string(qualified_name));
 }
 
 std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {

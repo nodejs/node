@@ -94,7 +94,7 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
 
 UNINITIALIZED_TEST(ConcurrentAllocationInOldSpace) {
   v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-  v8_flags.max_old_space_size = 32;
+  v8_flags.max_old_space_size = 64;
   v8_flags.stress_concurrent_allocation = false;
 
   v8::Isolate::CreateParams create_params;
@@ -403,13 +403,9 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
       if (v8_flags.black_allocated_pages) {
         CHECK(heap->marking_state()->IsUnmarked(object));
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-          CHECK(!PageMetadata::FromHeapObject(object)
-                     ->Chunk()
-                     ->IsBlackAllocatedPage());
+          CHECK(!TrustedHeapLayout::InBlackAllocatedPage(object));
         } else {
-          CHECK(PageMetadata::FromHeapObject(object)
-                    ->Chunk()
-                    ->IsBlackAllocatedPage());
+          CHECK(TrustedHeapLayout::InBlackAllocatedPage(object));
         }
       } else {
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
@@ -563,8 +559,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
       heap::AbandonCurrentlyFreeMemory(heap->old_space());
       DirectHandle<HeapNumber> value_handle(
           i_isolate->factory()->NewHeapNumber<AllocationType::kOld>(1.1));
-      heap::ForceEvacuationCandidate(
-          PageMetadata::FromHeapObject(*value_handle));
+      heap::ForceEvacuationCandidate(NormalPage::FromHeapObject(*value_handle));
       code = *code_handle;
       value = *value_handle;
     }

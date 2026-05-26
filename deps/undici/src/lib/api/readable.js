@@ -1,6 +1,7 @@
 'use strict'
 
 const assert = require('node:assert')
+const { addAbortListener } = require('node:events')
 const { Readable } = require('node:stream')
 const { RequestAbortedError, NotSupportedError, InvalidArgumentError, AbortError } = require('../core/errors')
 const util = require('../core/util')
@@ -293,10 +294,10 @@ class BodyReadable extends Readable {
         const onAbort = () => {
           this.destroy(signal.reason ?? new AbortError())
         }
-        signal.addEventListener('abort', onAbort)
+        const abortListener = addAbortListener(signal, onAbort)
         this
           .on('close', function () {
-            signal.removeEventListener('abort', onAbort)
+            abortListener[Symbol.dispose]()
             if (signal.aborted) {
               reject(signal.reason ?? new AbortError())
             } else {

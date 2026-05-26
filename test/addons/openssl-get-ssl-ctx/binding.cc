@@ -18,12 +18,12 @@ void GetSSLCtx(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  // Verify the pointer is a valid SSL_CTX by calling an OpenSSL function.
-  const SSL_METHOD* method = SSL_CTX_get_ssl_method(ctx);
-  if (method == nullptr) {
+  // Verify the pointer is a valid SSL_CTX by calling a function available
+  // across OpenSSL-compatible TLS backends and checking context-owned state.
+  STACK_OF(SSL_CIPHER)* ciphers = SSL_CTX_get_ciphers(ctx);
+  if (ciphers == nullptr) {
     isolate->ThrowException(v8::Exception::Error(
-        v8::String::NewFromUtf8(isolate,
-                                "SSL_CTX_get_ssl_method returned nullptr")
+        v8::String::NewFromUtf8(isolate, "SSL_CTX_get_ciphers returned nullptr")
             .ToLocalChecked()));
     return;
   }

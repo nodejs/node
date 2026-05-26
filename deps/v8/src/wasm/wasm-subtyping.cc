@@ -680,8 +680,7 @@ ValueType ToTopType(ValueType type) {
   UNREACHABLE();
 }
 
-bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
-                         const WasmModule* module) {
+bool IsSameTypeHierarchy(HeapType type1, HeapType type2) {
   return NullSentinelImpl(type1) == NullSentinelImpl(type2);
 }
 

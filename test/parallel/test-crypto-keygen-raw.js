@@ -158,12 +158,14 @@ const { hasOpenSSL } = require('../common/crypto');
 }
 
 // Test error: raw with DSA.
-{
+if (!process.features.openssl_is_boringssl) {
   assert.throws(() => generateKeyPairSync('dsa', {
     modulusLength: 2048,
     publicKeyEncoding: { format: 'raw-public' },
     privateKeyEncoding: { format: 'raw-private' },
   }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+} else {
+  common.printSkipMessage(`Skipping unsupported dsa test case`);
 }
 
 // Test error: raw-private in publicKeyEncoding.
@@ -203,7 +205,7 @@ const { hasOpenSSL } = require('../common/crypto');
 }
 
 // PQC key types
-if (hasOpenSSL(3, 5)) {
+if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
   // Test raw encoding for ML-DSA key types (raw-public + raw-seed only).
   {
     for (const type of ['ml-dsa-44', 'ml-dsa-65', 'ml-dsa-87']) {
@@ -230,6 +232,10 @@ if (hasOpenSSL(3, 5)) {
   // Test raw encoding for ML-KEM key types (raw-public + raw-seed only).
   {
     for (const type of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
+      if (process.features.openssl_is_boringssl && type === 'ml-kem-512') {
+        common.printSkipMessage(`Skipping unsupported ${type} test case`);
+        continue;
+      }
       const { publicKey, privateKey } = generateKeyPairSync(type, {
         publicKeyEncoding: { format: 'raw-public' },
         privateKeyEncoding: { format: 'raw-seed' },
@@ -244,7 +250,7 @@ if (hasOpenSSL(3, 5)) {
 
   // Test error: raw-private with ML-KEM (not supported).
   {
-    assert.throws(() => generateKeyPairSync('ml-kem-512', {
+    assert.throws(() => generateKeyPairSync('ml-kem-768', {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-private' },
     }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
@@ -253,6 +259,10 @@ if (hasOpenSSL(3, 5)) {
   // Test raw encoding for SLH-DSA key types.
   {
     for (const type of ['slh-dsa-sha2-128f', 'slh-dsa-shake-128f']) {
+      if (process.features.openssl_is_boringssl) {
+        common.printSkipMessage(`Skipping unsupported ${type} test case`);
+        continue;
+      }
       const { publicKey, privateKey } = generateKeyPairSync(type, {
         publicKeyEncoding: { format: 'raw-public' },
         privateKeyEncoding: { format: 'raw-private' },
@@ -264,11 +274,13 @@ if (hasOpenSSL(3, 5)) {
   }
 
   // Test error: raw-seed with SLH-DSA (not supported).
-  {
+  if (!process.features.openssl_is_boringssl) {
     assert.throws(() => generateKeyPairSync('slh-dsa-sha2-128f', {
       publicKeyEncoding: { format: 'raw-public' },
       privateKeyEncoding: { format: 'raw-seed' },
     }), { code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS' });
+  } else {
+    common.printSkipMessage('Skipping unsupported slh-dsa test case');
   }
 
   // Test async generateKeyPair with raw encoding for PQC types.

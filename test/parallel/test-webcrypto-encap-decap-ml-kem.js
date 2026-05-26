@@ -7,8 +7,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -40,6 +40,7 @@ async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }
     ['deriveBits']
   );
 
+  assert.strictEqual(Object.getPrototypeOf(encapsulated), Object.prototype);
   assert(encapsulated.sharedKey instanceof CryptoKey);
   assert(encapsulated.ciphertext instanceof ArrayBuffer);
   assert.strictEqual(encapsulated.sharedKey.type, 'secret');
@@ -59,6 +60,7 @@ async function testEncapsulateKey({ name, publicKeyPem, privateKeyPem, results }
     ['sign', 'verify']
   );
 
+  assert.strictEqual(Object.getPrototypeOf(encapsulated2), Object.prototype);
   assert(encapsulated2.sharedKey instanceof CryptoKey);
   assert.strictEqual(encapsulated2.sharedKey.algorithm.name, 'HMAC');
   assert.strictEqual(encapsulated2.sharedKey.extractable, false);
@@ -93,6 +95,7 @@ async function testEncapsulateBits({ name, publicKeyPem, privateKeyPem, results 
   // Test successful encapsulation
   const encapsulated = await subtle.encapsulateBits({ name }, publicKey);
 
+  assert.strictEqual(Object.getPrototypeOf(encapsulated), Object.prototype);
   assert(encapsulated.sharedKey instanceof ArrayBuffer);
   assert(encapsulated.ciphertext instanceof ArrayBuffer);
   assert.strictEqual(encapsulated.sharedKey.byteLength, 32); // ML-KEM shared secret is 32 bytes
@@ -253,12 +256,16 @@ async function testDecapsulateBits({ name, publicKeyPem, privateKeyPem, results 
 (async function() {
   const variations = [];
 
-  vectors.forEach((vector) => {
+  for (const vector of vectors) {
+    if (process.features.openssl_is_boringssl && vector.name === 'ML-KEM-512') {
+      common.printSkipMessage(`Skipping unsupported ${vector.name} test`);
+      continue;
+    }
     variations.push(testEncapsulateKey(vector));
     variations.push(testEncapsulateBits(vector));
     variations.push(testDecapsulateKey(vector));
     variations.push(testDecapsulateBits(vector));
-  });
+  }
 
   await Promise.all(variations);
 })().then(common.mustCall());

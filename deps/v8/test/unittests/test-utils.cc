@@ -75,5 +75,49 @@ IsolateWrapper::~IsolateWrapper() {
 
 namespace internal {
 
+std::unordered_set<std::string> CrashKeyStore::KeyNames() const {
+  std::unordered_set<std::string> names;
+  names.reserve(entries_.size());
+  for (const auto& [name, unused] : entries_) {
+    static_cast<void>(unused);
+    names.insert(name);
+  }
+  return names;
+}
+
+void CrashKeyStore::InstallCallbacks() {
+  isolate_->SetCrashKeyStringCallbacks(
+      [this](const char key[], CrashKeySize size) {
+        return AllocateKey(key, size);
+      },
+      [this](CrashKey crash_key, const std::string_view value) {
+        SetValue(crash_key, value);
+      });
+}
+
+CrashKey CrashKeyStore::AllocateKey(const char key[], CrashKeySize size) {
+  auto [it, inserted] = entries_.emplace(key, nullptr);
+  if (inserted || it->second == nullptr) {
+    it->second = std::make_unique<Entry>();
+  }
+  Entry* entry_ptr = it->second.get();
+  entry_ptr->size = size;
+  entry_ptr->value.clear();
+  return static_cast<CrashKey>(entry_ptr);
+}
+
+void CrashKeyStore::SetValue(CrashKey crash_key, const std::string_view value) {
+  auto* entry = static_cast<Entry*>(crash_key);
+  bool found = false;
+  for (const auto& [name, entry_holder] : entries_) {
+    if (entry_holder.get() == entry) {
+      found = true;
+      break;
+    }
+  }
+  CHECK(found);
+  entry->value.assign(value.begin(), value.end());
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -124,12 +124,16 @@ struct FlatHashSetPolicy;
 //   if (ducks.contains("dewey")) {
 //     std::cout << "We found dewey!" << std::endl;
 //   }
-template <class T, class Hash = DefaultHashContainerHash<T>,
-          class Eq = DefaultHashContainerEq<T>,
-          class Allocator = std::allocator<T>>
+template <
+    class T,
+    class Hash = typename container_internal::FlatHashSetPolicy<T>::DefaultHash,
+    class Eq = typename container_internal::FlatHashSetPolicy<T>::DefaultEq,
+    class Allocator =
+        typename container_internal::FlatHashSetPolicy<T>::DefaultAlloc>
 class ABSL_ATTRIBUTE_OWNER flat_hash_set
-    : public absl::container_internal::raw_hash_set<
-          absl::container_internal::FlatHashSetPolicy<T>, Hash, Eq, Allocator> {
+    : public absl::container_internal::InstantiateRawHashSet<
+          absl::container_internal::FlatHashSetPolicy<T>, Hash, Eq,
+          Allocator>::type {
   using Base = typename flat_hash_set::raw_hash_set;
 
  public:
@@ -534,6 +538,10 @@ struct FlatHashSetPolicy {
   using key_type = T;
   using init_type = T;
   using constant_iterators = std::true_type;
+
+  using DefaultHash = DefaultHashContainerHash<T>;
+  using DefaultEq = DefaultHashContainerEq<T>;
+  using DefaultAlloc = std::allocator<T>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {

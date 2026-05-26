@@ -12,8 +12,7 @@
 namespace v8 {
 namespace base {
 
-void PosixInitializeCommon(AbortMode abort_mode,
-                           const char* const gc_fake_mmap);
+void PosixInitializeCommon(const char* const gc_fake_mmap);
 
 class PosixTimezoneCache : public TimezoneCache {
  public:

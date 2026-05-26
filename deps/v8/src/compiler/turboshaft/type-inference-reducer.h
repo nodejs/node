@@ -237,11 +237,9 @@ class TypeInferenceReducer
 
   void RefineTypesAfterBranch(const BranchOp* branch, Block* new_block,
                               bool then_branch) {
-    const std::string branch_str = branch->ToString().substr(0, 40);
-    USE(branch_str);
     TURBOSHAFT_TRACE_TYPING_OK("Br   %3d:%-40s\n",
                                Asm().output_graph().Index(*branch).id(),
-                               branch_str.c_str());
+                               branch->ToString().substr(0, 40).c_str());
 
     Typer::BranchRefinements refinements(
         [this](OpIndex index) { return GetType(index); },

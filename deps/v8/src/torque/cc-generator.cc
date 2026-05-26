@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
@@ -103,8 +104,7 @@ std::vector<std::string> CCGenerator::ProcessArgumentsCommon(
     const TypeVector& parameter_types,
     std::vector<std::string> constexpr_arguments, Stack<std::string>* stack) {
   std::vector<std::string> args;
-  for (auto it = parameter_types.rbegin(); it != parameter_types.rend(); ++it) {
-    const Type* type = *it;
+  for (const Type* type : base::Reversed(parameter_types)) {
     if (type->IsConstexpr()) {
       args.push_back(std::move(constexpr_arguments.back()));
       constexpr_arguments.pop_back();

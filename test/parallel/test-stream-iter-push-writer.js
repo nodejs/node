@@ -61,12 +61,9 @@ async function testWriteWithSignalRejects() {
 async function testWriteWithPreAbortedSignal() {
   const { writer, readable } = push({ highWaterMark: 1 });
 
-  const ac = new AbortController();
-  ac.abort();
-
   // Pre-aborted signal should reject immediately
   await assert.rejects(
-    writer.write('data', { signal: ac.signal }),
+    writer.write('data', { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -230,6 +227,25 @@ async function testEndAsyncReturnValue() {
   const total = await writer.end();
   assert.strictEqual(total, 5);
   await consume;
+}
+
+async function testEndAfterEndSyncWaitsForDrain() {
+  const { writer, readable } = push();
+  writer.writeSync('hello');
+  assert.strictEqual(writer.endSync(), -1);
+
+  let ended = false;
+  const end = writer.end().then((n) => {
+    ended = true;
+    return n;
+  });
+
+  await Promise.resolve();
+  assert.strictEqual(ended, false);
+
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of readable) { /* drain */ }
+  assert.strictEqual(await end, 5);
 }
 
 async function testWriteUint8Array() {
@@ -413,6 +429,7 @@ Promise.all([
   testOndrainProtocolErrorPropagates(),
   testFail(),
   testEndAsyncReturnValue(),
+  testEndAfterEndSyncWaitsForDrain(),
   testWriteUint8Array(),
   testOndrainWaitsForDrain(),
   testConsumerThrowRejectsWrites(),

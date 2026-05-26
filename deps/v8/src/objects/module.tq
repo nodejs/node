@@ -9,7 +9,8 @@ extern class Module extends HeapObject {
   // Hash for this object (a random non-zero Smi).
   hash: Smi;
   status: Smi;
-  module_namespace: JSModuleNamespace|Undefined;
+  module_namespace: Cell|Undefined;
+  deferred_module_namespace: Cell|Undefined;
   // The exception in the case {status} is kErrored.
   exception: Object;
   // The top level promise capability of this module. Will only be defined
@@ -21,6 +22,9 @@ extern class JSModuleNamespace extends JSSpecialObject {
   module: Module;
 }
 
+extern class JSDeferredModuleNamespace extends JSModuleNamespace {}
+
+@cppObjectLayoutDefinition
 extern class ScriptOrModule extends Struct {
   resource_name: Object;
   host_defined_options: FixedArray;

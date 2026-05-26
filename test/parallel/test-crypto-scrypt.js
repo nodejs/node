@@ -192,7 +192,9 @@ for (const options of incompatibleOptions) {
 
 for (const options of toobig) {
   const expected = {
-    message: /Invalid scrypt params:.*memory limit exceeded/,
+    message: process.features.openssl_is_boringssl ?
+      /Invalid scrypt params:.*(INVALID_PARAMETERS|MEMORY_LIMIT_EXCEEDED)/ :
+      /Invalid scrypt params:.*memory limit exceeded/,
     code: 'ERR_CRYPTO_INVALID_SCRYPT_PARAMS',
   };
   assert.throws(() => crypto.scrypt('pass', 'salt', 1, options, () => {}),
@@ -271,4 +273,31 @@ for (const { args, expected } of badargs) {
     ['r', 8], ['blockSize', 8],
     ['p', 1], ['parallelization', 1],
   ].forEach((arg) => testParameter(...arg));
+}
+
+// `-0` keylen must not abort the process via the native binding's
+// IsInt32() assertion. Assert that `-0` produces the same outcome as
+// `+0` (which differs by OpenSSL build).
+{
+  let posError;
+  let posResult;
+  try {
+    posResult = crypto.scryptSync('', '', 0);
+  } catch (err) {
+    posError = err;
+  }
+  let negError;
+  let negResult;
+  try {
+    negResult = crypto.scryptSync('', '', -0);
+  } catch (err) {
+    negError = err;
+  }
+  if (posError !== undefined) {
+    assert.strictEqual(negError?.message, posError.message);
+  } else {
+    assert.deepStrictEqual(negResult, posResult);
+  }
+
+  crypto.scrypt('', '', -0, common.mustCall());
 }

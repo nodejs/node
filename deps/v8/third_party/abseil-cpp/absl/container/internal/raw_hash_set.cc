@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <tuple>
 #include <utility>
 
@@ -130,6 +131,16 @@ inline void* PrevSlot(void* slot, size_t slot_size) {
 }
 
 }  // namespace
+
+// Must be defined out-of-line to avoid MSVC error C2482 on some platforms,
+// which is caused by non-constexpr initialization.
+uint16_t HashtableSize::NextSeed() {
+  static_assert(PerTableSeed::kBitCount == 16);
+  thread_local uint16_t seed =
+      static_cast<uint16_t>(reinterpret_cast<uintptr_t>(&seed));
+  seed += uint16_t{0xad53};
+  return seed;
+}
 
 GenerationType* EmptyGeneration() {
   if (SwisstableGenerationsEnabled()) {
@@ -493,7 +504,7 @@ size_t DropDeletesWithoutResizeAndPrepareInsert(
   ResetGrowthLeft(common);
   FindInfo find_info = find_first_non_full(common, new_hash);
   SetCtrlInLargeTable(common, find_info.offset, H2(new_hash), slot_size);
-  common.infoz().RecordInsert(new_hash, find_info.probe_length);
+  common.infoz().RecordInsertMiss(new_hash, find_info.probe_length);
   common.infoz().RecordRehash(total_probe_length);
   return find_info.offset;
 }
@@ -709,7 +720,7 @@ void ReportGrowthToInfozImpl(CommonFields& common, HashtablezInfoHandle infoz,
   ABSL_SWISSTABLE_ASSERT(infoz.IsSampled());
   infoz.RecordStorageChanged(common.size() - 1, common.capacity());
   infoz.RecordRehash(total_probe_length);
-  infoz.RecordInsert(hash, distance_from_desired);
+  infoz.RecordInsertMiss(hash, distance_from_desired);
   common.set_has_infoz();
   // TODO(b/413062340): we could potentially store infoz in place of the
   // control pointer for the capacity 1 case.
@@ -753,7 +764,16 @@ BackingArrayPtrs AllocBackingArray(CommonFields& common,
                                    void* alloc) {
   RawHashSetLayout layout(new_capacity, policy.slot_size, policy.slot_align,
                           has_infoz);
-  char* mem = static_cast<char*>(policy.alloc(alloc, layout.alloc_size()));
+  // Perform a direct call in the common case to allow for profile-guided
+  // heap optimization (PGHO) to understand which allocation function is used.
+  constexpr size_t kDefaultAlignment = BackingArrayAlignment(alignof(size_t));
+  char* mem = static_cast<char*>(
+      ABSL_PREDICT_TRUE(
+          policy.alloc ==
+          (&AllocateBackingArray<kDefaultAlignment, std::allocator<char>>))
+          ? AllocateBackingArray<kDefaultAlignment, std::allocator<char>>(
+                alloc, layout.alloc_size())
+          : policy.alloc(alloc, layout.alloc_size()));
   const GenerationType old_generation = common.generation();
   common.set_generation_ptr(
       reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
@@ -1627,7 +1647,7 @@ size_t PrepareInsertLargeSlow(CommonFields& common,
   PrepareInsertCommon(common);
   common.growth_info().OverwriteControlAsFull(common.control()[target.offset]);
   SetCtrlInLargeTable(common, target.offset, H2(hash), policy.slot_size);
-  common.infoz().RecordInsert(hash, target.probe_length);
+  common.infoz().RecordInsertMiss(hash, target.probe_length);
   return target.offset;
 }
 
@@ -1648,7 +1668,7 @@ GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
   const size_t new_hash = get_hash(common.seed().seed());
   SetCtrlInSingleGroupTable(common, SooSlotIndex(), H2(new_hash),
                             policy.slot_size);
-  common.infoz().RecordInsert(new_hash, /*distance_from_desired=*/0);
+  common.infoz().RecordInsertMiss(new_hash, /*distance_from_desired=*/0);
   return SooSlotIndex();
 }
 
@@ -1911,7 +1931,7 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
         // a full `insert`.
         const size_t hash = (*hasher)(hash_fn, that_slot, seed);
         FindInfo target = find_first_non_full(common, hash);
-        infoz.RecordInsert(hash, target.probe_length);
+        infoz.RecordInsertMiss(hash, target.probe_length);
         offset = target.offset;
         SetCtrl(common, offset, H2(hash), slot_size);
         copy_fn(SlotAddress(common.slot_array(), offset, slot_size), that_slot);
@@ -1961,7 +1981,7 @@ size_t PrepareInsertLargeImpl(CommonFields& common,
   target_group.offset += mask_empty.LowestBitSet();
   target_group.offset &= common.capacity();
   SetCtrl(common, target_group.offset, H2(hash), policy.slot_size);
-  common.infoz().RecordInsert(hash, target_group.probe_length);
+  common.infoz().RecordInsertMiss(hash, target_group.probe_length);
   return target_group.offset;
 }
 }  // namespace
@@ -2056,6 +2076,14 @@ template size_t GrowSooTableToNextCapacityAndPrepareInsert<
     bool);
 static_assert(MaxSooSlotSize() == 16);
 #endif
+
+template void* AllocateBackingArray<BackingArrayAlignment(alignof(size_t)),
+                                    std::allocator<char>>(void* alloc,
+                                                          size_t n);
+template void DeallocateBackingArray<BackingArrayAlignment(alignof(size_t)),
+                                     std::allocator<char>>(
+    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
+    size_t slot_align, bool had_infoz);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

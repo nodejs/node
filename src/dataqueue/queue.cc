@@ -179,6 +179,11 @@ class DataQueueImpl final : public DataQueue,
     for (auto& listener : backpressure_listeners_) listener->EntryRead(amount);
   }
 
+  void NotifyBeforePull() {
+    if (idempotent_) return;
+    for (auto& listener : backpressure_listeners_) listener->BeforePull();
+  }
+
   bool HasBackpressureListeners() const noexcept {
     return !backpressure_listeners_.empty();
   }
@@ -381,6 +386,11 @@ class NonIdempotentDataQueueReader final
            size_t max_count_hint = bob::kMaxCountHint) override {
     std::shared_ptr<DataQueue::Reader> self = shared_from_this();
 
+    // Let listeners flush pending data before we check the entries list.
+    // This allows, for example, the QUIC Stream to flush its receive
+    // accumulation buffer into the queue before the pull proceeds.
+    data_queue_->NotifyBeforePull();
+
     // If ended is true, this reader has already reached the end and cannot
     // provide any more data.
     if (ended_) {
@@ -391,10 +401,11 @@ class NonIdempotentDataQueueReader final
     // If the collection of entries is empty, there's nothing currently left to
     // read. How we respond depends on whether the data queue has been capped
     // or not.
+
     if (data_queue_->entries_.empty()) {
       // If the data_queue_ is empty, and not capped, then we can reasonably
       // expect more data to be provided later, but we don't know exactly when
-      // that'll happe, so the proper response here is to return a blocked
+      // that'll happen, so the proper response here is to return a blocked
       // status.
       if (!data_queue_->is_capped()) {
         std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
@@ -437,8 +448,11 @@ class NonIdempotentDataQueueReader final
     CHECK(!pull_pending_);
     pull_pending_ = true;
     int status = current_reader->Pull(
-        [this, next = std::move(next)](
-            int status, const DataQueue::Vec* vecs, uint64_t count, Done done) {
+        [this, next = std::move(next), options, data, count, max_count_hint](
+            int status,
+            const DataQueue::Vec* vecs,
+            uint64_t vcount,
+            Done done) mutable {
           pull_pending_ = false;
 
           // In each of these cases, we do not expect that the source will
@@ -446,13 +460,27 @@ class NonIdempotentDataQueueReader final
           CHECK_IMPLIES(status == bob::Status::STATUS_BLOCK ||
                             status == bob::Status::STATUS_WAIT ||
                             status == bob::Status::STATUS_EOS,
-                        vecs == nullptr && count == 0);
+                        vecs == nullptr && vcount == 0);
           if (status == bob::Status::STATUS_EOS) {
             data_queue_->entries_.erase(data_queue_->entries_.begin());
-            ended_ = data_queue_->entries_.empty();
             current_reader_ = nullptr;
-            if (!ended_) status = bob::Status::STATUS_CONTINUE;
-            std::move(next)(status, nullptr, 0, [](uint64_t) {});
+            if (!data_queue_->entries_.empty()) {
+              // More entries remain. Pull from the next entry immediately
+              // rather than returning empty CONTINUE, which would leave
+              // callers with no data and no way to know they should retry.
+              Pull(std::move(next), options, data, count, max_count_hint);
+            } else if (!data_queue_->is_capped()) {
+              // The queue is empty but not capped — more data may arrive
+              // later. Return BLOCK so the consumer waits rather than
+              // falsely treating this as end-of-stream.
+              std::move(next)(
+                  bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+            } else {
+              // Empty and capped — truly done.
+              ended_ = true;
+              std::move(next)(
+                  bob::Status::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+            }
             return;
           }
 
@@ -461,7 +489,7 @@ class NonIdempotentDataQueueReader final
           if (data_queue_->HasBackpressureListeners()) {
             // How much did we actually read?
             size_t read = 0;
-            for (uint64_t n = 0; n < count; n++) {
+            for (uint64_t n = 0; n < vcount; n++) {
               read += vecs[n].len;
             }
             data_queue_->NotifyBackpressure(read);
@@ -469,7 +497,7 @@ class NonIdempotentDataQueueReader final
 
           // Now that we have updated this readers state, we can forward
           // everything on to the outer next.
-          std::move(next)(status, vecs, count, std::move(done));
+          std::move(next)(status, vecs, vcount, std::move(done));
         },
         options,
         data,

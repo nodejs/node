@@ -266,6 +266,32 @@ describe('Mock Timers Test Suite', () => {
         assert.deepStrictEqual(fn.mock.calls[0].arguments, args);
       });
 
+      it('should expose Timeout.prototype[Symbol.dispose]', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const fn = t.mock.fn();
+        const timeout = globalThis.setTimeout(fn, 2000);
+
+        assert.strictEqual(typeof timeout[Symbol.dispose], 'function');
+
+        timeout[Symbol.dispose]();
+        t.mock.timers.tick(2000);
+
+        assert.strictEqual(fn.mock.callCount(), 0);
+      });
+
+      it('should expose Timeout.prototype.close()', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        const fn = t.mock.fn();
+        const timeout = globalThis.setTimeout(fn, 2000);
+
+        assert.strictEqual(typeof timeout.close, 'function');
+        assert.strictEqual(timeout.close(), timeout);
+
+        t.mock.timers.tick(2000);
+
+        assert.strictEqual(fn.mock.callCount(), 0);
+      });
+
       it('should keep setTimeout working if timers are disabled', (t, done) => {
         const now = Date.now();
         const timeout = 2;
@@ -525,11 +551,9 @@ describe('Mock Timers Test Suite', () => {
         it('should abort operation when .abort is called before calling setInterval', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
           const expectedResult = 'result';
-          const controller = new AbortController();
-          controller.abort();
           const p = nodeTimersPromises.setTimeout(2000, expectedResult, {
             ref: true,
-            signal: controller.signal,
+            signal: AbortSignal.abort(),
           });
 
           await assert.rejects(() => p, {
@@ -752,10 +776,8 @@ describe('Mock Timers Test Suite', () => {
           t.mock.timers.enable({ apis: ['setInterval'] });
 
           const interval = 100;
-          const abortController = new AbortController();
-          abortController.abort();
           const intervalIterator = nodeTimersPromises.setInterval(interval, Date.now(), {
-            signal: abortController.signal,
+            signal: AbortSignal.abort(),
           });
 
           const first = intervalIterator.next();

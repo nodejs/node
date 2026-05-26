@@ -702,6 +702,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_RESUME_THROW(cont, exc, count, ...)                           \
   kExprResumeThrow, static_cast<uint8_t>(cont), static_cast<uint8_t>(exc), \
       U32V_1(count), ##__VA_ARGS__
+#define WASM_RESUME_THROW_REF(cont, count, ...) \
+  kExprResumeThrowRef, static_cast<uint8_t>(cont), U32V_1(count), ##__VA_ARGS__
 #define WASM_SUSPEND(index) kExprSuspend, static_cast<uint8_t>(index)
 #define WASM_SWITCH(cont, tag) \
   kExprSwitch, static_cast<uint8_t>(cont), ToByte(tag)

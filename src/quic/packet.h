@@ -68,7 +68,18 @@ class Packet final {
   size_t length() const { return length_; }
   size_t capacity() const { return capacity_; }
   const SocketAddress& destination() const { return destination_; }
+  const PacketInfo& pkt_info() const { return pkt_info_; }
+  void set_pkt_info(const PacketInfo& pi) { pkt_info_ = pi; }
   Listener* listener() const { return listener_; }
+
+  // Redirect the packet to a different endpoint for cross-endpoint sends
+  // (e.g., PATH_RESPONSE on a preferred address path). Updates the
+  // listener (for pending_callbacks accounting) and the destination
+  // (for uv_udp_send targeting). The packet data is unchanged.
+  void Redirect(Listener* listener, const SocketAddress& destination) {
+    listener_ = listener;
+    destination_ = destination;
+  }
   uv_udp_send_t* req() { return &req_; }
 
   operator uv_buf_t() const {
@@ -139,6 +150,7 @@ class Packet final {
   Listener* listener_;
 
   // Touched at send time.
+  PacketInfo pkt_info_;
   SocketAddress destination_;
 
   // Only touched by libuv during uv_udp_send and in the send callback.

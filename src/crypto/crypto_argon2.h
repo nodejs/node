@@ -3,10 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "crypto/crypto_keys.h"
 #include "crypto/crypto_util.h"
 
 namespace node::crypto {
-#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_NUMBER >= 0x30200000L
+#if OPENSSL_WITH_ARGON2
 
 // Argon2 is a password-based key derivation algorithm
 // defined in https://datatracker.ietf.org/doc/html/rfc9106
@@ -22,6 +23,7 @@ namespace node::crypto {
 
 struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
+  KeyObjectData key;
   ByteSource pass;
   ByteSource salt;
   ByteSource secret;

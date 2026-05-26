@@ -210,9 +210,9 @@ bytecodes: [
                 B(TestReferenceEqual), R(0),
                 B(JumpIfTrue), U8(11),
   /*   82 S> */ B(Ldar), R(1),
-                B(Inc), U8(0),
+                B(Inc), FBV(0),
                 B(Star1),
-  /*   59 E> */ B(JumpLoop), U8(10), I8(0), U8(1),
+  /*   59 E> */ B(JumpLoop), U8(10), I8(0), FBV(1),
                 B(LdaUndefined),
   /*   89 S> */ B(Return),
 ]
@@ -358,7 +358,7 @@ frame size: 1
 parameter count: 1
 bytecode array length: 13
 bytecodes: [
-  /*   34 S> */ B(LdaConstant), U8(0),
+  /*   34 S> */ B(LdaConstant), U8(0:"false"),
                 B(Star0),
                 B(LdaFalse),
                 B(TestReferenceEqual), R(0),
@@ -382,7 +382,7 @@ frame size: 1
 parameter count: 1
 bytecode array length: 13
 bytecodes: [
-  /*   34 S> */ B(LdaConstant), U8(0),
+  /*   34 S> */ B(LdaConstant), U8(0:"false"),
                 B(Star0),
                 B(LdaFalse),
                 B(TestReferenceEqual), R(0),

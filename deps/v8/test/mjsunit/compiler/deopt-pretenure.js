@@ -6,7 +6,7 @@
 // Flags: --allocation-site-pretenuring --stress-gc-during-compilation
 // Flags: --stress-scavenge=0 --gc-interval=-1
 // Flags: --max-optimized-bytecode-size=132000
-// Flags: --no-reopt-after-lazy-deopts
+// Flags: --no-reopt-after-lazy-deopts --expose-gc
 
 function CheckOptimizationStatus(func, expectedOptimizationStatus) {
   let opt_status = %GetOptimizationStatus(func);
@@ -33,6 +33,9 @@ DeoptEntry(V8OptimizationStatus.kTopmostFrameIsInterpreted
 %OptimizeFunctionOnNextCall(DeoptEntry);
 // Force the allocation site to be pretenured.
 assertTrue(%PretenureAllocationSite(empty));
+gc({type: 'minor'});
+gc({type: 'minor'});
+
 // This call should deopt Turbofan at entry because of the pretenuring decision
 // change. Maglev doesn't currently implement this optimization/deopt.
 DeoptEntry(

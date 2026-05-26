@@ -2,7 +2,7 @@
 // either rejects or resolves to nothing.  return value not relevant.
 const isWindows = require('./is-windows.js')
 const binTarget = require('./bin-target.js')
-const { resolve, dirname } = require('path')
+const { resolve, dirname, sep } = require('path')
 const readCmdShim = require('read-cmd-shim')
 const { readlink } = require('fs/promises')
 
@@ -34,7 +34,9 @@ const checkLink = async ({ target, path }) => {
 
   const resolved = resolve(dirname(target), current)
 
-  if (resolved.toLowerCase().indexOf(path.toLowerCase()) !== 0) {
+  const resolvedLower = resolved.toLowerCase()
+  const pathLower = path.toLowerCase()
+  if (resolvedLower !== pathLower && !resolvedLower.startsWith(pathLower + sep)) {
     return failEEXIST({ target })
   }
 }
@@ -65,7 +67,9 @@ const checkShim = async ({ target, path }) => {
 
     const resolved = resolve(dirname(shim), current.replace(/\\/g, '/'))
 
-    if (resolved.toLowerCase().indexOf(path.toLowerCase()) !== 0) {
+    const resolvedLower = resolved.toLowerCase()
+    const pathLower = path.toLowerCase()
+    if (resolvedLower !== pathLower && !resolvedLower.startsWith(pathLower + sep)) {
       return failEEXIST({ target: shim })
     }
   }))

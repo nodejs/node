@@ -53,8 +53,6 @@ try {
 }
 ```
 
-<!-- eslint-enable no-global-assign -->
-
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
 _before_ any attempt to load the module is made (using, for instance,
@@ -88,23 +86,23 @@ The following table lists the asymmetric key types recognized by the
 | `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
 | `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
 | `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19 | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
-| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  | ✔       | ✔       |         | ✔              |                 | ✔            |
-| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  | ✔       | ✔       |         | ✔              |                 | ✔            |
-| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  | ✔       | ✔       |         | ✔              |                 | ✔            |
+| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
+| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
+| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  | ✔       | ✔       | ✔       | ✔              |                 | ✔            |
 | `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10   | ✔       | ✔       |         |                |                 |              |
 | `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1    | ✔       | ✔       | ✔       |                |                 |              |
-| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.20 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.22 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.24 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 | ✔       | ✔       |         | ✔              | ✔               |              |
-| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 | ✔       | ✔       |         | ✔              | ✔               |              |
+| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.20 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.22 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.24 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.26 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.28 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
+| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.30 | ✔       | ✔       | ✔       | ✔              | ✔               |              |
 | `'x25519'`                         | X25519             | 1.3.101.110             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
 | `'x448'`                           | X448               | 1.3.101.111             | ✔       | ✔       | ✔       | ✔              | ✔               |              |
 
@@ -1172,7 +1170,7 @@ changes:
 * `options` {Object} [`stream.transform` options][]
   * `plaintextLength` {number}
   * `encoding` {string} String encoding to use when `buffer` is a string.
-* Returns: {Decipheriv} The same Decipher for method chaining.
+* Returns: {Decipheriv} The same `Decipheriv` instance for method chaining.
 
 When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
 `chacha20-poly1305` are
@@ -1193,7 +1191,7 @@ When passing a string as the `buffer`, please consider
 <!-- YAML
 added: v1.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61084
     description: Using GCM tag lengths other than 128 bits without specifying
                  the `authTagLength` option when creating `decipher` is not
@@ -1219,7 +1217,7 @@ changes:
 
 * `buffer` {string|Buffer|ArrayBuffer|TypedArray|DataView}
 * `encoding` {string} String encoding to use when `buffer` is a string.
-* Returns: {Decipheriv} The same Decipher for method chaining.
+* Returns: {Decipheriv} The same `Decipheriv` instance for method chaining.
 
 When using an authenticated encryption mode (`GCM`, `CCM`, `OCB`, and
 `chacha20-poly1305` are
@@ -1245,7 +1243,7 @@ added: v0.7.1
 -->
 
 * `autoPadding` {boolean} **Default:** `true`
-* Returns: {Decipheriv} The same Decipher for method chaining.
+* Returns: {Decipheriv} The same `Decipheriv` instance for method chaining.
 
 When data has been encrypted without standard block padding, calling
 `decipher.setAutoPadding(false)` will disable automatic padding to prevent
@@ -1389,8 +1387,10 @@ If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
 
 This function is a thin wrapper around [`DH_generate_key()`][]. In particular,
-once a private key has been generated or set, calling this function only updates
-the public key but does not generate a new private key.
+once a private key has been generated or set, calling this function only
+recomputes the public key from the existing private key. Since the public key is
+determined by the private key, the result will be the same unless the private key
+has been changed via [`diffieHellman.setPrivateKey()`][].
 
 ### `diffieHellman.getGenerator([encoding])`
 
@@ -2256,7 +2256,7 @@ be listed in the `transferList` argument.
 <!-- YAML
 added: v15.0.0
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a non-extractable CryptoKey as `key` is deprecated.
 -->
@@ -2397,7 +2397,11 @@ type, value, and parameters. This method is not
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
+    pr-url: https://github.com/nodejs/node/pull/62706
+    description: Added JWK format support for ML-KEM and SLH-DSA
+                 key types.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62178
     description: ML-KEM and ML-DSA private key `'pkcs8'` export now
                  uses seed-only format by default when a seed is
@@ -3313,14 +3317,14 @@ added: v24.7.0
   * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
     least 8 bytes long. This is the salt for password hashing applications of Argon2.
   * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
-    can be run. Must be greater than 1 and less than `2**24-1`.
-  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
-    less than `2**32-1`.
-  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
-    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    can be run. Must be at least `1` and at most `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be at least `4` and
+    at most `2**32-1`.
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be at least
+    `8 * parallelism` and at most `2**32-1`. The actual number of blocks is rounded
     down to the nearest multiple of `4 * parallelism`.
-  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
-    than `2**32-1`.
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be at least `1` and at most
+    `2**32-1`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
     password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
@@ -3399,14 +3403,14 @@ added: v24.7.0
   * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
     least 8 bytes long. This is the salt for password hashing applications of Argon2.
   * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
-    can be run. Must be greater than 1 and less than `2**24-1`.
-  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
-    less than `2**32-1`.
-  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
-    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    can be run. Must be at least 1 and at most `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be at least `4` and
+    at most `2**32-1`.
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be at least
+    `8 * parallelism` and at most `2**32-1`. The actual number of blocks is rounded
     down to the nearest multiple of `4 * parallelism`.
-  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
-    than `2**32-1`.
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be at least `1` and at most
+    `2**32-1`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
     password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
@@ -3530,7 +3534,7 @@ operations. The specific constants currently defined are described in
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version:
@@ -3607,7 +3611,7 @@ given IV will be.
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version:
@@ -3833,7 +3837,7 @@ input.on('readable', () => {
 <!-- YAML
 added: v0.1.94
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version: v15.0.0
@@ -3926,7 +3930,11 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
+    pr-url: https://github.com/nodejs/node/pull/62706
+    description: Added JWK format support for ML-KEM and SLH-DSA
+                 key types.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version: v24.15.0
@@ -3977,7 +3985,11 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
+    pr-url: https://github.com/nodejs/node/pull/62706
+    description: Added JWK format support for ML-KEM and SLH-DSA
+                 key types.
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/62453
     description: Passing a CryptoKey as `key` is deprecated.
   - version: v24.15.0
@@ -4142,7 +4154,7 @@ added:
  - v13.9.0
  - v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v26.1.0
     pr-url: https://github.com/nodejs/node/pull/62527
     description: Accept key data in addition to KeyObject instances.
   - version: v23.11.0
@@ -5333,7 +5345,7 @@ changes:
 
 <!--lint enable maximum-line-length remark-lint-->
 
-Decrypts `buffer` with `key`.`buffer` was previously encrypted using
+Decrypts `buffer` with `key`. `buffer` was previously encrypted using
 the corresponding private key, for example using [`crypto.privateEncrypt()`][].
 
 If `key` is not a [`KeyObject`][], this function behaves as if
@@ -5838,7 +5850,9 @@ cryptographic pseudorandom number generator.
 ### `crypto.randomUUIDv7([options])`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * `options` {Object}
@@ -6090,7 +6104,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6120,7 +6136,7 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string | null | undefined}
-* `data` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
 * `callback` {Function}
   * `err` {Error}
@@ -6219,7 +6235,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6252,9 +6270,9 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `algorithm` {string|null|undefined}
-* `data` {ArrayBuffer| Buffer|TypedArray|DataView}
+* `data` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView|string}
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
-* `signature` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `signature` {ArrayBuffer|Buffer|SharedArrayBuffer|TypedArray|DataView}
 * `callback` {Function}
   * `err` {Error}
   * `result` {boolean}
@@ -6645,7 +6663,7 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS</code></td>
-    <td>Instructs OpenSSL to disable a SSL 3.0/TLS 1.0 vulnerability
+    <td>Instructs OpenSSL to disable an SSL 3.0/TLS 1.0 vulnerability
     workaround added in OpenSSL 0.9.6d.</td>
   </tr>
   <tr>
@@ -6936,6 +6954,7 @@ See the [list of SSL OP Flags][] for details.
 [`decipher.final()`]: #decipherfinaloutputencoding
 [`decipher.update()`]: #decipherupdatedata-inputencoding-outputencoding
 [`diffieHellman.generateKeys()`]: #diffiehellmangeneratekeysencoding
+[`diffieHellman.setPrivateKey()`]: #diffiehellmansetprivatekeyprivatekey-encoding
 [`diffieHellman.setPublicKey()`]: #diffiehellmansetpublickeypublickey-encoding
 [`ecdh.generateKeys()`]: #ecdhgeneratekeysencoding-format
 [`ecdh.setPrivateKey()`]: #ecdhsetprivatekeyprivatekey-encoding

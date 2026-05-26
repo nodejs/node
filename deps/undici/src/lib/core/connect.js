@@ -38,6 +38,22 @@ const SessionCache = class WeakSessionCache {
       return
     }
 
+    if (this._sessionCache.has(sessionKey)) {
+      this._sessionCache.delete(sessionKey)
+    } else if (this._sessionCache.size >= this._maxCachedSessions) {
+      for (const [key, ref] of this._sessionCache) {
+        if (ref.deref() === undefined) {
+          this._sessionCache.delete(key)
+          return
+        }
+      }
+
+      const oldest = this._sessionCache.keys().next()
+      if (!oldest.done) {
+        this._sessionCache.delete(oldest.value)
+      }
+    }
+
     this._sessionCache.set(sessionKey, new WeakRef(session))
     this._sessionRegistry.register(session, sessionKey)
   }

@@ -66,6 +66,8 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
     if (mod === 'node:ffi') return;
     // node:logger requires --experimental-logger flag
     if (mod === 'node:logger') return;
+    // Remove once node:vfs is no longer flagged
+    if (mod === 'node:vfs') return;
     if (mod === 'node:sqlite' && !common.hasSQLite) return;
     assert.strictEqual(require.resolve.paths(mod), null);
     if (!mod.startsWith('node:')) {

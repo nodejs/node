@@ -155,6 +155,14 @@ class Simulator : public SimulatorBase {
   template <class T>
   void set_fpr(int dreg, const T val) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
+    if (InstructionTracingEnabled()) {
+      uint64_t bits = 0;
+      static_assert(sizeof(val) <= sizeof(bits));
+      memcpy(&bits, &val, sizeof(val));
+
+      PrintF("%s <- 0x%08" V8PRIxPTR "\n",
+             i::RegisterName(i::DoubleRegister::from_code(dreg)), bits);
+    }
     set_simd_register_by_lane<T>(dreg, 0, val);
   }
 

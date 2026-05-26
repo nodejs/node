@@ -58,17 +58,21 @@ class SlotBase {
     DCHECK_GE(ptr_, other.ptr_);
     return static_cast<size_t>((ptr_ - other.ptr_) / kSlotDataSize);
   }
-  Subclass operator-(int i) const { return Subclass(ptr_ - i * kSlotDataSize); }
-  Subclass operator+(int i) const { return Subclass(ptr_ + i * kSlotDataSize); }
-  friend Subclass operator+(int i, const Subclass& slot) {
+  Subclass operator-(uint32_t i) const {
+    return Subclass(ptr_ - i * kSlotDataSize);
+  }
+  Subclass operator+(uint32_t i) const {
+    return Subclass(ptr_ + i * kSlotDataSize);
+  }
+  friend Subclass operator+(uint32_t i, const Subclass& slot) {
     return Subclass(slot.ptr_ + i * kSlotDataSize);
   }
-  Subclass& operator+=(int i) {
+  Subclass& operator+=(uint32_t i) {
     ptr_ += i * kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
-  Subclass operator-(int i) { return Subclass(ptr_ - i * kSlotDataSize); }
-  Subclass& operator-=(int i) {
+  Subclass operator-(uint32_t i) { return Subclass(ptr_ - i * kSlotDataSize); }
+  Subclass& operator-=(uint32_t i) {
     ptr_ -= i * kSlotDataSize;
     return *static_cast<Subclass*>(this);
   }
@@ -307,42 +311,15 @@ class ExternalPointerSlot
     : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
                       kTaggedSize /* slot alignment */> {
  public:
-  ExternalPointerSlot()
-      : SlotBase(kNullAddress)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_()
-#endif
-  {
-  }
-
   ExternalPointerSlot(Address ptr, ExternalPointerTag tag_range)
-      : SlotBase(ptr)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_(tag_range)
-#endif
-  {
-  }
+      : SlotBase(ptr), tag_range_(tag_range) {}
 
   ExternalPointerSlot(Address ptr, ExternalPointerTagRange tag_range)
-      : SlotBase(ptr)
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_(tag_range)
-#endif
-  {
-  }
+      : SlotBase(ptr), tag_range_(tag_range) {}
 
   template <ExternalPointerTag tag>
   explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
-      : SlotBase(member->storage_address())
-#ifdef V8_COMPRESS_POINTERS
-        ,
-        tag_range_(tag)
-#endif
-  {
-  }
+      : SlotBase(member->storage_address()), tag_range_(tag) {}
 
   inline void init_lazily_initialized();
 
@@ -394,7 +371,6 @@ class ExternalPointerSlot
   inline uint32_t GetContentAsIndexAfterDeserialization(
       const DisallowGarbageCollection& no_gc);
 
-#ifdef V8_COMPRESS_POINTERS
   bool ExactTagIsKnown() const { return tag_range_.Size() == 1; }
 
   ExternalPointerTag exact_tag() const {
@@ -403,15 +379,6 @@ class ExternalPointerSlot
   }
 
   ExternalPointerTagRange tag_range() const { return tag_range_; }
-#else
-  bool ExactTagIsKnown() const { return true; }
-
-  ExternalPointerTag exact_tag() const { return kExternalPointerNullTag; }
-
-  ExternalPointerTagRange tag_range() const {
-    return ExternalPointerTagRange();
-  }
-#endif  // V8_COMPRESS_POINTERS
 
  private:
 #ifdef V8_COMPRESS_POINTERS
@@ -419,10 +386,10 @@ class ExternalPointerSlot
     DCHECK(HasExternalPointerHandle());
     return reinterpret_cast<ExternalPointerHandle*>(address());
   }
+#endif  // V8_COMPRESS_POINTERS
 
   // The tag range associated with this slot.
   ExternalPointerTagRange tag_range_;
-#endif  // V8_COMPRESS_POINTERS
 };
 
 // Similar to ExternalPointerSlot with the difference that it refers to an
@@ -432,29 +399,27 @@ class CppHeapPointerSlot
     : public SlotBase<CppHeapPointerSlot, CppHeapPointer_t,
                       /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {
  public:
-  CppHeapPointerSlot() : SlotBase(kNullAddress) {}
+  explicit CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
 
-  CppHeapPointerSlot(Address ptr) : SlotBase(ptr) {}
+  inline void init() const;
 
 #ifdef V8_COMPRESS_POINTERS
 
   // When V8 runs with pointer compression, the slots here store a handle to an
-  // entry in a dedicated ExternalPointerTable that is only used for CppHeap
+  // entry in a dedicated CppHeapPointerTable that is only used for CppHeap
   // references. These methods allow access to the underlying handle while the
   // load/store methods below resolve the handle to the real pointer. Handles
   // should generally be accessed atomically as they may be accessed from other
   // threads, for example GC marking threads.
   inline CppHeapPointerHandle Relaxed_LoadHandle() const;
-  inline void Relaxed_StoreHandle(CppHeapPointerHandle handle) const;
   inline void Release_StoreHandle(CppHeapPointerHandle handle) const;
 
-#endif  // V8_COMPRESS_POINTERS
+#else
 
-  inline Address try_load(IsolateForPointerCompression isolate,
-                          CppHeapPointerTagRange tag_range) const;
-  inline void store(IsolateForPointerCompression isolate, Address value,
-                    CppHeapPointerTag tag) const;
-  inline void init() const;
+  inline void store(Address value) const;
+  inline Address load() const;
+
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // An IndirectPointerSlot instance describes a 32-bit field ("slot") containing
@@ -470,16 +435,16 @@ class IndirectPointerSlot
       : SlotBase(kNullAddress)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        tag_(kIndirectPointerNullTag)
+        tag_range_()
 #endif
   {
   }
 
-  explicit IndirectPointerSlot(Address ptr, IndirectPointerTag tag)
+  explicit IndirectPointerSlot(Address ptr, IndirectPointerTagRange tag_range)
       : SlotBase(ptr)
 #ifdef V8_ENABLE_SANDBOX
         ,
-        tag_(tag)
+        tag_range_(tag_range)
 #endif
   {
   }
@@ -509,9 +474,11 @@ class IndirectPointerSlot
   inline void Release_StoreHandle(IndirectPointerHandle handle) const;
 
 #ifdef V8_ENABLE_SANDBOX
-  IndirectPointerTag tag() const { return tag_; }
+  IndirectPointerTagRange tag_range() const { return tag_range_; }
 #else
-  IndirectPointerTag tag() const { return kIndirectPointerNullTag; }
+  IndirectPointerTagRange tag_range() const {
+    return IndirectPointerTagRange();
+  }
 #endif
 
   // Whether this slot is empty, i.e. contains a null handle.
@@ -541,7 +508,7 @@ class IndirectPointerSlot
       IndirectPointerHandle handle) const;
 
   // The tag associated with this slot.
-  IndirectPointerTag tag_;
+  IndirectPointerTagRange tag_range_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

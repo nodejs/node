@@ -1155,7 +1155,7 @@ class MaxTotalDurationReachedError(Exception):
 
 def Main(argv):
   parser = argparse.ArgumentParser(epilog="""example:
-      ./run_perf.py --d8-path=out/Release/d8 $V8_PERF/benchmarks/JetStream2/JetStream2.json
+      ./run_perf.py --d8-path=out/Release/d8 $V8_PERF/benchmarks/JetStream/JetStream2.json
     """)
   parser.add_argument('--arch',
                       help='The architecture to run tests for. Pass "auto" '

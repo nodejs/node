@@ -11,7 +11,11 @@ const {
 
 // Test async elliptic curve key generation with 'jwk' encoding and named
 // curve.
-['P-384', 'P-256', 'P-521', 'secp256k1'].forEach((curve) => {
+for (const curve of ['P-384', 'P-256', 'P-521', 'secp256k1']) {
+  if (process.features.openssl_is_boringssl && curve === 'secp256k1') {
+    common.printSkipMessage(`Skipping unsupported ${curve} test case`);
+    continue;
+  }
   generateKeyPair('ec', {
     namedCurve: curve,
     publicKeyEncoding: {
@@ -32,4 +36,4 @@ const {
     assert.strictEqual(publicKey.crv, curve);
     assert.strictEqual(publicKey.crv, privateKey.crv);
   }));
-});
+};

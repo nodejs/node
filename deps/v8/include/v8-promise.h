@@ -19,7 +19,7 @@ class Context;
 #endif
 
 /**
- * An instance of the built-in Promise constructor (ES6 draft).
+ * An instance of the built-in Promise constructor.
  */
 class V8_EXPORT Promise : public Object {
  public:
@@ -65,10 +65,21 @@ class V8_EXPORT Promise : public Object {
   };
 
   /**
-   * Register a resolution/rejection handler with a promise.
-   * The handler is given the respective resolution/rejection value as
-   * an argument. If the promise is already resolved/rejected, the handler is
-   * invoked at the end of turn.
+   * Register a resolution/rejection handler with a promise. The handler is
+   * given the respective resolution/rejection value as an argument. If the
+   * promise is already resolved/rejected, the handler is invoked at the end of
+   * turn.
+   *
+   * This performs the PerformPromiseThen abstract operation with a fresh native
+   * promise as result, rather than the similar Promise.prototype.then
+   * operation. In particular, it does not do species lookup on the Promise
+   * constructor, and is therefore guaranteed to return a Promise.
+   *
+   * https://tc39.es/ecma262/#sec-performpromisethen
+   *
+   * This is consistent with Promise reactions in WebIDL:
+   *
+   * https://webidl.spec.whatwg.org/#dfn-perform-steps-once-promise-is-settled
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Catch(Local<Context> context,
                                                   Local<Function> handler);

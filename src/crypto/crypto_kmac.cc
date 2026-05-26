@@ -3,7 +3,7 @@
 #include "node_internals.h"
 #include "threadpoolwork-inl.h"
 
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_WITH_KMAC
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include "crypto/crypto_keys.h"
@@ -45,7 +45,7 @@ KmacConfig& KmacConfig::operator=(KmacConfig&& other) noexcept {
 void KmacConfig::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
   // If the job is sync, then the KmacConfig does not own the data.
-  if (job_mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(job_mode)) {
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("signature", signature.size());
     tracker->TrackFieldWithSize("customization", customization.size());
@@ -90,7 +90,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
       THROW_ERR_OUT_OF_RANGE(env, "customization is too big");
       return Nothing<void>();
     }
-    params->customization = mode == kCryptoJobAsync
+    params->customization = IsCryptoJobAsync(mode)
                                 ? customization.ToCopy()
                                 : customization.ToByteSource();
   }
@@ -104,7 +104,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   if (!args[offset + 6]->IsUndefined()) {
     ArrayBufferOrViewContents<char> signature(args[offset + 6]);
@@ -113,7 +113,7 @@ Maybe<void> KmacTraits::AdditionalConfig(
       return Nothing<void>();
     }
     params->signature =
-        mode == kCryptoJobAsync ? signature.ToCopy() : signature.ToByteSource();
+        IsCryptoJobAsync(mode) ? signature.ToCopy() : signature.ToByteSource();
   }
 
   return JustVoid();
@@ -220,4 +220,4 @@ void Kmac::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // namespace node::crypto
 
-#endif
+#endif  // OPENSSL_WITH_KMAC

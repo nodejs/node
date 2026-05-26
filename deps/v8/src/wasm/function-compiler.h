@@ -164,7 +164,7 @@ inline bool CanUseGenericJsToWasmWrapper(ModuleOrigin origin,
                                          const CanonicalSig* sig) {
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||  \
      V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || \
-     V8_TARGET_ARCH_LOONG64)
+     V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV64)
   // We don't use the generic wrapper for asm.js, because it creates invalid
   // stack traces.
   return origin == kWasmOrigin && v8_flags.wasm_generic_wrapper &&

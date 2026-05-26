@@ -1,4 +1,5 @@
-const fetch = require('make-fetch-happen')
+const { Readable } = require('stream')
+const { EnvHttpProxyAgent } = require('undici')
 const { promises: fs } = require('graceful-fs')
 const log = require('./log')
 
@@ -10,19 +11,65 @@ async function download (gyp, url) {
       'User-Agent': `node-gyp v${gyp.version} (node ${process.version})`,
       Connection: 'keep-alive'
     },
-    proxy: gyp.opts.proxy,
-    noProxy: gyp.opts.noproxy
+    dispatcher: await createDispatcher(gyp)
   }
 
-  const cafile = gyp.opts.cafile
-  if (cafile) {
-    requestOpts.ca = await readCAFile(cafile)
+  let res
+  try {
+    res = await fetch(url, requestOpts)
+  } catch (err) {
+    // Built-in fetch wraps low-level errors in "TypeError: fetch failed" with
+    // the underlying error on .cause. Callers inspect .code (e.g. ENOTFOUND).
+    if (err.cause) {
+      throw err.cause
+    }
+    throw err
   }
 
-  const res = await fetch(url, requestOpts)
   log.http(res.status, res.url)
 
-  return res
+  const body = res.body ? Readable.fromWeb(res.body) : Readable.from([])
+  return {
+    status: res.status,
+    url: res.url,
+    body,
+    text: async () => {
+      let data = ''
+      body.setEncoding('utf8')
+      for await (const chunk of body) {
+        data += chunk
+      }
+      return data
+    }
+  }
+}
+
+async function createDispatcher (gyp) {
+  const env = process.env
+  const hasProxyEnv = env.http_proxy || env.HTTP_PROXY || env.https_proxy || env.HTTPS_PROXY
+  if (!gyp.opts.proxy && !gyp.opts.cafile && !hasProxyEnv) {
+    return undefined
+  }
+
+  const opts = {}
+  if (gyp.opts.cafile) {
+    const ca = await readCAFile(gyp.opts.cafile)
+    // EnvHttpProxyAgent forwards opts to both its internal Agent (direct) and
+    // ProxyAgent (proxied). Agent reads TLS config from `connect`; ProxyAgent
+    // reads it from `requestTls` (origin) / `proxyTls` (proxy). Set all three
+    // so the custom CA is applied regardless of which path a request takes.
+    opts.connect = { ca }
+    opts.requestTls = { ca }
+    opts.proxyTls = { ca }
+  }
+  if (gyp.opts.proxy) {
+    opts.httpProxy = gyp.opts.proxy
+    opts.httpsProxy = gyp.opts.proxy
+  }
+  if (gyp.opts.noproxy) {
+    opts.noProxy = gyp.opts.noproxy
+  }
+  return new EnvHttpProxyAgent(opts)
 }
 
 async function readCAFile (filename) {

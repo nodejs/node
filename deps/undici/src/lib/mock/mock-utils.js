@@ -424,7 +424,9 @@ function buildMockDispatch () {
             throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect disabled)${interceptsMessage}`)
           }
           if (checkNetConnect(netConnect, origin)) {
-            originalDispatch.call(this, opts, handler)
+            originalDispatch.call(this, '__mockAgentBodyForDispatch' in opts
+              ? { ...opts, body: opts.__mockAgentBodyForDispatch }
+              : opts, handler)
           } else {
             throw new MockNotMatchedError(`${error.message}: subsequent request to origin ${origin} was not allowed (net.connect is not enabled for this origin)${interceptsMessage}`)
           }

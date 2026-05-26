@@ -1,4 +1,5 @@
 #include "builtin_info.h"
+#include <cstdlib>
 
 namespace node {
 namespace builtins {
@@ -41,7 +42,7 @@ std::string GetBuiltinSourceTypeName(BuiltinSourceType type) {
     case BuiltinSourceType::kSourceTextModule:
       return "kSourceTextModule";
   }
-  abort();
+  std::abort();
 }
 
 }  // namespace builtins

@@ -109,18 +109,23 @@ struct ForOfNextResult {
   done: Object;
 }
 
-extern transitioning macro ForOfNextHelper(Context, Object, Object):
-    ForOfNextResult;
+extern transitioning macro ForOfNextHelper(
+    Context, Object, Object, Undefined|FeedbackVector,
+    uintptr): ForOfNextResult;
 
 transitioning builtin ForOfNext(
-    context: Context, iterator: JSAny, next: JSFunction): ForOfNextResult {
-  return ForOfNextHelper(context, iterator, next);
+    context: Context, iterator: JSAny, next: JSFunction,
+    feedbackVector: Undefined|FeedbackVector, callSlot: Smi): ForOfNextResult {
+  return ForOfNextHelper(
+      context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
 }
 
 transitioning builtin ForOfNextBaseline(
-    context: Context, iterator: JSAny, next: JSFunction,
-    resultSlot: RawPtr): Undefined {
-  const result: ForOfNextResult = ForOfNext(context, iterator, next);
+    context: Context, iterator: JSAny, next: JSFunction, resultSlot: RawPtr,
+    callSlot: Smi): Undefined {
+  const feedbackVector = LoadFeedbackVectorFromBaseline();
+  const result: ForOfNextResult = ForOfNextHelper(
+      context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
 
   // The result slot address points to the first interpreter register slot.
   const firstResultSlot = resultSlot;
@@ -214,7 +219,7 @@ transitioning macro IteratorClose(
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'return');
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-iterator
+// https://tc39.es/ecma262/#sec-iterator
 transitioning javascript builtin IteratorConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(): JSObject {
@@ -235,7 +240,7 @@ transitioning javascript builtin IteratorConstructor(
   return AllocateFastOrSlowJSObjectFromMap(map);
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-SetterThatIgnoresPrototypeProperties
+// https://tc39.es/ecma262/#sec-SetterThatIgnoresPrototypeProperties
 transitioning macro SetterThatIgnoresPrototypeProperties(
     implicit context: Context)(receiver: JSAny, home: JSObject, key: JSAny,
     value: JSAny, methodName: constexpr string): JSAny {
@@ -270,14 +275,14 @@ transitioning macro SetterThatIgnoresPrototypeProperties(
   return Undefined;
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-get-iteratorprototype-@@tostringtag
+// https://tc39.es/ecma262/#sec-get-iteratorprototype-@@tostringtag
 transitioning javascript builtin IteratorPrototypeGetToStringTag(
     js-implicit context: NativeContext)(): JSAny {
   // 1. Return "Iterator".
   return IteratorStringConstant();
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-set-iteratorprototype-@@tostringtag
+// https://tc39.es/ecma262/#sec-set-iteratorprototype-@@tostringtag
 transitioning javascript builtin IteratorPrototypeSetToStringTag(
     js-implicit context: NativeContext, receiver: JSAny)(value: JSAny): JSAny {
   // 1. Perform ? SetterThatIgnoresPrototypeProperties(this value,
@@ -292,14 +297,14 @@ transitioning javascript builtin IteratorPrototypeSetToStringTag(
   return Undefined;
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-get-iteratorprototype-constructor
+// https://tc39.es/ecma262/#sec-get-iteratorprototype-constructor
 transitioning javascript builtin IteratorPrototypeGetConstructor(
     js-implicit context: NativeContext)(): JSAny {
   // 1. Return %Iterator%.
   return GetIteratorFunction();
 }
 
-// https://tc39.es/proposal-iterator-helpers/#sec-set-iteratorprototype-constructor
+// https://tc39.es/ecma262/#sec-set-iteratorprototype-constructor
 transitioning javascript builtin IteratorPrototypeSetConstructor(
     js-implicit context: NativeContext, receiver: JSAny)(value: JSAny): JSAny {
   // 1. Perform ? SetterThatIgnoresPrototypeProperties(this value,

@@ -21,6 +21,7 @@ class Update extends ArboristWorkspaceCmd {
     'ignore-scripts',
     'audit',
     'before',
+    'min-release-age',
     'bin-links',
     'fund',
     'dry-run',

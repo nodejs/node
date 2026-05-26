@@ -12,6 +12,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/trusted-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -177,6 +178,20 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
     size += Cast<ByteArray>(maybe_table)->AllocatedSize();
   }
   return size;
+}
+
+void BytecodeArray::MarkVerified(IsolateForSandbox isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  // Only once bytecode has been verified do we "publish" it, thereby making it
+  // accessible from within the sandbox via the trusted pointer table.
+  Publish(isolate);
+#endif
+
+  // Now we also register the BytecodeArray with its in-sandbox wrapper. It
+  // would also be possible to this earlier, when allocating the BytecodeArray,
+  // but then we're in a slightly inconsistent state as many routines don't
+  // expect to see in-sandbox references to unpublished objects.
+  wrapper()->set_bytecode(*this);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(BytecodeWrapper, Struct)

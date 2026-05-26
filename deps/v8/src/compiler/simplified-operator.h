@@ -114,7 +114,12 @@ struct FieldAccess {
   ConstFieldInfo const_field_info;// the constness of this access, and the
                                   // field owner map, if the access is const
   bool is_store_in_literal;       // originates from a kStoreInLiteral access
-  ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
+  ExternalPointerTag external_pointer_tag =
+      kExternalPointerNullTag;  // the external pointer tag if this is an
+                                // external pointer field
+  IndirectPointerTag indirect_pointer_tag =
+      kIndirectPointerNullTag;  // the indirect pointer tag if this is an
+                                // indirect pointer field
   bool maybe_initializing_or_transitioning_store;  // store is potentially
                                                    // initializing a newly
                                                    // allocated object or part
@@ -127,7 +132,6 @@ struct FieldAccess {
                                         // decoding.
   bool is_immutable = false;  // Whether this field is known to be immutable for
                               // the purpose of loads.
-  IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag;
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -147,9 +151,9 @@ struct FieldAccess {
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
+              IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag,
               bool maybe_initializing_or_transitioning_store = false,
-              bool is_immutable = false,
-              IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
+              bool is_immutable = false)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -160,10 +164,10 @@ struct FieldAccess {
         const_field_info(const_field_info),
         is_store_in_literal(is_store_in_literal),
         external_pointer_tag(external_pointer_tag),
+        indirect_pointer_tag(indirect_pointer_tag),
         maybe_initializing_or_transitioning_store(
             maybe_initializing_or_transitioning_store),
-        is_immutable(is_immutable),
-        indirect_pointer_tag(indirect_pointer_tag) {
+        is_immutable(is_immutable) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(
         machine_type.IsMapWord(),

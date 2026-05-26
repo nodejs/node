@@ -26,6 +26,8 @@ const keyFixtures = {
 
 if (hasOpenSSL(3, 5)) {
   keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private');
+} else if (process.features.openssl_is_boringssl) {
+  keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private_seed_only');
 }
 
 const data = crypto.randomBytes(256);

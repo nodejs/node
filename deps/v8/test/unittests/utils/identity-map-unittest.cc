@@ -6,8 +6,12 @@
 
 #include <set>
 
+#include "include/v8-isolate.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/factory-inl.h"
+#include "src/heap/mutable-page.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/zone.h"
@@ -147,7 +151,7 @@ class IdentityMapTester {
             Internals::IntegralToSmi(Internals::SmiValue(key) + shift);
       }
     }
-    map.gc_counter_ = -1;
+    map.invalidated_ = true;
   }
 
   void CheckFind(DirectHandle<Object> key, void* value) {
@@ -764,6 +768,136 @@ TEST_F(IdentityMapTest, GCShortCutting) {
     t.map.Clear();
   }
 }
+
+// In multi-cage mode we create one cage per isolate
+// and we don't share objects between cages.
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL && !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
+
+namespace {
+
+struct V8_NODISCARD IsolateWrapper {
+  explicit IsolateWrapper(v8::Isolate* isolate) : isolate(isolate) {}
+  ~IsolateWrapper() { isolate->Dispose(); }
+  v8::Isolate* const isolate;
+};
+
+v8::Isolate* NewClientIsolate() {
+  std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = allocator.get();
+  return v8::Isolate::New(create_params);
+}
+
+class IdentityMapOnClientThread final : public ParkingThread {
+ public:
+  IdentityMapOnClientThread(IndirectHandle<String> shared_string,
+                            ParkingSemaphore* sema_ready,
+                            ParkingSemaphore* sema_gc_done)
+      : ParkingThread(base::Thread::Options("IdentityMapOnClientThread")),
+        shared_string_(shared_string),
+        sema_ready_(sema_ready),
+        sema_gc_done_(sema_gc_done) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(NewClientIsolate());
+    Isolate* i_client = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
+
+    {
+      v8::Isolate::Scope isolate_scope(isolate_wrapper.isolate);
+      HandleScope scope(i_client);
+
+      Zone zone(i_client->allocator(), "identity-map-test");
+      IdentityMap<int, ZoneAllocationPolicy> map(i_client->heap(),
+                                                 ZoneAllocationPolicy(&zone));
+
+      // Insert the shared string into the IdentityMap.
+      map.Insert(*shared_string_, 42);
+
+      // Verify it can be found before GC.
+      int* entry = map.Find(*shared_string_);
+      CHECK_NOT_NULL(entry);
+      CHECK_EQ(42, *entry);
+
+      // Signal the main thread that we're ready.
+      sema_ready_->Signal();
+
+      // Verify the map is not invalidated yet.
+      // CHECK(!map.IsInvalidatedForTesting());
+
+      // Wait for main thread to perform GC.
+      sema_gc_done_->ParkedWait(i_client->main_thread_local_isolate());
+
+      // Verify the map was invalidated by GC.
+      // CHECK(map.IsInvalidatedForTesting());
+
+      // Verify the string is still in the IdentityMap after GC.
+      // Note: Find() triggers rehash and clears the invalidated flag.
+      entry = map.Find(*shared_string_);
+      CHECK_NOT_NULL(entry);
+      CHECK_EQ(42, *entry);
+
+      map.Clear();
+    }
+  }
+
+ private:
+  IndirectHandle<String> shared_string_;
+  ParkingSemaphore* sema_ready_;
+  ParkingSemaphore* sema_gc_done_;
+};
+
+}  // namespace
+
+using IdentityMapTestWithSharedHeap =
+    WithHeapInternals<TestJSSharedMemoryWithIsolate>;
+
+TEST_F(IdentityMapTestWithSharedHeap, IdentityMapOnClientIsolate) {
+  if (!v8_flags.shared_string_table) return;
+
+  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope(i_isolate());
+
+  HandleScope handle_scope(i_isolate());
+
+  // Ensure that shared space allocation doesn't land on never_evacuate() page.
+  SimulateFullSpace(i_isolate()->heap()->shared_space());
+
+  // Create a shared string.
+  const char raw_one_byte[] = "test_shared_string";
+  DirectHandle<String> shared_string =
+      i_isolate()->factory()->NewStringFromAsciiChecked(
+          raw_one_byte, AllocationType::kSharedOld);
+
+  ParkingSemaphore sema_ready(0);
+  ParkingSemaphore sema_gc_done(0);
+
+  std::vector<std::unique_ptr<IdentityMapOnClientThread>> threads;
+  auto thread = std::make_unique<IdentityMapOnClientThread>(
+      indirect_handle(shared_string, i_isolate()), &sema_ready, &sema_gc_done);
+  CHECK(thread->Start());
+  threads.push_back(std::move(thread));
+
+  // Wait for the client isolate thread to set up its IdentityMap.
+  LocalIsolate* local_isolate = i_isolate()->main_thread_local_isolate();
+  sema_ready.ParkedWait(local_isolate);
+
+  // Mark the page containing the shared string for compaction.
+  MutablePage::FromHeapObject(i_isolate(), *shared_string)
+      ->set_forced_evacuation_candidate_for_testing(true);
+
+  // Perform a shared GC to relocate the shared string.
+  i_isolate()->heap()->CollectGarbageShared(local_isolate->heap(),
+                                            GarbageCollectionReason::kTesting);
+
+  // Signal the client isolate  thread that GC is done.
+  sema_gc_done.Signal();
+
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
+}
+
+#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL &&
+        // !COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL
 
 }  // namespace internal
 }  // namespace v8

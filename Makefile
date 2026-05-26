@@ -391,17 +391,15 @@ DOC_KIT ?= tools/doc/node_modules/@node-core/doc-kit/bin/cli.mjs
 
 node_use_openssl_and_icu = $(call available-node,"-p" \
 			 "process.versions.openssl != undefined && process.versions.icu != undefined")
-test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
+test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/addon-verify.mjs
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
 		$(call available-node, \
-			$(DOC_KIT) generate \
-			-t addon-verify \
-			-i doc/api/addons.md \
-			-o test/addons/ \
-			--type-map doc/type-map.json \
+			tools/doc/addon-verify.mjs \
+			--input doc/api/addons.md \
+			--output test/addons/ \
 		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
@@ -605,7 +603,7 @@ test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run a
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
 JS_SUITES ?= default
-NATIVE_SUITES ?= addons js-native-api node-api embedding
+NATIVE_SUITES ?= addons ffi js-native-api node-api embedding
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
@@ -1246,11 +1244,18 @@ pkg-upload: pkg
 	ssh $(STAGINGSERVER) "rclone copyto nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg $(CLOUDFLARE_BUCKET)/nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg"
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME).pkg.done"
 
-$(TARBALL): release-only doc-only
+TARBALL_DEPS=release-only
+ifneq ($(SKIP_SHARED_DEPS), 1)
+TARBALL_DEPS+= doc-only
+endif
+
+$(TARBALL): $(TARBALL_DEPS)
 	git checkout-index -a -f --prefix=$(TARNAME)/
+ifneq ($(SKIP_SHARED_DEPS), 1)
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
+endif
 	sed 's/fileset = fileset.intersection (fileset.gitTracked root)/fileset =/' tools/nix/v8.nix > $(TARNAME)/tools/nix/v8.nix 
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
@@ -1292,7 +1297,6 @@ endif
 	$(RM) -r $(TARNAME)/deps/v8/samples
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
-	$(RM) -r $(TARNAME)/doc/images # too big
 	$(RM) -r $(TARNAME)/test*.tap
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint
@@ -1444,7 +1448,7 @@ else
 LINT_MD_NEWER = -newer tools/.mdlintstamp
 endif
 
-LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md)
+LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(filter-out CLAUDE.md AGENTS.md,$(wildcard *.md))
 LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))

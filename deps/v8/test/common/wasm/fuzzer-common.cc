@@ -14,6 +14,10 @@
 #include <variant>
 #include <vector>
 
+#if V8_OS_LINUX || V8_OS_DARWIN
+#include <sys/mman.h>  // For `mincore`.
+#endif                 // V8_OS_LINUX || V8_OS_DARWIN
+
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
@@ -182,12 +186,12 @@ bool ValuesEquivalent(const WasmValue& init_lhs, const WasmValue& init_rhs,
       if (!IsString(rhs_ref)) return false;
       if (!Cast<String>(lhs_ref)->Equals(Cast<String>(rhs_ref))) return false;
     } else {
-      PrintF(
-          "WARNING: equivalence checking for instance type %d is not "
-          "implemented, results may be unreliable\n",
+      i::StdoutStream{} << "Equivalence checking not implemented for: "
+                        << Brief(lhs_ref) << "\n";
+      FATAL(
+          "Equivalence checking for instance type %d is not implemented "
+          "(find printed object in output above)\n",
           Cast<HeapObject>(lhs_ref)->map()->instance_type());
-      // TODO(nikolaskaipel): Consider putting `UNIMPLEMENTED()` or
-      // `return false` here.
     }
   }
 
@@ -498,8 +502,7 @@ ExecutionResult ExecuteReferenceRun(Isolate* isolate,
                                     int exported_main_function_index,
                                     int32_t max_executed_instructions) {
   // The reference module uses a special compilation mode of Liftoff for
-  // termination and nondeterminism detected, and that would be undone by
-  // flushing that code.
+  // termination detection, and that would be undone by flushing that code.
   FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   int32_t max_steps = max_executed_instructions;
@@ -537,22 +540,28 @@ ExecutionResult ExecuteReferenceRun(Isolate* isolate,
             .ToHandle(&main_function));
 
   struct OomCallbackData {
-    Isolate* isolate;
+    Isolate* const isolate;
+    int32_t* const max_steps;
     bool heap_limit_reached{false};
     size_t initial_limit{0};
   };
-  OomCallbackData oom_callback_data{isolate};
+  OomCallbackData oom_callback_data{isolate, &max_steps};
   auto heap_limit_callback = [](void* raw_data, size_t current_limit,
                                 size_t initial_limit) -> size_t {
     OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
     if (data->heap_limit_reached) return initial_limit;
     data->heap_limit_reached = true;
-    // We can not throw an exception directly at this point, so request
-    // termination on the next stack check.
-    data->isolate->stack_guard()->RequestTerminateExecution();
     data->initial_limit = initial_limit;
-    // Return a generously raised limit to maximize the chance to make it to the
-    // next interrupt check point, where execution will terminate.
+    // We can not throw an exception directly at this point, so we try to stop
+    // execution as soon as possible by
+    // 1) requesting termination (on the next stack check, or checked in runtime
+    //    functions), and
+    // 2) resetting max_steps to 0, which will make the reference run stop on
+    //    the next instruction.
+    data->isolate->stack_guard()->RequestTerminateExecution();
+    *data->max_steps = 0;
+    // Return a generously raised limit to maximize the chance to finish
+    // executing until one of the two conditions created above is detected.
     return initial_limit * 4;
   };
   isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
@@ -638,6 +647,18 @@ static std::optional<ExecutionResult> ExecuteNonReferenceRun(
   int32_t result = testing::CallWasmFunctionForTesting(
       isolate, instance, "main", base::VectorOf(compiled_args), &exception);
 
+  if (exception) {
+    if (strcmp(exception.get(),
+               "RangeError: Maximum call stack size exceeded") == 0) {
+      // There was a stack overflow. The reference run didn't have one,
+      // otherwise we wouldn't have gotten here; but we have seen cases where
+      // TF stack frames are slightly larger and optimized code hence
+      // runs into a stack overflow where unoptimized code didn't.
+      // Just ignore this, it's not a bug.
+      return {};
+    }
+  }
+
   return {{instance, std::move(exception), result, false}};
 }
 
@@ -684,6 +705,51 @@ bool GlobalsMatch(Isolate* isolate, const WasmModule* module,
   return global_mismatches == 0;
 }
 
+#if V8_OS_LINUX || V8_OS_DARWIN
+// Compares two memory regions efficiently by skipping non-resident pages.
+// Processes memory in batches to minimize metadata overhead.
+bool sparse_memory_equal(uint8_t* addr1, uint8_t* addr2, size_t total_length) {
+  const size_t page_size = i::CommitPageSize();
+  // TODO(clemensb): Add batching if necessary. 16GB is 4M pages of 4kB, hence
+  // the two vectors below are <= 4MB, which is OK.
+  static_assert(kMaxMemory64Size <= uint64_t{16} * GB);
+  DCHECK_GE(kMaxMemory64Size, total_length);
+  const size_t num_pages = total_length / page_size;
+  DCHECK_EQ(total_length, num_pages * page_size);
+
+#ifdef V8_OS_DARWIN
+  using mincore_dst_type = char;
+#else
+  using mincore_dst_type = unsigned char;
+#endif  // V8_OS_DARWIN
+  // Allocate storage for the two residency vectors.
+  auto storage =
+      base::OwnedVector<mincore_dst_type>::NewForOverwrite(2 * num_pages);
+  mincore_dst_type* vec1 = storage.data();
+  mincore_dst_type* vec2 = vec1 + num_pages;
+
+  // Fetch residency status for both address ranges.
+  if (mincore(addr1, total_length, vec1) != 0 ||
+      mincore(addr2, total_length, vec2) != 0) {
+    FATAL("mincore failed: %s", strerror(errno));
+  }
+
+  for (size_t i = 0; i < num_pages; ++i) {
+    bool p1_res = vec1[i] & 1;
+    bool p2_res = vec2[i] & 1;
+
+    // Compare pages if at least one is resident.
+    if (!p1_res && !p2_res) continue;
+    if (std::memcmp(addr1 + (i * page_size), addr2 + (i * page_size),
+                    page_size) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+#endif  // V8_OS_LINUX || V8_OS_DARWIN
+
 bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
                    Tagged<WasmTrustedInstanceData> instance_data,
                    Tagged<WasmTrustedInstanceData> ref_instance_data,
@@ -697,11 +763,11 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
     Tagged<WasmMemoryObject> ref_memory =
         ref_instance_data->memory_object(memory_index);
 
-    auto buffer = memory->array_buffer();
-    auto ref_buffer = ref_memory->array_buffer();
+    std::shared_ptr<BackingStore> store = memory->backing_store();
+    std::shared_ptr<BackingStore> ref_store = ref_memory->backing_store();
 
-    size_t memory_size = buffer->byte_length();
-    size_t ref_memory_size = ref_buffer->byte_length();
+    size_t memory_size = store->byte_length();
+    size_t ref_memory_size = ref_store->byte_length();
 
     if (ref_memory_size != memory_size) {
       memory_mismatches++;
@@ -716,12 +782,16 @@ bool MemoriesMatch(Isolate* isolate, const WasmModule* module,
       continue;
     }
 
-    uint8_t* data = static_cast<uint8_t*>(buffer->backing_store());
-    uint8_t* ref_data = static_cast<uint8_t*>(ref_buffer->backing_store());
+    uint8_t* data = static_cast<uint8_t*>(store->buffer_start());
+    uint8_t* ref_data = static_cast<uint8_t*>(ref_store->buffer_start());
 
-    if (memcmp(ref_data, data, memory_size) == 0) {
-      continue;
-    }
+#if V8_OS_LINUX || V8_OS_DARWIN
+    const bool memory_equal = sparse_memory_equal(ref_data, data, memory_size);
+#else
+    const bool memory_equal = std::memcmp(ref_data, data, memory_size) == 0;
+#endif  // V8_OS_LINUX || V8_OS_DARWIN
+
+    if (memory_equal) continue;
 
     memory_mismatches++;
 
@@ -815,26 +885,38 @@ bool TablesMatch(Isolate* isolate, const WasmModule* module,
     Tagged<FixedArray> ref_table_entries = ref_table->entries();
 
     for (int j = 0; j < length; ++j) {
+      // TODO(clemensb): Avoid handle allocation.
       DirectHandle<Object> entry(table_entries->get(j), isolate);
       DirectHandle<Object> ref_entry(ref_table_entries->get(j), isolate);
 
+      // TODO(clemensb): Avoid putting Tuple2 in WasmValue.
       WasmValue value = WasmValue(entry, table->canonical_type(module));
       WasmValue ref_value =
           WasmValue(ref_entry, ref_table->canonical_type(module));
 
-      if (!ValuesEquivalent(value, ref_value, isolate)) {
-        table_mismatches++;
-
-        if (print_difference) {
-          std::ostringstream ss;
-          ss << "Error: Table entries at index " << j << " of table " << i
-             << " have different values!\n";
-          ss << "  - Reference: ";
-          PrintValue(ss, ref_value);
-          ss << "\n  - Actual:    ";
-          PrintValue(ss, value);
-          base::OS::PrintError("%s\n", ss.str().c_str());
+      // Tuple2 is used as placeholder in tables (see
+      // `WasmTableObject::SetFunctionTablePlaceholder`). They reference the
+      // instance and the function index; just check the stored function index.
+      if (IsTuple2(*entry)) {
+        if (IsTuple2(*ref_entry) && Cast<Tuple2>(*entry)->value2() ==
+                                        Cast<Tuple2>(*ref_entry)->value2()) {
+          continue;
         }
+      } else {
+        if (ValuesEquivalent(value, ref_value, isolate)) continue;
+      }
+
+      table_mismatches++;
+
+      if (print_difference) {
+        std::ostringstream ss;
+        ss << "Error: Table entries at index " << j << " of table " << i
+           << " have different values!\n";
+        ss << "  - Reference: ";
+        PrintValue(ss, ref_value);
+        ss << "\n  - Actual:    ";
+        PrintValue(ss, value);
+        base::OS::PrintError("%s\n", ss.str().c_str());
       }
     }
   }
@@ -895,7 +977,7 @@ int ExecuteAgainstReference(Isolate* isolate,
       ExecuteNonReferenceRun(isolate, module, module_object, exported_main);
   if (!result_opt) {
     // The execution of non-reference run can fail if it runs OOM during
-    // instantiation.
+    // instantiation or overflows the stack.
     return -1;
   }
   const ExecutionResult& result = *result_opt;
@@ -1146,6 +1228,11 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       v8_flags.experimental_wasm_revectorize = true;
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+#if V8_TARGET_ARCH_ARM64
+      // Fuzz the Wasm SIMD optimizations in Turboshaft for aarch64.
+      v8_flags.experimental_wasm_simd_opt = true;
+#endif  // V8_TARGET_ARCH_ARM64
+
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();
 
@@ -1285,9 +1372,6 @@ int SyncCompileAndExecuteAgainstReference(
   // around inlining). We switch it to synchronous mode to avoid the
   // nondeterminism of background jobs finishing at random times.
   FlagScope<bool> sync_tier_up(&v8_flags.wasm_sync_tier_up, true);
-  // Reference runs use extra compile settings (like non-determinism detection),
-  // which could be replaced by new liftoff code without this option.
-  FlagScope<bool> no_liftoff_code_flushing(&v8_flags.flush_liftoff_code, false);
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeDirectHandle<WasmModuleObject> compiled_module =

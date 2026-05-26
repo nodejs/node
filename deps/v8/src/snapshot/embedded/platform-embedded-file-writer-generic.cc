@@ -75,18 +75,8 @@ void PlatformEmbeddedFileWriterGeneric::AlignToCodeAlignment() {
 #else
   fprintf(fp_, ".balign 4096\n");
 #endif
-#elif V8_TARGET_ARCH_X64
-  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  static_assert(64 >= kCodeAlignment);
-  fprintf(fp_, ".balign 64\n");
-#elif V8_TARGET_ARCH_PPC64
-  // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
-  // don't cross 64-byte boundaries.
-  static_assert(64 >= kCodeAlignment);
-  fprintf(fp_, ".balign 64\n");
 #else
-  static_assert(32 >= kCodeAlignment);
-  fprintf(fp_, ".balign 32\n");
+  fprintf(fp_, ".balign %d\n", static_cast<int>(kCodeAlignment));
 #endif
 }
 

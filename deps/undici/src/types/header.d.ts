@@ -5,6 +5,11 @@ import { Autocomplete } from './utility'
  */
 export type IncomingHttpHeaders = Record<string, string | string[] | undefined>
 
+/**
+ * The header type declaration of `undici` for outgoing requests.
+ */
+export type OutgoingHttpHeaders = Record<string, number | string | string[] | undefined>
+
 type HeaderNames = Autocomplete<
   | 'Accept'
   | 'Accept-CH'

@@ -114,16 +114,9 @@ class TransportParams final {
     // The maximum size of DATAGRAM frames that the endpoint will accept.
     // Setting the value to 0 will disable DATAGRAM support.
     // https://datatracker.ietf.org/doc/html/rfc9221#section-3
-    uint64_t max_datagram_frame_size = kDefaultMaxPacketLength;
+    uint16_t max_datagram_frame_size = kDefaultMaxPacketLength;
 
     // When true, communicates that the Session does not support active
-    // connection migration. See the QUIC specification for more details on
-    // connection migration.
-    // https://www.rfc-editor.org/rfc/rfc9000.html#section-18.2-4.30.1
-    // TODO(@jasnell): Active connection migration is not yet implemented.
-    // This will be revisited in a future update.
-    bool disable_active_migration = true;
-
     static const Options kDefault;
 
     void MemoryInfo(MemoryTracker* tracker) const override;
@@ -170,6 +163,9 @@ class TransportParams final {
   ssize_t EncodeInto(uint8_t* buf,
                      size_t len,
                      Version version = Version::V1) const;
+
+  // Returns a JavaScript object representing the transport parameters.
+  v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
 
  private:
   void SetPreferredAddress(const SocketAddress& address);

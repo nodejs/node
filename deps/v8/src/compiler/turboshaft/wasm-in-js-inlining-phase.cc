@@ -6,6 +6,7 @@
 
 #include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/simplified-optimization-reducer.h"
 #include "src/compiler/turboshaft/wasm-in-js-inlining-reducer-inl.h"
 #include "src/compiler/turboshaft/wasm-lowering-reducer.h"
 
@@ -19,8 +20,8 @@ void WasmInJSInliningPhase::Run(PipelineData* data, Zone* temp_zone) {
   // `WasmGCTypedOptimizationReducer`.
   // This might need a separate phase due to the analysis in the input graph,
   // which is expensive, which is why we should enable this only conditionally.
-  CopyingPhase<WasmInJSInliningReducer, WasmLoweringReducer>::Run(data,
-                                                                  temp_zone);
+  CopyingPhase<WasmInJSInliningReducer, SimplifiedOptimizationReducer,
+               WasmLoweringReducer>::Run(data, temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

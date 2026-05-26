@@ -366,7 +366,9 @@ class MachineOptimizationReducer : public Next {
     if (const ConstantOp* cst = matcher_.TryCast<ConstantOp>(input)) {
       // Try to constant-fold Word constant -> Tagged (Smi).
       if (cst->IsIntegral() && to == RegisterRepresentation::Tagged()) {
-        if (Smi::IsValid(cst->integral())) {
+        // Any Tagged value that has the Smi Tag is a Smi, regardless of its
+        // value, so there is no need to check that {cst} is in Smi range.
+        if (HAS_SMI_TAG(cst->integral())) {
           return __ SmiConstant(
               i::Tagged<Smi>(static_cast<intptr_t>(cst->integral())));
         }
@@ -1243,7 +1245,7 @@ class MachineOptimizationReducer : public Next {
     if (matcher_.MatchWordSub(high->right(), &a, &b, rep) &&
         matcher_.MatchIntegralWordConstant(a, rep, &k) && b == low->right() &&
         k == rep.bit_width()) {
-      return __ RotateRight(x, b, rep);
+      return __ RotateRight(x, V<Word32>::Cast(b), rep);
     } else if (matcher_.MatchWordSub(low->right(), &a, &b, rep) &&
                matcher_.MatchIntegralWordConstant(a, rep, &k) &&
                b == high->right() && k == rep.bit_width()) {
@@ -1732,10 +1734,9 @@ class MachineOptimizationReducer : public Next {
           if (k == l) {
             return x;
           } else if (k > l) {
-            return __ ShiftRightArithmeticShiftOutZeros(
-                x, __ Word32Constant(k - l), rep);
+            return __ ShiftRightArithmeticShiftOutZeros(x, k - l, rep);
           } else if (k < l) {
-            return __ ShiftLeft(x, __ Word32Constant(l - k), rep);
+            return __ ShiftLeft(x, l - k, rep);
           }
         }
         // (x >>> K) << K => x & ~(2^K - 1)
@@ -2029,21 +2030,14 @@ class MachineOptimizationReducer : public Next {
           // HeapObject, so unparking the JSHeapBroker here rather than before
           // the optimization pass itself it probably more efficient.
 
-          DCHECK_IMPLIES(
-              __ data()->pipeline_kind() != TurboshaftPipelineKind::kCSA,
-              broker != nullptr);
+          TurboshaftPipelineKind pkind = __ data() -> pipeline_kind();
+          USE(pkind);
+          DCHECK_IMPLIES(pkind != TurboshaftPipelineKind::kCSA &&
+                             pkind != TurboshaftPipelineKind::kTSABuiltin,
+                         broker != nullptr);
           if (broker != nullptr) {
             UnparkedScopeIfNeeded scope(broker);
             AllowHandleDereference allow_handle_dereference;
-            // We don't expect holes to get here normally, but they might
-            // via some un-eliminated dead code.
-            if (IsAnyHole(*base.handle())) {
-              // Note: we cannot emit a RuntimeAbort here, since RuntimeAbort is
-              // a simplified operation which should thus be lowered in
-              // MachineLoweringPhase, but the MachineOptimizationReducer also
-              // runs after this phase.
-              return __ Unreachable();
-            }
             OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
             if (MapLoadCanBeConstantFolded(map)) {
               return __ HeapConstant(map->object());
@@ -2078,7 +2072,125 @@ class MachineOptimizationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
+  V<Any> REDUCE(Simd128Binop)(V<Simd128> left, V<Simd128> right,
+                              Simd128BinopOp::Kind kind) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd128Binop(left, right, kind);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (kind != Simd128BinopOp::Kind::kI32x4DotI16x8S) goto no_change;
+
+    // Check to see whether we're really performing the operation on
+    // i8x8 inputs.
+    auto GetExtMul =
+        [this](OpIndex input) -> std::optional<Simd128BinopOp::Kind> {
+      using unop_extmul_pair =
+          std::pair<Simd128UnaryOp::Kind, Simd128BinopOp::Kind>;
+      std::array extend_muls = to_array<unop_extmul_pair>({
+          {Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low,
+           Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S},
+          {Simd128UnaryOp::Kind::kI16x8SConvertI8x16High,
+           Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S},
+          {Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low,
+           Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16U},
+          {Simd128UnaryOp::Kind::kI16x8UConvertI8x16High,
+           Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16U},
+      });
+
+      if (const Simd128UnaryOp* unop =
+              matcher_.TryCast<Simd128UnaryOp>(input)) {
+        for (const auto [unop_kind, extmul_kind] : extend_muls) {
+          if (unop->kind == unop_kind) {
+            return extmul_kind;
+          }
+        }
+      }
+      return {};
+    };
+
+    if (std::optional<Simd128BinopOp::Kind> left_extmul = GetExtMul(left)) {
+      if (std::optional<Simd128BinopOp::Kind> right_extmul = GetExtMul(right)) {
+        OpIndex left_conv = matcher_.Get(left).input(0);
+        OpIndex right_conv = matcher_.Get(right).input(0);
+        if (left_extmul.value() == right_extmul.value()) {
+          // If both inputs are being extended in the same way, we can just use
+          // one extmul and one extadd_pairwise, instead.
+          Simd128BinopOp::Kind extmul_kind = left_extmul.value();
+          Simd128UnaryOp::Kind extadd_kind =
+              extmul_kind == Simd128BinopOp::Kind::kI16x8ExtMulLowI8x16S ||
+                      extmul_kind ==
+                          Simd128BinopOp::Kind::kI16x8ExtMulHighI8x16S
+                  ? Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8S
+                  : Simd128UnaryOp::Kind::kI32x4ExtAddPairwiseI16x8U;
+          return __ Simd128Unary(
+              __ Simd128Binop(left_conv, right_conv, extmul_kind), extadd_kind);
 #ifdef V8_TARGET_ARCH_ARM64
+        } else {
+          // Otherwise, just break the dot into its constituent parts.
+          OpIndex mul_low = __ Simd128Binop(
+              left, right, Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S);
+          OpIndex mul_high = __ Simd128Binop(
+              left, right, Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S);
+          return __ Simd128Binop(mul_low, mul_high,
+                                 Simd128BinopOp::Kind::kI32x4AddPairwise);
+#endif  // V8_TARGET_ARCH_ARM64
+        }
+      }
+    }
+
+    goto no_change;
+  }
+#ifdef V8_TARGET_ARCH_ARM64
+  V<Simd128> REDUCE(Simd128ReplaceLane)(V<Simd128> into, V<Any> new_lane,
+                                        Simd128ReplaceLaneOp::Kind kind,
+                                        uint8_t lane) {
+    if (kind == Simd128ReplaceLaneOp::Kind::kF16x8) {
+      // Not supported yet.
+      return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+    }
+
+    if (const Simd128ExtractLaneOp* extract =
+            matcher_.TryCast<Simd128ExtractLaneOp>(new_lane)) {
+      Simd128ExtractLaneOp::Kind extract_kind = extract->kind;
+      int extract_bytes =
+          ElementSizeInBytes(Simd128ExtractLaneOp::element_rep(extract_kind));
+      int replace_bytes =
+          ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(kind));
+      if (extract_bytes >= replace_bytes) {
+#if DEBUG
+        switch (kind) {
+          case Simd128ReplaceLaneOp::Kind::kI8x16:
+          case Simd128ReplaceLaneOp::Kind::kI16x8:
+          case Simd128ReplaceLaneOp::Kind::kI32x4:
+            DCHECK(extract_kind == Simd128ExtractLaneOp::Kind::kI8x16S ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI8x16U ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI16x8S ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI16x8U ||
+                   extract_kind == Simd128ExtractLaneOp::Kind::kI32x4);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kI64x2:
+            DCHECK_EQ(extract_kind, Simd128ExtractLaneOp::Kind::kI64x2);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kF32x4:
+            DCHECK_EQ(extract_kind, Simd128ExtractLaneOp::Kind::kF32x4);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kF64x2:
+            DCHECK_EQ(extract_kind, Simd128ExtractLaneOp::Kind::kF64x2);
+            break;
+          case Simd128ReplaceLaneOp::Kind::kF16x8:
+            UNIMPLEMENTED();
+        }
+#endif  // DEBUG
+        // Skip the extract and just move a lane.
+        int from_lane = extract->lane * (extract_bytes / replace_bytes);
+        return __ Simd128MoveLane(into, extract->input(), kind, lane,
+                                  from_lane);
+      }
+    }
+    return Next::ReduceSimd128ReplaceLane(into, new_lane, kind, lane);
+  }
+
   V<Any> REDUCE(Simd128ExtractLane)(V<Simd128> input,
                                     Simd128ExtractLaneOp::Kind kind,
                                     uint8_t lane) {
@@ -2263,6 +2375,31 @@ class MachineOptimizationReducer : public Next {
     goto no_change;
   }
 #endif  // V8_TARGET_ARCH_ARM64
+
+#if V8_ENABLE_WASM_SIMD256_REVEC
+
+  V<Simd128> REDUCE(Simd256Extract128Lane)(V<Simd256> input, uint8_t lane) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSimd256Extract128Lane(input, lane);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    const Simd256ConstantOp* constant_input =
+        __ Get(input).template TryCast<Simd256ConstantOp>();
+    if (!constant_input) goto no_change;
+
+    switch (lane) {
+      case 0:
+        return __ Simd128Constant(constant_input->value);
+      case 1:
+        return __ Simd128Constant(&constant_input->value[kSimd256Size / 2]);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -2290,6 +2427,14 @@ class MachineOptimizationReducer : public Next {
                                      right, WordRepresentation(rep), &k2)) {
               return __ Word32Constant(k1 == k2);
             }
+            if (Handle<HeapObject> o1, o2;
+                matcher_.MatchHeapConstant(left, &o1) &&
+                matcher_.MatchHeapConstant(right, &o2)) {
+              UnparkedScopeIfNeeded unparked(broker);
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
+              return __ Word32Constant(o1.address() == o2.address());
+            }
             break;
           }
           case RegisterRepresentation::Float32(): {
@@ -2311,11 +2456,9 @@ class MachineOptimizationReducer : public Next {
                 matcher_.MatchHeapConstant(left, &o1) &&
                 matcher_.MatchHeapConstant(right, &o2)) {
               UnparkedScopeIfNeeded unparked(broker);
-              // We might see holes as a constant, if there are any hole checks.
-              // These have to be checked for explicitly, because of hole
-              // unmapping.
-              if (!IsAnyHole(*o1) && !IsAnyHole(*o2) && IsString(*o1) &&
-                  IsString(*o2)) {
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o1));
+              DCHECK_IMPLIES(broker, broker->IsCanonicalHandle(o2));
+              if (IsString(*o1) && IsString(*o2)) {
                 // If handles refer to the same object, we can eliminate the
                 // check.
                 if (o1.address() == o2.address()) return __ Word32Constant(1);
@@ -2326,6 +2469,13 @@ class MachineOptimizationReducer : public Next {
                 break;
               }
               return __ Word32Constant(o1.address() == o2.address());
+            }
+            if ((TryMatchHeapObject(left) &&
+                 matcher_.Is<Opmask::kSmiConstant>(right)) ||
+                (TryMatchHeapObject(right) &&
+                 matcher_.Is<Opmask::kSmiConstant>(left))) {
+              // Comparing a HeapObject with a Smi always returns false.
+              return __ Word32Constant(0);
             }
             break;
           }

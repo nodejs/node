@@ -367,7 +367,7 @@ void ObjectAllocator::TriggerGCOnAllocationTimeoutIfNeeded() {
         {CollectionType::kMajor, StackState::kMayContainHeapPointers,
          GCConfig::MarkingType::kAtomic,
          GCConfig::SweepingType::kIncrementalAndConcurrent,
-         GCConfig::FreeMemoryHandling::kDiscardWherePossible});
+         GCConfig::FreeMemoryHandling::kReleaseMemory});
     allocation_timeout_ = garbage_collector_.UpdateAllocationTimeout();
     DCHECK(allocation_timeout_);
     DCHECK_GT(*allocation_timeout_, 0);

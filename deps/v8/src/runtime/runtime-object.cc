@@ -256,6 +256,7 @@ RUNTIME_FUNCTION(Runtime_HasOwnConstDataProperty) {
       case LookupIterator::WASM_OBJECT:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::ACCESSOR:
+      case LookupIterator::MODULE_NAMESPACE:
         return ReadOnlyRoots(isolate).undefined_value();
 
       case LookupIterator::STRING_LOOKUP_START_OBJECT:
@@ -313,7 +314,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DirectHandle<Symbol> brand = args.at<Symbol>(1);
   DirectHandle<Context> context = args.at<Context>(2);
   int depth = args.smi_value_at(3);
-  DCHECK(brand->is_private_name());
+  DCHECK(brand->is_any_private_name());
 
   LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
 
@@ -409,7 +410,7 @@ MaybeDirectHandle<Object> Runtime::SetObjectProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeDirectHandle<Object>();
   LookupIterator it(isolate, receiver, lookup_key, lookup_start_obj);
-  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
+  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_any_private_name()) {
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, false);
     MAYBE_RETURN_NULL(can_store);
     if (!can_store.FromJust()) {
@@ -454,7 +455,7 @@ MaybeDirectHandle<Object> Runtime::DefineObjectOwnProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeDirectHandle<Object>();
 
-  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_private_name()) {
+  if (IsSymbol(*key) && Cast<Symbol>(*key)->is_any_private_name()) {
     LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
     Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, true);
     MAYBE_RETURN_NULL(can_store);
@@ -658,13 +659,16 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   if (IsJSObject(*lookup_start_obj)) {
     DirectHandle<JSObject> lookup_start_object =
         Cast<JSObject>(lookup_start_obj);
-    if (!IsJSGlobalProxy(*lookup_start_object) &&
-        !IsAccessCheckNeeded(*lookup_start_object) && IsName(*key_obj)) {
+    if (IsName(*key_obj) &&
+        (!IsSpecialReceiverMap(lookup_start_object->map()) ||
+         (IsJSGlobalObject(*lookup_start_obj) &&
+          !lookup_start_object->map()->has_named_interceptor()))) {
       DirectHandle<Name> key = Cast<Name>(key_obj);
       key_obj = key = isolate->factory()->InternalizeName(key);
 
       DisallowGarbageCollection no_gc;
       if (IsJSGlobalObject(*lookup_start_object)) {
+        CHECK(!lookup_start_object->map()->is_access_check_needed());
         // Attempt dictionary lookup.
         Tagged<GlobalDictionary> dictionary =
             Cast<JSGlobalObject>(*lookup_start_object)
@@ -686,7 +690,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           InternalIndex entry = dictionary->FindEntry(isolate, *key);
           if (entry.is_found() &&
               (dictionary->DetailsAt(entry).kind() == PropertyKind::kData)) {
-            return dictionary->ValueAt(entry);
+            Tagged<Object> val = dictionary->ValueAt(entry);
+            if (!IsSharedFunctionInfo(val)) {
+              return val;
+            }
           }
         } else {
           Tagged<NameDictionary> dictionary =
@@ -694,7 +701,10 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           InternalIndex entry = dictionary->FindEntry(isolate, key);
           if ((entry.is_found()) &&
               (dictionary->DetailsAt(entry).kind() == PropertyKind::kData)) {
-            return dictionary->ValueAt(entry);
+            Tagged<Object> val = dictionary->ValueAt(entry);
+            if (!IsSharedFunctionInfo(val)) {
+              return val;
+            }
           }
         }
       }
@@ -1433,7 +1443,7 @@ Maybe<bool> CollectPrivateMembersFromReceiver(
   for (int i = 0; i < keys->length(); ++i) {
     DirectHandle<Object> obj_key(keys->get(i), isolate);
     Handle<Symbol> symbol(Cast<Symbol>(*obj_key), isolate);
-    CHECK(symbol->is_private_name());
+    CHECK(symbol->is_any_private_name());
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                Object::GetProperty(isolate, receiver, symbol));

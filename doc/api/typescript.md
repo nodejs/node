@@ -2,7 +2,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61803
     description: Removed `--experimental-transform-types` flag.
   - version:
@@ -229,7 +229,7 @@ with `#`.
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
-[`tsx`]: https://tsx.is/
+[`tsx`]: https://tsx.hirok.io/
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax
 [file extensions are mandatory]: esm.md#mandatory-file-extensions
 [full support]: #full-typescript-support

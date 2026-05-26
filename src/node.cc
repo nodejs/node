@@ -870,6 +870,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
+  std::string node_options_from_dotenv;
   auto env_files = node::Dotenv::GetDataFromArgs(*argv);
 
   if (!env_files.empty()) {
@@ -896,7 +897,8 @@ static ExitCode InitializeNodeWithArgsInternal(
       }
     }
 
-    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
+    per_process::dotenv_file.AssignNodeOptionsIfAvailable(
+        &node_options_from_dotenv);
   }
 
   std::string node_options_from_config;
@@ -932,8 +934,9 @@ static ExitCode InitializeNodeWithArgsInternal(
       errors->emplace_back("The number of NODE_OPTIONS doesn't match "
                            "the number of flags in the config file");
     }
-    node_options += node_options_from_config;
   }
+
+  node_options = node_options_from_config + node_options_from_dotenv;
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   bool should_parse_node_options =

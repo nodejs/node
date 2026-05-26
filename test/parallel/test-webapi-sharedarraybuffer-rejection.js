@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const test = require('node:test');
+const { Blob } = require('buffer');
 const { ReadableStream } = require('stream/web');
 
 const sab = new SharedArrayBuffer(8);
@@ -98,6 +99,29 @@ test('ReadableByteStreamController.enqueue() rejects SAB-backed DataView', async
   reader.releaseLock();
 });
 
+// -- Blob --
+
+test('Blob rejects SharedArrayBuffer part', () => {
+  assert.throws(
+    () => new Blob([sab]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+});
+
+test('Blob rejects SAB-backed Uint8Array part', () => {
+  assert.throws(
+    () => new Blob([sabView]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+});
+
+test('Blob rejects SAB-backed DataView part', () => {
+  assert.throws(
+    () => new Blob([sabDataView]),
+    { code: 'ERR_INVALID_ARG_TYPE' },
+  );
+});
+
 // -- SharedWebIDL converters --
 
 const { converters } = require('internal/webidl');
@@ -133,33 +157,28 @@ test('webidl converters.BufferSource accepts regular TypedArray', () => {
   assert.strictEqual(converters.BufferSource(ta), ta);
 });
 
-test('webidl converters.ArrayBufferView rejects SAB-backed Uint8Array', () => {
+test('webidl converters.Uint8Array rejects SAB-backed Uint8Array', () => {
   assert.throws(
-    () => converters.ArrayBufferView(sabView),
+    () => converters.Uint8Array(sabView),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
 });
 
-test('webidl converters.ArrayBufferView rejects SAB-backed DataView', () => {
+test('webidl converters.Uint8Array rejects DataView', () => {
   assert.throws(
-    () => converters.ArrayBufferView(sabDataView),
+    () => converters.Uint8Array(sabDataView),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
 });
 
-test('webidl converters.ArrayBufferView rejects non-view', () => {
+test('webidl converters.Uint8Array rejects non-view', () => {
   assert.throws(
-    () => converters.ArrayBufferView('not a view'),
+    () => converters.Uint8Array('not a view'),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
 });
 
-test('webidl converters.ArrayBufferView accepts regular Uint8Array', () => {
+test('webidl converters.Uint8Array accepts regular Uint8Array', () => {
   const ta = new Uint8Array(4);
-  assert.strictEqual(converters.ArrayBufferView(ta), ta);
-});
-
-test('webidl converters.ArrayBufferView accepts regular DataView', () => {
-  const dv = new DataView(new ArrayBuffer(4));
-  assert.strictEqual(converters.ArrayBufferView(dv), dv);
+  assert.strictEqual(converters.Uint8Array(ta), ta);
 });

@@ -4,7 +4,13 @@
 
 #include "src/execution/isolate.h"
 
+#include <memory>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+
 #include "include/libplatform/libplatform.h"
+#include "include/v8-function.h"
 #include "include/v8-platform.h"
 #include "include/v8-template.h"
 #include "src/base/platform/semaphore.h"
@@ -165,4 +171,94 @@ TEST_F(IsolateTest, SetAddCrashKeyCallback) {
   EXPECT_EQ(crash_keys.size(), expected_keys_count);
 }
 
+TEST_F(IsolateTest, DebugTraceMinimal) {
+  i::CrashKeyStore crash_key_store(i_isolate());
+  HandleScope handle_scope(isolate());
+  Local<FunctionTemplate> print_stack = FunctionTemplate::New(
+      isolate(), [](const FunctionCallbackInfo<Value>& info) {
+        internal::Isolate* i_isolate =
+            reinterpret_cast<internal::Isolate*>(info.GetIsolate());
+        i_isolate->ReportStackAsCrashKey();
+      });
+
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+  context->Global()
+      ->Set(context,
+            String::NewFromUtf8(isolate(), "printStack").ToLocalChecked(),
+            print_stack->GetFunction(context).ToLocalChecked())
+      .Check();
+
+  const char* script_src =
+      "function f3() { return printStack(); }\n"
+      "function f2() { return f3(); }\n"
+      "function f1() { return f2(); }\n"
+      "f1();";
+
+  Local<String> source =
+      String::NewFromUtf8(isolate(), script_src).ToLocalChecked();
+  ScriptOrigin origin(
+      String::NewFromUtf8(isolate(), "test.js").ToLocalChecked());
+  Local<Script> script =
+      Script::Compile(context, source, &origin).ToLocalChecked();
+  script->Run(context).ToLocalChecked();
+
+  EXPECT_TRUE(crash_key_store.HasKey("v8-oom-stack"));
+  std::string output = crash_key_store.ValueForKey("v8-oom-stack");
+  const char* expected_output =
+      "f3 in test.js\n"
+      "f2 in =\n"
+      "f1 in =\n"
+      "<none> in =\n"
+      "$\n";
+  EXPECT_EQ(output, expected_output);
+}
+
+TEST_F(IsolateTest, DebugTraceMaxLength) {
+  i::CrashKeyStore crash_key_store(i_isolate());
+  HandleScope handle_scope(isolate());
+  Local<FunctionTemplate> print_stack = FunctionTemplate::New(
+      isolate(), [](const FunctionCallbackInfo<Value>& info) {
+        internal::Isolate* i_isolate =
+            reinterpret_cast<internal::Isolate*>(info.GetIsolate());
+        i_isolate->ReportStackAsCrashKey();
+      });
+
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+  context->Global()
+      ->Set(context,
+            String::NewFromUtf8(isolate(), "printStack").ToLocalChecked(),
+            print_stack->GetFunction(context).ToLocalChecked())
+      .Check();
+
+  // Build a deep stack with long function names to exceed the 1024-byte cap.
+  std::string script_src = "function leaf() { return printStack(); }\n";
+  const int frame_count = 40;
+  std::string callee = "leaf";
+  for (int i = 0; i < frame_count; ++i) {
+    std::string name = "fn_" + std::to_string(i) + std::string(60, 'a');
+    script_src += "function " + name + "() { return " + callee + "(); }\n";
+    callee = name;
+  }
+  script_src += callee + "();";
+
+  Local<String> source =
+      String::NewFromUtf8(isolate(), script_src.c_str()).ToLocalChecked();
+  ScriptOrigin origin(
+      String::NewFromUtf8(isolate(), "test.js").ToLocalChecked());
+  Local<Script> script =
+      Script::Compile(context, source, &origin).ToLocalChecked();
+  script->Run(context).ToLocalChecked();
+
+  EXPECT_TRUE(crash_key_store.HasKey("v8-oom-stack"));
+  std::string output = crash_key_store.ValueForKey("v8-oom-stack");
+  // The reported stack trace is only cut off between frames but not in the
+  // middle, so we should exceed the 1024 bytes. However, limit this to at most
+  // 100 bytes (60 bytes function name + some space for file name/etc.).
+  // The full stack trace has over 3000 characters.
+  static constexpr size_t kMaxLength = 1024u;
+  EXPECT_LE(kMaxLength, output.size());
+  EXPECT_LE(output.size(), kMaxLength + 100u);
+}
 }  // namespace v8

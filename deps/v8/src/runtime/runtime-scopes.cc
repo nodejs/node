@@ -12,7 +12,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/fixed-array.h"
@@ -23,6 +22,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged.h"
+#include "src/roots/roots-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -38,6 +38,12 @@ RUNTIME_FUNCTION(Runtime_ThrowUsingAssignError) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate,
                                  NewTypeError(MessageTemplate::kUsingAssign));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowAwaitUsingAssignError) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kAwaitUsingAssign));
 }
 
 namespace {
@@ -802,7 +808,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   DirectHandle<JSReceiver> object = Cast<JSReceiver>(holder);
   Maybe<bool> result = JSReceiver::DeleteProperty(isolate, object, name);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
+  return ReadOnlyRoots(isolate).boolean_value(result.FromJust());
 }
 
 namespace {

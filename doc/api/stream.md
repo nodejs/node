@@ -2001,7 +2001,7 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable[Symbol.for('Stream.toAsyncStreamable')]()`
 
 <!-- YAML
-added: REPLACEME
+added: v26.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -3013,6 +3013,9 @@ const server = http.createServer((req, res) => {
 <!-- YAML
 added: v16.9.0
 changes:
+  - version: v26.2.0
+    pr-url: https://github.com/nodejs/node/pull/62562
+    description: Marking the API stable.
   - version:
     - v21.1.0
     - v20.10.0
@@ -3025,7 +3028,7 @@ changes:
     description: Added support for webstreams.
 -->
 
-> Stability: 1 - `stream.compose` is experimental.
+> Stability: 2 - Stable
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
   ReadableStream\[]|WritableStream\[]|TransformStream\[]|Duplex\[]|Function}
@@ -3657,8 +3660,6 @@ First, a stream developer would declare a new JavaScript class that extends one
 of the four basic stream classes (`stream.Writable`, `stream.Readable`,
 `stream.Duplex`, or `stream.Transform`), making sure they call the appropriate
 parent class constructor:
-
-<!-- eslint-disable no-useless-constructor -->
 
 ```js
 const { Writable } = require('node:stream');

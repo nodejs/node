@@ -6,6 +6,7 @@
 #define V8_OBJECTS_MODULE_H_
 
 #include "include/v8-script.h"
+#include "include/v8-template.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -78,8 +79,12 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
 
   // Get the namespace object for [module].  If it doesn't exist yet, it is
   // created.
+  static Handle<Cell> GetModuleNamespaceCell(
+      Isolate* isolate, Handle<Module> module,
+      ModuleImportPhase phase = ModuleImportPhase::kEvaluation);
   static DirectHandle<JSModuleNamespace> GetModuleNamespace(
-      Isolate* isolate, Handle<Module> module);
+      Isolate* isolate, Handle<Module> module,
+      ModuleImportPhase phase = ModuleImportPhase::kEvaluation);
 
   using BodyDescriptor =
       FixedBodyDescriptor<kExportsOffset, kHeaderSize, kHeaderSize>;
@@ -165,15 +170,51 @@ class JSModuleNamespace
   TQ_OBJECT_CONSTRUCTORS(JSModuleNamespace)
 };
 
-class ScriptOrModule
-    : public TorqueGeneratedScriptOrModule<ScriptOrModule, Struct> {
+class JSDeferredModuleNamespace
+    : public TorqueGeneratedJSDeferredModuleNamespace<JSDeferredModuleNamespace,
+                                                      JSModuleNamespace> {
  public:
+  DECL_PRINTER(JSDeferredModuleNamespace)
+
+  // In-object fields.
+  enum {
+    kToStringTagFieldIndex,
+    kInObjectFieldCount,
+  };
+
+  static void EvaluateModuleSync(
+      Isolate* isolate, DirectHandle<JSDeferredModuleNamespace> holder);
+  static bool TriggersEvaluation(LookupIterator* it);
+
+  // We need to include in-object fields
+  // TODO(v8:8944): improve handling of in-object fields
+  static constexpr int kSize =
+      kHeaderSize + (kTaggedSize * kInObjectFieldCount);
+
+  TQ_OBJECT_CONSTRUCTORS(JSDeferredModuleNamespace)
+};
+
+V8_OBJECT class ScriptOrModule : public StructLayout {
+ public:
+  inline Tagged<Object> resource_name() const;
+  inline void set_resource_name(Tagged<Object> value,
+                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> host_defined_options() const;
+  inline void set_host_defined_options(
+      Tagged<FixedArray> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   DECL_PRINTER(ScriptOrModule)
+  DECL_VERIFIER(ScriptOrModule)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(ScriptOrModule)
-};
+ private:
+  friend class TorqueGeneratedScriptOrModuleAsserts;
+
+  TaggedMember<Object> resource_name_;
+  TaggedMember<FixedArray> host_defined_options_;
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

@@ -3,6 +3,7 @@
 #include "base_object-inl.h"
 #include "crypto/crypto_ec.h"
 #include "crypto/crypto_keys.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -237,34 +238,16 @@ bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
 }
 
 bool SupportsContextString(const EVPKeyPointer& key) {
-#if OPENSSL_VERSION_NUMBER < 0x3020000fL
-  return false;
-#else
-  switch (key.id()) {
-    case EVP_PKEY_ED25519:
-    case EVP_PKEY_ED448:
+  if (!OPENSSL_WITH_SIGNATURE_CONTEXT_STRING) return false;
+
+  const int id = key.id();
 #if OPENSSL_WITH_PQC
-    case EVP_PKEY_ML_DSA_44:
-    case EVP_PKEY_ML_DSA_65:
-    case EVP_PKEY_ML_DSA_87:
-    case EVP_PKEY_SLH_DSA_SHA2_128F:
-    case EVP_PKEY_SLH_DSA_SHA2_128S:
-    case EVP_PKEY_SLH_DSA_SHA2_192F:
-    case EVP_PKEY_SLH_DSA_SHA2_192S:
-    case EVP_PKEY_SLH_DSA_SHA2_256F:
-    case EVP_PKEY_SLH_DSA_SHA2_256S:
-    case EVP_PKEY_SLH_DSA_SHAKE_128F:
-    case EVP_PKEY_SLH_DSA_SHAKE_128S:
-    case EVP_PKEY_SLH_DSA_SHAKE_192F:
-    case EVP_PKEY_SLH_DSA_SHAKE_192S:
-    case EVP_PKEY_SLH_DSA_SHAKE_256F:
-    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+  if (IsPqcSignatureKeyId(id)) return true;
 #endif
-      return true;
-    default:
-      return false;
-  }
+#ifndef OPENSSL_IS_BORINGSSL
+  if (id == EVP_PKEY_ED25519 || id == EVP_PKEY_ED448) return true;
 #endif
+  return false;
 }
 }  // namespace
 
@@ -581,7 +564,7 @@ SignConfiguration& SignConfiguration::operator=(
 
 void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("key", key);
-  if (job_mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(job_mode)) {
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("signature", signature.size());
     tracker->TrackFieldWithSize("context_string", context_string.size());
@@ -620,9 +603,7 @@ Maybe<void> SignTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync
-      ? data.ToCopy()
-      : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   if (args[offset + 7]->IsString()) {
     Utf8Value digest(env->isolate(), args[offset + 7]);
@@ -659,7 +640,7 @@ Maybe<void> SignTraits::AdditionalConfig(
       return Nothing<void>();
     }
     params->flags |= SignConfiguration::kHasContextString;
-    params->context_string = mode == kCryptoJobAsync
+    params->context_string = IsCryptoJobAsync(mode)
                                  ? context_string.ToCopy()
                                  : context_string.ToByteSource();
   }
@@ -677,9 +658,8 @@ Maybe<void> SignTraits::AdditionalConfig(
     if (UseP1363Encoding(akey, params->dsa_encoding)) {
       params->signature = ConvertSignatureToDER(akey, signature.ToByteSource());
     } else {
-      params->signature = mode == kCryptoJobAsync
-          ? signature.ToCopy()
-          : signature.ToByteSource();
+      params->signature = IsCryptoJobAsync(mode) ? signature.ToCopy()
+                                                 : signature.ToByteSource();
     }
   }
 

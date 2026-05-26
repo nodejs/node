@@ -370,7 +370,7 @@ BUILTIN(RegExpEscape) {
   // A copy of the input characters is needed because RegExpEscapeImpl builds up
   // the escaped string using IncrementalStringBuilder, which may allocate.
   str = String::Flatten(isolate, str);
-  if (str->IsOneByteRepresentation()) {
+  if (String::IsOneByteRepresentationUnderneath(*str)) {
     base::OwnedVector<const uint8_t> copy;
     {
       DisallowGarbageCollection no_gc;

@@ -2,15 +2,15 @@
 #
 # This file is in the public domain.
 #
-# From Paul Eggert (2018-06-27):
+# From Paul Eggert (2025-05-15):
 # This file contains a table where each row stands for a timezone where
 # civil timestamps have agreed since 1970.  Columns are separated by
-# a single tab.  Lines beginning with '#' are comments.  All text uses
+# a single tab.  Lines beginning with ‘#’ are comments.  All text uses
 # UTF-8 encoding.  The columns of the table are as follows:
 #
 # 1.  The countries that overlap the timezone, as a comma-separated list
-#     of ISO 3166 2-character country codes.  See the file 'iso3166.tab'.
-# 2.  Latitude and longitude of the timezone's principal location
+#     of ISO 3166 2-character country codes.
+# 2.  Latitude and longitude of the timezone’s principal location
 #     in ISO 6709 sign-degrees-minutes-seconds format,
 #     either ±DDMM±DDDMM or ±DDMMSS±DDDMMSS,
 #     first latitude (+ is north), then longitude (+ is east).
@@ -197,7 +197,7 @@ KZ	+4448+06528	Asia/Qyzylorda	Qyzylorda/Kyzylorda/Kzyl-Orda
 KZ	+5312+06337	Asia/Qostanay	Qostanay/Kostanay/Kustanay
 KZ	+5017+05710	Asia/Aqtobe	Aqtöbe/Aktobe
 KZ	+4431+05016	Asia/Aqtau	Mangghystaū/Mankistau
-KZ	+4707+05156	Asia/Atyrau	Atyraū/Atirau/Gur'yev
+KZ	+4707+05156	Asia/Atyrau	Atyraū/Atirau/Gur’yev
 KZ	+5113+05121	Asia/Oral	West Kazakhstan
 LB	+3353+03530	Asia/Beirut
 LK	+0656+07951	Asia/Colombo
@@ -245,7 +245,7 @@ PE	-1203-07703	America/Lima
 PF	-1732-14934	Pacific/Tahiti	Society Islands
 PF	-0900-13930	Pacific/Marquesas	Marquesas Islands
 PF	-2308-13457	Pacific/Gambier	Gambier Islands
-PG,AQ,FM	-0930+14710	Pacific/Port_Moresby	Papua New Guinea (most areas), Chuuk, Yap, Dumont d'Urville
+PG,AQ,FM	-0930+14710	Pacific/Port_Moresby	Papua New Guinea (most areas), Chuuk, Yap, Dumont d’Urville
 PG	-0613+15534	Pacific/Bougainville	Bougainville
 PH	+143512+1205804	Asia/Manila
 PK	+2452+06703	Asia/Karachi
@@ -265,7 +265,7 @@ RO	+4426+02606	Europe/Bucharest
 RS,BA,HR,ME,MK,SI	+4450+02030	Europe/Belgrade
 RU	+5443+02030	Europe/Kaliningrad	MSK-01 - Kaliningrad
 RU	+554521+0373704	Europe/Moscow	MSK+00 - Moscow area
-# Mention RU and UA alphabetically.  See "territorial claims" above.
+# Mention RU and UA alphabetically.  See “territorial claims” above.
 RU,UA	+4457+03406	Europe/Simferopol	Crimea
 RU	+5836+04939	Europe/Kirov	MSK+00 - Kirov
 RU	+4844+04425	Europe/Volgograd	MSK+00 - Volgograd
@@ -353,20 +353,20 @@ ZA,LS,SZ	-2615+02800	Africa/Johannesburg
 # The next section contains experimental tab-separated comments for
 # use by user agents like tzselect that identify continents and oceans.
 #
-# For example, the comment "#@AQ<tab>Antarctica/" means the country code
+# For example, the comment ‘#@AQ<tab>Antarctica/’ means the country code
 # AQ is in the continent Antarctica regardless of the Zone name,
 # so Pacific/Auckland should be listed under Antarctica as well as
-# under the Pacific because its line's country codes include AQ.
+# under the Pacific because its line’s country codes include AQ.
 #
 # If more than one country code is affected each is listed separated
-# by commas, e.g., #@IS,SH<tab>Atlantic/".  If a country code is in
+# by commas, e.g., ‘#@IS,SH<tab>Atlantic/’.  If a country code is in
 # more than one continent or ocean, each is listed separated by
-# commas, e.g., the second column of "#@CY,TR<tab>Asia/,Europe/".
+# commas, e.g., the second column of ‘#@CY,TR<tab>Asia/,Europe/’.
 #
 # These experimental comments are present only for country codes where
 # the continent or ocean is not already obvious from the Zone name.
 # For example, there is no such comment for RU since it already
-# corresponds to Zone names starting with both "Europe/" and "Asia/".
+# corresponds to Zone names starting with both ‘Europe/’ and ‘Asia/’.
 #
 #@AQ	Antarctica/
 #@IS,SH	Atlantic/

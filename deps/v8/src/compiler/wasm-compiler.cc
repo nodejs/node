@@ -1101,14 +1101,15 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled WasmToJS wrapper " << func_name << ", took "
-                   << time.InMilliseconds() << " ms; codesize " << codesize
+                   << time.InMicroseconds() << " μs; codesize " << codesize
                    << std::endl;
   }
 
   return result;
 }
 
-wasm::WasmCompilationResult CompileWasmStackEntryWrapper() {
+wasm::WasmCompilationResult CompileWasmStackEntryWrapper(
+    const wasm::CanonicalSig* sig) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmStackEntryWrapper");
   base::TimeTicks start_time;
@@ -1119,20 +1120,19 @@ wasm::WasmCompilationResult CompileWasmStackEntryWrapper() {
   // Build a name in the form "wasm-continuation-<signature>".
   constexpr size_t kMaxNameLen = 128;
   char func_name[kMaxNameLen];
-  wasm::CanonicalSig sig(0, 0, nullptr);
   int name_prefix_len =
       SNPrintF(base::ArrayVector(func_name), "wasm-continuation-");
-  PrintSignature(base::ArrayVector(func_name) + name_prefix_len, &sig, '-');
+  PrintSignature(base::ArrayVector(func_name) + name_prefix_len, sig, '-');
   wasm::WasmCompilationResult result =
       Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
-          &sig, wasm::WrapperCompilationInfo{CodeKind::WASM_STACK_ENTRY},
+          sig, wasm::WrapperCompilationInfo{CodeKind::WASM_STACK_ENTRY},
           func_name, WasmStubAssemblerOptions());
 
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled WasmContinuation wrapper " << func_name
-                   << ", took " << time.InMilliseconds() << " ms; codesize "
+                   << ", took " << time.InMicroseconds() << " μs; codesize "
                    << codesize << std::endl;
   }
 
@@ -1147,10 +1147,6 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
   return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       sig, wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION},
       "WasmCapiCall", WasmStubAssemblerOptions());
-}
-
-bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
-  return fast_api_call::CanOptimizeFastSignature(sig);
 }
 
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(

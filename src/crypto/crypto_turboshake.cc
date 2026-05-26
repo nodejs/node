@@ -419,7 +419,7 @@ TurboShakeConfig& TurboShakeConfig::operator=(
 }
 
 void TurboShakeConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (job_mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(job_mode)) {
     // TODO(addaleax): Implement MemoryRetainer protocol for ByteSource
     tracker->TrackFieldWithSize("data", data.size());
   }
@@ -464,7 +464,7 @@ Maybe<void> TurboShakeTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   return JustVoid();
 }
@@ -527,7 +527,7 @@ KangarooTwelveConfig& KangarooTwelveConfig::operator=(
 }
 
 void KangarooTwelveConfig::MemoryInfo(MemoryTracker* tracker) const {
-  if (job_mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(job_mode)) {
     // TODO(addaleax): Implement MemoryRetainer protocol for ByteSource
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("customization", customization.size());
@@ -563,7 +563,7 @@ Maybe<void> KangarooTwelveTraits::AdditionalConfig(
       THROW_ERR_OUT_OF_RANGE(env, "customization is too big");
       return Nothing<void>();
     }
-    params->customization = mode == kCryptoJobAsync
+    params->customization = IsCryptoJobAsync(mode)
                                 ? customization.ToCopy()
                                 : customization.ToByteSource();
   }
@@ -578,7 +578,7 @@ Maybe<void> KangarooTwelveTraits::AdditionalConfig(
     THROW_ERR_OUT_OF_RANGE(env, "data is too big");
     return Nothing<void>();
   }
-  params->data = mode == kCryptoJobAsync ? data.ToCopy() : data.ToByteSource();
+  params->data = IsCryptoJobAsync(mode) ? data.ToCopy() : data.ToByteSource();
 
   return JustVoid();
 }

@@ -35,6 +35,7 @@ const tmpdir = require('./tmpdir');
 const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x', 'x64']
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
+const hasTemporal = !!process.config.variables.v8_enable_temporal_support;
 
 // small-icu doesn't support non-English locales
 const hasFullICU = (() => {
@@ -71,6 +72,7 @@ const hasInspector = Boolean(process.features.inspector);
 const hasSQLite = Boolean(process.versions.sqlite);
 const hasFFI = Boolean(process.config.variables.node_use_ffi);
 
+const hasDtls = hasCrypto && !!process.features.dtls;
 const hasQuic = hasCrypto && !!process.features.quic;
 
 const hasLocalStorage = (() => {
@@ -980,8 +982,10 @@ const common = {
   getBufferSources,
   getTTYfd,
   hasIntl,
+  hasTemporal,
   hasFullICU,
   hasCrypto,
+  hasDtls,
   hasQuic,
   hasInspector,
   hasSQLite,
@@ -996,6 +1000,7 @@ const common = {
   isOpenBSD,
   isMacOS,
   isPi,
+  isRiscv64,
   isSunOS,
   isWindows,
   localIPv6Hosts,

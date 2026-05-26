@@ -7,8 +7,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl)
+  common.skip('requires OpenSSL >= 3.5 or BoringSSL');
 
 const assert = require('assert');
 const crypto = require('crypto');
