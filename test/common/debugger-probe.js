@@ -52,7 +52,7 @@ function normalizeProbeReport(value) {
 }
 
 function assertProbeJson(output, expected) {
-  const normalized = JSON.parse(output);
+  const normalized = typeof output === 'string' ? JSON.parse(output) : output;
   const lastResult = normalized.results?.[normalized.results.length - 1];
 
   if (isProbeSegvTeardown(lastResult)) {
