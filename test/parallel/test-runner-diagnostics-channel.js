@@ -9,9 +9,14 @@ const { join } = require('path');
 
 const events = [];
 
-dc.subscribe('tracing:node.test:start', (data) => events.push({ event: 'start', name: data.name }));
-dc.subscribe('tracing:node.test:end', (data) => events.push({ event: 'end', name: data.name }));
-dc.subscribe('tracing:node.test:error', (data) => events.push({ event: 'error', name: data.name }));
+dc.subscribe('tracing:node.test:start', (data) => events.push({ event: 'start', name: data.name, type: data.type }));
+dc.subscribe('tracing:node.test:end', (data) => events.push({ event: 'end', name: data.name, type: data.type }));
+dc.subscribe('tracing:node.test:error', (data) => events.push({ event: 'error', name: data.name, type: data.type }));
+
+describe('suite end ordering', () => {
+  it('child a', async () => { await new Promise((r) => setTimeout(r, 5)); });
+  it('child b', () => {});
+});
 
 test('passing test fires start and end', async () => {});
 
@@ -54,6 +59,19 @@ process.on('exit', () => {
   const asyncEnd = events.filter((e) => e.event === 'end' && e.name === asyncTestName);
   assert.strictEqual(asyncStart.length, 1);
   assert.strictEqual(asyncEnd.length, 1);
+
+  const suiteNames = new Set(['suite end ordering', 'child a', 'child b']);
+  const suiteSequence = events
+    .filter((e) => suiteNames.has(e.name))
+    .map((e) => `${e.event}:${e.name}`);
+  assert.deepStrictEqual(suiteSequence, [
+    'start:suite end ordering',
+    'start:child a',
+    'end:child a',
+    'start:child b',
+    'end:child b',
+    'end:suite end ordering',
+  ]);
 });
 
 // Test bindStore context propagation
