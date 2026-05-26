@@ -154,7 +154,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
     ontrailers: mustCall(function() {
       throw new Error('ontrailers sync error');
@@ -268,7 +268,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 

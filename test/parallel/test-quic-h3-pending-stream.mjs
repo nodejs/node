@@ -67,7 +67,7 @@ const decoder = new TextDecoder();
     priority: 'high',
     incremental: true,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 

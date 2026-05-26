@@ -79,7 +79,7 @@ writeFileSync(testFile, testContent);
     },
     body: fh,
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
       clientHeadersReceived.resolve();
     }),
   });

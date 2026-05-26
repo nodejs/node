@@ -65,7 +65,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 
@@ -77,7 +77,7 @@ const decoder = new TextDecoder();
       ':authority': 'localhost',
     },
     onheaders: mustCall((headers) => {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
 

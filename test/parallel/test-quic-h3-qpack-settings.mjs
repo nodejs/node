@@ -38,7 +38,7 @@ async function makeRequest(clientSession, path) {
       ':authority': 'localhost',
     },
     onheaders: mustCall(function(headers) {
-      strictEqual(headers[':status'], '200');
+      strictEqual(headers[':status'], 200);
     }),
   });
   const body = await bytes(stream);
