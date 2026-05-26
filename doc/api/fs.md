@@ -8002,7 +8002,14 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks available to unprivileged users.
+Free blocks available to unprivileged users. To calculate available disk space
+in bytes, multiply by the block size:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/');
+const availableBytes = stats.bsize * stats.bavail;
+```
 
 #### `statfs.bfree`
 
@@ -8014,7 +8021,14 @@ added:
 
 * Type: {number|bigint}
 
-Free blocks in file system.
+Free blocks in file system. To calculate free disk space in bytes, multiply by
+the block size:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/');
+const freeBytes = stats.bsize * stats.bfree;
+```
 
 #### `statfs.blocks`
 
@@ -8026,7 +8040,14 @@ added:
 
 * Type: {number|bigint}
 
-Total data blocks in file system.
+Total data blocks in file system. To calculate total disk size in bytes,
+multiply by the block size:
+
+```mjs
+import { statfs } from 'node:fs/promises';
+const stats = await statfs('/');
+const totalBytes = stats.bsize * stats.blocks;
+```
 
 #### `statfs.bsize`
 
@@ -8038,7 +8059,8 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size, in **bytes**. This is the block size used for
+calculating disk space (e.g., `stats.bsize * stats.blocks` gives total bytes).
 
 #### `statfs.frsize`
 
@@ -8050,7 +8072,8 @@ added:
 
 * Type: {number|bigint}
 
-Fundamental file system block size.
+Fundamental file system block size, in **bytes**. This is the minimum unit of
+allocation on the file system.
 
 #### `statfs.ffree`
 
@@ -8086,7 +8109,10 @@ added:
 
 * Type: {number|bigint}
 
-Type of file system.
+Type of file system. This is a numeric identifier that corresponds to a specific
+file system type (e.g., `0x58465342` for XFS, `0xEF53` for EXT2/EXT3/EXT4,
+`0x01021994` for tmpfs). The value is platform-dependent and represents the
+file system magic number as returned by the underlying operating system.
 
 ### Class: `fs.Utf8Stream`
 
