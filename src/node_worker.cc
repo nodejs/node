@@ -258,6 +258,11 @@ class WorkerThreadData {
     if (!loop_init_failed_) {
       CheckedUvLoopClose(&loop_);
     }
+
+    // Dereference all addons that were loaded into this environment.
+    for (binding::DLib& addon : loaded_addons_) {
+      addon.Close();
+    }
   }
 
   bool loop_is_usable() const { return !loop_init_failed_; }
@@ -266,6 +271,7 @@ class WorkerThreadData {
   Worker* const w_;
   uv_loop_t loop_;
   bool loop_init_failed_ = true;
+  std::list<binding::DLib> loaded_addons_;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
   friend class Worker;
 };
@@ -321,6 +327,8 @@ void Worker::Run() {
 
       if (!env_) return;
       env_->set_can_call_into_js(false);
+
+      std::swap(data.loaded_addons_, env_->loaded_addons());
 
       {
         Mutex::ScopedLock lock(mutex_);

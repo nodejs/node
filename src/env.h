@@ -703,6 +703,7 @@ class Environment final : public MemoryRetainer {
   inline cppgc::AllocationHandle& cppgc_allocation_handle() const;
   inline v8::ExternalMemoryAccounter* external_memory_accounter() const;
   inline uv_loop_t* event_loop() const;
+  inline std::list<binding::DLib>& loaded_addons();
   void TryLoadAddon(const char* filename,
                     int flags,
                     const std::function<bool(binding::DLib*)>& was_loaded);

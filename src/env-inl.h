@@ -280,6 +280,10 @@ inline uv_loop_t* Environment::event_loop() const {
   return isolate_data()->event_loop();
 }
 
+inline std::list<binding::DLib>& Environment::loaded_addons() {
+  return loaded_addons_;
+}
+
 #if HAVE_INSPECTOR
 inline bool Environment::is_in_inspector_console_call() const {
   return is_in_inspector_console_call_;
