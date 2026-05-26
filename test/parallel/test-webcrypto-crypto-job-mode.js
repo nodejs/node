@@ -163,7 +163,7 @@ async function withObjectPrototypeSetters(names, fn) {
       { name: 'AES-CBC', iv },
       key,
       Buffer.alloc(16)));
-    ciphertext[ciphertext.length - 1] ^= 0xff;
+    ciphertext[0] ^= 0xff;
 
     await assert.rejects(
       subtle.decrypt({ name: 'AES-CBC', iv }, key, ciphertext),
