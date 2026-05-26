@@ -1,5 +1,7 @@
 // This tests that a probe expression resuming the target through its own
-// inspector.Session surfaces as probe_failure.
+// inspector.Session is surfaced as a probe-side failure. The terminal event
+// can be either probe_failure or probe_timeout depending on a race in V8's
+// nested pause-loop drain.
 'use strict';
 
 const common = require('../common');
@@ -21,11 +23,11 @@ spawnSyncAndExit(process.execPath, [
   'inspect', '--json',
   '--probe', `${fixture}:12`, '--expr', probes[0].expr,
   fixture,
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   status: 1,
   signal: null,
   stdout(output) {
-    assertProbeJson(output, {
+    const expected = {
       v: 2,
       probes,
       results: [{
@@ -34,7 +36,14 @@ spawnSyncAndExit(process.execPath, [
         hit: 1,
         location,
         result: { type: 'number', value: 1, description: '1' },
-      }, {
+      }]
+    };
+
+    const actual = JSON.parse(output);
+
+    const code = actual.results.at(-1)?.error?.code;
+    if (code === 'probe_failure') {
+      expected.results.push({
         event: 'error',
         pending: [],
         error: {
@@ -50,8 +59,22 @@ spawnSyncAndExit(process.execPath, [
             protocolError: { message: 'Can only perform operation while paused.', code: -32000 },
           },
         },
-      }],
-    });
+      });
+    } else if (code === 'probe_timeout') {
+      // On slow CI, the outer Debugger.resume can be picked up in the same drain pass as
+      // the Debugger.evaluateOnCallFrame, while V8 still considers the context paused.
+      // In this case both resume calls may succeed and the process can continue running from
+      // the setInterval until the timeout.
+      expected.results.push({
+        event: 'timeout',
+        pending: [],
+        error: {
+          code: 'probe_timeout',
+          message: 'Timed out after 30000ms waiting for target completion'
+        },
+      });
+    }
+    assertProbeJson(actual, expected);
   },
   trim: true,
 });
