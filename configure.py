@@ -1749,17 +1749,28 @@ def configure_node(o):
     msvc_dir = target_arch  # 'x64' or 'arm64'
 
     vc_tools_dir = os.environ.get('VCToolsInstallDir', '')
-    if vc_tools_dir:
-      clang_profile_lib = os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)
-      if os.path.isfile(clang_profile_lib):
-        o['variables']['clang_profile_lib'] = clang_profile_lib
-      else:
-        raise Exception(
-          f'PGO profile runtime library not found at {clang_profile_lib}. '
-          'Ensure the ClangCL toolset is installed.')
-    else:
+    if not vc_tools_dir:
       raise Exception(
         'VCToolsInstallDir not set. Run from a Visual Studio command prompt.')
+
+    # Primary location: VS2026 and VS2022 x64
+    candidates = [os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)]
+
+    # Secondary location: VS2022 arm64 fallback
+    clang_major = options.clang_cl.split('.', 1)[0]
+    candidates.append(os.path.normpath(os.path.join(
+      vc_tools_dir, '..', '..', 'Llvm', msvc_dir,
+      'lib', 'clang', clang_major, 'lib', 'windows', lib_name)))
+
+    clang_profile_lib = next(
+      (p for p in candidates if os.path.isfile(p)), None)
+    if clang_profile_lib:
+      o['variables']['clang_profile_lib'] = clang_profile_lib
+    else:
+      raise Exception(
+        f'PGO profile runtime library {lib_name} not found. Searched:\n  ' +
+        '\n  '.join(candidates) +
+        '\nEnsure the ClangCL toolset is installed.')
 
   if flavor != 'win' and options.enable_thin_lto:
     raise Exception(
