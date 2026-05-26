@@ -163,7 +163,7 @@ const decoder = new TextDecoder();
     onapplication: mustCall((appopt) => {
       strictEqual(appopt.enableDatagrams, true);
       strictEqual(appopt.enableConnectProtocol, false);
-      // must be false, as this is only sent from server side
+      // Must be false, as this is only sent from server side
     })
   });
 
