@@ -1173,7 +1173,7 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   CONVERT_INT32_ARG_FUZZ_SAFE(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
 #else   // !V8_ENABLE_ALLOCATION_TIMEOUT
-  static std::atomic_flag printed_warning{false};
+  static std::atomic_flag printed_warning = ATOMIC_FLAG_INIT;
   if (!printed_warning.test_and_set()) {
     base::OS::PrintError(
         "Warning: %%SetAllocationTimeout has no effect in this build. Set the "
