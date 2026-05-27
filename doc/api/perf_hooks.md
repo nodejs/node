@@ -1706,6 +1706,10 @@ are not guaranteed to reflect any correct state of the event loop.
 
 <!-- YAML
 added: v11.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62935
+    description: Added the `samplePerIteration` option.
 -->
 
 * `options` {Object}
@@ -1714,18 +1718,20 @@ added: v11.10.0
   * `resolution` {number} The sampling rate in milliseconds for interval-based
     sampling. Must be greater than zero. This option is ignored when
     `samplePerIteration` is `true`. **Default:** `10`.
-* Returns: {IntervalHistogram}
+* Returns: {IntervalHistogram|ELDHistogram}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
-Creates an `IntervalHistogram` object that samples and reports the event loop
-delay over time. The delays will be reported in nanoseconds.
+Creates a histogram object that samples and reports the event loop delay over
+time. The delays will be reported in nanoseconds.
 
 By default, the histogram is updated by a timer using the configured
 `resolution`. When `samplePerIteration` is `true`, samples are taken once per
 event loop iteration using `uv_prepare_t` and `uv_check_t` hooks. In that mode,
 the histogram does not keep the loop alive or force additional iterations when
 the application is idle.
+The two sampling modes produce significantly different results and should not
+be compared directly.
 
 ```mjs
 import { monitorEventLoopDelay } from 'node:perf_hooks';
@@ -2004,7 +2010,7 @@ The standard deviation of the recorded event loop delays.
 
 ## Class: `IntervalHistogram extends Histogram`
 
-A `Histogram` that records event loop delay.
+A `Histogram` that records event loop delay using interval-based sampling.
 
 ### `histogram.disable()`
 
@@ -2045,11 +2051,17 @@ const { monitorEventLoopDelay } = require('node:perf_hooks');
 }
 ```
 
-### Cloning an `IntervalHistogram`
+### Cloning event loop delay histograms
 
-{IntervalHistogram} instances can be cloned via {MessagePort}. On the receiving
-end, the histogram is cloned as a plain {Histogram} object that does not
-implement the `enable()` and `disable()` methods.
+{IntervalHistogram} and {ELDHistogram} instances can be cloned via
+{MessagePort}. On the receiving end, the histogram is cloned as a plain
+{Histogram} object that does not implement the `enable()` and `disable()`
+methods.
+
+## Class: `ELDHistogram extends Histogram`
+
+A `Histogram` that records event loop delay once per event loop iteration. It
+provides the same API as {IntervalHistogram}.
 
 ## Class: `RecordableHistogram extends Histogram`
 
