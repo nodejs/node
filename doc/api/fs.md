@@ -8004,6 +8004,14 @@ added:
 
 Free blocks available to unprivileged users.
 
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const availableSpaceInBytes = stats.bsize * stats.bavail;
+```
+
+
 #### `statfs.bfree`
 
 <!-- YAML
@@ -8015,6 +8023,14 @@ added:
 * Type: {number|bigint}
 
 Free blocks in file system.
+
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const freeSpaceInBytes = stats.bsize * stats.bfree;
+```
+
 
 #### `statfs.blocks`
 
@@ -8028,6 +8044,14 @@ added:
 
 Total data blocks in file system.
 
+```mjs
+import { statfs } from 'node:fs/promises';
+
+const stats = await statfs('/');
+const totalSpaceInBytes = stats.bsize * stats.blocks;
+```
+
+
 #### `statfs.bsize`
 
 <!-- YAML
@@ -8038,7 +8062,7 @@ added:
 
 * Type: {number|bigint}
 
-Optimal transfer block size.
+Optimal transfer block size in bytes.
 
 #### `statfs.frsize`
 
@@ -8087,6 +8111,8 @@ added:
 * Type: {number|bigint}
 
 Type of file system.
+
+This is an OS-dependent numeric value representing the file system type.
 
 ### Class: `fs.Utf8Stream`
 
