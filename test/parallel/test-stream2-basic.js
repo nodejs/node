@@ -192,6 +192,27 @@ class TestWriter extends EE {
       assert.deepStrictEqual(events, ['data', 'write']);
     }));
   }
+
+  {
+    const events = [];
+    const r = R.from(['a', 'b']);
+    const w = new W({
+      write: common.mustCall((chunk, enc, cb) => {
+        events.push(`write:${chunk}`);
+        if (String(chunk) === 'a') {
+          r.on('data', common.mustCall((chunk) => {
+            events.push(`data:${chunk}`);
+          }));
+        }
+        cb();
+      }, 2),
+    });
+
+    r.pipe(w);
+    w.on('finish', common.mustCall(() => {
+      assert.deepStrictEqual(events, ['write:a', 'write:b', 'data:b']);
+    }));
+  }
 }
 
 
