@@ -409,48 +409,8 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       return job->ScheduleWork();
     }
 
-    if (job->mode() == kCryptoJobSyncWebCrypto) {
-      v8::Local<v8::Promise::Resolver> resolver;
-      if (!v8::Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
-        return;
-      }
-
-      CHECK(job->resolver_.IsEmpty());
-      job->resolver_.Reset(env->isolate(), resolver);
-      args.GetReturnValue().Set(resolver->GetPromise());
-
-      v8::Local<v8::Value> err;
-      v8::Local<v8::Value> result;
-      {
-        node::errors::TryCatchScope try_catch(env);
-        job->DoThreadPoolWork();
-        if (job->ToResult(&err, &result).IsNothing()) {
-          CHECK(try_catch.HasCaught());
-          CHECK(try_catch.CanContinue());
-          err = try_catch.Exception();
-        }
-      }
-
-      if (!err.IsEmpty() && !err->IsUndefined()) {
-        job->RejectWebCrypto(err);
-        return;
-      }
-
-      CHECK(!result.IsEmpty());
-      v8::Local<v8::Value> webcrypto_result;
-      {
-        node::errors::TryCatchScope try_catch(env);
-        if (!ToWebCryptoJobResult(env, result).ToLocal(&webcrypto_result)) {
-          CHECK(try_catch.HasCaught());
-          CHECK(try_catch.CanContinue());
-          job->RejectWebCrypto(try_catch.Exception());
-          return;
-        }
-      }
-
-      job->ResolveWebCrypto(webcrypto_result);
-      return;
-    }
+    if (V8_UNLIKELY(job->mode() == kCryptoJobSyncWebCrypto))
+      return RunSyncWebCrypto(job, env, args);
 
     if (job->mode() == kCryptoJobAsync)
       return job->ScheduleWork();
@@ -464,6 +424,51 @@ class CryptoJob : public AsyncWrap, public ThreadPoolWork {
       args.GetReturnValue().Set(
           v8::Array::New(env->isolate(), ret, arraysize(ret)));
     }
+  }
+
+  static V8_NOINLINE void RunSyncWebCrypto(
+      CryptoJob<CryptoJobTraits>* job,
+      Environment* env,
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    v8::Local<v8::Promise::Resolver> resolver;
+    if (!v8::Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
+      return;
+    }
+
+    CHECK(job->resolver_.IsEmpty());
+    job->resolver_.Reset(env->isolate(), resolver);
+    args.GetReturnValue().Set(resolver->GetPromise());
+
+    v8::Local<v8::Value> err;
+    v8::Local<v8::Value> result;
+    {
+      node::errors::TryCatchScope try_catch(env);
+      job->DoThreadPoolWork();
+      if (job->ToResult(&err, &result).IsNothing()) {
+        CHECK(try_catch.HasCaught());
+        CHECK(try_catch.CanContinue());
+        err = try_catch.Exception();
+      }
+    }
+
+    if (!err.IsEmpty() && !err->IsUndefined()) {
+      job->RejectWebCrypto(err);
+      return;
+    }
+
+    CHECK(!result.IsEmpty());
+    v8::Local<v8::Value> webcrypto_result;
+    {
+      node::errors::TryCatchScope try_catch(env);
+      if (!ToWebCryptoJobResult(env, result).ToLocal(&webcrypto_result)) {
+        CHECK(try_catch.HasCaught());
+        CHECK(try_catch.CanContinue());
+        job->RejectWebCrypto(try_catch.Exception());
+        return;
+      }
+    }
+
+    job->ResolveWebCrypto(webcrypto_result);
   }
 
   static void Initialize(

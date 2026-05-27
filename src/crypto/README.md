@@ -255,7 +255,10 @@ the work synchronously on the current thread but still resolves or
 rejects the Promise using Web Crypto API semantics. This sync
 Web Crypto mode is used for selected small-input operations and
 selected low-cost public-key operations, plus Web Crypto symmetric
-and non-RSA asymmetric key generation.
+and non-RSA asymmetric key generation. Sync Web Crypto selection is
+also limited by a small per-turn JavaScript budget so that sequential
+`await` usage can take the fast path while same-turn fanout falls back
+to asynchronous jobs.
 Operation-specific failures are rejected with an `OperationError`,
 and successful jobs resolve with the Web Crypto API result shape
 expected by the JavaScript implementation.

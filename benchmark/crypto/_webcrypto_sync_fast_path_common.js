@@ -15,6 +15,8 @@ const kThresholdSizeLabels = [
   'after-threshold',
 ];
 
+const kParallelism = 4;
+
 function ptn(size) {
   const buffer = Buffer.allocUnsafe(size);
   for (let i = 0; i < size; i++) {
@@ -98,11 +100,44 @@ function isSupported(operation, algorithm) {
 
 async function measureAsync(bench, n, mode, fn) {
   if (mode === 'parallel') {
-    const promises = new Array(n);
+    const parallelism = Math.min(kParallelism, n);
+    let started = 0;
+    let completed = 0;
     bench.start();
-    for (let i = 0; i < n; i++)
-      promises[i] = fn(i);
-    await Promise.all(promises);
+    await new Promise((resolve, reject) => {
+      let failed = false;
+      function fail(err) {
+        failed = true;
+        reject(err);
+      }
+
+      function launch() {
+        if (failed)
+          return;
+
+        const i = started++;
+        let promise;
+        try {
+          promise = fn(i);
+        } catch (err) {
+          fail(err);
+          return;
+        }
+
+        Promise.resolve(promise).then(() => {
+          if (failed)
+            return;
+          if (++completed === n) {
+            resolve();
+          } else if (started < n) {
+            launch();
+          }
+        }, fail);
+      }
+
+      for (let i = 0; i < parallelism; i++)
+        launch();
+    });
     bench.end(n);
     return;
   }
