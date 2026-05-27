@@ -442,7 +442,7 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
   std::unique_ptr<char[]> data_copy;
   if (isShared && length != 0) {
-    data_copy.reset(new char[length]);
+    data_copy = std::make_unique_for_overwrite<char[]>(length);
     memcpy(data_copy.get(), data, length);
     data = data_copy.get();
   }
