@@ -5,6 +5,7 @@ const {
   importSecretKey,
   isSupported,
   kThresholdSizeLabels,
+  kWebCryptoSyncFastPathThreshold,
   measureAsync,
   ptn,
   thresholdSize,
@@ -24,6 +25,8 @@ const signAlgorithms = {
   KMAC256: { name: 'KMAC256', outputLength: 256 },
 };
 
+const kKmacSyncFastPathThreshold = 16 * 1024;
+
 const algorithms = Object.keys(keyAlgorithms)
   .filter((name) => isSupported('sign', signAlgorithms[name]));
 
@@ -40,13 +43,38 @@ const bench = common.createBenchmark(main, {
   n: [1e3],
 });
 
+function outputByteLength(algorithm) {
+  return algorithm === 'HMAC' ? 32 : signAlgorithms[algorithm].outputLength / 8;
+}
+
+function syncFastPathThreshold(algorithm) {
+  return algorithm === 'HMAC' ?
+    kWebCryptoSyncFastPathThreshold : kKmacSyncFastPathThreshold;
+}
+
+function dataSize(algorithm, operation, size) {
+  if (size === 'minimal')
+    return 1;
+
+  let overhead = 0;
+  if (operation === 'verify')
+    overhead += outputByteLength(algorithm);
+  if (algorithm !== 'HMAC')
+    overhead += outputByteLength(algorithm);
+
+  return thresholdSize(size, {
+    minimum: overhead + 1,
+    threshold: syncFastPathThreshold(algorithm),
+  }) - overhead;
+}
+
 async function setupMacOperation(algorithm, operation, size) {
   const key = await importSecretKey({
     algorithm: keyAlgorithms[algorithm],
     usages: ['sign', 'verify'],
     length: 32,
   });
-  const data = ptn(thresholdSize(size));
+  const data = ptn(dataSize(algorithm, operation, size));
   const params = signAlgorithms[algorithm];
 
   if (operation === 'sign') {

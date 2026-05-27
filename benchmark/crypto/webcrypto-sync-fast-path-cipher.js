@@ -5,6 +5,7 @@ const {
   importSecretKey,
   isSupported,
   kThresholdSizeLabels,
+  kWebCryptoSyncFastPathThreshold,
   measureAsync,
   ptn,
   thresholdSize,
@@ -19,6 +20,8 @@ const keyAlgorithms = {
   'AES-OCB': { name: 'AES-OCB', length: 128 },
   'ChaCha20-Poly1305': { name: 'ChaCha20-Poly1305' },
 };
+
+const kAesCbcCtrEncryptSyncFastPathThreshold = 32 * 1024;
 
 function supportParams(algorithm) {
   switch (algorithm) {
@@ -90,13 +93,36 @@ function cipherParams(algorithm, size) {
   throw new Error(`Unknown cipher algorithm: ${algorithm}`);
 }
 
-function dataSize(algorithm, size) {
+function syncFastPathThreshold(algorithm, operation) {
+  return operation === 'encrypt' &&
+    (algorithm === 'AES-CBC' || algorithm === 'AES-CTR') ?
+    kAesCbcCtrEncryptSyncFastPathThreshold :
+    kWebCryptoSyncFastPathThreshold;
+}
+
+function measuredInputOverhead(algorithm, operation) {
   switch (algorithm) {
-    case 'AES-CBC':
-      return thresholdSize(size, { minimum: 16, multiple: 16 });
+    case 'AES-GCM':
+    case 'AES-OCB':
+    case 'ChaCha20-Poly1305':
+      return operation === 'decrypt' ? 32 : 16;
     default:
-      return thresholdSize(size);
+      return 0;
   }
+}
+
+function dataSize(algorithm, operation, size) {
+  const minimum = algorithm === 'AES-CBC' ? 16 : 1;
+  if (size === 'minimal')
+    return minimum;
+
+  const overhead = measuredInputOverhead(algorithm, operation);
+  const multiple = algorithm === 'AES-CBC' ? 16 : 1;
+  return thresholdSize(size, {
+    minimum: minimum + overhead,
+    multiple,
+    threshold: syncFastPathThreshold(algorithm, operation),
+  }) - overhead;
 }
 
 async function setupCipherOperation(algorithm, operation, size) {
@@ -105,7 +131,7 @@ async function setupCipherOperation(algorithm, operation, size) {
     usages: ['encrypt', 'decrypt'],
     length: algorithm === 'ChaCha20-Poly1305' ? 32 : 16,
   });
-  const data = ptn(dataSize(algorithm, size));
+  const data = ptn(dataSize(algorithm, operation, size));
 
   const params = cipherParams(algorithm, size);
   if (operation === 'encrypt') {

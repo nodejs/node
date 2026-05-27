@@ -4,13 +4,13 @@ const common = require('../common.js');
 const {
   importSecretKey,
   kThresholdSizeLabels,
-  kWebCryptoSyncFastPathThreshold,
   measureAsync,
   ptn,
 } = require('./_webcrypto_sync_fast_path_common.js');
 
 const { subtle } = globalThis.crypto;
 
+const kHkdfSyncFastPathThreshold = 16 * 1024;
 const kOutputBytes = 32;
 
 const bench = common.createBenchmark(main, {
@@ -25,11 +25,11 @@ function aggregateSize(label) {
     case 'minimal':
       return kOutputBytes;
     case 'middle':
-      return kWebCryptoSyncFastPathThreshold / 2;
+      return kHkdfSyncFastPathThreshold / 2;
     case 'at-threshold':
-      return kWebCryptoSyncFastPathThreshold;
+      return kHkdfSyncFastPathThreshold;
     case 'after-threshold':
-      return kWebCryptoSyncFastPathThreshold + 1;
+      return kHkdfSyncFastPathThreshold + 1;
   }
   throw new Error(`Unknown HKDF size label: ${label}`);
 }

@@ -252,21 +252,99 @@ If the `CryptoJob` is processed as a Web Crypto API job, then
 `run()` returns a Promise. `kCryptoJobWebCrypto` dispatches the
 work to the libuv threadpool. `kCryptoJobSyncWebCrypto` performs
 the work synchronously on the current thread but still resolves or
-rejects the Promise using Web Crypto API semantics. This sync
-Web Crypto mode is used for selected small-input operations and
-selected low-cost public-key operations, plus Web Crypto symmetric
-and non-RSA asymmetric key generation. Sync Web Crypto selection is
-also limited by a small per-turn JavaScript budget so that sequential
-`await` usage can take the fast path while same-turn fanout falls back
-to asynchronous jobs.
-Operation-specific failures are rejected with an `OperationError`,
-and successful jobs resolve with the Web Crypto API result shape
-expected by the JavaScript implementation.
+rejects the Promise using Web Crypto API semantics. Operation-specific
+failures are rejected with an `OperationError`, and successful jobs
+resolve with the Web Crypto API result shape expected by the
+JavaScript implementation.
 
-The JavaScript Web Crypto layer keeps the thresholds close to the
-operation-specific call sites. The default small-input threshold is
-64 KiB. RSA public-key operations are only selected for sync Web Crypto
-mode with moduli up to 4096 bits.
+The JavaScript Web Crypto layer decides between `kCryptoJobWebCrypto`
+and `kCryptoJobSyncWebCrypto` before the native job is constructed.
+The decision must be made at that point because async jobs need
+threadsafe copies of BufferSource input, while sync Web Crypto jobs can
+borrow the caller's input for the duration of the immediate operation.
+A native job cannot safely start as sync and later fall back to async
+after it has been configured with sync-only input references.
+
+No Web Crypto operation is unconditionally sync. The sync path is only
+a fast-path candidate. A candidate still becomes async when its input
+is too large, when an operation-specific public-key limit rejects it,
+or when the same JavaScript turn has already consumed the sync budget.
+
+The default small-input threshold is 64 KiB. Call sites may use lower
+operation-specific thresholds when benchmarks show that parallel
+throughput is more sensitive to the synchronous first job. Current
+thresholds are:
+
+* 64 KiB by default.
+* 32 KiB for AES-CBC and AES-CTR encrypt.
+* 16 KiB for HKDF deriveBits.
+* 16 KiB for KMAC sign and verify.
+
+The byte length being compared is the amount of operation input that
+best predicts the native cost, not always a single Web Crypto argument:
+
+* Digest uses input data length plus output length.
+* AES-CBC, AES-CTR, and AES-KW use input data length.
+* AES-GCM, AES-OCB, and ChaCha20-Poly1305 use input data length plus
+  additional authenticated data length. For decrypt, input data already
+  includes the authentication tag.
+* HMAC uses input data length plus signature length for verify.
+* KMAC uses input data length plus signature length plus output length.
+* HKDF uses salt length plus info length plus derived output length.
+* ECDSA, EdDSA, and RSA verify use input data length.
+
+RSA public-key candidates are additionally limited to moduli up to
+4096 bits. RSA-OAEP encrypt can be a sync candidate under that modulus
+limit. RSA-OAEP decrypt, RSA sign, and RSA key generation remain
+async.
+
+Some candidates do not have a byte-size threshold because their input
+size is fixed or otherwise bounded by the operation. These include
+Web Crypto symmetric key generation, non-RSA asymmetric key generation,
+ML-KEM encapsulation and decapsulation, ECDH P-256 deriveBits, X25519
+deriveBits, X448 deriveBits, and RSA-OAEP encrypt with an allowed
+modulus size. These are still only sync candidates; same-turn fanout
+can force them async.
+
+The sync budget is intentionally small: at most one sync Web Crypto
+candidate is allowed in a JavaScript turn. Here "turn" means the
+continuous JavaScript execution slice before the next microtask
+checkpoint. When the first candidate reserves the sync slot, Node.js
+queues a microtask that resets the per-turn counter. Sequential
+`await` usage yields to the microtask queue between operations, so it
+can keep taking the sync fast path:
+
+```js
+await subtle.digest('SHA-256', data);
+await subtle.digest('SHA-256', data);
+```
+
+Same-turn fanout does not give the reset microtask a chance to run
+between job creations:
+
+```js
+const a = subtle.digest('SHA-256', data);
+const b = subtle.digest('SHA-256', data);
+await Promise.all([a, b]);
+```
+
+In that case the first eligible job may run sync, the second eligible
+job runs async, and a short async pressure window is enabled. The
+pressure window forces the next 1024 eligible candidates to async. If a
+single synchronous burst creates more jobs than that, the per-turn sync
+counter is still used, so the pressure window is re-armed instead of
+letting another sync job through.
+
+The pressure window is a heuristic, not a Web Crypto API requirement.
+It exists because a replenished Promise pipeline can otherwise run one
+sync job from each Promise reaction while still trying to measure or
+use parallel throughput. Once same-turn fanout has been observed, the
+workload is treated as throughput-oriented for a while and candidates
+are sent to the threadpool. This protects parallel throughput without
+requiring precise active-job accounting in the native layer, but it
+also means that a small fanout can make later otherwise-eligible jobs
+async until the pressure counter drains. Changes to this policy should
+be justified with serial and parallel Web Crypto benchmarks.
 
 For `CipherJob` types, the output is always an `ArrayBuffer`.
 
