@@ -87,8 +87,10 @@ const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree, shallow }) 
 }
 
 // see if the package.json at `path` has an entry that matches `cmd`
+// the path is a known-local directory, not a user-supplied dep, so
+// allow-directory must not gate this introspection
 const hasPkgBin = (path, cmd, flatOptions) =>
-  pacote.manifest(path, flatOptions)
+  pacote.manifest(path, { ...flatOptions, allowDirectory: 'all' })
     .then(manifest => manifest?.bin?.[cmd]).catch(() => null)
 
 const exec = async (opts) => {
@@ -147,6 +149,8 @@ const exec = async (opts) => {
         // we have to install the local package into the npx cache so that its
         // bin links get set up
         flatOptions.installLinks = false
+        // self-execution of a local bin, not a directory dep install
+        flatOptions.allowDirectory = 'all'
         // args[0] will exist when the package is installed
         packages.push(p)
         yes = true

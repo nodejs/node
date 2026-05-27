@@ -12,6 +12,7 @@ const { isNodeGypPackage, defaultGypInstallScript } = require('@npmcli/node-gyp'
 const { promiseRetry } = require('@gar/promise-retry')
 const { log, time } = require('proc-log')
 const { resolve } = require('node:path')
+const { isScriptAllowed } = require('../script-allowed.js')
 
 const boolEnv = b => b ? '1' : ''
 const sortNodes = (a, b) => (a.depth - b.depth) || localeCompare(a.path, b.path)
@@ -222,6 +223,18 @@ module.exports = cls => class Builder extends cls {
 
   async #addToBuildSet (node, set, refreshed = false) {
     if (set.has(node)) {
+      return
+    }
+
+    // Phase 1 allowScripts gate: a `false` verdict from the policy matcher
+    // means the user explicitly denied install scripts for this node, so skip
+    // it. `true` and `null` (unreviewed) both fall through to the existing
+    // detection logic — unreviewed nodes still run their scripts in Phase 1
+    // and are surfaced via the post-reify advisory warning. The global
+    // --ignore-scripts kill switch in #build() still takes precedence, and
+    // --dangerously-allow-all-scripts bypasses this gate entirely.
+    if (!this.options.dangerouslyAllowAllScripts &&
+        isScriptAllowed(node, this.options.allowScripts) === false) {
       return
     }
 

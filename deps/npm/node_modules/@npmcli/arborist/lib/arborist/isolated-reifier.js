@@ -335,7 +335,8 @@ module.exports = cls => class IsolatedReifier extends cls {
       root.inventory.set(workspace.location, workspace)
       root.workspaces.set(wsName, workspace.path)
 
-      // Create workspace Link. For root declared deps, link at root node_modules/. For undeclared deps, link at the workspace's own node_modules/ (self-link).
+      // Declared workspaces are symlinked at root node_modules/.
+      // Undeclared workspaces get a tree-only Link kept for diff/filter participation but not materialized on disk.
       const isDeclared = this.#rootDeclaredDeps.has(wsName)
       const wsLink = new IsolatedLink({
         location: isDeclared ? join('node_modules', wsName) : join(c.localLocation, 'node_modules', wsName),
@@ -348,7 +349,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         target: workspace,
       })
       if (!isDeclared) {
-        workspace.children.set(wsName, wsLink)
+        wsLink.isUndeclaredWorkspaceLink = true
       }
       root.children.set(wsName, wsLink)
       root.inventory.set(wsLink.location, wsLink)
