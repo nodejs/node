@@ -147,3 +147,33 @@ Object.defineProperty(navigator, 'language', { value: 'for-testing' });
 assert.strictEqual(navigator.language, 'for-testing');
 assert.strictEqual(navigator.languages.length, 1);
 assert.strictEqual(navigator.languages[0] !== 'for-testing', true);
+
+{
+  const { Navigator } = globalThis;
+  const getterNames = [
+    'hardwareConcurrency',
+    'locks',
+    'language',
+    'languages',
+    'userAgent',
+    'platform',
+  ];
+  for (const name of getterNames) {
+    assert.throws(
+      () => Navigator.prototype[name],
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_THIS',
+      },
+      `expected TypeError when reading ${name} on Navigator.prototype`,
+    );
+    assert.throws(
+      () => Reflect.get(Navigator.prototype, name, {}),
+      {
+        name: 'TypeError',
+        code: 'ERR_INVALID_THIS',
+      },
+      `expected TypeError when reading ${name} on a plain object`,
+    );
+  }
+}
