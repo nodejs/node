@@ -129,13 +129,21 @@ module.exports = {
             '' : sourceCode.getText(abortArguments[0]);
 
           context.report({
-            node: signalNode,
+            node: declarator,
             message,
             fix(fixer) {
+              const abortSignalCreationCall = `AbortSignal.abort(${abortReason})`;
+              if (signalReferences.length > 1) {
+                return [
+                  fixer.replaceText(declarator.init, abortSignalCreationCall),
+                  fixer.removeRange(rangeIncludingTrailingLine(abortStatement)),
+                  ...signalReferences.map(({ identifier: { parent } }) => fixer.replaceText(parent, name)),
+                ];
+              }
               return [
                 fixer.removeRange(rangeIncludingTrailingLine(variableDeclaration)),
                 fixer.removeRange(rangeIncludingTrailingLine(abortStatement)),
-                fixer.replaceText(signalNode, `AbortSignal.abort(${abortReason})`),
+                fixer.replaceText(signalNode, abortSignalCreationCall),
               ];
             },
           });

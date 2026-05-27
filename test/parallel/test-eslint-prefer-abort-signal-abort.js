@@ -24,11 +24,6 @@ new RuleTester().run('prefer-abort-signal-abort', rule, {
     `
       const controller = new AbortController();
       controller.abort();
-      fn(controller.signal, controller.signal);
-    `,
-    `
-      const controller = new AbortController();
-      controller.abort();
       console.log(controller);
       fn(controller.signal);
     `,
@@ -84,6 +79,38 @@ new RuleTester().run('prefer-abort-signal-abort', rule, {
       output: `
         {
           await wait({ signal: AbortSignal.abort() });
+        }
+      `,
+    },
+    {
+      code: `
+        {
+          const controller = new AbortController();
+          controller.abort();
+          fn(controller.signal, controller.signal);
+        }
+      `,
+      errors: [{ message }],
+      output: `
+        {
+          const controller = AbortSignal.abort();
+          fn(controller, controller);
+        }
+      `,
+    },
+    {
+      code: `
+        {
+          const controller = new AbortController();
+          controller.abort("reason");
+          fn(controller.signal, controller.signal);
+        }
+      `,
+      errors: [{ message }],
+      output: `
+        {
+          const controller = AbortSignal.abort("reason");
+          fn(controller, controller);
         }
       `,
     },

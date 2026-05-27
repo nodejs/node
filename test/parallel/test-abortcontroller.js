@@ -161,9 +161,9 @@ test('AbortController inspection depth 1 or null works', () => {
 
 test('AbortSignal reason is set correctly', () => {
   // Test AbortSignal.reason
+  // eslint-disable-next-line node-core/prefer-abort-signal-abort
   const ac = new AbortController();
   ac.abort('reason');
-  // eslint-disable-next-line node-core/prefer-abort-signal-abort
   assert.strictEqual(ac.signal.reason, 'reason');
 });
 
@@ -236,6 +236,7 @@ test('AbortSignal.reason should default', () => {
   assert.ok(signal.reason instanceof DOMException);
   assert.strictEqual(signal.reason.code, 20);
 
+  // eslint-disable-next-line node-core/prefer-abort-signal-abort
   const ac = new AbortController();
   ac.abort();
   assert.ok(ac.signal.reason instanceof DOMException);
