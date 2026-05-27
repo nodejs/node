@@ -2,6 +2,9 @@
 
 const common = require('../common.js');
 
+const MAX_N = 256 * 1024;
+const TOTAL_SIZE = 256 * 1024 * 1024;
+
 const bench = common.createBenchmark(main, {
   encoding: ['utf-8', 'utf-16le'],
   ignoreBOM: [0, 1],
@@ -9,14 +12,13 @@ const bench = common.createBenchmark(main, {
   unicode: [0, 1],
   len: [256, 1024 * 16, 1024 * 128],
   chunks: [10],
-  n: [1e3],
   type: ['SharedArrayBuffer', 'ArrayBuffer', 'Buffer'],
 });
 
 const UNICODE_ALPHA = 'Blåbærsyltetøy';
 const ASCII_ALPHA = 'Blueberry jam';
 
-function main({ encoding, len, unicode, chunks, n, ignoreBOM, type, fatal }) {
+function main({ encoding, len, unicode, chunks, ignoreBOM, type, fatal }) {
   const decoder = new TextDecoder(encoding, { ignoreBOM, fatal });
   let buf;
 
@@ -41,6 +43,7 @@ function main({ encoding, len, unicode, chunks, n, ignoreBOM, type, fatal }) {
 
   const chunk = Math.ceil(len / chunks);
   const max = len - chunk;
+  const n = Math.min(MAX_N, Math.ceil(TOTAL_SIZE / len));
   bench.start();
   for (let i = 0; i < n; i++) {
     let pos = 0;
