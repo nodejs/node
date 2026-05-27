@@ -6,6 +6,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { hasOpenSSL } = require('../common/crypto');
 
 function getOutcome(fn) {
   try {
@@ -78,13 +79,28 @@ function assertSameErrorOrSuccess(actual, expected) {
       saltLength: zero,
     })],
     ['dsa', (zero) => ({ modulusLength: zero })],
-    ['dsa', (zero) => ({ modulusLength: 512, divisorLength: zero })],
     ['dh', (zero) => ({ primeLength: zero })],
     ['dh', (zero) => ({ primeLength: 2, generator: zero })],
   ]) {
     assertSameErrorOrSuccess(
       getOutcome(() => crypto.generateKeyPairSync(type, getOptions(-0))),
       getOutcome(() => crypto.generateKeyPairSync(type, getOptions(0))),
+    );
+  }
+
+  if (!hasOpenSSL(3)) {
+    common.printSkipMessage(
+      'Skipping DSA divisorLength 0 key generation on OpenSSL 1.1.1');
+  } else {
+    assertSameErrorOrSuccess(
+      getOutcome(() => crypto.generateKeyPairSync('dsa', {
+        modulusLength: 512,
+        divisorLength: -0,
+      })),
+      getOutcome(() => crypto.generateKeyPairSync('dsa', {
+        modulusLength: 512,
+        divisorLength: 0,
+      })),
     );
   }
 
