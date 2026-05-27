@@ -326,6 +326,44 @@ async function testFailRejectsPendingRead() {
   );
 }
 
+// iterator.return() resolves a pending read with done:true
+async function testConsumerReturnResolvesPendingRead() {
+  const { readable } = push();
+
+  const iter = readable[Symbol.asyncIterator]();
+  const readPromise = iter.next();
+
+  await new Promise(setImmediate);
+
+  const returnResult = await iter.return();
+  assert.strictEqual(returnResult.value, undefined);
+  assert.strictEqual(returnResult.done, true);
+
+  const readResult = await readPromise;
+  assert.strictEqual(readResult.value, undefined);
+  assert.strictEqual(readResult.done, true);
+}
+
+// iterator.throw() rejects a pending read with the thrown error
+async function testConsumerThrowRejectsPendingRead() {
+  const { readable } = push();
+
+  const iter = readable[Symbol.asyncIterator]();
+  const readPromise = iter.next();
+
+  await new Promise(setImmediate);
+
+  const err = new Error('consumer read boom');
+  const throwResult = await iter.throw(err);
+  assert.strictEqual(throwResult.value, undefined);
+  assert.strictEqual(throwResult.done, true);
+
+  await assert.rejects(
+    () => readPromise,
+    (e) => e === err,
+  );
+}
+
 // end() while writes are pending rejects those writes
 async function testEndRejectsPendingWrites() {
   const { writer, readable } = push({ highWaterMark: 1, backpressure: 'block' });
@@ -438,6 +476,8 @@ Promise.all([
   testConsumerThrowRejectsWrites(),
   testEndResolvesPendingRead(),
   testFailRejectsPendingRead(),
+  testConsumerReturnResolvesPendingRead(),
+  testConsumerThrowRejectsPendingRead(),
   testEndRejectsPendingWrites(),
   testEndIdempotentWhenClosed(),
   testEndRejectsWhenErrored(),
