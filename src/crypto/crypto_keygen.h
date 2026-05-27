@@ -63,7 +63,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     }
 
     WebCryptoKeyGenConfig config;
-    if (mode == kCryptoJobWebCrypto) {
+    if (IsCryptoJobWebCrypto(mode)) {
       if constexpr (KeyGenTraits::kWebCryptoKeyPair) {
         CHECK(args[offset]->IsObject());
         CHECK(args[offset + 1]->IsUint32());
@@ -132,7 +132,7 @@ class KeyGenJob final : public CryptoJob<KeyGenTraits> {
     if (status_ == KeyGenJobStatus::OK) {
       v8::TryCatch try_catch(env->isolate());
       v8::MaybeLocal<v8::Value> encoded =
-          CryptoJob<KeyGenTraits>::mode() == kCryptoJobWebCrypto
+          IsCryptoJobWebCrypto(CryptoJob<KeyGenTraits>::mode())
               ? EncodeWebCryptoKey(env, params)
               : KeyGenTraits::EncodeKey(env, params);
       if (encoded.ToLocal(result)) {
@@ -235,7 +235,7 @@ struct KeyPairGenTraits final {
       return v8::Nothing<void>();
     }
 
-    if (mode == kCryptoJobWebCrypto) return v8::JustVoid();
+    if (IsCryptoJobWebCrypto(mode)) return v8::JustVoid();
 
     if (!KeyObjectData::GetPublicKeyEncodingFromJs(
              args, offset, kKeyContextGenerate)

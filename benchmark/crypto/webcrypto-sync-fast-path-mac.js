@@ -1,0 +1,63 @@
+'use strict';
+
+const common = require('../common.js');
+const {
+  importSecretKey,
+  isSupported,
+  kThresholdSizeLabels,
+  measureAsync,
+  ptn,
+  thresholdSize,
+} = require('./_webcrypto_sync_fast_path_common.js');
+
+const { subtle } = globalThis.crypto;
+
+const keyAlgorithms = {
+  HMAC: { name: 'HMAC', hash: 'SHA-256' },
+  KMAC128: { name: 'KMAC128' },
+  KMAC256: { name: 'KMAC256' },
+};
+
+const signAlgorithms = {
+  HMAC: { name: 'HMAC' },
+  KMAC128: { name: 'KMAC128', outputLength: 256 },
+  KMAC256: { name: 'KMAC256', outputLength: 256 },
+};
+
+const algorithms = Object.keys(keyAlgorithms)
+  .filter((name) => isSupported('sign', signAlgorithms[name]));
+
+if (algorithms.length === 0) {
+  console.log('no supported WebCrypto MAC algorithms available');
+  process.exit(0);
+}
+
+const bench = common.createBenchmark(main, {
+  algorithm: algorithms,
+  operation: ['sign', 'verify'],
+  size: kThresholdSizeLabels,
+  mode: ['serial', 'parallel'],
+  n: [1e3],
+});
+
+async function setupMacOperation(algorithm, operation, size) {
+  const key = await importSecretKey({
+    algorithm: keyAlgorithms[algorithm],
+    usages: ['sign', 'verify'],
+    length: 32,
+  });
+  const data = ptn(thresholdSize(size));
+  const params = signAlgorithms[algorithm];
+
+  if (operation === 'sign') {
+    return () => subtle.sign(params, key, data);
+  }
+
+  const signature = await subtle.sign(params, key, data);
+  return () => subtle.verify(params, key, signature, data);
+}
+
+async function main({ n, algorithm, operation, size, mode }) {
+  const run = await setupMacOperation(algorithm, operation, size);
+  await measureAsync(bench, n, mode, run);
+}

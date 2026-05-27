@@ -23,12 +23,23 @@ if (!common.hasCrypto) common.skip('missing crypto');
 // The registry assertions at the bottom make missing updates fail loudly.
 
 const require = createRequire(import.meta.url);
-const { kSupportedAlgorithms } = require('internal/crypto/util');
+const {
+  kSupportedAlgorithms,
+  kWebCryptoDefaultSyncThreshold,
+} = require('internal/crypto/util');
 const { subtle } = globalThis.crypto;
 
 Promise.prototype.then = common.mustNotCall('Promise.prototype.then');
 
 const data = new TextEncoder().encode('prototype pollution');
+const asyncData = new Uint8Array(kWebCryptoDefaultSyncThreshold + 1);
+asyncData.set(data);
+const asyncAesKwKeyData = new Uint8Array(kWebCryptoDefaultSyncThreshold + 8);
+
+let plaintextAssertionCount = 0;
+let verificationAssertionCount = 0;
+let assertPlaintextEquals;
+let assertVerified;
 
 // WebCrypto methods return native promises. Re-wrapping a promise with
 // PromiseResolve() or chaining it with Promise.prototype.then can read
@@ -369,6 +380,35 @@ async function getKeyToWrap() {
   return getKeyToWrap.key;
 }
 
+async function getLargeKeyToWrap() {
+  if (getLargeKeyToWrap.key === undefined) {
+    getLargeKeyToWrap.key = await subtle.importKey(
+      'raw-secret',
+      asyncAesKwKeyData,
+      algorithm('HMAC', { hash: 'SHA-256' }),
+      true,
+      ['sign']);
+  }
+  return getLargeKeyToWrap.key;
+}
+
+async function getRawSecretWrapTargets() {
+  return [
+    {
+      jobMode: 'sync',
+      key: await getKeyToWrap(),
+      importAlgorithm: algorithm('AES-CBC', { length: 128 }),
+      usages: ['encrypt'],
+    },
+    {
+      jobMode: 'async',
+      key: await getLargeKeyToWrap(),
+      importAlgorithm: algorithm('HMAC', { hash: 'SHA-256' }),
+      usages: ['sign'],
+    },
+  ];
+}
+
 function addCommonKeyExportTests(fixture) {
   fixture.exportKey = async (ctx) => {
     if (fixture.rawFormat !== undefined)
@@ -399,7 +439,7 @@ function secretKeyFixture(options) {
   const fixture = {
     ...options,
     generateKey: async (ctx) => {
-      ctx.key = await assertNoPromiseConstructorAccess(`generateKey ${options.name}`, () =>
+      ctx.key = await assertCryptoKeyResult(`generateKey ${options.name}`, () =>
         subtle.generateKey(options.generateAlgorithm, true, options.usages));
     },
   };
@@ -407,33 +447,86 @@ function secretKeyFixture(options) {
   addCommonKeyExportTests(fixture);
 
   if (options.encryptAlgorithm !== undefined) {
+    plaintextAssertionCount += 2;
     fixture.encrypt = async (ctx) => {
-      ctx.ciphertext = await assertNoPromiseConstructorAccess(`encrypt ${options.name}`, () =>
-        subtle.encrypt(options.encryptAlgorithm, ctx.key, data));
+      ctx.ciphertexts = { __proto__: null };
+      for (const [jobMode, input] of [
+        ['sync', data],
+        ['async', asyncData],
+      ]) {
+        ctx.ciphertexts[jobMode] = await assertNoInheritedArrayBufferThenAccess(
+          `encrypt ${options.name} ${jobMode}`,
+          () => assertNoPromiseConstructorAccess(
+            `encrypt ${options.name} ${jobMode}`,
+            () => subtle.encrypt(options.encryptAlgorithm, ctx.key, input)));
+      }
     };
     fixture.decrypt = async (ctx) => {
-      await assertNoPromiseConstructorAccess(`decrypt ${options.name}`, () =>
-        subtle.decrypt(options.encryptAlgorithm, ctx.key, ctx.ciphertext));
+      for (const [jobMode, input] of [
+        ['sync', data],
+        ['async', asyncData],
+      ]) {
+        const plaintext = await assertNoInheritedArrayBufferThenAccess(
+          `decrypt ${options.name} ${jobMode}`,
+          () => assertNoPromiseConstructorAccess(
+            `decrypt ${options.name} ${jobMode}`,
+            () => subtle.decrypt(
+              options.encryptAlgorithm,
+              ctx.key,
+              ctx.ciphertexts[jobMode])));
+        assertPlaintextEquals(plaintext, input);
+      }
     };
   }
 
   if (options.signAlgorithm !== undefined) {
+    verificationAssertionCount += 2;
     fixture.sign = async (ctx) => {
-      ctx.signature = await assertNoPromiseConstructorAccess(`sign ${options.name}`, () =>
-        subtle.sign(options.signAlgorithm, ctx.key, data));
+      ctx.signatures = { __proto__: null };
+      for (const [jobMode, input] of [
+        ['sync', data],
+        ['async', asyncData],
+      ]) {
+        ctx.signatures[jobMode] = await assertNoInheritedArrayBufferThenAccess(
+          `sign ${options.name} ${jobMode}`,
+          () => assertNoPromiseConstructorAccess(
+            `sign ${options.name} ${jobMode}`,
+            () => subtle.sign(options.signAlgorithm, ctx.key, input)));
+      }
     };
     fixture.verify = async (ctx) => {
-      await assertNoPromiseConstructorAccess(`verify ${options.name}`, () =>
-        subtle.verify(options.signAlgorithm, ctx.key, ctx.signature, data));
+      for (const [jobMode, input] of [
+        ['sync', data],
+        ['async', asyncData],
+      ]) {
+        assertVerified(await assertNoPromiseConstructorAccess(
+          `verify ${options.name} ${jobMode}`,
+          () => subtle.verify(
+            options.signAlgorithm,
+            ctx.key,
+            ctx.signatures[jobMode],
+            input)));
+      }
     };
   }
 
   if (options.wrapAlgorithm !== undefined) {
     fixture.wrapKey = async (ctx) => {
-      const keyToWrap = await getKeyToWrap();
-      ctx.wrappedRawSecret = await assertNoPromiseConstructorAccess(
-        `wrapKey raw-secret ${options.name}`,
-        () => subtle.wrapKey('raw-secret', keyToWrap, ctx.key, options.wrapAlgorithm));
+      ctx.rawSecretWrapTargets = await getRawSecretWrapTargets();
+      ctx.wrappedRawSecrets = { __proto__: null };
+      for (const { jobMode, key } of ctx.rawSecretWrapTargets) {
+        ctx.wrappedRawSecrets[jobMode] =
+          await assertNoInheritedArrayBufferThenAccess(
+            `wrapKey raw-secret ${options.name} ${jobMode}`,
+            () => assertNoPromiseConstructorAccess(
+              `wrapKey raw-secret ${options.name} ${jobMode}`,
+              () => subtle.wrapKey(
+                'raw-secret',
+                key,
+                ctx.key,
+                options.wrapAlgorithm)));
+      }
+      const keyToWrap = ctx.rawSecretWrapTargets[0].key;
       ctx.wrappedJwk = await assertNoInheritedJwkPropertyAccess(
         `wrapKey jwk ${options.name}`,
         () => assertNoInheritedToJSONAccess(
@@ -444,16 +537,22 @@ function secretKeyFixture(options) {
                 subtle.wrapKey('jwk', keyToWrap, ctx.key, options.wrapAlgorithm)))));
     };
     fixture.unwrapKey = async (ctx) => {
-      await assertNoInheritedArrayBufferThenAccess(`unwrapKey raw-secret ${options.name}`, () =>
-        assertCryptoKeyResult(`unwrapKey raw-secret ${options.name} result`, () =>
-          subtle.unwrapKey(
+      for (const {
+        jobMode,
+        importAlgorithm,
+        usages,
+      } of ctx.rawSecretWrapTargets) {
+        await assertCryptoKeyResult(
+          `unwrapKey raw-secret ${options.name} ${jobMode} result`,
+          () => subtle.unwrapKey(
             'raw-secret',
-            ctx.wrappedRawSecret,
+            ctx.wrappedRawSecrets[jobMode],
             ctx.key,
             options.wrapAlgorithm,
-            algorithm('AES-CBC', { length: 128 }),
+            importAlgorithm,
             true,
-            ['encrypt'])));
+            usages));
+      }
       await assertNoUserMutableDecodeAccess(`unwrapKey jwk ${options.name}`, () =>
         assertNoInheritedArrayBufferThenAccess(`unwrapKey jwk ${options.name}`, () =>
           assertCryptoKeyResult(`unwrapKey jwk ${options.name} result`, () =>
@@ -475,8 +574,14 @@ function pairKeyFixture(options) {
   const fixture = {
     ...options,
     generateKey: async (ctx) => {
-      ctx.keyPair = await assertNoPromiseConstructorAccess(`generateKey ${options.name}`, () =>
-        subtle.generateKey(options.generateAlgorithm, true, options.usages));
+      ctx.keyPair = await assertNoInheritedObjectThenAccess(
+        `generateKey ${options.name}`,
+        () => assertNoPromiseConstructorAccess(
+          `generateKey ${options.name}`,
+          () => subtle.generateKey(
+            options.generateAlgorithm,
+            true,
+            options.usages)));
     },
     exportKey: async (ctx) => {
       if (options.spki !== false) {
@@ -552,12 +657,35 @@ function pairKeyFixture(options) {
 
   if (options.signAlgorithm !== undefined) {
     fixture.sign = async (ctx) => {
-      ctx.signature = await assertNoPromiseConstructorAccess(`sign ${options.name}`, () =>
-        subtle.sign(options.signAlgorithm, ctx.keyPair.privateKey, data));
+      ctx.signatures = { __proto__: null };
+      const inputs = options.thresholdSignVerify === true ?
+        [
+          ['sync', data],
+          ['async', asyncData],
+        ] :
+        [['default', data]];
+      for (const [jobMode, input] of inputs) {
+        ctx.signatures[jobMode] = await assertNoInheritedArrayBufferThenAccess(
+          `sign ${options.name} ${jobMode}`,
+          () => assertNoPromiseConstructorAccess(`sign ${options.name} ${jobMode}`, () =>
+            subtle.sign(options.signAlgorithm, ctx.keyPair.privateKey, input)));
+      }
     };
     fixture.verify = async (ctx) => {
-      await assertNoPromiseConstructorAccess(`verify ${options.name}`, () =>
-        subtle.verify(options.signAlgorithm, ctx.keyPair.publicKey, ctx.signature, data));
+      const inputs = options.thresholdSignVerify === true ?
+        [
+          ['sync', data],
+          ['async', asyncData],
+        ] :
+        [['default', data]];
+      for (const [jobMode, input] of inputs) {
+        await assertNoPromiseConstructorAccess(`verify ${options.name} ${jobMode}`, () =>
+          subtle.verify(
+            options.signAlgorithm,
+            ctx.keyPair.publicKey,
+            ctx.signatures[jobMode],
+            input));
+      }
     };
   }
 
@@ -621,18 +749,31 @@ function kdfFixture(options) {
         ['deriveBits', 'deriveKey']);
     },
     deriveBits: async (ctx) => {
-      await assertNoPromiseConstructorAccess(`deriveBits ${options.name}`, () =>
-        subtle.deriveBits(options.deriveAlgorithm, ctx.key, 256));
+      const deriveAlgorithms = options.deriveAlgorithms ?? [
+        ['default', options.deriveAlgorithm],
+      ];
+      for (const [jobMode, deriveAlgorithm] of deriveAlgorithms) {
+        await assertNoInheritedArrayBufferThenAccess(
+          `deriveBits ${options.name} ${jobMode}`,
+          () => assertNoPromiseConstructorAccess(
+            `deriveBits ${options.name} ${jobMode}`,
+            () => subtle.deriveBits(deriveAlgorithm, ctx.key, 256)));
+      }
     },
     extra: async (ctx) => {
-      await assertNoInheritedArrayBufferThenAccess(`deriveKey ${options.name}`, () =>
-        assertCryptoKeyResult(`deriveKey ${options.name} result`, () =>
-          subtle.deriveKey(
-            options.deriveAlgorithm,
-            ctx.key,
-            algorithm('AES-CBC', { length: 128 }),
-            true,
-            ['encrypt'])));
+      const deriveAlgorithms = options.deriveAlgorithms ?? [
+        ['default', options.deriveAlgorithm],
+      ];
+      for (const [jobMode, deriveAlgorithm] of deriveAlgorithms) {
+        await assertNoInheritedArrayBufferThenAccess(`deriveKey ${options.name} ${jobMode}`, () =>
+          assertCryptoKeyResult(`deriveKey ${options.name} ${jobMode} result`, () =>
+            subtle.deriveKey(
+              deriveAlgorithm,
+              ctx.key,
+              algorithm('AES-CBC', { length: 128 }),
+              true,
+              ['encrypt'])));
+      }
     },
   };
 }
@@ -653,9 +794,10 @@ function kemFixture(options) {
   });
 
   fixture.encapsulate = async (ctx) => {
-    ctx.encapsulatedBits = await assertNoPromiseConstructorAccess(
-      `encapsulateBits ${options.name}`, () =>
-        subtle.encapsulateBits(algorithm(options.name), ctx.keyPair.publicKey));
+    ctx.encapsulatedBits = await assertNoRawSharedKeyObjectThenAccess(
+      `encapsulateBits ${options.name}`,
+      () => assertNoPromiseConstructorAccess(`encapsulateBits ${options.name}`, () =>
+        subtle.encapsulateBits(algorithm(options.name), ctx.keyPair.publicKey)));
     ctx.encapsulatedKey = await assertNoRawSharedKeyObjectThenAccess(
       `encapsulateKey ${options.name}`,
       () => assertNoPromiseConstructorAccess(`encapsulateKey ${options.name}`, () =>
@@ -775,6 +917,7 @@ for (const name of ['RSASSA-PKCS1-v1_5', 'RSA-PSS']) {
     signAlgorithm: name === 'RSA-PSS' ?
       algorithm(name, { saltLength: 32 }) :
       algorithm(name),
+    thresholdSignVerify: true,
   }));
 }
 
@@ -797,6 +940,7 @@ addFixture('ECDSA', pairKeyFixture({
   privateUsages: ['sign'],
   rawPublic: true,
   signAlgorithm: algorithm('ECDSA', { hash: 'SHA-256' }),
+  thresholdSignVerify: true,
 }));
 
 addFixture('ECDH', pairKeyFixture({
@@ -821,6 +965,7 @@ for (const name of ['Ed25519', 'Ed448']) {
     privateUsages: ['sign'],
     rawPublic: true,
     signAlgorithm: algorithm(name),
+    thresholdSignVerify: true,
   }));
 }
 
@@ -880,6 +1025,18 @@ for (const name of ['HKDF', 'PBKDF2']) {
         salt: new Uint8Array(8),
         iterations: 1,
       }),
+    deriveAlgorithms: name === 'HKDF' ? [
+      ['sync', algorithm(name, {
+        hash: 'SHA-256',
+        salt: new Uint8Array(8),
+        info: new Uint8Array(8),
+      })],
+      ['async', algorithm(name, {
+        hash: 'SHA-256',
+        salt: new Uint8Array(kWebCryptoDefaultSyncThreshold + 1),
+        info: new Uint8Array(8),
+      })],
+    ] : undefined,
   }));
 }
 
@@ -931,8 +1088,16 @@ for (const name of [
   addFixture(name, {
     name,
     digest: async () => {
-      await assertNoPromiseConstructorAccess(`digest ${name}`, () =>
-        subtle.digest(digestAlgorithm(name), data));
+      for (const [jobMode, input] of [
+        ['sync', data],
+        ['async', asyncData],
+      ]) {
+        await assertNoInheritedArrayBufferThenAccess(
+          `digest ${name} ${jobMode}`,
+          () => assertNoPromiseConstructorAccess(
+            `digest ${name} ${jobMode}`,
+            () => subtle.digest(digestAlgorithm(name), input)));
+      }
     },
   });
 }
@@ -1024,6 +1189,13 @@ for (const operation of Object.keys(kSupportedAlgorithms)) {
 }
 
 const supportedAlgorithms = getSupportedAlgorithmOperations();
+assertPlaintextEquals = common.mustCall((actual, expected) => {
+  assert.deepStrictEqual(new Uint8Array(actual), expected);
+}, plaintextAssertionCount);
+assertVerified = common.mustCall((actual) => {
+  assert.strictEqual(actual, true);
+}, verificationAssertionCount);
+
 for (const [name, operations] of supportedAlgorithms) {
   const fixture = fixtures.get(name);
   assert(fixture, `missing prototype pollution fixture for ${name}`);

@@ -187,7 +187,9 @@ are built around the `CryptoJob` class.
 
 A `CryptoJob` encapsulates a single crypto operation that can be
 invoked synchronously, asynchronously, or as a Web Crypto API
-Promise-based job.
+Promise-based job. Web Crypto API jobs can run either asynchronously
+on the libuv threadpool or synchronously on the current thread while
+still returning a Promise to the JavaScript layer.
 
 The `CryptoJob` class itself is a C++ template that takes a single
 `CryptoJobTraits` struct as a parameter. The `CryptoJobTraits`
@@ -247,10 +249,21 @@ or `undefined`, and the second is the result of the operation
 if successful.
 
 If the `CryptoJob` is processed as a Web Crypto API job, then
-`run()` returns a Promise. Operation-specific failures are
-rejected with an `OperationError`, and successful jobs resolve
-with the Web Crypto API result shape expected by the JavaScript
-implementation.
+`run()` returns a Promise. `kCryptoJobWebCrypto` dispatches the
+work to the libuv threadpool. `kCryptoJobSyncWebCrypto` performs
+the work synchronously on the current thread but still resolves or
+rejects the Promise using Web Crypto API semantics. This sync
+Web Crypto mode is used for selected small-input operations and
+selected low-cost public-key operations, plus Web Crypto symmetric
+and non-RSA asymmetric key generation.
+Operation-specific failures are rejected with an `OperationError`,
+and successful jobs resolve with the Web Crypto API result shape
+expected by the JavaScript implementation.
+
+The JavaScript Web Crypto layer keeps the thresholds close to the
+operation-specific call sites. The default small-input threshold is
+64 KiB. RSA public-key operations are only selected for sync Web Crypto
+mode with moduli up to 4096 bits.
 
 For `CipherJob` types, the output is always an `ArrayBuffer`.
 
@@ -322,6 +335,10 @@ operations use the traditional Node.js callback pattern, as
 illustrated in the previous `randomFill()` example. In the
 Web Crypto API (accessible via `globalThis.crypto`),
 all asynchronous single-call operations are Promise-based.
+Some Web Crypto API Promise-based operations can still execute
+their crypto work synchronously on the current thread for small
+inputs. Those operations continue to return Promises and use Web
+Crypto API result and error semantics.
 
 ```js
 // Example Web Crypto API asynchronous single-call operation
@@ -336,9 +353,9 @@ subtle.generateKeys({ name: 'HMAC', length: 256 }, true, ['sign'])
   });
 ```
 
-In nearly every case, asynchronous single-call operations make use
-of the libuv threadpool to perform crypto operations off the main
-event loop thread.
+Most asynchronous single-call operations make use of the libuv
+threadpool to perform crypto operations off the main event loop
+thread.
 
 Stream-oriented operations use an object to maintain state
 over multiple individual synchronous steps. The steps themselves

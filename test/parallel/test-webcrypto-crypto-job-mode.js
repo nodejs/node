@@ -14,6 +14,8 @@ const {
   getCryptoKeyHandle,
 } = require('internal/crypto/keys');
 const {
+  getWebCryptoJobModeForInputLength,
+  kWebCryptoDefaultSyncThreshold,
   getUsagesMask,
 } = require('internal/crypto/util');
 const {
@@ -25,6 +27,7 @@ const {
   EcKeyPairGenJob,
   HashJob,
   SecretKeyGenJob,
+  kCryptoJobSyncWebCrypto,
   kCryptoJobWebCrypto,
   kKeyVariantAES_CBC_128,
   kWebCryptoCipherEncrypt,
@@ -62,6 +65,15 @@ async function withObjectPrototypeSetters(names, fn) {
 
 (async function() {
   {
+    assert.strictEqual(
+      getWebCryptoJobModeForInputLength(kWebCryptoDefaultSyncThreshold),
+      kCryptoJobSyncWebCrypto);
+    assert.strictEqual(
+      getWebCryptoJobModeForInputLength(kWebCryptoDefaultSyncThreshold + 1),
+      kCryptoJobWebCrypto);
+  }
+
+  {
     const promise = new HashJob(
       kCryptoJobWebCrypto,
       'sha256',
@@ -74,6 +86,26 @@ async function withObjectPrototypeSetters(names, fn) {
     promise.then(common.mustCall(() => { settled = true; }));
     await Promise.resolve();
     assert.strictEqual(settled, false);
+
+    const digest = await promise;
+    assert(digest instanceof ArrayBuffer);
+    assert.strictEqual(digest.byteLength, 32);
+    assert.strictEqual(Object.hasOwn(digest, 'then'), false);
+  }
+
+  {
+    const promise = new HashJob(
+      kCryptoJobSyncWebCrypto,
+      'sha256',
+      Buffer.from('hello'),
+      undefined).run();
+
+    assert.strictEqual(Object.getPrototypeOf(promise), Promise.prototype);
+
+    let settled = false;
+    promise.then(common.mustCall(() => { settled = true; }));
+    await Promise.resolve();
+    assert.strictEqual(settled, true);
 
     const digest = await promise;
     assert(digest instanceof ArrayBuffer);
@@ -97,6 +129,29 @@ async function withObjectPrototypeSetters(names, fn) {
   }
 
   {
+    const promise = new SecretKeyGenJob(
+      kCryptoJobSyncWebCrypto,
+      128,
+      { name: 'AES-CBC', length: 128 },
+      getUsagesMask(new Set(['encrypt'])),
+      true).run();
+
+    assert.strictEqual(Object.getPrototypeOf(promise), Promise.prototype);
+
+    let settled = false;
+    promise.then(common.mustCall(() => { settled = true; }));
+    await Promise.resolve();
+    assert.strictEqual(settled, true);
+
+    const key = await promise;
+    assert(isCryptoKey(key));
+    assert(key instanceof CryptoKey);
+    assert.strictEqual(key.type, 'secret');
+    assert.strictEqual(key.extractable, true);
+    assert.deepStrictEqual(key.usages, ['encrypt']);
+  }
+
+  {
     const pair = await withObjectPrototypeSetters(
       ['publicKey', 'privateKey'],
       () => new EcKeyPairGenJob(
@@ -108,6 +163,36 @@ async function withObjectPrototypeSetters(names, fn) {
         getUsagesMask(new Set(['sign'])),
         true).run());
 
+    assert.strictEqual(Object.getPrototypeOf(pair), Object.prototype);
+    assert.strictEqual(Object.hasOwn(pair, 'then'), false);
+    assert(isCryptoKey(pair.publicKey));
+    assert(isCryptoKey(pair.privateKey));
+    assert(pair.publicKey instanceof CryptoKey);
+    assert(pair.privateKey instanceof CryptoKey);
+    assert.strictEqual(pair.publicKey.type, 'public');
+    assert.strictEqual(pair.privateKey.type, 'private');
+    assert.deepStrictEqual(pair.publicKey.usages, ['verify']);
+    assert.deepStrictEqual(pair.privateKey.usages, ['sign']);
+  }
+
+  {
+    const promise = new EcKeyPairGenJob(
+      kCryptoJobSyncWebCrypto,
+      'P-256',
+      undefined,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      getUsagesMask(new Set(['verify'])),
+      getUsagesMask(new Set(['sign'])),
+      true).run();
+
+    assert.strictEqual(Object.getPrototypeOf(promise), Promise.prototype);
+
+    let settled = false;
+    promise.then(common.mustCall(() => { settled = true; }));
+    await Promise.resolve();
+    assert.strictEqual(settled, true);
+
+    const pair = await promise;
     assert.strictEqual(Object.getPrototypeOf(pair), Object.prototype);
     assert.strictEqual(Object.hasOwn(pair, 'then'), false);
     assert(isCryptoKey(pair.publicKey));
@@ -190,25 +275,6 @@ async function withObjectPrototypeSetters(names, fn) {
     assert.strictEqual(
       typeof await subtle.verify('HMAC', key, signature, data),
       'boolean');
-  }
-
-  {
-    Object.defineProperty(CryptoKey.prototype, 'then', {
-      __proto__: null,
-      configurable: true,
-      get: common.mustNotCall('CryptoKey.prototype.then getter'),
-    });
-
-    try {
-      const key = await subtle.generateKey(
-        { name: 'AES-CBC', length: 128 },
-        true,
-        ['encrypt']);
-      assert(isCryptoKey(key));
-      assert.strictEqual(Object.hasOwn(key, 'then'), false);
-    } finally {
-      delete CryptoKey.prototype.then;
-    }
   }
 
   if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {

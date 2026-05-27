@@ -174,7 +174,7 @@ MaybeLocal<Value> KEMEncapsulateTraits::EncodeOutput(
     return MaybeLocal<Value>();
   }
 
-  if (params.job_mode == kCryptoJobWebCrypto) {
+  if (IsCryptoJobWebCrypto(params.job_mode)) {
     Local<Object> result = Object::New(env->isolate());
     if (!result
              ->DefineOwnProperty(env->context(),

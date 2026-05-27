@@ -713,12 +713,16 @@ Maybe<void> SetEncodedValue(Environment* env,
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   CHECK(args->IsUint32());
   uint32_t mode = args.As<v8::Uint32>()->Value();
-  CHECK_LE(mode, kCryptoJobWebCrypto);
+  CHECK_LE(mode, kCryptoJobSyncWebCrypto);
   return static_cast<CryptoJobMode>(mode);
 }
 
 bool IsCryptoJobAsync(CryptoJobMode mode) {
   return mode == kCryptoJobAsync || mode == kCryptoJobWebCrypto;
+}
+
+bool IsCryptoJobWebCrypto(CryptoJobMode mode) {
+  return mode == kCryptoJobWebCrypto || mode == kCryptoJobSyncWebCrypto;
 }
 
 MaybeLocal<Value> CreateWebCryptoJobError(Environment* env,
@@ -839,6 +843,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kCryptoJobAsync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
   NODE_DEFINE_CONSTANT(target, kCryptoJobWebCrypto);
+  NODE_DEFINE_CONSTANT(target, kCryptoJobSyncWebCrypto);
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
   SetMethodNoSideEffect(context, target, "secureHeapUsed", SecureHeapUsed);
