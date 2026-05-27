@@ -1309,13 +1309,7 @@
             ['icu_use_data_file_flag', {
               'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
             }, {
-               'conditions': [
-                 ['OS=="win"', {
-                   'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_SHARED'],
-                 }, {
-                    'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
-                  }],
-               ],
+              'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
              }],
             ['OS=="win"', {
               'dependencies': [
