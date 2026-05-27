@@ -503,7 +503,7 @@ path. Add it with -I<path> to the command line
 #if !defined(DEBUG) && V8_HAS_ATTRIBUTE_ALWAYS_INLINE
 # define V8_INLINE inline __attribute__((always_inline))
 #elif !defined(DEBUG) && V8_HAS___FORCEINLINE
-# define V8_INLINE __forceinline
+# define V8_INLINE inline __forceinline
 #else
 # define V8_INLINE inline
 #endif
