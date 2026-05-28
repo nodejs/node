@@ -117,6 +117,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/net',
   'NativeModule internal/dns/utils',
   'NativeModule internal/modules/esm/get_format',
+  'NativeModule internal/primordials_staging',
 ]);
 
 expected.atRunTime = new Set([

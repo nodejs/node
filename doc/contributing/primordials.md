@@ -105,6 +105,65 @@ There are some built-in functions that accept a variable number of arguments
 the list of arguments as an array. You can use primordial function with the
 suffix `Apply` (e.g.: `MathMaxApply`, `ArrayPrototypePushApply`) to do that.
 
+## Staging primordials
+
+Conditinally present built-ins can not be primordials. This usually applies
+to every experimental feature that either still exists only behind runtime flag,
+or is enabled by default but still can be disabled by `--no-` runtime flag.
+
+Instead, these should be stored in `internal/primordials_staging` module.
+This module is populated once at pre-execution stage and can not be changed
+afterwards.
+
+Whenever a new conditional feature is used within Node.js core, it should be
+added to this module instead of getting it directly from globals, to make
+it unaffected by userland.
+
+Whenever a conditional feature graduates, it should be added to regular primordials
+and removed from staging primordials.
+
+Staging primordials do not automatically adopt every new global object, and do not
+replicate nested objects recursively. For example, no internal code requires
+`TemporalPlainMonthDay*`, so there's no need to create primordials for it. If
+you're adding experimental feature that requires new staging primordial, add it
+to the internal module.
+
+### Lazy-loaded staging primordials
+
+Some internal modules are used in early bootstrap, and staging primordials module
+might not be initialized yet. If that's the case, do not destructure the module
+synchronously, and instead get the built-ins lazily in runtime.
+
+For example, instead of this on top-level of the module:
+
+```js
+// For modules that are loaded _after_ pre-exec, this is still safe and preferred
+const { Float16Array } = require('internal/primordials_staging');
+```
+
+Use either:
+
+```js
+// Safe to import synchronously, even though the values are not defined yet
+const primordialsStaging = require('internal/primordials_staging');
+
+let SafeFloat16Array;
+function numberToFloat16(n) {
+  SafeFloat16Array ??= primordialsStaging.Float16Array;
+  return new SafeFloat16Array([ n ])[0];
+}
+```
+
+Or:
+
+```js
+let SafeFloat16Array;
+function numberToFloat16(n) {
+  SafeFloat16Array ??= require('internal/primordials_staging').Float16Array;
+  return new SafeFloat16Array([ n ])[0];
+}
+```
+
 ## Primordials with known performance issues
 
 One of the reasons why the current Node.js API is not completely tamper-proof is
