@@ -99,7 +99,6 @@ jobs:
 
       - name: Re-build Node.js on the merge commit
         # ccache is disabled here to avoid polluting the cache. Local build outputs should make this build relatively quick anyway.
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
@@ -114,7 +113,6 @@ jobs:
             '
 
       - name: Run benchmark
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
@@ -151,17 +149,15 @@ jobs:
           FILTER: ${{ inputs.filter }}
 
       - name: Upload raw benchmark results
-        if: ${{ github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: csv-${{ matrix.system }}
           path: ${{ matrix.system }}.csv
 
-  aggregate-benchmark-results:
+  aggregate-results:
     needs: build
     name: Aggregate benchmark results
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
