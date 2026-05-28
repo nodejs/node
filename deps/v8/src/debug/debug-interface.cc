@@ -774,7 +774,13 @@ bool Script::SetInstrumentationBreakpoint(BreakpointId* id) const {
   i::SharedFunctionInfo::ScriptIterator it(isolate, *script);
   for (i::Tagged<i::SharedFunctionInfo> sfi = it.Next(); !sfi.is_null();
        sfi = it.Next()) {
-    if (sfi->is_toplevel()) {
+    // Node.js compiles CJS modules via ScriptCompiler::CompileFunction so that
+    // module-local bindings like __filename can be injected as function
+    // parameters without leaking into the global scope. The resulting Script
+    // carries two SFIs: a synthetic toplevel that just returns the wrapped
+    // function, and the wrapped SFI that the embedder actually invokes. For
+    // such scripts we should pick the wrapped SFI.
+    if (script->is_wrapped() ? sfi->is_wrapped() : sfi->is_toplevel()) {
       return isolate->debug()->SetBreakpointForFunction(
           handle(sfi, isolate), isolate->factory()->empty_string(), id,
           internal::Debug::kInstrumentation);
