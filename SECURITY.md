@@ -377,7 +377,7 @@ the community they pose.
 #### Permission Model Boundaries (`--permission`)
 
 The Node.js [Permission Model](https://nodejs.org/api/permissions.html)
-(`--experimental-permission`) is an opt-in mechanism that limits which
+(`--permission`) is an opt-in mechanism that limits which
 resources a Node.js process may access. It is designed to reduce the blast
 radius of mistakes in trusted application code, **not** to act as a security
 boundary against intentional misuse or a compromised process.
