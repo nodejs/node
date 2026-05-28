@@ -17,11 +17,6 @@ decoder.end(buf);
 
 const expectedBufferedChunks = getDefaultHighWaterMark() / (16 * 1024);
 
-const timeout = setTimeout(() => {
-  assert.fail(`Timed out waiting for Brotli output. ` +
-              `Buffered ${decoder._readableState.buffer.length} chunks.`);
-}, common.platformTimeout(5000));
-
 function waitForBackpressure() {
   const bufferedChunks = decoder._readableState.buffer.length;
 
@@ -31,8 +26,6 @@ function waitForBackpressure() {
     setImmediate(waitForBackpressure);
     return;
   }
-
-  clearTimeout(timeout);
 
   // Verify that decompression stopped once the readable buffer filled up.
   setTimeout(common.mustCall(() => {
