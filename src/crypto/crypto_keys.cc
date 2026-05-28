@@ -1021,6 +1021,7 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
         KeyObjectHandle::kInternalFieldCount);
 
     SetProtoMethod(isolate, templ, "init", Init);
+    SetProtoMethodNoSideEffect(isolate, templ, "getKeyType", GetKeyType);
     SetProtoMethodNoSideEffect(
         isolate, templ, "getSymmetricKeySize", GetSymmetricKeySize);
     SetProtoMethodNoSideEffect(
@@ -1048,6 +1049,7 @@ void KeyObjectHandle::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
   registry->Register(Init);
+  registry->Register(GetKeyType);
   registry->Register(GetSymmetricKeySize);
   registry->Register(GetAsymmetricKeyType);
   registry->Register(CheckEcKeyData);
@@ -1176,6 +1178,14 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
   default:
     UNREACHABLE();
   }
+}
+
+void KeyObjectHandle::GetKeyType(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+
+  args.GetReturnValue().Set(
+      Uint32::NewFromUnsigned(args.GetIsolate(), key->Data().GetKeyType()));
 }
 
 void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
