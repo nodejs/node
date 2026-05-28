@@ -970,16 +970,6 @@
             }],
           ],
         }],
-        [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
-          'product_extension': '<(shlib_suffix)',
-          'xcode_settings': {
-            'LD_DYLIB_INSTALL_NAME':
-              '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
-          },
-        }],
-        ['node_shared=="true" and OS in "aix os400"', {
-          'product_name': 'node_base',
-        }],
         [ 'v8_enable_inspector==1', {
           'includes' : [ 'src/inspector/node_inspector.gypi' ],
         }, {
