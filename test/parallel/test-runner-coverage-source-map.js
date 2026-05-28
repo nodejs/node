@@ -73,6 +73,31 @@ describe('Coverage with source maps', async () => {
     t.assert.strictEqual(spawned.code, 1);
   });
 
+  await it('should ignore erased TypeScript import type lines', async (t) => {
+    const report = generateReport([
+      '# ----------------------------------------------------------',
+      '# file      | line % | branch % | funcs % | uncovered lines',
+      '# ----------------------------------------------------------',
+      '# src       |        |          |         | ',
+      '#  a.mts    | 100.00 |   100.00 |  100.00 | ',
+      '# test.mjs  | 100.00 |   100.00 |  100.00 | ',
+      '# ----------------------------------------------------------',
+      '# all files | 100.00 |   100.00 |  100.00 | ',
+      '# ----------------------------------------------------------',
+    ]);
+
+    const spawned = await common.spawnPromisified(process.execPath, [
+      ...flags,
+      'test.mjs',
+    ], {
+      cwd: fixtures.path('test-runner', 'source-maps', 'type-only-import'),
+    });
+
+    t.assert.strictEqual(spawned.stderr, '');
+    t.assert.ok(spawned.stdout.includes(report));
+    t.assert.strictEqual(spawned.code, 0);
+  });
+
   await it('properly accounts for line endings in source maps', async (t) => {
     const report = generateReport([
       '# ------------------------------------------------------------------',
