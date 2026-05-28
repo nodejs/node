@@ -471,6 +471,27 @@ test('database.applyChangeset() - wrong arguments', (t) => {
   });
 });
 
+test('database.applyChangeset() - malformed changeset returns SQLITE_CORRUPT', {
+  skip: process.config.variables.node_shared_sqlite ?
+    'requires the bundled SQLite session fix' : false,
+}, (t) => {
+  const database = new DatabaseSync(':memory:');
+  database.exec('CREATE TABLE t1(a INTEGER PRIMARY KEY, b, c, d)');
+
+  const changeset = Buffer.from(
+    '540401000000743100177e0072286565286565',
+    'hex');
+
+  t.assert.throws(() => {
+    database.applyChangeset(changeset);
+  }, {
+    name: 'Error',
+    message: 'database disk image is malformed',
+    errcode: 11,
+    code: 'ERR_SQLITE_ERROR',
+  });
+});
+
 test('session.patchset()', (t) => {
   const database = new DatabaseSync(':memory:');
   database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
