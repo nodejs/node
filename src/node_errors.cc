@@ -1064,7 +1064,14 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
                   filename,
                   message->GetLineNumber(env->context()).FromMaybe(-1),
                   msg);
-      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
+      if (!env->can_call_into_js()) {
+        std::string warning_str = warning;
+        env->SetImmediate([warning_str](Environment* env) {
+          USE(ProcessEmitWarningGeneric(env, warning_str, "V8"));
+        });
+      } else {
+        USE(ProcessEmitWarningGeneric(env, warning, "V8"));
+      }
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
