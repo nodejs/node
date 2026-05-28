@@ -150,15 +150,7 @@ assert.strictEqual(navigator.languages[0] !== 'for-testing', true);
 
 {
   const { Navigator } = globalThis;
-  const getterNames = [
-    'hardwareConcurrency',
-    'locks',
-    'language',
-    'languages',
-    'userAgent',
-    'platform',
-  ];
-  for (const name of getterNames) {
+  for (const name of Object.keys(Navigator.prototype)) {
     assert.throws(
       () => Navigator.prototype[name],
       {
