@@ -3065,7 +3065,7 @@ void Session::CheckStreamIdleTimeout(uint64_t now) {
       // Without this, the peer's stream sits orphaned until the
       // session closes.
       auto error =
-          QuicError::ForTransport(NGTCP2_ERR_PROTO, "stream idle timeout");
+          QuicError::ForNgtcp2Error(NGTCP2_ERR_PROTO, "stream idle timeout");
       ShutdownStream(id, error);
       stream->Destroy(error);
       STAT_INCREMENT(Stats, streams_idle_timed_out);
