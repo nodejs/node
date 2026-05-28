@@ -932,11 +932,6 @@
               '@rpath/lib<(node_core_target_name).<(shlib_suffix)'
           },
         }],
-        [ 'node_use_node_code_cache=="true"', {
-          'defines': [
-            'NODE_USE_NODE_CODE_CACHE=1',
-          ],
-        }],
         ['node_shared=="true" and OS in "aix os400"', {
           'product_name': 'node_base',
         }],
