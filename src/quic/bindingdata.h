@@ -305,6 +305,8 @@ class BindingData final
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 
+  v8::Local<v8::String> error_name_string(const char* name);
+
   size_t current_ngtcp2_memory_ = 0;
 
   // The following set up various storage and accessors for common strings,
@@ -356,6 +358,9 @@ class BindingData final
 #define V(name, _) mutable v8::Eternal<v8::String> on_##name##_string_;
   QUIC_JS_CALLBACKS(V)
 #undef V
+
+  // Lazy cache backing error_name_string()
+  std::unordered_map<const char*, v8::Eternal<v8::String>> error_name_strings_;
 
   std::unique_ptr<SessionManager> session_manager_;
 

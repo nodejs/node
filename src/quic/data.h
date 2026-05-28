@@ -265,6 +265,9 @@ class QuicError final : public MemoryRetainer {
   bool is_crypto_error() const;
   std::optional<int> get_crypto_error() const;
 
+  // Returns a human-readable name for this error if known, or nullptr
+  const char* name() const;
+
   // Note that since application errors are application-specific and we
   // don't know which application is being used here, it is possible that
   // the comparing two different QuicError instances from different applications
