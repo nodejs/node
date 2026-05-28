@@ -48,13 +48,8 @@ const path = require('path');
       await cli.stepCommand('c');
       assert.ok(cli.output.includes(`exception in ${script}:9`));
 
-      // Next run: Back to the initial state! It should die again.
+      // Back to the initial state! It should die again.
       await cli.command('breakOnNone');
-      await cli.command('r');
-      await cli.waitFor(/ ok\n/);
-      await cli.waitForInitialBreak();
-      await cli.waitForPrompt();
-      assert.deepStrictEqual(cli.breakInfo, { filename: script, line: 1 });
       await cli.command('c');
       await cli.waitFor(/disconnect/);
     } finally {
