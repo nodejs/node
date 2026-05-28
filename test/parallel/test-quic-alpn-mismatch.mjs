@@ -6,9 +6,7 @@
 //
 // The QUIC transport error code for a CRYPTO_ERROR carrying a TLS alert is
 // 0x100 | <tls_alert>. For `no_application_protocol` (alert 120 / 0x78) this
-// is 0x178 == 376. ERR_QUIC_TRANSPORT_ERROR formats the wire code into its
-// message as a bigint, so we match `376n` to assert the specific alert was
-// sent rather than some other handshake failure.
+// is 0x178 == 376.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -23,12 +21,14 @@ const { listen, connect } = await import('../common/quic.mjs');
 
 const expected = {
   code: 'ERR_QUIC_TRANSPORT_ERROR',
-  message: /\b376n\b/,
+  errorCode: 376n,
+  message: /no application protocol/
 };
 
 const onerror = mustCall((err) => {
   strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
-  match(err.message, /\b376n\b/);
+  strictEqual(err.errorCode, 376n);
+  match(err.message, /no application protocol/);
 }, 2);
 const transportParams = { maxIdleTimeout: 1 };
 
