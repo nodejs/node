@@ -70,6 +70,7 @@ class SessionManager;
   V(ack_delay_exponent, "ackDelayExponent")                                    \
   V(active_connection_id_limit, "activeConnectionIDLimit")                     \
   V(address_lru_size, "addressLRUSize")                                        \
+  V(allow, "allow")                                                            \
   V(application, "application")                                                \
   V(authoritative, "authoritative")                                            \
   V(bbr, "bbr")                                                                \
@@ -81,6 +82,7 @@ class SessionManager;
   V(crl, "crl")                                                                \
   V(cubic, "cubic")                                                            \
   V(datagram_drop_policy, "datagramDropPolicy")                                \
+  V(deny, "deny")                                                              \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(draining_period_multiplier, "drainingPeriodMultiplier")                    \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
@@ -111,14 +113,25 @@ class SessionManager;
   V(max_connections_total, "maxConnectionsTotal")                              \
   V(max_datagram_frame_size, "maxDatagramFrameSize")                           \
   V(max_datagram_send_attempts, "maxDatagramSendAttempts")                     \
+  V(stream_idle_timeout, "streamIdleTimeout")                                  \
   V(max_field_section_size, "maxFieldSectionSize")                             \
   V(max_header_length, "maxHeaderLength")                                      \
   V(max_header_pairs, "maxHeaderPairs")                                        \
   V(idle_timeout, "idleTimeout")                                               \
   V(max_idle_timeout, "maxIdleTimeout")                                        \
   V(max_payload_size, "maxPayloadSize")                                        \
-  V(max_retries, "maxRetries")                                                 \
-  V(max_stateless_resets, "maxStatelessResetsPerHost")                         \
+  V(retry_rate, "retryRate")                                                   \
+  V(retry_burst, "retryBurst")                                                 \
+  V(stateless_reset_rate, "statelessResetRate")                                \
+  V(stateless_reset_burst, "statelessResetBurst")                              \
+  V(version_negotiation_rate, "versionNegotiationRate")                        \
+  V(version_negotiation_burst, "versionNegotiationBurst")                      \
+  V(immediate_close_rate, "immediateCloseRate")                                \
+  V(immediate_close_burst, "immediateCloseBurst")                              \
+  V(session_creation_rate, "sessionCreationRate")                              \
+  V(session_creation_burst, "sessionCreationBurst")                            \
+  V(block_list, "blockList")                                                   \
+  V(block_list_policy, "blockListPolicy")                                      \
   V(max_stream_window, "maxStreamWindow")                                      \
   V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
@@ -156,6 +169,8 @@ class SessionManager;
   V(unacknowledged_packet_threshold, "unacknowledgedPacketThreshold")          \
   V(validate_address, "validateAddress")                                       \
   V(verify_client, "verifyClient")                                             \
+  V(verify_hostname, "verifyHostname")                                         \
+  V(verify_peer_strict, "verifyPeerStrict")                                    \
   V(verify_private_key, "verifyPrivateKey")                                    \
   V(version, "version")
 

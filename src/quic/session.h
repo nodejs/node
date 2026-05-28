@@ -72,7 +72,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint64_t max_header_length = DEFAULT_MAX_HEADER_LENGTH;
 
     // HTTP/3 specific options.
-    uint64_t max_field_section_size = 0;
+    // The maximum header section size advertised to the peer in SETTINGS.
+    // Defaults to match max_header_length so the SETTINGS frame accurately
+    // reflects the enforcement limit. A value of 0 would incorrectly tell
+    // the peer not to send any headers at all.
+    uint64_t max_field_section_size = DEFAULT_MAX_HEADER_LENGTH;
     uint64_t qpack_max_dtable_capacity = 4096;
     uint64_t qpack_encoder_max_dtable_capacity = 4096;
     uint64_t qpack_blocked_streams = 100;
@@ -222,6 +226,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // period duration after receiving CONNECTION_CLOSE. RFC 9000 Section
     // 10.2 requires at least 3x PTO. Range: 3-255. Default: 3.
     uint8_t draining_period_multiplier = 3;
+
+    // The amount of time (in milliseconds) that a stream can be idle
+    // (no data received) before it is automatically destroyed. This
+    // protects against slowloris-style attacks where a peer opens streams
+    // but never sends data, holding server resources indefinitely.
+    // Only applies to peer-initiated streams. Set to 0 to disable.
+    static constexpr uint64_t DEFAULT_STREAM_IDLE_TIMEOUT = 30'000;
+    uint64_t stream_idle_timeout = DEFAULT_STREAM_IDLE_TIMEOUT;
 
     // An optional NEW_TOKEN from a previous connection to the same
     // server. When set, the token is included in the Initial packet
@@ -565,6 +577,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Has to be called after certain operations that generate packets.
   void UpdatePacketTxTime();
   void UpdateDataStats();
+  void CheckStreamIdleTimeout(uint64_t now);
   void UpdatePath(const PathStorage& path);
 
   void ProcessPendingBidiStreams();

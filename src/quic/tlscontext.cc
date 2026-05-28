@@ -261,6 +261,18 @@ bool OSSLContext::set_hostname(std::string_view hostname) const {
                   const_cast<char*>(name.c_str())) == 1;
 }
 
+bool OSSLContext::set_verify_hostname(std::string_view hostname) const {
+  // SSL_set1_host tells OpenSSL to verify the peer certificate's
+  // subject name (SAN/CN) matches this hostname. This is separate
+  // from SSL_set_tlsext_host_name which only sets the SNI extension.
+  static const char* kDefaultHostname = "localhost";
+  if (hostname.empty()) {
+    return SSL_set1_host(*this, kDefaultHostname) == 1;
+  } else {
+    return SSL_set1_host(*this, hostname.data()) == 1;
+  }
+}
+
 bool OSSLContext::set_early_data_enabled() const {
   return SSL_set_quic_tls_early_data_enabled(*this, 1) == 1;
 }
@@ -500,6 +512,14 @@ SSLCtxPointer TLSContext::Initialize(Environment* env) {
       SSL_CTX_set_session_cache_mode(
           ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
       SSL_CTX_sess_set_new_cb(ctx.get(), OnNewSession);
+
+      // In strict mode, set SSL_VERIFY_PEER so OpenSSL aborts the
+      // handshake if the server's certificate fails validation. In
+      // non-strict modes, verification still occurs but the handshake
+      // completes regardless — the result is surfaced to JS.
+      if (options_.verify_peer_strict) {
+        SSL_CTX_set_verify(ctx.get(), SSL_VERIFY_PEER, nullptr);
+      }
       break;
     }
   }
@@ -706,6 +726,7 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(verify_client) || !SET(reject_unauthorized) ||
+      !SET(verify_hostname) || !SET(verify_peer_strict) ||
       !SET(enable_early_data) || !SET(enable_tls_trace) || !SET(alpn) ||
       !SET(servername) || !SET(ciphers) || !SET(groups) ||
       !SET(verify_private_key) || !SET(keylog) || !SET(port) ||
@@ -730,6 +751,8 @@ std::string TLSContext::Options::ToString() const {
          (verify_client ? std::string("yes") : std::string("no"));
   res += prefix + "reject unauthorized: " +
          (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "verify peer strict: " +
+         (verify_peer_strict ? std::string("yes") : std::string("no"));
   res += prefix + "enable early data: " +
          (enable_early_data ? std::string("yes") : std::string("no"));
   res += prefix + "enable_tls_trace: " +
@@ -842,6 +865,14 @@ void TLSSession::Initialize(
         validation_error_ = "Failed to set server name";
         ossl_context_.reset();
         return;
+      }
+
+      if (options.verify_hostname) {
+        if (!ossl_context_.set_verify_hostname(options.servername)) {
+          validation_error_ = "Failed to set verify hostname";
+          ossl_context_.reset();
+          return;
+        }
       }
 
       if (maybeSessionTicket.has_value()) {

@@ -6,8 +6,7 @@
 //        session closes.
 // When disableStatelessReset is true, the server does NOT
 //        send a stateless reset.
-// maxStatelessResetsPerHost rate limits the number of resets
-//        sent to a single remote address.
+// Global token bucket rate limits the total number of resets.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -48,6 +47,7 @@ const encoder = new TextEncoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
+    verifyPeer: 'manual',
     onerror: mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
     }),
@@ -104,6 +104,7 @@ const encoder = new TextEncoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     reuseEndpoint: false,
+    verifyPeer: 'manual',
     // Short idle timeout so the client doesn't hang waiting for
     // a stateless reset that will never arrive.
     transportParams: { maxIdleTimeout: 1 },
@@ -138,9 +139,8 @@ const encoder = new TextEncoder();
   await serverEndpoint.close();
 }
 
-// maxStatelessResetsPerHost rate limits resets per remote address.
-// The LRU tracks resets per IP+port, so both sessions must share a
-// client endpoint to have the same source address.
+// Global token bucket rate limits stateless resets.
+// With burst=1 and rate=0, only one reset can be sent.
 {
   let sessionCount = 0;
   const serverDestroyed1 = Promise.withResolvers();
@@ -161,12 +161,12 @@ const encoder = new TextEncoder();
       deferred.resolve();
     });
   }, 2), {
-    endpoint: { maxStatelessResetsPerHost: 1 },
+    endpoint: { statelessResetBurst: 1, statelessResetRate: 0 },
     onerror(err) { ok(err); },
   });
 
-  // Both clients share an endpoint so the server sees the same
-  // remote IP+port for both, making the rate limiter apply.
+  // The global token bucket rate limiter applies regardless of
+  // client source address.
   const { QuicEndpoint } = await import('node:quic');
   const clientEndpoint = new QuicEndpoint();
 
@@ -174,6 +174,7 @@ const encoder = new TextEncoder();
 
   const client1 = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
+    verifyPeer: 'manual',
     onerror: mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
     }),
@@ -200,6 +201,7 @@ const encoder = new TextEncoder();
 
   const client2 = await connect(serverEndpoint.address, {
     endpoint: clientEndpoint,
+    verifyPeer: 'manual',
     // Short idle timeout so the client closes after the server
     // destroys (no stateless reset will arrive, rate-limited).
     transportParams: { maxIdleTimeout: 1 },
@@ -215,7 +217,7 @@ const encoder = new TextEncoder();
   await serverDestroyed2.promise;
 
   // Send a packet — the server would normally send a stateless reset,
-  // but the rate limit (1 per host) is already exhausted.
+  // but the global rate limit (burst of 1) is already exhausted.
   // eslint-disable-next-line no-unused-vars
   const s2b = await client2.createBidirectionalStream({
     body: encoder.encode('after destroy 2'),
@@ -226,6 +228,8 @@ const encoder = new TextEncoder();
 
   strictEqual(serverEndpoint.stats.statelessResetCount, 1n,
               'Second reset should have been rate-limited');
+  ok(serverEndpoint.stats.statelessResetRateLimited > 0n,
+     'Rate-limited counter should be non-zero');
 
   await clientEndpoint.close();
   await serverEndpoint.close();

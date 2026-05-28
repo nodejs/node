@@ -60,7 +60,7 @@ const allDone = Promise.withResolvers();
 const observed = [];
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall((stream) => {
+  serverSession.onstream = mustCall(async (stream) => {
     const i = nextStreamIndex++;
     stream.onreset = mustCall((err) => {
       observed[i] = wireCodeOf(err);
@@ -69,10 +69,17 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
         allDone.resolve();
       }
     });
+
+    // The peer's reset causes stream.closed to reject.
+    await assert.rejects(stream.closed, {
+      code: 'ERR_QUIC_APPLICATION_ERROR',
+    });
   }, 2);
 }));
 
-const clientSession = await connect(serverEndpoint.address);
+const clientSession = await connect(serverEndpoint.address, {
+  verifyPeer: 'manual',
+});
 await clientSession.opened;
 
 // 1. Plain Error -> session.internalErrorCode (0x1n for non-h3).

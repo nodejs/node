@@ -55,6 +55,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'example.com',
+    verifyPeer: 'manual',
     // Client receives ORIGIN frame via onorigin callback.
     onorigin: mustCall(function(origins) {
       ok(Array.isArray(origins));
@@ -132,6 +133,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'custom-port.example.com',
+    verifyPeer: 'manual',
     onorigin: mustCall(function(origins) {
       ok(Array.isArray(origins));
 

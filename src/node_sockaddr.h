@@ -213,8 +213,9 @@ class SocketAddressLRU : public MemoryRetainer {
   // If the item already exists, returns a reference to
   // the existing item, adjusting items position in the
   // LRU. If the item does not exist, emplaces the item
-  // and returns the new item.
-  Type* Upsert(const SocketAddress& address);
+  // and returns the new item. The caller provides a
+  // timestamp to avoid redundant uv_hrtime() calls.
+  Type* Upsert(const SocketAddress& address, uint64_t now);
 
   // Returns a reference to the item if it exists, or
   // nullptr. The position in the LRU is not modified.
@@ -231,7 +232,7 @@ class SocketAddressLRU : public MemoryRetainer {
   using Pair = std::pair<SocketAddress, Type>;
   using Iterator = typename std::list<Pair>::iterator;
 
-  void CheckExpired();
+  void CheckExpired(uint64_t now);
 
   std::list<Pair> list_;
   SocketAddress::Map<Iterator> map_;
@@ -257,14 +258,14 @@ class SocketAddressBlockList : public MemoryRetainer {
   void AddSocketAddressMask(const std::shared_ptr<SocketAddress>& address,
                             int prefix);
 
-  bool Apply(const std::shared_ptr<SocketAddress>& address);
+  bool Apply(const SocketAddress& address);
 
   size_t size() const { return rules_.size(); }
 
   v8::MaybeLocal<v8::Array> ListRules(Environment* env);
 
   struct Rule : public MemoryRetainer {
-    virtual bool Apply(const std::shared_ptr<SocketAddress>& address) = 0;
+    virtual bool Apply(const SocketAddress& address) = 0;
     inline v8::MaybeLocal<v8::Value> ToV8String(Environment* env);
     virtual std::string ToString() = 0;
   };
@@ -274,7 +275,7 @@ class SocketAddressBlockList : public MemoryRetainer {
 
     explicit SocketAddressRule(const std::shared_ptr<SocketAddress>& address);
 
-    bool Apply(const std::shared_ptr<SocketAddress>& address) override;
+    bool Apply(const SocketAddress& address) override;
     std::string ToString() override;
 
     void MemoryInfo(node::MemoryTracker* tracker) const override;
@@ -289,7 +290,7 @@ class SocketAddressBlockList : public MemoryRetainer {
     SocketAddressRangeRule(const std::shared_ptr<SocketAddress>& start,
                            const std::shared_ptr<SocketAddress>& end);
 
-    bool Apply(const std::shared_ptr<SocketAddress>& address) override;
+    bool Apply(const SocketAddress& address) override;
     std::string ToString() override;
 
     void MemoryInfo(node::MemoryTracker* tracker) const override;
@@ -304,7 +305,7 @@ class SocketAddressBlockList : public MemoryRetainer {
     SocketAddressMaskRule(const std::shared_ptr<SocketAddress>& address,
                           int prefix);
 
-    bool Apply(const std::shared_ptr<SocketAddress>& address) override;
+    bool Apply(const SocketAddress& address) override;
     std::string ToString() override;
 
     void MemoryInfo(node::MemoryTracker* tracker) const override;
@@ -351,6 +352,10 @@ class SocketAddressBlockListWrap : public BaseObject {
                              v8::Local<v8::Object> wrap,
                              std::shared_ptr<SocketAddressBlockList> blocklist =
                                  std::make_shared<SocketAddressBlockList>());
+
+  inline const std::shared_ptr<SocketAddressBlockList>& blocklist() const {
+    return blocklist_;
+  }
 
   void MemoryInfo(node::MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SocketAddressBlockListWrap)

@@ -73,9 +73,15 @@ namespace quic {
   V(CLIENT_SESSIONS, client_sessions)                                          \
   V(SERVER_BUSY_COUNT, server_busy_count)                                      \
   V(RETRY_COUNT, retry_count)                                                  \
+  V(RETRY_RATE_LIMITED, retry_rate_limited)                                    \
   V(VERSION_NEGOTIATION_COUNT, version_negotiation_count)                      \
+  V(VERSION_NEGOTIATION_RATE_LIMITED, version_negotiation_rate_limited)        \
   V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
-  V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)
+  V(STATELESS_RESET_RATE_LIMITED, stateless_reset_rate_limited)                \
+  V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)                              \
+  V(IMMEDIATE_CLOSE_RATE_LIMITED, immediate_close_rate_limited)                \
+  V(SESSION_CREATION_RATE_LIMITED, session_creation_rate_limited)              \
+  V(PACKETS_BLOCKED, packets_blocked)
 
 struct Endpoint::State {
 #define V(_, name, type) type name;
@@ -84,6 +90,31 @@ struct Endpoint::State {
 };
 
 STAT_STRUCT(Endpoint, ENDPOINT)
+
+TokenBucket::TokenBucket(double rate, double burst)
+    : rate(rate), burst(burst), tokens(burst), last_ts(uv_hrtime()) {}
+
+void TokenBucket::InitOnce(double r, double b, uint64_t now) {
+  if (last_ts == 0) {
+    rate = r;
+    burst = b;
+    tokens = b;
+    last_ts = now;
+  }
+}
+
+// Try to consume one token. Refills based on elapsed time, then
+// attempts to consume. Returns true if the request is allowed.
+bool TokenBucket::consume(uint64_t now) {
+  double elapsed = static_cast<double>(now - last_ts) / 1e9;  // seconds
+  last_ts = now;
+  tokens = std::min(burst, tokens + elapsed * rate);
+  if (tokens >= 1.0) {
+    tokens -= 1.0;
+    return true;
+  }
+  return false;
+}
 
 // ============================================================================
 // Endpoint::Options
@@ -97,6 +128,7 @@ bool is_diagnostic_packet_loss(double probability) {
   CHECK(ncrypto::CSPRNG(&c, 1));
   return (static_cast<double>(c) / 255) < probability;
 }
+#endif  // DEBUG
 
 template <typename Opt, double Opt::*member>
 bool SetOption(Environment* env,
@@ -106,18 +138,24 @@ bool SetOption(Environment* env,
   Local<Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
   if (!value->IsUndefined()) {
-    Local<Number> num;
-    if (!value->ToNumber(env->context()).ToLocal(&num)) {
+    if (!value->IsNumber()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
           env, "The %s option must be a number", nameStr);
       return false;
     }
-    options->*member = num->Value();
+    Local<Number> num = value.As<Number>();
+    double dbl = num->Value();
+    if (dbl < 0) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The %s option must be a non-negative number", nameStr);
+      return false;
+    }
+    options->*member = dbl;
   }
   return true;
 }
-#endif  // DEBUG
 
 template <typename Opt, uint8_t Opt::*member>
 bool SetOption(Environment* env,
@@ -133,15 +171,15 @@ bool SetOption(Environment* env,
           env, "The %s option must be an uint8", nameStr);
       return false;
     }
-    Local<Uint32> num;
-    if (!value->ToUint32(env->context()).ToLocal(&num) ||
-        num->Value() > std::numeric_limits<uint8_t>::max()) {
+    Local<Uint32> num = value.As<Uint32>();
+    uint32_t val = num->Value();
+    if (val > std::numeric_limits<uint8_t>::max()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
           env, "The %s option must be an uint8", nameStr);
       return false;
     }
-    options->*member = num->Value();
+    options->*member = val;
   }
   return true;
 }
@@ -195,9 +233,13 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
       env, &options, params, state.name##_string())
 
   if (!SET(retry_token_expiration) || !SET(token_expiration) ||
-      !SET(max_stateless_resets) || !SET(address_lru_size) ||
-      !SET(max_retries) || !SET(validate_address) ||
+      !SET(address_lru_size) || !SET(validate_address) ||
       !SET(disable_stateless_reset) || !SET(ipv6_only) || !SET(reuse_port) ||
+      !SET(retry_rate) || !SET(retry_burst) || !SET(stateless_reset_rate) ||
+      !SET(stateless_reset_burst) || !SET(version_negotiation_rate) ||
+      !SET(version_negotiation_burst) || !SET(immediate_close_rate) ||
+      !SET(immediate_close_burst) || !SET(session_creation_rate) ||
+      !SET(session_creation_burst) ||
 #ifdef DEBUG
       !SET(rx_loss) || !SET(tx_loss) ||
 #endif
@@ -227,6 +269,42 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
     }
   }
 
+  // Parse block list option. Expects the C++ SocketAddressBlockListWrap handle
+  // (the JS side extracts [kHandle] before passing it through).
+  Local<Value> block_list_val;
+  if (!params->Get(env->context(), state.block_list_string())
+           .ToLocal(&block_list_val)) {
+    return Nothing<Options>();
+  }
+  if (!block_list_val->IsUndefined()) {
+    if (!SocketAddressBlockListWrap::HasInstance(env, block_list_val)) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "The blockList option must be a BlockList handle");
+      return Nothing<Options>();
+    }
+    auto* wrap =
+        FromJSObject<SocketAddressBlockListWrap>(block_list_val.As<Object>());
+    options.block_list = wrap->blocklist();
+  }
+
+  // Parse block list policy.
+  Local<Value> policy_val;
+  if (!params->Get(env->context(), state.block_list_policy_string())
+           .ToLocal(&policy_val)) {
+    return Nothing<Options>();
+  }
+  if (!policy_val->IsUndefined()) {
+    if (policy_val->StrictEquals(state.allow_string())) {
+      options.block_list_policy = Options::BlockListPolicy::ALLOW;
+    } else if (policy_val->StrictEquals(state.deny_string())) {
+      options.block_list_policy = Options::BlockListPolicy::DENY;
+    } else {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The blockListPolicy option must be 'deny' or 'allow'");
+      return Nothing<Options>();
+    }
+  }
+
   return Just<Options>(options);
 
 #undef SET
@@ -251,10 +329,26 @@ std::string Endpoint::Options::ToString() const {
          " seconds";
   res += prefix + "token expiration: " + std::to_string(token_expiration) +
          " seconds";
-  res +=
-      prefix + "max stateless resets: " + std::to_string(max_stateless_resets);
   res += prefix + "address lru size: " + std::to_string(address_lru_size);
-  res += prefix + "max retries: " + std::to_string(max_retries);
+  res += prefix + "retry rate: " + std::to_string(retry_rate) + "/s";
+  res += prefix + "retry burst: " + std::to_string(retry_burst);
+  res += prefix +
+         "stateless reset rate: " + std::to_string(stateless_reset_rate) + "/s";
+  res += prefix +
+         "stateless reset burst: " + std::to_string(stateless_reset_burst);
+  res += prefix + "version negotiation rate: " +
+         std::to_string(version_negotiation_rate) + "/s";
+  res += prefix + "version negotiation burst: " +
+         std::to_string(version_negotiation_burst);
+  res += prefix +
+         "immediate close rate: " + std::to_string(immediate_close_rate) + "/s";
+  res += prefix +
+         "immediate close burst: " + std::to_string(immediate_close_burst);
+  res += prefix +
+         "session creation rate: " + std::to_string(session_creation_rate) +
+         "/s";
+  res += prefix +
+         "session creation burst: " + std::to_string(session_creation_burst);
   res += prefix + "validate address: " + boolToString(validate_address);
   res += prefix +
          "disable stateless reset: " + boolToString(disable_stateless_reset);
@@ -580,8 +674,6 @@ void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
 #undef V
 
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE);
-  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_STATELESS_RESETS);
-  NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_RETRY_LIMIT);
 
   static constexpr auto DEFAULT_RETRYTOKEN_EXPIRATION =
       RetryToken::QUIC_DEFAULT_RETRYTOKEN_EXPIRATION / NGTCP2_SECONDS;
@@ -643,7 +735,14 @@ Endpoint::Endpoint(Environment* env,
                     HandleScope scope(this->env()->isolate());
                     Destroy();
                   }),
-      addr_validation_lru_(options_.address_lru_size) {
+      addr_validation_lru_(options_.address_lru_size),
+      retry_bucket_(options_.retry_rate, options_.retry_burst),
+      stateless_reset_bucket_(options_.stateless_reset_rate,
+                              options_.stateless_reset_burst),
+      version_negotiation_bucket_(options_.version_negotiation_rate,
+                                  options_.version_negotiation_burst),
+      immediate_close_bucket_(options_.immediate_close_rate,
+                              options_.immediate_close_burst) {
   MakeWeak();
   udp_.Unref();
   idle_timer_.Unref();
@@ -963,63 +1062,41 @@ void Endpoint::SendBatch(Packet::Ptr* packets, size_t count) {
   }
 }
 
-void Endpoint::SendRetry(const PathDescriptor& options) {
-  // Generating and sending retry packets does consume some system resources,
-  // and it is possible for a malicious peer to trigger sending a large number
-  // of retry packets, resulting in a potential DOS vector. To help ward that
-  // off, we track how many retry packets we send to a particular host and
-  // enforce limits. Note that since we are using an LRU cache these limits
-  // aren't strict. If a retry is sent, we increment the retry_count statistic
-  // to give application code a means of detecting and responding to abuse on
-  // its own. What this count does not give is the rate of retry, so it is still
-  // somewhat limited.
+void Endpoint::SendRetry(const PathDescriptor& options, uint64_t now) {
   Debug(this, "Sending retry on path %s", options);
-  auto info = addr_validation_lru_.Upsert(options.remote_address);
-  if (++(info->retry_count) <= options_.max_retries) {
-    auto packet =
-        Packet::CreateRetryPacket(*this, options, options_.token_secret);
-    if (packet) {
-      STAT_INCREMENT(Stats, retry_count);
-      Send(std::move(packet));
-    }
+  if (!retry_bucket_.consume(now)) {
+    Debug(this, "Retry rate limit exceeded (global)");
+    STAT_INCREMENT(Stats, retry_rate_limited);
+    return;
+  }
 
-    // If creating the retry is unsuccessful, we just drop things on the floor.
-    // It's not worth committing any further resources to this one packet. We
-    // might want to log the failure at some point tho.
+  auto packet =
+      Packet::CreateRetryPacket(*this, options, options_.token_secret);
+  if (packet) {
+    STAT_INCREMENT(Stats, retry_count);
+    Send(std::move(packet));
   }
 }
 
-void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
+void Endpoint::SendVersionNegotiation(const PathDescriptor& options,
+                                      uint64_t now) {
   Debug(this, "Sending version negotiation on path %s", options);
-  // A malicious peer can trivially force version negotiation packets by
-  // sending packets with unsupported QUIC versions, potentially from
-  // spoofed source addresses. Rate-limit per remote host to prevent
-  // amplification attacks.
-  const auto exceeds_limits = [&] {
-    SocketAddressInfoTraits::Type* counts =
-        addr_validation_lru_.Peek(options.remote_address);
-    auto count = counts != nullptr ? counts->version_negotiation_count : 0;
-    return count >= kMaxVersionNegotiations;
-  };
-
-  if (exceeds_limits()) {
-    Debug(this,
-          "Version negotiation rate limit exceeded for %s",
-          options.remote_address);
+  if (!version_negotiation_bucket_.consume(now)) {
+    Debug(this, "Version negotiation rate limit exceeded (global)");
+    STAT_INCREMENT(Stats, version_negotiation_rate_limited);
     return;
   }
 
   auto packet = Packet::CreateVersionNegotiationPacket(*this, options);
   if (packet) {
-    addr_validation_lru_.Upsert(options.remote_address)
-        ->version_negotiation_count++;
     STAT_INCREMENT(Stats, version_negotiation_count);
     Send(std::move(packet));
   }
 }
 
 bool Endpoint::SendStatelessReset(const PathDescriptor& options,
-                                  size_t source_len) {
+                                  size_t source_len,
+                                  uint64_t now) {
   if (options_.disable_stateless_reset) [[unlikely]] {
     return false;
   }
@@ -1028,17 +1105,9 @@ bool Endpoint::SendStatelessReset(const PathDescriptor& options,
         options,
         source_len);
 
-  const auto exceeds_limits = [&] {
-    SocketAddressInfoTraits::Type* counts =
-        addr_validation_lru_.Peek(options.remote_address);
-    auto count = counts != nullptr ? counts->reset_count : 0;
-    return count >= options_.max_stateless_resets;
-  };
-
-  // Per the QUIC spec, we need to protect against sending too many stateless
-  // reset tokens to an endpoint to prevent endless looping.
-  if (exceeds_limits()) {
-    Debug(this, "Stateless reset rate limit exceeded");
+  if (!stateless_reset_bucket_.consume(now)) {
+    Debug(this, "Stateless reset rate limit exceeded (global)");
+    STAT_INCREMENT(Stats, stateless_reset_rate_limited);
     return false;
   }
 
@@ -1047,7 +1116,6 @@ bool Endpoint::SendStatelessReset(const PathDescriptor& options,
 
   if (packet) {
     Debug(this, "Sending stateless reset packet (%zu bytes)", packet->length());
-    addr_validation_lru_.Upsert(options.remote_address)->reset_count++;
     STAT_INCREMENT(Stats, stateless_reset_count);
     Send(std::move(packet));
     return true;
@@ -1057,33 +1125,21 @@ bool Endpoint::SendStatelessReset(const PathDescriptor& options,
 }
 
 void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
-                                            QuicError reason) {
+                                            QuicError reason,
+                                            uint64_t now) {
   Debug(this,
         "Sending immediate connection close on path %s with reason %s",
         options,
         reason);
-  // A malicious peer can trigger immediate connection close packets by
-  // sending Initial packets with invalid tokens or when the server is
-  // busy. Rate-limit per remote host to prevent amplification attacks.
-  const auto exceeds_limits = [&] {
-    SocketAddressInfoTraits::Type* counts =
-        addr_validation_lru_.Peek(options.remote_address);
-    auto count = counts != nullptr ? counts->immediate_close_count : 0;
-    return count >= kMaxImmediateCloses;
-  };
-
-  if (exceeds_limits()) {
-    Debug(this,
-          "Immediate connection close rate limit exceeded for %s",
-          options.remote_address);
+  if (!immediate_close_bucket_.consume(now)) {
+    Debug(this, "Immediate connection close rate limit exceeded (global)");
+    STAT_INCREMENT(Stats, immediate_close_rate_limited);
     return;
   }
 
   auto packet =
       Packet::CreateImmediateConnectionClosePacket(*this, options, reason);
   if (packet) {
-    addr_validation_lru_.Upsert(options.remote_address)
-        ->immediate_close_count++;
     STAT_INCREMENT(Stats, immediate_close_count);
     Send(std::move(packet));
   }
@@ -1297,6 +1353,22 @@ void Endpoint::CloseGracefully() {
 void Endpoint::Receive(const uint8_t* data,
                        size_t len,
                        const SocketAddress& remote_address) {
+  const uint64_t now = uv_hrtime();
+
+  // Block list filtering — applied before any packet processing to
+  // minimize resource expenditure on blocked sources.
+  if (options_.block_list) {
+    bool matched = options_.block_list->Apply(remote_address);
+    bool drop = (options_.block_list_policy == Options::BlockListPolicy::DENY)
+                    ? matched    // deny list: drop if address matches
+                    : !matched;  // allow list: drop if address doesn't match
+    if (drop) {
+      Debug(this, "Packet from %s blocked by block list", remote_address);
+      STAT_INCREMENT(Stats, packets_blocked);
+      return;
+    }
+  }
+
   const auto receive = [&](Session* session,
                            const uint8_t* pkt_data,
                            size_t pkt_len,
@@ -1311,7 +1383,12 @@ void Endpoint::Receive(const uint8_t* data,
     // are generated. The deferred flush via BindingData's uv_check
     // callback calls SendPendingData once per dirty session after all
     // packets in the burst have been read.
-    if (session->ReadPacket(pkt_data, pkt_len, local_address, remote_address)) {
+    if (session->ReadPacket(pkt_data,
+                            pkt_len,
+                            local_address,
+                            remote_address,
+                            PacketInfo(),
+                            now)) {
       STAT_INCREMENT_N(Stats, bytes_received, pkt_len);
       STAT_INCREMENT(Stats, packets_received);
     }
@@ -1330,6 +1407,19 @@ void Endpoint::Receive(const uint8_t* data,
     // One final check. If the endpoint is closed, closing, or is not listening
     // as a server, then we cannot accept the initial packet.
     if (is_closed() || is_closing() || !is_listening()) return;
+
+    // Per-host session creation rate limit. The bucket is initialized
+    // on first access with the configured rate/burst from options.
+    auto info = addr_validation_lru_.Upsert(config.remote_address, now);
+    info->session_creation_bucket.InitOnce(
+        options_.session_creation_rate, options_.session_creation_burst, now);
+    if (!info->session_creation_bucket.consume(now)) {
+      Debug(this,
+            "Session creation rate limit exceeded for %s",
+            config.remote_address);
+      STAT_INCREMENT(Stats, session_creation_rate_limited);
+      return;
+    }
 
     Debug(this, "Creating new session for %s", config.dcid);
 
@@ -1422,7 +1512,8 @@ void Endpoint::Receive(const uint8_t* data,
       if (state_->busy) STAT_INCREMENT(Stats, server_busy_count);
       SendImmediateConnectionClose(
           PathDescriptor{version, dcid, scid, local_address, remote_address},
-          QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED));
+          QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED),
+          now);
       // The packet was successfully processed, even if we did refuse the
       // connection.
       STAT_INCREMENT(Stats, packets_received);
@@ -1496,7 +1587,8 @@ void Endpoint::Receive(const uint8_t* data,
         Debug(this, "Retry token from %s is invalid.", remote_address);
         SendImmediateConnectionClose(
             PathDescriptor{version, scid, dcid, local_address, remote_address},
-            QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED));
+            QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED),
+            now);
         STAT_INCREMENT(Stats, packets_received);
         return;
       }
@@ -1512,7 +1604,7 @@ void Endpoint::Receive(const uint8_t* data,
       // Mark the address as validated since the retry round-trip proves
       // reachability.
       Debug(this, "Remote address %s is validated", remote_address);
-      addr_validation_lru_.Upsert(remote_address)->validated = true;
+      addr_validation_lru_.Upsert(remote_address, now)->validated = true;
     }
 
     // Step 2: Address validation — decide whether to send a Retry or
@@ -1528,13 +1620,15 @@ void Endpoint::Receive(const uint8_t* data,
                     "Initial packet has no token. Sending retry to %s to start "
                     "validation",
                     remote_address);
-              SendRetry(PathDescriptor{
-                  version,
-                  dcid,
-                  scid,
-                  local_address,
-                  remote_address,
-              });
+              SendRetry(
+                  PathDescriptor{
+                      version,
+                      dcid,
+                      scid,
+                      local_address,
+                      remote_address,
+                  },
+                  now);
               STAT_INCREMENT(Stats, packets_received);
               return;
             }
@@ -1555,13 +1649,15 @@ void Endpoint::Receive(const uint8_t* data,
                   Debug(this,
                         "Regular token from %s is invalid.",
                         remote_address);
-                  SendRetry(PathDescriptor{
-                      version,
-                      dcid,
-                      scid,
-                      local_address,
-                      remote_address,
-                  });
+                  SendRetry(
+                      PathDescriptor{
+                          version,
+                          dcid,
+                          scid,
+                          local_address,
+                          remote_address,
+                      },
+                      now);
                   STAT_INCREMENT(Stats, packets_received);
                   return;
                 }
@@ -1573,20 +1669,22 @@ void Endpoint::Receive(const uint8_t* data,
                 Debug(this,
                       "Initial packet from %s has unknown token type",
                       remote_address);
-                SendRetry(PathDescriptor{
-                    version,
-                    dcid,
-                    scid,
-                    local_address,
-                    remote_address,
-                });
+                SendRetry(
+                    PathDescriptor{
+                        version,
+                        dcid,
+                        scid,
+                        local_address,
+                        remote_address,
+                    },
+                    now);
                 STAT_INCREMENT(Stats, packets_received);
                 return;
               }
             }
 
             Debug(this, "Remote address %s is validated", remote_address);
-            addr_validation_lru_.Upsert(remote_address)->validated = true;
+            addr_validation_lru_.Upsert(remote_address, now)->validated = true;
           } else if (hd.tokenlen > 0) {
             Debug(this,
                   "Ignoring initial packet from %s with unexpected token",
@@ -1598,13 +1696,15 @@ void Endpoint::Receive(const uint8_t* data,
           if (options_.validate_address) {
             Debug(
                 this, "Sending retry to %s due to 0RTT packet", remote_address);
-            SendRetry(PathDescriptor{
-                version,
-                dcid,
-                scid,
-                local_address,
-                remote_address,
-            });
+            SendRetry(
+                PathDescriptor{
+                    version,
+                    dcid,
+                    scid,
+                    local_address,
+                    remote_address,
+                },
+                now);
             STAT_INCREMENT(Stats, packets_received);
             return;
           }
@@ -1684,12 +1784,6 @@ void Endpoint::Receive(const uint8_t* data,
   }
 #endif  // DEBUG
 
-  // TODO(@jasnell): Implement blocklist support
-  // if (block_list_->Apply(remote_address)) [[unlikely]] {
-  //   Debug(this, "Ignoring blocked remote address: %s", remote_address);
-  //   return;
-  // }
-
   Debug(this, "Received %zu-byte packet from %s", len, remote_address);
 
   ngtcp2_version_cid pversion_cid;
@@ -1713,8 +1807,12 @@ void Endpoint::Receive(const uint8_t* data,
             pversion_cid.version);
       CID dcid(pversion_cid.dcid, pversion_cid.dcidlen);
       CID scid(pversion_cid.scid, pversion_cid.scidlen);
-      SendVersionNegotiation(PathDescriptor{
-          pversion_cid.version, dcid, scid, local_address(), remote_address});
+      SendVersionNegotiation(PathDescriptor{pversion_cid.version,
+                                            dcid,
+                                            scid,
+                                            local_address(),
+                                            remote_address},
+                             now);
       STAT_INCREMENT(Stats, packets_received);
       return;
     }
@@ -1793,7 +1891,8 @@ void Endpoint::Receive(const uint8_t* data,
       SendStatelessReset(
           PathDescriptor{
               pversion_cid.version, dcid, scid, addr, remote_address},
-          len);
+          len,
+          now);
       return;
     }
 
@@ -1855,13 +1954,14 @@ void Endpoint::MemoryInfo(MemoryTracker* tracker) const {
 // Endpoint::SocketAddressInfoTraits
 
 bool Endpoint::SocketAddressInfoTraits::CheckExpired(
-    const SocketAddress& address, const Type& type) {
-  return (uv_hrtime() - type.timestamp) > kSocketAddressInfoTimeout;
+    const SocketAddress& address, const Type& type, uint64_t now) {
+  return (now - type.timestamp) > kSocketAddressInfoTimeout;
 }
 
 void Endpoint::SocketAddressInfoTraits::Touch(const SocketAddress& address,
-                                              Type* type) {
-  type->timestamp = uv_hrtime();
+                                              Type* type,
+                                              uint64_t now) {
+  type->timestamp = now;
 }
 
 // ======================================================================================

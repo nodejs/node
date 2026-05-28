@@ -36,6 +36,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 // First connection before busy — should succeed.
 const cs1 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 2 },
 });
 await cs1.opened;
@@ -48,6 +49,7 @@ strictEqual(endpoint.busy, true);
 // Second connection while busy — server rejects.
 const cs2 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 1 },
   onerror: mustCall((err) => {
     strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');

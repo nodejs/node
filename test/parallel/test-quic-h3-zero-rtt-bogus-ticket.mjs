@@ -30,6 +30,7 @@ const serverEndpoint = await listen(mustNotCall(), {
 await rejects(
   connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     sessionTicket: randomBytes(256),
   }),
   { code: 'ERR_INVALID_ARG_VALUE' },

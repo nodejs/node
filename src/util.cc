@@ -812,4 +812,15 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
   return v8::Just(mode);
 }
 
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    std::string_view str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
+  if (str.size() >= static_cast<size_t>(v8::String::kMaxLength)) [[unlikely]] {
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+  return StringBytes::Encode(isolate, str.data(), str.size(), UTF8);
+}
+
 }  // namespace node
