@@ -238388,7 +238388,7 @@ static int sessionApplyOneOp(
     for(i=0; rc==SQLITE_OK && i<nCol; i++){
       sqlite3_value *pOld = sessionChangesetOld(pIter, i);
       sqlite3_value *pNew = sessionChangesetNew(pIter, i);
-      if( p->abPK[i] || (bPatchset==0 && pOld) ){
+      if( pOld && (p->abPK[i] || bPatchset==0) ){
         rc = sessionBindValue(pUp, i*2+2, pOld);
       }
       if( rc==SQLITE_OK && pNew ){
