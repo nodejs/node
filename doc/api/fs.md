@@ -696,11 +696,18 @@ close the `FileHandle` automatically. User code must still call the
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
 -->
 
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    synchronous function called with the file size and returning the buffer to
+    read into.
 * Returns: {Promise} Fulfills upon a successful read with the contents of the
   file. If no encoding is specified (using `options.encoding`), the data is
   returned as a {Buffer} object. Otherwise, the data will be a string.
@@ -708,6 +715,11 @@ added: v10.0.0
 Asynchronously reads the entire contents of a file.
 
 If `options` is a string, then it specifies the `encoding`.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the operation will
+fail.
 
 The {FileHandle} has to support reading.
 
@@ -1765,6 +1777,9 @@ try {
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version:
     - v15.2.0
     - v14.17.0
@@ -1778,6 +1793,9 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    synchronous function called with the file size and returning the buffer to
+    read into.
 * Returns: {Promise}  Fulfills with the contents of the file.
 
 Asynchronously reads the entire contents of a file.
@@ -1786,6 +1804,11 @@ If no encoding is specified (using `options.encoding`), the data is returned
 as a {Buffer} object. Otherwise, the data will be a string.
 
 If `options` is a string, then it specifies the encoding.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the promise will be
+rejected.
 
 When the `path` is a directory, the behavior of `fsPromises.readFile()` is
 platform-specific. On macOS, Linux, and Windows, the promise will be rejected
@@ -4225,6 +4248,9 @@ If `options.withFileTypes` is set to `true`, the `files` array will contain
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4266,6 +4292,9 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    synchronous function called with the file size and returning the buffer to
+    read into.
 * `callback` {Function}
   * `err` {Error|AggregateError}
   * `data` {string|Buffer}
@@ -4285,6 +4314,11 @@ The callback is passed two arguments `(err, data)`, where `data` is the
 contents of the file.
 
 If no encoding is specified, then the raw buffer is returned.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, the callback is
+called with an error.
 
 If `options` is a string, then it specifies the encoding:
 
@@ -6428,6 +6462,9 @@ If `options.withFileTypes` is set to `true`, the result will contain
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63634
+    description: Added support for the `buffer` option.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -6441,6 +6478,9 @@ changes:
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
+    synchronous function called with the file size and returning the buffer to
+    read into.
 * Returns: {string|Buffer}
 
 Returns the contents of the `path`.
@@ -6450,6 +6490,11 @@ this API: [`fs.readFile()`][].
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
+
+If `buffer` is provided and no encoding is specified, the returned {Buffer} is
+a view over the supplied buffer containing only the bytes read. If the
+supplied buffer is too small to contain the entire file, an error will be
+thrown.
 
 Similar to [`fs.readFile()`][], when the path is a directory, the behavior of
 `fs.readFileSync()` is platform-specific.
