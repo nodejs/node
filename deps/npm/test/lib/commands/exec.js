@@ -303,3 +303,68 @@ t.test('can run packages with keywords', async t => {
     t.fail(err, 'should not throw')
   }
 })
+
+t.test('exec threads allowScripts policy from .npmrc through to libexec', async t => {
+  let capturedOpts
+  const fakeLibexec = async (opts) => {
+    capturedOpts = opts
+  }
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({ name: 'host', version: '1.0.0' }),
+      '.npmrc': 'allow-scripts = canvas',
+    },
+    mocks: {
+      libnpmexec: fakeLibexec,
+    },
+  })
+  await npm.exec('exec', ['some-pkg'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true },
+    'allowScripts populated from .npmrc layer')
+})
+
+t.test('exec ignores project package.json#allowScripts (RFC: .npmrc-only)', async t => {
+  // Per RFC line 299, exec/npx consults only user/global .npmrc. Project
+  // package.json policy must NOT influence npx behaviour, even when the
+  // user is running npx inside a project that has its own allowScripts.
+  let capturedOpts
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { sharp: true },
+      }),
+    },
+    mocks: {
+      libnpmexec: async (opts) => {
+        capturedOpts = opts
+      },
+    },
+  })
+  await npm.exec('exec', ['some-pkg'])
+  // package.json policy is skipped; no other layer has policy; result is null.
+  t.equal(capturedOpts.allowScripts, null)
+})
+
+t.test('exec reads .npmrc policy even when project package.json has a different policy', async t => {
+  // .npmrc-tier policy wins because package.json is skipped entirely.
+  let capturedOpts
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'host',
+        version: '1.0.0',
+        allowScripts: { sharp: true },
+      }),
+      '.npmrc': 'allow-scripts = canvas',
+    },
+    mocks: {
+      libnpmexec: async (opts) => {
+        capturedOpts = opts
+      },
+    },
+  })
+  await npm.exec('exec', ['some-pkg'])
+  t.strictSame(capturedOpts.allowScripts, { canvas: true })
+})
