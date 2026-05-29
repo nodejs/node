@@ -9,16 +9,35 @@ const {
 } = require('node:stream');
 
 const bench = common.createBenchmark(main, {
-  n: [1e3],
+  type: ['creation', 'throughput'],
+  n: [1, 1e3],
+  streams: [100],
+  chunks: [1e4],
+}, {
+  combinationFilter({ type, n }) {
+    return type === 'creation' ? n === 1e3 : n === 1;
+  },
+  test: {
+    n: [1, 1e3],
+    type: ['creation', 'throughput'],
+  },
 });
 
-function main({ n }) {
+function main({ type, n, streams, chunks }) {
+  switch (type) {
+    case 'creation':
+      return benchCreation(n, streams);
+    case 'throughput':
+      return benchThroughput(n, streams, chunks);
+  }
+}
+
+function benchCreation(n, numberOfPassThroughs) {
   const cachedPassThroughs = [];
   const cachedReadables = [];
   const cachedWritables = [];
 
   for (let i = 0; i < n; i++) {
-    const numberOfPassThroughs = 100;
     const passThroughs = [];
 
     for (let i = 0; i < numberOfPassThroughs; i++) {
@@ -39,4 +58,42 @@ function main({ n }) {
     composed.end();
   }
   bench.end(n);
+}
+
+function benchThroughput(n, numberOfPassThroughs, chunks) {
+  const chunk = Buffer.alloc(1024);
+
+  let i = 0;
+  bench.start();
+
+  function run() {
+    if (i++ === n) {
+      bench.end(n * chunks);
+      return;
+    }
+
+    const passThroughs = [];
+    for (let i = 0; i < numberOfPassThroughs; i++) {
+      passThroughs.push(new PassThrough());
+    }
+
+    let remaining = chunks;
+    const composed = compose(...passThroughs);
+    composed.on('data', () => {});
+    composed.on('end', run);
+
+    write();
+
+    function write() {
+      while (remaining-- > 0) {
+        if (!composed.write(chunk)) {
+          composed.once('drain', write);
+          return;
+        }
+      }
+      composed.end();
+    }
+  }
+
+  run();
 }
