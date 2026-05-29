@@ -1066,7 +1066,12 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
                   filename,
                   message->GetLineNumber(env->context()).FromMaybe(-1),
                   msg);
-      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
+      // Defer the warning to the next event loop iteration. This prevents
+      // crashes when V8 emits warnings during code evaluation with
+      // throwOnSideEffect.
+      env->SetImmediate([warning](Environment* env) {
+        ProcessEmitWarningGeneric(env, warning, "V8");
+      });
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
