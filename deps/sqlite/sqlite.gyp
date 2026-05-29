@@ -13,6 +13,7 @@
         'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
       },
       'defines': [
+        'SQLITE_THREADSAFE=2',
         'SQLITE_DEFAULT_MEMSTATUS=0',
         'SQLITE_ENABLE_COLUMN_METADATA',
         'SQLITE_ENABLE_DBSTAT_VTAB',

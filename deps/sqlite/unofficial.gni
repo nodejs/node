@@ -8,6 +8,7 @@ template("sqlite_gn_build") {
   config("sqlite_config") {
     include_dirs = [ "." ]
     defines = [
+      "SQLITE_THREADSAFE=2",
       "SQLITE_ENABLE_COLUMN_METADATA",
       "SQLITE_ENABLE_DBSTAT_VTAB",
       "SQLITE_ENABLE_FTS3",
