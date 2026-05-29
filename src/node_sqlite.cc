@@ -2254,6 +2254,8 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  Local<Function> conflictFunc;
+  Local<Function> filterFunc;
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -2276,7 +2278,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
             "The \"options.onConflict\" argument must be a function.");
         return;
       }
-      Local<Function> conflictFunc = conflictValue.As<Function>();
+      conflictFunc = conflictValue.As<Function>();
       context.conflictCallback = [env, conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
         TryCatch try_catch(env->isolate());
@@ -2313,7 +2315,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<Function> filterFunc = filterValue.As<Function>();
+      filterFunc = filterValue.As<Function>();
 
       context.filterCallback =
           [env, db, filterFunc](std::string_view item) -> bool {
