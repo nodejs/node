@@ -678,6 +678,7 @@
           ],
         }],
         [ 'node_shared=="false"', {
+          # Keep this whole-archive section in sync with the `node_lib` target below.
           'xcode_settings': {
             'OTHER_LDFLAGS': [
               '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
@@ -1216,19 +1217,30 @@
           ],
         }],
         [ 'node_shared=="true"', {
+          # Keep this whole-archive section in sync with the `node_exe` target above.
           'xcode_settings': {
             'OTHER_LDFLAGS': [
               '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
             ],
           },
-          'conditions': [
-            ['OS!="aix" and OS!="os400" and OS!="mac" and OS!="ios"', {
-              'ldflags': [
-                '-Wl,--whole-archive',
-                '<(obj_dir)/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
-                '-Wl,--no-whole-archive',
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'AdditionalOptions': [
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/<(STATIC_LIB_PREFIX)node_base<(STATIC_LIB_SUFFIX)',
+                '/WHOLEARCHIVE:<(PRODUCT_DIR)/lib/<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
               ],
+            },
+          },
+          'conditions': [
+            ['node_use_bundled_v8=="true"', {
+              'xcode_settings': {
+                'OTHER_LDFLAGS': [
+                  '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
+                ],
+              },
             }],
+            # gyp automatically applies `--whole-archive` to static dependencies of `shared_library` targets.
+            # No need to add the flags again here.
           ],
         }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
