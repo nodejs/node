@@ -155,7 +155,6 @@ class EnvironmentOptions : public Options {
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = EXPERIMENTALS_DEFAULT_VALUE;
-  bool async_context_frame = true;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
   bool frozen_intrinsics = false;

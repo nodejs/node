@@ -2002,17 +2002,6 @@ Disable the `node-addons` exports condition as well as disable loading
 native addons. When `--no-addons` is specified, calling `process.dlopen` or
 requiring a native C++ addon will fail and throw an exception.
 
-### `--no-async-context-frame`
-
-<!-- YAML
-added: v24.0.0
--->
-
-Disables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` and
-uses the prior implementation which relied on async\_hooks. The previous model
-is retained for compatibility with Electron and for cases where the context
-flow may differ. However, if a difference in flow is found please report it.
-
 ### `--no-deprecation`
 
 <!-- YAML
@@ -3825,7 +3814,6 @@ one is included in the list below.
 * `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
-* `--no-async-context-frame`
 * `--no-deprecation`
 * `--no-experimental-global-navigator`
 * `--no-experimental-repl-await`
@@ -4420,7 +4408,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
-[`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
