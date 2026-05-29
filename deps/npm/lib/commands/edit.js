@@ -1,6 +1,7 @@
 const { resolve } = require('node:path')
 const { lstat } = require('node:fs/promises')
 const cp = require('node:child_process')
+const { input } = require('proc-log')
 const completion = require('../utils/installed-shallow.js')
 const BaseCommand = require('../base-cmd.js')
 
@@ -46,16 +47,17 @@ class Edit extends BaseCommand {
     const dir = resolve(this.npm.dir, path)
 
     await lstat(dir)
-    await new Promise((res, rej) => {
+    await input.start(() => new Promise((res, rej) => {
       const [bin, ...spawnArgs] = this.npm.config.get('editor').split(/\s+/)
       const editor = cp.spawn(bin, [...spawnArgs, dir], { stdio: 'inherit' })
-      editor.on('exit', async (code) => {
+      editor.on('exit', (code) => {
         if (code) {
           return rej(new Error(`editor process exited with code: ${code}`))
         }
-        await this.npm.exec('rebuild', [dir]).then(res).catch(rej)
+        res()
       })
-    })
+    }))
+    await this.npm.exec('rebuild', [dir])
   }
 }
 

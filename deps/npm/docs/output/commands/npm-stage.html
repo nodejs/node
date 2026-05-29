@@ -186,9 +186,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-stage----11150">
+<h1 id="----npm-stage----11160">
     <span>npm-stage</span>
-    <span class="version">@11.15.0</span>
+    <span class="version">@11.16.0</span>
 </h1>
 <span class="description">Stage packages for publishing</span>
 </header>
@@ -395,21 +395,48 @@ relationships and disable <code>npm publish</code>.</p>
 </tr>
 <tr>
 <td><code>--access</code></td>
+<td>'public' for new packages, existing packages it will not change the current level</td>
+<td>null, "restricted", "public", or "private"</td>
+<td>If you do not want your scoped package to be publicly viewable (and     installable) set <code>--access=restricted</code>.      Unscoped packages cannot be set to <code>restricted</code>.      Note: This defaults to not changing the current access level for existing     packages.  Specifying a value of <code>restricted</code> or <code>public</code> during     publish will change the access for an existing package the same way that     <code>npm access set status</code> would.      The value <code>private</code> is an alias for <code>restricted</code>.</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Indicates that you don't want npm to make any changes and that it should       only report what it would have done.  This can be passed into any of the       commands that modify your local installation, eg, <code>install</code>,       <code>update</code>, <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and       <code>publish</code>.        Note: This is NOT honored by other network related commands, eg       <code>dist-tags</code>, <code>owner</code>, etc.</td>
+</tr>
+<tr>
+<td><code>--otp</code></td>
+<td>null</td>
+<td>null or String</td>
+<td>This is a one-time password from a two-factor authenticator.  It's needed       when publishing or changing package permissions with <code>npm access</code>.        If not set, and a registry response fails with a challenge for a one-time       password, npm will prompt on the command line for one.</td>
+</tr>
+<tr>
+<td><code>--workspace</code>, <code>-w</code></td>
 <td></td>
-<td></td>
-<td></td>
+<td>String (can be set multiple times)</td>
+<td>Enable running a command in the context of the configured workspaces of the       current project while filtering by running only the workspaces defined by       this configuration option.        Valid values for the <code>workspace</code> config are either:        * Workspace names       * Path to a workspace directory       * Path to a parent workspace directory (will result in selecting all         workspaces within that folder)        When set for the <code>npm init</code> command, this may be set to the folder of       a workspace which does not yet exist, to create the folder and set it       up as a brand new workspace within the project.</td>
+</tr>
+<tr>
+<td><code>--workspaces</code></td>
+<td>null</td>
+<td>null or Boolean</td>
+<td>Set to true to run the command in the context of <strong>all</strong> configured       workspaces.        Explicitly setting this to false will cause commands like <code>install</code> to       ignore workspaces altogether.       When not set explicitly:        - Commands that operate on the <code>node_modules</code> tree (install, update,         etc.) will link workspaces into the <code>node_modules</code> folder.       - Commands that do other things (test, exec, publish, etc.) will operate         on the root project, <em>unless</em> one or more workspaces are specified in         the <code>workspace</code> config.</td>
+</tr>
+<tr>
+<td><code>--include-workspace-root</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>Include the workspace root when workspaces are enabled for a command.        When false, specifying individual workspaces via the <code>workspace</code> config,       or all workspaces via the <code>workspaces</code> flag, will cause npm to operate only       on the specified workspaces, and not on the root project.</td>
+</tr>
+<tr>
+<td><code>--provenance</code></td>
+<td>false</td>
+<td>Boolean</td>
+<td>When publishing from a supported cloud CI/CD system, the package will be       publicly linked to where it was built and published from.</td>
 </tr>
 </tbody>
 </table>
-<pre><code>'public' for new packages, existing packages it will not change the current level
-</code></pre>
-<p>| null, "restricted", or "public" | If you do not want your scoped package to be publicly viewable (and     installable) set <code>--access=restricted</code>.      Unscoped packages cannot be set to <code>restricted</code>.      Note: This defaults to not changing the current access level for existing     packages.  Specifying a value of <code>restricted</code> or <code>public</code> during     publish will change the access for an existing package the same way that     <code>npm access set status</code> would. |
-| <code>--dry-run</code> | false | Boolean | Indicates that you don't want npm to make any changes and that it should       only report what it would have done.  This can be passed into any of the       commands that modify your local installation, eg, <code>install</code>,       <code>update</code>, <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and       <code>publish</code>.        Note: This is NOT honored by other network related commands, eg       <code>dist-tags</code>, <code>owner</code>, etc. |
-| <code>--otp</code> | null | null or String | This is a one-time password from a two-factor authenticator.  It's needed       when publishing or changing package permissions with <code>npm access</code>.        If not set, and a registry response fails with a challenge for a one-time       password, npm will prompt on the command line for one. |
-| <code>--workspace</code>, <code>-w</code> |  | String (can be set multiple times) | Enable running a command in the context of the configured workspaces of the       current project while filtering by running only the workspaces defined by       this configuration option.        Valid values for the <code>workspace</code> config are either:        * Workspace names       * Path to a workspace directory       * Path to a parent workspace directory (will result in selecting all         workspaces within that folder)        When set for the <code>npm init</code> command, this may be set to the folder of       a workspace which does not yet exist, to create the folder and set it       up as a brand new workspace within the project. |
-| <code>--workspaces</code> | null | null or Boolean | Set to true to run the command in the context of <strong>all</strong> configured       workspaces.        Explicitly setting this to false will cause commands like <code>install</code> to       ignore workspaces altogether.       When not set explicitly:        - Commands that operate on the <code>node_modules</code> tree (install, update,         etc.) will link workspaces into the <code>node_modules</code> folder.       - Commands that do other things (test, exec, publish, etc.) will operate         on the root project, <em>unless</em> one or more workspaces are specified in         the <code>workspace</code> config. |
-| <code>--include-workspace-root</code> | false | Boolean | Include the workspace root when workspaces are enabled for a command.        When false, specifying individual workspaces via the <code>workspace</code> config,       or all workspaces via the <code>workspaces</code> flag, will cause npm to operate only       on the specified workspaces, and not on the root project. |
-| <code>--provenance</code> | false | Boolean | When publishing from a supported cloud CI/CD system, the package will be       publicly linked to where it was built and published from. |</p>
 <h3 id="npm-stage-list"><code>npm stage list</code></h3>
 <p>List all staged package versions</p>
 <h4 id="synopsis3">Synopsis</h4>
