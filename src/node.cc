@@ -638,6 +638,26 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   }
 #endif  // __POSIX__
 #ifdef _WIN32
+  if (!(flags & ProcessInitializationFlags::kNoAdjustResourceLimits)) {
+    // Raise the CRT maxstdio / stdio streams limit on Windows.
+    // By default, up to 512 files can be open simultaneously at the
+    // stream I/O level. We increase this limit to the maximum possible
+    // (up to 8192) using `_setmaxstdio`. Since libuv internally calls
+    // _open_osfhandle when opening files on Windows, which is provided
+    // by the CRT and constrained by the maxstdio limit, raising this
+    // limit helps prevent "EMFILE: too many open files" errors.
+    // We try to set the limit starting from 8192 down to 512.
+    static constexpr int MIN_OPEN_FILES_LIMIT = 512;
+    static constexpr int MAX_OPEN_FILES_LIMIT = 8192;
+    static constexpr int STEP_OPEN_FILES_LIMIT = 512;
+    for (int i = MAX_OPEN_FILES_LIMIT; i >= MIN_OPEN_FILES_LIMIT;
+         i -= STEP_OPEN_FILES_LIMIT) {
+      if (_setmaxstdio(i) != -1) {
+        break;
+      }
+    }
+  }
+
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     for (int fd = 0; fd <= 2; ++fd) {
       auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
