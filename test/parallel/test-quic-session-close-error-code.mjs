@@ -29,13 +29,18 @@ const { listen, connect } = await import('../common/quic.mjs');
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      strictEqual(err.message.includes('42n'), true,
+      strictEqual(err.message.includes('42'), true,
                   'error message should contain the code');
       strictEqual(err.message.includes('client shutdown'), true,
                   'error message should contain the reason');
+      strictEqual(err.errorCode, 42n);
+      strictEqual(err.type, 'application');
+      strictEqual(err.reason, 'client shutdown');
     });
     await rejects(serverSession.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',
+      errorCode: 42n,
+      reason: 'client shutdown',
     });
     serverGot.resolve();
   }));
@@ -71,8 +76,10 @@ const { listen, connect } = await import('../common/quic.mjs');
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
-      strictEqual(err.message.includes('1n'), true,
+      strictEqual(err.message.includes('1'), true,
                   'error message should contain the code');
+      strictEqual(err.errorCode, 1n);
+      strictEqual(err.type, 'transport');
     });
     await rejects(serverSession.closed, {
       code: 'ERR_QUIC_TRANSPORT_ERROR',
@@ -102,7 +109,10 @@ const { listen, connect } = await import('../common/quic.mjs');
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onerror = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      strictEqual(err.message.includes('99n'), true);
+      strictEqual(err.message.includes('99'), true);
+      strictEqual(err.errorCode, 99n);
+      strictEqual(err.type, 'application');
+      strictEqual(err.reason, 'destroy with code');
     });
     await rejects(serverSession.closed, {
       code: 'ERR_QUIC_APPLICATION_ERROR',

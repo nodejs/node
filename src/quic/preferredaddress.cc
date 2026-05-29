@@ -140,7 +140,7 @@ void PreferredAddress::Initialize(Environment* env, Local<Object> target) {
   static constexpr auto PREFERRED_ADDRESS_IGNORE =
       static_cast<uint8_t>(Policy::IGNORE_PREFERRED);
   static constexpr auto DEFAULT_PREFERRED_ADDRESS_POLICY =
-      static_cast<uint8_t>(Policy::USE_PREFERRED);
+      static_cast<uint8_t>(Policy::IGNORE_PREFERRED);
 
   NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_IGNORE);
   NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_USE);

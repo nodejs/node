@@ -104,6 +104,7 @@ subSystemLabels:
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/modules/: module
+  /^lib\/internal\/source_map/: source maps
   /^lib\/internal\/webstreams/: web streams
   /^lib\/internal\/test_runner/: test_runner
   /^lib\/internal\/v8\//: v8 module
@@ -128,6 +129,8 @@ exlusiveLabels:
   /^test\/report\//: test, report
   /^test\/fixtures\/es-module/: test, esm
   /^test\/es-module\//: test, esm
+  /^test\/fixtures\/source-map/: test, source maps
+  /^test\/fixtures\/test-426/: test, source maps
   /^test\/fixtures\/wpt\/streams\//: test, web streams
   /^test\/fixtures\/typescript/: test, strip-types
   /^test\/module-hooks\//: test, module, loaders
@@ -214,6 +217,7 @@ allJsSubSystems:
   - url
   - util
   - v8
+  - vfs
   - vm
   - wasi
   - worker

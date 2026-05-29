@@ -330,7 +330,13 @@ If the requested version is a `dist-tag` and the given tag does not pass the
 will be used. For example, `foo@latest` might install `foo@1.2` even though
 `latest` is `2.0`.
 
-This config cannot be used with: `min-release-age`
+If `before` and `min-release-age` are both set in the same source, `before`
+wins (an explicit absolute date overrides a relative window). Across
+sources, the standard precedence applies (cli > env > project > user >
+global), so a higher-priority source can always relax or override a
+lower-priority one.
+
+
 
 #### `min-release-age`
 
@@ -343,9 +349,11 @@ are no versions available for the current set of dependencies, the command
 will error.
 
 This flag is a complement to `before`, which accepts an exact date instead
-of a relative number of days.
-
-This config cannot be used with: `before`
+of a relative number of days. The two may coexist (e.g. `min-release-age` in
+your `.npmrc` is preserved when npm internally spawns a sub-process with
+`--before` while preparing a `git:` or `github:` dependency); when both
+apply, `before` wins within a single source and across sources the standard
+precedence rules apply.
 
 This value is not exported to the environment for child processes.
 

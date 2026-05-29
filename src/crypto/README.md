@@ -186,7 +186,8 @@ All operations that are not either Stream-based or single-use functions
 are built around the `CryptoJob` class.
 
 A `CryptoJob` encapsulates a single crypto operation that can be
-invoked synchronously or asynchronously.
+invoked synchronously, asynchronously, or as a Web Crypto API
+Promise-based job.
 
 The `CryptoJob` class itself is a C++ template that takes a single
 `CryptoJobTraits` struct as a parameter. The `CryptoJobTraits`
@@ -228,14 +229,15 @@ specializations and will either be called synchronously within
 the current thread or from within the libuv threadpool.
 
 Every `CryptoJob` instance exposes a `run()` function to the
-JavaScript layer. When called, `run()` with either dispatch the
-job to the libuv threadpool or invoke the Implementation
-function synchronously. If invoked synchronously, run() will
-return a JavaScript array. The first value in the array is
-either an `Error` or `undefined`. If the operation was successful,
-the second value in the array will contain the result of the
-operation. Typically, the result is an `ArrayBuffer`, but
-certain `CryptoJob` types can alter the output.
+JavaScript layer. When called, `run()` will either dispatch the
+job to the libuv threadpool, invoke the Implementation function
+synchronously, or return a `Promise` for Web Crypto API jobs. If
+invoked synchronously, `run()` will return a JavaScript array.
+The first value in the array is either an `Error` or `undefined`.
+If the operation was successful, the second value in the array
+will contain the result of the operation. Typically, the result
+is an `ArrayBuffer`, but certain `CryptoJob` types can alter the
+output.
 
 If the `CryptoJob` is processed asynchronously, then the job
 must have an `ondone` property whose value is a function that
@@ -244,11 +246,19 @@ be called with two arguments. The first is either an `Error`
 or `undefined`, and the second is the result of the operation
 if successful.
 
+If the `CryptoJob` is processed as a Web Crypto API job, then
+`run()` returns a Promise. Operation-specific failures are
+rejected with an `OperationError`, and successful jobs resolve
+with the Web Crypto API result shape expected by the JavaScript
+implementation.
+
 For `CipherJob` types, the output is always an `ArrayBuffer`.
 
 For `KeyGenJob` types, the output is either a single KeyObject,
 or an array containing a Public/Private key pair represented
-either as a `KeyObjectHandle` object or a `Buffer`.
+either as a `KeyObjectHandle` object or a `Buffer`. Web Crypto
+API key generation jobs return a `CryptoKey` or a `CryptoKeyPair`
+object.
 
 For `DeriveBitsJob` type output is typically an `ArrayBuffer` but
 can be other values (`RandomBytesJob` for instance, fills an
@@ -273,11 +283,12 @@ should be used to throw JavaScript errors when necessary.
 
 ### Operation mode
 
-All crypto functions in Node.js operate in one of three
+All crypto functions in Node.js operate in one of these
 modes:
 
 * Synchronous single-call
 * Asynchronous single-call
+* Web Crypto API Promise-based
 * Stream-oriented
 
 It is often possible to perform various operations across

@@ -44,9 +44,13 @@ async function listen(callback, options = {}) {
 async function connect(address, options = {}) {
   const {
     alpn = 'quic-test',
+    // Test helper defaults to 'manual' because tests use self-signed
+    // certs without a CA. Tests that want to verify cert validation
+    // behavior should set verifyPeer explicitly.
+    verifyPeer = 'manual',
     ...rest
   } = options;
-  return quic.connect(address, { alpn, ...rest });
+  return quic.connect(address, { alpn, verifyPeer, ...rest });
 }
 
 export {

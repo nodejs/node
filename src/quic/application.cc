@@ -115,6 +115,13 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 
 #undef SET
 
+  // Ensure the advertised max_field_section_size in SETTINGS is at least
+  // as large as max_header_length. Otherwise the peer would be told to
+  // restrict headers to a smaller size than what CanAddHeader accepts.
+  if (options.max_field_section_size < options.max_header_length) {
+    options.max_field_section_size = options.max_header_length;
+  }
+
   return Just<Application_Options>(options);
 }
 
@@ -717,8 +724,11 @@ class DefaultApplication final : public Session::Application {
 
   void EarlyDataRejected() override {
     // Destroy all open streams — ngtcp2 has already discarded their
-    // internal state when it rejected the early data.
-    session().DestroyAllStreams(QuicError::ForApplication(0));
+    // internal state when it rejected the early data. Use the
+    // application's internal error code since this is an error
+    // condition (code 0 would be treated as a clean close).
+    session().DestroyAllStreams(
+        QuicError::ForApplication(GetInternalErrorCode()));
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }

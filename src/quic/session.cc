@@ -174,7 +174,8 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
   V(DATAGRAMS_RECEIVED, datagrams_received)                                    \
   V(DATAGRAMS_SENT, datagrams_sent)                                            \
   V(DATAGRAMS_ACKNOWLEDGED, datagrams_acknowledged)                            \
-  V(DATAGRAMS_LOST, datagrams_lost)
+  V(DATAGRAMS_LOST, datagrams_lost)                                            \
+  V(STREAMS_IDLE_TIMED_OUT, streams_idle_timed_out)
 
 #define NO_SIDE_EFFECT true
 #define SIDE_EFFECT false
@@ -617,7 +618,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
       !SET(cc_algorithm) || !SET(draining_period_multiplier) ||
-      !SET(max_datagram_send_attempts)) {
+      !SET(max_datagram_send_attempts) || !SET(stream_idle_timeout)) {
     return Nothing<Options>();
   }
 
@@ -2371,13 +2372,15 @@ bool Session::ReadPacket(const uint8_t* data,
       DCHECK(is_server());
       Debug(this, "Receiving packet failed: Server must send a retry packet");
       if (!is_destroyed()) {
-        endpoint().SendRetry(PathDescriptor{
-            version(),
-            config().dcid,
-            config().scid,
-            impl_->local_address_,
-            impl_->remote_address_,
-        });
+        endpoint().SendRetry(
+            PathDescriptor{
+                version(),
+                config().dcid,
+                config().scid,
+                impl_->local_address_,
+                impl_->remote_address_,
+            },
+            uv_hrtime());
         Close(CloseMethod::SILENT);
       }
       return false;
@@ -2809,24 +2812,36 @@ void Session::ShutdownStream(stream_id id, QuicError error) {
   DCHECK(!is_destroyed());
   Debug(this, "Shutting down stream %" PRIi64 " with error %s", id, error);
   SendPendingDataScope send_scope(this);
-  ngtcp2_conn_shutdown_stream(*this,
-                              0,
-                              id,
-                              error.type() == QuicError::Type::APPLICATION
-                                  ? error.code()
-                                  : application().GetNoErrorCode());
+  // STOP_SENDING and RESET_STREAM frames carry application-level error
+  // codes (RFC 9000 §19.4, §19.5). Map the QuicError to an appropriate
+  // application code: APPLICATION errors pass through directly; transport
+  // no-error maps to the application's no-error code; any other error
+  // maps to the application's internal error code.
+  error_code code;
+  if (error.type() == QuicError::Type::APPLICATION) {
+    code = error.code();
+  } else if (error.code() == NGTCP2_NO_ERROR) {
+    code = application().GetNoErrorCode();
+  } else {
+    code = application().GetInternalErrorCode();
+  }
+  ngtcp2_conn_shutdown_stream(*this, 0, id, code);
 }
 
-void Session::ShutdownStreamWrite(stream_id id, QuicError code) {
+void Session::ShutdownStreamWrite(stream_id id, QuicError error) {
   DCHECK(!is_destroyed());
-  Debug(this, "Shutting down stream %" PRIi64 " write with error %s", id, code);
+  Debug(
+      this, "Shutting down stream %" PRIi64 " write with error %s", id, error);
   SendPendingDataScope send_scope(this);
-  ngtcp2_conn_shutdown_stream_write(*this,
-                                    0,
-                                    id,
-                                    code.type() == QuicError::Type::APPLICATION
-                                        ? code.code()
-                                        : application().GetNoErrorCode());
+  error_code code;
+  if (error.type() == QuicError::Type::APPLICATION) {
+    code = error.code();
+  } else if (error.code() == NGTCP2_NO_ERROR) {
+    code = application().GetNoErrorCode();
+  } else {
+    code = application().GetInternalErrorCode();
+  }
+  ngtcp2_conn_shutdown_stream_write(*this, 0, id, code);
 }
 
 void Session::StreamDataBlocked(stream_id id) {
@@ -3025,6 +3040,39 @@ void Session::UpdateDataStats() {
       std::max(STAT_GET(Stats, max_bytes_in_flight), info.bytes_in_flight));
 }
 
+void Session::CheckStreamIdleTimeout(uint64_t now) {
+  if (is_destroyed()) return;
+  uint64_t timeout = options().stream_idle_timeout;
+  if (timeout == 0) return;
+
+  uint64_t timeout_ns = timeout * NGTCP2_MILLISECONDS;
+  auto all_streams = streams();
+
+  for (const auto& [id, stream] : all_streams) {
+    if (!stream) continue;
+
+    // Only check peer-initiated streams. Locally-initiated streams
+    // that haven't been written to are the application's concern.
+    if (ngtcp2_conn_is_local_stream(*this, id)) continue;
+
+    uint64_t last_activity = stream->last_activity_timestamp();
+    if (last_activity > 0 && (now - last_activity) > timeout_ns) {
+      Debug(this, "Stream %" PRId64 " idle timeout exceeded, destroying", id);
+      // Notify the peer before destroying. ShutdownStream sends both
+      // STOP_SENDING and RESET_STREAM as appropriate, using the
+      // application's no-error code for non-APPLICATION errors (since
+      // these frames carry application-level error codes per RFC 9000).
+      // Without this, the peer's stream sits orphaned until the
+      // session closes.
+      auto error =
+          QuicError::ForNgtcp2Error(NGTCP2_ERR_PROTO, "stream idle timeout");
+      ShutdownStream(id, error);
+      stream->Destroy(error);
+      STAT_INCREMENT(Stats, streams_idle_timed_out);
+    }
+  }
+}
+
 void Session::SendConnectionClose() {
   // Method is a non-op if the session is already destroyed or the
   // endpoint cannot send. Note: we intentionally do NOT check
@@ -3109,6 +3157,8 @@ void Session::OnTimeout() {
   if (is_destroyed()) return;
   if (NGTCP2_OK(ret) && !is_in_closing_period() && !is_in_draining_period()) {
     application().SendPendingData();
+    if (is_destroyed()) return;
+    CheckStreamIdleTimeout(uv_hrtime());
     return;
   }
   if (is_destroyed()) return;
@@ -3154,6 +3204,15 @@ void Session::UpdateTimer() {
 
   auto timeout = (expiry - now) / NGTCP2_MILLISECONDS;
   Debug(this, "Updating timeout to %zu milliseconds", timeout);
+
+  // If a stream idle timeout is configured, ensure the timer fires at
+  // least that often so CheckStreamIdleTimeout runs. Without this, an
+  // idle session with idle streams might not fire the timer until the
+  // connection idle timeout, which could be much longer.
+  uint64_t stream_idle = options().stream_idle_timeout;
+  if (stream_idle > 0 && timeout > stream_idle) {
+    timeout = stream_idle;
+  }
 
   // If timeout is zero here, it means our timer is less than a millisecond
   // off from expiry. Let's bump the timer to 1.
@@ -3392,10 +3451,19 @@ void Session::EmitClose(const QuicError& error) {
       Integer::New(env()->isolate(), static_cast<int>(error.type())),
       BigInt::NewFromUnsigned(env()->isolate(), error.code()),
       Undefined(env()->isolate()),
+      Undefined(env()->isolate()),
   };
   if (error.reason().length() > 0 &&
       !ToV8Value(env()->context(), error.reason()).ToLocal(&argv[2])) {
     return;
+  }
+
+  // Attach a human-readable name for known wire codes (RFC 9000 sec. 20.1
+  // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
+  // codes leave the slot as undefined. See QuicError::name() for the
+  // matching path on stream-level errors.
+  if (const char* n = error.name()) {
+    argv[3] = BindingData::Get(env()).error_name_string(n);
   }
 
   MakeCallback(

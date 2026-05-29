@@ -133,6 +133,8 @@ if (isMainThread) {
     'NativeModule internal/modules/esm/load',
     'NativeModule internal/modules/esm/resolve',
     'NativeModule internal/modules/esm/translators',
+    'NativeModule internal/modules/esm/module_job',
+    'NativeModule internal/modules/esm/module_map',
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.

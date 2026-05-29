@@ -256,6 +256,27 @@ t.test('node - with duplicate deps', t => {
   t.end()
 })
 
+t.test('node - with duplicate edges to same dep', t => {
+  // A node can have multiple outgoing edges resolving to the same
+  // `name@version` of the same edge type (e.g. a direct `dep1: ^1` plus an
+  // alias `dep1-aliased: npm:dep1@^1`). The resulting relationships must
+  // still be unique per (source, target, type) triple.
+  const node = { ...root,
+    edgesOut: [
+      { to: dep1 },
+      { to: dep1 },
+    ] }
+  const res = spdxOutput({ npm, nodes: [node, dep1] })
+  const depRels = res.relationships.filter(
+    r => r.spdxElementId === 'SPDXRef-Package-dep1-0.0.1'
+      && r.relatedSpdxElement === 'SPDXRef-Package-root-1.0.0'
+      && r.relationshipType === 'DEPENDENCY_OF'
+  )
+  t.equal(depRels.length, 1)
+  t.matchSnapshot(JSON.stringify(res))
+  t.end()
+})
+
 // Check that all of the generated test snapshots validate against the SPDX schema
 t.test('schema validation', t => {
   const ajv = new Ajv()

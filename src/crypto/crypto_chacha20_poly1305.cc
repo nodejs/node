@@ -48,7 +48,7 @@ bool ValidateIV(Environment* env,
     return false;
   }
 
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     params->iv = iv.ToCopy();
   } else {
     params->iv = iv.ToByteSource();
@@ -68,7 +68,7 @@ bool ValidateAdditionalData(Environment* env,
       return false;
     }
 
-    if (mode == kCryptoJobAsync) {
+    if (IsCryptoJobAsync(mode)) {
       params->additional_data = additional_data.ToCopy();
     } else {
       params->additional_data = additional_data.ToByteSource();
@@ -96,7 +96,7 @@ ChaCha20Poly1305CipherConfig& ChaCha20Poly1305CipherConfig::operator=(
 void ChaCha20Poly1305CipherConfig::MemoryInfo(MemoryTracker* tracker) const {
   // If mode is sync, then the data in each of these properties
   // is not owned by the ChaCha20Poly1305CipherConfig, so we ignore it.
-  if (mode == kCryptoJobAsync) {
+  if (IsCryptoJobAsync(mode)) {
     tracker->TrackFieldWithSize("iv", iv.size());
     tracker->TrackFieldWithSize("additional_data", additional_data.size());
   }

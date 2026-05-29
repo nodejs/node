@@ -700,8 +700,7 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
         if (desc.has_configurable()) {
           desc_for_sandbox->set_configurable(desc.configurable());
         }
-        // Set the property on the sandbox.
-        USE(sandbox->DefineProperty(context, property, *desc_for_sandbox));
+        return sandbox->DefineProperty(context, property, *desc_for_sandbox);
       };
 
   if (desc.has_get() || desc.has_set()) {
@@ -709,23 +708,23 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
         desc.has_get() ? desc.get() : Undefined(isolate).As<Value>(),
         desc.has_set() ? desc.set() : Undefined(isolate).As<Value>());
 
-    define_prop_on_sandbox(&desc_for_sandbox);
-    // TODO(https://github.com/nodejs/node/issues/52634): this should return
-    // kYes to behave according to the expected semantics.
+    if (define_prop_on_sandbox(&desc_for_sandbox).FromMaybe(false))
+      return Intercepted::kYes;
     return Intercepted::kNo;
   } else {
     Local<Value> value =
         desc.has_value() ? desc.value() : Undefined(isolate).As<Value>();
 
+    Maybe<bool> result;
     if (desc.has_writable()) {
       PropertyDescriptor desc_for_sandbox(value, desc.writable());
-      define_prop_on_sandbox(&desc_for_sandbox);
+      result = define_prop_on_sandbox(&desc_for_sandbox);
     } else {
       PropertyDescriptor desc_for_sandbox(value);
-      define_prop_on_sandbox(&desc_for_sandbox);
+      result = define_prop_on_sandbox(&desc_for_sandbox);
     }
-    // TODO(https://github.com/nodejs/node/issues/52634): this should return
-    // kYes to behave according to the expected semantics.
+
+    if (result.FromMaybe(false)) return Intercepted::kYes;
     return Intercepted::kNo;
   }
 }

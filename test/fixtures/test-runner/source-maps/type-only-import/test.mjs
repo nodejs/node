@@ -1,0 +1,1 @@
+import './dist/a.mjs';

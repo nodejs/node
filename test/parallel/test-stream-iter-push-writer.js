@@ -61,12 +61,9 @@ async function testWriteWithSignalRejects() {
 async function testWriteWithPreAbortedSignal() {
   const { writer, readable } = push({ highWaterMark: 1 });
 
-  const ac = new AbortController();
-  ac.abort();
-
   // Pre-aborted signal should reject immediately
   await assert.rejects(
-    writer.write('data', { signal: ac.signal }),
+    writer.write('data', { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 
@@ -232,6 +229,25 @@ async function testEndAsyncReturnValue() {
   await consume;
 }
 
+async function testEndAfterEndSyncWaitsForDrain() {
+  const { writer, readable } = push();
+  writer.writeSync('hello');
+  assert.strictEqual(writer.endSync(), -1);
+
+  let ended = false;
+  const end = writer.end().then((n) => {
+    ended = true;
+    return n;
+  });
+
+  await Promise.resolve();
+  assert.strictEqual(ended, false);
+
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of readable) { /* drain */ }
+  assert.strictEqual(await end, 5);
+}
+
 async function testWriteUint8Array() {
   const { writer, readable } = push();
   writer.write(new Uint8Array([72, 73])); // 'HI'
@@ -304,6 +320,44 @@ async function testFailRejectsPendingRead() {
   await assert.rejects(
     () => readPromise,
     { message: 'fail during read' },
+  );
+}
+
+// iterator.return() resolves a pending read with done:true
+async function testConsumerReturnResolvesPendingRead() {
+  const { readable } = push();
+
+  const iter = readable[Symbol.asyncIterator]();
+  const readPromise = iter.next();
+
+  await new Promise(setImmediate);
+
+  const returnResult = await iter.return();
+  assert.strictEqual(returnResult.value, undefined);
+  assert.strictEqual(returnResult.done, true);
+
+  const readResult = await readPromise;
+  assert.strictEqual(readResult.value, undefined);
+  assert.strictEqual(readResult.done, true);
+}
+
+// iterator.throw() rejects a pending read with the thrown error
+async function testConsumerThrowRejectsPendingRead() {
+  const { readable } = push();
+
+  const iter = readable[Symbol.asyncIterator]();
+  const readPromise = iter.next();
+
+  await new Promise(setImmediate);
+
+  const err = new Error('consumer read boom');
+  const throwResult = await iter.throw(err);
+  assert.strictEqual(throwResult.value, undefined);
+  assert.strictEqual(throwResult.done, true);
+
+  await assert.rejects(
+    () => readPromise,
+    (e) => e === err,
   );
 }
 
@@ -413,11 +467,14 @@ Promise.all([
   testOndrainProtocolErrorPropagates(),
   testFail(),
   testEndAsyncReturnValue(),
+  testEndAfterEndSyncWaitsForDrain(),
   testWriteUint8Array(),
   testOndrainWaitsForDrain(),
   testConsumerThrowRejectsWrites(),
   testEndResolvesPendingRead(),
   testFailRejectsPendingRead(),
+  testConsumerReturnResolvesPendingRead(),
+  testConsumerThrowRejectsPendingRead(),
   testEndRejectsPendingWrites(),
   testEndIdempotentWhenClosed(),
   testEndRejectsWhenErrored(),

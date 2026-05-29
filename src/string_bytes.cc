@@ -671,6 +671,40 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   }
 }
 
+MaybeLocal<Value> StringBytes::EncodeValidUtf8(Isolate* isolate,
+                                               const char* buf,
+                                               size_t buflen) {
+  CHECK_BUFLEN_IN_RANGE(buflen);
+  if (!buflen) return String::Empty(isolate);
+  buflen = keep_buflen_in_range(buflen);
+
+  // ASCII fast path
+  if (!simdutf::validate_ascii_with_errors(buf, buflen).error) {
+    return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
+  }
+
+  if (buflen >= 32) {
+    size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
+    if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
+      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+      return MaybeLocal<Value>();
+    }
+    return EncodeTwoByteString(
+        isolate, u16size, [buf, buflen, u16size](uint16_t* dst) {
+          size_t written = simdutf::convert_valid_utf8_to_utf16(
+              buf, buflen, reinterpret_cast<char16_t*>(dst));
+          CHECK_EQ(written, u16size);
+        });
+  }
+
+  Local<String> str;
+  if (!String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen)
+           .ToLocal(&str)) {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+  }
+  return str;
+}
+
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       const uint16_t* buf,
                                       size_t buflen) {

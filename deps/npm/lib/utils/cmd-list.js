@@ -55,6 +55,7 @@ const commands = [
   'search',
   'set',
   'shrinkwrap',
+  'stage',
   'star',
   'stars',
   'start',

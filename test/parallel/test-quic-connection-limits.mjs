@@ -49,6 +49,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 // First connection should succeed.
 const cs1 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 2 },
 });
 await cs1.opened;
@@ -56,6 +57,7 @@ await cs1.opened;
 // Second connection — server rejects with CONNECTION_REFUSED.
 const cs2 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 1 },
   onerror: mustCall((err) => {
     strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');

@@ -35,7 +35,7 @@ t.test('gitlab with all options provided', async t => {
 
   registry.trustCreate({ packageName })
 
-  await npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab-ci.yml', '--project', 'group/subgroup/repo', '--environment', 'production'])
+  await npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab-ci.yml', '--project', 'group/subgroup/repo', '--environment', 'production', '--allow-publish'])
 })
 
 t.test('gitlab with invalid project format', async t => {
@@ -61,7 +61,7 @@ t.test('gitlab with invalid project format', async t => {
   })
 
   await t.rejects(
-    npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab-ci.yml', '--project', 'invalid']),
+    npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab-ci.yml', '--project', 'invalid', '--allow-publish']),
     { message: /must be specified in the format/ }
   )
 })
@@ -89,7 +89,7 @@ t.test('gitlab with file as path', async t => {
   })
 
   await t.rejects(
-    npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab/ci.yml', '--project', 'group/repo']),
+    npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab/ci.yml', '--project', 'group/repo', '--allow-publish']),
     { message: /must be just a file not a path/ }
   )
 })
@@ -124,7 +124,7 @@ t.test('gitlab without environment', async t => {
 
   registry.trustCreate({ packageName })
 
-  await npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab-ci.yml', '--project', 'group/repo'])
+  await npm.exec('trust', ['gitlab', packageName, '--yes', '--file', '.gitlab-ci.yml', '--project', 'group/repo', '--allow-publish'])
 })
 
 t.test('bodyToOptions with all fields', t => {

@@ -45,10 +45,8 @@ async function testBytesAsyncLimit() {
 }
 
 async function testBytesAsyncAbort() {
-  const ac = new AbortController();
-  ac.abort();
   await assert.rejects(
-    () => bytes(from('data'), { signal: ac.signal }),
+    () => bytes(from('data'), { signal: AbortSignal.abort() }),
     { name: 'AbortError' },
   );
 }

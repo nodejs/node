@@ -1,9 +1,8 @@
 const Definition = require('@npmcli/config/lib/definitions/definition.js')
 const globalDefinitions = require('@npmcli/config/lib/definitions/definitions.js')
 const TrustCommand = require('../../trust-cmd.js')
-
-// UUID validation regex
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const { trustDefinitions } = require('../../trust-cmd.js')
+const { validateUUID } = require('../../utils/validate-uuid.js')
 
 class TrustCircleCI extends TrustCommand {
   static description = 'Create a trusted relationship between a package and CircleCI'
@@ -13,7 +12,7 @@ class TrustCircleCI extends TrustCommand {
   static providerEntity = 'CircleCI pipeline'
 
   static usage = [
-    '[package] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> [--context-id <uuid>...] [-y|--yes]',
+    '[package] --org-id <uuid> --project-id <uuid> --pipeline-definition-id <uuid> --vcs-origin <origin> [--context-id <uuid>...] [--allow-publish] [--allow-stage-publish] [-y|--yes]',
   ]
 
   static definitions = [
@@ -46,6 +45,8 @@ class TrustCircleCI extends TrustCommand {
       type: [null, String, Array],
       description: 'CircleCI context UUID to match',
     }),
+    trustDefinitions['allow-publish'],
+    trustDefinitions['allow-stage-publish'],
     // globals are alphabetical
     globalDefinitions['dry-run'],
     globalDefinitions.json,
@@ -54,9 +55,7 @@ class TrustCircleCI extends TrustCommand {
   ]
 
   validateUuid (value, fieldName) {
-    if (!UUID_REGEX.test(value)) {
-      throw new Error(`${fieldName} must be a valid UUID`)
-    }
+    validateUUID(value, fieldName)
   }
 
   validateVcsOrigin (value) {

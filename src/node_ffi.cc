@@ -312,28 +312,28 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
 
     // Attach the original signature type names so the JS wrapper can
     // rebuild the signature from a raw function when the caller did not
-    // pass parameters and result explicitly. The `lib.functions` accessor
+    // pass arguments and return explicitly. The `lib.functions` accessor
     // path relies on this.
-    Local<Value> params_arr;
-    if (!ToV8Value(context, fn->arg_type_names, isolate).ToLocal(&params_arr)) {
+    Local<Value> args_arr;
+    if (!ToV8Value(context, fn->arg_type_names, isolate).ToLocal(&args_arr)) {
       return MaybeLocal<Function>();
     }
     if (!ret->DefineOwnProperty(context,
-                                env->ffi_sb_params_symbol(),
-                                params_arr,
+                                env->ffi_sb_arguments_symbol(),
+                                args_arr,
                                 internal_attrs)
              .FromMaybe(false)) {
       return MaybeLocal<Function>();
     }
 
-    Local<Value> result_name;
+    Local<Value> return_name;
     if (!ToV8Value(context, fn->return_type_name, isolate)
-             .ToLocal(&result_name)) {
+             .ToLocal(&return_name)) {
       return MaybeLocal<Function>();
     }
     if (!ret->DefineOwnProperty(context,
-                                env->ffi_sb_result_symbol(),
-                                result_name,
+                                env->ffi_sb_return_symbol(),
+                                return_name,
                                 internal_attrs)
              .FromMaybe(false)) {
       return MaybeLocal<Function>();
@@ -1102,6 +1102,7 @@ Local<FunctionTemplate> DynamicLibrary::GetConstructorTemplate(
         static_cast<PropertyAttribute>(ReadOnly));
 
     SetProtoMethod(isolate, tmpl, "close", DynamicLibrary::Close);
+    SetProtoDispose(isolate, tmpl, DynamicLibrary::Close);
     SetProtoMethod(isolate, tmpl, "getFunction", DynamicLibrary::GetFunction);
     SetProtoMethod(isolate, tmpl, "getFunctions", DynamicLibrary::GetFunctions);
     SetProtoMethod(isolate, tmpl, "getSymbol", DynamicLibrary::GetSymbol);
@@ -1196,13 +1197,13 @@ static void Initialize(Local<Object> target,
       .Check();
   target
       ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kSbParams"),
-            env->ffi_sb_params_symbol())
+            FIXED_ONE_BYTE_STRING(isolate, "kSbArguments"),
+            env->ffi_sb_arguments_symbol())
       .Check();
   target
       ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "kSbResult"),
-            env->ffi_sb_result_symbol())
+            FIXED_ONE_BYTE_STRING(isolate, "kSbReturn"),
+            env->ffi_sb_return_symbol())
       .Check();
 }
 

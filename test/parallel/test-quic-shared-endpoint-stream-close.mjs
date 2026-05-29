@@ -51,6 +51,7 @@ const clientEndpoint = new QuicEndpoint();
 // The client receives the stateless reset and closes session 1.
 const client1 = await connect(serverEndpoint.address, {
   endpoint: clientEndpoint,
+  verifyPeer: 'manual',
   onerror: mustCall((err) => { assert.ok(err); }),
 });
 await client1.opened;
@@ -75,6 +76,7 @@ await assert.rejects(client1.closed, { code: 'ERR_QUIC_TRANSPORT_ERROR' });
 // for session 2 hangs.
 const client2 = await connect(serverEndpoint.address, {
   endpoint: clientEndpoint,
+  verifyPeer: 'manual',
   onerror(err) { /* marks promises as handled */ },
 });
 await client2.opened;

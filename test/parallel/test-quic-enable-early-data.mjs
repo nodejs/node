@@ -45,6 +45,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   servername: 'localhost',
   enableEarlyData: false,
 });

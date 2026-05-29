@@ -104,6 +104,135 @@ to negotiate the application protocol (via ALPN), authenticate the server (and
 optionally the client), exchange transport parameters, and establish shared keys
 for encryption.
 
+#### Certificate size and handshake performance
+
+QUIC includes an anti-amplification limit ([RFC 9000 Section 8.1][]) that
+restricts the server to sending at most three times the data received from
+the client before the client's address is validated. Because the client's
+Initial packet is typically around 1200 bytes, the server can send at most
+approximately 3600 bytes before it must wait for the client to acknowledge.
+
+The server's initial response is dominated by its TLS certificate chain. If
+the certificate chain exceeds the amplification limit, the handshake requires
+an additional round trip — the server must pause, wait for the client's
+acknowledgement, and then continue sending the remainder of the certificate.
+This eliminates QUIC's 1-RTT handshake advantage over TCP+TLS and can add
+50–100 ms or more of latency on the first connection, depending on the network
+path.
+
+To avoid this, servers should use compact certificate chains:
+
+* **Use ECDSA certificates** (P-256 or P-384) rather than RSA. ECDSA keys and
+  signatures are significantly smaller. A typical ECDSA P-256 certificate chain
+  with one intermediate is approximately 1.5–2 KB, well within the amplification
+  limit. An equivalent RSA-2048 chain is often 3–5 KB, which may exceed it.
+
+* **Minimize the certificate chain.** Include only the leaf certificate and
+  the necessary intermediate(s). Do not include the root certificate (clients
+  already have it in their trust store). Avoid cross-signed intermediates when
+  the self-signed root is already widely trusted.
+
+* **Prefer certificate authorities with short chains.** Some CAs issue
+  certificates with a single small intermediate, while others require multiple
+  large RSA intermediates. The choice of CA directly affects handshake latency.
+
+Certificate compression ([RFC 8879][]) can also address this issue by
+compressing the certificate chain during the handshake. However, Node.js does
+not currently support TLS certificate compression.
+
+### Rate limiting
+
+QUIC endpoints include built-in rate limiting to protect against
+denial-of-service attacks. There are two layers of defense:
+
+**Global rate limits** cap the total rate of stateless responses that the
+endpoint will send, regardless of the source address. These protect against
+floods from spoofed source IP addresses, where an attacker rotates through
+many fake source addresses to bypass per-host limits. Four types of stateless
+responses are independently rate-limited:
+
+* **Retry packets** — sent to validate a client's address during connection
+  setup. Configurable via [`endpointOptions.retryRate`][] and
+  [`endpointOptions.retryBurst`][].
+* **Stateless reset packets** — sent when the endpoint receives a packet for an
+  unknown session. Configurable via [`endpointOptions.statelessResetRate`][]
+  and [`endpointOptions.statelessResetBurst`][].
+* **Version negotiation packets** — sent when a client uses an unsupported QUIC
+  version. Configurable via [`endpointOptions.versionNegotiationRate`][] and
+  [`endpointOptions.versionNegotiationBurst`][].
+* **Immediate connection close packets** — sent when the server is busy or a
+  token is invalid. Configurable via [`endpointOptions.immediateCloseRate`][]
+  and [`endpointOptions.immediateCloseBurst`][].
+
+Each rate limit uses a token bucket: the endpoint can send up to the burst
+capacity instantly, and tokens refill at the configured rate per second. When
+the bucket is empty, additional responses of that type are silently dropped.
+The defaults (100 per second, burst of 200) are suitable for most deployments.
+
+**Per-host session creation rate limits** cap how fast a single remote address
+can create new sessions. This is tracked per validated remote address and
+prevents a single client from churning through sessions (rapidly connecting and
+disconnecting) to consume server resources. Configurable via
+[`endpointOptions.sessionCreationRate`][] and
+[`endpointOptions.sessionCreationBurst`][]. The defaults (50 per second, burst
+of 100) are generous enough for legitimate traffic patterns. For benchmarking
+scenarios where traffic comes from a single source, increase these values.
+
+In addition to rate limiting, the endpoint supports **concurrent connection
+limits** via `maxConnectionsPerHost` and `maxConnectionsTotal`, and a
+**busy mode** via [`endpoint.busy`][] that rejects all new connections.
+
+Rate limiting activity can be monitored through the endpoint's statistics
+object. Each rate limiter has a corresponding counter
+(e.g., `endpoint.stats.retryRateLimited`,
+`endpoint.stats.sessionCreationRateLimited`) that tracks how many responses
+were dropped. A non-zero value indicates the rate limiter is actively
+protecting the endpoint.
+
+#### Block lists
+
+Endpoints can filter incoming packets by source address using a
+[`net.BlockList`][]. The block list is checked before any QUIC processing
+occurs, so blocked packets consume no resources beyond the check itself.
+
+In **deny** mode (the default), packets from addresses in the list are dropped:
+
+```mjs
+import { BlockList } from 'node:net';
+import { listen } from 'node:quic';
+
+const blocked = new BlockList();
+blocked.addSubnet('192.168.1.0', 24);  // Block an entire subnet
+blocked.addAddress('10.0.0.5');        // Block a specific address
+
+const endpoint = await listen(onSession, {
+  endpoint: {
+    blockList: blocked,
+    blockListPolicy: 'deny',
+  },
+  // ...
+});
+```
+
+In **allow** mode, only packets from addresses in the list are accepted:
+
+```mjs
+const trusted = new BlockList();
+trusted.addSubnet('10.0.0.0', 8);
+
+const endpoint = await listen(onSession, {
+  endpoint: {
+    blockList: trusted,
+    blockListPolicy: 'allow',
+  },
+  // ...
+});
+```
+
+The block list is evaluated live — rules added or removed after the endpoint
+is created take effect immediately. The `endpoint.stats.packetsBlocked`
+counter tracks how many packets have been dropped by the filter.
+
 ### Applications
 
 Every `QuicSession` is associated with a single application protocol, negotiated
@@ -710,7 +839,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of QUIC retry attempts on this endpoint. Read only.
+* Type: {bigint} The total number of retry packets sent by this endpoint. Read only.
+
+### `endpointStats.retryRateLimited`
+
+* Type: {bigint} The total number of retry packets dropped by the global rate
+  limiter. Read only. A non-zero value indicates the endpoint is under retry
+  flood pressure.
 
 ### `endpointStats.versionNegotiationCount`
 
@@ -718,7 +853,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of sessions rejected due to QUIC version mismatch. Read only.
+* Type: {bigint} The total number of version negotiation packets sent by this
+  endpoint. Read only.
+
+### `endpointStats.versionNegotiationRateLimited`
+
+* Type: {bigint} The total number of version negotiation packets dropped by
+  the global rate limiter. Read only.
 
 ### `endpointStats.statelessResetCount`
 
@@ -726,7 +867,13 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of stateless resets handled by this endpoint. Read only.
+* Type: {bigint} The total number of stateless reset packets sent by this
+  endpoint. Read only.
+
+### `endpointStats.statelessResetRateLimited`
+
+* Type: {bigint} The total number of stateless reset packets dropped by the
+  global rate limiter. Read only.
 
 ### `endpointStats.immediateCloseCount`
 
@@ -734,7 +881,24 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* Type: {bigint} The total number of sessions that were closed before handshake completed. Read only.
+* Type: {bigint} The total number of immediate connection close packets sent
+  by this endpoint. Read only.
+
+### `endpointStats.immediateCloseRateLimited`
+
+* Type: {bigint} The total number of immediate connection close packets
+  dropped by the global rate limiter. Read only.
+
+### `endpointStats.sessionCreationRateLimited`
+
+* Type: {bigint} The total number of session creation attempts dropped by the
+  per-host rate limiter. Read only. A non-zero value indicates one or more
+  remote addresses are creating sessions faster than the configured rate allows.
+
+### `endpointStats.packetsBlocked`
+
+* Type: {bigint} The total number of incoming packets dropped by the
+  block list filter. Read only.
 
 ## Class: `QuicSession`
 
@@ -1514,6 +1678,11 @@ added: v23.8.0
 -->
 
 * Type: {bigint}
+
+### `sessionStats.streamsIdleTimedOut`
+
+* Type: {bigint} The total number of peer-initiated streams destroyed by the
+  stream idle timeout. Read only.
 
 ## Class: `QuicError`
 
@@ -2334,6 +2503,34 @@ added: v23.8.0
 
 If not specified the endpoint will bind to IPv4 `localhost` on a random port.
 
+#### `endpointOptions.blockList`
+
+* Type: {net.BlockList}
+
+An optional [`net.BlockList`][] instance for filtering incoming packets by
+source address. When configured, every received UDP packet is checked against
+the block list before any QUIC processing occurs, minimizing resource
+expenditure on blocked sources. The block list is evaluated live — rules
+added to the `BlockList` object after the endpoint is created take effect
+immediately.
+
+See [`endpointOptions.blockListPolicy`][] for how matches are interpreted.
+
+#### `endpointOptions.blockListPolicy`
+
+* Type: {string} One of `'deny'` or `'allow'`.
+* **Default:** `'deny'`
+
+Controls how the [`endpointOptions.blockList`][] is interpreted:
+
+* `'deny'` — Packets from addresses matching the block list are dropped.
+  All other addresses are accepted. This is the typical blocklist mode.
+* `'allow'` — Only packets from addresses matching the block list are
+  accepted. All other addresses are dropped. This is an allowlist mode
+  for restricting access to known clients.
+
+If no block list is configured, this option has no effect.
+
 #### `endpointOptions.addressLRUSize`
 
 <!-- YAML
@@ -2439,25 +2636,89 @@ addresses. When the limit is reached, new connections are refused with
 This limit can also be changed dynamically after construction via
 [`endpoint.maxConnectionsTotal`][].
 
-#### `endpointOptions.maxRetries`
+#### `endpointOptions.retryRate`
 
-<!-- YAML
-added: v23.8.0
--->
+* Type: {number}
+* **Default:** `100`
 
-* Type: {bigint|number}
+The maximum number of QUIC retry packets the endpoint will send per second.
+This is a global rate limit (not per-host) that caps the total server-wide
+retry response rate, preventing spoofed-source floods from consuming unbounded
+resources.
 
-Specifies the maximum number of QUIC retry attempts allowed per remote peer address.
+#### `endpointOptions.retryBurst`
 
-#### `endpointOptions.maxStatelessResetsPerHost`
+* Type: {number}
+* **Default:** `200`
 
-<!-- YAML
-added: v23.8.0
--->
+The maximum burst of retry packets allowed before rate limiting takes effect.
 
-* Type: {bigint|number}
+#### `endpointOptions.statelessResetRate`
 
-Specifies the maximum number of stateless resets that are allowed per remote peer address.
+* Type: {number}
+* **Default:** `100`
+
+The maximum number of stateless reset packets the endpoint will send per second.
+
+#### `endpointOptions.statelessResetBurst`
+
+* Type: {number}
+* **Default:** `200`
+
+The maximum burst of stateless reset packets allowed before rate limiting
+takes effect.
+
+#### `endpointOptions.versionNegotiationRate`
+
+* Type: {number}
+* **Default:** `100`
+
+The maximum number of version negotiation packets the endpoint will send per
+second.
+
+#### `endpointOptions.versionNegotiationBurst`
+
+* Type: {number}
+* **Default:** `200`
+
+The maximum burst of version negotiation packets allowed before rate limiting
+takes effect.
+
+#### `endpointOptions.immediateCloseRate`
+
+* Type: {number}
+* **Default:** `100`
+
+The maximum number of immediate connection close packets the endpoint will
+send per second.
+
+#### `endpointOptions.immediateCloseBurst`
+
+* Type: {number}
+* **Default:** `200`
+
+The maximum burst of immediate connection close packets allowed before rate
+limiting takes effect.
+
+#### `endpointOptions.sessionCreationRate`
+
+* Type: {number}
+* **Default:** `50`
+
+The maximum number of new sessions that a single remote address can create per
+second. This is a per-host rate limit tracked in the address validation LRU
+cache. It prevents a validated remote address from churning through sessions
+(rapidly opening and abandoning connections) faster than the server can handle.
+For benchmarking where traffic comes from a single source, set this to a high
+value.
+
+#### `endpointOptions.sessionCreationBurst`
+
+* Type: {number}
+* **Default:** `100`
+
+The maximum burst of new session creations allowed from a single remote address
+before rate limiting takes effect.
 
 #### `endpointOptions.retryTokenExpiration`
 
@@ -2746,9 +3007,15 @@ added: v23.8.0
 -->
 
 * Type: {string} One of `'use'`, `'ignore'`, or `'default'`.
+* **Default:** `'ignore'`
 
 When the remote peer advertises a preferred address, this option specifies whether
-to use it or ignore it.
+to use it or ignore it. The default is `'ignore'` because honoring a server's
+preferred address causes the client to migrate its connection to a different IP
+address, which can be exploited for data exfiltration attacks that are
+indistinguishable from legitimate QUIC connection migration at the network level.
+Set to `'use'` only when connecting to trusted servers that require preferred
+address migration.
 
 #### `sessionOptions.qlog`
 
@@ -2787,6 +3054,23 @@ Controls which datagram to drop when the pending datagram queue
 reported as lost via the `ondatagramstatus` callback.
 
 This option is immutable after session creation.
+
+#### `sessionOptions.streamIdleTimeout`
+
+* Type: {bigint|number}
+* **Default:** `30000` (30 seconds)
+
+The maximum time in milliseconds that a peer-initiated stream can be idle
+(no data received) before it is automatically destroyed. This protects
+against slowloris-style attacks where a remote peer opens streams but never
+sends data, holding server resources indefinitely. Only peer-initiated
+streams are checked — locally-initiated streams are the application's
+responsibility. Set to `0` to disable.
+
+The idle check runs as part of the normal send processing loop, so it adds
+no additional timers or event loop overhead. The
+`session.stats.streamsIdleTimedOut` counter tracks how many streams have been
+destroyed by this mechanism.
 
 #### `sessionOptions.maxDatagramSendAttempts`
 
@@ -2856,6 +3140,32 @@ Specifies the keep-alive timeout in milliseconds. When set to a non-zero
 value, PING frames will be sent automatically to keep the connection alive
 before the idle timeout fires. The value should be less than the effective
 idle timeout (`maxIdleTimeout` transport parameter) to be useful.
+
+#### `sessionOptions.verifyPeer` (client only)
+
+* Type: {string} One of `'strict'`, `'auto'`, or `'manual'`.
+* **Default:** `'auto'`
+
+Controls how the client handles server certificate validation:
+
+* `'strict'` — OpenSSL aborts the TLS handshake immediately if the server's
+  certificate fails validation. The `session.opened` promise rejects with a
+  TLS error. The application cannot inspect the certificate or the error
+  details. This is the most secure mode.
+
+* `'auto'` — The TLS handshake completes regardless of validation result.
+  If validation fails, the `session.opened` promise is rejected with an error
+  containing the validation reason, and the session is destroyed. The
+  `onhandshake` callback (if set) fires before rejection, allowing diagnostic
+  logging. This is the default and matches the behavior of `tls.connect()`
+  with `rejectUnauthorized: true`.
+
+* `'manual'` — The TLS handshake completes regardless of validation result.
+  The `session.opened` promise resolves with the handshake info, which includes
+  `validationErrorReason` and `validationErrorCode` if validation failed. The
+  application is responsible for checking these values and deciding whether to
+  continue. Use this mode for custom validation logic, certificate pinning, or
+  intentionally accepting self-signed certificates.
 
 #### `sessionOptions.servername` (client only)
 
@@ -4063,8 +4373,10 @@ throughput issues caused by flow control.
 [JSON-SEQ]: https://www.rfc-editor.org/rfc/rfc7464
 [NSS Key Log Format]: https://udn.realityripple.com/docs/Mozilla/Projects/NSS/Key_Log_Format
 [Permission Model]: permissions.md#permission-model
+[RFC 8879]: https://www.rfc-editor.org/rfc/rfc8879
 [RFC 8999]: https://www.rfc-editor.org/rfc/rfc8999
 [RFC 9000]: https://www.rfc-editor.org/rfc/rfc9000
+[RFC 9000 Section 8.1]: https://www.rfc-editor.org/rfc/rfc9000#section-8.1
 [RFC 9001]: https://www.rfc-editor.org/rfc/rfc9001
 [RFC 9002]: https://www.rfc-editor.org/rfc/rfc9002
 [RFC 9114]: https://www.rfc-editor.org/rfc/rfc9114
@@ -4087,11 +4399,25 @@ throughput issues caused by flow control.
 [`application.enableConnectProtocol`]: #sessionoptionsapplication
 [`application.enableDatagrams`]: #sessionoptionsapplication
 [`application.qpackMaxDTableCapacity`]: #sessionoptionsapplication
+[`endpoint.busy`]: #endpointbusy
 [`endpoint.maxConnectionsPerHost`]: #endpointmaxconnectionsperhost
 [`endpoint.maxConnectionsTotal`]: #endpointmaxconnectionstotal
+[`endpointOptions.blockListPolicy`]: #endpointoptionsblocklistpolicy
+[`endpointOptions.blockList`]: #endpointoptionsblocklist
+[`endpointOptions.immediateCloseBurst`]: #endpointoptionsimmediatecloseburst
+[`endpointOptions.immediateCloseRate`]: #endpointoptionsimmediatecloserate
+[`endpointOptions.retryBurst`]: #endpointoptionsretryburst
+[`endpointOptions.retryRate`]: #endpointoptionsretryrate
+[`endpointOptions.sessionCreationBurst`]: #endpointoptionssessioncreationburst
+[`endpointOptions.sessionCreationRate`]: #endpointoptionssessioncreationrate
+[`endpointOptions.statelessResetBurst`]: #endpointoptionsstatelessresetburst
+[`endpointOptions.statelessResetRate`]: #endpointoptionsstatelessresetrate
+[`endpointOptions.versionNegotiationBurst`]: #endpointoptionsversionnegotiationburst
+[`endpointOptions.versionNegotiationRate`]: #endpointoptionsversionnegotiationrate
 [`error.errorCode`]: #errorerrorcode
 [`fs.promises.open(path, 'r')`]: fs.md#fspromisesopenpath-flags-mode
 [`maxDatagramFrameSize`]: #transportparamsmaxdatagramframesize
+[`net.BlockList`]: net.md#class-netblocklist
 [`quic.connect()`]: #quicconnectaddress-options
 [`quic.listen()`]: #quiclistenonsession-options
 [`session.close()`]: #sessioncloseoptions
