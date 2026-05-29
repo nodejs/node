@@ -751,11 +751,6 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption(
       "--experimental-wasi-unstable-preview1", "", NoOp{}, kAllowedInEnvvar);
   AddOption("--expose-gc", "expose gc extension", V8Option{}, kAllowedInEnvvar);
-  AddOption("--async-context-frame",
-            "Improve AsyncLocalStorage performance with AsyncContextFrame",
-            BOOL_FIELD(async_context_frame),
-            kAllowedInEnvvar,
-            true);
   AddOption("--expose-internals", "", BOOL_FIELD(expose_internals));
   AddOption("--frozen-intrinsics",
             "experimental frozen intrinsics support",
