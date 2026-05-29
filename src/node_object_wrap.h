@@ -22,9 +22,8 @@
 #ifndef SRC_NODE_OBJECT_WRAP_H_
 #define SRC_NODE_OBJECT_WRAP_H_
 
-#include "node.h"
 #include <cassert>
-
+#include "node.h"
 
 namespace node {
 
@@ -135,9 +134,7 @@ class ObjectWrap {
     RemoveEnvironmentCleanupHook(v8::Isolate::GetCurrent(), CleanupHook, this);
   }
 
-  static void CleanupHook(void* arg) {
-    delete static_cast<ObjectWrap*>(arg);
-  }
+  static void CleanupHook(void* arg) { delete static_cast<ObjectWrap*>(arg); }
 
   // NOLINTNEXTLINE(runtime/v8_persistent)
   v8::Persistent<v8::Object> handle_;
