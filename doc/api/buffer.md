@@ -865,7 +865,7 @@ _may contain sensitive data_. Use [`buf.fill(0)`][`buf.fill()`] to initialize
 such `Buffer` instances with zeroes.
 
 When using [`Buffer.allocUnsafe()`][] to allocate new `Buffer` instances,
-allocations less than `Buffer.poolSize >>> 1` (4KiB when default poolSize is used) are sliced
+allocations less than `Buffer.poolSize >>> 1` (32KiB when default poolSize is used) are sliced
 from a single pre-allocated `Buffer`. This allows applications to avoid the
 garbage collection overhead of creating many individually allocated `Buffer`
 instances. This approach improves both performance and memory usage by
@@ -1497,9 +1497,13 @@ console.log(Buffer.isEncoding(''));
 
 <!-- YAML
 added: v0.11.3
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63597
+    description: Default raised from 8192 to 65536.
 -->
 
-* Type: {integer} **Default:** `8192`
+* Type: {integer} **Default:** `65536`
 
 This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
