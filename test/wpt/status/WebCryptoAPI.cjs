@@ -62,6 +62,7 @@ if (!hasOpenSSL(3, 5) && !process.features.openssl_is_boringssl) {
     'sign_verify/mldsa.tentative.https.any.js');
 
   skipSubtests(
+    ['getPublicKey.tentative.https.any.js', /ml-(?:kem|dsa)/i],
     ['supports-modern.tentative.https.any.js', /ml-(?:kem|dsa)/i]);
 }
 
@@ -88,6 +89,7 @@ if (process.features.openssl_is_boringssl) {
     ['encap_decap/encap_decap_keys.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/failures_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
     ['generateKey/successes_ML-KEM.tentative.https.any.js', /ml-kem-512/i],
+    ['getPublicKey.tentative.https.any.js', /ml-kem-512/i],
     ['import_export/ML-KEM_importKey.tentative.https.any.js', /ml-kem-512/i],
     ['serialization/mlkem.tentative.https.any.js', /ml-kem-512/i],
     ['supports-modern.tentative.https.any.js', /ml-kem-512/i]);
