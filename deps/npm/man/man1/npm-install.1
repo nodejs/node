@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "May 2026" "NPM@11.15.0" ""
+.TH "NPM-INSTALL" "1" "May 2026" "NPM@11.16.0" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -631,6 +631,42 @@ Type: "all", "none", or "root"
 Limits the ability for npm to fetch dependencies from urls. That is, dependencies that point to a tarball url instead of a version or semver range. Please note that this could leave your tree incomplete and some packages may not function as intended or designed. Changing this setting will not remove dependencies that are already installed.
 .P
 \fBall\fR allows any url to be installed. \fBnone\fR prevents any url from being installed. \fBroot\fR only allows urls defined in your project's package.json to be installed. Also allows url dependencies to be used for other commands like \fBnpm view\fR
+.SS "\fBallow-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Comma-separated list of packages whose install-time lifecycle scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry dependencies) are allowed to run.
+.P
+This setting is intended for one-off and global contexts: \fBnpm exec\fR, \fBnpx\fR, and \fBnpm install -g\fR, where no project \fBpackage.json\fR is involved. For team-wide policy in a project, use the \fBallowScripts\fR field in \fBpackage.json\fR (which also supports explicit denials), or configure it in \fB.npmrc\fR. Passing \fB--allow-scripts\fR on the command line during a project-scoped \fBnpm install\fR, \fBci\fR, \fBupdate\fR, or \fBrebuild\fR is an error.
+.P
+Each name is matched against a dependency's resolved identity, not against the package's self-reported name. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.SS "\fBstrict-allow-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+.P
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.SS "\fBdangerously-allow-all-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If \fBtrue\fR, bypass the \fBallowScripts\fR policy entirely and run every dependency install script regardless of whether it was approved or denied. Intended as a migration escape hatch only; its use is strongly discouraged. \fB--ignore-scripts\fR still takes precedence over this setting.
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4

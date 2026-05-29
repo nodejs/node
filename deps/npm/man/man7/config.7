@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "May 2026" "NPM@11.15.0" ""
+.TH "CONFIG" "7" "May 2026" "NPM@11.16.0" ""
 .SH "NAME"
 \fBConfig\fR - About npm configuration
 .SS "Description"
@@ -174,7 +174,7 @@ Warning: This should generally not be set via a command-line option. It is safer
 .IP \(bu 4
 Default: 'public' for new packages, existing packages it will not change the current level
 .IP \(bu 4
-Type: null, "restricted", or "public"
+Type: null, "restricted", "public", or "private"
 .RE 0
 
 .P
@@ -184,6 +184,8 @@ Unscoped packages cannot be set to \fBrestricted\fR.
 .P
 Note: This defaults to not changing the current access level for existing packages. Specifying a value of \fBrestricted\fR or \fBpublic\fR during publish will change the access for an existing package the same way that \fBnpm access set
 status\fR would.
+.P
+The value \fBprivate\fR is an alias for \fBrestricted\fR.
 .SS "\fBall\fR"
 .RS 0
 .IP \(bu 4
@@ -252,6 +254,40 @@ Type: Boolean
 
 .P
 Prevents throwing an error when \fBnpm version\fR is used to set the new version to the same value as the current version.
+.SS "\fBallow-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Comma-separated list of packages whose install-time lifecycle scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR, and \fBprepare\fR for non-registry dependencies) are allowed to run.
+.P
+This setting is intended for one-off and global contexts: \fBnpm exec\fR, \fBnpx\fR, and \fBnpm install -g\fR, where no project \fBpackage.json\fR is involved. For team-wide policy in a project, use the \fBallowScripts\fR field in \fBpackage.json\fR (which also supports explicit denials), or configure it in \fB.npmrc\fR. Passing \fB--allow-scripts\fR on the command line during a project-scoped \fBnpm install\fR, \fBci\fR, \fBupdate\fR, or \fBrebuild\fR is an error.
+.P
+Each name is matched against a dependency's resolved identity, not against the package's self-reported name. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
+.SS "\fBallow-scripts-pending\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+List packages with install scripts that are not yet covered by the \fBallowScripts\fR policy, without modifying \fBpackage.json\fR. Only meaningful for \fBnpm approve-scripts\fR.
+.SS "\fBallow-scripts-pin\fR"
+.RS 0
+.IP \(bu 4
+Default: true
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Write pinned (\fBpkg@version\fR) entries when approving install scripts. Set to \fBfalse\fR to write name-only entries that allow any version. Has no effect on \fBnpm deny-scripts\fR, which always writes name-only entries regardless of this setting.
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4
@@ -437,6 +473,16 @@ Type: null or String
 
 .P
 Override CPU architecture of native modules to install. Acceptable values are same as \fBcpu\fR field of package.json, which comes from \fBprocess.arch\fR.
+.SS "\fBdangerously-allow-all-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If \fBtrue\fR, bypass the \fBallowScripts\fR policy entirely and run every dependency install script regardless of whether it was approved or denied. Intended as a migration escape hatch only; its use is strongly discouraged. \fB--ignore-scripts\fR still takes precedence over this setting.
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
@@ -1759,6 +1805,18 @@ Type: Boolean
 If set to true, then the \fBnpm version\fR command will tag the version using \fB-s\fR to add a signature.
 .P
 Note that git requires you to have set up GPG keys in your git configs for this to work properly.
+.SS "\fBstrict-allow-scripts\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If \fBtrue\fR, turn the install-script policy from a warning into a hard error: any dependency with install scripts not covered by \fBallowScripts\fR will fail the install instead of running with a notice.
+.P
+Dependencies explicitly denied with \fBfalse\fR in \fBallowScripts\fR are always silently skipped; this setting only affects unreviewed entries. \fB--ignore-scripts\fR and \fB--dangerously-allow-all-scripts\fR both override this setting.
 .SS "\fBstrict-peer-deps\fR"
 .RS 0
 .IP \(bu 4

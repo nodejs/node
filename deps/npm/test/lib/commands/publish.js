@@ -742,6 +742,27 @@ t.test('restricted access', async t => {
   t.matchSnapshot(logs.notice)
 })
 
+t.test('private access', async t => {
+  const packageJson = {
+    name: '@npm/test-package',
+    version: '1.0.0',
+  }
+  const { npm, joinedOutput, logs, registry } = await loadNpmWithRegistry(t, {
+    config: {
+      ...auth,
+      access: 'private',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify(packageJson, null, 2),
+    },
+    authorization: token,
+  })
+  registry.publish('@npm/test-package', { packageJson, access: 'restricted' })
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+  t.matchSnapshot(logs.notice)
+})
+
 t.test('public access', async t => {
   const { npm, joinedOutput, logs, registry } = await loadNpmWithRegistry(t, {
     config: {
