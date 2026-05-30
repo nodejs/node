@@ -1065,7 +1065,7 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
                   message->GetLineNumber(env->context()).FromMaybe(-1),
                   msg);
       // Emit the warning immediately.
-      ProcessEmitWarningGeneric(env, warning, "V8");
+      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
