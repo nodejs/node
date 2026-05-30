@@ -96,6 +96,7 @@ const uint32_t kLenientOptionalLFAfterCR = 1 << 6;
 const uint32_t kLenientOptionalCRLFAfterChunk = 1 << 7;
 const uint32_t kLenientOptionalCRBeforeLF = 1 << 8;
 const uint32_t kLenientSpacesAfterChunkSize = 1 << 9;
+const uint32_t kLenientHeaderValueRelaxed = 1 << 10;
 const uint32_t kLenientAll =
     kLenientHeaders | kLenientChunkedLength | kLenientKeepAlive |
     kLenientTransferEncoding | kLenientVersion | kLenientDataAfterClose |
@@ -1006,6 +1007,11 @@ class Parser : public AsyncWrap, public StreamListener {
     if (lenient_flags & kLenientSpacesAfterChunkSize) {
       llhttp_set_lenient_spaces_after_chunk_size(&parser_, 1);
     }
+#if LLHTTP_VERSION_MAJOR * 1000 + LLHTTP_VERSION_MINOR >= 9004
+    if (lenient_flags & kLenientHeaderValueRelaxed) {
+      llhttp_set_lenient_header_value_relaxed(&parser_, 1);
+    }
+#endif
 
     header_nread_ = 0;
     url_.Reset();
@@ -1332,6 +1338,16 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
          Integer::NewFromUnsigned(isolate, kLenientOptionalCRBeforeLF));
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientSpacesAfterChunkSize"),
          Integer::NewFromUnsigned(isolate, kLenientSpacesAfterChunkSize));
+  // kLenientHeaderValueRelaxed requires llhttp >= 9.4.0 for the
+  // llhttp_set_lenient_header_value_relaxed() API. Export 0 on older
+  // shared-library builds so JS can detect feature availability.
+#if LLHTTP_VERSION_MAJOR * 1000 + LLHTTP_VERSION_MINOR >= 9004
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientHeaderValueRelaxed"),
+         Integer::NewFromUnsigned(isolate, kLenientHeaderValueRelaxed));
+#else
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientHeaderValueRelaxed"),
+         Integer::NewFromUnsigned(isolate, 0));
+#endif
 
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
          Integer::NewFromUnsigned(isolate, kLenientAll));

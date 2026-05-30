@@ -1,5 +1,6 @@
 const { resolve } = require('node:path')
 const libexec = require('libnpmexec')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
 const BaseCommand = require('../base-cmd.js')
 
 class Exec extends BaseCommand {
@@ -10,6 +11,9 @@ class Exec extends BaseCommand {
     'workspace',
     'workspaces',
     'include-workspace-root',
+    'allow-scripts',
+    'strict-allow-scripts',
+    'dangerously-allow-all-scripts',
   ]
 
   static name = 'exec'
@@ -74,8 +78,16 @@ class Exec extends BaseCommand {
       throw this.usageError()
     }
 
+    // Resolve the install-script policy from the user/global .npmrc layer
+    // only. The RFC requires exec/npx to ignore any project
+    // package.json#allowScripts; CLI flags still apply.
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm, {
+      skipProjectConfig: true,
+    })
+
     return libexec({
       ...flatOptions,
+      allowScripts: allowScriptsPolicy,
       // we explicitly set packageLockOnly to false because if it's true when we try to install a missing package, we won't actually install it
       packageLockOnly: false,
       // what the user asked to run args[0] is run by default

@@ -229,6 +229,8 @@ The exact order of execution is as follows:
 6. Run the `postversion` script.
    Use it to clean up the file system or automatically push the commit and/or tag.
 
+For the `preversion`, `version` and `postversion` scripts, npm also sets the [environment variables](/using-npm/scripts#environment) `npm_old_version` and `npm_new_version`.
+
 Take the following example:
 
 ```json
