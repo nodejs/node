@@ -358,3 +358,73 @@ test('flaky+subtest: a retried flaky test with subtests does not crash the run',
                'the flaky parent passes after retrying');
   assert.strictEqual(code, 0, `expected pass exit code, got ${code}`);
 });
+
+// Spawn a fixture under the TAP reporter with a FLAKY_STATE file it can write
+// to, and return the captured output plus the file's final contents.
+async function spawnFlaky(fixture, stateName) {
+  const stateFile = stateName ? tmpdir.resolve(stateName) : undefined;
+  const env = stateName ? { ...process.env, FLAKY_STATE: stateFile } : process.env;
+  const { code, stdout, stderr } = await common.spawnPromisified(
+    process.execPath, ['--test-reporter=tap', fixture], { env },
+  );
+  const state = stateFile ? require('node:fs').readFileSync(stateFile, 'utf8') : undefined;
+  return { code, stdout, stderr, state };
+}
+
+test('flaky: expectFailure that unexpectedly passes is not retried', async () => {
+  const { state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/expectfailure-no-retry.js'), 'xf-noretry.txt');
+  assert.strictEqual(state.length, 1, `body ran ${state.length}x; expectFailure must not retry`);
+});
+
+test('flaky: parent retries when only a subtest fails', async () => {
+  const { code, state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/parent-subtest-retry.js'), 'parent-subtest.txt');
+  assert.strictEqual(state, '3', `parent body ran ${state}x; expected 3 (retry until child passes)`);
+  assert.strictEqual(code, 0, `parent must ultimately pass, got exit ${code}`);
+});
+
+test('flaky: tracing channel start/end stay balanced across retries', async () => {
+  const { state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/tracing-balance.js'), 'tracing.txt');
+  const { 0: starts, 1: ends } = state.split(',');
+  assert.strictEqual(starts, ends, `tracing start/end imbalance: starts=${starts} ends=${ends}`);
+});
+
+test('flaky: a flaky test does not propagate flakiness to its subtests', async () => {
+  const { stdout } = await tap(fixtures.path('test-runner/flaky/subtest-no-inherit.js'));
+  assert.match(stdout, /# flaky 1$/m);
+  assert.doesNotMatch(stdout, /# flaky 2$/m);
+});
+
+test('flaky: MockTracker is reset between retries', async () => {
+  const { code, stdout } = await tap(fixtures.path('test-runner/flaky/mock-reset.js'));
+  assert.match(stdout, /^ok 1 - mock is reset between retries/m);
+  assert.strictEqual(code, 0, `mock must be restored each retry, got exit ${code}`);
+});
+
+test('flaky: test-level after hook runs after the final attempt', async () => {
+  const { code, state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/after-final-attempt.js'), 'after-final.txt');
+  assert.strictEqual(state, '3', `after ran at attempt ${state}; expected the final attempt (3)`);
+  assert.strictEqual(code, 0);
+});
+
+test('flaky: a retried attempt aborts the previous attempt signal', async () => {
+  const { code, stdout } = await tap(fixtures.path('test-runner/flaky/timeout-abort-prev.js'));
+  assert.match(stdout, /^ok 1 - previous attempt signal is aborted before retry/m);
+  assert.strictEqual(code, 0, `previous attempt signal must be aborted, got exit ${code}`);
+});
+
+test('flaky: in-flight subtest on a discarded attempt does not corrupt the run', async () => {
+  const { code, stdout } = await tap(fixtures.path('test-runner/flaky/subtest-inflight.js'));
+  assert.match(stdout, /# tests \d+/, 'a summary must be emitted (no crash/hang)');
+  assert.strictEqual(code, 0, `the flaky parent must ultimately pass, got exit ${code}`);
+});
+
+test('flaky: expectFailure error is still published to the node.test channel', async () => {
+  const { code, state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/expectfailure-publish.js'), 'xf-publish.txt');
+  assert.ok(Number(state) > 0, `error channel got ${state} publishes; expected > 0`);
+  assert.strictEqual(code, 0, `expectFailure throw => test passes, got exit ${code}`);
+});
