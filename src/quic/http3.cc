@@ -648,6 +648,24 @@ class Http3ApplicationImpl final : public Session::Application {
     return false;
   }
 
+  bool MakeWebtransportStream(const Stream& stream, int64_t sessionid) override {
+    Session::SendPendingDataScope send_scope(&session());
+    static constexpr nghttp3_data_reader reader = {on_read_data_callback};
+    const nghttp3_data_reader* reader_ptr = &reader; // can use the same reader
+    printf("mws in mark 3\n");
+
+    Debug(&session(),
+              "Make stream %" PRIu64 " webtransport stream of session %" PRIu64,
+              stream.id(),
+              sessionid);
+    return nghttp3_conn_open_wt_data_stream(*this,
+                                     sessionid,
+                                     stream.id(),
+                                     reader_ptr,
+                                     const_cast<Stream*>(&stream))
+                                     == 0;
+  }
+
   void SetStreamPriority(const Stream& stream,
                          StreamPriority priority,
                          StreamPriorityFlags flags) override {

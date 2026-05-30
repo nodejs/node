@@ -206,6 +206,14 @@ class Session::Application : public MemoryRetainer {
     return false;
   }
 
+  // connects the webtransport session stream to stream object,
+  // it also sends some initial bytes to the wire to signal
+  // the other side, that this is a webtransport stream
+  virtual bool MakeWebtransportStream(const Stream& stream,
+     int64_t sessionid)  {
+      return false;
+  }
+
   // Returns true if the application protocol supports sending and
   // receiving headers on streams (e.g. HTTP/3). Applications that
   // do not support headers should return false (the default).
