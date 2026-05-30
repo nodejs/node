@@ -299,6 +299,7 @@ class BindingData final
   JS_METHOD(SetCallbacks);
   JS_METHOD(SendHeaders);
   JS_METHOD(SetHeadersInterest);
+  JS_METHOD(MakeWebtransportStream);
 
   // Lazily-created per-Realm SessionManager. Centralizes CID -> Session
   // routing so that any endpoint can route packets to any session.

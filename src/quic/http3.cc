@@ -159,6 +159,7 @@ struct Http3StreamState final : public StreamApplicationState {
   size_t headers_length = 0;
   bool wants_headers = false;
   bool wants_trailers = false;
+  int64_t pending_webtransport_session_ = -1;
 };
 
 // Implements the low-level HTTP/3 Application semantics.
@@ -533,19 +534,29 @@ class Http3ApplicationImpl final : public Session::Application {
 
   bool StreamOpened(Stream& stream) override {
     auto* state = GetStreamState(stream);
-    if (state == nullptr || state->pending_headers.empty()) return true;
+    if (state == nullptr) return true;
 
-    decltype(state->pending_headers) pending;
-    state->pending_headers.swap(pending);
-    Session::SendPendingDataScope send_scope(&session());
-    for (auto& headers : pending) {
-      if (!SubmitHeaders(stream,
-                         headers->kind,
-                         headers->headers.Get(env()->isolate()),
-                         headers->flags)) {
-        return false;
+    if (!state->pending_headers.empty()) {
+      decltype(state->pending_headers) pending;
+      state->pending_headers.swap(pending);
+      Session::SendPendingDataScope send_scope(&session());
+      for (auto& headers : pending) {
+        if (!SubmitHeaders(stream,
+                           headers->kind,
+                           headers->headers.Get(env()->isolate()),
+                           headers->flags)) {
+          return false;
+        }
       }
     }
+
+    if (state->pending_webtransport_session_ < 0) return true;
+
+    if (!MakeWebtransportStream(stream,
+      state->pending_webtransport_session_)) {
+      return false;
+    }
+    state->pending_webtransport_session_ = 0;
     return true;
   }
 
@@ -578,6 +589,30 @@ class Http3ApplicationImpl final : public Session::Application {
     auto& state = GetOrCreateStreamState(stream);
     state.wants_headers = wants_headers;
     state.wants_trailers = wants_trailers;
+  }
+
+  bool MakeWebtransportStream(Stream& stream, int64_t sessionid) override {
+    if (stream.is_pending()) {
+      Debug(&session(),
+            "Enqueing Webtransport Session strean for pending stream");
+      auto& state = GetOrCreateStreamState(stream);
+      state.pending_webtransport_session_ = sessionid;
+      return true;
+    }
+    Session::SendPendingDataScope send_scope(&session());
+    static constexpr nghttp3_data_reader reader = {on_read_data_callback};
+    const nghttp3_data_reader* reader_ptr = &reader;  // can use the same reader
+
+    Debug(&session(),
+              "Make stream %" PRIu64 " webtransport stream of session %" PRIu64,
+              stream.id(),
+              sessionid);
+    return nghttp3_conn_open_wt_data_stream(*this,
+                                     sessionid,
+                                     stream.id(),
+                                     reader_ptr,
+                                     const_cast<Stream*>(&stream))
+                                     == 0;
   }
 
   void SetStreamPriority(const Stream& stream,

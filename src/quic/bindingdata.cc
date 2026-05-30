@@ -294,6 +294,10 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   SetMethod(realm->context(), target, "setCallbacks", SetCallbacks);
   SetMethod(realm->context(), target, "sendHeaders", SendHeaders);
   SetMethod(realm->context(), target, "setHeadersInterest", SetHeadersInterest);
+  SetMethod(realm->context(),
+            target,
+            "makeWebtransportStream",
+            MakeWebtransportStream);
 
   constexpr int QUIC_STREAM_HEADERS_KIND_HINTS =
       static_cast<uint8_t>(HeadersKind::HINTS);
@@ -324,6 +328,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(SetCallbacks);
   registry->Register(SendHeaders);
   registry->Register(SetHeadersInterest);
+  registry->Register(MakeWebtransportStream);
 }
 
 JS_METHOD_IMPL(BindingData::SendHeaders) {
@@ -348,6 +353,23 @@ JS_METHOD_IMPL(BindingData::SetHeadersInterest) {
   CHECK(args[2]->IsBoolean());
   stream->session().application().SetHeadersInterest(
       *stream, args[1]->IsTrue(), args[2]->IsTrue());
+}
+
+// Connects a stream to a webtransport session stream,
+// also sends the initial bytes of a stream to signel the wt stream
+// also connects the readers
+JS_METHOD_IMPL(BindingData::MakeWebtransportStream) {
+  Stream* stream;
+  CHECK_GT(args.Length(), 1);
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsObject());
+  Stream* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args[1].As<v8::Object>());
+  args.GetReturnValue()
+      .Set(stream->session()
+      .application().MakeWebtransportStream(
+                      *stream,
+                      session->id()));
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)
