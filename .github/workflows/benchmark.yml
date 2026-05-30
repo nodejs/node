@@ -183,9 +183,10 @@ jobs:
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
-            --pure --keep LC_ALL --keep LANG \
+            --pure \
             -E '(import <nixpkgs> {}).mkShell { buildInputs = import ./tools/nix/benchmarkTools.nix { withHttpBenchmarkDeps = false; }; }' \
             --run '
+                export LC_ALL=C.UTF-8
                 echo "> [!WARNING] "
                 echo "> Do not take GHA benchmark results as face value, always confirm them"
                 echo "> using a dedicated machine, e.g. Jenkins CI."
