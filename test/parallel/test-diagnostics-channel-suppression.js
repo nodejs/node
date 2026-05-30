@@ -77,12 +77,12 @@ const { AsyncLocalStorage } = require('async_hooks');
   ch.subscribe(h1, { subscriberId: k1 });
   ch.subscribe(h2, { subscriberId: k2 });
 
-  suppressed(k1, common.mustSucceed(() => {
+  suppressed(k1, common.mustCall(() => {
     // Inside k1, h1 skipped, h2 runs
     ch.publish({});
     assert.strictEqual(h2Calls, 1);
 
-    suppressed(k2, common.mustSucceed(() => {
+    suppressed(k2, common.mustCall(() => {
       // Inside both, both skipped
       ch.publish({});
       assert.strictEqual(h2Calls, 1);
@@ -188,7 +188,7 @@ const { AsyncLocalStorage } = require('async_hooks');
 {
   const key = Symbol('return');
   const receiver = { value: 41 };
-  const result = suppressed(key, common.mustSucceed(function(a, b) {
+  const result = suppressed(key, common.mustCall(function(a, b) {
     assert.strictEqual(this, receiver);
     assert.strictEqual(a, 'a');
     assert.strictEqual(b, 'b');
