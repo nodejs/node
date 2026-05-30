@@ -24,7 +24,7 @@ const { AsyncLocalStorage } = require('async_hooks');
   const key = Symbol('tracer2');
   const ch = channel('test-suppression-nonopted');
   const optedHandler = common.mustNotCall();
-  const regularHandler = common.mustCall(() => {}, 1);
+  const regularHandler = common.mustCall();
   ch.subscribe(optedHandler, { subscriberId: key });
   ch.subscribe(regularHandler); // no suppression
 
