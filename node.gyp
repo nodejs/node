@@ -1060,23 +1060,6 @@
         [ 'node_use_lief=="true" and node_shared_lief=="true"', {
           'defines': [ 'HAVE_LIEF=1' ],
         }],
-        [ 'node_use_sqlite=="true"', {
-          'sources': [
-            '<@(node_sqlite_sources)',
-          ],
-        }],
-        [ 'node_use_ffi=="true"', {
-          'sources': [
-            '<@(node_ffi_sources)',
-          ],
-          'conditions': [
-            [ 'node_shared_ffi=="false"', {
-              'dependencies': [
-                'deps/libffi/libffi.gyp:libffi',
-              ],
-            }],
-          ],
-        }],
         [ 'node_use_quic=="true"', {
           'sources': [
             '<@(node_quic_sources)',
