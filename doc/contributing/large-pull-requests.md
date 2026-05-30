@@ -14,10 +14,6 @@
 
 ## Overview
 
-Large pull requests are difficult to review or sometimes impossible to review in the GitHub UI. They are likely to sit
-for a long time without receiving adequate review, and when they do get reviewed,
-the quality of that review is often lower due to reviewer fatigue. Contributors
-should avoid creating large pull requests except in those cases where it is
 Large pull requests are difficult to review or sometimes impossible to review
 in the GitHub UI. They are likely to sit for a long time without receiving
 adequate review, and when they do get reviewed, the quality of that review is
