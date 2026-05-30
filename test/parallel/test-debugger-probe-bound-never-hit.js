@@ -16,7 +16,7 @@ spawnSyncAndAssert(process.execPath, [
   '--probe', 'probe-bound-never-hit.js:4',
   '--expr', '1',
   'probe-bound-never-hit.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   stdout(output) {
     assertProbeJson(output, {
       v: 2,
