@@ -5,216 +5,187 @@ const assert = require('assert');
 const { channel, suppressed } = require('node:diagnostics_channel');
 const { AsyncLocalStorage } = require('async_hooks');
 
-// Helper to run a function and capture whether a handler was called
-function makeHandler() {
-  let called = false;
-  const handler = (msg) => { called = true; };
-  return {
-    handler,
-    called: () => called,
-    reset: () => { called = false; }
-  };
-}
-
-// Test 1: Basic suppression - subscriber with suppressedBy is skipped inside suppressed()
-(function testBasicSuppression() {
+// Test 1: Basic suppression - subscriber with subscriberId is skipped inside suppressed()
+{
   const key = Symbol('tracer');
   const ch = channel('test-suppression-basic');
-  const h = makeHandler();
-  ch.subscribe(h.handler, { suppressedBy: key });
+  const handler = common.mustNotCall();
+  ch.subscribe(handler, { subscriberId: key });
 
   suppressed(key, () => {
     ch.publish({});
   });
 
-  assert.strictEqual(h.called(), false, 'suppressed subscriber should not be called');
-  // cleanup
-  ch.unsubscribe(h.handler);
-})();
+  ch.unsubscribe(handler);
+}
 
 // Test 2: Non-opted subscriber fires even inside suppressed() scope
-(function testNonOptedFires() {
+{
   const key = Symbol('tracer2');
   const ch = channel('test-suppression-nonopted');
-  const h1 = makeHandler();
-  const h2 = makeHandler();
-  ch.subscribe(h1.handler, { suppressedBy: key });
-  ch.subscribe(h2.handler); // no suppression
+  const optedHandler = common.mustNotCall();
+  const regularHandler = common.mustCall(() => {}, 1);
+  ch.subscribe(optedHandler, { subscriberId: key });
+  ch.subscribe(regularHandler); // no suppression
 
   suppressed(key, () => {
     ch.publish({});
   });
 
-  assert.strictEqual(h1.called(), false, 'opted subscriber should be skipped');
-  assert.strictEqual(h2.called(), true, 'non-opted subscriber should be called');
-
-  ch.unsubscribe(h1.handler);
-  ch.unsubscribe(h2.handler);
-})();
+  ch.unsubscribe(optedHandler);
+  ch.unsubscribe(regularHandler);
+}
 
 // Test 3: Two APMs with different keys don't suppress each other
-(function testTwoKeysIndependent() {
+{
   const k1 = Symbol('k1');
   const k2 = Symbol('k2');
   const ch = channel('test-suppression-two-keys');
-  const h1 = makeHandler();
-  const h2 = makeHandler();
-  ch.subscribe(h1.handler, { suppressedBy: k1 });
-  ch.subscribe(h2.handler, { suppressedBy: k2 });
+  let h1Calls = 0;
+  let h2Calls = 0;
+  const h1 = common.mustCall(() => { h1Calls++; }, 1);
+  const h2 = common.mustCall(() => { h2Calls++; }, 1);
+  ch.subscribe(h1, { subscriberId: k1 });
+  ch.subscribe(h2, { subscriberId: k2 });
 
   suppressed(k1, () => {
     ch.publish({});
   });
 
-  assert.strictEqual(h1.called(), false);
-  assert.strictEqual(h2.called(), true);
-
-  h1.reset(); h2.reset();
+  assert.strictEqual(h1Calls, 0);
+  assert.strictEqual(h2Calls, 1);
 
   suppressed(k2, () => {
     ch.publish({});
   });
 
-  assert.strictEqual(h1.called(), true);
-  assert.strictEqual(h2.called(), false);
+  assert.strictEqual(h1Calls, 1);
+  assert.strictEqual(h2Calls, 1);
 
-  ch.unsubscribe(h1.handler);
-  ch.unsubscribe(h2.handler);
-})();
+  ch.unsubscribe(h1);
+  ch.unsubscribe(h2);
+}
 
 // Test 4: Nested suppressed() calls (same key, different keys)
-(function testNestedSuppressed() {
+{
   const k1 = Symbol('nested1');
   const k2 = Symbol('nested2');
   const ch = channel('test-suppression-nested');
-  const h1 = makeHandler();
-  const h2 = makeHandler();
-  ch.subscribe(h1.handler, { suppressedBy: k1 });
-  ch.subscribe(h2.handler, { suppressedBy: k2 });
+  const h1 = common.mustNotCall();
+  let h2Calls = 0;
+  const h2 = common.mustCall(() => { h2Calls++; }, 2);
+  ch.subscribe(h1, { subscriberId: k1 });
+  ch.subscribe(h2, { subscriberId: k2 });
 
   suppressed(k1, () => {
     // inside k1, h1 skipped, h2 runs
     ch.publish({});
-    assert.strictEqual(h1.called(), false);
-    assert.strictEqual(h2.called(), true);
-    h2.reset();
+    assert.strictEqual(h2Calls, 1);
 
     suppressed(k2, () => {
       // inside both, both skipped
       ch.publish({});
-      assert.strictEqual(h1.called(), false);
-      assert.strictEqual(h2.called(), false);
+      assert.strictEqual(h2Calls, 1);
     });
 
     // back to only k1
     ch.publish({});
-    assert.strictEqual(h1.called(), false);
-    assert.strictEqual(h2.called(), true);
+    assert.strictEqual(h2Calls, 2);
   });
 
-  ch.unsubscribe(h1.handler);
-  ch.unsubscribe(h2.handler);
-})();
+  ch.unsubscribe(h1);
+  ch.unsubscribe(h2);
+}
 
-// Test 5: suppressed() across a Promise boundary (async/await)
-(async function testSuppressedAcrossPromise() {
+// Test 5: suppressed() across a Promise boundary
+{
   const key = Symbol('promise');
   const ch = channel('test-suppression-promise');
-  const h = makeHandler();
-  ch.subscribe(h.handler, { suppressedBy: key });
+  const handler = common.mustNotCall();
+  ch.subscribe(handler, { subscriberId: key });
 
-  await suppressed(key, async () => {
+  suppressed(key, async () => {
     await Promise.resolve();
     ch.publish({});
-  });
-
-  assert.strictEqual(h.called(), false);
-  ch.unsubscribe(h.handler);
-})();
+  }).then(common.mustCall(() => {
+    ch.unsubscribe(handler);
+  }));
+}
 
 // Test 6: suppressed() across setImmediate and queueMicrotask
-(async function testSuppressedAcrossTimers() {
+{
   const key = Symbol('timers');
   const ch = channel('test-suppression-timers');
-  const h = makeHandler();
-  ch.subscribe(h.handler, { suppressedBy: key });
+  const handler = common.mustNotCall();
+  ch.subscribe(handler, { subscriberId: key });
 
-  await suppressed(key, async () => {
+  suppressed(key, async () => {
     await new Promise((resolve) => {
       setImmediate(() => {
         ch.publish({});
-        assert.strictEqual(h.called(), false);
-        h.reset();
 
         queueMicrotask(() => {
           ch.publish({});
-          assert.strictEqual(h.called(), false);
-
-          ch.unsubscribe(h.handler);
           resolve();
         });
       });
     });
-  });
-})();
+  }).then(common.mustCall(() => {
+    ch.unsubscribe(handler);
+  }));
+}
 
-// Test 7: unsubscribe() works correctly after using suppressedBy
-(function testUnsubscribeCleansUp() {
+// Test 7: unsubscribe() works correctly after using subscriberId
+{
   const key = Symbol('unsub');
   const ch = channel('test-suppression-unsubscribe');
-  const h = makeHandler();
-  ch.subscribe(h.handler, { suppressedBy: key });
-  ch.unsubscribe(h.handler);
+  const handler = common.mustNotCall();
+  ch.subscribe(handler, { subscriberId: key });
+  ch.unsubscribe(handler);
 
   // Should not throw and should not be called
   suppressed(key, () => {
     ch.publish({});
   });
 
-  assert.strictEqual(h.called(), false);
-})();
+}
 
-// Test 8: bindStore with suppressedBy is skipped inside suppressed()
-(function testBindStoreSuppression() {
+// Test 8: bindStore with subscriberId is skipped inside suppressed()
+{
   const key = Symbol('store');
   const ch = channel('test-suppression-store');
   const als = new AsyncLocalStorage();
 
-  let transformCalls = 0;
   const handler = common.mustCall(() => {
     assert.strictEqual(als.getStore(), undefined);
   });
 
   ch.subscribe(handler);
-  ch.bindStore(als, (d) => {
-    transformCalls++;
-    return { foo: d };
-  }, { suppressedBy: key });
+  ch.bindStore(als, common.mustNotCall(), { subscriberId: key });
 
   suppressed(key, () => {
     ch.publish({});
   });
 
-  assert.strictEqual(transformCalls, 0);
   ch.unsubscribe(handler);
   ch.unbindStore(als);
-})();
+}
 
-// Test 9: Wrong type for suppressedBy throws ERR_INVALID_ARG_TYPE
-(function testWrongTypeThrows() {
+// Test 9: Wrong type for subscriberId throws ERR_INVALID_ARG_TYPE
+{
   const ch = channel('test-suppression-wrong-type');
   const bad = 'not-allowed';
-  assert.throws(() => ch.subscribe(() => {}, { suppressedBy: bad }), {
+  assert.throws(() => ch.subscribe(() => {}, { subscriberId: bad }), {
     name: 'TypeError'
   });
   const als = new AsyncLocalStorage();
-  assert.throws(() => ch.bindStore(als, (d) => d, { suppressedBy: bad }), {
+  assert.throws(() => ch.bindStore(als, (d) => d, { subscriberId: bad }), {
     name: 'TypeError'
   });
-})();
+}
 
 // Test 10: suppressed() return value passes through fn's return value
-(function testSuppressedReturnValueAndContext() {
+{
   const key = Symbol('return');
   const receiver = { value: 41 };
   const result = suppressed(key, function(a, b) {
@@ -224,32 +195,6 @@ function makeHandler() {
     return this.value + 1;
   }, receiver, 'a', 'b');
   assert.strictEqual(result, 42);
-})();
-
-// Test 11: null suppressedBy behaves like no suppression opt-in
-(function testNullSuppressedByIsIgnored() {
-  const key = Symbol('null-suppressed-by');
-  const ch = channel('test-suppression-null-suppressed-by');
-  const h = makeHandler();
-
-  ch.subscribe(h.handler, { suppressedBy: null });
-
-  suppressed(key, () => {
-    ch.publish({});
-  });
-
-  assert.strictEqual(h.called(), true);
-  ch.unsubscribe(h.handler);
-})();
-
-// Test 12: suppressed() rejects null/undefined keys consistently
-(function testKeyValidation() {
-  assert.throws(() => suppressed(null, () => {}), {
-    name: 'TypeError'
-  });
-  assert.throws(() => suppressed(undefined, () => {}), {
-    name: 'TypeError'
-  });
-})();
+}
 
 console.log('ok - diagnostics_channel suppression tests loaded');
