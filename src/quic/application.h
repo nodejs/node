@@ -206,6 +206,14 @@ class Session::Application : public MemoryRetainer {
     return false;
   }
 
+  // connects the webtransport session stream to stream object,
+  // it also sends some initial bytes to the wire to signal
+  // the other side, that this is a webtransport stream
+  virtual bool MakeWebtransportStream(const Stream& stream,
+     int64_t sessionid)  {
+      return false;
+  }
+
   // Signals to the Application that it should serialize and transmit any
   // pending session and stream packets it has accumulated.
   void SendPendingData();
