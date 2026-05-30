@@ -12,9 +12,9 @@ const { AsyncLocalStorage } = require('async_hooks');
   const handler = common.mustNotCall();
   ch.subscribe(handler, { subscriberId: key });
 
-  suppressed(key, () => {
+  suppressed(key, common.mustCall(() => {
     ch.publish({});
-  });
+  }));
 
   ch.unsubscribe(handler);
 }
@@ -28,9 +28,9 @@ const { AsyncLocalStorage } = require('async_hooks');
   ch.subscribe(optedHandler, { subscriberId: key });
   ch.subscribe(regularHandler); // no suppression
 
-  suppressed(key, () => {
+  suppressed(key, common.mustCall(() => {
     ch.publish({});
-  });
+  }));
 
   ch.unsubscribe(optedHandler);
   ch.unsubscribe(regularHandler);
@@ -48,16 +48,16 @@ const { AsyncLocalStorage } = require('async_hooks');
   ch.subscribe(h1, { subscriberId: k1 });
   ch.subscribe(h2, { subscriberId: k2 });
 
-  suppressed(k1, () => {
+  suppressed(k1, common.mustCall(() => {
     ch.publish({});
-  });
+  }));
 
   assert.strictEqual(h1Calls, 0);
   assert.strictEqual(h2Calls, 1);
 
-  suppressed(k2, () => {
+  suppressed(k2, common.mustCall(() => {
     ch.publish({});
-  });
+  }));
 
   assert.strictEqual(h1Calls, 1);
   assert.strictEqual(h2Calls, 1);
@@ -103,12 +103,14 @@ const { AsyncLocalStorage } = require('async_hooks');
   const ch = channel('test-suppression-promise');
   const handler = common.mustNotCall();
   ch.subscribe(handler, { subscriberId: key });
+  const done = common.mustCall();
 
-  suppressed(key, async () => {
+  suppressed(key, common.mustCall(async () => {
     await Promise.resolve();
     ch.publish({});
-  }).then(common.mustCall(() => {
+  })).then(common.mustCall(() => {
     ch.unsubscribe(handler);
+    done();
   }));
 }
 
@@ -118,20 +120,22 @@ const { AsyncLocalStorage } = require('async_hooks');
   const ch = channel('test-suppression-timers');
   const handler = common.mustNotCall();
   ch.subscribe(handler, { subscriberId: key });
+  const done = common.mustCall();
 
-  suppressed(key, async () => {
+  suppressed(key, common.mustCall(async () => {
     await new Promise((resolve) => {
-      setImmediate(() => {
+      setImmediate(common.mustCall(() => {
         ch.publish({});
 
-        queueMicrotask(() => {
+        queueMicrotask(common.mustCall(() => {
           ch.publish({});
           resolve();
-        });
-      });
+        }));
+      }));
     });
-  }).then(common.mustCall(() => {
+  })).then(common.mustCall(() => {
     ch.unsubscribe(handler);
+    done();
   }));
 }
 
@@ -144,9 +148,9 @@ const { AsyncLocalStorage } = require('async_hooks');
   ch.unsubscribe(handler);
 
   // Should not throw and should not be called
-  suppressed(key, () => {
+  suppressed(key, common.mustCall(() => {
     ch.publish({});
-  });
+  }));
 
 }
 
@@ -163,9 +167,9 @@ const { AsyncLocalStorage } = require('async_hooks');
   ch.subscribe(handler);
   ch.bindStore(als, common.mustNotCall(), { subscriberId: key });
 
-  suppressed(key, () => {
+  suppressed(key, common.mustCall(() => {
     ch.publish({});
-  });
+  }));
 
   ch.unsubscribe(handler);
   ch.unbindStore(als);
@@ -196,5 +200,3 @@ const { AsyncLocalStorage } = require('async_hooks');
   }), receiver, 'a', 'b');
   assert.strictEqual(result, 42);
 }
-
-console.log('ok - diagnostics_channel suppression tests loaded');
