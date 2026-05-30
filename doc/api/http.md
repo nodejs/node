@@ -3651,6 +3651,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61597
+    description: The `httpValidation` option is supported now.
   - version: v24.12.0
     pr-url: https://github.com/nodejs/node/pull/59778
     description: Add optimizeEmptyRequests option.
@@ -3703,6 +3706,16 @@ changes:
     `readableHighWaterMark` and `writableHighWaterMark`. This affects
     `highWaterMark` property of both `IncomingMessage` and `ServerResponse`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
+  * `httpValidation` {string} Controls HTTP header value validation strictness
+    for incoming requests. Accepted values are:
+    * `'strict'`: Strictest validation; rejects any non-ASCII or control
+      characters in header values.
+    * `'relaxed'`: Allows a limited set of non-ASCII characters in header
+      values, aligning with the
+      [Fetch specification](https://fetch.spec.whatwg.org/).
+    * `'insecure'`: Disables all header value validation (equivalent to
+      `insecureHTTPParser: true`).
+      Cannot be used together with `insecureHTTPParser`. **Default:** `'strict'`.
   * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
     See [`--insecure-http-parser`][] for more information.
@@ -3959,6 +3972,9 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61597
+    description: The `httpValidation` option is supported now.
   - version:
       - v16.7.0
       - v14.18.0
@@ -4014,6 +4030,16 @@ changes:
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` will be used if both `host` and `hostname` are specified.
+  * `httpValidation` {string} Controls HTTP header value validation strictness
+    for outgoing requests. Accepted values are:
+    * `'strict'`: Strictest validation; rejects any non-ASCII or control
+      characters in header values.
+    * `'relaxed'`: Allows a limited set of non-ASCII characters in header
+      values, aligning with the
+      [Fetch specification](https://fetch.spec.whatwg.org/).
+    * `'insecure'`: Disables all header value validation (equivalent to
+      `insecureHTTPParser: true`).
+      Cannot be used together with `insecureHTTPParser`. **Default:** `'strict'`.
   * `insecureHTTPParser` {boolean} If set to `true`, it will use an HTTP parser
     with leniency flags enabled. Using the insecure parser should be avoided.
     See [`--insecure-http-parser`][] for more information.
