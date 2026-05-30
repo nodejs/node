@@ -16,5 +16,5 @@ if (!isMainThread) {
   throw new Error('exit');
 } else {
   const worker = new Worker(__filename);
-  worker.on('error', common.mustCall(() => {}));
+  worker.on('error', common.mustCall());
 }
