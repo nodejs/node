@@ -60,8 +60,10 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
 using v8::LocalVector;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
@@ -556,106 +558,84 @@ MaybeLocal<Value> URLPattern::Exec(Environment* env,
     }
     return Null(env->isolate());
   }
+  THROW_ERR_OPERATION_FAILED(env, "Failed to exec URLPattern");
   return {};
 }
 
-bool URLPattern::Test(Environment* env,
-                      const ada::url_pattern_input& input,
-                      std::optional<std::string_view>& baseURL) {
+Maybe<bool> URLPattern::Test(Environment* env,
+                             const ada::url_pattern_input& input,
+                             std::optional<std::string_view>& baseURL) {
   if (auto result = url_pattern_.test(input, baseURL ? &*baseURL : nullptr)) {
-    return *result;
+    return Just(*result);
   }
   THROW_ERR_OPERATION_FAILED(env, "Failed to test URLPattern");
-  return false;
+  return {};
 }
+
+namespace {
+template <typename R,
+          typename M,
+          bool (M::*to_r)(R*) const,
+          M (URLPattern::*func)(Environment*,
+                                const ada::url_pattern_input&,
+                                std::optional<std::string_view>&)>
+void ExecOrTest(const FunctionCallbackInfo<Value>& args) {
+  URLPattern* url_pattern;
+  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, args.This());
+  Environment* env = Environment::GetCurrent(args);
+
+  ada::url_pattern_input input;
+  std::optional<std::string> baseURL{};
+  std::string input_base;
+  if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
+    input = ada::url_pattern_init{};
+  } else if (args[0]->IsString()) {
+    Utf8Value input_value(env->isolate(), args[0].As<String>());
+    input_base = input_value.ToString();
+    input = std::string_view(input_base);
+  } else if (args[0]->IsObject()) {
+    auto maybeInput =
+        URLPattern::URLPatternInit::FromJsObject(env, args[0].As<Object>());
+    if (!maybeInput.has_value()) return;
+    input = std::move(*maybeInput);
+  } else {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env, "URLPattern input needs to be a string or an object");
+    return;
+  }
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (args[1]->IsNull()) {
+      baseURL = std::string("null");
+    } else if (args[1]->IsString()) {
+      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
+      baseURL = base_url_value.ToStringView();
+    } else {
+      THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
+      return;
+    }
+  }
+
+  std::optional<std::string_view> baseURL_opt =
+      baseURL ? std::optional<std::string_view>(*baseURL) : std::nullopt;
+  R result{};
+  if (((url_pattern->*func)(env, input, baseURL_opt).*to_r)(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+}  // namespace
 
 // V8 Methods
 
 void URLPattern::Exec(const FunctionCallbackInfo<Value>& args) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, args.This());
-  auto env = Environment::GetCurrent(args);
-
-  ada::url_pattern_input input;
-  std::optional<std::string> baseURL{};
-  std::string input_base;
-  if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
-    input = ada::url_pattern_init{};
-  } else if (args[0]->IsString()) {
-    Utf8Value input_value(env->isolate(), args[0].As<String>());
-    input_base = input_value.ToString();
-    input = std::string_view(input_base);
-  } else if (args[0]->IsObject()) {
-    auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
-    if (!maybeInput.has_value()) return;
-    input = std::move(*maybeInput);
-  } else {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env, "URLPattern input needs to be a string or an object");
-    return;
-  }
-
-  if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    if (args[1]->IsNull()) {
-      baseURL = std::string("null");
-    } else if (args[1]->IsString()) {
-      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
-      baseURL = base_url_value.ToStringView();
-    } else {
-      THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
-      return;
-    }
-  }
-
-  Local<Value> result;
-  std::optional<std::string_view> baseURL_opt =
-      baseURL ? std::optional<std::string_view>(*baseURL) : std::nullopt;
-  if (!url_pattern->Exec(env, input, baseURL_opt).ToLocal(&result)) {
-    THROW_ERR_OPERATION_FAILED(env, "Failed to exec URLPattern");
-    return;
-  }
-  args.GetReturnValue().Set(result);
+  ExecOrTest<Local<Value>,
+             MaybeLocal<Value>,
+             &MaybeLocal<Value>::ToLocal,
+             &URLPattern::Exec>(args);
 }
 
 void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, args.This());
-  auto env = Environment::GetCurrent(args);
-
-  ada::url_pattern_input input;
-  std::optional<std::string> baseURL{};
-  std::string input_base;
-  if (args.Length() == 0 || args[0]->IsNullOrUndefined()) {
-    input = ada::url_pattern_init{};
-  } else if (args[0]->IsString()) {
-    Utf8Value input_value(env->isolate(), args[0].As<String>());
-    input_base = input_value.ToString();
-    input = std::string_view(input_base);
-  } else if (args[0]->IsObject()) {
-    auto maybeInput = URLPatternInit::FromJsObject(env, args[0].As<Object>());
-    if (!maybeInput.has_value()) return;
-    input = std::move(*maybeInput);
-  } else {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env, "URLPattern input needs to be a string or an object");
-    return;
-  }
-
-  if (args.Length() > 1 && !args[1]->IsUndefined()) {
-    if (args[1]->IsNull()) {
-      baseURL = std::string("null");
-    } else if (args[1]->IsString()) {
-      Utf8Value base_url_value(env->isolate(), args[1].As<String>());
-      baseURL = base_url_value.ToStringView();
-    } else {
-      THROW_ERR_INVALID_ARG_TYPE(env, "baseURL must be a string");
-      return;
-    }
-  }
-
-  std::optional<std::string_view> baseURL_opt =
-      baseURL ? std::optional<std::string_view>(*baseURL) : std::nullopt;
-  args.GetReturnValue().Set(url_pattern->Test(env, input, baseURL_opt));
+  ExecOrTest<bool, Maybe<bool>, &Maybe<bool>::To, &URLPattern::Test>(args);
 }
 
 #define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, lowercase_name)          \
