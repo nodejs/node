@@ -1010,11 +1010,6 @@
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
         }],
-        [ 'node_use_sqlite=="true"', {
-          'sources': [
-            '<@(node_sqlite_sources)',
-          ],
-        }],
         [ 'node_use_quic=="true"', {
           'sources': [
             '<@(node_quic_sources)',
