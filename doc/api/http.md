@@ -3662,7 +3662,7 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v26.3.0
     pr-url: https://github.com/nodejs/node/pull/61597
     description: The `httpValidation` option is supported now.
   - version:
@@ -3987,7 +3987,7 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: REPLACEME
+  - version: v26.3.0
     pr-url: https://github.com/nodejs/node/pull/61597
     description: The `httpValidation` option is supported now.
   - version:

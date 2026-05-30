@@ -909,7 +909,7 @@ A `QuicSession` represents the local side of a QUIC connection.
 ### `session.applicationOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {quic.ApplicationOptions}
@@ -1030,7 +1030,7 @@ True if `session.destroy()` has been called. Read only.
 ### `session.localTransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {quic.TransportParams|null}
@@ -1334,7 +1334,7 @@ The local and remote socket addresses associated with the session. Read only.
 ### `session.remoteTransportParams`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {quic.TransportParams|null|undefined}
@@ -2302,7 +2302,7 @@ added: v23.8.0
 ### `streamStats.bytesAccumulated`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {bigint}
@@ -2364,7 +2364,7 @@ added: v23.8.0
 ### `streamStats.maxBytesAccumulated`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {bigint}
@@ -2420,7 +2420,7 @@ added: v23.8.0
 ### type: `ApplicationOptions`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {Object}
@@ -2586,7 +2586,7 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 #### `endpointOptions.reusePort`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {boolean}
@@ -3107,7 +3107,7 @@ to complete before timing out.
 #### `sessionOptions.initialRtt`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {bigint|number}
@@ -3342,7 +3342,7 @@ creating a session. The negotiated values can be observed via the
 #### `transportParams.initialSCID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {string}
@@ -3355,7 +3355,7 @@ available in the `session.localTransportParams` and
 #### `transportParams.originalDCID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {string}
@@ -3481,7 +3481,7 @@ a datagram that can be _sent_ is determined by the peer's
 #### `transportParams.retrySCID`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 * Type: {string}

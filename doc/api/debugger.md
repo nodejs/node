@@ -236,7 +236,7 @@ debug>
 added:
   - v26.1.0
 changes:
-  - version: REPLACEME
+  - version: v26.3.0
     pr-url: https://github.com/nodejs/node/pull/63437
     description: Add `probe_failure` terminal `error` event for inspector-side mid-session
         failures, and `error.details` for additional context on per-hit and terminal errors.
