@@ -77,21 +77,21 @@ const { AsyncLocalStorage } = require('async_hooks');
   ch.subscribe(h1, { subscriberId: k1 });
   ch.subscribe(h2, { subscriberId: k2 });
 
-  suppressed(k1, () => {
-    // inside k1, h1 skipped, h2 runs
+  suppressed(k1, common.mustSucceed(() => {
+    // Inside k1, h1 skipped, h2 runs
     ch.publish({});
     assert.strictEqual(h2Calls, 1);
 
-    suppressed(k2, () => {
-      // inside both, both skipped
+    suppressed(k2, common.mustSucceed(() => {
+      // Inside both, both skipped
       ch.publish({});
       assert.strictEqual(h2Calls, 1);
-    });
+    }));
 
-    // back to only k1
+    // Back to only k1
     ch.publish({});
     assert.strictEqual(h2Calls, 2);
-  });
+  }));
 
   ch.unsubscribe(h1);
   ch.unsubscribe(h2);
@@ -188,12 +188,12 @@ const { AsyncLocalStorage } = require('async_hooks');
 {
   const key = Symbol('return');
   const receiver = { value: 41 };
-  const result = suppressed(key, function(a, b) {
+  const result = suppressed(key, common.mustSucceed(function(a, b) {
     assert.strictEqual(this, receiver);
     assert.strictEqual(a, 'a');
     assert.strictEqual(b, 'b');
     return this.value + 1;
-  }, receiver, 'a', 'b');
+  }), receiver, 'a', 'b');
   assert.strictEqual(result, 42);
 }
 
