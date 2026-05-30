@@ -97,6 +97,7 @@ namespace quic {
   V(AttachSource, attachSource, false)                                         \
   V(Destroy, destroy, false)                                                   \
   V(SendHeaders, sendHeaders, false)                                           \
+  V(MakeWebtransportStream, makeWebtransportStream, false)                     \
   V(StopSending, stopSending, false)                                           \
   V(ResetStream, resetStream, false)                                           \
   V(SetPriority, setPriority, false)                                           \
@@ -472,6 +473,26 @@ struct Stream::Impl {
 
     args.GetReturnValue().Set(stream->session().application().SendHeaders(
         *stream, kind, headers, flags));
+  }
+
+  // Connects a stream to a webtransport session stream,
+  // also sends the initial bytes of a stream to signel the wt stream
+  // also connects the readers
+  JS_METHOD(MakeWebtransportStream) {
+    Stream* stream;
+    ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
+    CHECK(args.Length() > 0);
+    CHECK(args[0]->IsObject());
+    Stream* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args[0].As<v8::Object>());
+    if (stream->is_pending()) {
+      stream->EnqueuePendingWebtransportStream(session->id());
+      return args.GetReturnValue().Set(true);
+    }
+    args.GetReturnValue().Set(stream->session().application().MakeWebtransportStream(
+      *stream,
+      session->id()
+    ));
   }
 
   // Tells the peer to stop sending data for this stream. This has the effect
@@ -1265,7 +1286,12 @@ void Stream::NotifyStreamOpened(stream_id id) {
           headers->flags);
     }
   }
-  // If the stream is not a local unidirectional stream and is_readable is
+  if (pending_webtransport_session_ >= 0) {
+    session().application().MakeWebtransportStream(*this,
+      pending_webtransport_session_);
+    pending_webtransport_session_ = 0;
+  }
+  // If the stream is not a local undirectional stream and is_readable is
   // false, then we should shutdown the streams readable side now.
   if (!is_local_unidirectional() && !is_readable()) {
     NotifyReadableEnded(pending_close_read_code_);
@@ -1300,6 +1326,11 @@ void Stream::EnqueuePendingHeaders(HeadersKind kind,
   Debug(this, "Enqueuing headers for pending stream");
   pending_headers_queue_.push_back(std::make_unique<PendingHeaders>(
       kind, Global<Array>(env()->isolate(), headers), flags));
+}
+
+void Stream::EnqueuePendingWebtransportStream(int64_t sessionid) {
+  Debug(this, "Enqueing Webtransport Session strean for pending stream");
+  pending_webtransport_session_ = sessionid;
 }
 
 bool Stream::is_pending() const {

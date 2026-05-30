@@ -446,6 +446,7 @@ class Stream final : public AsyncWrap,
   void EnqueuePendingHeaders(HeadersKind kind,
                              v8::Local<v8::Array> headers,
                              HeadersFlags flags);
+  void EnqueuePendingWebtransportStream(int64_t sessionid);
 
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
@@ -461,6 +462,7 @@ class Stream final : public AsyncWrap,
   std::optional<std::unique_ptr<PendingStream>> maybe_pending_stream_ =
       std::nullopt;
   std::vector<std::unique_ptr<PendingHeaders>> pending_headers_queue_;
+  int64_t pending_webtransport_session_ = -1;
   error_code pending_close_read_code_ = 0;
   error_code pending_close_write_code_ = 0;
 
