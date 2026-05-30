@@ -192,6 +192,13 @@ class Session::Application : public MemoryRetainer {
   virtual void SetHeadersInterest(Stream& stream,
                                   bool wants_headers,
                                   bool wants_trailers) {}
+  // connects the webtransport session stream to stream object,
+  // it also sends some initial bytes to the wire to signal
+  // the other side, that this is a webtransport stream
+  virtual bool MakeWebtransportStream(Stream& stream,
+     int64_t sessionid)  {
+      return false;
+  }
 
   // Returns true if the application protocol supports sending and
   // receiving headers on streams (e.g. HTTP/3). Applications that
