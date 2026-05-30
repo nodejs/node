@@ -1,0 +1,360 @@
+'use strict';
+// Tests for the test_runner `flaky` feature (retry-until-pass).
+
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const fixtures = require('../common/fixtures');
+const assert = require('node:assert');
+const { writeFileSync } = require('node:fs');
+const { test, run } = require('node:test');
+
+tmpdir.refresh();
+
+let fixtureSeq = 0;
+function writeFixture(source) {
+  const file = tmpdir.resolve(`flaky-fixture-${fixtureSeq++}.js`);
+  writeFileSync(file, source);
+  return file;
+}
+
+// Collect the run() event stream for a fixture file, bucketed by test name.
+async function collectEvents(file, runOptions = {}) {
+  const events = { pass: [], fail: [], diagnostic: [] };
+  const stream = run({ files: [file], ...runOptions });
+  stream.on('test:pass', (data) => events.pass.push(data));
+  stream.on('test:fail', (data) => events.fail.push(data));
+  stream.on('test:diagnostic', (data) => events.diagnostic.push(data));
+  stream.on('test:stderr', common.mustNotCall());
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of stream);
+  return events;
+}
+
+function byName(list, name) {
+  return list.filter((d) => d.name === name);
+}
+
+async function tap(file) {
+  const { code, stdout, stderr } = await common.spawnPromisified(
+    process.execPath,
+    ['--test-reporter=tap', file],
+  );
+  return { code, stdout, stderr };
+}
+
+// Run a fixture through the run() API under the default 'process' isolation and
+// return the aggregated parent summary counters. Exercises the cross-process
+// path where the parent re-counts the child's serialized events (runner.js).
+async function runSummaryCounts(file, runOptions = {}) {
+  let counts;
+  const stream = run({ files: [file], ...runOptions });
+  stream.on('test:summary', (data) => { counts = data.counts; });
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of stream);
+  return counts;
+}
+
+function validate(flaky) {
+  return test(`flaky-validate-${String(flaky)}`, { flaky }, () => {});
+}
+
+test('flaky validation: wrong types throw ERR_INVALID_ARG_TYPE', () => {
+  for (const flaky of [Symbol(), {}, [], () => {}, 1n, '1', '5']) {
+    assert.throws(() => validate(flaky), { code: 'ERR_INVALID_ARG_TYPE' });
+  }
+});
+
+test('flaky validation: out-of-range values throw ERR_OUT_OF_RANGE', () => {
+  for (const flaky of [0, -1, -20, 1.5, 2.0001, NaN, Infinity, -Infinity]) {
+    assert.throws(() => validate(flaky), { code: 'ERR_OUT_OF_RANGE' });
+  }
+});
+
+test('flaky validation: true and positive integers are accepted', async () => {
+  for (const flaky of [null, undefined, true, false, 1, 2, 20, 100, 2 ** 20]) {
+    await validate(flaky); // Must not throw / reject for valid values.
+  }
+});
+
+test('flaky: passes after retries, retryCount on pass, silent intermediates', async () => {
+  const file = fixtures.path('test-runner/flaky/eventually-passes.js');
+  const events = await collectEvents(file);
+
+  const passes = byName(events.pass, 'passes on third attempt');
+  const fails = byName(events.fail, 'passes on third attempt');
+
+  assert.strictEqual(passes.length, 1, `expected 1 pass, got ${passes.length}`);
+  assert.strictEqual(fails.length, 0, `expected 0 fail events, got ${fails.length}`);
+  assert.strictEqual(passes[0].retryCount, 2);
+  const messages = events.diagnostic.map((d) => d.message);
+  assert.ok(messages.includes('attempt-3'), `missing final diagnostic; got ${messages}`);
+  assert.ok(!messages.includes('attempt-1'), `leaked intermediate diagnostic attempt-1: ${messages}`);
+  assert.ok(!messages.includes('attempt-2'), `leaked intermediate diagnostic attempt-2: ${messages}`);
+
+  const { code, stdout } = await tap(file);
+  assert.strictEqual(code, 0);
+  assert.match(stdout, /ok 1 - passes on third attempt # FLAKY 2 re-tries/);
+  assert.match(stdout, /# pass 1$/m);
+  assert.match(stdout, /# fail 0$/m);
+  assert.match(stdout, /# flaky 1$/m);
+});
+
+test('flaky: exhaustion => fail with retryCount on fail', async () => {
+  const file = fixtures.path('test-runner/flaky/exhausts.js');
+  const events = await collectEvents(file);
+
+  const fails = byName(events.fail, 'always fails');
+  const passes = byName(events.pass, 'always fails');
+  assert.strictEqual(passes.length, 0);
+  assert.strictEqual(fails.length, 1, `expected 1 fail, got ${fails.length}`);
+  assert.strictEqual(fails[0].retryCount, 3);
+
+  const { code, stdout } = await tap(file);
+  assert.strictEqual(code, 1);
+  assert.match(stdout, /not ok 1 - always fails # FLAKY failed after 3 re-tries/);
+  assert.match(stdout, /# fail 1$/m);
+  assert.match(stdout, /# flaky 1$/m);
+});
+
+test('flaky: non-throwing failure (t.fail/plan) is retried', async () => {
+  const file = fixtures.path('test-runner/flaky/non-throw-retry.js');
+  const events = await collectEvents(file);
+  const passes = byName(events.pass, 'non-throw failure retried');
+  const fails = byName(events.fail, 'non-throw failure retried');
+  assert.strictEqual(fails.length, 0);
+  assert.strictEqual(passes.length, 1);
+  assert.strictEqual(passes[0].retryCount, 1);
+});
+
+// The fixture runs as a spawned child and can't call common.platformTimeout
+// itself, so the budget is computed here and interpolated into the source. The
+// base is deliberately generous: attempt 2 is a no-op that must COMPLETE within
+// a fresh timeout window, and that bound does NOT stretch under load, so a tiny
+// budget could spuriously time out the no-op and break the retryCount === 1
+// equality below. platformTimeout() additionally covers known-slow platforms.
+const RETRY_TIMEOUT = common.platformTimeout(1000);
+// Attempt 1's delay must stay well above the timeout even after scaling; bind it
+// to t.signal so attempt 1 ends at ~timeout with no dangling timer.
+const RETRY_DELAY = RETRY_TIMEOUT * 10;
+const timeoutRetrySrc = `
+'use strict';
+const { test } = require('node:test');
+const { setTimeout } = require('node:timers/promises');
+let attempts = 0;
+test('slow first attempt then fast', { flaky: 3, timeout: ${RETRY_TIMEOUT} }, async (t) => {
+  attempts++;
+  if (attempts < 2) {
+    await setTimeout(${RETRY_DELAY}, undefined, { signal: t.signal }).catch(() => {});
+  }
+});
+`;
+
+test('flaky: timeout on first attempt is retried then passes', async () => {
+  const file = writeFixture(timeoutRetrySrc);
+  const events = await collectEvents(file);
+  const passes = byName(events.pass, 'slow first attempt then fast');
+  const fails = byName(events.fail, 'slow first attempt then fast');
+  assert.strictEqual(fails.length, 0, `timeout should be retried, got fails=${fails.length}`);
+  assert.strictEqual(passes.length, 1);
+  assert.strictEqual(passes[0].retryCount, 1);
+});
+
+test('flaky: exhausted timeout is FAIL, non-flaky timeout stays cancelled', async () => {
+  const file = fixtures.path('test-runner/flaky/timeout-exhaust.js');
+  await collectEvents(file);
+  const { code, stdout } = await tap(file);
+  assert.strictEqual(code, 1);
+  assert.match(stdout, /not ok \d+ - flaky timeout exhausts => fail # FLAKY failed after 2 re-tries/);
+  assert.match(stdout, /# cancelled 1$/m);
+  assert.match(stdout, /# flaky 1$/m);
+});
+
+test('flaky: external abort stops retrying, body runs once', async () => {
+  const file = fixtures.path('test-runner/flaky/external-abort.js');
+  const stateFile = tmpdir.resolve(`abort-state.txt`);
+  const { code, stdout, stderr } = await common.spawnPromisified(
+    process.execPath,
+    ['--test-reporter=tap', file],
+    { env: { ...process.env, FLAKY_STATE: stateFile } },
+  );
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 1);
+  const runs = require('node:fs').readFileSync(stateFile, 'utf8');
+  assert.strictEqual(runs.length, 1, `body ran ${runs.length} times, expected 1`);
+  assert.match(stdout, /# flaky 1$/m);
+  assert.doesNotMatch(stdout, /FLAKY failed after \d+ re-tries/);
+});
+
+test('flaky: beforeEach/afterEach re-run each attempt, before/after once', async () => {
+  const file = fixtures.path('test-runner/flaky/hooks.js');
+  const stateFile = tmpdir.resolve(`hooks-state.json`);
+  const { code, stderr } = await common.spawnPromisified(
+    process.execPath,
+    ['--test-reporter=tap', file],
+    { env: { ...process.env, FLAKY_STATE: stateFile } },
+  );
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+  const counts = JSON.parse(require('node:fs').readFileSync(stateFile, 'utf8'));
+  assert.strictEqual(counts.body, 3, `body should run once per attempt, got ${counts.body}`);
+  assert.strictEqual(counts.beforeEach, 3, `beforeEach per attempt, got ${counts.beforeEach}`);
+  assert.strictEqual(counts.afterEach, 3, `afterEach per attempt, got ${counts.afterEach}`);
+  assert.strictEqual(counts.before, 1, `before once, got ${counts.before}`);
+  assert.strictEqual(counts.after, 1, `after once, got ${counts.after}`);
+});
+
+test('flaky: suite inheritance, child override, child opt-out', async () => {
+  const file = fixtures.path('test-runner/flaky/inheritance.js');
+  const events = await collectEvents(file);
+
+  const inherit = byName(events.pass, 'inherits suite flaky');
+  assert.strictEqual(inherit.length, 1);
+  assert.strictEqual(inherit[0].retryCount, 2);
+
+  const override = byName(events.pass, 'overrides with own flaky');
+  assert.strictEqual(override.length, 1);
+  assert.strictEqual(override[0].retryCount, 1);
+
+  const disabledFail = byName(events.fail, 'opted out via flaky:false');
+  assert.strictEqual(disabledFail.length, 1);
+  assert.ok(!(disabledFail[0].retryCount > 0),
+            `opted-out test should not retry, got retryCount=${disabledFail[0].retryCount}`);
+
+  const { stdout } = await tap(file);
+  assert.match(stdout, /# flaky 2$/m);
+});
+
+test('flaky: summary counter counts marked-flaky incl. pass-first-try', async () => {
+  const file = fixtures.path('test-runner/flaky/counter.js');
+  const { code, stdout } = await tap(file);
+  assert.strictEqual(code, 0);
+  assert.match(stdout, /# pass 3$/m);
+  assert.match(stdout, /# flaky 2$/m);
+  assert.doesNotMatch(stdout, /flaky but passes first try # FLAKY/);
+});
+
+test('flaky:true defaults to 20 retries', async () => {
+  const file = fixtures.path('test-runner/flaky/default-twenty.js');
+  const events = await collectEvents(file);
+  const passes = byName(events.pass, 'passes on attempt 21');
+  const fails = byName(events.fail, 'passes on attempt 21');
+  assert.strictEqual(fails.length, 0);
+  assert.strictEqual(passes.length, 1);
+  assert.strictEqual(passes[0].retryCount, 20);
+});
+
+test('flaky:true exhausts at 20 retries when more are needed', async () => {
+  const file = fixtures.path('test-runner/flaky/default-twenty-exhaust.js');
+  const events = await collectEvents(file);
+  const fails = byName(events.fail, 'needs 22 attempts');
+  assert.strictEqual(fails.length, 1);
+  assert.strictEqual(fails[0].retryCount, 20);
+});
+
+test('flaky: expectFailure composes => no retry', async () => {
+  const file = fixtures.path('test-runner/flaky/expect-failure.js');
+  const stateFile = tmpdir.resolve(`xfail-state.txt`);
+  const { code, stdout, stderr } = await common.spawnPromisified(
+    process.execPath,
+    ['--test-reporter=tap', file],
+    { env: { ...process.env, FLAKY_STATE: stateFile } },
+  );
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+  const runs = require('node:fs').readFileSync(stateFile, 'utf8');
+  assert.strictEqual(runs.length, 1, `body ran ${runs.length} times, expected 1 (no retry)`);
+  assert.match(stdout, /# flaky 1$/m);
+  assert.doesNotMatch(stdout, /FLAKY \d+ re-tries/);
+});
+
+test('flaky: all API surface forms retry identically (forms 1-5 + aliases)', async () => {
+  const file = fixtures.path('test-runner/flaky/api-surface.js');
+  const events = await collectEvents(file);
+
+  // Each name maps to one proposal API form; all must behave identically.
+  const names = [
+    'member inherits describe.flaky', // Form 1: describe.flaky suite.
+    'member inherits options flaky',  // Form 3: describe('name', { flaky: true }).
+    'member inherits suite.flaky',    // Alias: suite.flaky suite.
+    'it.flaky case',                  // Form 2: it.flaky test-case.
+    'it options boolean',             // Form 4: it('name', { flaky: true }).
+    'it options integer',             // Form 5: it('name', { flaky: 100 }).
+    'test.flaky case',                // Alias: test.flaky.
+    'test options integer',           // Alias: test('name', { flaky: N }).
+  ];
+  for (const name of names) {
+    const passes = byName(events.pass, name);
+    const fails = byName(events.fail, name);
+    assert.strictEqual(fails.length, 0, `${name}: unexpected fail events`);
+    assert.strictEqual(passes.length, 1, `${name}: expected exactly one pass`);
+    assert.strictEqual(passes[0].retryCount, 1, `${name}: expected retryCount 1`);
+  }
+});
+
+test('flaky: it.flaky(...) === it(..., { flaky: true })', async () => {
+  const file = fixtures.path('test-runner/flaky/shorthand-equals-options.js');
+  const events = await collectEvents(file);
+  const shorthand = byName(events.pass, 'shorthand form');
+  const options = byName(events.pass, 'options form');
+  assert.strictEqual(shorthand.length, 1);
+  assert.strictEqual(options.length, 1);
+  assert.strictEqual(shorthand[0].retryCount, options[0].retryCount);
+  assert.strictEqual(shorthand[0].retryCount, 1);
+});
+
+test('flaky: run() parent counts flaky and promotes exhausted timeout to fail', async () => {
+  const file = fixtures.path('test-runner/flaky/run-parent-summary.js');
+  const counts = await runSummaryCounts(file);
+  assert.strictEqual(counts.failed, 1, `failed=${counts.failed}`);
+  assert.strictEqual(counts.cancelled, 1, `cancelled=${counts.cancelled}`);
+  assert.strictEqual(counts.flaky, 2, `flaky=${counts.flaky}`);
+});
+
+// A non-flaky test reads its plan once at registration, so accessing t.assert
+// before t.plan() must keep the historical counting (plan stays null, the later
+// assertion is not counted, plan(0) is satisfied => PASS). The dynamic plan read
+// added for flaky must not regress this; this guards that boundary.
+test('flaky: non-flaky assert-before-plan counting is unchanged', async () => {
+  const file = fixtures.path('test-runner/flaky/assert-before-plan.js');
+  const events = await collectEvents(file);
+  const name = 'assert accessed before plan (non-flaky)';
+  const fails = byName(events.fail, name);
+  assert.strictEqual(fails.length, 0, `non-flaky assert-before-plan must still pass, got ${fails.length} fail(s)`);
+  const passes = byName(events.pass, name);
+  assert.strictEqual(passes.length, 1);
+  assert.strictEqual(passes[0].retryCount, undefined);
+});
+
+test('flaky: intermediate retries do not publish to the node.test error channel', async () => {
+  const file = fixtures.path('test-runner/flaky/channel-silence.js');
+  const stateFile = tmpdir.resolve(`chan-state.txt`);
+  const { code, stderr } = await common.spawnPromisified(
+    process.execPath,
+    ['--test-reporter=tap', file],
+    { env: { ...process.env, FLAKY_STATE: stateFile } },
+  );
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+  const errors = require('node:fs').readFileSync(stateFile, 'utf8');
+  assert.strictEqual(errors, '0', `expected 0 channel errors for a passing flaky test, got ${errors}`);
+});
+
+// Flaky + subtests: a flaky test that creates a subtest on an early (failing)
+// attempt and none on the final (passing) attempt used to crash the reporter -
+// outputSubtestCount stayed > 0 while subtests was emptied on retry, so report()
+// dereferenced an empty array and the run aborted with no summary. It must now
+// complete normally.
+//
+// KNOWN LIMITATION: intermediate-attempt subtests are emitted to the reporter
+// stream before the retry decision, so they cannot be recalled - the output
+// still contains leaked intermediate subtest lines and slightly inflated
+// `# tests` counts. Fully fixing that needs buffering each attempt's subtest
+// events and replaying only the surviving attempt; until then this asserts only
+// that the run does not crash and the flaky parent ultimately passes.
+test('flaky+subtest: a retried flaky test with subtests does not crash the run', async () => {
+  const { code, stdout } = await tap(fixtures.path('test-runner/flaky/flaky-subtest.js'));
+  assert.match(stdout, /# tests \d+/, 'a summary must be emitted (no crash)');
+  assert.match(stdout, /^ok 1 - parent retries, subtest only on first attempt/m,
+               'the flaky parent passes after retrying');
+  assert.strictEqual(code, 0, `expected pass exit code, got ${code}`);
+});
