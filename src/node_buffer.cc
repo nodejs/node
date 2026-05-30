@@ -567,19 +567,31 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   ArrayBufferViewContents<char> buffer(args[0]);
 
-  if (buffer.length() == 0)
-    return args.GetReturnValue().SetEmptyString();
+  auto buffer_length = buffer.length();
+  const char* data_ptr = buffer.data();
+
+  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+
+  if (buffer_length == 0) return args.GetReturnValue().SetEmptyString();
 
   size_t start = 0;
   size_t end = 0;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer.length(), &end));
-  if (end < start) end = start;
-  THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer_length, &end));
+  if (end <= start) return args.GetReturnValue().SetEmptyString();
+  THROW_AND_RETURN_IF_OOB(Just(end <= buffer_length));
   size_t length = end - start;
 
+  std::unique_ptr<char[]> data_copy;
+  if (view->Buffer()->IsSharedArrayBuffer()) {
+    data_copy = std::make_unique_for_overwrite<char[]>(length);
+    memcpy(data_copy.get(), data_ptr + start, length);
+    data_ptr = data_copy.get();
+    start = 0;
+  }
+
   Local<Value> ret;
-  if (StringBytes::Encode(isolate, buffer.data() + start, length, encoding)
+  if (StringBytes::Encode(isolate, data_ptr + start, length, encoding)
           .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
