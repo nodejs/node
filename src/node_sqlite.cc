@@ -2279,7 +2279,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       conflictFunc = conflictValue.As<Function>();
-      context.conflictCallback = [env, conflictFunc](int conflictType) -> int {
+      context.conflictCallback = [env, &conflictFunc](int conflictType) -> int {
         Local<Value> argv[] = {Integer::New(env->isolate(), conflictType)};
         TryCatch try_catch(env->isolate());
         Local<Value> result =
@@ -2318,7 +2318,7 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       filterFunc = filterValue.As<Function>();
 
       context.filterCallback =
-          [env, db, filterFunc](std::string_view item) -> bool {
+          [env, db, &filterFunc](std::string_view item) -> bool {
         // If there was an error in the previous call to the filter's
         // callback, we skip calling it again.
         if (db->ignore_next_sqlite_error_) {
