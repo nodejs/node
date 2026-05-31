@@ -161,6 +161,18 @@ async function testCancelWithReason() {
   assert.strictEqual(result.message, 'cancelled');
 }
 
+async function testPendingNextSettlesAfterReturn() {
+  const { broadcast: bc } = broadcast();
+  const iter = bc.push()[Symbol.asyncIterator]();
+
+  const pendingNext = iter.next();
+  await iter.return();
+
+  const result = await pendingNext;
+  assert.strictEqual(result.done, true);
+  assert.strictEqual(result.value, undefined);
+}
+
 // =============================================================================
 // Writer fail detaches consumers
 // =============================================================================
@@ -254,6 +266,7 @@ Promise.all([
   testCancelWithoutReason(),
   testCancelWithReason(),
   testCancelWithFalsyReason(),
+  testPendingNextSettlesAfterReturn(),
   testFailDetachesConsumers(),
   testWriterFailIdempotent(),
   testLateJoinerSeesBufferedData(),
