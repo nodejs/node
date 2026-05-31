@@ -1818,7 +1818,7 @@ def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node_cctest_sources(o):
-  o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+  o['variables']['node_cctest_sources'] = [] + \
     SearchFiles('test/cctest', 'cc') + \
     SearchFiles('test/cctest', 'h')
 

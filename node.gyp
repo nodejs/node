@@ -1285,7 +1285,6 @@
         'NODE_WANT_INTERNALS=1',
       ],
       'sources': [
-        'src/node_snapshot_stub.cc',
         'test/fuzzers/fuzz_env.cc',
       ],
       'conditions': [
@@ -1330,7 +1329,6 @@
         'NODE_WANT_INTERNALS=1',
       ],
       'sources': [
-        'src/node_snapshot_stub.cc',
         'test/fuzzers/fuzz_ClientHelloParser.cc',
       ],
       'conditions': [
@@ -1379,7 +1377,6 @@
         'NODE_WANT_INTERNALS=1',
       ],
       'sources': [
-        'src/node_snapshot_stub.cc',
         'test/fuzzers/fuzz_strings.cc',
       ],
       'conditions': [
@@ -1561,7 +1558,6 @@
       ],
 
       'sources': [
-        'src/node_snapshot_stub.cc',
         'test/embedding/embedtest.cc',
       ],
 
