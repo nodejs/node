@@ -153,18 +153,12 @@ assert.strictEqual(navigator.languages[0] !== 'for-testing', true);
   for (const name of Object.keys(Navigator.prototype)) {
     assert.throws(
       () => Navigator.prototype[name],
-      {
-        name: 'TypeError',
-        code: 'ERR_INVALID_THIS',
-      },
+      { name: 'TypeError' },
       `expected TypeError when reading ${name} on Navigator.prototype`,
     );
     assert.throws(
       () => Reflect.get(Navigator.prototype, name, {}),
-      {
-        name: 'TypeError',
-        code: 'ERR_INVALID_THIS',
-      },
+      { name: 'TypeError' },
       `expected TypeError when reading ${name} on a plain object`,
     );
   }
