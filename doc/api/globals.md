@@ -41,14 +41,14 @@ changes:
     description: No longer experimental.
 -->
 
-A utility class used to signal cancelation in selected `Promise`-based APIs.
+A utility class used to signal cancellation in selected `Promise`-based APIs.
 The API is based on the Web API {AbortController}.
 
 ```js
 const ac = new AbortController();
 
 ac.signal.addEventListener('abort', () => console.log('Aborted!'),
-                           { once: true });
+                               { once: true });
 
 ac.abort();
 
@@ -594,6 +594,54 @@ The following globals are available to use with `fetch`:
 * [`Headers`][]
 * [`Request`][]
 * [`Response`][]
+
+### Differences from the Fetch Standard
+
+Node.js's `fetch()` implementation, based on [undici](https://undici.nodejs.org),
+has several intentional differences from the
+[WHATWG Fetch Standard](https://fetch.spec.whatwg.org/):
+
+<dl>
+<dt><code>new Response(asyncIterable)</code></dt>
+<dd>
+
+The WHATWG Fetch Standard only allows <code>ReadableStream</code>,
+<code>BufferSource</code>, <code>Blob</code>, <code>FormData</code>,
+<code>URLSearchParams</code>, <code>USVString</code>, or <code>null</code> as
+the <code>Response</code> body. Node.js extends this to also accept async
+iterables, enabling flexible streaming response construction.
+
+</dd>
+<dt>Cookies handling</dt>
+<dd>
+
+The Fetch Standard defines automatic cookie management for request and response
+headers. Node.js does not provide automatic cookie storage, management, or
+transmission. Cookies must be handled manually by the user if needed.
+
+</dd>
+<dt>No forbidden headers enforcement</dt>
+<dd>
+
+The Fetch Standard restricts certain headers (such as <code>Host</code>,
+<code>Connection</code>, <code>Content-Length</code>, <code>User-Agent</code>,
+<code>Referer</code>) from being set programmatically. Node.js removes these
+restrictions, giving users full control over request and response headers.
+
+</dd>
+<dt>No CORS checks</dt>
+<dd>
+
+The Fetch Standard enforces Cross-Origin Resource Sharing (CORS) checks,
+including preflight requests and validation of CORS response headers. Node.js
+does not implement CORS, so all cross-origin requests are allowed without
+restriction.
+
+</dd>
+</dl>
+
+For a more detailed list of differences, refer to the
+[undici documentation](https://github.com/nodejs/undici).
 
 ## Class: `File`
 
