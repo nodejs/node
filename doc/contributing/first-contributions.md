@@ -61,6 +61,7 @@ This gives others the first impression that you are flooding the project.
 It's OK to not get everything right on the first try, but if you open PRs faster
 than they are reviewed, you are wasting an opportunity to improve, and can overwhelm
 both yourself and your reviewers with notifications.
+
 ## Going through the pull request review process
 
 When you are ready to submit a pull request, check out the [pull request guidelines](./pull-requests.md)
