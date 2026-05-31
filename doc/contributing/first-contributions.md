@@ -56,6 +56,11 @@ address known issues, allowing you to familiarize yourself with the collaboratio
 process first. When you have to submit a large pull request after gaining some experience,
 make sure to follow the [large pull request guidelines](./large-pull-requests.md).
 
+**Refrain from opening new Pull Requests before the first one has been approved**.
+This gives others the first impression that you are flooding the project.
+It's OK to not get everything right on the first try, but if you open PRs faster
+than they are reviewed, you are wasting an opportunity to improve, and can overwhelm
+both yourself and your reviewers with notifications.
 ## Going through the pull request review process
 
 When you are ready to submit a pull request, check out the [pull request guidelines](./pull-requests.md)
