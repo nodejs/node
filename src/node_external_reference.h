@@ -119,6 +119,7 @@ class ExternalReferenceRegistry {
   V(v8)                                                                        \
   V(zlib)                                                                      \
   V(wasm_web_api)                                                              \
+  V(webstreams)                                                                \
   V(worker)
 
 #if NODE_HAVE_I18N_SUPPORT
