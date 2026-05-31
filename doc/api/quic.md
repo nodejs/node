@@ -2266,6 +2266,72 @@ The following body source types are supported:
 Throws `ERR_INVALID_STATE` if the outbound is already configured or if
 the writer has been accessed.
 
+### `stream.resetStream([code])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `code` {number|bigint} The application error code to include in the
+  `RESET_STREAM` frame sent to the peer. Numbers are coerced to `BigInt`.
+  **Default:** `0n`.
+
+Sends a `RESET_STREAM` frame to the peer, signalling that this end will
+not send any more data on this stream. This half-closes the stream in the
+WRITE direction only — the readable side (if any) is unaffected and can
+continue receiving data from the peer.
+
+If the stream has already been destroyed, this is a no-op.
+
+This is useful for WebTransport and other application protocols that need
+independent half-closing per direction without tearing down the entire
+stream.
+
+```mjs
+import { connect } from 'node:quic';
+
+const session = await connect('localhost:4567', { alpn: 'myproto' });
+const stream = await session.createBidirectionalStream();
+
+// Abort the writable side with application error code 42.
+stream.resetStream(42n);
+```
+
+See [Aborting a stream][] for an overview of all stream-abort APIs.
+
+### `stream.stopSending([code])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `code` {number|bigint} The application error code to include in the
+  `STOP_SENDING` frame sent to the peer. Numbers are coerced to `BigInt`.
+  **Default:** `0n`.
+
+Sends a `STOP_SENDING` frame to the peer, requesting that the peer stop
+sending data on this stream. This half-closes the stream in the READ
+direction only — the writable side (if any) is unaffected and can
+continue sending data to the peer.
+
+If the stream has already been destroyed, this is a no-op.
+
+This is useful for WebTransport and other application protocols that need
+independent half-closing per direction without tearing down the entire
+stream.
+
+```mjs
+import { connect } from 'node:quic';
+
+const session = await connect('localhost:4567', { alpn: 'myproto' });
+const stream = await session.createBidirectionalStream();
+
+// Tell the peer to stop sending with application error code 7.
+stream.stopSending(7n);
+```
+
+See [Aborting a stream][] for an overview of all stream-abort APIs.
+
 ### `stream.session`
 
 <!-- YAML
@@ -4447,6 +4513,8 @@ throughput issues caused by flow control.
 [`sessionOptions.sni`]: #sessionoptionssni-server-only
 [`sessionOptions.token`]: #sessionoptionstoken-client-only
 [`stream.destroy()`]: #streamdestroyerror-options
+[`stream.resetStream()`]: #streamresetstreamcode
+[`stream.stopSending()`]: #streamstopsendingcode
 [`stream.headers`]: #streamheaders
 [`stream.onerror`]: #streamonerror
 [`stream.onwanttrailers`]: #streamonwanttrailers
