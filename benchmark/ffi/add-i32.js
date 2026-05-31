@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 ensureFixtureLibrary();
 
 const { lib, functions } = ffi.dlopen(libraryPath, {
-  add_i32: { result: 'i32', arguments: ['i32', 'i32'] },
+  add_i32: { return: 'i32', arguments: ['i32', 'i32'] },
 });
 
 const add = functions.add_i32;
