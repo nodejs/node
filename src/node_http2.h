@@ -65,6 +65,7 @@ constexpr int kStreamStateReadPaused = 0x4;
 constexpr int kStreamStateClosed = 0x8;
 constexpr int kStreamStateDestroyed = 0x10;
 constexpr int kStreamStateTrailers = 0x20;
+constexpr int kStreamStatePeerReset = 0x40;
 
 // Http2Session internal states
 constexpr int kSessionStateNone = 0x0;
@@ -352,6 +353,10 @@ class Http2Stream : public AsyncWrap,
   bool is_closed() const {
     return flags_ & kStreamStateClosed;
   }
+
+  bool peer_reset() const { return flags_ & kStreamStatePeerReset; }
+
+  void set_peer_reset() { flags_ |= kStreamStatePeerReset; }
 
   bool has_trailers() const {
     return flags_ & kStreamStateTrailers;
