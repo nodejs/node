@@ -1147,6 +1147,13 @@ int Http2Session::OnFrameReceive(nghttp2_session* handle,
     case NGHTTP2_HEADERS:
       session->HandleHeadersFrame(frame);
       break;
+    case NGHTTP2_RST_STREAM:
+      // Distinguish a peer reset from a natural close with the same code.
+      if (BaseObjectPtr<Http2Stream> stream =
+              session->FindStream(frame->hd.stream_id)) {
+        stream->set_peer_reset();
+      }
+      break;
     case NGHTTP2_SETTINGS:
       session->HandleSettingsFrame(frame);
       break;
@@ -1356,9 +1363,12 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   // ever passed on to the javascript side. If that happens, the callback
   // will return false.
   if (env->can_call_into_js()) {
-    Local<Value> arg = Integer::NewFromUnsigned(isolate, code);
+    Local<Value> argv[] = {
+        Integer::NewFromUnsigned(isolate, code),
+        Boolean::New(isolate, stream->peer_reset()),
+    };
     MaybeLocal<Value> answer = stream->MakeCallback(
-        env->http2session_on_stream_close_function(), 1, &arg);
+        env->http2session_on_stream_close_function(), arraysize(argv), argv);
     if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
       // Skip to destroy
       stream->Destroy();
