@@ -184,8 +184,10 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+  Environment* env = wrap->env();
   CHECK(args[0]->IsInt32());
   int mode = args[0].As<Int32>()->Value();
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
   int err = uv_pipe_chmod(&wrap->handle_, mode);
   args.GetReturnValue().Set(err);
 }
