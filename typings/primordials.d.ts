@@ -561,7 +561,10 @@ declare namespace primordials {
   export const IteratorPrototypeSymbolIterator: UncurryMethod<typeof Iterator.prototype, typeof Symbol.iterator>
   export const ArrayIteratorPrototype: ReturnType<typeof Array.prototype[typeof Symbol.iterator]>
   export const ArrayIteratorPrototypeNext: UncurryThis<typeof ArrayIteratorPrototype.next>
+  export const AsyncFunctionPrototype: Function
+  export const AsyncGeneratorFunctionPrototype: Function
   export const AsyncIteratorPrototype: AsyncIterable<any>
+  export const GeneratorFunctionPrototype: Function
   export const IteratorHelperPrototype: ReturnType<typeof Iterator.prototype.drop>
   export const MapIteratorPrototype: ReturnType<typeof Map.prototype[typeof Symbol.iterator]>
   export const MapIteratorPrototypeNext: UncurryThis<typeof MapIteratorPrototype.next>
