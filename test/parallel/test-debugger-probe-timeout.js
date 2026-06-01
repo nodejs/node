@@ -17,7 +17,7 @@ spawnSyncAndExit(process.execPath, [
   '--probe', 'probe-timeout.js:99',
   '--expr', '1',
   'probe-timeout.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   signal: null,
   status: 1,
   stdout(output) {
