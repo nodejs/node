@@ -46,6 +46,26 @@ async function testWritevAsyncFallback() {
   assert.ok(batches.some((b) => b.length > 1));
 }
 
+// Multi-chunk batch with synchronous writev success (returns undefined)
+async function testWritevSyncUndefinedSuccess() {
+  const chunks = [];
+  const writer = {
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    writev(batch) {
+      chunks.push(...batch);
+    },
+    end() {},
+  };
+  async function* source() {
+    yield [new Uint8Array([65]), new Uint8Array([66])];
+  }
+  const total = await pipeTo(source(), writer);
+  assert.strictEqual(total, 2);
+  assert.strictEqual(Buffer.concat(chunks).toString(), 'AB');
+}
+
 // writevSync returns false — falls through to async writev
 async function testWritevSyncFails() {
   const asyncCalls = [];
@@ -190,6 +210,7 @@ async function testPipeToSyncWriteFallback() {
 Promise.all([
   testWritevSyncSuccess(),
   testWritevAsyncFallback(),
+  testWritevSyncUndefinedSuccess(),
   testWritevSyncFails(),
   testWriteSyncFailsMidBatch(),
   testWriteSyncAlwaysFails(),
