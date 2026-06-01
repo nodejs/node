@@ -2284,7 +2284,7 @@ the writer has been accessed.
 ### `stream.resetStream([code])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 * `code` {number|bigint} The application error code to include in the
@@ -2312,12 +2312,26 @@ const stream = await session.createBidirectionalStream();
 stream.resetStream(42n);
 ```
 
+```cjs
+const { connect } = require('node:quic');
+
+async function main() {
+  const session = await connect('localhost:4567', { alpn: 'myproto' });
+  const stream = await session.createBidirectionalStream();
+
+  // Abort the writable side with application error code 42.
+  stream.resetStream(42n);
+}
+
+main();
+```
+
 See [Aborting a stream][] for an overview of all stream-abort APIs.
 
 ### `stream.stopSending([code])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.2.0
 -->
 
 * `code` {number|bigint} The application error code to include in the
@@ -2343,6 +2357,20 @@ const stream = await session.createBidirectionalStream();
 
 // Tell the peer to stop sending with application error code 7.
 stream.stopSending(7n);
+```
+
+```cjs
+const { connect } = require('node:quic');
+
+async function main() {
+  const session = await connect('localhost:4567', { alpn: 'myproto' });
+  const stream = await session.createBidirectionalStream();
+
+  // Tell the peer to stop sending with application error code 7.
+  stream.stopSending(7n);
+}
+
+main();
 ```
 
 See [Aborting a stream][] for an overview of all stream-abort APIs.
