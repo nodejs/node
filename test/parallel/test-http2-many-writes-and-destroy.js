@@ -7,6 +7,9 @@ const http2 = require('http2');
 
 {
   const server = http2.createServer((req, res) => {
+    // Peer destroys mid-stream, so we see errors here:
+    req.on('error', () => {});
+    res.on('error', () => {});
     req.pipe(res);
   });
 
