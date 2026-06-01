@@ -15,12 +15,7 @@
 // spawned process generates its own .profraw file, creating hundreds of
 // startup-heavy profiles that dilute the steady-state profile data.
 
-const {
-  Worker,
-  isMainThread,
-  parentPort,
-  workerData,
-} = require('worker_threads');
+const { Worker, isMainThread } = require('worker_threads');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -108,14 +103,14 @@ function setup() {
     parentPort.postMessage({ done: true, processed: length });
   `,
   );
-
-
 }
 
 function cleanup() {
   try {
     fs.rmSync(TEMP_DIR, { recursive: true, force: true });
-  } catch {}
+  } catch {
+    // best effort
+  }
 }
 
 // Workload 1: Worker threads — message passing (the dominant pattern)
@@ -234,14 +229,10 @@ async function workloadInlineWorker(iterations) {
   return ops;
 }
 
-
-
 async function main() {
   if (!isMainThread) return; // Guard against being loaded as worker
 
-  console.log(
-    '[pgo-child-workers] Starting worker thread workload...',
-  );
+  console.log('[pgo-child-workers] Starting worker thread workload...');
 
   setup();
   const startTime = Date.now();

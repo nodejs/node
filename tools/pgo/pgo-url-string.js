@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable no-void */
+
 // PGO Training Script: URL Parsing and String Operations
 //
 // URL parsing and string manipulation are pervasive in Node.js web apps:
@@ -16,10 +18,10 @@
 // Ada URL parser (C++), regex JIT, TextEncoder/Decoder C++ implementation.
 
 const url = require('url');
-const { URL, URLSearchParams } = require('url');
+const { URL, URLSearchParams } = url;
 const querystring = require('querystring');
 const util = require('util');
-const { TextEncoder, TextDecoder } = require('util');
+const { TextEncoder, TextDecoder } = util;
 
 const DURATION_MS = parseInt(process.env.PGO_TRAINING_DURATION, 10) || 15_000;
 
@@ -53,16 +55,16 @@ function workloadWHATWGURL(iterations) {
         const parsed = new URL(urlStr);
 
         // Access all properties (common in routing/logging)
-        parsed.href;
-        parsed.origin;
-        parsed.protocol;
-        parsed.hostname;
-        parsed.port;
-        parsed.pathname;
-        parsed.search;
-        parsed.hash;
-        parsed.username;
-        parsed.password;
+        void parsed.href;
+        void parsed.origin;
+        void parsed.protocol;
+        void parsed.hostname;
+        void parsed.port;
+        void parsed.pathname;
+        void parsed.search;
+        void parsed.hash;
+        void parsed.username;
+        void parsed.password;
         ops++;
 
         // Modify URL (redirect, base URL construction)
@@ -119,8 +121,8 @@ function workloadURLSearchParams(iterations) {
     ops++;
 
     // Iterate (common for logging, forwarding)
-    for (const [key, value] of params1) {
-      /* iterate */
+    for (const entry of params1) {
+      void entry;
     }
     ops++;
 
@@ -139,8 +141,8 @@ function workloadURLSearchParams(iterations) {
         'sort=-createdAt&fields=id,name,email,role&page[number]=1&page[size]=25&' +
         'include=profile,permissions&meta=true',
     );
-    for (const [k, v] of complexQuery) {
-      /* process */
+    for (const entry of complexQuery) {
+      void entry;
     }
     complexQuery.toString();
     ops++;
@@ -157,10 +159,10 @@ function workloadLegacyURL(iterations) {
       try {
         // url.parse (Express's req.url handling)
         const parsed = url.parse(urlStr, true); // true = parse query string
-        parsed.pathname;
-        parsed.query;
-        parsed.hostname;
-        parsed.protocol;
+        void parsed.pathname;
+        void parsed.query;
+        void parsed.hostname;
+        void parsed.protocol;
         ops++;
 
         // url.format (building URLs)
@@ -291,6 +293,7 @@ function workloadStringOps(iterations) {
       result += `item_${j},`;
     }
     ops++;
+    void result;
 
     // Template literal (most common string building pattern)
     const items = Array.from(
@@ -299,6 +302,7 @@ function workloadStringOps(iterations) {
     );
     const json = `{\n${items.join(',\n')}\n}`;
     ops++;
+    void json;
 
     // String.fromCharCode / codePointAt (encoding)
     for (let j = 32; j < 127; j++) {
@@ -383,9 +387,9 @@ function workloadRegex(iterations) {
     for (const route of testStrings.routes) {
       const match = routeRe.exec(route);
       if (match) {
-        match[1];
-        match[2];
-        match[3];
+        void match[1];
+        void match[2];
+        void match[3];
       }
       ops++;
     }
@@ -410,7 +414,7 @@ function workloadRegex(iterations) {
 
     // CSV parsing (data import)
     for (const csv of testStrings.csv) {
-      const matches = [...csv.matchAll(csvRe)];
+      void [...csv.matchAll(csvRe)];
       ops++;
     }
   }
@@ -486,7 +490,7 @@ function workloadUtilFormat(iterations) {
     ops += 5;
 
     // util.deprecate (module system pattern)
-    const deprecated = util.deprecate(() => {}, 'Use newAPI instead');
+    util.deprecate(() => {}, 'Use newAPI instead');
     ops++;
   }
   return ops;

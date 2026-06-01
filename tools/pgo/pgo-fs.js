@@ -29,7 +29,6 @@ const TEMP_DIR = path.join(
 );
 
 // Test data
-const SMALL_CONTENT = 'Hello, World! This is a small config file.\n';
 const MEDIUM_CONTENT = Array.from(
   { length: 100 },
   (_, i) => `Line ${i}: ${crypto.randomBytes(40).toString('hex')}`,
@@ -178,7 +177,7 @@ async function workloadStatAccess(iterations) {
     await fsp.stat(path.join(TEMP_DIR, 'subdir'));
     ops++;
 
-    // access check (permission verification)
+    // Access check (permission verification)
     try {
       await fsp.access(
         path.join(TEMP_DIR, `file-${i % 50}.txt`),
@@ -193,7 +192,7 @@ async function workloadStatAccess(iterations) {
     await fsp.lstat(path.join(TEMP_DIR, `file-${i % 50}.txt`));
     ops++;
 
-    // stat non-existent (cache miss pattern)
+    // Stat non-existent (cache miss pattern)
     try {
       await fsp.stat(path.join(TEMP_DIR, `nonexistent-${i}.txt`));
     } catch {
@@ -287,10 +286,7 @@ async function workloadStreams(iterations) {
       const rs = fs.createReadStream(path.join(TEMP_DIR, 'large.dat'), {
         highWaterMark: 16 * 1024,
       });
-      let bytes = 0;
-      rs.on('data', (chunk) => {
-        bytes += chunk.length;
-      });
+      rs.on('data', () => {});
       rs.on('end', () => {
         ops++;
         resolve();

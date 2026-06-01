@@ -54,13 +54,13 @@ const LARGE_JSON = JSON.stringify({
       duration: Math.random() * 10000,
       amount: i % 4 === 2 ? (Math.random() * 500).toFixed(2) : undefined,
       items:
-        i % 4 === 2
-          ? Array.from({ length: 3 }, (_, j) => ({
-              sku: `SKU-${j}-${i}`,
-              qty: j + 1,
-              price: (Math.random() * 100).toFixed(2),
-            }))
-          : undefined,
+        i % 4 === 2 ?
+          Array.from({ length: 3 }, (_, j) => ({
+            sku: `SKU-${j}-${i}`,
+            qty: j + 1,
+            price: (Math.random() * 100).toFixed(2),
+          })) :
+          undefined,
     },
     metadata: {
       ip: `192.168.${i % 256}.${(i * 7) % 256}`,
@@ -191,7 +191,7 @@ function handleRequest(req, res) {
     });
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      ETag: `"${crypto.createHash('md5').update(user).digest('hex')}"`,
+      'ETag': `"${crypto.createHash('md5').update(user).digest('hex')}"`,
       'Cache-Control': 'max-age=60',
     });
     res.end(user);
@@ -237,10 +237,7 @@ function handleRequest(req, res) {
 
   // Set-Cookie responses (common for auth)
   if (path === '/api/login' && method === 'POST') {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk;
-    });
+    req.on('data', () => {});
     req.on('end', () => {
       const token = crypto.randomBytes(32).toString('hex');
       res.writeHead(200, {
@@ -310,11 +307,11 @@ function makeRequest(port, pattern) {
       path: pattern.path,
       method: pattern.method,
       headers: {
-        Host: 'localhost',
+        'Host': 'localhost',
         'User-Agent': 'PGO-Training/1.0',
-        Accept: 'application/json, text/html',
+        'Accept': 'application/json, text/html',
         'Accept-Encoding': 'identity',
-        Connection: 'keep-alive',
+        'Connection': 'keep-alive',
       },
     };
 

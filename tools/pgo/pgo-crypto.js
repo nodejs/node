@@ -35,7 +35,6 @@ const DATA_SIZES = [
 
 // Pre-generated keys for symmetric encryption
 const AES_KEY = crypto.randomBytes(32); // AES-256
-const AES_IV = crypto.randomBytes(12); // GCM nonce
 const HMAC_KEY = crypto.randomBytes(64);
 
 // RSA key pair (pre-generated for speed)
@@ -321,7 +320,7 @@ function workloadDH(iterations) {
     bob.generateKeys();
 
     const aliceSecret = alice.computeSecret(bob.getPublicKey());
-    const bobSecret = bob.computeSecret(alice.getPublicKey());
+    bob.computeSecret(alice.getPublicKey());
 
     // Derive encryption key from shared secret
     crypto.createHash('sha256').update(aliceSecret).digest();

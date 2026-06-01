@@ -90,9 +90,9 @@ function generateEventPayload(count) {
         ip: `10.${i % 256}.${(i * 3) % 256}.${(i * 7) % 256}`,
         locale: ['en-US', 'en-GB', 'es-ES', 'fr-FR', 'de-DE'][i % 5],
         campaign:
-          i % 10 === 0
-            ? { name: 'holiday_sale', medium: 'email', source: 'mailchimp' }
-            : null,
+          i % 10 === 0 ?
+            { name: 'holiday_sale', medium: 'email', source: 'mailchimp' } :
+            null,
       },
     });
   }

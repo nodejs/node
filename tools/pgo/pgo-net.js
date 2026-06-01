@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable no-void */
+
 // PGO Training Script: Network (TCP) and DNS
 //
 // Exercises the core networking primitives used by every HTTP server/client:
@@ -14,7 +16,6 @@
 
 const net = require('net');
 const dns = require('dns');
-const { Resolver } = require('dns/promises');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
@@ -56,7 +57,7 @@ async function workloadTCPEcho(duration) {
   async function runClient() {
     let ops = 0;
     while (Date.now() < endTime) {
-      await new Promise((resolve, reject) => {
+      await new Promise((resolve) => {
         const client = net.createConnection({ port, host: '127.0.0.1' }, () => {
           let msgsSent = 0;
           const maxMsgs = 50;
@@ -213,9 +214,9 @@ async function workloadTCPRequestResponse(duration) {
 async function workloadIPC(duration) {
   let totalOps = 0;
   const pipePath =
-    process.platform === 'win32'
-      ? `\\\\.\\pipe\\node-pgo-${process.pid}-${Date.now()}`
-      : path.join(os.tmpdir(), `node-pgo-ipc-${process.pid}.sock`);
+    process.platform === 'win32' ?
+      `\\\\.\\pipe\\node-pgo-${process.pid}-${Date.now()}` :
+      path.join(os.tmpdir(), `node-pgo-ipc-${process.pid}.sock`);
 
   const server = net.createServer((socket) => {
     socket.on('data', (data) => {
@@ -283,7 +284,9 @@ async function workloadIPC(duration) {
   if (process.platform !== 'win32') {
     try {
       require('fs').unlinkSync(pipePath);
-    } catch {}
+    } catch {
+      // best effort
+    }
   }
   return totalOps;
 }
@@ -291,7 +294,6 @@ async function workloadIPC(duration) {
 // Workload 4: DNS resolution (every HTTP client connection does this)
 async function workloadDNS(iterations) {
   let ops = 0;
-  const resolver = new Resolver();
 
   // Use localhost and standard DNS patterns
   const hosts = ['localhost', '127.0.0.1', '::1'];
@@ -356,13 +358,13 @@ async function workloadSocketOps(duration) {
 
   const server = net.createServer((socket) => {
     // Exercise socket properties (common in logging, monitoring)
-    socket.remoteAddress;
-    socket.remotePort;
-    socket.localAddress;
-    socket.localPort;
-    socket.bytesRead;
-    socket.bytesWritten;
-    socket.readyState;
+    void socket.remoteAddress;
+    void socket.remotePort;
+    void socket.localAddress;
+    void socket.localPort;
+    void socket.bytesRead;
+    void socket.bytesWritten;
+    void socket.readyState;
 
     socket.setNoDelay(true);
     socket.setKeepAlive(true, 1000);

@@ -140,7 +140,7 @@ Example:
 }
 
 function runScript(scriptPath, duration, verbose) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const env = {
       ...process.env,
       PGO_TRAINING_DURATION: String(duration * 1000),
@@ -288,12 +288,13 @@ async function main() {
   }
 
   // Scan for .profraw files to verify profile data was collected
-  const profrawDir = process.env.LLVM_PROFILE_FILE
-    ? path.dirname(process.env.LLVM_PROFILE_FILE.replace(/%[mp]/g, '_'))
-    : process.cwd();
+  const profrawDir = process.env.LLVM_PROFILE_FILE ?
+    path.dirname(process.env.LLVM_PROFILE_FILE.replace(/%[mp]/g, '_')) :
+    process.cwd();
   let profrawFiles = [];
   try {
-    profrawFiles = fs.readdirSync(profrawDir)
+    profrawFiles = fs
+      .readdirSync(profrawDir)
       .filter((f) => f.endsWith('.profraw'));
   } catch {
     // Directory may not exist if LLVM_PROFILE_FILE points elsewhere
@@ -315,9 +316,7 @@ async function main() {
     );
     console.log(`  Location: ${profrawDir}`);
   } else {
-    console.log(
-      'WARNING: No .profraw files found in ' + profrawDir,
-    );
+    console.log('WARNING: No .profraw files found in ' + profrawDir);
     console.log(
       '  Ensure LLVM_PROFILE_FILE is set and the binary was built with -fprofile-generate',
     );

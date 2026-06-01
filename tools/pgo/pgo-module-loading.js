@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable no-void */
+
 // PGO Training Script: Module Loading and Startup
 //
 // Module loading (require/import) is one of Node.js's most performance-critical
@@ -342,10 +344,10 @@ function setup() {
         version: '1.0.0',
         main: 'src/index.js',
         dependencies: {
-          express: '^4.18.0',
-          lodash: '^4.17.0',
-          config: '^3.3.0',
-          debug: '^4.3.0',
+          'express': '^4.18.0',
+          'lodash': '^4.17.0',
+          'config': '^3.3.0',
+          'debug': '^4.3.0',
           'body-parser': '^1.20.0',
         },
       },
@@ -364,7 +366,9 @@ function writeFile(relPath, content) {
 function cleanup() {
   try {
     fs.rmSync(TEMP_DIR, { recursive: true, force: true });
-  } catch {}
+  } catch {
+    // best effort
+  }
 }
 
 // Workload 1: require() with full resolution (CJS — the dominant pattern)
@@ -456,29 +460,41 @@ function workloadModuleResolution(iterations) {
     // Resolve module paths (this is the hot path in require())
     try {
       customRequire.resolve('express');
-    } catch {}
+    } catch {
+      // expected
+    }
     try {
       customRequire.resolve('lodash');
-    } catch {}
+    } catch {
+      // expected
+    }
     try {
       customRequire.resolve('./models/user');
-    } catch {}
+    } catch {
+      // expected
+    }
     try {
       customRequire.resolve('../package.json');
-    } catch {}
+    } catch {
+      // expected
+    }
     ops += 4;
 
     // Module._resolveFilename (internal but exercises the same path)
     try {
       Module._resolveFilename('fs');
-    } catch {}
+    } catch {
+      // expected
+    }
     try {
       Module._resolveFilename('path');
-    } catch {}
+    } catch {
+      // expected
+    }
     ops += 2;
 
     // Module.builtinModules
-    const builtins = Module.builtinModules;
+    void Module.builtinModules;
     ops++;
   }
   return ops;
@@ -509,6 +525,7 @@ function workloadVMCompilation(iterations) {
     // Regex
     'const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/; re.test("test@example.com");',
     // Template literals
+    // eslint-disable-next-line no-template-curly-in-string
     'const name = "World"; const greeting = `Hello, ${name}! Today is ${new Date().toISOString()}`; greeting;',
   ];
 

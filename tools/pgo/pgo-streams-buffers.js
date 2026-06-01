@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable no-void */
+
 // PGO Training Script: Streams and Buffers
 //
 // Buffers and Streams are the backbone of all I/O in Node.js.
@@ -17,14 +19,7 @@
 // This exercises: Buffer C++ implementation, stream state machine,
 // back-pressure handling, highWaterMark management, GC pressure.
 
-const {
-  Readable,
-  Writable,
-  Transform,
-  PassThrough,
-  Duplex,
-  pipeline,
-} = require('stream');
+const { Readable, Writable, Transform, PassThrough } = require('stream');
 const { pipeline: pipelinePromise } = require('stream/promises');
 const { Buffer } = require('buffer');
 const crypto = require('crypto');
@@ -203,7 +198,7 @@ async function workloadPipeChain(iterations) {
     const chunkCount = 1000;
     const chunkSize = 1024;
 
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve) => {
       let pushed = 0;
       const source = new Readable({
         read() {
@@ -216,10 +211,8 @@ async function workloadPipeChain(iterations) {
         },
       });
 
-      let received = 0;
       const sink = new Writable({
         write(chunk, encoding, callback) {
-          received += chunk.length;
           callback();
         },
       });
@@ -239,7 +232,7 @@ async function workloadTransform(iterations) {
   let ops = 0;
 
   for (let i = 0; i < iterations; i++) {
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve) => {
       let pushed = 0;
       const chunkCount = 500;
       const source = new Readable({
@@ -275,10 +268,8 @@ async function workloadTransform(iterations) {
         },
       });
 
-      let bytes = 0;
       const sink = new Writable({
         write(chunk, encoding, callback) {
-          bytes += chunk.length;
           callback();
         },
       });
@@ -422,6 +413,7 @@ async function workloadPipeline(iterations) {
 
     await pipelinePromise(source, uppercase, sink);
     ops += chunkCount;
+    void bytes;
   }
   return ops;
 }
@@ -449,8 +441,8 @@ async function workloadPassThrough(iterations) {
     const pt1 = new PassThrough();
     const pt2 = new PassThrough();
 
-    let bytes1 = 0,
-      bytes2 = 0;
+    let bytes1 = 0;
+    let bytes2 = 0;
     const sink1 = new Writable({
       write(chunk, encoding, callback) {
         bytes1 += chunk.length;
@@ -472,6 +464,8 @@ async function workloadPassThrough(iterations) {
       new Promise((r) => sink2.on('finish', r)),
     ]);
     ops += chunkCount * 2;
+    void bytes1;
+    void bytes2;
   }
   return ops;
 }
@@ -489,6 +483,7 @@ async function workloadReadableFrom(iterations) {
       data1 += chunk;
     }
     ops += 100;
+    void data1;
 
     // From async generator (database cursor simulation)
     async function* generateRows() {
@@ -503,6 +498,7 @@ async function workloadReadableFrom(iterations) {
       data2 += chunk;
     }
     ops += 100;
+    void data2;
   }
   return ops;
 }
