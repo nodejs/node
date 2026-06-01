@@ -17,7 +17,7 @@ spawnSyncAndExit(process.execPath, [
   '--',
   '--not-a-real-node-flag',
   'probe.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   signal: null,
   status: 1,
   stderr(output) {

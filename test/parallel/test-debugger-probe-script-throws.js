@@ -33,7 +33,7 @@ spawnSyncAndExit(process.execPath, [
   '--probe', `${fixture}:7`, '--expr', probes[0].expr,
   '--probe', `${fixture}:4`, '--expr', probes[1].expr,
   fixture,
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   // probe_target_exit: probing process exits 0 (hits trustworthy).
   status: 0,
   signal: null,
