@@ -24,7 +24,7 @@ spawnSyncAndExit(process.execPath, [
   '--probe', `${fixture}:10`, '--expr', probes[0].expr,
   '--probe', `${fixture}:11`, '--expr', probes[1].expr,
   fixture,
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   status: 1,
   signal: null,
   stdout(output) {

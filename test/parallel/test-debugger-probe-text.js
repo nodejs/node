@@ -15,7 +15,7 @@ spawnSyncAndAssert(process.execPath, [
   '--probe', 'probe.js:12',
   '--expr', 'finalValue',
   'probe.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   stdout(output) {
     assertProbeText(output,
                     `Hit 1 at ${probeUrl}:12:1\n` +

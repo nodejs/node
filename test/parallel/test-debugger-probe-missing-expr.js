@@ -13,7 +13,7 @@ spawnSyncAndExit(process.execPath, [
   'inspect',
   '--probe', 'probe.js:12',
   'probe.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   signal: null,
   status: 9,
   stderr: /Each --probe must be followed immediately by --expr/,
