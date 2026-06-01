@@ -454,6 +454,39 @@ async function testEndRejectsWhenErrored() {
   }
 }
 
+async function testFailRejectsFutureReadWithFalsyReason() {
+  for (const reason of [0, null]) {
+    const { writer, readable } = push();
+
+    writer.fail(reason);
+
+    const iter = readable[Symbol.asyncIterator]();
+    await iter.next().then(
+      common.mustNotCall(),
+      common.mustCall((rejection) => {
+        assert.strictEqual(rejection, reason);
+      }),
+    );
+  }
+}
+
+async function testFailRejectsPendingReadWithFalsyReason() {
+  const { writer, readable } = push();
+
+  const iter = readable[Symbol.asyncIterator]();
+  const readPromise = iter.next();
+
+  await new Promise(setImmediate);
+
+  writer.fail(false);
+  await readPromise.then(
+    common.mustNotCall(),
+    common.mustCall((reason) => {
+      assert.strictEqual(reason, false);
+    }),
+  );
+}
+
 Promise.all([
   testOndrain(),
   testOndrainNonDrainable(),
@@ -476,6 +509,8 @@ Promise.all([
   testConsumerThrowRejectsWrites(),
   testEndResolvesPendingRead(),
   testFailRejectsPendingRead(),
+  testFailRejectsFutureReadWithFalsyReason(),
+  testFailRejectsPendingReadWithFalsyReason(),
   testConsumerReturnResolvesPendingRead(),
   testConsumerThrowRejectsPendingRead(),
   testEndRejectsPendingWrites(),
