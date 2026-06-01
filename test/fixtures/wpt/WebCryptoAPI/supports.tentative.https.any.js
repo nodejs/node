@@ -6,7 +6,7 @@
 const standardAlgorithms = {
   // Asymmetric algorithms
   'RSASSA-PKCS1-v1_5': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: {
       name: 'RSASSA-PKCS1-v1_5',
       modulusLength: 2048,
@@ -17,7 +17,7 @@ const standardAlgorithms = {
     signParams: { name: 'RSASSA-PKCS1-v1_5' },
   },
   'RSA-PSS': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: {
       name: 'RSA-PSS',
       modulusLength: 2048,
@@ -28,7 +28,7 @@ const standardAlgorithms = {
     signParams: { name: 'RSA-PSS', saltLength: 32 },
   },
   'RSA-OAEP': {
-    operations: ['generateKey', 'importKey', 'encrypt', 'decrypt'],
+    operations: ['generateKey', 'importKey', 'encrypt', 'decrypt', 'getPublicKey'],
     keyGenParams: {
       name: 'RSA-OAEP',
       modulusLength: 2048,
@@ -39,13 +39,13 @@ const standardAlgorithms = {
     encryptParams: { name: 'RSA-OAEP' },
   },
   ECDSA: {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: { name: 'ECDSA', namedCurve: 'P-256' },
     importParams: { name: 'ECDSA', namedCurve: 'P-256' },
     signParams: { name: 'ECDSA', hash: 'SHA-256' },
   },
   ECDH: {
-    operations: ['generateKey', 'importKey', 'deriveBits'],
+    operations: ['generateKey', 'importKey', 'deriveBits', 'getPublicKey'],
     keyGenParams: { name: 'ECDH', namedCurve: 'P-256' },
     importParams: { name: 'ECDH', namedCurve: 'P-256' },
     deriveBitsParams: {
@@ -58,12 +58,12 @@ const standardAlgorithms = {
     },
   },
   Ed25519: {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
     keyGenParams: null,
     signParams: { name: 'Ed25519' },
   },
   X25519: {
-    operations: ['generateKey', 'importKey', 'deriveBits'],
+    operations: ['generateKey', 'importKey', 'deriveBits', 'getPublicKey'],
     keyGenParams: null,
     deriveBitsParams: {
       name: 'X25519',
@@ -152,6 +152,7 @@ const operations = [
   'decrypt',
   'deriveBits',
   'digest',
+  'getPublicKey',
 ];
 
 // Test that supports method exists and is a static method
