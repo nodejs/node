@@ -3,6 +3,7 @@ import { AsyncWrapBinding } from './internalBinding/async_wrap';
 import { BlobBinding } from './internalBinding/blob';
 import { BufferBinding } from './internalBinding/buffer';
 import { CJSLexerBinding } from './internalBinding/cjs_lexer';
+import { CodeIntegrityBinding } from './internalBinding/code_integrity';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
 import { DebugBinding } from './internalBinding/debug';
@@ -38,6 +39,7 @@ interface InternalBindingMap {
   blob: BlobBinding;
   buffer: BufferBinding;
   cjs_lexer: CJSLexerBinding;
+  code_integrity: CodeIntegrityBinding;
   config: ConfigBinding;
   constants: ConstantsBinding;
   debug: DebugBinding;
