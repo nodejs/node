@@ -24,7 +24,7 @@ spawnSyncAndAssert(process.execPath, [
   '--probe', 'probe-multi-statement.js:5:29',
   '--expr', 'acc.length',
   'probe-multi-statement.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   stdout(output) {
     assertProbeJson(output, {
       v: 2,

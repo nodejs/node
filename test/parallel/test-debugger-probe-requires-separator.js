@@ -15,7 +15,7 @@ spawnSyncAndExit(process.execPath, [
   '--expr', 'finalValue',
   '--inspect-port=0',
   'probe.js',
-], { cwd }, {
+], { cwd, env: { ...process.env, NODE_DEBUG: 'inspect_probe' } }, {
   signal: null,
   status: 9,
   stderr: /Use -- before child Node\.js flags in probe mode/,
