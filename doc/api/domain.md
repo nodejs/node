@@ -17,6 +17,11 @@ changes:
 
 <!--introduced_in=v0.10.0-->
 
+<!-- YAML
+llm_description: >
+  Deprecated (avoid). Legacy API for error handling across async operations.
+-->
+
 > Stability: 0 - Deprecated
 
 <!-- source_link=lib/domain.js -->

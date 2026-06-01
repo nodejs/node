@@ -29,6 +29,12 @@ changes:
 
 > Stability: 2 - Stable
 
+<!-- YAML
+llm_description: >
+  Provides lightweight TypeScript support in Node.js via type stripping.
+  Enables execution of .ts files without type checking or full compiler features.
+-->
+
 ## Enabling
 
 There are two ways to enable runtime TypeScript support in Node.js:
