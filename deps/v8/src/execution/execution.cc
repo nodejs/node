@@ -231,12 +231,12 @@ MaybeDirectHandle<Context> NewScriptContext(
 
     if (IsLexicalVariableMode(mode)) {
       LookupIterator lookup_it(isolate, global_object, name, global_object,
-                               LookupIterator::OWN_SKIP_INTERCEPTOR);
+                               LookupIterator::OWN);
       Maybe<PropertyAttributes> maybe =
           JSReceiver::GetPropertyAttributes(&lookup_it);
-      // Can't fail since the we looking up own properties on the global object
-      // skipping interceptors.
-      CHECK(!maybe.IsNothing());
+      // The interceptor query callback may throw, in which case propagate the
+      // pending exception instead of continuing.
+      if (maybe.IsNothing()) return MaybeDirectHandle<Context>();
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
         // ES#sec-globaldeclarationinstantiation 5.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
