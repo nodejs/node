@@ -46,12 +46,16 @@ void FFIFunctionInfo::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 DynamicLibrary::DynamicLibrary(Environment* env, Local<Object> object)
-    : BaseObject(env, object), lib_{}, handle_(nullptr), symbols_() {
+    : BaseObject(env, object) {
   MakeWeak();
 }
 
 DynamicLibrary::~DynamicLibrary() {
   this->Close();
+}
+
+bool DynamicLibrary::is_closed() const {
+  return static_cast<void*>(lib_.handle) == nullptr;
 }
 
 void DynamicLibrary::MemoryInfo(MemoryTracker* tracker) const {
@@ -85,9 +89,9 @@ void DynamicLibrary::Close() {
   // dangerous: it can crash the process, produce incorrect output, or corrupt
   // memory.
 
-  if (handle_ != nullptr) {
+  if (!is_closed()) {
     uv_dlclose(&lib_);
-    handle_ = nullptr;
+    lib_ = {};
   }
 
   symbols_.clear();
@@ -97,7 +101,7 @@ void DynamicLibrary::Close() {
 
 Maybe<void*> DynamicLibrary::ResolveSymbol(Environment* env,
                                            const std::string& name) {
-  if (handle_ == nullptr) {
+  if (is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return {};
   }
@@ -378,13 +382,12 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
     library_path = lib->path_.c_str();
   }
 
+  CHECK(lib->is_closed());
   // Open the library
   if (uv_dlopen(library_path, &lib->lib_) != 0) {
     THROW_ERR_FFI_CALL_FAILED(env, "dlopen failed: %s", uv_dlerror(&lib->lib_));
     return;
   }
-
-  lib->handle_ = static_cast<void*>(lib->lib_.handle);
 }
 
 void DynamicLibrary::Close(const FunctionCallbackInfo<Value>& args) {
@@ -539,7 +542,7 @@ void DynamicLibrary::InvokeCallback(ffi_cif* cif,
   // It is unsupported and dangerous for a callback to unregister itself or
   // close its owning library while executing. The current invocation must
   // return before teardown APIs are used.
-  if (cb->owner->handle_ == nullptr || cb->ptr == nullptr) {
+  if (cb->owner->is_closed() || cb->ptr == nullptr) {
     if (ret != nullptr && cb->return_type->size > 0) {
       std::memset(ret, 0, GetFFIReturnValueStorageSize(cb->return_type));
     }
@@ -669,7 +672,7 @@ void DynamicLibrary::GetFunctions(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -818,7 +821,7 @@ void DynamicLibrary::GetSymbols(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -890,7 +893,7 @@ void DynamicLibrary::RegisterCallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -971,7 +974,7 @@ void DynamicLibrary::UnregisterCallback(
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -1007,7 +1010,7 @@ void DynamicLibrary::RefCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
@@ -1038,7 +1041,7 @@ void DynamicLibrary::UnrefCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DynamicLibrary* lib = Unwrap<DynamicLibrary>(args.This());
 
-  if (lib->handle_ == nullptr) {
+  if (lib->is_closed()) {
     THROW_ERR_FFI_LIBRARY_CLOSED(env);
     return;
   }
