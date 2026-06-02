@@ -2149,42 +2149,37 @@ void SecureContext::SetCertificateCompression(
   Environment* env = sc->env();
 
   CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsArray());
+  CHECK(args[0]->IsUint32());
 
-  Local<Array> arr = args[0].As<Array>();
-  uint32_t len = arr->Length();
+  // Cert compression requires TLS 1.3:
+  long max_proto =  // NOLINT(runtime/int)
+      SSL_CTX_get_max_proto_version(sc->ctx_.get());
+  if (max_proto != 0 && max_proto < TLS1_3_VERSION) {
+    return THROW_ERR_INVALID_ARG_VALUE(
+        env,
+        "certificateCompression requires a TLS protocol range that includes "
+        "TLSv1.3");
+  }
+
+  // JS packs (length | alg0<<8 | alg1<<16 | alg2<<24) into a single Uint32.
+  // IDs match TLSEXT_comp_cert_zlib (1), _brotli (2), _zstd (3).
+  uint32_t packed = args[0].As<v8::Uint32>()->Value();
+  size_t len = packed & 0xff;
 
   // TLSEXT_comp_cert_limit is the limit for a zero-terminated algs array,
   // total number of available algs is one fewer.
-  constexpr uint32_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
+  constexpr size_t kMaxCompAlgs = TLSEXT_comp_cert_limit - 1;
   if (len == 0 || len > kMaxCompAlgs) {
     return THROW_ERR_INVALID_ARG_VALUE(
         env,
         "certificateCompression must specify fewer than %d algorithms",
-        kMaxCompAlgs);
+        static_cast<int>(kMaxCompAlgs));
   }
 
 #ifndef OPENSSL_NO_COMP_ALG
   int algs[kMaxCompAlgs];
-  for (uint32_t i = 0; i < len; i++) {
-    Local<Value> val;
-    if (!arr->Get(env->context(), i).ToLocal(&val) || !val->IsString()) {
-      return THROW_ERR_INVALID_ARG_VALUE(
-          env, "certificateCompression entries must be strings");
-    }
-    Utf8Value name(env->isolate(), val);
-    if (name.ToStringView() == "zlib") {
-      algs[i] = TLSEXT_comp_cert_zlib;
-    } else if (name.ToStringView() == "brotli") {
-      algs[i] = TLSEXT_comp_cert_brotli;
-    } else if (name.ToStringView() == "zstd") {
-      algs[i] = TLSEXT_comp_cert_zstd;
-    } else {
-      return THROW_ERR_INVALID_ARG_VALUE(
-          env,
-          "certificateCompression algorithm must be 'zlib', 'brotli', or "
-          "'zstd'");
-    }
+  for (size_t i = 0; i < len; i++) {
+    algs[i] = (packed >> (8 * (i + 1))) & 0xff;
   }
   if (!SSL_CTX_set1_cert_comp_preference(
           sc->ctx_.get(), algs, static_cast<size_t>(len))) {
@@ -2192,11 +2187,11 @@ void SecureContext::SetCertificateCompression(
         env, "Failed to set certificate compression preference");
   }
 
-  // Pre-compress the loaded certificate(s) for all supported algorithms, where
-  // 0 arg means 'compress with all algorithms in the preference list'.
+  // Pre-compress the loaded certificate(s) for all supported algorithms.
   // Returns 0 when no certificate is loaded (e.g. client-only context) or
   // when compression did not reduce size - both are non-fatal.
-  SSL_CTX_compress_certs(sc->ctx_.get(), 0);
+  constexpr int kCompressAllAlgs = 0;
+  SSL_CTX_compress_certs(sc->ctx_.get(), kCompressAllAlgs);
 
   // Store preferences for propagation during SNI context switches.
   memcpy(sc->cert_comp_prefs_, algs, sizeof(int) * len);
@@ -2206,17 +2201,17 @@ void SecureContext::SetCertificateCompression(
   // setSniContext uses SSL_use_certificate which doesn't carry comp_cert data,
   // so we extract it here and re-apply via SSL_set1_compressed_cert later.
   sc->compressed_certs_.clear();
-  for (uint32_t i = 0; i < len; i++) {
+  for (size_t i = 0; i < len; i++) {
     unsigned char* data = nullptr;
     size_t orig_len = 0;
     size_t comp_len =
         SSL_CTX_get1_compressed_cert(sc->ctx_.get(), algs[i], &data, &orig_len);
+    ncrypto::DataPointer comp(data, comp_len);
     if (comp_len > 0 && data != nullptr) {
       sc->compressed_certs_.push_back(
           {algs[i],
            std::vector<unsigned char>(data, data + comp_len),
            orig_len});
-      OPENSSL_free(data);
     }
   }
 #else
