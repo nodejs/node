@@ -183,7 +183,7 @@ added:
 
 ### `blockList.fromJSON(value)`
 
-> Stability: 1 - Experimental
+> Stability: 1.2 - Release candidate
 
  <!-- YAML
 added: v24.5.0
@@ -205,7 +205,7 @@ blockList.fromJSON(JSON.stringify(data));
 
 ### `blockList.toJSON()`
 
-> Stability: 1 - Experimental
+> Stability: 1.2 - Release candidate
 
  <!-- YAML
 added: v24.5.0
