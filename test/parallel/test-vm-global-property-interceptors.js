@@ -127,3 +127,26 @@ assert.throws(() => vm.runInContext(`
 'use strict';
 Object.defineProperty(this, 'f', { value: 'newF' });
 `, ctx), /TypeError: Cannot redefine property: f/);
+
+{
+  const restrictedCtx = vm.createContext({});
+  vm.runInContext(
+    "Object.defineProperty(this, 'foo', { value: 1, configurable: false });",
+    restrictedCtx);
+  assert.throws(() => vm.runInContext('let foo;', restrictedCtx), {
+    name: 'SyntaxError',
+    message: /Identifier 'foo' has already been declared/,
+  });
+  assert.throws(() => vm.runInContext('const foo = 2;', restrictedCtx), {
+    name: 'SyntaxError',
+    message: /Identifier 'foo' has already been declared/,
+  });
+
+  // A configurable global property does not restrict a lexical declaration.
+  const configurableCtx = vm.createContext({});
+  vm.runInContext(
+    "Object.defineProperty(this, 'bar', { value: 1, configurable: true });",
+    configurableCtx);
+  assert.doesNotThrow(() => vm.runInContext('let bar = 9; bar;',
+                                            configurableCtx));
+}
