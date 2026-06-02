@@ -2,6 +2,17 @@
 
 <!--introduced_in=v10.5.0-->
 
+<!-- YAML
+added: v10.5.0
+changes:
+  - version: v12.11.0
+    pr-url: https://github.com/nodejs/node/pull/29512
+    description: This API is no longer experimental.
+  - version: v11.7.0
+    pr-url: https://github.com/nodejs/node/pull/25361
+    description: This API is no longer behind the `--experimental-worker` CLI flag.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/worker_threads.js -->
