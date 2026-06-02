@@ -4,6 +4,6 @@
   "file": "empty-string.js",
   "sources": ["simple-original.js"],
   "sourcesContent": ["\"Hello World\""],
-  "mappings": ";CAAA;A",
+  "mappings": ";CAAA;A;;;",
   "rangeMappings": ";A"
 }

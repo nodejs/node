@@ -85,6 +85,7 @@ When reporting security vulnerabilities, reporters must adhere to the following 
 
 4. **Report Quality**
    * Provide clear, detailed steps to reproduce the vulnerability.
+   * Include reproducible code written in JavaScript.
    * Include only the minimum proof of concept required to demonstrate the issue.
    * Remove any malicious payloads or components that could cause harm.
 
@@ -376,7 +377,7 @@ the community they pose.
 #### Permission Model Boundaries (`--permission`)
 
 The Node.js [Permission Model](https://nodejs.org/api/permissions.html)
-(`--experimental-permission`) is an opt-in mechanism that limits which
+(`--permission`) is an opt-in mechanism that limits which
 resources a Node.js process may access. It is designed to reduce the blast
 radius of mistakes in trusted application code, **not** to act as a security
 boundary against intentional misuse or a compromised process.

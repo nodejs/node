@@ -1285,6 +1285,11 @@ bool ZlibContext::InitZlib() {
     return false;
   }
 
+  // If deflateInit2() fails with Z_VERSION_ERROR, msg remains uninitialized.
+  // Initialize it here to avoid reading the uninitialized pointer during error
+  // emission.
+  strm_.msg = nullptr;
+
   switch (mode_) {
     case DEFLATE:
     case GZIP:

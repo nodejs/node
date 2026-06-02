@@ -39,13 +39,13 @@ server.on('stream', common.mustCall((stream) => {
       name: 'Error'
     }
   );
-  // When session is destroyed all streams are destroyed and no further
-  // error should be emitted.
+  // session.destroy() destroys its streams synchronously; subsequent
+  // writes fail with ERR_STREAM_DESTROYED via the write callback.
   stream.on('error', common.mustNotCall());
   assert.strictEqual(stream.write('data', common.expectsError({
     name: 'Error',
-    code: 'ERR_STREAM_WRITE_AFTER_END',
-    message: 'write after end'
+    code: 'ERR_STREAM_DESTROYED',
+    message: 'Cannot call write after a stream was destroyed'
   })), false);
 }));
 
@@ -53,6 +53,6 @@ server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   req.resume();
-  req.on('end', common.mustCall());
+  req.on('error', () => {});
   req.on('close', common.mustCall(() => server.close(common.mustCall())));
 }));

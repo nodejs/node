@@ -57,6 +57,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 await clientSession.opened;
 
@@ -87,4 +88,5 @@ const requests = paths.map(mustCall(async (path) => {
 }, REQUEST_COUNT));
 
 await Promise.all([...requests, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

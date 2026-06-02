@@ -488,10 +488,10 @@ bool ExportJWKEcKey(Environment* env,
     return false;
   }
 
-  if (target->Set(
-          env->context(),
-          env->jwk_kty_string(),
-          env->jwk_ec_string()).IsNothing()) {
+  if (!target
+           ->DefineOwnProperty(
+               env->context(), env->jwk_kty_string(), env->jwk_ec_string())
+           .FromMaybe(false)) {
     return false;
   }
 
@@ -531,10 +531,9 @@ bool ExportJWKEcKey(Environment* env,
       return false;
     }
   }
-  if (target->Set(
-      env->context(),
-      env->jwk_crv_string(),
-      crv_name).IsNothing()) {
+  if (!target
+           ->DefineOwnProperty(env->context(), env->jwk_crv_string(), crv_name)
+           .FromMaybe(false)) {
     return false;
   }
 
@@ -577,20 +576,23 @@ bool ExportJWKEdKey(Environment* env,
     const ncrypto::Buffer<const char> out = data;
     return StringBytes::Encode(env->isolate(), out.data, out.len, BASE64URL)
                .ToLocal(&encoded) &&
-           target->Set(env->context(), key, encoded).IsJust();
+           target->DefineOwnProperty(env->context(), key, encoded)
+               .FromMaybe(false);
   };
 
   return !(
-      target
-          ->Set(env->context(),
-                env->jwk_crv_string(),
-                OneByteString(env->isolate(), curve))
-          .IsNothing() ||
+      !target
+           ->DefineOwnProperty(env->context(),
+                               env->jwk_crv_string(),
+                               OneByteString(env->isolate(), curve))
+           .FromMaybe(false) ||
       (key.GetKeyType() == kKeyTypePrivate &&
        !trySetKey(env, pkey.rawPrivateKey(), target, env->jwk_d_string())) ||
       !trySetKey(env, pkey.rawPublicKey(), target, env->jwk_x_string()) ||
-      target->Set(env->context(), env->jwk_kty_string(), env->jwk_okp_string())
-          .IsNothing());
+      !target
+           ->DefineOwnProperty(
+               env->context(), env->jwk_kty_string(), env->jwk_okp_string())
+           .FromMaybe(false));
 }
 KeyObjectData ImportJWKEdKey(Environment* env, Local<Object> jwk) {
   Local<Value> crv_value;

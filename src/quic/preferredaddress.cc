@@ -17,6 +17,7 @@ namespace node {
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
+using v8::Object;
 using v8::Value;
 
 namespace quic {
@@ -131,7 +132,7 @@ Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
                               : Just(FromV8Value<Policy>(value));
 }
 
-void PreferredAddress::Initialize(Environment* env, Local<v8::Object> target) {
+void PreferredAddress::Initialize(Environment* env, Local<Object> target) {
   // The QUIC_* constants are expected to be exported out to be used on
   // the JavaScript side of the API.
   static constexpr auto PREFERRED_ADDRESS_USE =
@@ -139,7 +140,7 @@ void PreferredAddress::Initialize(Environment* env, Local<v8::Object> target) {
   static constexpr auto PREFERRED_ADDRESS_IGNORE =
       static_cast<uint8_t>(Policy::IGNORE_PREFERRED);
   static constexpr auto DEFAULT_PREFERRED_ADDRESS_POLICY =
-      static_cast<uint8_t>(Policy::USE_PREFERRED);
+      static_cast<uint8_t>(Policy::IGNORE_PREFERRED);
 
   NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_IGNORE);
   NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_USE);

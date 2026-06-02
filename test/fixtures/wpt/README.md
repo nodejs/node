@@ -28,13 +28,13 @@ Last update:
 - resource-timing: https://github.com/web-platform-tests/wpt/tree/22d38586d0/resource-timing
 - resources: https://github.com/web-platform-tests/wpt/tree/6a2f322376/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/f8f26a372f/streams
-- url: https://github.com/web-platform-tests/wpt/tree/258f285de0/url
+- url: https://github.com/web-platform-tests/wpt/tree/e4a4672e9e/url
 - urlpattern: https://github.com/web-platform-tests/wpt/tree/f07c03cbed/urlpattern
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/288c467d35/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
 - web-locks: https://github.com/web-platform-tests/wpt/tree/10a122a6bc/web-locks
-- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/8b5cd267b4/WebCryptoAPI
+- WebCryptoAPI: https://github.com/web-platform-tests/wpt/tree/0c413fb56b/WebCryptoAPI
 - webidl: https://github.com/web-platform-tests/wpt/tree/63ca529a02/webidl
 - webidl/ecmascript-binding/es-exceptions: https://github.com/web-platform-tests/wpt/tree/2f96fa1996/webidl/ecmascript-binding/es-exceptions
 - webmessaging/broadcastchannel: https://github.com/web-platform-tests/wpt/tree/6495c91853/webmessaging/broadcastchannel

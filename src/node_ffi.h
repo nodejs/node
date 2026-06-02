@@ -139,9 +139,9 @@ class DynamicLibrary : public BaseObject {
       const std::shared_ptr<FFIFunction>& fn);
   static void CleanupFunctionInfo(
       const v8::WeakCallbackInfo<FFIFunctionInfo>& data);
+  bool is_closed() const;
 
-  uv_lib_t lib_;
-  void* handle_;
+  uv_lib_t lib_ = {};
   std::string path_;
   std::unordered_map<std::string, void*> symbols_;
   std::unordered_map<std::string, std::shared_ptr<FFIFunction>> functions_;

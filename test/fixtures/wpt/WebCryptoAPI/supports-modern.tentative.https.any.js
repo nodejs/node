@@ -6,30 +6,30 @@
 const modernAlgorithms = {
   // Asymmetric algorithms
   'ML-DSA-44': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
   },
   'ML-DSA-65': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
   },
   'ML-DSA-87': {
-    operations: ['generateKey', 'importKey', 'sign', 'verify'],
+    operations: ['generateKey', 'importKey', 'sign', 'verify', 'getPublicKey'],
   },
   'ML-KEM-512': {
     operations: [
       'generateKey', 'importKey', 'encapsulateKey', 'encapsulateBits',
-      'decapsulateKey', 'decapsulateBits'
+      'decapsulateKey', 'decapsulateBits', 'getPublicKey'
     ],
   },
   'ML-KEM-768': {
     operations: [
       'generateKey', 'importKey', 'encapsulateKey', 'encapsulateBits',
-      'decapsulateKey', 'decapsulateBits'
+      'decapsulateKey', 'decapsulateBits', 'getPublicKey'
     ],
   },
   'ML-KEM-1024': {
     operations: [
       'generateKey', 'importKey', 'encapsulateKey', 'encapsulateBits',
-      'decapsulateKey', 'decapsulateBits'
+      'decapsulateKey', 'decapsulateBits', 'getPublicKey'
     ],
   },
 
@@ -54,6 +54,7 @@ const operations = [
   'encapsulateBits',
   'decapsulateKey',
   'decapsulateBits',
+  'getPublicKey',
 ];
 
 // Test that supports method exists and is a static method

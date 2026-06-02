@@ -157,6 +157,8 @@ class Http3ApplicationImpl final : public Session::Application {
     session->set_priority_supported();
   }
 
+  const Options& options() const override { return options_; }
+
   Session::Application::Type type() const override {
     return Session::Application::Type::HTTP3;
   }
@@ -175,10 +177,13 @@ class Http3ApplicationImpl final : public Session::Application {
     // When 0-RTT is rejected, destroy the nghttp3 connection and all
     // open streams — ngtcp2 has discarded their internal state.
     // Reset started_ so Start() is called again via on_receive_rx_key
-    // at 1RTT to recreate the nghttp3 connection.
+    // at 1RTT to recreate the nghttp3 connection. Use the
+    // application's internal error code since this is an error
+    // condition (code 0 would be treated as a clean close).
     conn_.reset();
     started_ = false;
-    session().DestroyAllStreams(QuicError::ForApplication(0));
+    session().DestroyAllStreams(
+        QuicError::ForApplication(GetInternalErrorCode()));
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }
@@ -262,11 +267,17 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   void BeginShutdown() override {
-    if (conn_) nghttp3_conn_submit_shutdown_notice(*this);
+    // Only submit a shutdown notice if the H3 connection was fully
+    // started (control streams bound). If the TLS handshake failed
+    // before Start() was called, conn_ exists but its control streams
+    // are unbound, and nghttp3_conn_submit_shutdown_notice would crash.
+    if (conn_ && started_) nghttp3_conn_submit_shutdown_notice(*this);
   }
 
   void CompleteShutdown() override {
-    if (conn_) nghttp3_conn_shutdown(*this);
+    // Same guard as BeginShutdown — nghttp3_conn_shutdown asserts
+    // that the control stream is bound (conn->tx.ctrl != NULL).
+    if (conn_ && started_) nghttp3_conn_shutdown(*this);
   }
 
   bool ReceiveStreamData(stream_id id,
@@ -327,9 +338,7 @@ class Http3ApplicationImpl final : public Session::Application {
     // We cannot add the header if we've either reached
     // * the max number of header pairs or
     // * the max number of header bytes (name + value combined)
-    // current_count is the number of entries in the headers vector
-    // (each pair = name entry + value entry = 2 entries).
-    return (current_count / 2 < options_.max_header_pairs) &&
+    return (current_count < options_.max_header_pairs) &&
            (current_headers_length + this_header_length) <=
                options_.max_header_length;
   }
@@ -819,12 +828,12 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->BeginHeaders(HeadersKind::INITIAL);
   }
 
-  void OnReceiveHeader(stream_id id, Http3Header&& header) {
+  void OnReceiveHeader(stream_id id, std::unique_ptr<Http3Header> header) {
     auto stream = session().FindStream(id);
 
     if (!stream) [[unlikely]]
       return;
-    if (header.name() == ":status" && header.value()[0] == '1') {
+    if (header->name() == ":status" && header->value()[0] == '1') {
       Debug(&session(),
             "HTTP/3 application switching to hints headers for stream %" PRIi64,
             stream->id());
@@ -833,8 +842,8 @@ class Http3ApplicationImpl final : public Session::Application {
     IF_QUIC_DEBUG(env()) {
       Debug(&session(),
             "Received header \"%s: %s\"",
-            header.name(),
-            header.value());
+            header->name(),
+            header->value());
     }
     stream->AddHeader(std::move(header));
   }
@@ -868,15 +877,15 @@ class Http3ApplicationImpl final : public Session::Application {
     stream->BeginHeaders(HeadersKind::TRAILING);
   }
 
-  void OnReceiveTrailer(stream_id id, Http3Header&& header) {
+  void OnReceiveTrailer(stream_id id, std::unique_ptr<Http3Header> header) {
     auto stream = session().FindStream(id);
     if (!stream) [[unlikely]]
       return;
     IF_QUIC_DEBUG(env()) {
       Debug(&session(),
             "Received header \"%s: %s\"",
-            header.name(),
-            header.value());
+            header->name(),
+            header->value());
     }
     stream->AddHeader(std::move(header));
   }
@@ -1233,7 +1242,9 @@ class Http3ApplicationImpl final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app.OnReceiveHeader(id, Http3Header(app.env(), token, name, value, flags));
+    app.OnReceiveHeader(
+        id,
+        std::make_unique<Http3Header>(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 
@@ -1275,7 +1286,9 @@ class Http3ApplicationImpl final : public Session::Application {
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
     if (Http3Header::IsZeroLength(token, name, value)) return NGTCP2_SUCCESS;
-    app.OnReceiveTrailer(id, Http3Header(app.env(), token, name, value, flags));
+    app.OnReceiveTrailer(
+        id,
+        std::make_unique<Http3Header>(app.env(), token, name, value, flags));
     return NGTCP2_SUCCESS;
   }
 

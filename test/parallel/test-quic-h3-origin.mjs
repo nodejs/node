@@ -55,6 +55,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'example.com',
+    verifyPeer: 'manual',
     // Client receives ORIGIN frame via onorigin callback.
     onorigin: mustCall(function(origins) {
       ok(Array.isArray(origins));
@@ -87,7 +88,8 @@ const decoder = new TextDecoder();
   strictEqual(decoder.decode(body), 'ok');
 
   await Promise.all([originReceived.promise, stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // port: 8443 produces origin "https://hostname:8443"
@@ -131,6 +133,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'custom-port.example.com',
+    verifyPeer: 'manual',
     onorigin: mustCall(function(origins) {
       ok(Array.isArray(origins));
 
@@ -181,5 +184,6 @@ const decoder = new TextDecoder();
   strictEqual(decoder.decode(body), 'ok');
 
   await Promise.all([originReceived.promise, stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

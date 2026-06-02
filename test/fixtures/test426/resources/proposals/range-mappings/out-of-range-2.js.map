@@ -1,9 +1,9 @@
 {
   "version": 3,
   "names": [],
-  "file": "out-of-range.js",
+  "file": "out-of-range-2.js",
   "sources": ["foo.js"],
   "sourcesContent": ["\"foo\""],
-  "mappings": "AAA",
+  "mappings": "AAAA",
   "rangeMappings": "B;A;A"
 }

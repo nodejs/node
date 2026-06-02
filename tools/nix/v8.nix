@@ -33,13 +33,8 @@ let
         ../../deps/v8
         ../../node.gyp
         ../../node.gypi
-        ../../src/node_version.h
-        ../../tools/configure.d/nodedownload.py
-        ../../tools/getmoduleversion.py
-        ../../tools/getnapibuildversion.py
         ../../tools/gyp/pylib
         ../../tools/gyp_node.py
-        ../../tools/utils.py
         ../../tools/v8_gypfiles/abseil.gyp
         ../../tools/v8_gypfiles/features.gypi
         ../../tools/v8_gypfiles/ForEachFormat.py
@@ -62,10 +57,24 @@ let
         ../../tools/icu/icutrim.py
         ../../tools/icu/no-op.cc
       ];
+      potentiallyAlreadyRemovedFiles =
+        # Files that are removed in the release tarball (see Makefile $(TARBALL) target)
+        [ (fileset.difference ../../deps/v8/test ../../deps/v8/test/torque) ]
+        ++ (builtins.filter builtins.pathExists [
+          ../../deps/v8/samples
+          ../../deps/v8/tools/profviz
+          ../../deps/v8/tools/run-tests.py
+          ../../deps/v8/third_party/ittapi
+        ]);
+      trackedFiles =
+        ({
+          # This line is being modified by Makefile $(TARBALL) target, any change to it should be sync
+          fileset = fileset.intersection (fileset.gitTracked root) (fileset.unions files);
+        }).fileset;
     in
     fileset.toSource {
       inherit root;
-      fileset = fileset.intersection (fileset.gitTracked root) (fileset.unions files);
+      fileset = fileset.difference trackedFiles (fileset.unions potentiallyAlreadyRemovedFiles);
     };
   v8Dir = "${src}/deps/v8";
 in
@@ -103,6 +112,30 @@ stdenv.mkDerivation (finalAttrs: {
         patches+=("$filtered")
       fi
     done
+  ''
+  # We also need to mock some Python util files that are not used to configure Python.
+  # Mocking lets us avoid rebuilding the whole derivation if there's a unrelated
+  # change in one of those files.
+  + ''
+    mkdir -p tools/configure.d
+    cat -> tools/configure.d/nodedownload.py <<'EOF'
+    def parse(opt):
+      return {}
+    def help():
+      return ""
+    EOF
+    cat -> tools/getmoduleversion.py <<'EOF'
+    def get_version():
+      return "99"
+    EOF
+    cat -> tools/getnapibuildversion.py <<'EOF'
+    def get_napi_version():
+      return "9"
+    EOF
+    cat -> tools/utils.py <<'EOF'
+    def SearchFiles(dir, ext):
+      return []
+    EOF
   '';
   # We need to remove the node_inspector.gypi ref so GYP does not search for it.
   postPatch = ''

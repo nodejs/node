@@ -1,0 +1,178 @@
+.TH "NPM-STAGE" "1" "May 2026" "NPM@11.16.0" ""
+.SH "NAME"
+\fBnpm-stage\fR - Stage packages for publishing
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Staged publishing allows package maintainers to require proof-of-presence for all publishes. Proof-of-presence is where a human is involved, interjects, and provides authentication (2FA) during an action \[em] in this case, publishing an npm package.
+.P
+Typically when maintainers use automated workflows to publish, proof-of-presence is lacking as there's no convenient way to interject the process and provide 2FA, as is the case for publishing with a granular access token with bypass and the trusted publishing flow. Staged publishing allows users to have their automated workflows stage a package without a 2FA prompt, deferring the act of 2FA, allowing the maintainer to approve the staged package and publish at a later point.
+.P
+The \fBnpm stage publish\fR command packs the current working directory and places that version of the package into the registry in a state where it's not available for public access, allowing maintainers to approve the package at a later point in time. The act of staging does not prompt for 2FA and can be done with any token type, the act of approving will.
+.P
+Key behaviors:
+.RS 0
+.IP \(bu 4
+Staged packages share the same semver version unique index as published packages \[em] you cannot publish a version that already exists as a staged version for that package.
+.IP \(bu 4
+You can still publish packages normally while you have staged packages pending.
+.IP \(bu 4
+You can stage multiple versions of the same package.
+.IP \(bu 4
+\fBnpm stage publish\fR has parity with \fBnpm publish\fR and will respect \fB"private": true\fR in \fBpackage.json\fR, refusing to stage the package.
+.RE 0
+
+.SS "Prerequisites"
+.P
+Before using \fBnpm stage\fR commands, ensure the following requirements are met:
+.RS 0
+.IP \(bu 4
+\fBWrite permissions on the package:\fR You must have write access to the package you're configuring.
+.IP \(bu 4
+\fBPackage must exist:\fR The package you're configuring must already exist on the npm registry.
+.IP \(bu 4
+\fB2FA enabled on your account:\fR Commands that require 2FA will prompt you to authenticate. If you don't already have 2FA enabled on your account, you must enable it before using these commands.
+.RE 0
+
+.SS "Subcommands"
+.RS 0
+.IP \(bu 4
+\fBnpm stage publish \[lB]<package-spec>\[rB]\fR - Stage a package for publishing
+.IP \(bu 4
+\fBnpm stage list \[lB]<package-spec>\[rB]\fR - List all staged package versions
+.IP \(bu 4
+\fBnpm stage view <stage-id>\fR - View details of a specific staged package
+.IP \(bu 4
+\fBnpm stage approve <stage-id>\fR - Approve a staged package for publishing
+.IP \(bu 4
+\fBnpm stage reject <stage-id>\fR - Reject a staged package
+.IP \(bu 4
+\fBnpm stage download <stage-id>\fR - Download the tarball for inspection
+.RE 0
+
+.SS "2FA Requirements by Subcommand"
+.P
+| Command | Requires 2FA | Notes | | --- | --- | --- | | \fBnpm stage publish\fR | No | Designed for automated workflows; defers 2FA to approval | | \fBnpm stage list\fR | No | View staged packages | | \fBnpm stage view\fR | No | View staged package details | | \fBnpm stage approve\fR | Yes | Prompts for 2FA to publish the staged package | | \fBnpm stage reject\fR | Yes | Prompts for 2FA to permanently remove the staged package | | \fBnpm stage download\fR | No | Downloads the tarball for local inspection |
+.SS "Tag Behavior"
+.P
+The \fB--tag\fR flag follows the same logic as \fBnpm publish\fR. If no tag is provided, the \fBlatest\fR tag is used by default. For pre-release versions (e.g., \fB1.0.0-beta.1\fR) and non-latest semver versions, the tag must be explicitly provided \[em] otherwise the CLI will error, just as \fBnpm publish\fR would.
+.P
+The tag is an immutable property of the staged package. Once a package is staged with a given tag, the tag cannot be changed. If you need to stage the same version with a different tag, you must first reject the existing staged package using \fBnpm stage reject\fR and then re-stage it with the desired tag.
+.SS "Token Behavior"
+.P
+The key difference with staged publishing is that \fBnpm stage publish\fR never requires a 2FA prompt, regardless of token type. This is what makes it suitable for automated workflows. The goal of \fBnpm stage publish\fR is deferring proof-of-presence to a later point in time.
+.P
+| Token Type | \fBnpm stage publish\fR | \fBnpm publish\fR | | --- | --- | --- | | GAT with bypass | Can stage | Can publish (if allowed by package publishing access) | | GAT without bypass | Can stage | 2FA prompt (if allowed by package publishing access) | | Session token | Can stage | 2FA prompt | | Trust token (OIDC) | Can stage (if allowed) | Can publish (if allowed) |
+.SS "Trust Relationship Permissions"
+.P
+With staged publishing, trust relationships now support granular command permissions. Shortlived tokens issued through trust relationships can only be used with \fBnpm stage publish\fR and \fBnpm publish\fR. Shortlived tokens cannot run \fBnpm stage\fR subcommands.
+.P
+\fBnpm trust <provider>\fR supports \fB--allow-publish\fR and \fB--allow-stage-publish\fR to control which commands are available through each trust relationship.
+.SS "Best Practices"
+.P
+\fBNote:\fR The addition of staged publishing does not make your account or org more secure. Maintainers must still use the best practices listed below.
+.RS 0
+.IP 1. 4
+\fBDelete Granular Access Tokens (GAT) with bypass 2FA enabled.\fR Now with staged publishing, we've eliminated the need for a GAT token that can bypass 2FA. We encourage you to delete all your tokens with bypass enabled and switch to using a trust relationship in your automated workflows, or create a GAT without bypass and use \fBnpm stage publish\fR.
+.IP 2. 4
+\fBDisallow tokens from publishing at the package level.\fR All packages have their own access controls under "package access" allowing packages to be published with bypass tokens, which is no longer a necessity. We encourage you to select "Require two-factor authentication and disallow tokens (recommended)" for all your packages on the package access page.
+.IP 3. 4
+\fBConfigure trust relationship permissions to prevent \fBnpm publish\fB.\fR We encourage you to only enable \fBnpm stage publish\fR on your trust relationships and disable \fBnpm publish\fR.
+.RE 0
+
+.SS "Configuration"
+.SS "\fBnpm stage publish\fR"
+.P
+Stage a package for publishing, deferring proof-of-presence (2FA) to a later point in time
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage publish <package-spec>
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--tag\fR | "latest" | String | If you ask npm to install a package and don't tell it a specific version, then it will install the specified tag. It is the tag added to the package@version specified in the \fBnpm dist-tag add\fR command, if no explicit tag is given. When used by the \fBnpm diff\fR command, this is the tag used to fetch the tarball that will be compared with the local files by default. If used in the \fBnpm publish\fR command, this is the tag that will be added to the package submitted to the registry. | | \fB--access\fR | 'public' for new packages, existing packages it will not change the current level | null, "restricted", "public", or "private" | If you do not want your scoped package to be publicly viewable (and installable) set \fB--access=restricted\fR. Unscoped packages cannot be set to \fBrestricted\fR. Note: This defaults to not changing the current access level for existing packages. Specifying a value of \fBrestricted\fR or \fBpublic\fR during publish will change the access for an existing package the same way that \fBnpm access set status\fR would. The value \fBprivate\fR is an alias for \fBrestricted\fR. | | \fB--dry-run\fR | false | Boolean | Indicates that you don't want npm to make any changes and that it should only report what it would have done. This can be passed into any of the commands that modify your local installation, eg, \fBinstall\fR, \fBupdate\fR, \fBdedupe\fR, \fBuninstall\fR, as well as \fBpack\fR and \fBpublish\fR. Note: This is NOT honored by other network related commands, eg \fBdist-tags\fR, \fBowner\fR, etc. | | \fB--otp\fR | null | null or String | This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR. If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one. | | \fB--workspace\fR, \fB-w\fR | | String (can be set multiple times) | Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option. Valid values for the \fBworkspace\fR config are either: * Workspace names * Path to a workspace directory * Path to a parent workspace directory (will result in selecting all workspaces within that folder) When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project. | | \fB--workspaces\fR | null | null or Boolean | Set to true to run the command in the context of \fBall\fR configured workspaces. Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly: - Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config. | | \fB--include-workspace-root\fR | false | Boolean | Include the workspace root when workspaces are enabled for a command. When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project. | | \fB--provenance\fR | false | Boolean | When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from. |
+.SS "\fBnpm stage list\fR"
+.P
+List all staged package versions
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage list \[lB]<package-spec>\[rB]
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "\fBnpm stage view\fR"
+.P
+View details of a specific staged package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage view <stage-id>
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "\fBnpm stage approve\fR"
+.P
+Approve a staged package, publishing it to the npm registry
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage approve <stage-id>
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--otp\fR | null | null or String | This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR. If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "\fBnpm stage reject\fR"
+.P
+Reject a staged package, removing it from the registry
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage reject <stage-id>
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--otp\fR | null | null or String | This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR. If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "\fBnpm stage download\fR"
+.P
+Download the tarball of a staged package for inspection
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm stage download <stage-id>
+.fi
+.RE
+.SS "Flags"
+.P
+| Flag | Default | Type | Description | | --- | --- | --- | --- | | \fB--json\fR | false | Boolean | Whether or not to output JSON data, rather than the normal output. * In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR. Not supported by all npm commands. | | \fB--registry\fR | "https://registry.npmjs.org/" | URL | The base URL of the npm registry. |
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help publish
+.IP \(bu 4
+npm help unpublish
+.IP \(bu 4
+npm help trust
+.RE 0

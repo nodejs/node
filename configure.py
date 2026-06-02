@@ -55,7 +55,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
-maglev_enabled_architectures = ('x64', 'arm', 'arm64', 's390x')
+maglev_enabled_architectures = ('x64', 'arm', 'arm64', 'ppc64', 's390x')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'undici/undici': 'deps/undici/undici.js',
@@ -224,6 +224,14 @@ parser.add_argument("--enable-thin-lto",
     default=None,
     help="Enable compiling with thin lto of a binary. This feature is only available "
          "on windows.")
+
+parser.add_argument("--lto-jobs",
+    action="store",
+    dest="lto_jobs",
+    default=None,
+    help="Set the number of parallel LTO code generation jobs during linking. "
+         "Defaults to the number of CPU cores. Lower values reduce peak memory "
+         "usage at the cost of longer link times. Only effective with LTO enabled.")
 
 parser.add_argument("--link-module",
     action="append",
@@ -1065,6 +1073,12 @@ parser.add_argument('--experimental-quic',
     default=None,
     help='build with experimental QUIC support')
 
+parser.add_argument('--experimental-dtls',
+    action='store_true',
+    dest='experimental_dtls',
+    default=None,
+    help='build with experimental DTLS support')
+
 parser.add_argument('--ninja',
     action='store_true',
     dest='use_ninja',
@@ -1804,7 +1818,7 @@ def configure_node_lib_files(o):
   o['variables']['node_library_files'] = SearchFiles('lib', 'js')
 
 def configure_node_cctest_sources(o):
-  o['variables']['node_cctest_sources'] = [ 'src/node_snapshot_stub.cc' ] + \
+  o['variables']['node_cctest_sources'] = [] + \
     SearchFiles('test/cctest', 'cc') + \
     SearchFiles('test/cctest', 'h')
 
@@ -1872,10 +1886,6 @@ def configure_node(o):
     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
 
   if options.node_snapshot_main is not None:
-    if options.shared:
-      # This should be possible to fix, but we will need to refactor the
-      # libnode target to avoid building it twice.
-      error('--node-snapshot-main is incompatible with --shared')
     if options.without_node_snapshot:
       error('--node-snapshot-main is incompatible with ' +
             '--without-node-snapshot')
@@ -1886,8 +1896,7 @@ def configure_node(o):
   if options.without_node_snapshot or options.node_builtin_modules_path:
     o['variables']['node_use_node_snapshot'] = 'false'
   else:
-    o['variables']['node_use_node_snapshot'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_snapshot'] = b(not cross_compiling)
 
   # Do not use code cache when Node.js is built for collecting coverage of itself, this allows more
   # precise coverage for the JS built-ins.
@@ -1895,8 +1904,7 @@ def configure_node(o):
     o['variables']['node_use_node_code_cache'] = 'false'
   else:
     # TODO(refack): fix this when implementing embedded code-cache when cross-compiling.
-    o['variables']['node_use_node_code_cache'] = b(
-      not cross_compiling and not options.shared)
+    o['variables']['node_use_node_code_cache'] = b(not cross_compiling)
 
   if options.write_snapshot_as_array_literals is not None:
      o['variables']['node_write_snapshot_as_array_literals'] = b(options.write_snapshot_as_array_literals)
@@ -1951,17 +1959,28 @@ def configure_node(o):
     msvc_dir = target_arch  # 'x64' or 'arm64'
 
     vc_tools_dir = os.environ.get('VCToolsInstallDir', '')
-    if vc_tools_dir:
-      clang_profile_lib = os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)
-      if os.path.isfile(clang_profile_lib):
-        o['variables']['clang_profile_lib'] = clang_profile_lib
-      else:
-        raise Exception(
-          f'PGO profile runtime library not found at {clang_profile_lib}. '
-          'Ensure the ClangCL toolset is installed.')
-    else:
+    if not vc_tools_dir:
       raise Exception(
         'VCToolsInstallDir not set. Run from a Visual Studio command prompt.')
+
+    # Primary location: VS2026 and VS2022 x64
+    candidates = [os.path.join(vc_tools_dir, 'lib', msvc_dir, lib_name)]
+
+    # Secondary location: VS2022 arm64 fallback
+    clang_major = options.clang_cl.split('.', 1)[0]
+    candidates.append(os.path.normpath(os.path.join(
+      vc_tools_dir, '..', '..', 'Llvm', msvc_dir,
+      'lib', 'clang', clang_major, 'lib', 'windows', lib_name)))
+
+    clang_profile_lib = next(
+      (p for p in candidates if os.path.isfile(p)), None)
+    if clang_profile_lib:
+      o['variables']['clang_profile_lib'] = clang_profile_lib
+    else:
+      raise Exception(
+        f'PGO profile runtime library {lib_name} not found. Searched:\n  ' +
+        '\n  '.join(candidates) +
+        '\nEnsure the ClangCL toolset is installed.')
 
   if flavor != 'win' and options.enable_thin_lto:
     raise Exception(
@@ -1995,6 +2014,7 @@ def configure_node(o):
 
   o['variables']['enable_lto'] = b(options.enable_lto)
   o['variables']['enable_thin_lto'] = b(options.enable_thin_lto)
+  o['variables']['lto_jobs'] = options.lto_jobs or ''
 
   if options.node_use_large_pages or options.node_use_large_pages_script_lld:
     warn('''The `--use-largepages` and `--use-largepages-script-lld` options
@@ -2149,7 +2169,7 @@ def configure_v8(o, configs):
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_maglev'] = B(not options.v8_disable_maglev and
-                                         flavor != 'zos' and
+                                         flavor not in ('aix', 'os400', 'zos') and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
@@ -2351,6 +2371,10 @@ def configure_ffi(o):
 
 def configure_quic(o):
   o['variables']['node_use_quic'] = b(options.experimental_quic and
+                                      not options.without_ssl)
+
+def configure_dtls(o):
+  o['variables']['node_use_dtls'] = b(options.experimental_dtls and
                                       not options.without_ssl)
 
 def configure_static(o):
@@ -2811,6 +2835,7 @@ configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
 configure_quic(output)
+configure_dtls(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)

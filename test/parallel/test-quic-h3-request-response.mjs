@@ -77,6 +77,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
   // Default ALPN is h3.
 });
 
@@ -111,4 +112,5 @@ strictEqual(decoder.decode(body), responseBody);
 strictEqual(stream.headers[':status'], '200');
 
 await Promise.all([stream.closed, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

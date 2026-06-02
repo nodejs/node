@@ -13,7 +13,7 @@
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
 
-const { strictEqual, ok, rejects } = assert;
+const { strictEqual, rejects } = assert;
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -24,12 +24,17 @@ const { listen, connect } = await import('../common/quic.mjs');
 const serverResetSeen = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall((serverSession) => {
-  serverSession.onstream = mustCall((stream) => {
+  serverSession.onstream = mustCall(async (stream) => {
     stream.onreset = mustCall((err) => {
       strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-      ok(err.message.includes('66n'),
-         `expected '66n' in message, got: ${err.message}`);
+      strictEqual(err.errorCode, 66n);
       serverResetSeen.resolve();
+    });
+
+    // The peer's reset causes stream.closed to reject with the reset
+    // error code.
+    await rejects(stream.closed, {
+      code: 'ERR_QUIC_APPLICATION_ERROR',
     });
   });
 }));

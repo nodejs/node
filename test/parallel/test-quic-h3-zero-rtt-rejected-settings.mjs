@@ -53,6 +53,7 @@ async function getTicket(endpointOptions) {
 
   const cs = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     ...endpointOptions,
     onsessionticket(ticket) {
       ok(Buffer.isBuffer(ticket));
@@ -102,6 +103,7 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
 
   const cs = await connect(ep.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     ...endpointOptions,
     sessionTicket: ticket,
     token,

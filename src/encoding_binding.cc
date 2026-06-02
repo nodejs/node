@@ -418,13 +418,18 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);  // list, flags
 
   CHECK_GE(args.Length(), 1);
+  auto isShared = args[0]->IsSharedArrayBuffer();
 
-  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
-        args[0]->IsArrayBufferView())) {
+  if (!(args[0]->IsArrayBuffer() || isShared || args[0]->IsArrayBufferView())) {
     return node::THROW_ERR_INVALID_ARG_TYPE(
         env->isolate(),
         "The \"list\" argument must be an instance of SharedArrayBuffer, "
         "ArrayBuffer or ArrayBufferView.");
+  }
+
+  if (args[0]->IsArrayBufferView()) {
+    Local<v8::ArrayBufferView> view = args[0].As<v8::ArrayBufferView>();
+    isShared = view->Buffer()->IsSharedArrayBuffer();
   }
 
   ArrayBufferViewContents<char> buffer(args[0]);
@@ -434,6 +439,13 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
   const char* data = buffer.data();
   size_t length = buffer.length();
+
+  std::unique_ptr<char[]> data_copy;
+  if (isShared && length != 0) {
+    data_copy = std::make_unique_for_overwrite<char[]>(length);
+    memcpy(data_copy.get(), data, length);
+    data = data_copy.get();
+  }
 
   if (!ignore_bom && length >= 3) {
     if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
@@ -459,14 +471,15 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
       return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
           env->isolate(), "The encoded data was not valid for encoding utf-8");
     }
-
-    // TODO(chalker): save on utf8 validity recheck in StringBytes::Encode()
   }
 
   if (length == 0) return args.GetReturnValue().SetEmptyString();
 
   Local<Value> ret;
-  if (StringBytes::Encode(env->isolate(), data, length, UTF8).ToLocal(&ret)) {
+  v8::MaybeLocal<Value> encoded =
+      has_fatal ? StringBytes::EncodeValidUtf8(env->isolate(), data, length)
+                : StringBytes::Encode(env->isolate(), data, length, UTF8);
+  if (encoded.ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }

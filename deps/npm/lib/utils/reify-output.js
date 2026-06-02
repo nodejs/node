@@ -14,11 +14,12 @@ const { depth } = require('treeverse')
 const ms = require('ms')
 const npmAuditReport = require('npm-audit-report')
 const { readTree: getFundingInfo } = require('libnpmfund')
+const { trustedDisplay } = require('@npmcli/arborist/lib/script-allowed.js')
 const auditError = require('./audit-error.js')
 
-// TODO: output JSON if flatOptions.json is true
-const reifyOutput = (npm, arb) => {
+const reifyOutput = (npm, arb, extras = {}) => {
   const { diff, actualTree } = arb
+  const unreviewedScripts = extras.unreviewedScripts || []
 
   // note: fails and crashes if we're running audit fix and there was an error which is a good thing, because there's no point printing all this other stuff in that case!
   const auditReport = auditError(npm, arb.auditReport) ? null : arb.auditReport
@@ -113,11 +114,23 @@ const reifyOutput = (npm, arb) => {
       summary.audit = npm.command === 'audit' ? auditReport
         : auditReport.toJSON().metadata
     }
+    if (unreviewedScripts.length) {
+      summary.unreviewedScripts = unreviewedScripts.map(({ node, scripts }) => {
+        const { name, version } = trustedDisplay(node)
+        return {
+          name,
+          version,
+          path: node.path,
+          scripts,
+        }
+      })
+    }
     output.buffer(summary)
   } else {
     packagesChangedMessage(npm, summary)
     packagesFundingMessage(npm, summary)
     printAuditReport(npm, auditReport)
+    unreviewedScriptsMessage(npm, unreviewedScripts)
   }
 }
 
@@ -215,6 +228,41 @@ const packagesFundingMessage = (npm, { funding }) => {
   const is = funding === 1 ? 'is' : 'are'
   output.standard(`${funding} ${pkg} ${is} looking for funding`)
   output.standard('  run `npm fund` for details')
+}
+
+const unreviewedScriptsMessage = (npm, unreviewedScripts) => {
+  if (!unreviewedScripts.length) {
+    return
+  }
+
+  // Goes through log.warn so it respects --loglevel / --silent and lands
+  // on stderr like every other "FYI, here's something to know" message.
+  // stdout is reserved for things the user explicitly asked to see
+  // (npm ls, npm view).
+  const count = unreviewedScripts.length
+  const pkg = count === 1 ? 'package has' : 'packages have'
+  const header = `${count} ${pkg} install scripts not yet covered by allowScripts:`
+
+  const lines = unreviewedScripts.map(({ node, scripts }) => {
+    const { name, version } = trustedDisplay(node)
+    /* istanbul ignore next: every test node has a name */
+    const display = name || '<unknown>'
+    const ver = version ? `@${version}` : ''
+    const events = Object.entries(scripts)
+      .map(([event, cmd]) => `${event}: ${cmd}`)
+      .join('; ')
+    return `  ${display}${ver} (${events})`
+  })
+
+  log.warn(
+    'allow-scripts',
+    [
+      header,
+      ...lines,
+      '',
+      'Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.',
+    ].join('\n')
+  )
 }
 
 module.exports = reifyOutput

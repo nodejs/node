@@ -1718,6 +1718,15 @@ Use of the `101` Informational status code is forbidden in HTTP/2.
 An invalid HTTP status code has been specified. Status codes must be an integer
 between `100` and `599` (inclusive).
 
+<a id="ERR_HTTP2_STREAM_ABORTED"></a>
+
+### `ERR_HTTP2_STREAM_ABORTED`
+
+The peer reset the `Http2Stream` with a clean error code (`NGHTTP2_NO_ERROR`
+or `NGHTTP2_CANCEL`) before sending `END_STREAM`, so the readable side will
+not be fully delivered. Mirrors HTTP/1's `ECONNRESET` for a peer-side
+`socket.destroy()`.
+
 <a id="ERR_HTTP2_STREAM_CANCEL"></a>
 
 ### `ERR_HTTP2_STREAM_CANCEL`
@@ -2768,7 +2777,9 @@ ES modules. When `require()` encounters an ES module that contains top-level
 ### `ERR_REQUIRE_ESM_RACE_CONDITION`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 > Stability: 1 - Experimental.
@@ -3102,7 +3113,7 @@ The context must be a `SecureContext`.
 
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
 
-The specified  `secureProtocol` method is invalid. It is  either unknown, or
+The specified `secureProtocol` method is invalid. It is either unknown, or
 disabled because it is insecure.
 
 <a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>

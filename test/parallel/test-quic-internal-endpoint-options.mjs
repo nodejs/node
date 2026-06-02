@@ -11,6 +11,7 @@ if (!hasQuic) {
 
 // Import after the hasQuic check
 const { QuicEndpoint } = await import('node:quic');
+const { BlockList } = await import('node:net');
 
 // Reject invalid options
 ['a', null, false, NaN].forEach((i) => {
@@ -53,13 +54,6 @@ const cases = [
     invalid: [-1, 65536, 1.5, 'a', null, false, true, {}, [], () => {}]
   },
   {
-    key: 'maxStatelessResetsPerHost',
-    valid: [
-      1, 10, 100, 1000, 10000, 10000n,
-    ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
-  },
-  {
     key: 'addressLRUSize',
     valid: [
       1, 10, 100, 1000, 10000, 10000n,
@@ -67,11 +61,64 @@ const cases = [
     invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
   },
   {
-    key: 'maxRetries',
-    valid: [
-      1, 10, 100, 1000, 10000, 10000n,
-    ],
-    invalid: [-1, -1n, 'a', null, false, true, {}, [], () => {}]
+    key: 'retryRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'retryBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'statelessResetRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'statelessResetBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'versionNegotiationRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'versionNegotiationBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'immediateCloseRate',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'immediateCloseBurst',
+    valid: [0, 1, 10, 100.5, 1000],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'sessionCreationRate',
+    valid: [0, 1, 10, 100.5, 1000, Infinity],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'sessionCreationBurst',
+    valid: [0, 1, 10, 100.5, 1000, Infinity],
+    invalid: [-1, 'a', null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'blockList',
+    valid: [new BlockList()],
+    invalid: ['a', 0, null, false, true, {}, [], () => {}]
+  },
+  {
+    key: 'blockListPolicy',
+    valid: ['deny', 'allow'],
+    invalid: ['invalid', 0, null, false, true, {}, [], () => {}]
   },
   {
     key: 'validateAddress',

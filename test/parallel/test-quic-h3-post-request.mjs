@@ -68,6 +68,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 
 const info = await clientSession.opened;
@@ -98,4 +99,5 @@ const responseBody = await bytes(stream);
 strictEqual(decoder.decode(responseBody), 'echo:' + requestBody);
 
 await Promise.all([stream.closed, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

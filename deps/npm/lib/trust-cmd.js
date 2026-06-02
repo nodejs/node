@@ -6,8 +6,28 @@ const { read: _read } = require('read')
 const { input, output, log, META } = require('proc-log')
 const gitinfo = require('hosted-git-info')
 const pkgJson = require('@npmcli/package-json')
+const Definition = require('@npmcli/config/lib/definitions/definition.js')
 
 const NPM_FRONTEND = 'https://www.npmjs.com'
+
+const PERMISSIONS = {
+  CREATE_PACKAGE: 'createPackage',
+  CREATE_STAGED_PACKAGE: 'createStagedPackage',
+}
+
+const trustDefinitions = {
+  'allow-publish': new Definition('allow-publish', {
+    default: false,
+    type: Boolean,
+    description: 'Allow npm publish for this trusted publisher configuration',
+  }),
+  'allow-stage-publish': new Definition('allow-stage-publish', {
+    default: false,
+    type: Boolean,
+    description: 'Allow npm stage publish for this trusted publisher configuration',
+    alias: ['allow-staged-publish'],
+  }),
+}
 
 class TrustCommand extends BaseCommand {
   // Helper to format template strings with color
@@ -45,8 +65,22 @@ class TrustCommand extends BaseCommand {
     }))
   }
 
+  static permissionLabels = {
+    [PERMISSIONS.CREATE_PACKAGE]: 'publish',
+    [PERMISSIONS.CREATE_STAGED_PACKAGE]: 'stage publish',
+  }
+
+  static formatPermissions (permissions) {
+    if (!Array.isArray(permissions) || permissions.length === 0) {
+      return null
+    }
+    return permissions
+      .map(p => TrustCommand.permissionLabels[p] || p)
+      .join(', ')
+  }
+
   logOptions (options, pad = true) {
-    const { values, warnings, fromPackageJson, urls } = { warnings: [], ...options }
+    const { values, warnings, fromPackageJson, urls, permissions } = { warnings: [], ...options }
     if (warnings && warnings.length > 0) {
       for (const warningMsg of warnings) {
         log.warn('trust', warningMsg)
@@ -55,8 +89,12 @@ class TrustCommand extends BaseCommand {
 
     const json = this.config.get('json')
     if (json) {
+      const jsonValues = { ...options.values }
+      if (permissions) {
+        jsonValues.permissions = permissions
+      }
       // Disable redaction: trust config values (e.g. CircleCI UUIDs) are not secrets
-      output.standard(JSON.stringify(options.values, null, 2), { [META]: true, redact: false })
+      output.standard(JSON.stringify(jsonValues, null, 2), { [META]: true, redact: false })
       return
     }
 
@@ -81,6 +119,10 @@ class TrustCommand extends BaseCommand {
           }
           lines.push(parts.join(' '))
         }
+      }
+      const formattedPermissions = TrustCommand.formatPermissions(permissions)
+      if (formattedPermissions) {
+        lines.push(`${chalk.reset('permissions')}: ${chalk.green(formattedPermissions)}`)
       }
       if (pad) {
         output.standard()
@@ -165,6 +207,22 @@ class TrustCommand extends BaseCommand {
     const { providerName, providerEntity, providerHostname } = this.constructor
     const dryRun = this.config.get('dry-run')
     const yes = this.config.get('yes') // deep-lore this allows for --no-yes
+
+    const allowPublish = flags['allow-publish']
+    const allowStagePublish = flags['allow-stage-publish']
+
+    if (!allowPublish && !allowStagePublish) {
+      throw new Error('At least one permission flag is required (--allow-publish, --allow-stage-publish)')
+    }
+
+    const permissions = []
+    if (allowPublish) {
+      permissions.push(PERMISSIONS.CREATE_PACKAGE)
+    }
+    if (allowStagePublish) {
+      permissions.push(PERMISSIONS.CREATE_STAGED_PACKAGE)
+    }
+
     const options = await this.flagsToOptions({ positionalArgs, flags, providerHostname })
     this.dialogue`Establishing trust between ${options.values.package} package and ${providerName}`
     this.dialogue`Anyone with ${providerEntity} write access can publish to ${options.values.package}`
@@ -172,12 +230,13 @@ class TrustCommand extends BaseCommand {
     if (!this.registryIsDefault) {
       this.warn`Registry ${this.npm.config.get('registry')} may not support trusted publishing`
     }
-    this.logOptions(options)
+    this.logOptions({ ...options, permissions })
     if (dryRun) {
       return
     }
     await this.confirmOperation(yes)
     const trustConfig = this.constructor.optionsToBody(options.values)
+    trustConfig.permissions = permissions
     const response = await this.createConfig(options.values.package, [trustConfig])
     const body = await response.json()
     this.dialogue`Trust configuration created successfully for ${options.values.package} with the following settings:`
@@ -273,8 +332,9 @@ class TrustCommand extends BaseCommand {
     const items = Array.isArray(body) ? body : [body]
     for (const config of items) {
       const values = this.constructor.bodyToOptions(config)
+      const permissions = config.permissions
       output.standard()
-      this.logOptions({ values }, false)
+      this.logOptions({ values, permissions }, false)
     }
     output.standard()
   }
@@ -282,3 +342,4 @@ class TrustCommand extends BaseCommand {
 
 module.exports = TrustCommand
 module.exports.NPM_FRONTEND = NPM_FRONTEND
+module.exports.trustDefinitions = trustDefinitions

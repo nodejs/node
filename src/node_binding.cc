@@ -106,6 +106,7 @@
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
+  NODE_BUILTIN_DTLS_BINDINGS(V)                                                \
   NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
   NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
   NODE_BUILTIN_FFI_BINDINGS(V)

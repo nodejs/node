@@ -45,6 +45,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   servername: 'localhost',
   enableEarlyData: false,
 });
@@ -56,3 +57,4 @@ clientSession.opened.then(mustCall((info) => {
 
 await Promise.all([serverOpened.promise, clientOpened.promise]);
 clientSession.close();
+await serverEndpoint.close();

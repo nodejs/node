@@ -82,6 +82,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 await clientSession.opened;
 
@@ -119,4 +120,5 @@ await clientTrailersReceived.promise;
 strictEqual(stream.headers[':status'], '200');
 
 await Promise.all([stream.closed, serverDone.promise]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

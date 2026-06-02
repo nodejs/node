@@ -52,7 +52,9 @@ strictEqual(epStats.isConnected, true);
 ok(epStats.createdAt > 0n);
 
 // Connect with a client
-const clientSession = await quic.connect(serverEndpoint.address);
+const clientSession = await quic.connect(serverEndpoint.address, {
+  verifyPeer: 'manual',
+});
 
 strictEqual(clientSession.destroyed, false);
 ok(clientSession.endpoint !== null);
@@ -90,8 +92,9 @@ strictEqual(clientSession.endpoint, null);
 strictEqual(clientSession.stats.isConnected, false);
 
 strictEqual(stream.destroyed, true);
-strictEqual(stream.session, null);
-strictEqual(stream.id, null);
-strictEqual(stream.direction, null);
+
+// The stream id and direction should still be available after destruction
+strictEqual(stream.id, 0n);
+strictEqual(stream.direction, 'bidi');
 
 await serverEndpoint.close();

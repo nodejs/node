@@ -51,6 +51,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
 
   // Create the stream BEFORE awaiting opened. The stream is pending
@@ -83,5 +84,6 @@ const decoder = new TextDecoder();
   const body = await bytes(stream);
   strictEqual(decoder.decode(body), 'ok');
   await Promise.all([stream.closed, serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

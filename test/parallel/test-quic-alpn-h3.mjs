@@ -35,6 +35,7 @@ notStrictEqual(serverEndpoint.address, undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 
 async function checkClient() {
@@ -43,4 +44,5 @@ async function checkClient() {
 }
 
 await Promise.all([serverOpened.promise, checkClient()]);
-clientSession.close();
+await clientSession.close();
+await serverEndpoint.close();

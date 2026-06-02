@@ -582,21 +582,86 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
       }
 
-      if (buflen >= 32 && simdutf::validate_utf8(buf, buflen)) {
-        // We know that we are non-ASCII (and are unlikely Latin1), use 2-byte
-        // In the most likely case of valid UTF-8, we can use this fast impl
-        // For very short input, it is slower, so we limit min size
-        size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
-        if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
-          isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
-          return MaybeLocal<Value>();
+      // Latin1-fits fast path: one-byte V8 string, half the heap of UTF-16.
+      // Capped at 1 MiB (above that the prescan cost erases the win).
+      constexpr size_t kLatin1Max = 1u << 20;
+      if (buflen >= 256 && buflen <= kLatin1Max) {
+        // Skip the allocation when any byte >= 0xC4 (UTF-8 lead for a
+        // codepoint > U+FF). Inner loop has no early exit so clang
+        // vectorizes it.
+        constexpr size_t kChunk = 64;
+        bool maybe_latin1 = true;
+        size_t i = 0;
+        for (; i + kChunk <= buflen; i += kChunk) {
+          uint8_t acc = 0;
+          for (size_t j = 0; j < kChunk; j++) {
+            acc |= static_cast<uint8_t>(buf[i + j]) >= 0xC4 ? 1 : 0;
+          }
+          if (acc) {
+            maybe_latin1 = false;
+            break;
+          }
         }
-        return EncodeTwoByteString(
-            isolate, u16size, [buf, buflen, u16size](uint16_t* dst) {
-              size_t written = simdutf::convert_valid_utf8_to_utf16(
-                  buf, buflen, reinterpret_cast<char16_t*>(dst));
-              CHECK_EQ(written, u16size);
-            });
+        if (maybe_latin1) {
+          for (; i < buflen; i++) {
+            if (static_cast<uint8_t>(buf[i]) >= 0xC4) {
+              maybe_latin1 = false;
+              break;
+            }
+          }
+        }
+        if (maybe_latin1) {
+          MaybeStackBuffer<char, 4096> latin1;
+          latin1.AllocateSufficientStorage(buflen);
+          simdutf::result l1 = simdutf::convert_utf8_to_latin1_with_errors(
+              buf, buflen, latin1.out());
+          if (l1.error == simdutf::error_code::SUCCESS) {
+            return ExternOneByteString::NewFromCopy(
+                isolate, latin1.out(), l1.count);
+          }
+        }
+      }
+
+      if (buflen >= 32) {
+        // Single-pass UTF-16: over-allocate (1 char16_t per byte), then
+        // shrink. Above 1 MiB the exact-size 3-pass below is cheaper.
+        constexpr size_t kSinglePassMax = 1u << 20;
+        if (buflen <= kSinglePassMax) {
+          MaybeStackBuffer<uint16_t, 256> u16;
+          u16.AllocateSufficientStorage(buflen);
+          simdutf::result r = simdutf::convert_utf8_to_utf16_with_errors(
+              buf, buflen, reinterpret_cast<char16_t*>(u16.out()));
+          if (r.error == simdutf::error_code::SUCCESS) {
+            if (r.count > static_cast<size_t>(v8::String::kMaxLength)) {
+              isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+              return MaybeLocal<Value>();
+            }
+            if (u16.IsAllocated()) {
+              uint16_t* data = u16.out();
+              u16.Release();
+              uint16_t* shrunk = static_cast<uint16_t*>(
+                  realloc(data, r.count * sizeof(uint16_t)));
+              if (shrunk == nullptr) shrunk = data;
+              return ExternTwoByteString::New(isolate, shrunk, r.count);
+            }
+            return String::NewFromTwoByte(isolate,
+                                          u16.out(),
+                                          v8::NewStringType::kNormal,
+                                          static_cast<int>(r.count));
+          }
+        } else if (simdutf::validate_utf8(buf, buflen)) {
+          size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
+          if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
+            isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+            return MaybeLocal<Value>();
+          }
+          return EncodeTwoByteString(
+              isolate, u16size, [buf, buflen, u16size](uint16_t* dst) {
+                size_t written = simdutf::convert_valid_utf8_to_utf16(
+                    buf, buflen, reinterpret_cast<char16_t*>(dst));
+                CHECK_EQ(written, u16size);
+              });
+        }
       }
 
       val =
@@ -669,6 +734,40 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
     default:
       UNREACHABLE("unknown encoding");
   }
+}
+
+MaybeLocal<Value> StringBytes::EncodeValidUtf8(Isolate* isolate,
+                                               const char* buf,
+                                               size_t buflen) {
+  CHECK_BUFLEN_IN_RANGE(buflen);
+  if (!buflen) return String::Empty(isolate);
+  buflen = keep_buflen_in_range(buflen);
+
+  // ASCII fast path
+  if (!simdutf::validate_ascii_with_errors(buf, buflen).error) {
+    return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
+  }
+
+  if (buflen >= 32) {
+    size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
+    if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
+      isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+      return MaybeLocal<Value>();
+    }
+    return EncodeTwoByteString(
+        isolate, u16size, [buf, buflen, u16size](uint16_t* dst) {
+          size_t written = simdutf::convert_valid_utf8_to_utf16(
+              buf, buflen, reinterpret_cast<char16_t*>(dst));
+          CHECK_EQ(written, u16size);
+        });
+  }
+
+  Local<String> str;
+  if (!String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen)
+           .ToLocal(&str)) {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+  }
+  return str;
 }
 
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,

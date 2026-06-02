@@ -66,6 +66,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
     // Client receives datagram from server.
@@ -105,7 +106,8 @@ const decoder = new TextDecoder();
   await Promise.all([serverGotDatagram.promise, clientGotDatagram.promise]);
 
   await serverDone.promise;
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Test 2: Server has enableDatagrams: false. The peer's H3 SETTINGS
@@ -138,6 +140,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
     application: { enableDatagrams: true },
     transportParams: { maxDatagramFrameSize: 100 },
   });
@@ -168,4 +171,5 @@ const decoder = new TextDecoder();
 
   await Promise.all([stream.closed, serverDone.promise]);
   clientSession.close();
+  await serverEndpoint.close();
 }

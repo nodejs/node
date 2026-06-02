@@ -5850,7 +5850,9 @@ cryptographic pseudorandom number generator.
 ### `crypto.randomUUIDv7([options])`
 
 <!-- YAML
-added: v26.1.0
+added:
+ - v26.1.0
+ - v24.16.0
 -->
 
 * `options` {Object}
@@ -6102,7 +6104,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: v26.0.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0
@@ -6231,7 +6235,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: v26.0.0
+  - version:
+     - v26.1.0
+     - v24.16.0
     pr-url: https://github.com/nodejs/node/pull/62474
     description: Add support for Ed25519 context parameter.
   - version: v24.8.0

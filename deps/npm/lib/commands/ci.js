@@ -1,4 +1,6 @@
 const reifyFinish = require('../utils/reify-finish.js')
+const resolveAllowScripts = require('../utils/resolve-allow-scripts.js')
+const strictAllowScriptsPreflight = require('../utils/strict-allow-scripts-preflight.js')
 const runScript = require('@npmcli/run-script')
 const fs = require('node:fs/promises')
 const path = require('node:path')
@@ -21,7 +23,13 @@ class CI extends ArboristWorkspaceCmd {
     'strict-peer-deps',
     'foreground-scripts',
     'ignore-scripts',
+    'allow-directory',
+    'allow-file',
     'allow-git',
+    'allow-remote',
+    'allow-scripts',
+    'strict-allow-scripts',
+    'dangerously-allow-all-scripts',
     'audit',
     'bin-links',
     'fund',
@@ -40,12 +48,14 @@ class CI extends ArboristWorkspaceCmd {
     const ignoreScripts = this.npm.config.get('ignore-scripts')
     const where = this.npm.prefix
     const Arborist = require('@npmcli/arborist')
+    const { policy: allowScriptsPolicy } = await resolveAllowScripts(this.npm)
     const opts = {
       ...this.npm.flatOptions,
       packageLock: true, // npm ci should never skip lock files
       path: where,
       save: false, // npm ci should never modify the lockfile or package.json
       workspaces: this.workspaceNames,
+      allowScripts: allowScriptsPolicy,
     }
 
     // generate an inventory from the virtual tree in the lockfile
@@ -66,6 +76,7 @@ class CI extends ArboristWorkspaceCmd {
     // We need a new one because the virtual tree fromt the lockfile can have extraneous dependencies in it that won't install on this platform
     const arb = new Arborist(opts)
     await arb.buildIdealTree()
+    await strictAllowScriptsPreflight({ arb, npm: this.npm, idealTreeOpts: opts })
 
     // Verifies that the packages from the ideal tree will match the same versions that are present in the virtual tree (lock file).
     const errors = validateLockfile(virtualInventory, arb.idealTree.inventory)

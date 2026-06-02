@@ -57,3 +57,4 @@ const stream = await clientSession.createBidirectionalStream({
 for await (const _ of stream) { /* drain */ } // eslint-disable-line no-unused-vars
 await Promise.all([stream.closed, serverDone.promise]);
 await clientSession.close();
+await serverEndpoint.close();

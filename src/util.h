@@ -701,9 +701,9 @@ inline v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
                                    v8::Local<v8::Array> js_array,
                                    std::vector<v8::Global<v8::Value>>* out);
 
-inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                           std::string_view str,
-                                           v8::Isolate* isolate = nullptr);
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    std::string_view str,
+                                    v8::Isolate* isolate = nullptr);
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::u16string_view str,
                                            v8::Isolate* isolate = nullptr);

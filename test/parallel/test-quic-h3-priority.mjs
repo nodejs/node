@@ -55,6 +55,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -151,7 +152,8 @@ const decoder = new TextDecoder();
                      stream3.closed,
                      stream4.closed,
                      serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }
 
 // Server priority getter reflects peer's PRIORITY_UPDATE.
@@ -193,6 +195,7 @@ const decoder = new TextDecoder();
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
+    verifyPeer: 'manual',
   });
   await clientSession.opened;
 
@@ -235,5 +238,6 @@ const decoder = new TextDecoder();
   await Promise.all([serverSawHighPriority.promise,
                      stream.closed,
                      serverDone.promise]);
-  clientSession.close();
+  await clientSession.close();
+  await serverEndpoint.close();
 }

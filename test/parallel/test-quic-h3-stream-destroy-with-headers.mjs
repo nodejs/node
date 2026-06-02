@@ -34,6 +34,7 @@ const serverEndpoint = await listen(mustCall(async (ss) => {
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
+  verifyPeer: 'manual',
 });
 await clientSession.opened;
 
@@ -54,5 +55,6 @@ stream.destroy();
 strictEqual(stream.destroyed, true);
 
 // Close everything cleanly.
-clientSession.close();
+await clientSession.close();
 await serverDone.promise;
+await serverEndpoint.close();

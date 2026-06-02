@@ -140,14 +140,20 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
         "internal/quic/state",
 #endif  // !OPENSSL_NO_QUIC
+#if HAVE_DTLS
+        "internal/dtls/dtls", "internal/dtls/symbols", "internal/dtls/stats",
+        "internal/dtls/state",
+#endif  // HAVE_DTLS
 #if !HAVE_FFI
         "internal/ffi-shared-buffer",
 #endif                  // !HAVE_FFI
+        "dtls",         // Experimental.
         "ffi",          // Experimental.
         "quic",         // Experimental.
         "sqlite",       // Experimental.
         "stream/iter",  // Experimental.
         "sys",          // Deprecated.
+        "vfs",          // Experimental.
         "wasi",         // Experimental.
         "zlib/iter",    // Experimental.
 #if !HAVE_SQLITE

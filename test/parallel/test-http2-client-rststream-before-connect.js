@@ -71,9 +71,9 @@ server.listen(0, common.mustCall(() => {
   // RST_STREAM frame before it ever has a chance to reply.
   req.on('response', common.mustNotCall());
 
-  // The `end` event should still fire as we close the readable stream by
-  // pushing a `null` chunk.
-  req.on('end', common.mustCall());
+  // Any non-clean local close triggers an 'error', and the readable's
+  // errored state blocks 'end' - matching HTTP/1 ECONNRESET behaviour.
+  req.on('end', common.mustNotCall());
 
   req.resume();
   req.end();

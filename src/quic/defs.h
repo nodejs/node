@@ -360,6 +360,33 @@ constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
 constexpr size_t kMaxVectorCount = 16;
 constexpr stream_id kMaxStreamId = std::numeric_limits<stream_id>::max();
 
+// A token bucket rate limiter using lazy refill. No timer needed — tokens
+// are computed on demand from the elapsed time since the last check.
+// Used to cap the total rate of stateless responses (retry, reset,
+// version negotiation, immediate close) regardless of source address,
+// preventing spoofed-source floods from bypassing per-host limits.
+struct TokenBucket final {
+  double rate;       // tokens per second (refill rate)
+  double burst;      // maximum tokens (bucket capacity)
+  double tokens;     // current token count
+  uint64_t last_ts;  // last refill timestamp (nanoseconds, uv_hrtime)
+
+  TokenBucket() : rate(0), burst(0), tokens(0), last_ts(0) {}
+  TokenBucket(double rate, double burst);
+
+  // Reinitialize the bucket with new rate/burst parameters if it
+  // hasn't been initialized yet (last_ts == 0). Used for per-host
+  // buckets in the address LRU where the rate/burst aren't known
+  // at construction time.
+  void InitOnce(double r, double b, uint64_t now);
+
+  // Try to consume one token. Refills based on elapsed time, then
+  // attempts to consume. Returns true if the request is allowed.
+  // The caller provides the current timestamp to avoid redundant
+  // uv_hrtime() calls in hot paths.
+  bool consume(uint64_t now);
+};
+
 class DebugIndentScope final {
  public:
   inline DebugIndentScope() { ++indent_; }

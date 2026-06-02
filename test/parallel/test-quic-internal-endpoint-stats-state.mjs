@@ -43,9 +43,9 @@ const {
     isListening: false,
     isClosing: false,
     isBusy: false,
-    maxConnectionsPerHost: 0,
-    maxConnectionsTotal: 0,
-    pendingCallbacks: '0',
+    maxConnectionsPerHost: 100,
+    maxConnectionsTotal: 10_000,
+    pendingCallbacks: 0,
   });
 
   endpoint.busy = true;
@@ -88,9 +88,15 @@ const {
   strictEqual(typeof endpoint.stats.clientSessions, 'bigint');
   strictEqual(typeof endpoint.stats.serverBusyCount, 'bigint');
   strictEqual(typeof endpoint.stats.retryCount, 'bigint');
+  strictEqual(typeof endpoint.stats.retryRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.versionNegotiationCount, 'bigint');
+  strictEqual(typeof endpoint.stats.versionNegotiationRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.statelessResetCount, 'bigint');
+  strictEqual(typeof endpoint.stats.statelessResetRateLimited, 'bigint');
   strictEqual(typeof endpoint.stats.immediateCloseCount, 'bigint');
+  strictEqual(typeof endpoint.stats.immediateCloseRateLimited, 'bigint');
+  strictEqual(typeof endpoint.stats.sessionCreationRateLimited, 'bigint');
+  strictEqual(typeof endpoint.stats.packetsBlocked, 'bigint');
 
   deepStrictEqual(Object.keys(endpoint.stats.toJSON()), [
     'connected',
@@ -104,9 +110,15 @@ const {
     'clientSessions',
     'serverBusyCount',
     'retryCount',
+    'retryRateLimited',
     'versionNegotiationCount',
+    'versionNegotiationRateLimited',
     'statelessResetCount',
+    'statelessResetRateLimited',
     'immediateCloseCount',
+    'immediateCloseRateLimited',
+    'sessionCreationRateLimited',
+    'packetsBlocked',
   ]);
   strictEqual(typeof inspect(endpoint.stats), 'string');
 }
@@ -219,6 +231,7 @@ strictEqual(typeof sessionStats.datagramsReceived, 'bigint');
 strictEqual(typeof sessionStats.datagramsSent, 'bigint');
 strictEqual(typeof sessionStats.datagramsAcknowledged, 'bigint');
 strictEqual(typeof sessionStats.datagramsLost, 'bigint');
+strictEqual(typeof sessionStats.streamsIdleTimedOut, 'bigint');
 strictEqual(typeof sessionStats.toJSON(), 'object');
 strictEqual(typeof inspect(sessionStats), 'string');
 streamStats[kFinishClose]();

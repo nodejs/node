@@ -31,16 +31,16 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, init, install, install-ci-test, install-test,
-    link, ll, login, logout, ls, org, outdated, owner, pack,
-    ping, pkg, prefix, profile, prune, publish, query, rebuild,
-    repo, restart, root, run, sbom, search, set, shrinkwrap,
-    star, stars, start, stop, team, test, token, trust,
-    undeprecate, uninstall, unpublish, unstar, update, version,
-    view, whoami
+    access, adduser, approve-scripts, audit, bugs, cache, ci,
+    completion, config, dedupe, deny-scripts, deprecate, diff,
+    dist-tag, docs, doctor, edit, exec, explain, explore,
+    find-dupes, fund, get, help, help-search, init, install,
+    install-ci-test, install-test, link, ll, login, logout, ls,
+    org, outdated, owner, pack, ping, pkg, prefix, profile,
+    prune, publish, query, rebuild, repo, restart, root, run,
+    sbom, search, set, shrinkwrap, stage, star, stars, start,
+    stop, team, test, token, trust, undeprecate, uninstall,
+    unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -69,9 +69,11 @@ npm help npm       more involved overview
 All commands:
 
     access, adduser,
-    audit, bugs, cache, ci,
+    approve-scripts, audit,
+    bugs, cache, ci,
     completion, config,
-    dedupe, deprecate, diff,
+    dedupe, deny-scripts,
+    deprecate, diff,
     dist-tag, docs, doctor,
     edit, exec, explain,
     explore, find-dupes,
@@ -87,13 +89,13 @@ All commands:
     query, rebuild, repo,
     restart, root, run,
     sbom, search, set,
-    shrinkwrap, star, stars,
-    start, stop, team, test,
-    token, trust,
-    undeprecate, uninstall,
-    unpublish, unstar,
-    update, version, view,
-    whoami
+    shrinkwrap, stage, star,
+    stars, start, stop,
+    team, test, token,
+    trust, undeprecate,
+    uninstall, unpublish,
+    unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -122,9 +124,11 @@ npm help npm       more involved overview
 All commands:
 
     access, adduser,
-    audit, bugs, cache, ci,
+    approve-scripts, audit,
+    bugs, cache, ci,
     completion, config,
-    dedupe, deprecate, diff,
+    dedupe, deny-scripts,
+    deprecate, diff,
     dist-tag, docs, doctor,
     edit, exec, explain,
     explore, find-dupes,
@@ -140,13 +144,13 @@ All commands:
     query, rebuild, repo,
     restart, root, run,
     sbom, search, set,
-    shrinkwrap, star, stars,
-    start, stop, team, test,
-    token, trust,
-    undeprecate, uninstall,
-    unpublish, unstar,
-    update, version, view,
-    whoami
+    shrinkwrap, stage, star,
+    stars, start, stop,
+    team, test, token,
+    trust, undeprecate,
+    uninstall, unpublish,
+    unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -174,16 +178,16 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, init, install, install-ci-test, install-test,
-    link, ll, login, logout, ls, org, outdated, owner, pack,
-    ping, pkg, prefix, profile, prune, publish, query, rebuild,
-    repo, restart, root, run, sbom, search, set, shrinkwrap,
-    star, stars, start, stop, team, test, token, trust,
-    undeprecate, uninstall, unpublish, unstar, update, version,
-    view, whoami
+    access, adduser, approve-scripts, audit, bugs, cache, ci,
+    completion, config, dedupe, deny-scripts, deprecate, diff,
+    dist-tag, docs, doctor, edit, exec, explain, explore,
+    find-dupes, fund, get, help, help-search, init, install,
+    install-ci-test, install-test, link, ll, login, logout, ls,
+    org, outdated, owner, pack, ping, pkg, prefix, profile,
+    prune, publish, query, rebuild, repo, restart, root, run,
+    sbom, search, set, shrinkwrap, stage, star, stars, start,
+    stop, team, test, token, trust, undeprecate, uninstall,
+    unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -212,9 +216,11 @@ npm help npm       more involved overview
 All commands:
 
     access, adduser,
-    audit, bugs, cache, ci,
+    approve-scripts, audit,
+    bugs, cache, ci,
     completion, config,
-    dedupe, deprecate, diff,
+    dedupe, deny-scripts,
+    deprecate, diff,
     dist-tag, docs, doctor,
     edit, exec, explain,
     explore, find-dupes,
@@ -230,13 +236,13 @@ All commands:
     query, rebuild, repo,
     restart, root, run,
     sbom, search, set,
-    shrinkwrap, star, stars,
-    start, stop, team, test,
-    token, trust,
-    undeprecate, uninstall,
-    unpublish, unstar,
-    update, version, view,
-    whoami
+    shrinkwrap, stage, star,
+    stars, start, stop,
+    team, test, token,
+    trust, undeprecate,
+    uninstall, unpublish,
+    unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -265,9 +271,11 @@ npm help npm       more involved overview
 All commands:
 
     access, adduser,
-    audit, bugs, cache, ci,
+    approve-scripts, audit,
+    bugs, cache, ci,
     completion, config,
-    dedupe, deprecate, diff,
+    dedupe, deny-scripts,
+    deprecate, diff,
     dist-tag, docs, doctor,
     edit, exec, explain,
     explore, find-dupes,
@@ -283,13 +291,13 @@ All commands:
     query, rebuild, repo,
     restart, root, run,
     sbom, search, set,
-    shrinkwrap, star, stars,
-    start, stop, team, test,
-    token, trust,
-    undeprecate, uninstall,
-    unpublish, unstar,
-    update, version, view,
-    whoami
+    shrinkwrap, stage, star,
+    stars, start, stop,
+    team, test, token,
+    trust, undeprecate,
+    uninstall, unpublish,
+    unstar, update, version,
+    view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -317,10 +325,12 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit,
+    access, adduser,
+    approve-scripts, audit,
     bugs, cache, ci,
     completion, config,
-    dedupe, deprecate, diff,
+    dedupe, deny-scripts,
+    deprecate, diff,
     dist-tag, docs, doctor,
     edit, exec, explain,
     explore, find-dupes,
@@ -335,8 +345,9 @@ All commands:
     query, rebuild, repo,
     restart, root, run, sbom,
     search, set, shrinkwrap,
-    star, stars, start, stop,
-    team, test, token, trust,
+    stage, star, stars,
+    start, stop, team, test,
+    token, trust,
     undeprecate, uninstall,
     unpublish, unstar,
     update, version, view,
@@ -368,16 +379,16 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, init, install, install-ci-test, install-test,
-    link, ll, login, logout, ls, org, outdated, owner, pack,
-    ping, pkg, prefix, profile, prune, publish, query, rebuild,
-    repo, restart, root, run, sbom, search, set, shrinkwrap,
-    star, stars, start, stop, team, test, token, trust,
-    undeprecate, uninstall, unpublish, unstar, update, version,
-    view, whoami
+    access, adduser, approve-scripts, audit, bugs, cache, ci,
+    completion, config, dedupe, deny-scripts, deprecate, diff,
+    dist-tag, docs, doctor, edit, exec, explain, explore,
+    find-dupes, fund, get, help, help-search, init, install,
+    install-ci-test, install-test, link, ll, login, logout, ls,
+    org, outdated, owner, pack, ping, pkg, prefix, profile,
+    prune, publish, query, rebuild, repo, restart, root, run,
+    sbom, search, set, shrinkwrap, stage, star, stars, start,
+    stop, team, test, token, trust, undeprecate, uninstall,
+    unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -405,16 +416,16 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, init, install, install-ci-test, install-test,
-    link, ll, login, logout, ls, org, outdated, owner, pack,
-    ping, pkg, prefix, profile, prune, publish, query, rebuild,
-    repo, restart, root, run, sbom, search, set, shrinkwrap,
-    star, stars, start, stop, team, test, token, trust,
-    undeprecate, uninstall, unpublish, unstar, update, version,
-    view, whoami
+    access, adduser, approve-scripts, audit, bugs, cache, ci,
+    completion, config, dedupe, deny-scripts, deprecate, diff,
+    dist-tag, docs, doctor, edit, exec, explain, explore,
+    find-dupes, fund, get, help, help-search, init, install,
+    install-ci-test, install-test, link, ll, login, logout, ls,
+    org, outdated, owner, pack, ping, pkg, prefix, profile,
+    prune, publish, query, rebuild, repo, restart, root, run,
+    sbom, search, set, shrinkwrap, stage, star, stars, start,
+    stop, team, test, token, trust, undeprecate, uninstall,
+    unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}
@@ -442,16 +453,16 @@ npm help npm       more involved overview
 
 All commands:
 
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, init, install, install-ci-test, install-test,
-    link, ll, login, logout, ls, org, outdated, owner, pack,
-    ping, pkg, prefix, profile, prune, publish, query, rebuild,
-    repo, restart, root, run, sbom, search, set, shrinkwrap,
-    star, stars, start, stop, team, test, token, trust,
-    undeprecate, uninstall, unpublish, unstar, update, version,
-    view, whoami
+    access, adduser, approve-scripts, audit, bugs, cache, ci,
+    completion, config, dedupe, deny-scripts, deprecate, diff,
+    dist-tag, docs, doctor, edit, exec, explain, explore,
+    find-dupes, fund, get, help, help-search, init, install,
+    install-ci-test, install-test, link, ll, login, logout, ls,
+    org, outdated, owner, pack, ping, pkg, prefix, profile,
+    prune, publish, query, rebuild, repo, restart, root, run,
+    sbom, search, set, shrinkwrap, stage, star, stars, start,
+    stop, team, test, token, trust, undeprecate, uninstall,
+    unpublish, unstar, update, version, view, whoami
 
 Specify configs in the ini-formatted file:
     {USERCONFIG}

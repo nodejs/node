@@ -1,13 +1,15 @@
 #if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "data.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_sockaddr-inl.h>
+#include <openssl/ssl.h>
 #include <string_bytes.h>
 #include <v8.h>
+#include "bindingdata.h"
+#include "data.h"
 #include "defs.h"
 #include "util.h"
 
@@ -17,7 +19,10 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::BigInt;
+using v8::Isolate;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -89,14 +94,14 @@ Store::Store(std::unique_ptr<BackingStore> store, size_t length, size_t offset)
 }
 
 Maybe<Store> Store::From(Local<ArrayBuffer> buffer) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   auto length = buffer->ByteLength();
   auto dest = ArrayBuffer::NewBackingStore(
       isolate,
       length,
-      v8::BackingStoreInitializationMode::kUninitialized,
-      v8::BackingStoreOnFailureMode::kReturnNull);
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
   if (!dest) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return Nothing<Store>();
@@ -108,15 +113,15 @@ Maybe<Store> Store::From(Local<ArrayBuffer> buffer) {
 }
 
 Maybe<Store> Store::From(Local<ArrayBufferView> view) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
   auto dest = ArrayBuffer::NewBackingStore(
       isolate,
       length,
-      v8::BackingStoreInitializationMode::kUninitialized,
-      v8::BackingStoreOnFailureMode::kReturnNull);
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
   if (!dest) {
     THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
     return Nothing<Store>();
@@ -130,24 +135,38 @@ Maybe<Store> Store::From(Local<ArrayBufferView> view) {
 }
 
 Store Store::CopyFrom(Local<ArrayBuffer> buffer) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Isolate* isolate = Isolate::GetCurrent();
   auto backing = buffer->GetBackingStore();
   auto length = buffer->ByteLength();
   auto dest = ArrayBuffer::NewBackingStore(
-      isolate, length, v8::BackingStoreInitializationMode::kUninitialized);
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
+    return Store();
+  }
   // copy content
   memcpy(dest->Data(), backing->Data(), length);
   return Store(std::move(dest), length, 0);
 }
 
 Store Store::CopyFrom(Local<ArrayBufferView> view) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  Isolate* isolate = Isolate::GetCurrent();
   auto backing = view->Buffer()->GetBackingStore();
   auto length = view->ByteLength();
   auto offset = view->ByteOffset();
   auto dest = ArrayBuffer::NewBackingStore(
-      isolate, length, v8::BackingStoreInitializationMode::kUninitialized);
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
   // copy content
+  if (!dest) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(Environment::GetCurrent(isolate));
+    return Store();
+  }
   memcpy(dest->Data(), static_cast<char*>(backing->Data()) + offset, length);
   return Store(std::move(dest), length, 0);
 }
@@ -346,14 +365,70 @@ std::optional<int> QuicError::get_crypto_error() const {
   return code() & ~NGTCP2_CRYPTO_ERROR;
 }
 
+const char* QuicError::name() const {
+  // CRYPTO_ERROR carries a TLS alert in its low byte (RFC 9001 sec. 4.8).
+  // OpenSSL's SSL_alert_desc_string_long owns a stable string for every
+  // alert it knows about; we filter out the "unknown" placeholder so the
+  // JS side can present `errorName` as undefined for unrecognised alerts.
+  if (auto alert = get_crypto_error()) {
+    const char* n = SSL_alert_desc_string_long(*alert);
+    if (n != nullptr && std::string_view(n) != "unknown") return n;
+    return nullptr;
+  }
+  // Named transport-layer error codes from RFC 9000 sec. 20.1 (and the
+  // RFC 9368 version-negotiation extension). Application error codes are
+  // opaque to QUIC, so we only decode for transport.
+  if (type() != Type::TRANSPORT) return nullptr;
+  switch (code()) {
+    case NGTCP2_NO_ERROR:
+      return "NO_ERROR";
+    case NGTCP2_INTERNAL_ERROR:
+      return "INTERNAL_ERROR";
+    case NGTCP2_CONNECTION_REFUSED:
+      return "CONNECTION_REFUSED";
+    case NGTCP2_FLOW_CONTROL_ERROR:
+      return "FLOW_CONTROL_ERROR";
+    case NGTCP2_STREAM_LIMIT_ERROR:
+      return "STREAM_LIMIT_ERROR";
+    case NGTCP2_STREAM_STATE_ERROR:
+      return "STREAM_STATE_ERROR";
+    case NGTCP2_FINAL_SIZE_ERROR:
+      return "FINAL_SIZE_ERROR";
+    case NGTCP2_FRAME_ENCODING_ERROR:
+      return "FRAME_ENCODING_ERROR";
+    case NGTCP2_TRANSPORT_PARAMETER_ERROR:
+      return "TRANSPORT_PARAMETER_ERROR";
+    case NGTCP2_CONNECTION_ID_LIMIT_ERROR:
+      return "CONNECTION_ID_LIMIT_ERROR";
+    case NGTCP2_PROTOCOL_VIOLATION:
+      return "PROTOCOL_VIOLATION";
+    case NGTCP2_INVALID_TOKEN:
+      return "INVALID_TOKEN";
+    case NGTCP2_APPLICATION_ERROR:
+      return "APPLICATION_ERROR";
+    case NGTCP2_CRYPTO_BUFFER_EXCEEDED:
+      return "CRYPTO_BUFFER_EXCEEDED";
+    case NGTCP2_KEY_UPDATE_ERROR:
+      return "KEY_UPDATE_ERROR";
+    case NGTCP2_AEAD_LIMIT_REACHED:
+      return "AEAD_LIMIT_REACHED";
+    case NGTCP2_NO_VIABLE_PATH:
+      return "NO_VIABLE_PATH";
+    case NGTCP2_VERSION_NEGOTIATION_ERROR:
+      return "VERSION_NEGOTIATION_ERROR";
+    default:
+      return nullptr;
+  }
+}
+
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   if ((type() == Type::TRANSPORT && code() == NGTCP2_NO_ERROR) ||
-      (type() == Type::APPLICATION && code() == NGHTTP3_H3_NO_ERROR) ||
+      (type() == Type::APPLICATION &&
+       (code() == 0 || code() == NGHTTP3_H3_NO_ERROR)) ||
       type() == Type::IDLE_CLOSE) {
-    // Note that we only return undefined for *known* no-error application
-    // codes. It is possible that other application types use other specific
-    // no-error codes, but since we don't know which application is being used,
-    // we'll just return the error code value for those below.
+    // Application code 0 is the default no-error code for raw QUIC
+    // applications (DefaultApplication::GetNoErrorCode() returns 0).
+    // NGHTTP3_H3_NO_ERROR (0x100) is the HTTP/3 no-error code.
     // Idle close is always clean — the session timed out normally.
     return Undefined(env->isolate());
   }
@@ -367,6 +442,7 @@ MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
       type_str,
       BigInt::NewFromUnsigned(env->isolate(), code()),
       Undefined(env->isolate()),
+      Undefined(env->isolate()),
   };
 
   // Note that per the QUIC specification, the reason, if present, is
@@ -378,6 +454,13 @@ MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   if (reason_.length() > 0 &&
       !node::ToV8Value(env->context(), reason()).ToLocal(&argv[2])) {
     return {};
+  }
+
+  // Attach a human-readable name for known wire codes (RFC 9000 sec. 20.1
+  // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
+  // codes leave the slot as undefined.
+  if (const char* n = name()) {
+    argv[3] = BindingData::Get(env).error_name_string(n);
   }
 
   return Array::New(env->isolate(), argv, arraysize(argv)).As<Value>();

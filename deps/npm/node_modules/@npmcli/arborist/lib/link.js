@@ -109,6 +109,26 @@ class Link extends Node {
   // so this is a no-op
   [_loadDeps] () {}
 
+  // When a Link receives overrides (via edgesIn), forward them to the target node which holds the actual edgesOut — but only when the OverrideSet has at least one rule that names a dep the target actually depends on.
+  // Without this scope, the link forwards a generic ancestor OverrideSet that has no real effect on the target's edges, but still flips the target to "has overrides", which changes downstream `canReplaceWith` / placement decisions and causes `npm ci` to re-resolve lockfile-pinned edges from the registry.
+  // See npm/cli#9357.
+  recalculateOutEdgesOverrides () {
+    if (!this.target || !this.overrides) {
+      return
+    }
+    let hasMatchingRule = false
+    for (const rule of this.overrides.ruleset.values()) {
+      if (this.target.edgesOut.has(rule.name)) {
+        hasMatchingRule = true
+        break
+      }
+    }
+    if (!hasMatchingRule) {
+      return
+    }
+    this.target.updateOverridesEdgeInAdded(this.overrides)
+  }
+
   // links can't have children, only their targets can
   // fix it to an empty list so that we can still call
   // things that iterate over them, just as a no-op

@@ -51,7 +51,7 @@ server.on('request', common.mustCall(function(request, response) {
     assert.strictEqual(request.socket.readable, false);
     response.socket.destroy();
   }));
-  response.on('finish', common.mustCall(() => {
+  response.on('close', common.mustCall(() => {
     assert.ok(request.socket);
     assert.strictEqual(response.socket, undefined);
     assert.ok(request.socket.destroyed);
@@ -84,7 +84,8 @@ server.listen(0, common.mustCall(function() {
       ':authority': `localhost:${port}`
     };
     const request = client.request(headers);
-    request.on('end', common.mustCall(() => {
+    request.on('error', () => {});
+    request.on('close', common.mustCall(() => {
       client.close();
     }));
     request.end();

@@ -610,6 +610,19 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental iterable streams API (node:stream/iter)",
             &EnvironmentOptions::experimental_stream_iter,
             kAllowedInEnvvar);
+  AddOption("--experimental-dtls",
+#if HAVE_DTLS
+            "experimental DTLS support",
+            &EnvironmentOptions::experimental_dtls,
+#else
+            "" /* undocumented when no-op */,
+            NoOp{},
+#endif
+            kAllowedInEnvvar);
+  AddOption("--experimental-vfs",
+            "experimental node:vfs module",
+            &EnvironmentOptions::experimental_vfs,
+            kAllowedInEnvvar);
   AddOption("--experimental-quic",
 #ifndef OPENSSL_NO_QUIC
             "experimental QUIC support",

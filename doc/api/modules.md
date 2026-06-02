@@ -286,7 +286,7 @@ console.log(distance); // undefined
 ```
 
 Notice in the example above, when the `module.exports` export name is used, named exports
-will be lost to CommonJS consumers. To allow  CommonJS consumers to continue accessing
+will be lost to CommonJS consumers. To allow CommonJS consumers to continue accessing
 named exports, the module can make sure that the default export is an object with the
 named exports attached to it as properties. For example with the example above,
 `distance` can be attached to the default export, the `Point` class, as a static method.
@@ -359,8 +359,7 @@ require(X) from module at path Y
 MAYBE_DETECT_AND_LOAD(X)
 1. If X parses as a CommonJS module, load X as a CommonJS module. STOP.
 2. Else, if the source code of X can be parsed as ECMAScript module using
-  <a href="esm.md#resolver-algorithm-specification">DETECT_MODULE_SYNTAX defined in
-  the ESM resolver</a>,
+  DETECT_MODULE_SYNTAX defined in the ESM resolver,
   a. Load X as an ECMAScript module. STOP.
 3. THROW the SyntaxError from attempting to parse X as CommonJS in 1. STOP.
 
@@ -424,7 +423,7 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 5. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
-  CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+  CONDITIONS) defined in the ESM resolver.
 6. RESOLVE_ESM_MATCH(MATCH).
 
 LOAD_PACKAGE_EXPORTS(X, DIR)
@@ -438,7 +437,7 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 6. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
-   `package.json` "exports", CONDITIONS) <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+   `package.json` "exports", CONDITIONS) defined in the ESM resolver.
 7. RESOLVE_ESM_MATCH(MATCH)
 
 LOAD_PACKAGE_SELF(X, DIR)
@@ -448,7 +447,7 @@ LOAD_PACKAGE_SELF(X, DIR)
 4. If the SCOPE/package.json "name" is not the first segment of X, return.
 5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
    "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
-   <a href="esm.md#resolver-algorithm-specification">defined in the ESM resolver</a>.
+   defined in the ESM resolver.
 6. RESOLVE_ESM_MATCH(MATCH)
 
 RESOLVE_ESM_MATCH(MATCH)
@@ -457,6 +456,8 @@ RESOLVE_ESM_MATCH(MATCH)
    format. STOP
 3. THROW "not found"
 ```
+
+The "ESM resolver" is defined [in the ESM documentation](esm.md#resolver-algorithm-specification).
 
 ## Caching
 

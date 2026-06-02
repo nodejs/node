@@ -519,6 +519,44 @@ function assertJsonWebKey(actual, expected) {
   }
 }
 
+// Argon2Params
+{
+  const good = {
+    name: 'Argon2id',
+    memory: 8,
+    nonce: Buffer.alloc(8),
+    parallelism: 1,
+    passes: 1,
+  };
+
+  assertIdlDictionary(converters.Argon2Params({ ...good, filtered: 'out' }, opts), good);
+
+  assertIdlDictionary(
+    converters.Argon2Params({
+      ...good,
+      associatedData: Buffer.alloc(0),
+      secretValue: Buffer.alloc(0),
+    }, opts),
+    {
+      ...good,
+      associatedData: Buffer.alloc(0),
+      secretValue: Buffer.alloc(0),
+    });
+
+  for (const required of ['memory', 'nonce', 'parallelism', 'passes']) {
+    assert.throws(() => converters.Argon2Params({ ...good, [required]: undefined }, opts), {
+      name: 'TypeError',
+      code: 'ERR_MISSING_OPTION',
+      message: `${prefix}: ${context} cannot be converted to 'Argon2Params' because '${required}' is required in 'Argon2Params'.`,
+    });
+  }
+
+  assert.throws(() => converters.Argon2Params({ ...good, passes: 0 }, opts), {
+    name: 'OperationError',
+    message: 'passes must be > 0',
+  });
+}
+
 // AesCbcParams
 {
   const good = { name: 'AES-CBC', iv: Buffer.alloc(16) };

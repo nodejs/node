@@ -27,9 +27,11 @@ const endpoint = new QuicEndpoint({ maxConnectionsTotal: 1 });
 
 // Verify the limits are readable and mutable.
 strictEqual(endpoint.maxConnectionsTotal, 1);
-strictEqual(endpoint.maxConnectionsPerHost, 0);
-endpoint.maxConnectionsPerHost = 100;
+// The default maxConnectionsPerHost is 100 — a non-zero default that
+// prevents a single host from exhausting server resources.
 strictEqual(endpoint.maxConnectionsPerHost, 100);
+endpoint.maxConnectionsPerHost = 50;
+strictEqual(endpoint.maxConnectionsPerHost, 50);
 endpoint.maxConnectionsPerHost = 0;
 
 let sessionCount = 0;
@@ -47,6 +49,7 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
 // First connection should succeed.
 const cs1 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 2 },
 });
 await cs1.opened;
@@ -54,6 +57,7 @@ await cs1.opened;
 // Second connection — server rejects with CONNECTION_REFUSED.
 const cs2 = await connect(serverEndpoint.address, {
   alpn: 'quic-test',
+  verifyPeer: 'manual',
   transportParams: { maxIdleTimeout: 1 },
   onerror: mustCall((err) => {
     strictEqual(err.code, 'ERR_QUIC_TRANSPORT_ERROR');
