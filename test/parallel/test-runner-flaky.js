@@ -17,16 +17,22 @@ function writeFixture(source) {
   return file;
 }
 
+async function drainRun(file, runOptions, subscribe) {
+  const stream = run({ files: [file], ...runOptions });
+  subscribe(stream);
+  // eslint-disable-next-line no-unused-vars
+  for await (const _ of stream);
+}
+
 // Collect the run() event stream for a fixture file, bucketed by test name.
 async function collectEvents(file, runOptions = {}) {
   const events = { pass: [], fail: [], diagnostic: [] };
-  const stream = run({ files: [file], ...runOptions });
-  stream.on('test:pass', (data) => events.pass.push(data));
-  stream.on('test:fail', (data) => events.fail.push(data));
-  stream.on('test:diagnostic', (data) => events.diagnostic.push(data));
-  stream.on('test:stderr', common.mustNotCall());
-  // eslint-disable-next-line no-unused-vars
-  for await (const _ of stream);
+  await drainRun(file, runOptions, (stream) => {
+    stream.on('test:pass', (data) => events.pass.push(data));
+    stream.on('test:fail', (data) => events.fail.push(data));
+    stream.on('test:diagnostic', (data) => events.diagnostic.push(data));
+    stream.on('test:stderr', common.mustNotCall());
+  });
   return events;
 }
 
@@ -47,10 +53,9 @@ async function tap(file) {
 // path where the parent re-counts the child's serialized events (runner.js).
 async function runSummaryCounts(file, runOptions = {}) {
   let counts;
-  const stream = run({ files: [file], ...runOptions });
-  stream.on('test:summary', (data) => { counts = data.counts; });
-  // eslint-disable-next-line no-unused-vars
-  for await (const _ of stream);
+  await drainRun(file, runOptions, (stream) => {
+    stream.on('test:summary', (data) => { counts = data.counts; });
+  });
   return counts;
 }
 
@@ -171,15 +176,9 @@ test('flaky: exhausted timeout is FAIL, non-flaky timeout stays cancelled', asyn
 
 test('flaky: external abort stops retrying, body runs once', async () => {
   const file = fixtures.path('test-runner/flaky/external-abort.js');
-  const stateFile = tmpdir.resolve(`abort-state.txt`);
-  const { code, stdout, stderr } = await common.spawnPromisified(
-    process.execPath,
-    ['--test-reporter=tap', file],
-    { env: { ...process.env, FLAKY_STATE: stateFile } },
-  );
+  const { code, stdout, stderr, state: runs } = await spawnFlaky(file, 'abort-state.txt');
   assert.strictEqual(stderr, '');
   assert.strictEqual(code, 1);
-  const runs = require('node:fs').readFileSync(stateFile, 'utf8');
   assert.strictEqual(runs.length, 1, `body ran ${runs.length} times, expected 1`);
   assert.match(stdout, /# flaky 1$/m);
   assert.doesNotMatch(stdout, /FLAKY failed after \d+ re-tries/);
@@ -187,15 +186,10 @@ test('flaky: external abort stops retrying, body runs once', async () => {
 
 test('flaky: beforeEach/afterEach re-run each attempt, before/after once', async () => {
   const file = fixtures.path('test-runner/flaky/hooks.js');
-  const stateFile = tmpdir.resolve(`hooks-state.json`);
-  const { code, stderr } = await common.spawnPromisified(
-    process.execPath,
-    ['--test-reporter=tap', file],
-    { env: { ...process.env, FLAKY_STATE: stateFile } },
-  );
+  const { code, stderr, state } = await spawnFlaky(file, 'hooks-state.json');
   assert.strictEqual(stderr, '');
   assert.strictEqual(code, 0);
-  const counts = JSON.parse(require('node:fs').readFileSync(stateFile, 'utf8'));
+  const counts = JSON.parse(state);
   assert.strictEqual(counts.body, 3, `body should run once per attempt, got ${counts.body}`);
   assert.strictEqual(counts.beforeEach, 3, `beforeEach per attempt, got ${counts.beforeEach}`);
   assert.strictEqual(counts.afterEach, 3, `afterEach per attempt, got ${counts.afterEach}`);
@@ -253,15 +247,9 @@ test('flaky:true exhausts at 20 retries when more are needed', async () => {
 
 test('flaky: expectFailure composes => no retry', async () => {
   const file = fixtures.path('test-runner/flaky/expect-failure.js');
-  const stateFile = tmpdir.resolve(`xfail-state.txt`);
-  const { code, stdout, stderr } = await common.spawnPromisified(
-    process.execPath,
-    ['--test-reporter=tap', file],
-    { env: { ...process.env, FLAKY_STATE: stateFile } },
-  );
+  const { code, stdout, stderr, state: runs } = await spawnFlaky(file, 'xfail-state.txt');
   assert.strictEqual(stderr, '');
   assert.strictEqual(code, 0);
-  const runs = require('node:fs').readFileSync(stateFile, 'utf8');
   assert.strictEqual(runs.length, 1, `body ran ${runs.length} times, expected 1 (no retry)`);
   assert.match(stdout, /# flaky 1$/m);
   assert.doesNotMatch(stdout, /FLAKY \d+ re-tries/);
@@ -291,17 +279,6 @@ test('flaky: all API surface forms retry identically (forms 1-5 + aliases)', asy
   }
 });
 
-test('flaky: it.flaky(...) === it(..., { flaky: true })', async () => {
-  const file = fixtures.path('test-runner/flaky/shorthand-equals-options.js');
-  const events = await collectEvents(file);
-  const shorthand = byName(events.pass, 'shorthand form');
-  const options = byName(events.pass, 'options form');
-  assert.strictEqual(shorthand.length, 1);
-  assert.strictEqual(options.length, 1);
-  assert.strictEqual(shorthand[0].retryCount, options[0].retryCount);
-  assert.strictEqual(shorthand[0].retryCount, 1);
-});
-
 test('flaky: run() parent counts flaky and promotes exhausted timeout to fail', async () => {
   const file = fixtures.path('test-runner/flaky/run-parent-summary.js');
   const counts = await runSummaryCounts(file);
@@ -327,15 +304,9 @@ test('flaky: non-flaky assert-before-plan counting is unchanged', async () => {
 
 test('flaky: intermediate retries do not publish to the node.test error channel', async () => {
   const file = fixtures.path('test-runner/flaky/channel-silence.js');
-  const stateFile = tmpdir.resolve(`chan-state.txt`);
-  const { code, stderr } = await common.spawnPromisified(
-    process.execPath,
-    ['--test-reporter=tap', file],
-    { env: { ...process.env, FLAKY_STATE: stateFile } },
-  );
+  const { code, stderr, state: errors } = await spawnFlaky(file, 'chan-state.txt');
   assert.strictEqual(stderr, '');
   assert.strictEqual(code, 0);
-  const errors = require('node:fs').readFileSync(stateFile, 'utf8');
   assert.strictEqual(errors, '0', `expected 0 channel errors for a passing flaky test, got ${errors}`);
 });
 

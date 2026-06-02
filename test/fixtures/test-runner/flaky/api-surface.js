@@ -3,11 +3,6 @@ const test = require('node:test');
 const { describe, it, suite } = test;
 const assert = require('node:assert');
 
-function counterBody(getN, label) {
-  let n = 0;
-  return () => { n++; assert.strictEqual(n, getN(), label + ' attempt ' + n); };
-}
-
 // Form 1: describe.flaky shorthand suite; members inherit.
 describe.flaky('describe.flaky suite', () => {
   let n = 0;

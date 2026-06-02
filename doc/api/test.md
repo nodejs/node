@@ -1959,7 +1959,11 @@ changes:
     `beforeEach` and `afterEach` hooks. A test-case's own value overrides one
     inherited from its suite; `flaky: false` opts out. Retries are intended for
     tests that fail intermittently due to transient conditions; be aware that
-    non-idempotent state may leak between attempts. **Default:** `false`.
+    non-idempotent state may leak between attempts. A test that always fails
+    exhausts its full retry budget, running its body once plus once per retry
+    (for example 21 times with `flaky: true`: 1 initial run + 20 retries), so
+    prefer a small explicit count for tests that fail only occasionally.
+    **Default:** `false`.
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
@@ -4594,7 +4598,11 @@ changes:
     `beforeEach` and `afterEach` hooks. A test-case's own value overrides one
     inherited from its suite; `flaky: false` opts out. Retries are intended for
     tests that fail intermittently due to transient conditions; be aware that
-    non-idempotent state may leak between attempts. **Default:** `false`.
+    non-idempotent state may leak between attempts. A test that always fails
+    exhausts its full retry budget, running its body once plus once per retry
+    (for example 21 times with `flaky: true`: 1 initial run + 20 retries), so
+    prefer a small explicit count for tests that fail only occasionally.
+    **Default:** `false`.
   * `timeout` {number} A number of milliseconds the test will fail after.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
