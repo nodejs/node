@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "names": [],
+  "sources": ["extra-lines-in-range-mappings-original.js"],
+  "sourcesContent": ["42;"],
+  "mappings": ";AAAA,EAAE;",
+  "rangeMappings": ";A;;;"
+}
