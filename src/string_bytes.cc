@@ -744,6 +744,23 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   }
 }
 
+MaybeLocal<Value> StringBytes::EncodeValidUtf8(Isolate* isolate,
+                                               const char* buf,
+                                               size_t buflen) {
+  CHECK_BUFLEN_IN_RANGE(buflen);
+  if (!buflen) return String::Empty(isolate);
+  buflen = keep_buflen_in_range(buflen);
+  if (!simdutf::validate_ascii_with_errors(buf, buflen).error) {
+    return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
+  }
+  if (buflen >= 32) return EncodeValidNonAsciiUtf8(isolate, buf, buflen);
+  Local<String> str;
+  if (!String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen)
+           .ToLocal(&str))
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
+  return str;
+}
+
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       const uint16_t* buf,
                                       size_t buflen) {
@@ -770,21 +787,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       enum encoding encoding) {
   const size_t len = strlen(buf);
   return Encode(isolate, buf, len, encoding);
-}
-
-MaybeLocal<Value> StringBytes::EncodeValidUtf8(Isolate* isolate,
-                                               const char* buf,
-                                               size_t buflen) {
-  buflen = keep_buflen_in_range(buflen);
-  if (!simdutf::validate_ascii_with_errors(buf, buflen).error) {
-    return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
-  }
-  if (buflen >= 32) return EncodeValidNonAsciiUtf8(isolate, buf, buflen);
-  Local<String> str;
-  if (!String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen)
-           .ToLocal(&str))
-    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
-  return str;
 }
 
 }  // namespace node
