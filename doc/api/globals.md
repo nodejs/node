@@ -567,6 +567,20 @@ The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.
 written from scratch for Node.js. You can figure out which version of `undici` is bundled
 in your Node.js process reading the `process.versions.undici` property.
 
+### Differences from browser `fetch()`
+
+While Node.js's `fetch()` aims to be compatible with the
+[Fetch Standard][], there are some notable differences:
+
+* Node.js accepts [`AsyncIterable`][] as `Request` and `Response`
+  body inputs. The Fetch Standard only supports `ReadableStream`.
+* Cookies are not stored or sent automatically. The Fetch Standard
+  requires implementations to support a cookie store, which
+  Node.js does not provide.
+* Node.js does not enforce [forbidden header names][]. Browsers
+  prevent user code from setting certain headers such as `Host`
+  and `Content-Length`; Node.js allows them to be set freely.
+
 ### Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
@@ -1409,6 +1423,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
 [`exports`]: modules.md#exports
+[Fetch Standard]: https://fetch.spec.whatwg.org/
+[forbidden header names]: https://fetch.spec.whatwg.org/#forbidden-header-name
 [`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch
 [`globalThis`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [`localStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
@@ -1424,6 +1440,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone
 [`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
+[AsyncIterable]: https://tc39.es/ecma262/#sec-asynciterable-interface
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
