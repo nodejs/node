@@ -31,3 +31,33 @@ const { ReadableStream, WritableStream } = require('stream/web');
     sourceController.enqueue('chunk');
   }));
 }
+
+{
+  const ac = new AbortController();
+  let sourceController;
+  const chunks = [];
+
+  const source = new ReadableStream({
+    start(controller) {
+      sourceController = controller;
+    },
+  }, { highWaterMark: 0 });
+
+  const dest = new WritableStream({
+    write: common.mustCall((chunk) => {
+      chunks.push(chunk);
+    }),
+  }, { highWaterMark: 1 });
+
+  assert.rejects(
+    source.pipeTo(dest, { signal: ac.signal }),
+    { name: 'AbortError' },
+  ).then(common.mustCall(() => {
+    assert.deepStrictEqual(chunks, ['chunk']);
+  }));
+
+  setImmediate(common.mustCall(() => {
+    sourceController.enqueue('chunk');
+    ac.abort();
+  }));
+}
