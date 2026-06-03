@@ -58,6 +58,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Intercepted;
 using v8::Isolate;
+using v8::Just;
 using v8::JustVoid;
 using v8::KeyCollectionMode;
 using v8::Local;
@@ -475,6 +476,60 @@ bool ContextifyContext::IsStillInitializing(const ContextifyContext* ctx) {
   return ctx == nullptr || ctx->context_.IsEmpty();
 }
 
+static Maybe<bool> GetOwnPropertyAttributes(Isolate* isolate,
+                                            Local<Context> context,
+                                            Local<Object> object,
+                                            Local<Name> property,
+                                            PropertyAttribute* attributes) {
+  Local<Value> desc_value;
+  if (!object->GetOwnPropertyDescriptor(context, property).ToLocal(&desc_value))
+    return Nothing<bool>();
+  if (desc_value->IsUndefined()) return Just(false);
+  if (!desc_value->IsObject()) return Nothing<bool>();
+
+  Local<Object> desc = desc_value.As<Object>();
+  int result = PropertyAttribute::None;
+
+  Local<String> enumerable_string =
+      FIXED_ONE_BYTE_STRING(isolate, "enumerable");
+  Local<Value> enumerable;
+  if (!desc->Get(context, enumerable_string).ToLocal(&enumerable)) {
+    return Nothing<bool>();
+  }
+  if (!enumerable->IsTrue()) {
+    result |= PropertyAttribute::DontEnum;
+  }
+
+  Local<String> configurable_string =
+      FIXED_ONE_BYTE_STRING(isolate, "configurable");
+  Local<Value> configurable;
+  if (!desc->Get(context, configurable_string).ToLocal(&configurable)) {
+    return Nothing<bool>();
+  }
+  if (!configurable->IsTrue()) {
+    result |= PropertyAttribute::DontDelete;
+  }
+
+  Local<String> writable_string = FIXED_ONE_BYTE_STRING(isolate, "writable");
+  Maybe<bool> maybe_has_writable =
+      desc->HasOwnProperty(context, writable_string);
+  if (maybe_has_writable.IsNothing()) {
+    return Nothing<bool>();
+  }
+  if (maybe_has_writable.FromJust()) {
+    Local<Value> writable;
+    if (!desc->Get(context, writable_string).ToLocal(&writable)) {
+      return Nothing<bool>();
+    }
+    if (!writable->IsTrue()) {
+      result |= PropertyAttribute::ReadOnly;
+    }
+  }
+
+  *attributes = static_cast<PropertyAttribute>(result);
+  return Just(true);
+}
+
 // static
 Intercepted ContextifyContext::PropertyQueryCallback(
     Local<Name> property, const PropertyCallbackInfo<Integer>& args) {
@@ -490,18 +545,15 @@ Intercepted ContextifyContext::PropertyQueryCallback(
 
   Local<Context> context = ctx->context();
   Local<Object> sandbox = ctx->sandbox();
+  Isolate* isolate = args.GetIsolate();
 
   PropertyAttribute attr;
 
-  Maybe<bool> maybe_has = sandbox->HasRealNamedProperty(context, property);
+  Maybe<bool> maybe_has =
+      GetOwnPropertyAttributes(isolate, context, sandbox, property, &attr);
   if (maybe_has.IsNothing()) {
-    return Intercepted::kNo;
+    return Intercepted::kYes;
   } else if (maybe_has.FromJust()) {
-    Maybe<PropertyAttribute> maybe_attr =
-        sandbox->GetRealNamedPropertyAttributes(context, property);
-    if (!maybe_attr.To(&attr)) {
-      return Intercepted::kNo;
-    }
     args.GetReturnValue().Set(attr);
     return Intercepted::kYes;
   } else {
