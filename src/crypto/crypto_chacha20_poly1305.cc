@@ -222,7 +222,9 @@ WebCryptoCipherStatus ChaCha20Poly1305CipherTraits::DoCipher(
   return WebCryptoCipherStatus::OK;
 #else
   auto ctx = CipherCtxPointer::New();
-  CHECK(ctx);
+  if (!ctx) {
+    return WebCryptoCipherStatus::FAILED;
+  }
 
   const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
 
