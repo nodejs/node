@@ -409,6 +409,7 @@ declare namespace primordials {
   export const StringPrototypeFontcolor: UncurryThis<typeof String.prototype.fontcolor>
   export const StringPrototypeFontsize: UncurryThis<typeof String.prototype.fontsize>
   export const StringPrototypeFixed: UncurryThis<typeof String.prototype.fixed>
+  export const StringPrototypeIsWellFormed: UncurryThis<typeof String.prototype.isWellFormed>
   export const StringPrototypeIncludes: UncurryThis<typeof String.prototype.includes>
   export const StringPrototypeIndexOf: UncurryThis<typeof String.prototype.indexOf>
   export const StringPrototypeItalics: UncurryThis<typeof String.prototype.italics>
