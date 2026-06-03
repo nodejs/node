@@ -493,13 +493,13 @@ Intercepted ContextifyContext::PropertyQueryCallback(
 
   PropertyAttribute attr;
 
-  Maybe<bool> maybe_has = sandbox->HasRealNamedProperty(context, property);
+  Maybe<bool> maybe_has = sandbox->HasOwnProperty(context, property);
   if (maybe_has.IsNothing()) {
     return Intercepted::kNo;
   } else if (maybe_has.FromJust()) {
-    Maybe<PropertyAttribute> maybe_attr =
-        sandbox->GetRealNamedPropertyAttributes(context, property);
-    if (!maybe_attr.To(&attr)) {
+    Maybe<bool> maybe_attr =
+        sandbox->GetPropertyAttributes(context, property, &attr);
+    if (!maybe_attr.FromMaybe(false)) {
       return Intercepted::kNo;
     }
     args.GetReturnValue().Set(attr);
