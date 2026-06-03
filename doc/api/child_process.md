@@ -175,7 +175,7 @@ changes:
   * `cwd` {string|URL} Current working directory of the child process.
     **Default:** `process.cwd()`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'Buffer'`
   * `shell` {string} Shell to execute the command with. See
     [Shell requirements][] and [Default Windows shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
@@ -360,7 +360,7 @@ changes:
 * `options` {Object}
   * `cwd` {string|URL} Current working directory of the child process.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
-  * `encoding` {string} **Default:** `'utf8'`
+  * `encoding` {string} **Default:** `'Buffer'`
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
     stderr. If exceeded, the child process is terminated and any output is
