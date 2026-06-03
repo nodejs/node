@@ -1910,7 +1910,7 @@ server.on('stream', (stream) => {
 Initiates a response. When the `options.waitForTrailers` option is set, the
 `'wantTrailers'` event will be emitted immediately after queuing the last chunk
 of payload data to be sent. The `http2stream.sendTrailers()` method can then be
-used to sent trailing header fields to the peer.
+used to send trailing header fields to the peer.
 
 When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
 close when the final `DATA` frame is transmitted. User code must call either
@@ -2033,7 +2033,7 @@ after a stream has finished is supported.
 
 When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
 will be emitted immediately after queuing the last chunk of payload data to be
-sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
+sent. The `http2stream.sendTrailers()` method can then be used to send trailing
 header fields to the peer.
 
 When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
@@ -2238,7 +2238,7 @@ default behavior is to destroy the stream.
 
 When the `options.waitForTrailers` option is set, the `'wantTrailers'` event
 will be emitted immediately after queuing the last chunk of payload data to be
-sent. The `http2stream.sendTrailers()` method can then be used to sent trailing
+sent. The `http2stream.sendTrailers()` method can then be used to send trailing
 header fields to the peer.
 
 When `options.waitForTrailers` is set, the `Http2Stream` will not automatically
