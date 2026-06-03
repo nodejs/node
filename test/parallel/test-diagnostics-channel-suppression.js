@@ -160,17 +160,25 @@ const { AsyncLocalStorage } = require('async_hooks');
   const ch = channel('test-suppression-store');
   const als = new AsyncLocalStorage();
 
-  const handler = common.mustCall(() => {
-    assert.strictEqual(als.getStore(), undefined);
-  });
-
-  ch.subscribe(handler);
+  // Bypass store transform - must NOT be called inside suppressed()
   ch.bindStore(als, common.mustNotCall(), { subscriberId: key });
 
+  // Handler counts how many times it's called
+  let handlerCalls = 0;
+  const handler = common.mustCall(() => {
+    handlerCalls++;
+    assert.strictEqual(als.getStore(), undefined);
+  });
+  ch.subscribe(handler);
+
+  // Use runStores so stores are actually entered
   suppressed(key, common.mustCall(() => {
-    ch.publish({});
+    ch.runStores({}, () => {
+      // runStores already calls ch.publish() internally
+    }, null);
   }));
 
+  assert.strictEqual(handlerCalls, 1);
   ch.unsubscribe(handler);
   ch.unbindStore(als);
 }
