@@ -159,28 +159,30 @@ const { AsyncLocalStorage } = require('async_hooks');
   const key = Symbol('store');
   const ch = channel('test-suppression-store');
   const als = new AsyncLocalStorage();
+  const normalAls = new AsyncLocalStorage();
 
-  // Bypass store transform - must NOT be called inside suppressed()
+  // Normal store - no subscriberId, must always be entered
+  ch.bindStore(normalAls, common.mustCall((data) => ({ value: data.value })));
+
+  // Bypass store - must NOT be entered inside suppressed()
   ch.bindStore(als, common.mustNotCall(), { subscriberId: key });
 
-  // Handler counts how many times it's called
-  let handlerCalls = 0;
+  // Handler verifies:
+  // - normal store WAS entered (normalAls has value)
+  // - bypass store was NOT entered (als is undefined)
   const handler = common.mustCall(() => {
-    handlerCalls++;
+    assert.strictEqual(normalAls.getStore()?.value, 42);
     assert.strictEqual(als.getStore(), undefined);
   });
   ch.subscribe(handler);
 
-  // Use runStores so stores are actually entered
   suppressed(key, common.mustCall(() => {
-    ch.runStores({}, () => {
-      // runStores already calls ch.publish() internally
-    }, null);
+    ch.runStores({ value: 42 }, common.mustCall());
   }));
 
-  assert.strictEqual(handlerCalls, 1);
   ch.unsubscribe(handler);
   ch.unbindStore(als);
+  ch.unbindStore(normalAls);
 }
 
 // Test 9: Wrong type for subscriberId throws ERR_INVALID_ARG_TYPE
