@@ -498,7 +498,7 @@ const key = await crypto.subtle.deriveKey(
   ['encrypt', 'decrypt'],
 );
 const plaintext = 'Hello, world!';
-const iv = crypto.getRandomValues(new Uint8Array(16));
+const iv = crypto.getRandomValues(new Uint8Array(12));
 const encrypted = await crypto.subtle.encrypt(
   { name: encryptionAlg, iv },
   key,
