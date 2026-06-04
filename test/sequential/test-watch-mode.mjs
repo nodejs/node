@@ -171,6 +171,23 @@ async function failWriteSucceed({ file, watchedFile }) {
 tmpdir.refresh();
 
 describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
+  it('should exit when terminated after the watched process has completed', async () => {
+    const file = createTmpFile();
+    const child = spawn(execPath, ['--watch', '--no-warnings', file], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+
+    for await (const line of createInterface({ input: child.stdout })) {
+      if (line.includes('Completed running')) {
+        break;
+      }
+    }
+
+    child.kill();
+    await once(child, 'exit');
+  });
+
   it('should watch changes to a file', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '--watch=true', options: {
