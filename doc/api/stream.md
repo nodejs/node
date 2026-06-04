@@ -70,6 +70,11 @@ or `require('node:stream').promises`.
 added: v15.0.0
 changes:
   - version:
+      - v19.7.0
+      - v18.16.0
+    pr-url: https://github.com/nodejs/node/pull/46307
+    description: Added support for webstreams.
+  - version:
       - v18.0.0
       - v17.2.0
       - v16.14.0
@@ -79,13 +84,14 @@ changes:
                  ends.
 -->
 
-* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
-* `source` {Stream|Iterable|AsyncIterable|Function}
+* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
+  ReadableStream\[]|WritableStream\[]|TransformStream\[]}
+* `source` {Stream|Iterable|AsyncIterable|Function|ReadableStream}
   * Returns: {Promise|AsyncIterable}
-* `...transforms` {Stream|Function}
+* `...transforms` {Stream|Function|TransformStream}
   * `source` {AsyncIterable}
   * Returns: {Promise|AsyncIterable}
-* `destination` {Stream|Function}
+* `destination` {Stream|Function|WritableStream}
   * `source` {AsyncIterable}
   * Returns: {Promise|AsyncIterable}
 * `options` {Object} Pipeline options
