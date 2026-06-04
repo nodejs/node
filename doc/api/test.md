@@ -3437,7 +3437,7 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v26.3.0
     pr-url: https://github.com/nodejs/node/pull/63435
     description: Added `parentId` to test events that carry a `testId`.
   - version:

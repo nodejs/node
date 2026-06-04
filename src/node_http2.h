@@ -65,6 +65,7 @@ constexpr int kStreamStateReadPaused = 0x4;
 constexpr int kStreamStateClosed = 0x8;
 constexpr int kStreamStateDestroyed = 0x10;
 constexpr int kStreamStateTrailers = 0x20;
+constexpr int kStreamStatePeerReset = 0x40;
 
 // Http2Session internal states
 constexpr int kSessionStateNone = 0x0;
@@ -346,6 +347,15 @@ class Http2Stream : public AsyncWrap,
   bool is_closed() const {
     return flags_ & kStreamStateClosed;
   }
+
+  // True iff a RST_STREAM frame was received from the peer for this stream.
+  // Set by Http2Session::OnFrameReceive on NGHTTP2_RST_STREAM. Used by JS
+  // onStreamClose to distinguish a peer-initiated reset from a clean
+  // bidirectional END_STREAM exchange (both surface to JS with the same
+  // nghttp2 close code when the peer sent RST_STREAM(NO_ERROR)).
+  bool peer_reset() const { return flags_ & kStreamStatePeerReset; }
+
+  void set_peer_reset() { flags_ |= kStreamStatePeerReset; }
 
   bool has_trailers() const {
     return flags_ & kStreamStateTrailers;

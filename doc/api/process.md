@@ -3171,7 +3171,7 @@ process.permission.has('fs.read');
 ### `process.permission.drop(scope[, reference])`
 
 <!-- YAML
-added: REPLACEME
+added: v26.3.0
 -->
 
 > Stability: 1.1 - Active Development
