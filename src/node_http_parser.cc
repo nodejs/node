@@ -318,6 +318,7 @@ class Parser : public AsyncWrap, public StreamListener {
     num_fields_ = num_values_ = 0;
     headers_completed_ = false;
     chunk_extensions_nread_ = 0;
+    received_data_ = true;
     last_message_start_ = uv_hrtime();
     allocator_.Reset();
     url_.Reset();
@@ -724,6 +725,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     if (connectionsList != nullptr) {
       parser->connectionsList_ = connectionsList;
+      parser->received_data_ = false;
 
       // This protects from a DoS attack where an attacker establishes
       // the connection without sending any data on applications where
@@ -1070,6 +1072,7 @@ class Parser : public AsyncWrap, public StreamListener {
   const char* current_buffer_data_;
   bool headers_completed_ = false;
   bool pending_pause_ = false;
+  bool received_data_ = false;
   uint64_t header_nread_ = 0;
   uint64_t chunk_extensions_nread_ = 0;
   uint64_t max_http_header_size_;
@@ -1150,7 +1153,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
   LocalVector<Value> result(isolate);
   result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
-    if (parser->last_message_start_ == 0) {
+    if (parser->last_message_start_ == 0 || !parser->received_data_) {
       result.emplace_back(parser->object());
     }
   }
