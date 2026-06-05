@@ -21,8 +21,15 @@ constexpr bool IsPathSeparator(const char c) noexcept {
 std::string NormalizeString(const std::string_view path,
                             bool allowAboveRoot,
                             const std::string_view separator) {
+  const char separator_char = separator[0];
   std::string res;
-  int lastSegmentLength = 0;
+  res.reserve(path.size());
+  // `dotdot` is the floor in `res` below which a `..` segment cannot
+  // backtrack: it sits just past any leading `..` run that could not be
+  // resolved. This lets `..` rewind the write position to the preceding
+  // separator without rescanning or reallocating the whole prefix. Same
+  // approach as Go's path/filepath.Clean.
+  int dotdot = 0;
   int lastSlash = -1;
   int dots = 0;
   char code = 0;
@@ -37,45 +44,35 @@ std::string NormalizeString(const std::string_view path,
 
     if (IsPathSeparator(code)) {
       if (lastSlash == static_cast<int>(i - 1) || dots == 1) {
-        // NOOP
+        // NOOP: empty segment (e.g. `//`) or a `.` segment.
       } else if (dots == 2) {
-        int len = res.length();
-        if (len < 2 || lastSegmentLength != 2 || res[len - 1] != '.' ||
-            res[len - 2] != '.') {
-          if (len > 2) {
-            auto lastSlashIndex = res.find_last_of(separator);
-            if (lastSlashIndex == std::string::npos) {
-              res = "";
-              lastSegmentLength = 0;
-            } else {
-              res = res.substr(0, lastSlashIndex);
-              len = res.length();
-              lastSegmentLength = len - 1 - res.find_last_of(separator);
-            }
-            lastSlash = i;
-            dots = 0;
-            continue;
-          } else if (len != 0) {
-            res = "";
-            lastSegmentLength = 0;
-            lastSlash = i;
-            dots = 0;
-            continue;
+        int w = static_cast<int>(res.length());
+        if (w > dotdot) {
+          // Drop the previous segment by rewinding the write position to the
+          // separator that precedes it.
+          w--;
+          while (w > dotdot && res[w] != separator_char) {
+            w--;
           }
-        }
-
-        if (allowAboveRoot) {
-          res += res.length() > 0 ? std::string(separator) + ".." : "..";
-          lastSegmentLength = 2;
+          res.resize(static_cast<size_t>(w));
+          lastSlash = i;
+          dots = 0;
+          continue;
+        } else if (allowAboveRoot) {
+          // Cannot backtrack past the floor; keep the `..` and raise the floor.
+          if (!res.empty()) {
+            res.push_back(separator_char);
+          }
+          res.append("..", 2);
+          dotdot = static_cast<int>(res.length());
         }
       } else {
         if (!res.empty()) {
-          res += std::string(separator) +
-                 std::string(path.substr(lastSlash + 1, i - (lastSlash + 1)));
+          res.push_back(separator_char);
+          res.append(path.data() + lastSlash + 1, i - (lastSlash + 1));
         } else {
-          res = path.substr(lastSlash + 1, i - (lastSlash + 1));
+          res.assign(path.data() + lastSlash + 1, i - (lastSlash + 1));
         }
-        lastSegmentLength = i - lastSlash - 1;
       }
       lastSlash = i;
       dots = 0;
