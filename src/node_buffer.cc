@@ -567,19 +567,31 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
   ArrayBufferViewContents<char> buffer(args[0]);
 
-  if (buffer.length() == 0)
-    return args.GetReturnValue().SetEmptyString();
+  auto buffer_length = buffer.length();
+  const char* data_ptr = buffer.data();
+
+  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+
+  if (buffer_length == 0) return args.GetReturnValue().SetEmptyString();
 
   size_t start = 0;
   size_t end = 0;
   THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[1], 0, &start));
-  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer.length(), &end));
-  if (end < start) end = start;
-  THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
+  THROW_AND_RETURN_IF_OOB(ParseArrayIndex(env, args[2], buffer_length, &end));
+  if (end <= start) return args.GetReturnValue().SetEmptyString();
+  THROW_AND_RETURN_IF_OOB(Just(end <= buffer_length));
   size_t length = end - start;
 
+  std::unique_ptr<char[]> data_copy;
+  if (view->Buffer()->IsSharedArrayBuffer()) {
+    data_copy = std::make_unique_for_overwrite<char[]>(length);
+    memcpy(data_copy.get(), data_ptr + start, length);
+    data_ptr = data_copy.get();
+    start = 0;
+  }
+
   Local<Value> ret;
-  if (StringBytes::Encode(isolate, buffer.data() + start, length, encoding)
+  if (StringBytes::Encode(isolate, data_ptr + start, length, encoding)
           .ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
@@ -760,10 +772,23 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
 void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
+  Isolate* isolate = args.GetIsolate();
+  Local<String> str = args[0].As<String>();
 
-  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  size_t result = args[0].As<String>()->Utf8LengthV2(args.GetIsolate());
-  args.GetReturnValue().Set(static_cast<uint64_t>(result));
+  // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
+  if (str->Length() >= 512 && !str->IsOneByte()) {
+    String::ValueView view(isolate, str);
+    if (!view.is_one_byte()) {
+      // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
+      size_t result =
+          simdutf::utf8_length_from_utf16_with_replacement(
+              reinterpret_cast<const char16_t*>(view.data16()), view.length())
+              .count;
+      args.GetReturnValue().Set(static_cast<uint64_t>(result));
+      return;
+    }
+  }
+  args.GetReturnValue().Set(static_cast<uint64_t>(str->Utf8LengthV2(isolate)));
 }
 
 uint32_t FastByteLengthUtf8(
@@ -777,6 +802,17 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
+    // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
+    if (sourceStr->Length() >= 512 && !sourceStr->IsOneByte()) {
+      String::ValueView view(isolate, sourceStr);
+      if (!view.is_one_byte()) {
+        // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
+        return simdutf::utf8_length_from_utf16_with_replacement(
+                   reinterpret_cast<const char16_t*>(view.data16()),
+                   view.length())
+            .count;
+      }
+    }
     return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();

@@ -13,7 +13,7 @@ const bench = common.createBenchmark(main, {
 ensureFixtureLibrary();
 
 const { lib, functions } = ffi.dlopen(libraryPath, {
-  pointer_to_usize: { result: 'u64', parameters: ['pointer'] },
+  pointer_to_usize: { return: 'u64', arguments: ['pointer'] },
 });
 
 const fn = functions.pointer_to_usize;

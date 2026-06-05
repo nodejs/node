@@ -21,6 +21,7 @@ server.listen(0, common.mustCall(() => {
 
   const req = client.request();
   req.on('response', common.mustNotCall());
+  req.on('error', () => {});
   req.on('close', common.mustCall((arg) => {
     client.close();
     server.close();

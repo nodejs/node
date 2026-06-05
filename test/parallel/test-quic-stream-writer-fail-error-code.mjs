@@ -17,11 +17,8 @@
 //      the QuicError fast path.
 //
 // The peer-side observation goes through `stream.onreset(err)` where
-// `err` is `ERR_QUIC_APPLICATION_ERROR` carrying the wire code in its
-// message string. We extract the code via regex; once
-// `ERR_QUIC_APPLICATION_ERROR` exposes the numeric code as a property
-// (a planned follow-up), this test can switch to direct property
-// access.
+// `err` is `ERR_QUIC_APPLICATION_ERROR` exposing the wire code on
+// `err.errorCode` (a BigInt).
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
 import assert from 'node:assert';
@@ -35,19 +32,9 @@ if (!hasQuic) {
 const { listen, connect } = await import('../common/quic.mjs');
 const { QuicError } = await import('node:quic');
 
-// Extract the numeric wire code from an ERR_QUIC_APPLICATION_ERROR
-// message of the form
-//   "A QUIC application error occurred. <code>n [<reason>]"
-// where the trailing `n` on the code is the BigInt formatting from
-// `util.format('%d', bigint)`. RESET_STREAM frames do not carry a
-// reason string, so the bracketed value is typically `undefined`.
 function wireCodeOf(err) {
   strictEqual(err.code, 'ERR_QUIC_APPLICATION_ERROR');
-  const match = err.message.match(/A QUIC application error occurred\. (\d+)n /);
-  if (!match) {
-    throw new Error(`Could not extract code from message: ${err.message}`);
-  }
-  return BigInt(match[1]);
+  return err.errorCode;
 }
 
 // Server: capture the next two streams. Each stream receives an

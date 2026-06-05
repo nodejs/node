@@ -287,7 +287,7 @@ class Publish extends BaseCommand {
     } else {
       manifest = await pacote.manifest(spec, {
         ...opts,
-        fullmetadata: true,
+        fullMetadata: true,
         fullReadJson: true,
       })
     }

@@ -3065,7 +3065,7 @@ void Session::CheckStreamIdleTimeout(uint64_t now) {
       // Without this, the peer's stream sits orphaned until the
       // session closes.
       auto error =
-          QuicError::ForTransport(NGTCP2_ERR_PROTO, "stream idle timeout");
+          QuicError::ForNgtcp2Error(NGTCP2_ERR_PROTO, "stream idle timeout");
       ShutdownStream(id, error);
       stream->Destroy(error);
       STAT_INCREMENT(Stats, streams_idle_timed_out);
@@ -3451,10 +3451,19 @@ void Session::EmitClose(const QuicError& error) {
       Integer::New(env()->isolate(), static_cast<int>(error.type())),
       BigInt::NewFromUnsigned(env()->isolate(), error.code()),
       Undefined(env()->isolate()),
+      Undefined(env()->isolate()),
   };
   if (error.reason().length() > 0 &&
       !ToV8Value(env()->context(), error.reason()).ToLocal(&argv[2])) {
     return;
+  }
+
+  // Attach a human-readable name for known wire codes (RFC 9000 sec. 20.1
+  // names and OpenSSL TLS alert descriptions for CRYPTO_ERROR). Unknown
+  // codes leave the slot as undefined. See QuicError::name() for the
+  // matching path on stream-level errors.
+  if (const char* n = error.name()) {
+    argv[3] = BindingData::Get(env()).error_name_string(n);
   }
 
   MakeCallback(
