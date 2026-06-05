@@ -1406,7 +1406,8 @@ data packet received and the first keepalive probe. Setting `0` for
 
 **Note**: Node.js converts initialDelay from milliseconds to seconds and truncates any fractional part.
 For example, `setKeepAlive(true, 500)` does not update the delay because it is truncated to `0`, leaving the value
-unchanged, while `setKeepAlive(true, 1500)` sets it to `1` second.
+For example, `setKeepAlive(true, 500)` does not update the delay because it is first converted to `0.5` and then truncated to `0`, leaving the value
+unchanged, while `setKeepAlive(true, 1500)` sets it to `1` second (converted to `1.5`, then truncated to `1`).
 
 Enabling the keep-alive functionality will set the following socket options:
 
