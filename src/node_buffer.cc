@@ -772,10 +772,23 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
 void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
+  Isolate* isolate = args.GetIsolate();
+  Local<String> str = args[0].As<String>();
 
-  // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  size_t result = args[0].As<String>()->Utf8LengthV2(args.GetIsolate());
-  args.GetReturnValue().Set(static_cast<uint64_t>(result));
+  // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
+  if (str->Length() >= 512 && !str->IsOneByte()) {
+    String::ValueView view(isolate, str);
+    if (!view.is_one_byte()) {
+      // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
+      size_t result =
+          simdutf::utf8_length_from_utf16_with_replacement(
+              reinterpret_cast<const char16_t*>(view.data16()), view.length())
+              .count;
+      args.GetReturnValue().Set(static_cast<uint64_t>(result));
+      return;
+    }
+  }
+  args.GetReturnValue().Set(static_cast<uint64_t>(str->Utf8LengthV2(isolate)));
 }
 
 uint32_t FastByteLengthUtf8(
@@ -789,6 +802,17 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
+    // Below ~512 units, or for one-byte, V8's Utf8LengthV2 is faster.
+    if (sourceStr->Length() >= 512 && !sourceStr->IsOneByte()) {
+      String::ValueView view(isolate, sourceStr);
+      if (!view.is_one_byte()) {
+        // with_replacement matches Buffer.from's U+FFFD for lone surrogates.
+        return simdutf::utf8_length_from_utf16_with_replacement(
+                   reinterpret_cast<const char16_t*>(view.data16()),
+                   view.length())
+            .count;
+      }
+    }
     return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();
