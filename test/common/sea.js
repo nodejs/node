@@ -27,7 +27,7 @@ function skipIfSingleExecutableIsNotSupported() {
   if (!['darwin', 'win32', 'linux'].includes(process.platform))
     common.skip(`Unsupported platform ${process.platform}.`);
 
-  if (process.platform === 'linux' && process.config.variables.is_debug === 1)
+  if (process.platform === 'linux' && process.config.target_defaults?.default_configuration === 'Debug')
     common.skip('Running the resultant binary fails with `Couldn\'t read target executable"`.');
 
   if (process.config.variables.node_shared)
