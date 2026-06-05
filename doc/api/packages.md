@@ -945,7 +945,34 @@ $ node other.js
 
 ## Dual CommonJS/ES module packages
 
-See [the package examples repository][] for details.
+Publishing packages with dual CommonJS and ESM sources, while having the benefits of supporting both CJS consumers and ESM-only platforms, can lead to the dual package hazard where Node.js might load both versions of the package, potentially causing issues with module state and identity.
+
+### Avoiding the dual package hazard
+
+When using conditional exports to provide both CommonJS and ESM entry points, consider using `"node"` and `"default"` conditions instead of `"require"` and `"import"` conditions:
+
+```json
+// package.json
+{
+  "name": "foo",
+  "exports": {
+    "node": "./foo.cjs",
+    "default": "./foo.mjs"
+  }
+}
+```
+
+This approach:
+
+* Avoids the dual package hazard in Node.js, because it only ever loads the CommonJS version
+* Avoids the dual package hazard in bundlers, because they only ever load either the Node version (if configured to target Node.js) or the default version (if configured to target other platforms)
+* Provides an ESM-only version for browsers while avoiding the hazard
+
+Using `"require"` and `"import"` conditions can lead to both the CommonJS and ESM versions being loaded in the same application, which may cause unexpected behavior if the package maintains internal state.
+
+For example, the [@babel/runtime][] package has successfully used this `"node"`/`"default"` pattern for years to provide an ESM-only version for browsers while avoiding the dual package hazard.
+
+See [the package examples repository][] for additional examples and patterns.
 
 ## Node.js `package.json` field definitions
 
@@ -1160,6 +1187,7 @@ Package imports permit mapping to external packages.
 
 This field defines [subpath imports][] for the current package.
 
+[@babel/runtime]: https://github.com/babel/babel/tree/main/packages/babel-runtime
 [CommonJS]: modules.md
 [Conditional exports]: #conditional-exports
 [ES module]: esm.md
