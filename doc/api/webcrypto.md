@@ -2,6 +2,9 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    description: Hybrid KEM algorithms are now supported.
   - version:
      - v25.9.0
      - v24.18.0
@@ -136,6 +139,9 @@ Algorithms:
 * `'ML-KEM-512'`[^openssl35]
 * `'ML-KEM-768'`[^openssl35]
 * `'ML-KEM-1024'`[^openssl35]
+* `'MLKEM768-P256'`[^openssl35]
+* `'MLKEM768-X25519'`[^openssl35]
+* `'MLKEM1024-P384'`[^openssl35]
 * `'SHA3-256'`
 * `'SHA3-384'`
 * `'SHA3-512'`
@@ -531,9 +537,10 @@ Crypto API implementation and the APIs supported for each:
   `'ECDSA'`, `'Ed25519'`, `'Ed448'`[^secure-curves],
   `'ML-DSA-44'`[^modern-algos], `'ML-DSA-65'`[^modern-algos],
   `'ML-DSA-87'`[^modern-algos], `'ML-KEM-512'`[^modern-algos],
-  `'ML-KEM-768'`[^modern-algos], `'ML-KEM-1024'`[^modern-algos], `'RSA-OAEP'`,
-  `'RSA-PSS'`, `'RSASSA-PKCS1-v1_5'`, `'X25519'`, and
-  `'X448'`[^secure-curves].
+  `'ML-KEM-768'`[^modern-algos], `'ML-KEM-1024'`[^modern-algos],
+  `'MLKEM768-P256'`[^modern-algos], `'MLKEM768-X25519'`[^modern-algos],
+  `'MLKEM1024-P384'`[^modern-algos], `'RSA-OAEP'`, `'RSA-PSS'`,
+  `'RSASSA-PKCS1-v1_5'`, `'X25519'`, and `'X448'`[^secure-curves].
 
 ### Crypto Operation APIs
 
@@ -553,8 +560,10 @@ Crypto API implementation and the APIs supported for each:
   `'ChaCha20-Poly1305'`[^modern-algos], and `'RSA-OAEP'`.
 * [`subtle.encapsulateBits()`][], [`subtle.decapsulateBits()`][],
   [`subtle.encapsulateKey()`][], and [`subtle.decapsulateKey()`][] support
-  `'ML-KEM-512'`[^modern-algos], `'ML-KEM-768'`[^modern-algos], and
-  `'ML-KEM-1024'`[^modern-algos].
+  `'ML-KEM-512'`[^modern-algos], `'ML-KEM-768'`[^modern-algos],
+  `'ML-KEM-1024'`[^modern-algos], `'MLKEM768-P256'`[^modern-algos],
+  `'MLKEM768-X25519'`[^modern-algos], and
+  `'MLKEM1024-P384'`[^modern-algos].
 * [`subtle.digest()`][] supports `'cSHAKE128'`[^modern-algos],
   `'cSHAKE256'`[^modern-algos], `'KT128'`[^modern-algos],
   `'KT256'`[^modern-algos], `'SHA-1'`, `'SHA-256'`, `'SHA-384'`, `'SHA-512'`,
@@ -586,6 +595,10 @@ and [`subtle.exportKey()`][].
   `'ML-KEM-768'`[^modern-algos], and `'ML-KEM-1024'`[^modern-algos]** can be
   imported and exported using `'spki'`, `'pkcs8'`, `'jwk'`,
   `'raw-public'`[^modern-algos], and `'raw-seed'`[^modern-algos].
+* **`'MLKEM768-P256'`[^modern-algos],
+  `'MLKEM768-X25519'`[^modern-algos], and
+  `'MLKEM1024-P384'`[^modern-algos]** can be imported and exported using
+  `'jwk'`, `'raw-public'`[^modern-algos], and `'raw-seed'`[^modern-algos].
 * **`'RSA-OAEP'`, `'RSA-PSS'`, and `'RSASSA-PKCS1-v1_5'`** can be imported
   and exported using `'spki'`, `'pkcs8'`, and `'jwk'`.
 
@@ -790,6 +803,9 @@ The algorithms currently supported include:
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
+* `'MLKEM768-P256'`[^modern-algos]
+* `'MLKEM768-X25519'`[^modern-algos]
+* `'MLKEM1024-P384'`[^modern-algos]
 
 ### `subtle.decapsulateKey(decapsulationAlgorithm, decapsulationKey, ciphertext, sharedKeyAlgorithm, extractable, keyUsages)`
 
@@ -816,6 +832,9 @@ The algorithms currently supported include:
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
+* `'MLKEM768-P256'`[^modern-algos]
+* `'MLKEM768-X25519'`[^modern-algos]
+* `'MLKEM1024-P384'`[^modern-algos]
 
 ### `subtle.decrypt(algorithm, key, data)`
 
@@ -1014,6 +1033,9 @@ The algorithms currently supported include:
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
+* `'MLKEM768-P256'`[^modern-algos]
+* `'MLKEM768-X25519'`[^modern-algos]
+* `'MLKEM1024-P384'`[^modern-algos]
 
 ### `subtle.encapsulateKey(encapsulationAlgorithm, encapsulationKey, sharedKeyAlgorithm, extractable, keyUsages)`
 
@@ -1038,6 +1060,9 @@ The algorithms currently supported include:
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
+* `'MLKEM768-P256'`[^modern-algos]
+* `'MLKEM768-X25519'`[^modern-algos]
+* `'MLKEM1024-P384'`[^modern-algos]
 
 ### `subtle.encrypt(algorithm, key, data)`
 
@@ -1076,6 +1101,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    description: Hybrid KEM algorithms are now supported.
   - version:
     - v26.1.0
     - v24.18.0
@@ -1142,6 +1170,9 @@ Derives the public key from a given private key.
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    description: Hybrid KEM algorithms are now supported.
   - version: v24.8.0
     pr-url: https://github.com/nodejs/node/pull/59647
     description: KMAC algorithms are now supported.
@@ -1183,6 +1214,9 @@ include:
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
+* `'MLKEM768-P256'`[^modern-algos]
+* `'MLKEM768-X25519'`[^modern-algos]
+* `'MLKEM1024-P384'`[^modern-algos]
 * `'RSA-OAEP'`
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`
@@ -1206,6 +1240,9 @@ The {CryptoKey} (secret key) generating algorithms supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    description: Hybrid KEM algorithms are now supported.
   - version:
     - v26.1.0
     - v24.18.0
@@ -1379,6 +1416,9 @@ The unwrapped key algorithms supported include:
 * `'ML-KEM-512'`[^modern-algos]
 * `'ML-KEM-768'`[^modern-algos]
 * `'ML-KEM-1024'`[^modern-algos]
+* `'MLKEM768-P256'`[^modern-algos]
+* `'MLKEM768-X25519'`[^modern-algos]
+* `'MLKEM1024-P384'`[^modern-algos]
 * `'RSA-OAEP'`
 * `'RSA-PSS'`
 * `'RSASSA-PKCS1-v1_5'`

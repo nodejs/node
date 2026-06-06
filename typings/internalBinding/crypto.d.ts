@@ -125,6 +125,8 @@ declare namespace InternalCryptoBinding {
       algorithm: object | undefined,
       usagesMask: number,
       extractable: boolean,
+      secondaryHandle?: KeyObjectHandle,
+      seedData?: ArrayBuffer | SharedArrayBuffer | ArrayBufferView,
     ): CryptoKey;
   }
   interface CryptoKeyPair {
@@ -605,6 +607,8 @@ declare namespace InternalCryptoBinding {
       algorithm: object | undefined,
       usagesMask: number,
       extractable: boolean,
+      secondaryHandle?: KeyObjectHandle,
+      seedData?: ArrayBuffer | SharedArrayBuffer | ArrayBufferView,
     ): CryptoKey;
   }
 
@@ -619,6 +623,8 @@ declare namespace InternalCryptoBinding {
     algorithm: object,
     usagesMask: number,
     handle: KeyObjectHandle,
+    secondaryHandle: KeyObjectHandle | undefined,
+    seedData: Buffer | undefined,
   ];
 
   type CreateNativeKeyObjectClassCallback =
