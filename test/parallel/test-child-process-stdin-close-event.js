@@ -14,8 +14,9 @@ function spawnChild(script) {
   });
 }
 
-function runTest({ script, setup }, done) {
+function runTest({ script, onSpawn }, done) {
   const child = spawnChild(script);
+
   const timeout = setTimeout(() => {
     assert.fail('stdin close event was not emitted');
   }, 2000);
@@ -39,34 +40,32 @@ function runTest({ script, setup }, done) {
     maybeDone();
   }));
 
-  setup(child);
+  onSpawn?.(child);
 }
 
 runTest({
   script: 'setTimeout(() => require("fs").closeSync(0), 50); setTimeout(() => {}, 2000)',
-  setup: () => {},
 }, common.mustCall(() => {
   runTest({
     script: 'setTimeout(() => require("fs").closeSync(0), 200); setTimeout(() => {}, 2000)',
-    setup: (child) => {
+    onSpawn: common.mustCall((child) => {
       const handle = child.stdin?._handle;
       assert.strictEqual(typeof handle?.watchPeerClose, 'function');
       handle.watchPeerClose(true, common.mustNotCall());
-    },
+    }),
   }, common.mustCall(() => {
     runTest({
       script: 'setTimeout(() => {}, 2000)',
-      setup: (child) => {
+      onSpawn: common.mustCall((child) => {
         const handle = child.stdin?._handle;
         assert.strictEqual(typeof handle?.watchPeerClose, 'function');
 
         child.stdin.once('close', common.mustCall(() => {
-          assert.doesNotThrow(() => {
-            handle.watchPeerClose(true, common.mustNotCall());
-          });
+          // Calling watchPeerClose again after close must not throw.
+          handle.watchPeerClose(true, common.mustNotCall());
         }));
         child.stdin.destroy();
-      },
-    }, common.mustCall(() => {}));
+      }),
+    }, common.mustCall());
   }));
 }));
