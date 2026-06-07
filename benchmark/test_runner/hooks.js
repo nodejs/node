@@ -13,37 +13,26 @@ const {
 } = require('node:test');
 
 const bench = common.createBenchmark(main, {
-  n: [10, 100, 1000],
-  hook: ['none', 'before', 'after', 'beforeEach', 'afterEach'],
+  n: [1, 10, 100, 1000],
+  hook: ['before', 'after', 'beforeEach', 'afterEach'],
 }, {
   // We don't want to test the reporter here.
   flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
 });
 
-async function run({ n, hook }) {
-  // eslint-disable-next-line no-unused-vars
-  let avoidV8Optimization;
+const noop = () => {};
 
-  const noop = () => {};
+const hookList = {
+  before: before,
+  after: after,
+  beforeEach: beforeEach,
+  afterEach: afterEach,
+};
 
-  for (let i = 0; i < n; i++) {
+function run(loopAmount, avoidV8Optimization, hookFn) {
+  for (let i = 0; i < loopAmount; i++) {
     describe(`${i}`, () => {
-      switch (hook) {
-        case 'before':
-          before(noop);
-          break;
-        case 'after':
-          after(noop);
-          break;
-        case 'beforeEach':
-          beforeEach(noop);
-          break;
-        case 'afterEach':
-          afterEach(noop);
-          break;
-        case 'none':
-          break;
-      }
+      hookFn(noop);
 
       it(`${i}`, () => {
         avoidV8Optimization = i;
@@ -51,13 +40,17 @@ async function run({ n, hook }) {
     });
   }
 
-  await finished(reporter);
+  return finished(reporter);
 }
 
 function main(params) {
+  // eslint-disable-next-line prefer-const
+  let avoidV8Optimization = 0;
+  const hookFn = hookList[params.hook];
+
   bench.start();
 
-  run(params).then(() => {
+  run(params.n, avoidV8Optimization, hookFn).then(() => {
     bench.end(params.n);
   });
 }

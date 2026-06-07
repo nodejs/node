@@ -6,7 +6,7 @@ const reporter = require('../fixtures/empty-test-reporter');
 const { it } = require('node:test');
 
 const bench = common.createBenchmark(main, {
-  n: [100, 1000],
+  n: [1, 10, 100, 1000],
   option: [
     'none',
     'skip',
@@ -23,72 +23,102 @@ const bench = common.createBenchmark(main, {
   flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
 });
 
-async function run({ n, option }) {
-  // eslint-disable-next-line no-unused-vars
-  let avoidV8Optimization;
-
-  for (let i = 0; i < n; i++) {
-    switch (option) {
-      case 'none':
-        it(`${i}`, () => {
-          avoidV8Optimization = i;
-        });
-        break;
-      case 'skip':
-        it(`${i}`, { skip: true }, () => {
-          throw new Error('This test should not run.');
-        });
-        break;
-      case 'skip-with-message':
-        it(`${i}`, { skip: 'skip reason' }, () => {
-          throw new Error('This test should not run.');
-        });
-        break;
-      case 'skip-method':
-        it(`${i}`, (t) => {
-          avoidV8Optimization = i;
-          t.skip();
-        });
-        break;
-      case 'skip-method-with-message':
-        it(`${i}`, (t) => {
-          avoidV8Optimization = i;
-          t.skip('skip reason');
-        });
-        break;
-      case 'todo':
-        it(`${i}`, { todo: true }, () => {
-          avoidV8Optimization = i;
-        });
-        break;
-      case 'todo-with-message':
-        it(`${i}`, { todo: 'todo reason' }, () => {
-          avoidV8Optimization = i;
-        });
-        break;
-      case 'todo-method':
-        it(`${i}`, (t) => {
-          avoidV8Optimization = i;
-          t.todo();
-        });
-        break;
-      case 'todo-method-with-message':
-        it(`${i}`, (t) => {
-          avoidV8Optimization = i;
-          t.todo('todo reason');
-        });
-        break;
+const allTests = {
+  'none': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, () => {
+        avoidV8Optimization = i;
+      });
     }
-  }
 
-  await finished(reporter);
-  return n;
-}
+    return finished(reporter);
+  },
+  'skip': (loopAmount) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, { skip: true }, () => {
+        throw new Error('This test should not run.');
+      });
+    }
 
-function main(params) {
+    return finished(reporter);
+  },
+  'skip-with-message': (loopAmount) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, { skip: 'skip reason' }, () => {
+        throw new Error('This test should not run.');
+      });
+    }
+
+    return finished(reporter);
+  },
+  'skip-method': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, (t) => {
+        avoidV8Optimization = i;
+        t.skip();
+      });
+    }
+
+    return finished(reporter);
+  },
+  'skip-method-with-message': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, (t) => {
+        avoidV8Optimization = i;
+        t.skip('skip reason');
+      });
+    }
+
+    return finished(reporter);
+  },
+  'todo': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, { todo: true }, () => {
+        avoidV8Optimization = i;
+      });
+    }
+
+    return finished(reporter);
+  },
+  'todo-with-message': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, { todo: 'todo reason' }, () => {
+        avoidV8Optimization = i;
+      });
+    }
+
+    return finished(reporter);
+  },
+  'todo-method': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, (t) => {
+        avoidV8Optimization = i;
+        t.todo();
+      });
+    }
+
+    return finished(reporter);
+  },
+  'todo-method-with-message': (loopAmount, avoidV8Optimization) => {
+    for (let i = 0; i < loopAmount; i++) {
+      it(`${i}`, (t) => {
+        avoidV8Optimization = i;
+        t.todo('todo reason');
+      });
+    }
+
+    return finished(reporter);
+  },
+};
+
+function main({ n, option }) {
+  // eslint-disable-next-line prefer-const
+  let avoidV8Optimization = 0;
+  const runOption = allTests[option];
+
   bench.start();
 
-  run(params).then((ops) => {
-    bench.end(ops);
+  runOption(n, avoidV8Optimization).then(() => {
+    bench.end(n);
   });
 }
