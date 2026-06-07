@@ -156,6 +156,44 @@ async function testPullSignalAbortMidIteration() {
   await assert.rejects(() => iter.next(), { name: 'AbortError' });
 }
 
+async function testPullSignalAbortWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(source, { signal: ac.signal })[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
+async function testPullSignalAbortWithTransformWhileSourceNextPending() {
+  const source = {
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          await new Promise(() => {});
+        },
+      };
+    },
+  };
+  const ac = new AbortController();
+  const iter = pull(
+    source,
+    (chunks) => chunks,
+    { signal: ac.signal },
+  )[Symbol.asyncIterator]();
+  const next = iter.next();
+  ac.abort();
+  await assert.rejects(next, { name: 'AbortError' });
+}
+
 // Pull consumer break (return()) cleans up transform signal
 async function testPullConsumerBreakCleanup() {
   let signalAborted = false;
@@ -364,6 +402,8 @@ async function testTransformOptionsNotShared() {
     testPullSourceError(),
     testTapCallbackError(),
     testPullSignalAbortMidIteration(),
+    testPullSignalAbortWhileSourceNextPending(),
+    testPullSignalAbortWithTransformWhileSourceNextPending(),
     testPullConsumerBreakCleanup(),
     testPullTransformReturnsPromise(),
     testPullTransformYieldsStrings(),
