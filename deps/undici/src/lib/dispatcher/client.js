@@ -76,6 +76,18 @@ function getPipelining (client) {
   return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1
 }
 
+// Protocol-aware dispatch ceiling. h1 RFC7230 pipelining is unrelated to h2
+// stream multiplexing — over h2 the ceiling is the (server-confirmed)
+// maxConcurrentStreams. Before a context is attached we use the h1
+// pipelining factor; once h2 attaches the queued requests can drain in
+// one batch up to maxConcurrentStreams.
+function getMaxConcurrent (client) {
+  if (client[kHTTPContext]?.version === 'h2') {
+    return client[kMaxConcurrentStreams]
+  }
+  return getPipelining(client)
+}
+
 /**
  * @type {import('../../types/client.js').default}
  */
@@ -326,10 +338,17 @@ class Client extends DispatcherBase {
   }
 
   get [kBusy] () {
+    // The `kPending > 0` check below is the gate Pool uses to decide whether
+    // to spin up an additional Client. For h1 that fan-out is correct —
+    // each socket only handles one pipelined request at a time. Once an h2
+    // context is attached we want concurrent dispatches to multiplex onto
+    // the shared session, so suppress that signal in the h2 case.
+    const allowsMux = this[kHTTPContext]?.version === 'h2'
+
     return Boolean(
       this[kHTTPContext]?.busy(null) ||
-      (this[kSize] >= (getPipelining(this) || 1)) ||
-      this[kPending] > 0
+      (this[kSize] >= (getMaxConcurrent(this) || 1)) ||
+      (this[kPending] > 0 && !allowsMux)
     )
   }
 
@@ -616,7 +635,7 @@ function _resume (client, sync) {
       return
     }
 
-    if (client[kRunning] >= (getPipelining(client) || 1)) {
+    if (client[kRunning] >= (getMaxConcurrent(client) || 1)) {
       return
     }
 
