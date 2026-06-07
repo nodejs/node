@@ -3568,6 +3568,74 @@ Global events are emitted once per test run:
 The root test also emits [`'test:plan'`][] and [`'test:diagnostic'`][] events
 at the end of the run to report run level totals.
 
+### Event lifecycle
+
+The tables above group the events; the diagram below places them on a
+timeline. The declaration ordered events form the main spine, buffered so that
+a reporter sees them in source order, while each execution ordered twin is
+emitted immediately, when the work actually happens. In particular,
+[`'test:start'`][] marks when a test begins _reporting_ its own and its
+subtests' status, not when its body begins executing; that moment is
+[`'test:dequeue'`][].
+
+```text
+                     node:test reporter event lifecycle
+   main spine = DECLARATION order (buffered; matches source order)
+   right side = EXECUTION order (emitted immediately); ◄ marks each twin
+
+  LEAF TEST
+  ─────────
+   ┌──────────────┐                   test:enqueue
+   │ test:start   │ ◄──── twins ────  (queued for execution;
+   └──────────────┘                    type: 'suite' | 'test')
+        │  begins REPORTING           test:dequeue
+        │  (not the start of          (about to run; emitted right
+        │   the test body)             before the test body runs)
+        │
+        │     [ between the twins, on the execution timeline, the test
+        │       body runs: context.log() emits test:log live, and
+        │       test:stdout / test:stderr stream with --test ]
+        │
+        ▼
+   ┌───────────────────────┐
+   │ test:pass │ test:fail │ ◄──── twin ────  test:complete
+   └───────────────────────┘   result         (details.passed says which)
+        │
+        ▼
+   test:diagnostic    the test's own context.diagnostic() messages,
+                      buffered while it runs, flushed after its result
+
+
+  SUITE / PARENT TEST   (each subtest is the whole LEAF flow above)
+  ───────────────────
+   test:start ─► [ full flow of each subtest ... ] ─►
+        test:plan (count = subtests) ─► test:pass │ test:fail ─►
+        test:diagnostic
+
+
+  RUN-LEVEL FINALE   (root, after all top-level tests)
+  ────────────────
+   test:plan         top-level count
+        │
+        ▼
+   test:diagnostic   x N   tests, suites, pass, fail, cancelled,
+        │                  skipped, todo, duration_ms (+ coverage errors)
+        ▼
+   test:coverage     only if coverage is enabled
+        │
+        ▼
+   test:summary  ─►  stream ends
+
+
+  INTERRUPTION   (SIGINT, e.g. Ctrl+C, while tests are still running)
+  ────────────
+   test:interrupted   the innermost tests still running at that moment
+        │             (not emitted if none were running)
+        ▼
+   the run exits immediately — the buffered spine never flushes, so
+   neither the finale above nor those tests' own results are emitted
+```
+
 ### Event: `'test:coverage'`
 
 * `data` {Object}
