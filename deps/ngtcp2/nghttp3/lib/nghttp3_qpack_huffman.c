@@ -107,7 +107,7 @@ nghttp3_qpack_huffman_decode(nghttp3_qpack_huffman_decode_context *ctx,
       *p++ = t.sym;
     }
 
-    t = qpack_huffman_decode_table[t.fstate][c & 0xf];
+    t = qpack_huffman_decode_table[t.fstate][c & 0xFU];
     if (t.flags & NGHTTP3_QPACK_HUFFMAN_SYM) {
       *p++ = t.sym;
     }
@@ -124,6 +124,6 @@ nghttp3_qpack_huffman_decode(nghttp3_qpack_huffman_decode_context *ctx,
 }
 
 int nghttp3_qpack_huffman_decode_failure_state(
-  nghttp3_qpack_huffman_decode_context *ctx) {
-  return ctx->fstate == 0x100;
+  const nghttp3_qpack_huffman_decode_context *ctx) {
+  return ctx->fstate == 0x100U;
 }
