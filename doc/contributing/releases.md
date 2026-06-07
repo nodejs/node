@@ -1338,8 +1338,7 @@ branch. This branch will contain the draft release commit (with the draft
 changelog).
 
 Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
-upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
-that will need updating to include the new major release.
+upcoming release.
 
 To keep the branch in sync until the release date, it can be as simple as
 doing the following:
