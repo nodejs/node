@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "node-core": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["tools/node-core-mcp/bin/node-core-mcp.mjs", "--repo", "."]
+    }
+  }
+}

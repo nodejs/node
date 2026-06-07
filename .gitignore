@@ -21,6 +21,7 @@
 !.yamllint.yaml
 !.configurations/
 !/.npmrc
+!.mcp.json
 
 # === Rules for root dir ===
 /core
