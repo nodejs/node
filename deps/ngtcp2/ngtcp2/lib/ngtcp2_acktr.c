@@ -410,7 +410,7 @@ int ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr, ngtcp2_ack *ack,
     ack->ack_delay = 0;
   }
 
-  num_acks = ngtcp2_min_size(num_acks, NGTCP2_MAX_ACK_RANGES);
+  num_acks = ngtcp2_min(num_acks, NGTCP2_MAX_ACK_RANGES);
 
   for (; ack->rangecnt < num_acks; ngtcp2_ksl_it_next(&it)) {
     rpkt = ngtcp2_ksl_it_get(&it);

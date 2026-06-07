@@ -134,7 +134,7 @@ static void pmtud_next_probe(ngtcp2_pmtud *pmtud) {
 
 void ngtcp2_pmtud_probe_success(ngtcp2_pmtud *pmtud, size_t payloadlen) {
   pmtud->max_udp_payload_size =
-    ngtcp2_max_size(pmtud->max_udp_payload_size, payloadlen);
+    ngtcp2_max(pmtud->max_udp_payload_size, payloadlen);
 
   assert(pmtud->mtu_idx < pmtud->probeslen);
 
@@ -156,8 +156,8 @@ void ngtcp2_pmtud_handle_expiry(ngtcp2_pmtud *pmtud, ngtcp2_tstamp ts) {
     return;
   }
 
-  pmtud->min_fail_udp_payload_size = ngtcp2_min_size(
-    pmtud->min_fail_udp_payload_size, pmtud->probes[pmtud->mtu_idx]);
+  pmtud->min_fail_udp_payload_size =
+    ngtcp2_min(pmtud->min_fail_udp_payload_size, pmtud->probes[pmtud->mtu_idx]);
 
   pmtud_next_probe(pmtud);
 }
