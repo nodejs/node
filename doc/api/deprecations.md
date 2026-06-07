@@ -4562,12 +4562,15 @@ removed in a future version of Node.js.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime deprecation.
   - version: v26.2.0
     pr-url: https://github.com/nodejs/node/pull/63121
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling `hmac.digest()` more than once returns an empty buffer instead of
 throwing an error. This behavior is inconsistent with `hash.digest()` and
