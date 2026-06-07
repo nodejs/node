@@ -20,6 +20,29 @@ template("node_gn_build") {
     defines += [ node_use_amaro ? "HAVE_AMARO=1" : "HAVE_AMARO=0" ]
     defines += [ node_use_v8_platform ? "NODE_USE_V8_PLATFORM=1" : "NODE_USE_V8_PLATFORM=0" ]
     defines += [ node_enable_inspector ? "HAVE_INSPECTOR=1" : "HAVE_INSPECTOR=0" ]
+
+    defines += [ node_use_openssl ? "HAVE_OPENSSL=1" : "HAVE_OPENSSL=0" ]
+
+    if (node_use_sqlite) {
+      defines += [ "HAVE_SQLITE=1" ]
+    } else {
+      defines += [ "HAVE_SQLITE=0" ]
+    }
+    if (node_use_ffi) {
+      defines += [ "HAVE_FFI=1" ]
+    } else {
+      defines += [ "HAVE_FFI=0" ]
+    }
+
+    defines += [ node_use_amaro ? "HAVE_AMARO=1" : "HAVE_AMARO=0" ]
+
+    defines += [
+      node_use_v8_platform ? "NODE_USE_V8_PLATFORM=1"
+                           : "NODE_USE_V8_PLATFORM=0"
+    ]
+    
+    defines += [ node_enable_inspector ? "HAVE_INSPECTOR=1" : "HAVE_INSPECTOR=0" ]
+    
     if (node_use_node_code_cache) {
       defines += [ "NODE_USE_NODE_CODE_CACHE=1" ]
     }
