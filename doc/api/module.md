@@ -560,7 +560,7 @@ For general use cases, it's recommended to call `module.enableCompileCache()` wi
 specifying the `options.directory`, so that the directory can be overridden by the
 `NODE_COMPILE_CACHE` environment variable when necessary.
 
-Since compile cache is supposed to be a optimization that is not mission critical, this
+Since compile cache is supposed to be an optimization that is not mission critical, this
 method is designed to not throw any exception when the compile cache cannot be enabled.
 Instead, it will return an object containing an error message in the `message` field to
 aid debugging. If compile cache is enabled successfully, the `directory` field in the
