@@ -20,8 +20,6 @@ const bench = common.createBenchmark(main, {
   flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
 });
 
-const noop = () => {};
-
 const hookList = {
   before: before,
   after: after,
@@ -32,7 +30,9 @@ const hookList = {
 function run(loopAmount, avoidV8Optimization, hookFn) {
   for (let i = 0; i < loopAmount; i++) {
     describe(`${i}`, () => {
-      hookFn(noop);
+      hookFn(() => {
+        avoidV8Optimization = i;
+      });
 
       it(`${i}`, () => {
         avoidV8Optimization = i;
