@@ -2870,9 +2870,10 @@ changes:
     This is a credit based limit, existing `Http2Stream`s may cause this
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
-    the current memory use of the header compression tables, current data
-    queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
-    counted towards the current limit. **Default:** `10`.
+    the current memory use of the header compression tables, header blocks
+    retained by open streams, current data queued to be sent, and
+    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
+    current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3087,9 +3088,10 @@ changes:
     credit based limit, existing `Http2Stream`s may cause this
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
-    the current memory use of the header compression tables, current data
-    queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
-    counted towards the current limit. **Default:** `10`.
+    the current memory use of the header compression tables, header blocks
+    retained by open streams, current data queued to be sent, and
+    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
+    current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
@@ -3267,9 +3269,10 @@ changes:
     This is a credit based limit, existing `Http2Stream`s may cause this
     limit to be exceeded, but new `Http2Stream` instances will be rejected
     while this limit is exceeded. The current number of `Http2Stream` sessions,
-    the current memory use of the header compression tables, current data
-    queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
-    counted towards the current limit. **Default:** `10`.
+    the current memory use of the header compression tables, header blocks
+    retained by open streams, current data queued to be sent, and
+    unacknowledged `PING` and `SETTINGS` frames are all counted towards the
+    current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
     This is similar to [`server.maxHeadersCount`][] or
     [`request.maxHeadersCount`][] in the `node:http` module. The minimum value
