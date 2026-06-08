@@ -589,32 +589,34 @@ test('session.close() - closing twice', (t) => {
   });
 });
 
-test('session - using session after database is garbage collected throws', async (t) => {
+test('session - keeps its database alive after the db handle is dropped', async (t) => {
   const { gcUntil, onGC } = require('../common/gc');
 
-  // The session only holds a weak reference to its database. Create the
-  // database in a nested scope so that no strong reference to it survives,
-  // allowing it to be garbage collected while the session is still alive.
-  let collected = false;
+  // The DatabaseSync handle is created in a nested scope and never referenced
+  // again, so the returned session is the only thing keeping it reachable.
+  let dbCollected = false;
   const session = (() => {
     const database = new DatabaseSync(':memory:');
     database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
-    onGC(database, { ongc: () => { collected = true; } });
-    return database.createSession();
+    onGC(database, { ongc: () => { dbCollected = true; } });
+    const s = database.createSession();
+    database.exec("INSERT INTO data VALUES (1, 'hello')");
+    return s;
   })();
 
-  await gcUntil('database is garbage collected', () => collected);
+  // The session must keep the database alive across GC. Previously it held
+  // only a weak reference, so the database could be collected and using the
+  // session afterwards dereferenced a dangling pointer and crashed.
+  await gcUntil('database is collected', () => dbCollected, 5).then(
+    () => { throw new Error('session did not keep its database alive'); },
+    () => {}, // Expected: the database is never collected, so gcUntil rejects.
+  );
+  t.assert.strictEqual(dbCollected, false);
 
-  // Before the fix, these dereferenced a dangling weak pointer to the
-  // collected database and crashed the process. They must throw instead.
-  for (const method of ['changeset', 'patchset', 'close']) {
-    t.assert.throws(() => {
-      session[method]();
-    }, {
-      name: 'Error',
-      message: 'database is not open',
-    });
-  }
+  // The database is still open and usable through the still-alive session.
+  const changeset = session.changeset();
+  t.assert.ok(changeset.byteLength > 0);
+  session.close();
 });
 
 test('session supports ERM', (t) => {
