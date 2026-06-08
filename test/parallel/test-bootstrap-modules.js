@@ -104,6 +104,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
+  'NativeModule internal/modules/package_map',
   'NativeModule diagnostics_channel',
   'Internal Binding diagnostics_channel',
   'Internal Binding wasm_web_api',
