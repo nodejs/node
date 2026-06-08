@@ -75,6 +75,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(process_methods)                                                           \
   V(timers)                                                                    \
   V(url)                                                                       \
+  V(webstreams)                                                                \
   V(worker)                                                                    \
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
