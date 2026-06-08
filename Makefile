@@ -888,15 +888,15 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 	else \
 		$(call available-node, \
 			$(DOC_KIT) generate \
-			-t legacy-html-all \
+			-t web \
 			-t legacy-json-all \
 			-i doc/api/*.md \
 			--ignore $(skip_apidoc_files) \
 			-o out/doc/api \
 			-c ./CHANGELOG.md \
 			-v $(VERSION) \
-			--index doc/api/index.md \
 			--type-map doc/type-map.json \
+			$(if $(JOBS),-p $(JOBS)) \
 		) \
 	fi
 endif
