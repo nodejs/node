@@ -233,14 +233,14 @@ module.exports = {
         });
       },
 
-      'AssignmentPattern[right.type="ObjectExpression"][right.properties.length=0]'(node) {
-        context.report({
-          node: node.right,
-          message: 'Use kEmptyObject instead of declaring a new empty object, or define a __proto__ property',
-        });
-      },
-
-      'AssignmentPattern[right.type="ObjectExpression"][right.properties.length>0]'(node) {
+      'AssignmentPattern[right.type="ObjectExpression"]'(node) {
+        if (!node.right.properties.length) {
+          context.report({
+            node: node.right,
+            message: 'Use kEmptyObject instead of declaring a new empty object, or define a __proto__ property',
+          });
+          return;
+        }
         const propertyIsIdentifier = (p) => p.key.type === 'Identifier';
         if (node.left.type === 'ObjectPattern' &&
             node.left.properties.every(propertyIsIdentifier) &&
