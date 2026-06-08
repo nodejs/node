@@ -51,6 +51,9 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::FunctionTemplate> readable_stream_ctor;
   v8::Global<v8::FunctionTemplate> readable_stream_default_controller_ctor;
   v8::Global<v8::FunctionTemplate> readable_stream_default_reader_ctor;
+  v8::Global<v8::FunctionTemplate> readable_byte_stream_controller_ctor;
+  v8::Global<v8::FunctionTemplate> readable_stream_byob_reader_ctor;
+  v8::Global<v8::FunctionTemplate> readable_stream_byob_request_ctor;
 };
 
 }  // namespace webstreams

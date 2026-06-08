@@ -8,6 +8,7 @@
 #include "v8.h"
 
 #include <deque>
+#include <memory>
 
 namespace node {
 
@@ -27,8 +28,38 @@ enum class SizeMode : uint8_t {
   kUserFn,      // arbitrary user-provided size() function
 };
 
+// Common base for every webstreams BaseObject. Carries a small kind tag so a
+// related object recovered from a GC-traced internal field can be safely
+// downcast: BaseObject::FromJSObject<T> performs an unchecked static_cast and
+// RTTI is disabled in the Node build, so the tag is the discriminator. The
+// stream's controller field may hold either a default or a byte controller, and
+// its reader field either a default or a BYOB reader; the tag tells them apart
+// in O(1).
+class StreamBaseObject : public BaseObject {
+ public:
+  enum class Kind : uint8_t {
+    kStream,
+    kDefaultController,
+    kByteController,
+    kDefaultReader,
+    kByobReader,
+    kByobRequest,
+  };
+
+  StreamBaseObject(Environment* env, v8::Local<v8::Object> object, Kind kind)
+      : BaseObject(env, object), stream_kind_(kind) {}
+
+  Kind stream_kind() const { return stream_kind_; }
+
+ private:
+  const Kind stream_kind_;
+};
+
 class ReadableStream;
 class ReadableStreamDefaultReader;
+class ReadableStreamBYOBReader;
+class ReadableByteStreamController;
+class ReadableStreamBYOBRequest;
 
 // ReadableStreamDefaultController — owns the value queue and the queuing /
 // backpressure bookkeeping for a (non-byte) ReadableStream. The queue holds
@@ -36,7 +67,7 @@ class ReadableStreamDefaultReader;
 // never need a per-value v8::Global. All state transitions and size math happen
 // here without crossing into JS; the only crossings are invoking the user
 // pull/cancel/size algorithms.
-class ReadableStreamDefaultController final : public BaseObject {
+class ReadableStreamDefaultController final : public StreamBaseObject {
  public:
   // Internal field layout of the JS wrapper. Field kStream holds the owning
   // ReadableStream wrapper so the relationship is traced by V8's GC (mirroring
@@ -135,7 +166,7 @@ class ReadableStreamDefaultController final : public BaseObject {
 // ReadableStreamDefaultReader — holds the queue of pending read requests as
 // promise resolvers (no per-read request object), plus the reader's `closed`
 // promise.
-class ReadableStreamDefaultReader final : public BaseObject {
+class ReadableStreamDefaultReader final : public StreamBaseObject {
  public:
   enum InternalFields {
     kStream = BaseObject::kInternalFieldCount,
@@ -163,7 +194,11 @@ class ReadableStreamDefaultReader final : public BaseObject {
   size_t num_read_requests() const { return read_requests_.size(); }
   // Parks a pending read; the resolver is settled later by Fulfill/Close/Error.
   void AddReadRequest(v8::Local<v8::Promise::Resolver> resolver);
-  void FulfillFront(v8::Local<v8::Value> chunk);
+  // Pops and returns the front pending read request resolver (CHECK non-empty).
+  v8::Local<v8::Promise::Resolver> TakeReadRequest();
+  // Resolves the front read request: {value: undefined, done: true} when done,
+  // otherwise {value: chunk, done: false}.
+  void FulfillFront(v8::Local<v8::Value> chunk, bool done);
   void CloseAll();
   void ErrorAll(v8::Local<v8::Value> error);
 
@@ -182,9 +217,247 @@ class ReadableStreamDefaultReader final : public BaseObject {
   v8::Global<v8::Promise::Resolver> closed_;
 };
 
+// ============================================================================
+// Byte streams
+// ============================================================================
+
+// The constructor used to materialize a filled BYOB view, recorded from the
+// view the user supplied (or Uint8Array for auto-allocated / default reads).
+enum class ViewType : uint8_t {
+  kDataView,
+  kUint8Array,
+  kInt8Array,
+  kUint8ClampedArray,
+  kInt16Array,
+  kUint16Array,
+  kInt32Array,
+  kUint32Array,
+  kFloat16Array,
+  kFloat32Array,
+  kFloat64Array,
+  kBigInt64Array,
+  kBigUint64Array,
+  kBuffer,  // node::Buffer (a Uint8Array subclass; rebuilt via Buffer::New)
+};
+
+// A queued chunk of bytes. The BackingStore is owned (transferred from the
+// enqueued view's ArrayBuffer), so the queue is zero-copy.
+struct ByteQueueEntry {
+  std::shared_ptr<v8::BackingStore> buffer;
+  size_t byte_offset;
+  size_t byte_length;
+};
+
+enum class PullIntoType : uint8_t { kDefault, kByob, kNone };
+
+// Mirrors the spec's pull-into descriptor. The destination buffer is an owned
+// BackingStore (transferred from the user's view), filled in place via memcpy.
+struct PullIntoDescriptor {
+  std::shared_ptr<v8::BackingStore> buffer;
+  size_t buffer_byte_length;
+  size_t byte_offset;
+  size_t byte_length;
+  size_t bytes_filled;
+  size_t minimum_fill;
+  uint32_t element_size;
+  ViewType view_type;
+  PullIntoType type;
+};
+
+// ReadableByteStreamController — owns a zero-copy byte queue (deque of owned
+// BackingStores) and the pending pull-into descriptors. All fill/commit math is
+// pure C++ (memcpy over BackingStore::Data()); JS is crossed only to invoke the
+// user pull/cancel algorithms and to materialize a user-visible view once at
+// fulfillment.
+class ReadableByteStreamController final : public StreamBaseObject {
+ public:
+  enum InternalFields {
+    kStream = BaseObject::kInternalFieldCount,
+    kByobRequest,  // the current ReadableStreamBYOBRequest wrapper, or undefined
+    kInternalFieldCount,
+  };
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static void GetByobRequest(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetDesiredSize(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Enqueue(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  ReadableByteStreamController(Environment* env, v8::Local<v8::Object> object);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(ReadableByteStreamController)
+  SET_SELF_SIZE(ReadableByteStreamController)
+
+  ReadableStream* stream() const;
+  ReadableStreamBYOBRequest* byob_request_obj() const;
+
+  // --- internal operations (spec algorithms) ---
+  double GetDesiredSizeValue(bool* is_null) const;
+  bool ShouldCallPull() const;
+  void CallPullIfNeeded();
+  void ClearAlgorithms();
+  void ClearPendingPullIntos();
+  void InvalidateBYOBRequest();
+  // close(): may throw (partial read) -> returns Nothing with pending exception.
+  v8::Maybe<void> CloseInternal();
+  void HandleQueueDrain();
+  // enqueue(view): may throw -> Nothing with pending exception.
+  v8::Maybe<void> EnqueueInternal(v8::Local<v8::Object> view);
+  void ErrorInternal(v8::Local<v8::Value> error);
+  v8::Local<v8::Promise> CancelSteps(v8::Local<v8::Value> reason);
+  // Default-reader read on a byte stream.
+  void PullStepsDefault(v8::Local<v8::Promise::Resolver> resolver);
+  // BYOB read: fills/parks; resolves `resolver` directly for sync completion.
+  void PullInto(v8::Local<v8::Object> view,
+                size_t min,
+                v8::Local<v8::Promise::Resolver> resolver);
+  // byobRequest.respond(n) / respondWithNewView(view): may throw.
+  v8::Maybe<void> Respond(size_t bytes_written);
+  v8::Maybe<void> RespondWithNewView(v8::Local<v8::Object> view);
+  // [kRelease]: collapse pending pull-intos to a single 'none' descriptor.
+  void OnReaderReleased();
+
+  void OnStartFulfilled();
+  void FinishPull();
+
+  bool started() const { return started_; }
+  bool close_requested() const { return close_requested_; }
+  bool has_pending_pull_intos() const { return !pending_pull_intos_.empty(); }
+  const PullIntoDescriptor& first_pending_pull_into() const {
+    return pending_pull_intos_.front();
+  }
+
+  bool Setup(v8::Local<v8::Function> start_algorithm,
+             v8::Local<v8::Function> pull_algorithm,
+             v8::Local<v8::Function> cancel_algorithm,
+             double high_water_mark,
+             size_t auto_allocate_chunk_size);  // 0 => undefined
+
+ private:
+  void EnqueueChunkToQueue(std::shared_ptr<v8::BackingStore> buffer,
+                           size_t byte_offset,
+                           size_t byte_length);
+  // Slices [byte_offset, byte_offset+byte_length) of `buffer` into a fresh
+  // BackingStore and enqueues it.
+  void EnqueueClonedChunkToQueue(const std::shared_ptr<v8::BackingStore>& buffer,
+                                 size_t byte_offset,
+                                 size_t byte_length);
+  void EnqueueDetachedPullIntoToQueue(PullIntoDescriptor* desc);
+  bool FillPullIntoDescriptorFromQueue(PullIntoDescriptor* desc);
+  void FillReadRequestFromQueue(v8::Local<v8::Promise::Resolver> resolver);
+  void ProcessReadRequestsUsingQueue();
+  // Fills and shifts ready pull-into descriptors from the queue, returning them
+  // (NOT yet committed — the caller controls commit order to preserve the FIFO
+  // ordering of read-into requests).
+  std::deque<PullIntoDescriptor> ProcessPullIntoDescriptorsUsingQueue();
+  void CommitPullIntoDescriptor(PullIntoDescriptor* desc);
+  void CommitPullIntoDescriptors(std::deque<PullIntoDescriptor>* descs);
+  v8::Maybe<void> RespondInternal(size_t bytes_written);
+  void RespondInClosedState(PullIntoDescriptor* desc);
+  v8::Maybe<void> RespondInReadableState(size_t bytes_written,
+                                         PullIntoDescriptor* desc);
+  // Builds the user-visible view from a filled descriptor (transfers buffer).
+  v8::MaybeLocal<v8::Object> ConvertPullIntoDescriptor(PullIntoDescriptor* desc);
+
+  std::deque<ByteQueueEntry> queue_;
+  double queue_total_size_ = 0;
+  double high_water_mark_ = 0;
+  size_t auto_allocate_chunk_size_ = 0;
+  bool has_auto_allocate_ = false;
+  std::deque<PullIntoDescriptor> pending_pull_intos_;
+
+  bool started_ = false;
+  bool pulling_ = false;
+  bool pull_again_ = false;
+  bool close_requested_ = false;
+
+  v8::Global<v8::Function> pull_algorithm_;
+  v8::Global<v8::Function> cancel_algorithm_;
+};
+
+// ReadableStreamBYOBRequest — a thin view onto the controller's first pending
+// pull-into. Holds a back-reference to the controller and the current view as
+// GC-traced internal fields; both are cleared when the request is invalidated.
+class ReadableStreamBYOBRequest final : public StreamBaseObject {
+ public:
+  enum InternalFields {
+    kController = BaseObject::kInternalFieldCount,
+    kView,
+    kInternalFieldCount,
+  };
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static void GetView(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RespondWithNewView(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  ReadableStreamBYOBRequest(Environment* env, v8::Local<v8::Object> object);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(ReadableStreamBYOBRequest)
+  SET_SELF_SIZE(ReadableStreamBYOBRequest)
+
+  ReadableByteStreamController* controller() const;
+};
+
+// ReadableStreamBYOBReader — holds the queue of pending read-into requests as
+// promise resolvers plus the reader's `closed` promise.
+class ReadableStreamBYOBReader final : public StreamBaseObject {
+ public:
+  enum InternalFields {
+    kStream = BaseObject::kInternalFieldCount,
+    kInternalFieldCount,
+  };
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ReleaseLock(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Cancel(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetClosed(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  ReadableStreamBYOBReader(Environment* env, v8::Local<v8::Object> object);
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(ReadableStreamBYOBReader)
+  SET_SELF_SIZE(ReadableStreamBYOBReader)
+
+  ReadableStream* stream() const;
+  bool has_stream() const;
+
+  size_t num_read_into_requests() const { return read_into_requests_.size(); }
+  void AddReadIntoRequest(v8::Local<v8::Promise::Resolver> resolver);
+  // Resolves the front read-into request with {value: view, done}.
+  void FulfillFront(v8::Local<v8::Value> view, bool done);
+  // Resolves all pending read-into requests with {value: undefined, done:true}.
+  void CloseAll();
+  void ErrorAll(v8::Local<v8::Value> error);
+
+  v8::Local<v8::Promise> closed_promise(Environment* env);
+  void ResolveClosed();
+  void RejectClosed(v8::Local<v8::Value> error);
+
+  bool SetupInternal(v8::Local<v8::Object> stream_obj);
+  void Release();
+
+ private:
+  std::deque<v8::Global<v8::Promise::Resolver>> read_into_requests_;
+  v8::Global<v8::Promise::Resolver> closed_;
+};
+
 // ReadableStream — the user-facing object. Holds top-level state; the controller
 // and (current) reader are referenced through GC-traced internal fields.
-class ReadableStream final : public BaseObject {
+class ReadableStream final : public StreamBaseObject {
  public:
   enum InternalFields {
     kController = BaseObject::kInternalFieldCount,
@@ -212,12 +485,20 @@ class ReadableStream final : public BaseObject {
   v8::Local<v8::Value> stored_error(Environment* env) const;
   void set_stored_error(v8::Isolate* isolate, v8::Local<v8::Value> e);
 
+  // Controllers (exactly one is non-null once set up).
   ReadableStreamDefaultController* default_controller() const;
+  ReadableByteStreamController* byte_controller() const;
+  bool has_byte_controller() const;
+
+  // Readers (at most one is non-null).
+  StreamBaseObject* generic_reader() const;  // either kind, or nullptr
   ReadableStreamDefaultReader* default_reader() const;
+  ReadableStreamBYOBReader* byob_reader() const;
   bool locked() const;
   bool has_default_reader() const;
+  bool has_byob_reader() const;
 
-  void SetController(v8::Local<v8::Object> controller_obj);
+  void SetController(v8::Local<v8::Object> controller_obj, bool is_byte);
 
   // --- internal operations ---
   v8::Local<v8::Promise> CancelInternal(v8::Local<v8::Value> reason);
@@ -238,8 +519,14 @@ class ReadableStream final : public BaseObject {
 // createReadableStream(start, pull, cancel, highWaterMark, sizeMode, size)
 //   -> a fully set-up default ReadableStream JS object.
 void CreateReadableStream(const v8::FunctionCallbackInfo<v8::Value>& args);
+// createReadableByteStream(start, pull, cancel, highWaterMark,
+//   autoAllocateChunkSize) -> a fully set-up byte ReadableStream JS object.
+void CreateReadableByteStream(const v8::FunctionCallbackInfo<v8::Value>& args);
 // acquireReadableStreamDefaultReader(stream) -> a default reader locked to it.
 void AcquireReadableStreamDefaultReader(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
+// acquireReadableStreamBYOBReader(stream) -> a BYOB reader locked to it.
+void AcquireReadableStreamBYOBReader(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
 // Registers the readable-stream binding methods + constructor templates and
