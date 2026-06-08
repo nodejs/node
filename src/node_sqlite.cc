@@ -3825,7 +3825,9 @@ void Session::Changeset(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
-      env, !session->database_->IsOpen(), "database is not open");
+      env,
+      !session->database_ || !session->database_->IsOpen(),
+      "database is not open");
   THROW_AND_RETURN_ON_BAD_STATE(
       env, session->session_ == nullptr, "session is not open");
 
@@ -3849,7 +3851,9 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
-      env, !session->database_->IsOpen(), "database is not open");
+      env,
+      !session->database_ || !session->database_->IsOpen(),
+      "database is not open");
   THROW_AND_RETURN_ON_BAD_STATE(
       env, session->session_ == nullptr, "session is not open");
 

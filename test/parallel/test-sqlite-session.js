@@ -1,4 +1,4 @@
-// Flags: --experimental-sqlite
+// Flags: --expose-gc --experimental-sqlite
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
@@ -587,6 +587,34 @@ test('session.close() - closing twice', (t) => {
     name: 'Error',
     message: 'session is not open'
   });
+});
+
+test('session - using session after database is garbage collected throws', async (t) => {
+  const { gcUntil, onGC } = require('../common/gc');
+
+  // The session only holds a weak reference to its database. Create the
+  // database in a nested scope so that no strong reference to it survives,
+  // allowing it to be garbage collected while the session is still alive.
+  let collected = false;
+  const session = (() => {
+    const database = new DatabaseSync(':memory:');
+    database.exec('CREATE TABLE data(key INTEGER PRIMARY KEY, value TEXT)');
+    onGC(database, { ongc: () => { collected = true; } });
+    return database.createSession();
+  })();
+
+  await gcUntil('database is garbage collected', () => collected);
+
+  // Before the fix, these dereferenced a dangling weak pointer to the
+  // collected database and crashed the process. They must throw instead.
+  for (const method of ['changeset', 'patchset', 'close']) {
+    t.assert.throws(() => {
+      session[method]();
+    }, {
+      name: 'Error',
+      message: 'database is not open',
+    });
+  }
 });
 
 test('session supports ERM', (t) => {
