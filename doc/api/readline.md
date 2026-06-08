@@ -120,8 +120,10 @@ added: v0.1.98
 -->
 
 The `'line'` event is emitted whenever the `input` stream receives an
-end-of-line input (`\n`, `\r`, or `\r\n`). This usually occurs when the user
-presses <kbd>Enter</kbd> or <kbd>Return</kbd>.
+end-of-line input (`\n`, `\r`, or `\r\n`). By default, Unicode line separator
+(`\u2028`) and paragraph separator (`\u2029`) characters are also treated as
+end-of-line input. This usually occurs when the user presses <kbd>Enter</kbd>
+or <kbd>Return</kbd>.
 
 The `'line'` event is also emitted if new data has been read from a stream and
 that stream ends without a final end-of-line marker.
@@ -525,6 +527,10 @@ changes:
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63789
+    description: The `unicodeLineSeparators` option is supported now.
 -->
 
 * Extends: {readline.InterfaceConstructor}
@@ -716,6 +722,8 @@ added: v17.0.0
     `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
     will always be considered a single newline (which may be reasonable for
     [reading files][] with `\r\n` line delimiter). **Default:** `100`.
+  * `unicodeLineSeparators` {boolean} If `true`, `\u2028` and `\u2029` will be
+    treated as end-of-line input. **Default:** `true`.
   * `escapeCodeTimeout` {number} The duration `readlinePromises` will wait for a
     character (when reading an ambiguous key sequence in milliseconds one that
     can both form a complete key sequence using the input read so far and can
@@ -924,6 +932,9 @@ the current position of the cursor down.
 <!-- YAML
 added: v0.1.98
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63789
+    description: The `unicodeLineSeparators` option is supported now.
   - version:
       - v15.14.0
       - v14.18.0
@@ -981,6 +992,8 @@ changes:
     `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
     will always be considered a single newline (which may be reasonable for
     [reading files][] with `\r\n` line delimiter). **Default:** `100`.
+  * `unicodeLineSeparators` {boolean} If `true`, `\u2028` and `\u2029` will be
+    treated as end-of-line input. **Default:** `true`.
   * `escapeCodeTimeout` {number} The duration `readline` will wait for a
     character (when reading an ambiguous key sequence in milliseconds one that
     can both form a complete key sequence using the input read so far and can
