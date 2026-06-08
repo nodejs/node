@@ -251,7 +251,7 @@ module.exports = {
         if (node.right.properties.some((p) => p.key.name === '__proto__')) return;
         context.report({
           node: node.right,
-          message: `Add __proto__: null to avoid inheriting from Object.prototype, or __proto__: ObjectPrototype if inheritance is desirable`,
+          message: `Add '__proto__: null' to avoid inheriting from Object.prototype, or '__proto__: ObjectPrototype' if inheritance is desirable`,
         });
       },
     };
