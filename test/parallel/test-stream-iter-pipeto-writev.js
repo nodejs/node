@@ -154,6 +154,43 @@ async function testPushWriterBlockSyncFalseAccepted() {
   })(), 'abcd', 4);
 }
 
+async function testPipeToSyncPushWriterStrictFalseRejected() {
+  const decoder = new TextDecoder();
+  const { writer, readable } = push({ highWaterMark: 1 });
+
+  const total = pipeToSync(['a', 'b'], writer, { preventClose: true });
+  assert.strictEqual(total, 1);
+
+  const iter = readable[Symbol.asyncIterator]();
+  const first = await iter.next();
+  assert.strictEqual(first.done, false);
+  assert.strictEqual(decoder.decode(first.value[0]), 'a');
+
+  const second = await Promise.race([
+    iter.next().then((result) => {
+      return result.done ? '<done>' : decoder.decode(result.value[0]);
+    }),
+    setImmediatePromise().then(() => '<no second chunk>'),
+  ]);
+  assert.strictEqual(second, '<no second chunk>');
+
+  await iter.return?.();
+}
+
+async function testPipeToSyncWritevFalseNotCounted() {
+  const writer = {
+    writevSync() { return false; },
+    writeSync: common.mustNotCall(),
+    endSync() { return 0; },
+  };
+  function* source() {
+    yield [new Uint8Array([1]), new Uint8Array([2])];
+  }
+
+  const total = pipeToSync(source(), writer);
+  assert.strictEqual(total, 0);
+}
+
 // pipeToSync with writevSync
 async function testPipeToSyncWritev() {
   const batches = [];
@@ -215,6 +252,8 @@ Promise.all([
   testWriteSyncFailsMidBatch(),
   testWriteSyncAlwaysFails(),
   testPushWriterBlockSyncFalseAccepted(),
+  testPipeToSyncPushWriterStrictFalseRejected(),
+  testPipeToSyncWritevFalseNotCounted(),
   testPipeToSyncWritev(),
   testPipeToSyncPlainChunksWritev(),
   testPipeToSyncWriteFallback(),
