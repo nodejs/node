@@ -5,6 +5,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_realm-inl.h"
 #include "node_snapshotable.h"
@@ -39,10 +40,9 @@ Local<String> InternalizedString(Isolate* isolate, const char* s) {
 
 Local<FunctionTemplate> NewGetter(Isolate* isolate,
                                   const char* prop,
-                                  FunctionCallback cb,
-                                  Local<Signature> sig) {
+                                  FunctionCallback cb) {
   Local<FunctionTemplate> t =
-      FunctionTemplate::New(isolate, cb, Local<Value>(), sig, 0,
+      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(), 0,
                             v8::ConstructorBehavior::kThrow,
                             v8::SideEffectType::kHasNoSideEffect);
   std::string name = std::string("get ") + prop;
@@ -67,10 +67,9 @@ void SetProtoMethodLen(Isolate* isolate,
                        const char* name,
                        FunctionCallback cb,
                        int length) {
-  Local<Signature> sig = Signature::New(isolate, tmpl);
   Local<FunctionTemplate> t =
-      FunctionTemplate::New(isolate, cb, Local<Value>(), sig, length,
-                            v8::ConstructorBehavior::kThrow,
+      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(),
+                            length, v8::ConstructorBehavior::kThrow,
                             v8::SideEffectType::kHasSideEffect);
   Local<String> name_string = InternalizedString(isolate, name);
   tmpl->PrototypeTemplate()->Set(name_string, t);
@@ -95,14 +94,24 @@ void SetProtoMethodPromise(Isolate* isolate,
 
 Local<Value> IllegalInvocationRejection(Local<Context> context) {
   Isolate* isolate = Isolate::GetCurrent();
-  Local<Value> error = v8::Exception::TypeError(
-      FIXED_ONE_BYTE_STRING(isolate, "Illegal invocation"));
+  Local<Value> error =
+      ERR_INVALID_THIS(isolate, "Value of \"this\" is the wrong type");
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
     return Local<Value>();
   }
   USE(resolver->Reject(context, error));
   return resolver->GetPromise();
+}
+
+bool CheckReceiverInvalidThis(Environment* env,
+                              Local<FunctionTemplate> ctor,
+                              Local<Value> receiver,
+                              const char* type_name) {
+  if (ctor->HasInstance(receiver)) return true;
+  THROW_ERR_INVALID_THIS(
+      env, "Value of \"this\" must be of type %s", type_name);
+  return false;
 }
 
 BindingData::BindingData(Realm* realm, Local<Object> object)

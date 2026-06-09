@@ -36,7 +36,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::Signature;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -256,11 +255,10 @@ WritableStreamDefaultController::GetConstructorTemplate(Environment* env) {
         WritableStreamDefaultController::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "WritableStreamDefaultController"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "signal"),
-        NewGetter(isolate, "signal", GetSignal, sig));
-    SetProtoMethod(isolate, tmpl, "error", Error);
+        NewGetter(isolate, "signal", GetSignal));
+    SetProtoMethodLen(isolate, tmpl, "error", Error, 0);
     bd->writable_stream_default_controller_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -577,6 +575,9 @@ void WritableStreamDefaultController::GetSignal(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "WritableStreamDefaultController"))
+    return;
   auto* c = BaseObject::FromJSObject<WritableStreamDefaultController>(
       args.This());
   if (c == nullptr) return;
@@ -592,6 +593,10 @@ void WritableStreamDefaultController::GetSignal(
 
 void WritableStreamDefaultController::Error(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "WritableStreamDefaultController"))
+    return;
   auto* c = BaseObject::FromJSObject<WritableStreamDefaultController>(
       args.This());
   if (c == nullptr) return;
@@ -633,7 +638,6 @@ Local<FunctionTemplate> WritableStreamDefaultWriter::GetConstructorTemplate(
         WritableStreamDefaultWriter::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "WritableStreamDefaultWriter"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "closed"),
         NewPromiseGetter(isolate, "closed", GetClosed));
@@ -642,11 +646,11 @@ Local<FunctionTemplate> WritableStreamDefaultWriter::GetConstructorTemplate(
         NewPromiseGetter(isolate, "ready", GetReady));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
+        NewGetter(isolate, "desiredSize", GetDesiredSize));
     SetProtoMethodPromise(isolate, tmpl, "write", Write, 0);
     SetProtoMethodPromise(isolate, tmpl, "close", Close, 0);
     SetProtoMethodPromise(isolate, tmpl, "abort", Abort, 0);
-    SetProtoMethod(isolate, tmpl, "releaseLock", ReleaseLock);
+    SetProtoMethodLen(isolate, tmpl, "releaseLock", ReleaseLock, 0);
     bd->writable_stream_default_writer_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -833,6 +837,9 @@ void WritableStreamDefaultWriter::GetDesiredSize(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "WritableStreamDefaultWriter"))
+    return;
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
   if (w == nullptr) return;
@@ -920,6 +927,10 @@ void WritableStreamDefaultWriter::Abort(
 
 void WritableStreamDefaultWriter::ReleaseLock(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "WritableStreamDefaultWriter"))
+    return;
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
   if (w == nullptr) return;
@@ -952,10 +963,9 @@ Local<FunctionTemplate> WritableStream::GetConstructorTemplate(
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         WritableStream::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "WritableStream"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "locked"),
-        NewGetter(isolate, "locked", GetLocked, sig));
+        NewGetter(isolate, "locked", GetLocked));
     SetProtoMethodPromise(isolate, tmpl, "abort", Abort, 0);
     SetProtoMethodPromise(isolate, tmpl, "close", Close, 0);
     bd->writable_stream_ctor.Reset(isolate, tmpl);
@@ -1330,6 +1340,10 @@ Local<Promise> WritableStream::AddWriteRequest() {
 }
 
 void WritableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "WritableStream"))
+    return;
   auto* stream = BaseObject::FromJSObject<WritableStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->locked());

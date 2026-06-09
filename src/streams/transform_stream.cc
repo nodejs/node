@@ -32,7 +32,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::Signature;
 using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
@@ -306,13 +305,12 @@ TransformStreamDefaultController::GetConstructorTemplate(Environment* env) {
         TransformStreamDefaultController::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "TransformStreamDefaultController"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
-    SetProtoMethod(isolate, tmpl, "enqueue", Enqueue);
-    SetProtoMethod(isolate, tmpl, "error", Error);
-    SetProtoMethod(isolate, tmpl, "terminate", Terminate);
+        NewGetter(isolate, "desiredSize", GetDesiredSize));
+    SetProtoMethodLen(isolate, tmpl, "enqueue", Enqueue, 0);
+    SetProtoMethodLen(isolate, tmpl, "error", Error, 0);
+    SetProtoMethodLen(isolate, tmpl, "terminate", Terminate, 0);
     bd->transform_stream_default_controller_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -456,6 +454,10 @@ void TransformStreamDefaultController::Terminate() {
 
 void TransformStreamDefaultController::GetDesiredSize(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "TransformStreamDefaultController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
   if (c == nullptr) return;
@@ -471,6 +473,10 @@ void TransformStreamDefaultController::GetDesiredSize(
 
 void TransformStreamDefaultController::Enqueue(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "TransformStreamDefaultController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
   if (c == nullptr) return;
@@ -479,6 +485,10 @@ void TransformStreamDefaultController::Enqueue(
 
 void TransformStreamDefaultController::Error(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "TransformStreamDefaultController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
   if (c == nullptr) return;
@@ -487,6 +497,10 @@ void TransformStreamDefaultController::Error(
 
 void TransformStreamDefaultController::Terminate(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "TransformStreamDefaultController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
   if (c == nullptr) return;
@@ -529,13 +543,12 @@ Local<FunctionTemplate> TransformStream::GetConstructorTemplate(
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         TransformStream::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "TransformStream"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "readable"),
-        NewGetter(isolate, "readable", GetReadable, sig));
+        NewGetter(isolate, "readable", GetReadable));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "writable"),
-        NewGetter(isolate, "writable", GetWritable, sig));
+        NewGetter(isolate, "writable", GetWritable));
     bd->transform_stream_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -712,6 +725,10 @@ void TransformStream::SetController(Local<Object> controller_obj) {
 }
 
 void TransformStream::GetReadable(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "TransformStream"))
+    return;
   auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(
@@ -719,6 +736,10 @@ void TransformStream::GetReadable(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TransformStream::GetWritable(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "TransformStream"))
+    return;
   auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(

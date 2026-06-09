@@ -51,7 +51,6 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::Signature;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint16Array;
@@ -394,13 +393,12 @@ ReadableStreamDefaultController::GetConstructorTemplate(Environment* env) {
         ReadableStreamDefaultController::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableStreamDefaultController"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
-    SetProtoMethod(isolate, tmpl, "close", Close);
-    SetProtoMethod(isolate, tmpl, "enqueue", Enqueue);
-    SetProtoMethod(isolate, tmpl, "error", Error);
+        NewGetter(isolate, "desiredSize", GetDesiredSize));
+    SetProtoMethodLen(isolate, tmpl, "close", Close, 0);
+    SetProtoMethodLen(isolate, tmpl, "enqueue", Enqueue, 0);
+    SetProtoMethodLen(isolate, tmpl, "error", Error, 0);
     bd->readable_stream_default_controller_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -708,9 +706,12 @@ bool ReadableStreamDefaultController::Setup(Local<Function> start_algorithm,
 
 void ReadableStreamDefaultController::GetDesiredSize(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamDefaultController"))
+    return;
   auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
       args.This());
-  Environment* env = Environment::GetCurrent(args);
   if (c == nullptr) return;
   bool is_null = false;
   double desired = c->GetDesiredSizeValue(&is_null);
@@ -724,6 +725,9 @@ void ReadableStreamDefaultController::GetDesiredSize(
 void ReadableStreamDefaultController::Close(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamDefaultController"))
+    return;
   auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
       args.This());
   if (c == nullptr) return;
@@ -738,6 +742,9 @@ void ReadableStreamDefaultController::Close(
 void ReadableStreamDefaultController::Enqueue(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamDefaultController"))
+    return;
   auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
       args.This());
   if (c == nullptr) return;
@@ -752,6 +759,10 @@ void ReadableStreamDefaultController::Enqueue(
 
 void ReadableStreamDefaultController::Error(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamDefaultController"))
+    return;
   auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
       args.This());
   if (c == nullptr) return;
@@ -791,12 +802,11 @@ Local<FunctionTemplate> ReadableStreamDefaultReader::GetConstructorTemplate(
         ReadableStreamDefaultReader::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableStreamDefaultReader"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "closed"),
         NewPromiseGetter(isolate, "closed", GetClosed));
     SetProtoMethodPromise(isolate, tmpl, "read", Read, 0);
-    SetProtoMethod(isolate, tmpl, "releaseLock", ReleaseLock);
+    SetProtoMethodLen(isolate, tmpl, "releaseLock", ReleaseLock, 0);
     SetProtoMethodPromise(isolate, tmpl, "cancel", Cancel, 0);
     bd->readable_stream_default_reader_ctor.Reset(isolate, tmpl);
   }
@@ -1016,6 +1026,10 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
 
 void ReadableStreamDefaultReader::ReleaseLock(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamDefaultReader"))
+    return;
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
   if (reader == nullptr) return;
@@ -1083,10 +1097,9 @@ Local<FunctionTemplate> ReadableStream::GetConstructorTemplate(
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         ReadableStream::kInternalFieldCount);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "ReadableStream"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "locked"),
-        NewGetter(isolate, "locked", GetLocked, sig));
+        NewGetter(isolate, "locked", GetLocked));
     SetProtoMethodPromise(isolate, tmpl, "cancel", Cancel, 0);
     bd->readable_stream_ctor.Reset(isolate, tmpl);
   }
@@ -1282,6 +1295,10 @@ void ReadableStream::ErrorStream(Local<Value> error) {
 }
 
 void ReadableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStream"))
+    return;
   auto* stream = BaseObject::FromJSObject<ReadableStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->locked());
@@ -1344,16 +1361,15 @@ Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
         ReadableByteStreamController::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableByteStreamController"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "byobRequest"),
-        NewGetter(isolate, "byobRequest", GetByobRequest, sig));
+        NewGetter(isolate, "byobRequest", GetByobRequest));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
-    SetProtoMethod(isolate, tmpl, "close", Close);
+        NewGetter(isolate, "desiredSize", GetDesiredSize));
+    SetProtoMethodLen(isolate, tmpl, "close", Close, 0);
     SetProtoMethodLen(isolate, tmpl, "enqueue", Enqueue, 1);
-    SetProtoMethod(isolate, tmpl, "error", Error);
+    SetProtoMethodLen(isolate, tmpl, "error", Error, 0);
     bd->readable_byte_stream_controller_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -2099,6 +2115,9 @@ void ReadableByteStreamController::GetByobRequest(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableByteStreamController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
   if (c == nullptr) return;
@@ -2136,6 +2155,10 @@ void ReadableByteStreamController::GetByobRequest(
 
 void ReadableByteStreamController::GetDesiredSize(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableByteStreamController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
   if (c == nullptr) return;
@@ -2152,6 +2175,9 @@ void ReadableByteStreamController::Close(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableByteStreamController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
   if (c == nullptr) return;
@@ -2173,6 +2199,9 @@ void ReadableByteStreamController::Enqueue(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableByteStreamController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
   if (c == nullptr) return;
@@ -2206,6 +2235,10 @@ void ReadableByteStreamController::Enqueue(
 
 void ReadableByteStreamController::Error(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableByteStreamController"))
+    return;
   auto* c =
       BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
   if (c == nullptr) return;
@@ -2239,10 +2272,9 @@ Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
         ReadableStreamBYOBRequest::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableStreamBYOBRequest"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "view"),
-        NewGetter(isolate, "view", GetView, sig));
+        NewGetter(isolate, "view", GetView));
     SetProtoMethodLen(isolate, tmpl, "respond", Respond, 1);
     SetProtoMethodLen(isolate, tmpl, "respondWithNewView", RespondWithNewView, 1);
     bd->readable_stream_byob_request_ctor.Reset(isolate, tmpl);
@@ -2259,6 +2291,10 @@ void ReadableStreamBYOBRequest::RegisterExternalReferences(
 
 void ReadableStreamBYOBRequest::GetView(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamBYOBRequest"))
+    return;
   auto* r = BaseObject::FromJSObject<ReadableStreamBYOBRequest>(args.This());
   if (r == nullptr) return;
   args.GetReturnValue().Set(r->object()->GetInternalField(kView).As<Value>());
@@ -2269,6 +2305,9 @@ void ReadableStreamBYOBRequest::Respond(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamBYOBRequest"))
+    return;
   if (args.Length() < 1) {
     isolate->ThrowException(v8::Exception::TypeError(FIXED_ONE_BYTE_STRING(
         isolate, "Failed to execute 'respond': 1 argument required")));
@@ -2306,6 +2345,9 @@ void ReadableStreamBYOBRequest::RespondWithNewView(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamBYOBRequest"))
+    return;
   auto* r = BaseObject::FromJSObject<ReadableStreamBYOBRequest>(args.This());
   if (r == nullptr) return;
   ReadableByteStreamController* c = r->controller();
@@ -2361,12 +2403,11 @@ Local<FunctionTemplate> ReadableStreamBYOBReader::GetConstructorTemplate(
         ReadableStreamBYOBReader::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableStreamBYOBReader"));
-    Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "closed"),
         NewPromiseGetter(isolate, "closed", GetClosed));
     SetProtoMethodPromise(isolate, tmpl, "read", Read, 1);
-    SetProtoMethod(isolate, tmpl, "releaseLock", ReleaseLock);
+    SetProtoMethodLen(isolate, tmpl, "releaseLock", ReleaseLock, 0);
     SetProtoMethodPromise(isolate, tmpl, "cancel", Cancel, 0);
     bd->readable_stream_byob_reader_ctor.Reset(isolate, tmpl);
   }
@@ -2612,6 +2653,10 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
 
 void ReadableStreamBYOBReader::ReleaseLock(
     const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableStreamBYOBReader"))
+    return;
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
   if (reader == nullptr) return;

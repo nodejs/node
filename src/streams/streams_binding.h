@@ -32,12 +32,12 @@ enum class SizeMode : uint8_t {
 // *reject* (not throw) when invoked on a foreign receiver.
 
 // Builds an accessor getter FunctionTemplate whose `.name` is "get <prop>".
-// Carries a receiver signature (a brand-check failure throwing TypeError is the
-// correct behavior for a plain attribute getter).
+// Carries NO receiver signature: the callback brand-checks internally (via
+// CheckReceiverInvalidThis) so a foreign receiver yields the public
+// ERR_INVALID_THIS TypeError instead of a bare V8 "Illegal invocation".
 v8::Local<v8::FunctionTemplate> NewGetter(v8::Isolate* isolate,
                                           const char* prop,
-                                          v8::FunctionCallback cb,
-                                          v8::Local<v8::Signature> sig);
+                                          v8::FunctionCallback cb);
 
 // Builds a getter FunctionTemplate ("get <prop>") for a Promise-typed attribute
 // (e.g. reader.closed, writer.ready). Carries NO receiver signature: Web IDL
@@ -47,8 +47,10 @@ v8::Local<v8::FunctionTemplate> NewPromiseGetter(v8::Isolate* isolate,
                                                  const char* prop,
                                                  v8::FunctionCallback cb);
 
-// Installs a synchronous operation on tmpl's prototype WITH a receiver
-// signature and an explicit `.length` (for required arguments).
+// Installs a synchronous operation on tmpl's prototype WITHOUT a receiver
+// signature and with an explicit `.length` (for required arguments). The
+// callback brand-checks internally (via CheckReceiverInvalidThis) so a foreign
+// receiver yields ERR_INVALID_THIS rather than a bare "Illegal invocation".
 void SetProtoMethodLen(v8::Isolate* isolate,
                        v8::Local<v8::FunctionTemplate> tmpl,
                        const char* name,
@@ -64,9 +66,19 @@ void SetProtoMethodPromise(v8::Isolate* isolate,
                            v8::FunctionCallback cb,
                            int length);
 
-// A Promise rejected with TypeError("Illegal invocation"); returned by a
+// A Promise rejected with an ERR_INVALID_THIS TypeError; returned by a
 // Promise-returning operation invoked on a foreign receiver.
 v8::Local<v8::Value> IllegalInvocationRejection(v8::Local<v8::Context> context);
+
+// Brand-checks `receiver` against `ctor` for a synchronous operation/getter.
+// Returns true on success; otherwise throws an ERR_INVALID_THIS TypeError named
+// for `type_name` and returns false (the caller must then return from the V8
+// callback). Pairs with the signature-free NewGetter/SetProtoMethodLen so the
+// public surface reports ERR_INVALID_THIS instead of "Illegal invocation".
+bool CheckReceiverInvalidThis(Environment* env,
+                              v8::Local<v8::FunctionTemplate> ctor,
+                              v8::Local<v8::Value> receiver,
+                              const char* type_name);
 
 // Common base for every webstreams BaseObject. Carries a small kind tag so a
 // related object recovered from a GC-traced internal field can be safely
