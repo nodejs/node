@@ -2929,6 +2929,23 @@ void ReadableStreamController(const FunctionCallbackInfo<Value>& args) {
       s->object()->GetInternalField(ReadableStream::kController).As<Value>());
 }
 
+// Introspection helper for white-box tests: releases whatever reader is
+// currently locked to the stream (mirrors the spec's internal
+// ReadableStreamReaderGenericRelease on stream's reader). Used to exercise the
+// "reader released out from under the async iterator" path.
+void ReadableStreamReleaseReader(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(env)->HasInstance(args[0])) return;
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  StreamBaseObject* reader = s->generic_reader();
+  if (reader == nullptr) return;
+  if (reader->stream_kind() == StreamBaseObject::Kind::kDefaultReader)
+    static_cast<ReadableStreamDefaultReader*>(reader)->Release();
+  else if (reader->stream_kind() == StreamBaseObject::Kind::kByobReader)
+    static_cast<ReadableStreamBYOBReader*>(reader)->Release();
+}
+
 // Robust brand checks: a prototype-chain test (ObjectPrototypeIsPrototypeOf in
 // JS) accepts forgeries like Object.create(ReadableStream.prototype); these use
 // the constructor template's HasInstance, which only matches real native
@@ -3008,6 +3025,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             ReadableStreamStoredError);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
+  SetMethod(isolate, target, "readableStreamReleaseReader",
+            ReadableStreamReleaseReader);
   SetMethod(isolate, target, "readableStreamDefaultControllerEnqueue",
             DefaultControllerEnqueue);
   SetMethod(isolate, target, "readableStreamDefaultControllerClose",
@@ -3029,6 +3048,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(IsReadableStream);
   registry->Register(ReadableStreamStoredError);
   registry->Register(ReadableStreamController);
+  registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);
   registry->Register(DefaultControllerClose);
   registry->Register(DefaultControllerError);
