@@ -1,8 +1,15 @@
+// Flags: --expose-internals
+
 import * as common from '../common/index.mjs';
 
 if (!common.hasCrypto) common.skip('missing crypto');
 
 import * as assert from 'node:assert';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { kSupportedAlgorithms } = require('internal/crypto/util');
+const { SubtleCrypto } = globalThis;
 const { subtle } = globalThis.crypto;
 
 const RSA_KEY_GEN = {
@@ -11,27 +18,71 @@ const RSA_KEY_GEN = {
   hash: 'SHA-256',
 };
 
-const publicUsages = {
-  'ECDH': [],
-  'ECDSA': ['verify'],
-  'Ed25519': ['verify'],
-  'RSA-OAEP': ['encrypt', 'wrapKey'],
-  'RSA-PSS': ['verify'],
-  'RSASSA-PKCS1-v1_5': ['verify'],
-  'X25519': [],
+function vector(algorithm, privateUsages, publicUsages) {
+  return { algorithm, privateUsages, publicUsages };
+}
+
+const keyGeneration = {
+  'ECDH': vector({ name: 'ECDH', namedCurve: 'P-256' }, ['deriveBits'], []),
+  'ECDSA': vector({ name: 'ECDSA', namedCurve: 'P-256' }, ['sign'], ['verify']),
+  'RSA-OAEP': vector(
+    { name: 'RSA-OAEP', ...RSA_KEY_GEN },
+    ['decrypt', 'unwrapKey'],
+    ['encrypt', 'wrapKey']),
+  'RSA-PSS': vector({ name: 'RSA-PSS', ...RSA_KEY_GEN }, ['sign'], ['verify']),
+  'RSASSA-PKCS1-v1_5': vector(
+    { name: 'RSASSA-PKCS1-v1_5', ...RSA_KEY_GEN },
+    ['sign'],
+    ['verify']),
 };
 
-for await (const { privateKey } of [
-  subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']),
-  subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']),
-  subtle.generateKey('Ed25519', false, ['sign']),
-  subtle.generateKey({ name: 'RSA-OAEP', ...RSA_KEY_GEN }, false, ['decrypt', 'unwrapKey']),
-  subtle.generateKey({ name: 'RSA-PSS', ...RSA_KEY_GEN }, false, ['sign']),
-  subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', ...RSA_KEY_GEN }, false, ['sign']),
-  subtle.generateKey('X25519', false, ['deriveBits']),
+for (const name of [
+  'Ed25519',
+  'Ed448',
+  'ML-DSA-44',
+  'ML-DSA-65',
+  'ML-DSA-87',
 ]) {
-  const { name } = privateKey.algorithm;
-  const usages = publicUsages[name];
+  keyGeneration[name] = vector(name, ['sign'], ['verify']);
+}
+
+for (const name of ['X25519', 'X448']) {
+  keyGeneration[name] = vector(name, ['deriveBits'], []);
+}
+
+for (const name of ['ML-KEM-512', 'ML-KEM-768', 'ML-KEM-1024']) {
+  keyGeneration[name] = vector(name, ['decapsulateBits'], ['encapsulateBits']);
+}
+
+const unsupportedGetPublicKeyAlgorithms = new Set([
+  'AES-CBC',
+  'AES-CTR',
+  'AES-GCM',
+  'AES-KW',
+  'AES-OCB',
+  'ChaCha20-Poly1305',
+  'HMAC',
+  'KMAC128',
+  'KMAC256',
+]);
+
+for (const name of Object.keys(kSupportedAlgorithms.exportKey)) {
+  const test = keyGeneration[name];
+  if (test === undefined) {
+    if (!unsupportedGetPublicKeyAlgorithms.has(name)) {
+      assert.fail(
+        `${name} needs a keyGeneration entry or must be listed in ` +
+        'unsupportedGetPublicKeyAlgorithms');
+    }
+    assert.strictEqual(SubtleCrypto.supports('getPublicKey', name), false);
+    continue;
+  }
+
+  assert.strictEqual(SubtleCrypto.supports('getPublicKey', name), true);
+
+  const { privateKey } = await subtle.generateKey(
+    test.algorithm, false, test.privateUsages);
+  const usages = test.publicUsages;
   const publicKey = await subtle.getPublicKey(privateKey, usages);
   assert.deepStrictEqual(publicKey.algorithm, privateKey.algorithm);
   assert.strictEqual(publicKey.type, 'public');
@@ -50,7 +101,9 @@ for await (const { privateKey } of [
 
 const secretKey = await subtle.generateKey(
   { name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']);
-await assert.rejects(() => subtle.getPublicKey(secretKey, ['encrypt', 'decrypt']), {
-  name: 'NotSupportedError',
-  message: 'key must be a private key'
-});
+await assert.rejects(
+  () => subtle.getPublicKey(secretKey, ['encrypt', 'decrypt']),
+  {
+    name: 'NotSupportedError',
+    message: 'key must be a private key'
+  });
