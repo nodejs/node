@@ -317,11 +317,10 @@ test('flaky: intermediate retries do not publish to the node.test error channel'
 // complete normally.
 //
 // KNOWN LIMITATION: intermediate-attempt subtests are emitted to the reporter
-// stream before the retry decision, so they cannot be recalled - the output
-// still contains leaked intermediate subtest lines and slightly inflated
-// `# tests` counts. Fully fixing that needs buffering each attempt's subtest
-// events and replaying only the surviving attempt; until then this asserts only
-// that the run does not crash and the flaky parent ultimately passes.
+// stream before the retry decision, so the output still contains leaked
+// intermediate subtest LINES (their counts are parked and dropped on retry,
+// keeping the summary and exit code correct). Removing the lines needs
+// per-attempt event buffering.
 test('flaky+subtest: a retried flaky test with subtests does not crash the run', async () => {
   const { code, stdout } = await tap(fixtures.path('test-runner/flaky/flaky-subtest.js'));
   assert.match(stdout, /# tests \d+/, 'a summary must be emitted (no crash)');
@@ -349,17 +348,17 @@ test('flaky: expectFailure that unexpectedly passes is not retried', async () =>
 });
 
 test('flaky: parent retries when only a subtest fails', async () => {
-  // The parent body never throws; the failure surfaces only through the child,
-  // which is promoted to the parent in postRun. The fix detects that before the
-  // retry decision, so the parent retries until the child passes (attempt 3) and
-  // its pass carries retryCount === 2. (Leaked intermediate-attempt children are
-  // the separate, documented subtest-output limitation, so this asserts only the
-  // parent's retry outcome via the run() event stream.)
+  // The failure surfaces only through the child, so the parent must keep
+  // retrying until the child passes - and the final attempt's child must be
+  // reported (reportOrder bookkeeping restarts with each retry).
   const events = await collectEvents(fixtures.path('test-runner/flaky/parent-subtest-retry.js'));
   const passes = byName(events.pass, 'parent retries when subtest fails');
   assert.strictEqual(passes.length, 1, `the flaky parent must ultimately pass, got ${passes.length}`);
   assert.strictEqual(passes[0].retryCount, 2,
                      `parent retried until the subtest passed; retryCount=${passes[0].retryCount}`);
+  const childPasses = byName(events.pass, 'child');
+  assert.strictEqual(childPasses.length, 1,
+                     `the final attempt's child must be reported, got ${childPasses.length} pass(es)`);
 });
 
 test('flaky: tracing channel start/end stay balanced across retries', async () => {
@@ -405,4 +404,76 @@ test('flaky: expectFailure error is still published to the node.test channel', a
     fixtures.path('test-runner/flaky/expectfailure-publish.js'), 'xf-publish.txt');
   assert.ok(Number(state) > 0, `error channel got ${state} publishes; expected > 0`);
   assert.strictEqual(code, 0, `expectFailure throw => test passes, got exit ${code}`);
+});
+
+test('flaky: intermediate subtest failure does not fail the run', async () => {
+  // The discarded attempt's child failure must not reach the counters.
+  const { code, stdout } = await tap(
+    fixtures.path('test-runner/flaky/subtest-fail-then-pass.js'));
+  assert.match(stdout, /# fail 0$/m);
+  assert.match(stdout, /# cancelled 0$/m);
+  assert.strictEqual(code, 0, `a flaky pass must exit 0, got ${code}`);
+});
+
+test('flaky: expectFailure timeout keeps non-flaky cancellation semantics', async () => {
+  // It must not flow through fail(), where expectFailure would count the
+  // timeout as a pass.
+  const { code, stdout } = await tap(
+    fixtures.path('test-runner/flaky/expectfailure-timeout.js'));
+  assert.match(stdout, /# cancelled 1$/m);
+  assert.match(stdout, /# pass 0$/m);
+  assert.strictEqual(code, 1, `a timed-out expectFailure test must fail the run, got ${code}`);
+});
+
+test('flaky: after hook is not consumed between subtest-failure retries', async () => {
+  // All three attempts' bodies must run first, teardowns last.
+  const { code, state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/after-subtest-retry.js'), 'after-subtest.txt');
+  assert.match(state, /^body1;body2;body3;after1;/,
+               `after must run only once all retries settle; got ${state}`);
+  assert.strictEqual(code, 0);
+});
+
+test('flaky: hooks registered in the body do not accumulate across retries', async () => {
+  const { code, state } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/hooks-in-body.js'), 'hooks-in-body.txt');
+  assert.strictEqual(state, 'ae1;ae2;',
+                     `each attempt's subtest must run only that attempt's afterEach; got ${state}`);
+  assert.strictEqual(code, 0);
+});
+
+test('flaky: external abort after a retry stays cancelled', async () => {
+  // Only an exhausted flaky timeout is upgraded to a failure.
+  const { stdout } = await tap(fixtures.path('test-runner/flaky/abort-after-retry.js'));
+  assert.match(stdout, /# cancelled 1$/m);
+  assert.match(stdout, /# fail 0$/m);
+});
+
+test('flaky: child # flaky diagnostic does not leak under process isolation', async () => {
+  // The parent filters per-child summary lines and emits one aggregate.
+  const { code, stdout } = await common.spawnPromisified(
+    process.execPath,
+    ['--test', '--test-reporter=tap', fixtures.path('test-runner/flaky/eventually-passes.js')],
+  );
+  const flakyLines = stdout.match(/^# flaky /gm) ?? [];
+  assert.strictEqual(flakyLines.length, 1,
+                     `expected one aggregated flaky diagnostic, got ${flakyLines.length}`);
+  assert.strictEqual(code, 0);
+});
+
+test('flaky: it.flaky keeps an explicit numeric budget', async () => {
+  const { code, state, stdout } = await spawnFlaky(
+    fixtures.path('test-runner/flaky/shorthand-budget.js'), 'shorthand-budget.txt');
+  assert.strictEqual(state.length, 3,
+                     `body ran ${state.length}x; flaky: 2 allows exactly 3 attempts`);
+  assert.match(stdout, /# FLAKY failed after 2 re-tries/);
+  assert.strictEqual(code, 1);
+});
+
+test('flaky: junit reporter emits the retry count as a raw number', async () => {
+  const { stdout } = await common.spawnPromisified(
+    process.execPath,
+    ['--test-reporter=junit', fixtures.path('test-runner/flaky/eventually-passes.js')],
+  );
+  assert.match(stdout, /name="flaky" value="2"/);
 });
