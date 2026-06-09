@@ -2471,6 +2471,10 @@ static llparse_state_t llhttp__internal__run(
         return s_n_llhttp__internal__n_header_value_connection_ws;
       }
       switch (*p) {
+        case 9: {
+          p++;
+          goto s_n_llhttp__internal__n_header_value_connection_ws;
+        }
         case 10: {
           goto s_n_llhttp__internal__n_header_value_otherwise;
         }
@@ -6291,10 +6295,6 @@ static llparse_state_t llhttp__internal__run(
       }
       switch (*p) {
         case 10: {
-          p++;
-          goto s_n_llhttp__internal__n_invoke_llhttp__on_status_complete;
-        }
-        case 13: {
           p++;
           goto s_n_llhttp__internal__n_invoke_llhttp__on_status_complete;
         }
