@@ -13,6 +13,7 @@ Every Tls option, see [here](https://nodejs.org/api/tls.html#tls_tls_connect_opt
 Furthermore, the following options can be passed:
 
 * **socketPath** `string | null` (optional) - Default: `null` - An IPC endpoint, either Unix domain socket or Windows named pipe.
+* **preferH2** `boolean` (optional) - Default: `false` - Only effective together with `allowH2`. When `true`, ALPN is offered as `['h2', 'http/1.1']` (HTTP/2 first) instead of the default `['http/1.1', 'h2']`. Use this when the server selects the ALPN protocol by *client* preference (e.g. some load balancers) so that HTTP/2 is negotiated whenever the server supports it. If the server does not support HTTP/2, ALPN transparently falls back to `http/1.1`.
 * **maxCachedSessions** `number | null` (optional) - Default: `100` - Maximum number of TLS cached sessions. Use 0 to disable TLS session caching. Default: `100`.
 * **timeout** `number | null` (optional) -  In milliseconds. Default `10e3`.
 * **servername** `string | null` (optional)

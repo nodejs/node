@@ -8,7 +8,7 @@ Arguments:
 
 - **dispatch** `function` - The dispatch function to be called after every retry.
 - **maxRedirections** `number` - Maximum number of redirections allowed.
-- **opts** `object` - Options for handling redirection.
+- **opts** `object` - Options for handling redirection. Supports `throwOnMaxRedirect`, `stripHeadersOnRedirect`, and `stripHeadersOnCrossOriginRedirect`.
 - **handler** `object` - An object containing handlers for different stages of the request lifecycle.
 
 Returns: `RedirectHandler`
@@ -18,6 +18,9 @@ Returns: `RedirectHandler`
 - **dispatch** `(options: Dispatch.DispatchOptions, handlers: Dispatch.DispatchHandler) => Promise<Dispatch.DispatchResponse>` (required) - Dispatch function to be called after every redirection.
 - **maxRedirections** `number` (required) - Maximum number of redirections allowed.
 - **opts** `object` (required) - Options for handling redirection.
+  - **throwOnMaxRedirect** `boolean` - Throw when the maximum number of redirections is reached.
+  - **stripHeadersOnRedirect** `string[]` - Header names to remove from all redirected requests.
+  - **stripHeadersOnCrossOriginRedirect** `string[]` - Header names to remove from cross-origin redirected requests.
 - **handler** `object` (required) - Handlers for different stages of the request lifecycle.
 
 ### Properties
