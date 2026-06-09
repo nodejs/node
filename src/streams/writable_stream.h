@@ -300,6 +300,9 @@ void CreateWritableStream(const v8::FunctionCallbackInfo<v8::Value>& args);
 void AcquireWritableStreamDefaultWriter(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
+void ExposeWritableStreamConstructors(Environment* env,
+                                      v8::Local<v8::Object> target);
+
 void InitializeWritableStream(v8::Isolate* isolate,
                               v8::Local<v8::ObjectTemplate> target);
 void RegisterWritableStreamExternalReferences(

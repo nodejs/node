@@ -142,6 +142,9 @@ class TransformStream final : public StreamBaseObject {
 //   -> a fully set-up TransformStream JS object.
 void CreateTransformStream(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+void ExposeTransformStreamConstructors(Environment* env,
+                                       v8::Local<v8::Object> target);
+
 void InitializeTransformStream(v8::Isolate* isolate,
                                v8::Local<v8::ObjectTemplate> target);
 void RegisterTransformStreamExternalReferences(

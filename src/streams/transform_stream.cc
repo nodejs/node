@@ -835,6 +835,19 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(stream_obj);
 }
 
+void ExposeTransformStreamConstructors(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+  auto expose = [&](const char* name, Local<FunctionTemplate> tmpl) {
+    Local<Function> fn;
+    if (tmpl->GetFunction(context).ToLocal(&fn))
+      USE(target->Set(context, OneByteString(isolate, name), fn));
+  };
+  expose("TransformStream", TransformStream::GetConstructorTemplate(env));
+  expose("TransformStreamDefaultController",
+         TransformStreamDefaultController::GetConstructorTemplate(env));
+}
+
 void InitializeTransformStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createTransformStream", CreateTransformStream);
 }

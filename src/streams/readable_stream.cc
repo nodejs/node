@@ -2701,6 +2701,27 @@ void AcquireReadableStreamBYOBReader(
   args.GetReturnValue().Set(reader_obj);
 }
 
+void ExposeReadableStreamConstructors(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+  auto expose = [&](const char* name, Local<FunctionTemplate> tmpl) {
+    Local<Function> fn;
+    if (tmpl->GetFunction(context).ToLocal(&fn))
+      USE(target->Set(context, OneByteString(isolate, name), fn));
+  };
+  expose("ReadableStream", ReadableStream::GetConstructorTemplate(env));
+  expose("ReadableStreamDefaultReader",
+         ReadableStreamDefaultReader::GetConstructorTemplate(env));
+  expose("ReadableStreamBYOBReader",
+         ReadableStreamBYOBReader::GetConstructorTemplate(env));
+  expose("ReadableStreamBYOBRequest",
+         ReadableStreamBYOBRequest::GetConstructorTemplate(env));
+  expose("ReadableStreamDefaultController",
+         ReadableStreamDefaultController::GetConstructorTemplate(env));
+  expose("ReadableByteStreamController",
+         ReadableByteStreamController::GetConstructorTemplate(env));
+}
+
 void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createReadableStream", CreateReadableStream);
   SetMethod(

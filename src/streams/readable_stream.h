@@ -511,6 +511,11 @@ void AcquireReadableStreamBYOBReader(
 // Registers the readable-stream binding methods + constructor templates and
 // their external references. Called from the binding's per-isolate / external
 // reference hooks.
+// Exposes the readable-stream constructor functions on the binding object so the
+// JS layer can use them as the public classes (their prototypes are shared).
+void ExposeReadableStreamConstructors(Environment* env,
+                                      v8::Local<v8::Object> target);
+
 void InitializeReadableStream(v8::Isolate* isolate,
                               v8::Local<v8::ObjectTemplate> target);
 void RegisterReadableStreamExternalReferences(

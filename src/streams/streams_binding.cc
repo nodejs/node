@@ -69,6 +69,10 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
                                              void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   realm->AddBindingData<BindingData>(target);
+  Environment* env = realm->env();
+  webstreams::ExposeReadableStreamConstructors(env, target);
+  webstreams::ExposeWritableStreamConstructors(env, target);
+  webstreams::ExposeTransformStreamConstructors(env, target);
 }
 
 void BindingData::RegisterExternalReferences(

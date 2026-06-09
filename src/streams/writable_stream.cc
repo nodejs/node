@@ -1450,6 +1450,21 @@ void AcquireWritableStreamDefaultWriter(
   args.GetReturnValue().Set(writer_obj);
 }
 
+void ExposeWritableStreamConstructors(Environment* env, Local<Object> target) {
+  Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
+  auto expose = [&](const char* name, Local<FunctionTemplate> tmpl) {
+    Local<Function> fn;
+    if (tmpl->GetFunction(context).ToLocal(&fn))
+      USE(target->Set(context, OneByteString(isolate, name), fn));
+  };
+  expose("WritableStream", WritableStream::GetConstructorTemplate(env));
+  expose("WritableStreamDefaultWriter",
+         WritableStreamDefaultWriter::GetConstructorTemplate(env));
+  expose("WritableStreamDefaultController",
+         WritableStreamDefaultController::GetConstructorTemplate(env));
+}
+
 void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createWritableStream", CreateWritableStream);
   SetMethod(isolate, target, "acquireWritableStreamDefaultWriter",
