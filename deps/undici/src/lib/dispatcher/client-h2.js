@@ -8,7 +8,9 @@ const {
   RequestAbortedError,
   SocketError,
   InformationalError,
-  InvalidArgumentError
+  InvalidArgumentError,
+  HeadersTimeoutError,
+  BodyTimeoutError
 } = require('../core/errors.js')
 const {
   kUrl,
@@ -33,6 +35,7 @@ const {
   kSize,
   kHTTPContext,
   kClosed,
+  kHeadersTimeout,
   kBodyTimeout,
   kEnableConnectProtocol,
   kRemoteSettings,
@@ -81,6 +84,29 @@ function getGoAwayError (session, errorCode) {
       : new SocketError(`HTTP/2: "GOAWAY" frame received with code ${errorCode}`, util.getSocketInfo(session[kSocket])))
 }
 
+function resetHttp2Session (session, err) {
+  const client = session[kClient]
+  const socket = session[kSocket]
+
+  if (client[kHTTP2Session] === session) {
+    client[kSocket] = null
+    client[kHTTPContext] = null
+    client[kHTTP2Session] = null
+  }
+
+  if (socket != null && socket[kError] == null) {
+    socket[kError] = err
+  }
+
+  if (!session.closed && !session.destroyed) {
+    try {
+      session.destroy(err)
+    } catch {}
+  }
+
+  util.destroy(socket, err)
+}
+
 function getGoAwayPendingIdx (client, lastStreamID) {
   const maxAcceptedStreamID = Number.isInteger(lastStreamID) ? lastStreamID : Number.MAX_SAFE_INTEGER
 
@@ -120,6 +146,10 @@ function clearRequestStream (request) {
   const stream = request[kRequestStream]
   detachRequestFromStream(request)
   cleanup?.(stream)
+}
+
+function requeueUnsentRequest (client, request) {
+  client[kQueue].splice(client[kPendingIdx] + 1, 0, request)
 }
 
 function canRetryRequestAfterGoAway (request) {
@@ -629,7 +659,7 @@ function onUpgradeStreamEnd () {
 
 function onUpgradeStreamTimeout () {
   const state = this[kRequestStreamState]
-  failUpgradeStream(state, new InformationalError(`HTTP/2: "stream timeout after ${state.requestTimeout}"`))
+  failUpgradeStream(state, new InformationalError(`HTTP/2: "stream timeout after ${state.headersTimeout}"`))
 }
 
 function onUpgradeResponse (headers, _flags) {
@@ -654,7 +684,7 @@ function onUpgradeResponse (headers, _flags) {
 }
 
 function setupUpgradeStream (stream, state) {
-  const { request, requestTimeout, session } = state
+  const { request, headersTimeout, session } = state
 
   stream[kHTTP2Stream] = true
   stream[kHTTP2Session] = session
@@ -669,11 +699,12 @@ function setupUpgradeStream (stream, state) {
   stream.once('close', onUpgradeStreamClose)
 
   ++session[kOpenStreams]
-  stream.setTimeout(requestTimeout)
+  stream.setTimeout(headersTimeout)
 }
 
 function writeH2 (client, request) {
-  const requestTimeout = request.bodyTimeout ?? client[kBodyTimeout]
+  const headersTimeout = request.headersTimeout ?? client[kHeadersTimeout]
+  const bodyTimeout = request.bodyTimeout ?? client[kBodyTimeout]
   const session = client[kHTTP2Session]
   const { method, path, host, upgrade, expectContinue, signal, protocol, headers: reqHeaders } = request
   let { body } = request
@@ -736,8 +767,14 @@ function writeH2 (client, request) {
     try {
       return session.request(headers, options)
     } catch (err) {
-      if (err?.code !== 'ERR_HTTP2_INVALID_CONNECTION_HEADERS') {
-        throw err
+      if (err?.code === 'ERR_HTTP2_INVALID_SESSION') {
+        const wrappedErr = new SocketError(err.message, util.getSocketInfo(session[kSocket]))
+        wrappedErr.cause = err
+        session[kError] = wrappedErr
+        resetHttp2Session(session, wrappedErr)
+        requeueUnsentRequest(client, request)
+
+        return null
       }
 
       const wrappedErr = new InformationalError(err.message, { cause: err })
@@ -771,7 +808,8 @@ function writeH2 (client, request) {
       abort,
       finalizeRequest,
       request,
-      requestTimeout,
+      headersTimeout,
+      bodyTimeout,
       responseReceived: false,
       session,
       stream: null
@@ -912,7 +950,8 @@ function writeH2 (client, request) {
     expectsPayload,
     finalizeRequest,
     request,
-    requestTimeout,
+    headersTimeout,
+    bodyTimeout,
     responseReceived: false,
     session,
     stream: null
@@ -929,11 +968,10 @@ function writeH2 (client, request) {
   stream[kHTTP2Stream] = true
   stream[kRequestStreamState] = state
   state.stream = stream
-  bindRequestToStream(request, stream, null)
 
   // Increment counter as we have new streams open
   ++session[kOpenStreams]
-  stream.setTimeout(requestTimeout)
+  stream.setTimeout(headersTimeout)
 
   stream[kHTTP2Session] = session
   stream.once('close', onRequestStreamClose)
@@ -1017,6 +1055,7 @@ function onResponse (headers) {
   delete headers[HTTP2_HEADER_STATUS]
   request.onResponseStarted()
   state.responseReceived = true
+  stream.setTimeout(state.bodyTimeout)
 
   // Due to the stream nature, it is possible we face a race condition
   // where the stream has been assigned, but the request has been aborted
@@ -1087,7 +1126,9 @@ function onTimeout () {
 
   releaseRequestStream(stream)
 
-  const err = new InformationalError(`HTTP/2: "stream timeout after ${state.requestTimeout}"`)
+  const err = state.responseReceived
+    ? new BodyTimeoutError(`HTTP/2: "stream timeout after ${state.bodyTimeout}"`)
+    : new HeadersTimeoutError(`HTTP/2: "headers timeout after ${state.headersTimeout}"`)
   state.abort(err)
 }
 

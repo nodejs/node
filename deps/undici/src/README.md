@@ -21,26 +21,63 @@ npm i undici
 
 ## Benchmarks
 
-The benchmark is a simple getting data [example](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark.js) using a
-50 TCP connections with a pipelining depth of 10 running on Node 22.11.0.
+The benchmark is a simple getting data [example](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark.js) using
+50 TCP connections with a pipelining depth of 10 running on Node 24.14.1.
+
+### HTTP/1.1
 
 ```
 ┌────────────────────────┬─────────┬────────────────────┬────────────┬─────────────────────────┐
 │  Tests                 │ Samples │ Result             │ Tolerance  │ Difference with slowest │
 ├────────────────────────┼─────────┼────────────────────┼────────────┼─────────────────────────┤
-│  'axios'               │ 15      │ '5708.26 req/sec'  │ '± 2.91 %' │ '-'                     │
-│  'http - no keepalive' │ 10      │ '5809.80 req/sec'  │ '± 2.30 %' │ '+ 1.78 %'              │
-│  'request'             │ 30      │ '5828.80 req/sec'  │ '± 2.91 %' │ '+ 2.11 %'              │
-│  'undici - fetch'      │ 40      │ '5903.78 req/sec'  │ '± 2.87 %' │ '+ 3.43 %'              │
-│  'node-fetch'          │ 10      │ '5945.40 req/sec'  │ '± 2.13 %' │ '+ 4.15 %'              │
-│  'got'                 │ 35      │ '6511.45 req/sec'  │ '± 2.84 %' │ '+ 14.07 %'             │
-│  'http - keepalive'    │ 65      │ '9193.24 req/sec'  │ '± 2.92 %' │ '+ 61.05 %'             │
-│  'superagent'          │ 35      │ '9339.43 req/sec'  │ '± 2.95 %' │ '+ 63.61 %'             │
-│  'undici - pipeline'   │ 50      │ '13364.62 req/sec' │ '± 2.93 %' │ '+ 134.13 %'            │
-│  'undici - stream'     │ 95      │ '18245.36 req/sec' │ '± 2.99 %' │ '+ 219.63 %'            │
-│  'undici - request'    │ 50      │ '18340.17 req/sec' │ '± 2.84 %' │ '+ 221.29 %'            │
-│  'undici - dispatch'   │ 40      │ '22234.42 req/sec' │ '± 2.94 %' │ '+ 289.51 %'            │
+│  'node-fetch'          │ 50      │ '4711.86 req/sec'  │ '± 2.92 %' │ '-'                     │
+│  'undici - fetch'      │ 75      │ '5438.50 req/sec'  │ '± 2.97 %' │ '+ 15.42 %'             │
+│  'axios'               │ 45      │ '5448.08 req/sec'  │ '± 2.98 %' │ '+ 15.62 %'             │
+│  'request'             │ 65      │ '5809.63 req/sec'  │ '± 2.90 %' │ '+ 23.30 %'             │
+│  'http - no keepalive' │ 35      │ '5910.77 req/sec'  │ '± 2.87 %' │ '+ 25.44 %'             │
+│  'got'                 │ 50      │ '6047.80 req/sec'  │ '± 2.91 %' │ '+ 28.35 %'             │
+│  'superagent'          │ 60      │ '7534.53 req/sec'  │ '± 2.97 %' │ '+ 59.91 %'             │
+│  'http - keepalive'    │ 75      │ '9343.41 req/sec'  │ '± 2.90 %' │ '+ 98.30 %'             │
+│  'undici - pipeline'   │ 65      │ '13470.70 req/sec' │ '± 2.93 %' │ '+ 185.89 %'            │
+│  'undici - request'    │ 80      │ '16850.87 req/sec' │ '± 2.93 %' │ '+ 257.63 %'            │
+│  'undici - stream'     │ 101     │ '18488.56 req/sec' │ '± 3.81 %' │ '+ 292.38 %'            │
+│  'undici - dispatch'   │ 101     │ '20786.44 req/sec' │ '± 3.08 %' │ '+ 341.15 %'            │
 └────────────────────────┴─────────┴────────────────────┴────────────┴─────────────────────────┘
+```
+
+### HTTP/1.1 over HTTPS
+
+Using [benchmark-https.js](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark-https.js) against an h1-over-TLS server (50 connections, pipelining depth 10, Node 24.14.1).
+
+```
+┌────────────────────────┬─────────┬───────────────────┬────────────┬─────────────────────────┐
+│  Tests                 │ Samples │ Result            │ Tolerance  │ Difference with slowest │
+├────────────────────────┼─────────┼───────────────────┼────────────┼─────────────────────────┤
+│  'https - no keepalive'│ 10      │ '1358.40 req/sec' │ '± 1.99 %' │ '-'                     │
+│  'undici - fetch'      │ 30      │ '3721.76 req/sec' │ '± 2.97 %' │ '+ 173.98 %'            │
+│  'https - keepalive'   │ 35      │ '5633.91 req/sec' │ '± 2.84 %' │ '+ 314.75 %'            │
+│  'undici - pipeline'   │ 15      │ '6254.05 req/sec' │ '± 2.80 %' │ '+ 360.40 %'            │
+│  'undici - request'    │ 25      │ '6669.80 req/sec' │ '± 2.73 %' │ '+ 391.01 %'            │
+│  'undici - stream'     │ 25      │ '7019.04 req/sec' │ '± 2.77 %' │ '+ 416.71 %'            │
+│  'undici - dispatch'   │ 20      │ '7361.85 req/sec' │ '± 2.90 %' │ '+ 441.95 %'            │
+└────────────────────────┴─────────┴───────────────────┴────────────┴─────────────────────────┘
+```
+
+### HTTP/2
+
+Using [benchmark-http2.js](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark-http2.js) against an h2 server (50 connections, pipelining depth 10, Node 24.14.1).
+
+```
+┌────────────────────────┬─────────┬───────────────────┬────────────┬─────────────────────────┐
+│  Tests                 │ Samples │ Result            │ Tolerance  │ Difference with slowest │
+├────────────────────────┼─────────┼───────────────────┼────────────┼─────────────────────────┤
+│  'undici - fetch'      │ 45      │ '3499.03 req/sec' │ '± 2.93 %' │ '-'                     │
+│  'native - http2'      │ 25      │ '4904.58 req/sec' │ '± 2.81 %' │ '+ 40.17 %'             │
+│  'undici - pipeline'   │ 60      │ '5836.82 req/sec' │ '± 2.99 %' │ '+ 66.81 %'             │
+│  'undici - request'    │ 65      │ '6831.25 req/sec' │ '± 2.83 %' │ '+ 95.23 %'             │
+│  'undici - stream'     │ 55      │ '6874.30 req/sec' │ '± 2.91 %' │ '+ 96.46 %'             │
+│  'undici - dispatch'   │ 55      │ '7791.23 req/sec' │ '± 2.96 %' │ '+ 122.67 %'            │
+└────────────────────────┴─────────┴───────────────────┴────────────┴─────────────────────────┘
 ```
 
 ## Undici vs. Fetch
@@ -339,6 +376,9 @@ The `body` mixins are the most common way to format the request/response body. M
 
 > [!NOTE]
 > The body returned from `undici.request` does not implement `.formData()`.
+
+> [!WARNING]
+> Calling `body.formData()` on a fetch response causes undici to buffer and parse the entire body. Since this is dictated by the spec, `body.formData()` must only be called on responses from trusted servers.
 
 Example usage:
 
@@ -740,10 +780,11 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 Undici aligns with the Node.js LTS schedule. The following table shows the supported versions:
 
 | Undici Version | Bundled in Node.js | Node.js Versions Supported | End of Life |
-|----------------|-------------------|----------------------------|-------------|
-| 5.x           | 18.x              | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
-| 6.x           | 20.x, 22.x       | ≥18.17 (tested: 18, 20, 21, 22) | 2026-04-30  |
-| 7.x           | 24.x              | ≥20.18.1 (tested: 20, 22, 24) | 2027-04-30  |
+|----------------|--------------------|----------------------------|-------------|
+| 5.x            | 18.x               | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
+| 6.x            | 20.x, 22.x         | ≥18.17 (tested: 18, 20, 21, 22) | 2027-04-30  |
+| 7.x            | 24.x               | ≥20.18.1 (tested: 20, 22, 24) | 2028-04-30  |
+| 8.x            | 26.x               | ≥22.19.0 (tested: 22, 24, 26) | 2029-04-30  |
 
 ## License
 
