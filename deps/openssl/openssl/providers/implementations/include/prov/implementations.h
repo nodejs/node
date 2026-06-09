@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -264,7 +264,9 @@ extern const OSSL_DISPATCH ossl_kmac256_internal_functions[];
 #endif
 extern const OSSL_DISPATCH ossl_kmac128_functions[];
 extern const OSSL_DISPATCH ossl_kmac256_functions[];
+#ifndef OPENSSL_NO_SIPHASH
 extern const OSSL_DISPATCH ossl_siphash_functions[];
+#endif
 extern const OSSL_DISPATCH ossl_poly1305_functions[];
 
 /* KDFs / PRFs */
