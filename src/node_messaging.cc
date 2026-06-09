@@ -564,7 +564,11 @@ Maybe<bool> Message::Serialize(Environment* env,
       // A BaseObject that declares no native transfer mode but implements the
       // JS transferable protocol (markTransferMode + @@kTransfer) is driven
       // through that protocol — the C++ WHATWG streams objects rely on this.
-      if (host_object->GetTransferMode() ==
+      // `host_object` may be null when the entry's native object was already
+      // freed (e.g. a detached MessagePort); that null is handled by the
+      // detached-port check below, so the bridge must not dereference it.
+      if (host_object &&
+          host_object->GetTransferMode() ==
               BaseObject::TransferMode::kDisallowCloneAndTransfer &&
           JSTransferable::IsJSTransferable(env, context, entry)) {
         host_object = JSTransferable::Wrap(env, entry);
@@ -1434,8 +1438,11 @@ Maybe<BaseObjectPtrList> JSTransferable::NestedTransferables() const {
       // its JSTransferable wrapper here, since that is the (idempotent) wrapper
       // the serializer will look up when it later writes the object. Adding the
       // raw BaseObject would not match and would be reported as a transferable
-      // missing from the transfer list.
-      if (base->GetTransferMode() ==
+      // missing from the transfer list. `base` may be null for an entry whose
+      // native object was already freed; leave it as-is in that case (matching
+      // the prior behavior) rather than dereferencing it.
+      if (base &&
+          base->GetTransferMode() ==
               BaseObject::TransferMode::kDisallowCloneAndTransfer &&
           JSTransferable::IsJSTransferable(env(), context, obj)) {
         auto wrapped = JSTransferable::Wrap(env(), obj);
