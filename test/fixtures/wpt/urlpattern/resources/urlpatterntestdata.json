@@ -3154,5 +3154,12 @@
         "groups": {"0": "barbaz"}
       }
     }
+  },
+  {
+    "pattern": [{ "pathname": "/:𠀀" }],
+    "inputs": [{ "pathname": "/foo" }],
+    "expected_match": {
+      "pathname": { "input": "/foo", "groups": { "𠀀": "foo" } }
+    }
   }
 ]
