@@ -2917,6 +2917,18 @@ void ReadableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(s->stored_error(env));
 }
 
+// Introspection helper for white-box tests: returns a ReadableStream's
+// controller object (default or byte). The public surface exposes no
+// stream->controller link.
+void ReadableStreamController(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(env)->HasInstance(args[0])) return;
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(
+      s->object()->GetInternalField(ReadableStream::kController).As<Value>());
+}
+
 // Robust brand checks: a prototype-chain test (ObjectPrototypeIsPrototypeOf in
 // JS) accepts forgeries like Object.create(ReadableStream.prototype); these use
 // the constructor template's HasInstance, which only matches real native
@@ -2994,6 +3006,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "isReadableStream", IsReadableStream);
   SetMethod(isolate, target, "readableStreamStoredError",
             ReadableStreamStoredError);
+  SetMethod(isolate, target, "readableStreamController",
+            ReadableStreamController);
   SetMethod(isolate, target, "readableStreamDefaultControllerEnqueue",
             DefaultControllerEnqueue);
   SetMethod(isolate, target, "readableStreamDefaultControllerClose",
@@ -3014,6 +3028,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReadableStreamCancel);
   registry->Register(IsReadableStream);
   registry->Register(ReadableStreamStoredError);
+  registry->Register(ReadableStreamController);
   registry->Register(DefaultControllerEnqueue);
   registry->Register(DefaultControllerClose);
   registry->Register(DefaultControllerError);

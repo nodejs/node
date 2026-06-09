@@ -20,8 +20,9 @@ const {
 } = require('stream');
 
 const {
-  kState,
-} = require('internal/webstreams/util');
+  writableStreamState,
+  writableStreamStoredError,
+} = require('internal/webstreams/writablestream');
 
 class TestSource {
   constructor() {
@@ -64,7 +65,7 @@ class TestSource {
 
   writable.on('close', common.mustCall(() => {
     assert(writableStream.locked);
-    assert.strictEqual(writableStream[kState].state, 'closed');
+    assert.strictEqual(writableStreamState(writableStream), 'closed');
     assert.strictEqual(source.chunks.length, 1);
     assert.deepStrictEqual(source.chunks[0], Buffer.from('chunk'));
   }));
@@ -83,7 +84,7 @@ class TestSource {
 
   writable.on('close', common.mustCall(() => {
     assert(writableStream.locked);
-    assert.strictEqual(writableStream[kState].state, 'closed');
+    assert.strictEqual(writableStreamState(writableStream), 'closed');
     assert.strictEqual(source.chunks.length, 0);
   }));
 }
@@ -106,8 +107,8 @@ class TestSource {
 
   writable.on('close', common.mustCall(() => {
     assert(writableStream.locked);
-    assert.strictEqual(writableStream[kState].state, 'errored');
-    assert.strictEqual(writableStream[kState].storedError, error);
+    assert.strictEqual(writableStreamState(writableStream), 'errored');
+    assert.strictEqual(writableStreamStoredError(writableStream), error);
     assert.strictEqual(source.chunks.length, 0);
   }));
 }

@@ -1428,7 +1428,22 @@ Maybe<BaseObjectPtrList> JSTransferable::NestedTransferables() const {
     }
     Local<Object> obj = value.As<Object>();
     if (BaseObject::IsBaseObject(env()->isolate_data(), obj)) {
-      ret.emplace_back(Unwrap<BaseObject>(obj));
+      BaseObjectPtr<BaseObject> base{Unwrap<BaseObject>(obj)};
+      // A BaseObject with no native transfer mode that implements the JS
+      // transferable protocol (the C++ WHATWG streams) must be registered as
+      // its JSTransferable wrapper here, since that is the (idempotent) wrapper
+      // the serializer will look up when it later writes the object. Adding the
+      // raw BaseObject would not match and would be reported as a transferable
+      // missing from the transfer list.
+      if (base->GetTransferMode() ==
+              BaseObject::TransferMode::kDisallowCloneAndTransfer &&
+          JSTransferable::IsJSTransferable(env(), context, obj)) {
+        auto wrapped = JSTransferable::Wrap(env(), obj);
+        if (!wrapped) return Nothing<BaseObjectPtrList>();
+        ret.emplace_back(wrapped);
+        continue;
+      }
+      ret.emplace_back(base);
       continue;
     }
     if (!JSTransferable::IsJSTransferable(env(), context, obj)) {

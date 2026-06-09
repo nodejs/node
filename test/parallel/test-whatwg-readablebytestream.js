@@ -13,8 +13,8 @@ const {
 } = require('stream/web');
 
 const {
-  kState,
-} = require('internal/webstreams/util');
+  readableStreamController,
+} = require('internal/webstreams/readablestream');
 
 const {
   open,
@@ -37,7 +37,7 @@ const {
     type: 'bytes',
   });
 
-  assert(r[kState].controller instanceof ReadableByteStreamController);
+  assert(readableStreamController(r) instanceof ReadableByteStreamController);
 
   assert.strictEqual(typeof r.locked, 'boolean');
   assert.strictEqual(typeof r.cancel, 'function');
@@ -127,7 +127,7 @@ class Source {
 
 {
   const stream = new ReadableStream(new Source());
-  assert(stream[kState].controller instanceof ReadableByteStreamController);
+  assert(readableStreamController(stream) instanceof ReadableByteStreamController);
 
   async function read(stream) {
     const reader = stream.getReader({ mode: 'byob' });
@@ -151,7 +151,7 @@ class Source {
 
 {
   const stream = new ReadableStream(new Source());
-  assert(stream[kState].controller instanceof ReadableByteStreamController);
+  assert(readableStreamController(stream) instanceof ReadableByteStreamController);
 
   async function read(stream) {
     const chunks = [];
@@ -169,7 +169,7 @@ class Source {
 
 {
   const stream = new ReadableStream(new Source());
-  assert(stream[kState].controller instanceof ReadableByteStreamController);
+  assert(readableStreamController(stream) instanceof ReadableByteStreamController);
 
   async function read(stream) {
     // eslint-disable-next-line no-unused-vars
@@ -182,7 +182,7 @@ class Source {
 
 {
   const stream = new ReadableStream(new Source());
-  assert(stream[kState].controller instanceof ReadableByteStreamController);
+  assert(readableStreamController(stream) instanceof ReadableByteStreamController);
 
   const error = new Error('boom');
 
