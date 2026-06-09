@@ -34,6 +34,7 @@
 #include <queue>
 #include <span>
 #include <random>
+#include <optional>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -45,14 +46,23 @@
 #include "shared.h"
 
 namespace ngtcp2 {
-inline constexpr size_t MAX_UDP_PAYLOAD_SIZE = 1500;
+inline constexpr auto MAX_UDP_PAYLOAD_SIZE = 1500UZ;
 
 using Timestamp =
   std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>;
 
-ngtcp2_tstamp to_ngtcp2_tstamp(const Timestamp &ts);
+[[nodiscard]] constexpr ngtcp2_tstamp to_ngtcp2_tstamp(Timestamp ts) {
+  return static_cast<ngtcp2_tstamp>(ts.time_since_epoch().count());
+}
 
-Timestamp to_timestamp(ngtcp2_tstamp ts);
+[[nodiscard]] constexpr ngtcp2_duration
+to_ngtcp2_duration(Timestamp::duration d) {
+  return static_cast<ngtcp2_duration>(d.count());
+}
+
+[[nodiscard]] constexpr Timestamp to_timestamp(ngtcp2_tstamp ts) {
+  return Timestamp{Timestamp::duration{ts}};
+}
 
 class Simulator;
 class Endpoint;
@@ -63,15 +73,18 @@ struct Context {
   Endpoint *endpoint;
 };
 
-constexpr unsigned long long operator""_kbps(unsigned long long k) {
+[[nodiscard]] constexpr unsigned long long
+operator""_kbps(unsigned long long k) noexcept {
   return k * 1'000;
 }
 
-constexpr unsigned long long operator""_mbps(unsigned long long m) {
+[[nodiscard]] constexpr unsigned long long
+operator""_mbps(unsigned long long m) noexcept {
   return m * 1'000'000;
 }
 
-constexpr unsigned long long operator""_gbps(unsigned long long g) {
+[[nodiscard]] constexpr unsigned long long
+operator""_gbps(unsigned long long g) noexcept {
   return g * 1'000'000'000;
 }
 
@@ -132,7 +145,7 @@ EndpointConfig default_client_endpoint_config();
 EndpointConfig default_server_endpoint_config();
 
 struct NetworkPath {
-  NetworkPath invert();
+  NetworkPath invert() const;
 
   Address local{};
   Address remote{};
@@ -174,9 +187,10 @@ public:
   Channel &operator=(const Channel &) = delete;
   Channel &operator=(Channel &&) noexcept;
 
-  void send_pkt(const NetworkPath &path, std::span<uint8_t> pkt);
+  void send_pkt(const NetworkPath &path, std::span<const uint8_t> pkt);
   void schedule_timeout(Timestamp ts);
   void set_timestamp(Timestamp ts) { ts_ = ts; }
+  Timestamp get_timestamp() const { return ts_; }
   Timestamp get_next_timestamp() const;
   Event get_next_event();
   void pop_tx_queue();
@@ -197,6 +211,12 @@ private:
   Timestamp ts_{};
 };
 
+struct TokenParams {
+  const ngtcp2_cid *original_dcid;
+  const ngtcp2_cid *retry_scid;
+  std::span<const uint8_t> token;
+};
+
 class Endpoint {
 public:
   Endpoint();
@@ -212,7 +232,8 @@ public:
   std::expected<void, Error>
   setup_server(std::span<const uint8_t> original_dcid,
                std::span<const uint8_t> client_scid, uint32_t version,
-               const ngtcp2_addr *remote_addr);
+               const ngtcp2_addr *remote_addr,
+               std::optional<const TokenParams> token_params);
   ngtcp2_conn *get_conn() const { return conn_; }
   bool get_initialized() const { return initialized_; }
   const EndpointConfig &get_endpoint_config() const { return config_; }
@@ -224,6 +245,10 @@ public:
   Channel &get_channel() { return channel_; }
 
 private:
+  void reset();
+  std::expected<void, Error> send_retry(const NetworkPath &path,
+                                        const ngtcp2_version_cid &vcid);
+
   EndpointConfig config_;
   WOLFSSL_CTX *ssl_ctx_{};
   WOLFSSL *ssl_{};
@@ -297,4 +322,4 @@ private:
 
 } // namespace ngtcp2
 
-#endif // SIM_H
+#endif // !defined(SIM_H)

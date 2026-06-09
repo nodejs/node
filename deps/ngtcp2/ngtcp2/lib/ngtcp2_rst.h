@@ -50,7 +50,7 @@ typedef struct ngtcp2_rs {
   uint64_t lost;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;
-  int64_t last_end_seq;
+  int64_t last_acked_pkt_id;
   int is_app_limited;
 } ngtcp2_rs;
 
@@ -67,11 +67,11 @@ typedef struct ngtcp2_rst {
   ngtcp2_tstamp first_sent_ts;
   uint64_t app_limited;
   uint64_t lost;
-  /* last_seq is the sequence number of packets across all packet
-     number spaces.  If we would adopt single packet number sequence
-     across all packet number spaces, we can replace this with a
-     packet number. */
-  int64_t last_seq;
+  /* pkt_id is the identifier of packets across all packet number
+     spaces.  If we would adopt single packet number sequence across
+     all packet number spaces, we can replace this with a packet
+     number. */
+  int64_t pkt_id;
   int is_cwnd_limited;
 } ngtcp2_rst;
 

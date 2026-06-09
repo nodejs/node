@@ -24,8 +24,6 @@
  */
 #include "sim_test.h"
 
-#include <iostream>
-
 #include "sim.h"
 #include "util.h"
 

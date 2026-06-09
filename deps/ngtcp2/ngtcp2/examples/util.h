@@ -39,6 +39,8 @@
 #include <string_view>
 #include <span>
 #include <expected>
+#include <ranges>
+#include <filesystem>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -293,9 +295,9 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 
 // read_mime_types reads "MIME media types and the extensions" file
 // denoted by |filename| and returns the mapping of extension to MIME
-// media type.
+// media type.  The key contains the leading "." (e.g., .txt).
 std::expected<std::unordered_map<std::string, std::string>, Error>
-read_mime_types(std::string_view filename);
+read_mime_types(const std::filesystem::path &filename);
 
 inline constexpr auto count_digit_tbl = [] {
   std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
@@ -516,14 +518,14 @@ std::expected<int, Error> create_nonblock_socket(int domain, int type,
                                                  int protocol);
 
 std::expected<std::vector<uint8_t>, Error>
-read_token(std::string_view filename);
-std::expected<void, Error> write_token(std::string_view filename,
+read_token(const std::filesystem::path &path);
+std::expected<void, Error> write_token(const std::filesystem::path &path,
                                        std::span<const uint8_t> token);
 
 std::expected<std::vector<uint8_t>, Error>
-read_transport_params(std::string_view filename);
+read_transport_params(const std::filesystem::path &path);
 std::expected<void, Error>
-write_transport_params(std::string_view filename,
+write_transport_params(const std::filesystem::path &path,
                        std::span<const uint8_t> data);
 
 const char *crypto_default_ciphers();
@@ -532,15 +534,21 @@ const char *crypto_default_groups();
 
 // split_str parses delimited strings in |s| and returns substrings
 // delimited by |delim|.  The any white spaces around substring are
-// treated as a part of substring.
-std::vector<std::string_view> split_str(std::string_view s, char delim = ',');
+// treated as a part of substring.  If |s| is an empty string, this
+// function returns an empty view.
+inline auto split_str(std::string_view s, char delim = ',') {
+  return s | std::ranges::views::split(delim) |
+         std::ranges::views::transform(
+           [](auto &&r) { return std::string_view{r}; });
+}
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
 // hex string and must start with "0x" (e.g., 0x00000001).
 std::expected<uint32_t, Error> parse_version(std::string_view s);
 
 // read_file reads a file denoted by |path| and returns its content.
-std::expected<std::vector<uint8_t>, Error> read_file(std::string_view path);
+std::expected<std::vector<uint8_t>, Error>
+read_file(const std::filesystem::path &path);
 
 size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
 
@@ -564,14 +572,14 @@ struct ECHServerConfig {
   // private_key contains a private key used for decrypting encrypted
   // Client Hello.
   HPKEPrivateKey private_key;
-  // ech_config contains a serialized ECHConfig.
-  std::vector<uint8_t> ech_config;
+  // ech_config_list contains list of a serialized ECHConfig.
+  std::vector<std::vector<uint8_t>> ech_config_list;
 };
 
 // read_ech_server_config reads server-side ECH configuration from a
 // file denoted by |path|.
 std::expected<ECHServerConfig, Error>
-read_ech_server_config(std::string_view path);
+read_ech_server_config(const std::filesystem::path &path);
 
 std::span<uint64_t, 2> generate_siphash_key();
 
@@ -586,7 +594,7 @@ get_string(std::string_view uri, const urlparse_url &u, urlparse_url_fields f) {
 }
 
 // realpath returns the canonicalized absolute path to |path|.
-std::string realpath(const char *path);
+std::filesystem::path realpath(const std::filesystem::path &path);
 
 } // namespace util
 
@@ -615,7 +623,8 @@ inline bool operator==(const ngtcp2_cid &lhs, const ngtcp2_cid &rhs) {
 
 template <>
 struct std::formatter<ngtcp2_cid> : public std::formatter<std::string_view> {
-  auto format(ngtcp2_cid cid, format_context &ctx) const {
+  template <typename FormatContext>
+  auto format(const ngtcp2_cid &cid, FormatContext &ctx) const {
     std::array<char, NGTCP2_MAX_CIDLEN * 2 + 2> buf;
     buf[0] = '0';
     buf[1] = 'x';

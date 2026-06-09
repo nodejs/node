@@ -71,10 +71,10 @@ int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
   (NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES * sizeof(ngtcp2_vec))
 
 /* NGTCP2_FRAME_CHAIN_FLAG_NONE indicates no flag is set. */
-#define NGTCP2_FRAME_CHAIN_FLAG_NONE 0x0
+#define NGTCP2_FRAME_CHAIN_FLAG_NONE 0x0U
 /* NGTCP2_FRAME_CHAIN_FLAG_MALLOC indicates that ngtcp2_frame_chain is
    allocated by ngtcp2_mem_malloc. */
-#define NGTCP2_FRAME_CHAIN_FLAG_MALLOC 0x1
+#define NGTCP2_FRAME_CHAIN_FLAG_MALLOC 0x1U
 
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 

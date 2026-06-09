@@ -261,7 +261,7 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls);
  * This function calls `ngtcp2_conn_set_initial_crypto_ctx` to set
  * initial AEAD and message digest algorithm.  After the successful
  * call of this function, application can use
- * `ngtcp2_conn_get_initial_crypto_ctx` to get the object.
+ * `ngtcp2_conn_get_initial_crypto_ctx2` to get the object.
  *
  * This function returns 0 if it succeeds, or -1.
  */
