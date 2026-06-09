@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -81,8 +82,8 @@ class ProgressWriterDelegate : public zip::WriterDelegate {
     CHECK_GT(expected_size_, 0);
   }
 
-  bool WriteBytes(const char* data, int num_bytes) override {
-    received_bytes_ += num_bytes;
+  bool WriteBytes(base::span<const uint8_t> data) override {
+    received_bytes_ += data.size();
     LogProgressIfNecessary();
     return true;
   }
@@ -125,6 +126,11 @@ class VirtualFileSystem : public zip::FileAccessor {
   static constexpr char kFooContent[] = "This is foo.";
   static constexpr char kBar1Content[] = "This is bar.";
   static constexpr char kBar2Content[] = "This is bar too.";
+  // Fixed last-modified time returned by GetInfo() for every entry.
+  // Chosen so it is representable in the MS-DOS time format used by ZIP
+  // entries (2-second granularity, base year 1980). 1592222400 corresponds
+  // to 2020-06-15 00:00:00 UTC.
+  static constexpr int64_t kLastModifiedSecondsSinceUnixEpoch = 1592222400;
 
   VirtualFileSystem() {
     base::FilePath test_dir;
@@ -212,8 +218,8 @@ class VirtualFileSystem : public zip::FileAccessor {
     }
 
     info->is_directory = !files_.count(path);
-    info->last_modified =
-        base::Time::FromSecondsSinceUnixEpoch(172097977);  // Some random date.
+    info->last_modified = base::Time::FromSecondsSinceUnixEpoch(
+        kLastModifiedSecondsSinceUnixEpoch);
 
     return true;
   }
@@ -1243,6 +1249,37 @@ TEST_F(ZipTest, ZipWithFileAccessor) {
   EXPECT_TRUE(
       base::ReadFileToString(bar_dir.AppendASCII("bar2.txt"), &file_content));
   EXPECT_EQ(VirtualFileSystem::kBar2Content, file_content);
+}
+
+TEST_F(ZipTest, ZipWithFileAccessorOverridesEntryTimestamps) {
+  const base::Time expected = base::Time::FromSecondsSinceUnixEpoch(
+      VirtualFileSystem::kLastModifiedSecondsSinceUnixEpoch);
+
+  base::FilePath zip_file;
+  ASSERT_TRUE(base::CreateTemporaryFile(&zip_file));
+
+  VirtualFileSystem file_accessor;
+  const zip::ZipParams params{.file_accessor = &file_accessor,
+                              .dest_file = zip_file};
+  ASSERT_TRUE(zip::Zip(params));
+
+  zip::ZipReader reader;
+  ASSERT_TRUE(reader.Open(zip_file));
+
+  int file_entries = 0;
+  int dir_entries = 0;
+  while (const zip::ZipReader::Entry* const entry = reader.Next()) {
+    EXPECT_EQ(expected, entry->last_modified)
+        << "Entry " << entry->path << " carries the wrong timestamp";
+    if (entry->is_directory) {
+      ++dir_entries;
+    } else {
+      ++file_entries;
+    }
+  }
+  EXPECT_TRUE(reader.ok());
+  EXPECT_EQ(3, file_entries);
+  EXPECT_EQ(1, dir_entries);
 }
 
 // Tests progress reporting while zipping files.
