@@ -1524,6 +1524,21 @@ void WritableStreamCloseQueuedOrInFlight(
   args.GetReturnValue().Set(s->CloseQueuedOrInFlight());
 }
 
+// Introspection helper for a controller's custom inspect: returns the
+// WritableStream a WritableStreamDefaultController belongs to. Internal-only
+// (the public surface exposes no controller->stream link).
+void WritableStreamControllerStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!WritableStreamDefaultController::GetConstructorTemplate(env)
+           ->HasInstance(args[0])) {
+    return;
+  }
+  auto* c = BaseObject::FromJSObject<WritableStreamDefaultController>(
+      args[0].As<Object>());
+  if (c == nullptr) return;
+  args.GetReturnValue().Set(c->stream()->object());
+}
+
 void ExposeWritableStreamConstructors(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -1550,6 +1565,8 @@ void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             WritableStreamCloseQueuedOrInFlight);
   SetMethod(isolate, target, "writableStreamStoredError",
             WritableStreamStoredError);
+  SetMethod(isolate, target, "writableStreamControllerStream",
+            WritableStreamControllerStream);
 }
 
 void RegisterWritableStreamExternalReferences(
@@ -1560,6 +1577,7 @@ void RegisterWritableStreamExternalReferences(
   registry->Register(WritableStreamClosedPromise);
   registry->Register(WritableStreamCloseQueuedOrInFlight);
   registry->Register(WritableStreamStoredError);
+  registry->Register(WritableStreamControllerStream);
   WritableStream::RegisterExternalReferences(registry);
   WritableStreamDefaultController::RegisterExternalReferences(registry);
   WritableStreamDefaultWriter::RegisterExternalReferences(registry);

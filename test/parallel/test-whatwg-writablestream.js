@@ -14,10 +14,6 @@ const {
 } = require('stream/web');
 
 const {
-  kState,
-} = require('internal/webstreams/util');
-
-const {
   isPromise,
 } = require('util/types');
 
@@ -52,9 +48,10 @@ class Sink {
 }
 
 {
-  const stream = new WritableStream();
+  let controller;
+  const stream = new WritableStream({ start(c) { controller = c; } });
 
-  assert(stream[kState].controller instanceof WritableStreamDefaultController);
+  assert(controller instanceof WritableStreamDefaultController);
   assert(!stream.locked);
 
   assert.strictEqual(typeof stream.abort, 'function');
@@ -148,7 +145,7 @@ class Sink {
   assert.rejects(writer.closed, error).then(common.mustCall());
 
   writer.abort(error).then(common.mustCall(() => {
-    assert.strictEqual(stream[kState].state, 'errored');
+    assert(isErrored(stream));
     assert(sink.aborted);
   }));
 }
