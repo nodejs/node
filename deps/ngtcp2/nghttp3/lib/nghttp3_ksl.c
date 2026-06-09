@@ -32,7 +32,6 @@
 
 #include "nghttp3_macro.h"
 #include "nghttp3_mem.h"
-#include "nghttp3_range.h"
 
 static nghttp3_ksl_blk null_blk;
 
@@ -57,13 +56,12 @@ void nghttp3_ksl_init(nghttp3_ksl *ksl, nghttp3_ksl_compar compar,
 
   assert(keylen >= sizeof(uint64_t));
 
-  aligned_keylen = (keylen + 0x7u) & ~0x7u;
+  aligned_keylen = (keylen + 0x7U) & ~(size_t)0x7U;
 
   assert(aligned_keylen <= UINT16_MAX);
 
-  nghttp3_objalloc_init(&ksl->blkalloc,
-                        (ksl_blklen(aligned_keylen) + 0xfu) & ~(uintptr_t)0xfu,
-                        mem);
+  nghttp3_objalloc_init(
+    &ksl->blkalloc, (ksl_blklen(aligned_keylen) + 0xFU) & ~(size_t)0xFU, mem);
 
   ksl->root = NULL;
   ksl->front = ksl->back = NULL;
@@ -817,24 +815,11 @@ int nghttp3_ksl_it_begin(const nghttp3_ksl_it *it) {
   return it->i == 0 && it->blk->prev == NULL;
 }
 
-int nghttp3_ksl_range_compar(const nghttp3_ksl_key *lhs,
-                             const nghttp3_ksl_key *rhs) {
-  const nghttp3_range *a = lhs, *b = rhs;
-  return a->begin < b->begin;
-}
-
 nghttp3_ksl_search_def(range, nghttp3_ksl_range_compar)
 
 size_t nghttp3_ksl_range_search(const nghttp3_ksl *ksl, nghttp3_ksl_blk *blk,
                                 const nghttp3_ksl_key *key) {
   return ksl_range_search(ksl, blk, key);
-}
-
-int nghttp3_ksl_range_exclusive_compar(const nghttp3_ksl_key *lhs,
-                                       const nghttp3_ksl_key *rhs) {
-  const nghttp3_range *a = lhs, *b = rhs;
-  return a->begin < b->begin && !(nghttp3_max_uint64(a->begin, b->begin) <
-                                  nghttp3_min_uint64(a->end, b->end));
 }
 
 nghttp3_ksl_search_def(range_exclusive, nghttp3_ksl_range_exclusive_compar)
@@ -845,22 +830,12 @@ size_t nghttp3_ksl_range_exclusive_search(const nghttp3_ksl *ksl,
   return ksl_range_exclusive_search(ksl, blk, key);
 }
 
-int nghttp3_ksl_uint64_less(const nghttp3_ksl_key *lhs,
-                            const nghttp3_ksl_key *rhs) {
-  return *(uint64_t *)lhs < *(uint64_t *)rhs;
-}
-
 nghttp3_ksl_search_def(uint64_less, nghttp3_ksl_uint64_less)
 
 size_t nghttp3_ksl_uint64_less_search(const nghttp3_ksl *ksl,
                                       nghttp3_ksl_blk *blk,
                                       const nghttp3_ksl_key *key) {
   return ksl_uint64_less_search(ksl, blk, key);
-}
-
-int nghttp3_ksl_int64_greater(const nghttp3_ksl_key *lhs,
-                              const nghttp3_ksl_key *rhs) {
-  return *(int64_t *)lhs > *(int64_t *)rhs;
 }
 
 nghttp3_ksl_search_def(int64_greater, nghttp3_ksl_int64_greater)

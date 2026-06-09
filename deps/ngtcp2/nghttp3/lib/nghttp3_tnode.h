@@ -33,13 +33,12 @@
 
 #include "nghttp3_pq.h"
 
-#define NGHTTP3_TNODE_MAX_CYCLE_GAP (1llu << 24)
+#define NGHTTP3_TNODE_MAX_CYCLE_GAP (1ULL << 24)
 
 typedef struct nghttp3_tnode {
   nghttp3_pq_entry pe;
   int64_t id;
   uint64_t cycle;
-  /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
   nghttp3_pri pri;
 } nghttp3_tnode;
 
@@ -60,6 +59,6 @@ int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
 /*
  * nghttp3_tnode_is_scheduled returns nonzero if |tnode| is scheduled.
  */
-int nghttp3_tnode_is_scheduled(nghttp3_tnode *tnode);
+int nghttp3_tnode_is_scheduled(const nghttp3_tnode *tnode);
 
 #endif /* !defined(NGHTTP3_TNODE_H) */
