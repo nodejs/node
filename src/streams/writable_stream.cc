@@ -1015,6 +1015,15 @@ Local<Promise> WritableStream::closed_promise(Environment* env) {
     if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
       return Local<Promise>();
     closed_.Reset(isolate, resolver);
+    // Settle immediately if the stream is already in a terminal state, so a
+    // late requester (e.g. node:stream `finished()`) does not hang.
+    if (state_ == WritableState::kClosed) {
+      USE(resolver->Resolve(env->context(), Undefined(isolate)));
+    } else if (state_ == WritableState::kErrored) {
+      Local<Promise> p = resolver->GetPromise();
+      USE(resolver->Reject(env->context(), stored_error(env)));
+      MarkHandled(env, p);
+    }
   }
   return resolver->GetPromise();
 }
@@ -1450,6 +1459,25 @@ void AcquireWritableStreamDefaultWriter(
   args.GetReturnValue().Set(writer_obj);
 }
 
+// Internal introspection for the node:stream interop layer
+// (kIsErrored/kIsWritable/kIsClosedPromise). Binding functions, not prototype
+// properties, so the public WebIDL surface is unchanged.
+void WritableStreamStateField(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(static_cast<uint32_t>(s->state()));
+}
+
+void WritableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  Local<Promise> p = s->closed_promise(env);
+  if (!p.IsEmpty()) args.GetReturnValue().Set(p);
+}
+
 void ExposeWritableStreamConstructors(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -1469,12 +1497,17 @@ void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createWritableStream", CreateWritableStream);
   SetMethod(isolate, target, "acquireWritableStreamDefaultWriter",
             AcquireWritableStreamDefaultWriter);
+  SetMethod(isolate, target, "writableStreamStateField", WritableStreamStateField);
+  SetMethod(isolate, target, "writableStreamClosedPromise",
+            WritableStreamClosedPromise);
 }
 
 void RegisterWritableStreamExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(CreateWritableStream);
   registry->Register(AcquireWritableStreamDefaultWriter);
+  registry->Register(WritableStreamStateField);
+  registry->Register(WritableStreamClosedPromise);
   WritableStream::RegisterExternalReferences(registry);
   WritableStreamDefaultController::RegisterExternalReferences(registry);
   WritableStreamDefaultWriter::RegisterExternalReferences(registry);

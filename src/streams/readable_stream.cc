@@ -1112,6 +1112,16 @@ Local<Promise> ReadableStream::closed_promise(Environment* env) {
     if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
       return Local<Promise>();
     closed_.Reset(isolate, resolver);
+    // The stream may already be settled by the time the stream-level closed
+    // promise is first requested (e.g. node:stream `finished()` on an
+    // already-closed stream); settle the freshly-created resolver to match.
+    if (state_ == StreamState::kClosed) {
+      USE(resolver->Resolve(env->context(), Undefined(isolate)));
+    } else if (state_ == StreamState::kErrored) {
+      Local<Promise> p = resolver->GetPromise();
+      USE(resolver->Reject(env->context(), stored_error(env)));
+      MarkHandled(env, p);
+    }
   }
   return resolver->GetPromise();
 }
@@ -2701,6 +2711,33 @@ void AcquireReadableStreamBYOBReader(
   args.GetReturnValue().Set(reader_obj);
 }
 
+// Internal introspection helpers for the node:stream interop layer
+// (kIsDisturbed/kIsErrored/kIsReadable/kIsClosedPromise). These are binding
+// functions rather than prototype properties so the public WebIDL surface
+// stays unchanged.
+void ReadableStreamStateField(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(static_cast<uint32_t>(s->state()));
+}
+
+void ReadableStreamDisturbed(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->disturbed());
+}
+
+void ReadableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  Local<Promise> p = s->closed_promise(env);
+  if (!p.IsEmpty()) args.GetReturnValue().Set(p);
+}
+
 void ExposeReadableStreamConstructors(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -2730,6 +2767,10 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             AcquireReadableStreamDefaultReader);
   SetMethod(isolate, target, "acquireReadableStreamBYOBReader",
             AcquireReadableStreamBYOBReader);
+  SetMethod(isolate, target, "readableStreamStateField", ReadableStreamStateField);
+  SetMethod(isolate, target, "readableStreamDisturbed", ReadableStreamDisturbed);
+  SetMethod(isolate, target, "readableStreamClosedPromise",
+            ReadableStreamClosedPromise);
 }
 
 void RegisterReadableStreamExternalReferences(
@@ -2738,6 +2779,9 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(CreateReadableByteStream);
   registry->Register(AcquireReadableStreamDefaultReader);
   registry->Register(AcquireReadableStreamBYOBReader);
+  registry->Register(ReadableStreamStateField);
+  registry->Register(ReadableStreamDisturbed);
+  registry->Register(ReadableStreamClosedPromise);
   ReadableStream::RegisterExternalReferences(registry);
   ReadableStreamDefaultController::RegisterExternalReferences(registry);
   ReadableStreamDefaultReader::RegisterExternalReferences(registry);
