@@ -688,12 +688,22 @@ class Http3ApplicationImpl final : public Session::Application {
   }
 
   int GetStreamData(StreamData* data) override {
+    static_assert(
+        sizeof(ngtcp2_vec) == sizeof(nghttp3_vec) &&
+            alignof(ngtcp2_vec) == alignof(nghttp3_vec) &&
+            offsetof(ngtcp2_vec, base) == offsetof(nghttp3_vec, base) &&
+            offsetof(ngtcp2_vec, len) == offsetof(nghttp3_vec, len),
+        "ngtcp2_vec and nghttp3_vec must have identical layout");
     data->count = kMaxVectorCount;
     ssize_t ret = 0;
     Debug(&session(), "HTTP/3 application getting stream data");
     if (conn_ && session().max_data_left()) {
       ret = nghttp3_conn_writev_stream(
-          *this, &data->id, &data->fin, *data, data->count);
+          *this,
+          &data->id,
+          &data->fin,
+          reinterpret_cast<nghttp3_vec*>(data->data),
+          data->count);
       // A negative return value indicates an error.
       if (ret < 0) {
         return static_cast<int>(ret);
