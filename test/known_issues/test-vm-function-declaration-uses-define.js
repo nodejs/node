@@ -9,7 +9,7 @@ const common = require('../common');
 const vm = require('vm');
 const assert = require('assert');
 
-const ctx = vm.createContext();
+const ctx = vm.createContext({});
 Object.defineProperty(ctx, 'x', {
   enumerable: true,
   configurable: true,
