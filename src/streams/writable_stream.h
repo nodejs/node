@@ -277,6 +277,21 @@ class WritableStream final : public StreamBaseObject {
   v8::Global<v8::Promise::Resolver> closed_;  // stream-level closed promise
 };
 
+// Creates and sets up a WritableStream, returning its JS object. Used by both
+// the binding entry and the C++ TransformStream. Call convention:
+// start(controller), write(chunk, controller), close(), abort(reason). Returns
+// an empty MaybeLocal with a pending exception if start threw synchronously.
+v8::MaybeLocal<v8::Object> NewWritableStream(
+    Environment* env,
+    v8::Local<v8::Function> start_algorithm,
+    v8::Local<v8::Function> write_algorithm,
+    v8::Local<v8::Function> close_algorithm,
+    v8::Local<v8::Function> abort_algorithm,
+    double high_water_mark,
+    SizeMode size_mode,
+    v8::Local<v8::Function> size_algorithm,
+    v8::Local<v8::Object> abort_controller);
+
 // Binding entry points.
 // createWritableStream(start, write, close, abort, highWaterMark, sizeMode,
 //   size, abortController) -> a fully set-up WritableStream JS object.

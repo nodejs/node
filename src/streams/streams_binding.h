@@ -45,6 +45,8 @@ class StreamBaseObject : public BaseObject {
     kWritableStream,
     kWritableStreamDefaultWriter,
     kWritableStreamDefaultController,
+    kTransformStream,
+    kTransformStreamDefaultController,
   };
 
   StreamBaseObject(Environment* env, v8::Local<v8::Object> object, Kind kind)
@@ -96,6 +98,8 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::FunctionTemplate> writable_stream_ctor;
   v8::Global<v8::FunctionTemplate> writable_stream_default_writer_ctor;
   v8::Global<v8::FunctionTemplate> writable_stream_default_controller_ctor;
+  v8::Global<v8::FunctionTemplate> transform_stream_ctor;
+  v8::Global<v8::FunctionTemplate> transform_stream_default_controller_ctor;
 };
 
 }  // namespace webstreams

@@ -1358,35 +1358,24 @@ void WritableStream::Close(const FunctionCallbackInfo<Value>& args) {
 // Binding entry points
 // ===========================================================================
 
-void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+MaybeLocal<Object> NewWritableStream(Environment* env,
+                                     Local<Function> start_algorithm,
+                                     Local<Function> write_algorithm,
+                                     Local<Function> close_algorithm,
+                                     Local<Function> abort_algorithm,
+                                     double high_water_mark,
+                                     SizeMode size_mode,
+                                     Local<Function> size_algorithm,
+                                     Local<Object> abort_controller) {
   Local<Context> context = env->context();
-  // args: (start, write, close, abort, highWaterMark, sizeMode, size,
-  //        abortController)
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
-  CHECK(args[2]->IsFunction());
-  CHECK(args[3]->IsFunction());
-  CHECK(args[4]->IsNumber());
-  CHECK(args[5]->IsUint32());
-  CHECK(args[7]->IsObject());
-  Local<Function> start_algorithm = args[0].As<Function>();
-  Local<Function> write_algorithm = args[1].As<Function>();
-  Local<Function> close_algorithm = args[2].As<Function>();
-  Local<Function> abort_algorithm = args[3].As<Function>();
-  double high_water_mark = args[4].As<Number>()->Value();
-  SizeMode size_mode = static_cast<SizeMode>(args[5].As<v8::Uint32>()->Value());
-  Local<Function> size_algorithm;
-  if (args[6]->IsFunction()) size_algorithm = args[6].As<Function>();
-  Local<Object> abort_controller = args[7].As<Object>();
-
   Local<Function> stream_ctor;
   if (!WritableStream::GetConstructorTemplate(env)
            ->GetFunction(context)
            .ToLocal(&stream_ctor))
-    return;
+    return MaybeLocal<Object>();
   Local<Object> stream_obj;
-  if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj)) return;
+  if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj))
+    return MaybeLocal<Object>();
   BaseObjectPtr<WritableStream> stream =
       MakeBaseObject<WritableStream>(env, stream_obj);
   stream->MakeWeak();
@@ -1395,9 +1384,10 @@ void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
   if (!WritableStreamDefaultController::GetConstructorTemplate(env)
            ->GetFunction(context)
            .ToLocal(&controller_ctor))
-    return;
+    return MaybeLocal<Object>();
   Local<Object> controller_obj;
-  if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj)) return;
+  if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj))
+    return MaybeLocal<Object>();
   BaseObjectPtr<WritableStreamDefaultController> controller =
       MakeBaseObject<WritableStreamDefaultController>(env, controller_obj);
   controller->MakeWeak();
@@ -1407,9 +1397,34 @@ void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
   if (!controller->Setup(start_algorithm, write_algorithm, close_algorithm,
                          abort_algorithm, high_water_mark, size_mode,
                          size_algorithm, abort_controller)) {
-    return;  // start threw synchronously; exception is pending.
+    return MaybeLocal<Object>();  // start threw synchronously; exception pending.
   }
+  return stream_obj;
+}
 
+void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // args: (start, write, close, abort, highWaterMark, sizeMode, size,
+  //        abortController)
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsFunction());
+  CHECK(args[3]->IsFunction());
+  CHECK(args[4]->IsNumber());
+  CHECK(args[5]->IsUint32());
+  CHECK(args[7]->IsObject());
+  Local<Function> size_algorithm;
+  if (args[6]->IsFunction()) size_algorithm = args[6].As<Function>();
+  Local<Object> stream_obj;
+  if (!NewWritableStream(
+           env, args[0].As<Function>(), args[1].As<Function>(),
+           args[2].As<Function>(), args[3].As<Function>(),
+           args[4].As<Number>()->Value(),
+           static_cast<SizeMode>(args[5].As<v8::Uint32>()->Value()),
+           size_algorithm, args[7].As<Object>())
+           .ToLocal(&stream_obj)) {
+    return;
+  }
   args.GetReturnValue().Set(stream_obj);
 }
 

@@ -2541,33 +2541,23 @@ void ReadableStreamBYOBReader::GetClosed(
 // Binding entry points
 // ===========================================================================
 
-void CreateReadableStream(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+MaybeLocal<Object> NewReadableStream(Environment* env,
+                                     Local<Function> start_algorithm,
+                                     Local<Function> pull_algorithm,
+                                     Local<Function> cancel_algorithm,
+                                     double high_water_mark,
+                                     SizeMode size_mode,
+                                     Local<Function> size_algorithm) {
   Local<Context> context = env->context();
-  // args: (startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark,
-  //        sizeMode, sizeAlgorithm)
-  CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
-  CHECK(args[2]->IsFunction());
-  CHECK(args[3]->IsNumber());
-  CHECK(args[4]->IsUint32());
-  Local<Function> start_algorithm = args[0].As<Function>();
-  Local<Function> pull_algorithm = args[1].As<Function>();
-  Local<Function> cancel_algorithm = args[2].As<Function>();
-  double high_water_mark = args[3].As<Number>()->Value();
-  SizeMode size_mode = static_cast<SizeMode>(args[4].As<v8::Uint32>()->Value());
-  Local<Function> size_algorithm;
-  if (args[5]->IsFunction()) size_algorithm = args[5].As<Function>();
-
   // Create the stream object.
   Local<Function> stream_ctor;
   if (!ReadableStream::GetConstructorTemplate(env)
            ->GetFunction(context)
            .ToLocal(&stream_ctor))
-    return;
+    return MaybeLocal<Object>();
   Local<Object> stream_obj;
-  if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj)) return;
+  if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj))
+    return MaybeLocal<Object>();
   BaseObjectPtr<ReadableStream> stream =
       MakeBaseObject<ReadableStream>(env, stream_obj);
   stream->MakeWeak();
@@ -2577,9 +2567,10 @@ void CreateReadableStream(const FunctionCallbackInfo<Value>& args) {
   if (!ReadableStreamDefaultController::GetConstructorTemplate(env)
            ->GetFunction(context)
            .ToLocal(&controller_ctor))
-    return;
+    return MaybeLocal<Object>();
   Local<Object> controller_obj;
-  if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj)) return;
+  if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj))
+    return MaybeLocal<Object>();
   BaseObjectPtr<ReadableStreamDefaultController> controller =
       MakeBaseObject<ReadableStreamDefaultController>(env, controller_obj);
   controller->MakeWeak();
@@ -2589,9 +2580,31 @@ void CreateReadableStream(const FunctionCallbackInfo<Value>& args) {
 
   if (!controller->Setup(start_algorithm, pull_algorithm, cancel_algorithm,
                          high_water_mark, size_mode, size_algorithm)) {
-    return;  // start threw synchronously; exception is pending.
+    return MaybeLocal<Object>();  // start threw synchronously; exception pending.
   }
+  return stream_obj;
+}
 
+void CreateReadableStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // args: (startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark,
+  //        sizeMode, sizeAlgorithm)
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsFunction());
+  CHECK(args[3]->IsNumber());
+  CHECK(args[4]->IsUint32());
+  Local<Function> size_algorithm;
+  if (args[5]->IsFunction()) size_algorithm = args[5].As<Function>();
+  Local<Object> stream_obj;
+  if (!NewReadableStream(
+           env, args[0].As<Function>(), args[1].As<Function>(),
+           args[2].As<Function>(), args[3].As<Number>()->Value(),
+           static_cast<SizeMode>(args[4].As<v8::Uint32>()->Value()),
+           size_algorithm)
+           .ToLocal(&stream_obj)) {
+    return;
+  }
   args.GetReturnValue().Set(stream_obj);
 }
 

@@ -480,6 +480,20 @@ class ReadableStream final : public StreamBaseObject {
   v8::Global<v8::Promise::Resolver> closed_;  // the stream-level closed promise
 };
 
+// Creates and sets up a default ReadableStream, returning its JS object. Used by
+// both the binding entry and the C++ TransformStream. The algorithm functions
+// follow the call convention: start(controller), pull(controller),
+// cancel(reason). Returns an empty MaybeLocal with a pending exception if the
+// start algorithm threw synchronously.
+v8::MaybeLocal<v8::Object> NewReadableStream(
+    Environment* env,
+    v8::Local<v8::Function> start_algorithm,
+    v8::Local<v8::Function> pull_algorithm,
+    v8::Local<v8::Function> cancel_algorithm,
+    double high_water_mark,
+    SizeMode size_mode,
+    v8::Local<v8::Function> size_algorithm);
+
 // Binding entry points (registered on the `webstreams` internal binding).
 // createReadableStream(start, pull, cancel, highWaterMark, sizeMode, size)
 //   -> a fully set-up default ReadableStream JS object.
