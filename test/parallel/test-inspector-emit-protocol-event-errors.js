@@ -171,6 +171,39 @@ const NETWORK_ERROR_CASES = [
     networkRequest({ request: omit(networkRequest().request, 'headers') }),
     'Missing request.headers in event',
   ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      initiator: {
+        type: 'script',
+        stack: {
+          callFrames: [],
+          unsupportedValue: 1n,
+        },
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
+  [
+    'requestWillBeSent',
+    networkRequest({
+      initiator: {
+        type: 'script',
+        stack: (() => {
+          const stack = {};
+          Object.defineProperty(stack, 'callFrames', {
+            enumerable: true,
+            configurable: true,
+            get() {
+              throw new Error('boom');
+            },
+          });
+          return stack;
+        })(),
+      },
+    }),
+    'Invalid initiator.stack in event',
+  ],
 
   [
     'responseReceived',

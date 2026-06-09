@@ -1472,6 +1472,7 @@
             # TODO(legendecas): make node_inspector.gypi a dependable target.
             '<(SHARED_INTERMEDIATE_DIR)', # for inspector
             '<(SHARED_INTERMEDIATE_DIR)/src', # for inspector
+            '<(SHARED_INTERMEDIATE_DIR)/inspector-generated-output-root/include',
           ],
           'dependencies': [
             'deps/inspector_protocol/inspector_protocol.gyp:crdtp',
