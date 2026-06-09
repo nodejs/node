@@ -129,7 +129,7 @@ class GTEST_API_ Message {
                               int>::type = 0
 #endif  // GTEST_HAS_ABSL
       >
-  inline Message& operator<<(const T& val) {
+  Message& operator<<(const T& val) {
         // Some libraries overload << for STL containers.  These
     // overloads are defined in the global namespace instead of ::std.
     //
@@ -155,7 +155,7 @@ class GTEST_API_ Message {
   template <typename T,
             typename std::enable_if<absl::HasAbslStringify<T>::value,  // NOLINT
                                     int>::type = 0>
-  inline Message& operator<<(const T& val) {
+  Message& operator<<(const T& val) {
     // ::operator<< is needed here for a similar reason as with the non-Abseil
     // version above
     using ::operator<<;
