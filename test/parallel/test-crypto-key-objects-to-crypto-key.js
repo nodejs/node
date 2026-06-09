@@ -1,10 +1,9 @@
 'use strict';
+// Flags: --expose-internals
 
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-
-const { hasOpenSSL } = require('../common/crypto');
 
 const assert = require('assert');
 const {
@@ -13,6 +12,29 @@ const {
   randomBytes,
   generateKeyPairSync,
 } = require('crypto');
+const { kSupportedAlgorithms } = require('internal/crypto/util');
+
+const hashes = Object.keys(kSupportedAlgorithms.digest).filter((name) => {
+  return name.startsWith('SHA-') || name.startsWith('SHA3-');
+});
+const namedCurves = ['P-256', 'P-384', 'P-521'];
+
+const signingUsages = {
+  public: ['verify'],
+  private: ['sign'],
+};
+const derivationUsages = {
+  public: [],
+  private: ['deriveBits'],
+};
+const rsaOaepUsages = {
+  public: ['encrypt', 'wrapKey'],
+  private: ['decrypt', 'unwrapKey'],
+};
+const mlKemUsages = {
+  public: ['encapsulateBits'],
+  private: ['decapsulateBits'],
+};
 
 function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
   assert.strictEqual(cryptoKey instanceof CryptoKey, true);
@@ -23,229 +45,336 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
   assert.strictEqual(keyObject.equals(KeyObject.from(cryptoKey)), true);
 }
 
-{
+function algorithmName(algorithm) {
+  return typeof algorithm === 'string' ? algorithm : algorithm.name;
+}
+
+function getUsages(keyObject, usages) {
+  return keyObject.type === 'public' ? usages.public : usages.private;
+}
+
+function secretKey(length) {
+  return createSecretKey(randomBytes(length >> 3));
+}
+
+function vector(
+  keyObject,
+  algorithm,
+  usages,
+  expected,
+  extractable,
+) {
+  return {
+    keyObject,
+    algorithm,
+    usages,
+    expected,
+    extractable,
+  };
+}
+
+function assertVector(vector, extractable) {
+  const { keyObject, algorithm, usages, expected } = vector;
+  const name = algorithmName(algorithm);
+
+  const cryptoKey = keyObject.toCryptoKey(algorithm, extractable, usages);
+  assertCryptoKey(cryptoKey, keyObject, name, extractable, usages);
+  if (expected !== undefined && 'length' in expected)
+    assert.strictEqual(cryptoKey.algorithm.length, expected.length);
+  if (expected !== undefined && 'hash' in expected)
+    assert.strictEqual(cryptoKey.algorithm.hash.name, expected.hash);
+  if (expected !== undefined && 'namedCurve' in expected)
+    assert.strictEqual(cryptoKey.algorithm.namedCurve, expected.namedCurve);
+}
+
+function runVector(vector) {
+  if (vector.extractable !== undefined) {
+    assertVector(vector, vector.extractable);
+    return;
+  }
+  assertVector(vector, true);
+  assertVector(vector, false);
+}
+
+function symmetricVectors(name, usages) {
+  const vectors = [];
   for (const length of [128, 192, 256]) {
-    const key = createSecretKey(randomBytes(length >> 3));
-    const algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
-    if (length === 256)
-      algorithms.push('ChaCha20-Poly1305');
-
-    for (const algorithm of algorithms) {
-      const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
-      for (const extractable of [true, false]) {
-        const cryptoKey = key.toCryptoKey(algorithm, extractable, usages);
-        assertCryptoKey(cryptoKey, key, algorithm, extractable, usages);
-        assert.strictEqual(cryptoKey.algorithm.length, algorithm !== 'ChaCha20-Poly1305' ? length : undefined);
-      }
-    }
+    vectors.push(vector(
+      secretKey(length),
+      name,
+      usages,
+      { length }));
   }
+  return vectors;
 }
 
-{
-  const pbkdf2 = createSecretKey(randomBytes(16));
-  const algorithm = 'PBKDF2';
-  const usages = ['deriveBits'];
-  assert.throws(() => pbkdf2.toCryptoKey(algorithm, true, usages), {
-    name: 'SyntaxError',
-    message: 'PBKDF2 keys are not extractable'
-  });
-  assert.throws(() => pbkdf2.toCryptoKey(algorithm, false, ['wrapKey']), {
-    name: 'SyntaxError',
-    message: 'Unsupported key usage for a PBKDF2 key'
-  });
-  const cryptoKey = pbkdf2.toCryptoKey(algorithm, false, usages);
-  assertCryptoKey(cryptoKey, pbkdf2, algorithm, false, usages);
-  assert.strictEqual(cryptoKey.algorithm.length, undefined);
+function chacha20Poly1305Vectors() {
+  return [
+    vector(
+      secretKey(256),
+      'ChaCha20-Poly1305',
+      ['encrypt', 'decrypt'],
+      { length: undefined }),
+  ];
 }
 
-{
+function genericSecretVectors(name) {
+  return [
+    vector(
+      createSecretKey(randomBytes(16)),
+      name,
+      ['deriveBits'],
+      undefined,
+      false),
+  ];
+}
+
+function macInvalid(algorithm, invalidLengthMessage) {
+  const key = createSecretKey(randomBytes(32));
+  const usages = ['sign', 'verify'];
+
+  assert.throws(() => {
+    createSecretKey(Buffer.alloc(0)).toCryptoKey(algorithm, true, usages);
+  }, {
+    name: 'DataError',
+    message: 'Zero-length key is not supported',
+  });
+
+  assert.throws(() => key.toCryptoKey(algorithm, true, []), {
+    name: 'SyntaxError',
+    message: 'Usages cannot be empty when importing a secret key.'
+  });
+
+  assert.throws(() => {
+    key.toCryptoKey({ ...algorithm, length: 0 }, true, usages);
+  }, {
+    name: 'DataError',
+    message: invalidLengthMessage,
+  });
+}
+
+function hmacVectors() {
+  const vectors = [];
   for (const length of [128, 192, 256]) {
-    const hmac = createSecretKey(randomBytes(length >> 3));
-    const algorithm = 'HMAC';
-    const usages = ['sign', 'verify'];
-
-    assert.throws(() => {
-      createSecretKey(Buffer.alloc(0)).toCryptoKey({ name: algorithm, hash: 'SHA-256' }, true, usages);
-    }, {
-      name: 'DataError',
-      message: 'Zero-length key is not supported',
-    });
-
-    assert.throws(() => {
-      hmac.toCryptoKey({
-        name: algorithm,
-        hash: 'SHA-256',
-      }, true, []);
-    }, {
-      name: 'SyntaxError',
-      message: 'Usages cannot be empty when importing a secret key.'
-    });
-
-    for (const hash of ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512']) {
-      for (const extractable of [true, false]) {
-        assert.throws(() => {
-          hmac.toCryptoKey({ name: algorithm, hash: 'SHA-256', length: 0 }, true, usages);
-        }, {
-          name: 'DataError',
-          message: 'HmacImportParams.length cannot be 0',
-        });
-        const cryptoKey = hmac.toCryptoKey({ name: algorithm, hash }, extractable, usages);
-        assertCryptoKey(cryptoKey, hmac, algorithm, extractable, usages);
-        assert.strictEqual(cryptoKey.algorithm.length, length);
-      }
+    const key = secretKey(length);
+    for (const hash of hashes) {
+      vectors.push(vector(
+        key,
+        { name: 'HMAC', hash },
+        ['sign', 'verify'],
+        { length }));
     }
+  }
+  return vectors;
+}
+
+function kmacVectors(name) {
+  return [
+    vector(
+      secretKey(256),
+      { name },
+      ['sign', 'verify'],
+      { length: 256 }),
+  ];
+}
+
+function asymmetricVectors(keyPair, algorithm, usagesByType, expected) {
+  const { publicKey, privateKey } = keyPair;
+  const vectors = [];
+  for (const keyObject of [publicKey, privateKey]) {
+    vectors.push(vector(
+      keyObject,
+      algorithm,
+      getUsages(keyObject, usagesByType),
+      expected));
+  }
+  return vectors;
+}
+
+function rsaVectors(name, usagesByType) {
+  const keyPair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const vectors = [];
+  for (const keyObject of [keyPair.publicKey, keyPair.privateKey]) {
+    for (const hash of hashes) {
+      vectors.push(vector(
+        keyObject,
+        { name, hash },
+        getUsages(keyObject, usagesByType),
+        { hash }));
+    }
+  }
+  return vectors;
+}
+
+function ecVectors(name, usagesByType) {
+  const vectors = [];
+  for (const namedCurve of namedCurves) {
+    const keyPair = generateKeyPairSync('ec', { namedCurve });
+    for (const keyObject of [keyPair.publicKey, keyPair.privateKey]) {
+      vectors.push(vector(
+        keyObject,
+        { name, namedCurve },
+        getUsages(keyObject, usagesByType),
+        { namedCurve }));
+    }
+  }
+  return vectors;
+}
+
+function cfrgVectors(name, usagesByType) {
+  const keyPair = generateKeyPairSync(name.toLowerCase());
+  return asymmetricVectors(keyPair, name, usagesByType);
+}
+
+function simpleAsymmetricVectors(name, usagesByType) {
+  const keyPair = generateKeyPairSync(name.toLowerCase());
+  return asymmetricVectors(keyPair, { name }, usagesByType);
+}
+
+function genericSecretInvalid(name) {
+  const key = createSecretKey(randomBytes(16));
+  assert.throws(() => key.toCryptoKey(name, true, ['deriveBits']), {
+    name: 'SyntaxError',
+    message: `${name} keys are not extractable`
+  });
+  assert.throws(() => key.toCryptoKey(name, false, ['wrapKey']), {
+    name: 'SyntaxError',
+    message: `Unsupported key usage for a ${name} key`
+  });
+}
+
+function ecdhInvalid() {
+  const { publicKey, privateKey } = generateKeyPairSync('ec', {
+    namedCurve: 'P-256',
+  });
+
+  assert.throws(() => {
+    privateKey.toCryptoKey({
+      name: 'ECDH',
+      namedCurve: 'P-256',
+    }, true, []);
+  }, {
+    name: 'SyntaxError',
+    message: 'Usages cannot be empty when importing a private key.'
+  });
+
+  assert.throws(() => {
+    publicKey.toCryptoKey({
+      name: 'ECDH',
+      namedCurve: 'P-384',
+    }, true, []);
+  }, {
+    name: 'DataError',
+    message: 'Named curve mismatch'
+  });
+}
+
+function invalidAsymmetricKeyType(name, invalidAlgorithm) {
+  const { publicKey } = generateKeyPairSync(name.toLowerCase());
+  assert.throws(() => {
+    publicKey.toCryptoKey(invalidAlgorithm, true, []);
+  }, {
+    name: 'DataError',
+    message: 'Invalid key type'
+  });
+}
+
+function emptyPrivateUsagesInvalid(name) {
+  const { privateKey } = generateKeyPairSync(name.toLowerCase());
+  assert.throws(() => {
+    privateKey.toCryptoKey(name, true, []);
+  }, {
+    name: 'SyntaxError',
+    message: 'Usages cannot be empty when importing a private key.'
+  });
+}
+
+const tests = {
+  'AES-KW': symmetricVectors('AES-KW', ['wrapKey', 'unwrapKey']),
+  'ECDH': ecVectors('ECDH', derivationUsages),
+  'ECDSA': ecVectors('ECDSA', signingUsages),
+  'Ed25519': cfrgVectors('Ed25519', signingUsages),
+  'HMAC': hmacVectors(),
+  'RSA-OAEP': rsaVectors('RSA-OAEP', rsaOaepUsages),
+  'RSA-PSS': rsaVectors('RSA-PSS', signingUsages),
+  'RSASSA-PKCS1-v1_5': rsaVectors('RSASSA-PKCS1-v1_5', signingUsages),
+  'X25519': cfrgVectors('X25519', derivationUsages),
+};
+
+const invalid = {
+  'ECDH': ecdhInvalid,
+  'Ed25519': () => invalidAsymmetricKeyType('Ed25519', 'X25519'),
+  'HMAC': () => macInvalid(
+    { name: 'HMAC', hash: 'SHA-256' },
+    'HmacImportParams.length cannot be 0'),
+  'X25519': () => invalidAsymmetricKeyType('X25519', 'Ed25519'),
+};
+
+for (const name of ['AES-CBC', 'AES-CTR', 'AES-GCM', 'AES-OCB']) {
+  if (name in kSupportedAlgorithms.importKey)
+    tests[name] = symmetricVectors(name, ['encrypt', 'decrypt']);
+}
+
+if ('ChaCha20-Poly1305' in kSupportedAlgorithms.importKey)
+  tests['ChaCha20-Poly1305'] = chacha20Poly1305Vectors();
+
+for (const name of ['HKDF', 'PBKDF2', 'Argon2d', 'Argon2i', 'Argon2id']) {
+  if (name in kSupportedAlgorithms.importKey) {
+    tests[name] = genericSecretVectors(name);
+    invalid[name] = () => genericSecretInvalid(name);
   }
 }
 
-{
-  const algorithms = ['Ed25519', 'X25519'];
-
-  if (!process.features.openssl_is_boringssl) {
-    algorithms.push('X448', 'Ed448');
-  } else {
-    common.printSkipMessage('Skipping unsupported Ed448/X448 test cases');
-  }
-
-  for (const algorithm of algorithms) {
-    const { publicKey, privateKey } = generateKeyPairSync(algorithm.toLowerCase());
-    assert.throws(() => {
-      publicKey.toCryptoKey(algorithm === 'Ed25519' ? 'X25519' : 'Ed25519', true, []);
-    }, {
-      name: 'DataError',
-      message: 'Invalid key type'
-    });
-    for (const key of [publicKey, privateKey]) {
-      let usages;
-      if (algorithm.startsWith('E')) {
-        usages = key.type === 'public' ? ['verify'] : ['sign'];
-      } else {
-        usages = key.type === 'public' ? [] : ['deriveBits'];
-      }
-      for (const extractable of [true, false]) {
-        const cryptoKey = key.toCryptoKey(algorithm, extractable, usages);
-        assertCryptoKey(cryptoKey, key, algorithm, extractable, usages);
-      }
-    }
+for (const name of ['KMAC128', 'KMAC256']) {
+  if (name in kSupportedAlgorithms.importKey) {
+    tests[name] = kmacVectors(name);
+    invalid[name] = () => {
+      macInvalid({ name }, 'KmacImportParams.length cannot be 0');
+    };
   }
 }
 
-{
-  const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
-  for (const key of [publicKey, privateKey]) {
-    for (const algorithm of ['RSASSA-PKCS1-v1_5', 'RSA-PSS', 'RSA-OAEP']) {
-      let usages;
-      if (algorithm === 'RSA-OAEP') {
-        usages = key.type === 'public' ? ['encrypt', 'wrapKey'] : ['decrypt', 'unwrapKey'];
-      } else {
-        usages = key.type === 'public' ? ['verify'] : ['sign'];
-      }
-      for (const extractable of [true, false]) {
-        for (const hash of ['SHA-1', 'SHA-256', 'SHA-384', 'SHA-512']) {
-          const cryptoKey = key.toCryptoKey({
-            name: algorithm,
-            hash
-          }, extractable, usages);
-          assertCryptoKey(cryptoKey, key, algorithm, extractable, usages);
-          assert.strictEqual(cryptoKey.algorithm.hash.name, hash);
-        }
-      }
-    }
+for (const [name, usages, invalidAlgorithm] of [
+  ['Ed448', signingUsages, 'X25519'],
+  ['X448', derivationUsages, 'Ed25519'],
+]) {
+  if (name in kSupportedAlgorithms.importKey) {
+    tests[name] = cfrgVectors(name, usages);
+    invalid[name] = () => {
+      invalidAsymmetricKeyType(name, invalidAlgorithm);
+    };
   }
 }
 
-{
-  for (const namedCurve of ['P-256', 'P-384', 'P-521']) {
-    const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve });
-    assert.throws(() => {
-      privateKey.toCryptoKey({
-        name: 'ECDH',
-        namedCurve,
-      }, true, []);
-    }, {
-      name: 'SyntaxError',
-      message: 'Usages cannot be empty when importing a private key.'
-    });
-    assert.throws(() => {
-      publicKey.toCryptoKey({
-        name: 'ECDH',
-        namedCurve: namedCurve === 'P-256' ? 'P-384' : 'P-256'
-      }, true, []);
-    }, {
-      name: 'DataError',
-      message: 'Named curve mismatch'
-    });
-    for (const key of [publicKey, privateKey]) {
-      for (const algorithm of ['ECDH', 'ECDSA']) {
-        let usages;
-        if (algorithm === 'ECDH') {
-          usages = key.type === 'public' ? [] : ['deriveBits'];
-        } else {
-          usages = key.type === 'public' ? ['verify'] : ['sign'];
-        }
-        for (const extractable of [true, false]) {
-          const cryptoKey = key.toCryptoKey({
-            name: algorithm,
-            namedCurve
-          }, extractable, usages);
-          assertCryptoKey(cryptoKey, key, algorithm, extractable, usages);
-          assert.strictEqual(cryptoKey.algorithm.namedCurve, namedCurve);
-        }
-      }
-    }
+for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+  if (name in kSupportedAlgorithms.importKey) {
+    tests[name] = simpleAsymmetricVectors(name, signingUsages);
+    invalid[name] = () => emptyPrivateUsagesInvalid(name);
   }
 }
 
-if (hasOpenSSL(3, 5) || process.features.openssl_is_boringssl) {
-  for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
-    const { publicKey, privateKey } = generateKeyPairSync(name.toLowerCase());
-    assert.throws(() => {
-      privateKey.toCryptoKey(name, true, []);
-    }, {
-      name: 'SyntaxError',
-      message: 'Usages cannot be empty when importing a private key.'
-    });
-    for (const key of [publicKey, privateKey]) {
-      const usages = key.type === 'public' ? ['verify'] : ['sign'];
-      for (const extractable of [true, false]) {
-        const cryptoKey = key.toCryptoKey({ name }, extractable, usages);
-        assertCryptoKey(cryptoKey, key, name, extractable, usages);
-        assert.strictEqual(cryptoKey.algorithm.name, name);
-      }
-    }
+for (const name of ['ML-KEM-512', 'ML-KEM-768', 'ML-KEM-1024']) {
+  if (name in kSupportedAlgorithms.importKey) {
+    tests[name] = simpleAsymmetricVectors(name, mlKemUsages);
+    invalid[name] = () => emptyPrivateUsagesInvalid(name);
   }
 }
 
-if (hasOpenSSL(3)) {
-  for (const algorithm of ['KMAC128', 'KMAC256']) {
-    const hmac = createSecretKey(randomBytes(32));
-    const usages = ['sign', 'verify'];
+const unsupportedToCryptoKeyAlgorithms = new Set();
 
-    assert.throws(() => {
-      createSecretKey(Buffer.alloc(0)).toCryptoKey({ name: algorithm }, true, usages);
-    }, {
-      name: 'DataError',
-      message: 'Zero-length key is not supported',
-    });
-
-    assert.throws(() => {
-      hmac.toCryptoKey({
-        name: algorithm,
-      }, true, []);
-    }, {
-      name: 'SyntaxError',
-      message: 'Usages cannot be empty when importing a secret key.'
-    });
-
-    for (const extractable of [true, false]) {
-      assert.throws(() => {
-        hmac.toCryptoKey({ name: algorithm, length: 0 }, true, usages);
-      }, {
-        name: 'DataError',
-        message: 'KmacImportParams.length cannot be 0',
-      });
-      const cryptoKey = hmac.toCryptoKey({ name: algorithm }, extractable, usages);
-      assertCryptoKey(cryptoKey, hmac, algorithm, extractable, usages);
-      assert.strictEqual(cryptoKey.algorithm.length, 256);
+for (const name of Object.keys(kSupportedAlgorithms.importKey)) {
+  const vectors = tests[name];
+  if (vectors === undefined) {
+    if (!unsupportedToCryptoKeyAlgorithms.has(name)) {
+      assert.fail(
+        `${name} needs a tests entry or must be listed in ` +
+        'unsupportedToCryptoKeyAlgorithms');
     }
+    continue;
   }
+
+  for (const vector of vectors)
+    runVector(vector);
+
+  invalid[name]?.();
 }
