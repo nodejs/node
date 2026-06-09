@@ -537,3 +537,24 @@ const assert = require('assert');
   assert.strictEqual(duplex.destroyed, true);
 
 }
+
+// Regression test: compose with a web TransformStream tail must always emit
+// null (EOF) when the source finishes. The done check must precede the
+// backpressure check in the reader.read() loop; otherwise push(null) can be
+// skipped if canPushMore() returns false on the final done:true read.
+{
+  const { TransformStream } = globalThis;
+  const { Readable } = require('stream');
+
+  // A web TransformStream as the tail exercises the isWebStream code path
+  // in compose that loops over reader.read() results.
+  const ts = new TransformStream();
+  const src = Readable.from(['hello', ' ', 'world']);
+  const composed = compose(src, ts);
+
+  let result = '';
+  composed.on('data', (chunk) => { result += Buffer.from(chunk).toString(); });
+  composed.on('end', common.mustCall(() => {
+    assert.strictEqual(result, 'hello world');
+  }));
+}
