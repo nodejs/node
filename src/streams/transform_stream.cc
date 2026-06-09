@@ -857,6 +857,21 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(stream_obj);
 }
 
+// Introspection helper for the custom inspect of a controller: returns the
+// TransformStream a TransformStreamDefaultController belongs to. Internal-only
+// (the public surface exposes no controller->stream link).
+void TransformStreamControllerStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!TransformStreamDefaultController::GetConstructorTemplate(env)
+           ->HasInstance(args[0])) {
+    return;
+  }
+  auto* c = BaseObject::FromJSObject<TransformStreamDefaultController>(
+      args[0].As<Object>());
+  if (c == nullptr) return;
+  args.GetReturnValue().Set(c->stream()->object());
+}
+
 void ExposeTransformStreamConstructors(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -872,11 +887,14 @@ void ExposeTransformStreamConstructors(Environment* env, Local<Object> target) {
 
 void InitializeTransformStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createTransformStream", CreateTransformStream);
+  SetMethod(isolate, target, "transformStreamControllerStream",
+            TransformStreamControllerStream);
 }
 
 void RegisterTransformStreamExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(CreateTransformStream);
+  registry->Register(TransformStreamControllerStream);
   TransformStream::RegisterExternalReferences(registry);
   TransformStreamDefaultController::RegisterExternalReferences(registry);
 }
