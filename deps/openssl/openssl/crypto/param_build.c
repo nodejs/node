@@ -345,7 +345,7 @@ int OSSL_PARAM_BLD_push_utf8_ptr(OSSL_PARAM_BLD *bld, const char *key,
 {
     OSSL_PARAM_BLD_DEF *pd;
 
-    if (bld == NULL || key == NULL) {
+    if (bld == NULL || key == NULL || buf == NULL) {
         ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
@@ -365,7 +365,7 @@ int OSSL_PARAM_BLD_push_octet_string(OSSL_PARAM_BLD *bld, const char *key,
     OSSL_PARAM_BLD_DEF *pd;
     int secure;
 
-    if (bld == NULL || key == NULL || buf == NULL) {
+    if (bld == NULL || key == NULL || (buf == NULL && bsize != 0)) {
         ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }
@@ -383,7 +383,7 @@ int OSSL_PARAM_BLD_push_octet_ptr(OSSL_PARAM_BLD *bld, const char *key,
 {
     OSSL_PARAM_BLD_DEF *pd;
 
-    if (bld == NULL || key == NULL) {
+    if (bld == NULL || key == NULL || (buf == NULL && bsize != 0)) {
         ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }

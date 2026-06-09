@@ -297,7 +297,7 @@ int EVP_CIPHER_get_type(const EVP_CIPHER *cipher)
     case NID_des_ede3_cfb8:
     case NID_des_ede3_cfb1:
 
-        return NID_des_cfb64;
+        return NID_des_ede3_cfb64;
 
     default:
 #ifdef FIPS_MODULE

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1489,6 +1489,9 @@ static void list_disabled(void)
 #endif
 #ifdef OPENSSL_NO_DSA
     BIO_puts(bio_out, "DSA\n");
+#endif
+#ifdef OPENSSL_NO_SIPHASH
+    BIO_puts(bio_out, "SIPHASH\n");
 #endif
 #if defined(OPENSSL_NO_DTLS)
     BIO_puts(bio_out, "DTLS\n");
