@@ -97,7 +97,9 @@ static int evp_kem_init(EVP_PKEY_CTX *ctx, int operation,
          * iteration we're on.
          */
         EVP_KEM_free(kem);
+        kem = NULL;
         EVP_KEYMGMT_free(tmp_keymgmt);
+        tmp_keymgmt = NULL;
 
         switch (iter) {
         case 1:

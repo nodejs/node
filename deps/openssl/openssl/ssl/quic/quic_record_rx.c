@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1031,7 +1031,13 @@ static int qrx_process_pkt(OSSL_QRX *qrx, QUIC_URXE *urxe,
      */
     rxe = qrx_ensure_free_rxe(qrx, PACKET_remaining(pkt));
     if (rxe == NULL)
-        return 0;
+        /*
+         * Allocation failure, treat as malformed as we cannot process this
+         * packet. The header has not been read yet so we do not know the
+         * packet size and cannot skip just this packet, so we drop the rest of
+         * the datagram instead.
+         */
+        goto malformed;
 
     /* Have we already processed this packet? */
     if (pkt_is_marked(&urxe->processed, pkt_idx))
