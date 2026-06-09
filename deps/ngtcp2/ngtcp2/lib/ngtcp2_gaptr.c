@@ -35,11 +35,11 @@ void ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem) {
 }
 
 static int gaptr_gap_init(ngtcp2_gaptr *gaptr) {
-  return ngtcp2_ksl_insert(&gaptr->gap, NULL,
-                           &(ngtcp2_range){
-                             .end = UINT64_MAX,
-                           },
-                           NULL);
+  static const ngtcp2_range end = {
+    .end = UINT64_MAX,
+  };
+
+  return ngtcp2_ksl_insert(&gaptr->gap, NULL, &end, NULL);
 }
 
 void ngtcp2_gaptr_free(ngtcp2_gaptr *gaptr) {

@@ -115,7 +115,7 @@ struct ngtcp2_rtb_entry {
         ngtcp2_tstamp first_sent_ts;
         uint64_t tx_in_flight;
         uint64_t lost;
-        int64_t end_seq;
+        int64_t pkt_id;
         int is_app_limited;
       } rst;
       /* flags is bitwise-OR of zero or more of

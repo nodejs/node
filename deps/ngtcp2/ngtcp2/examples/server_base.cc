@@ -26,7 +26,6 @@
 
 #include <cassert>
 #include <array>
-#include <iostream>
 
 #include "debug.h"
 
