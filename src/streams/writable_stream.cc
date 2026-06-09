@@ -799,8 +799,8 @@ void WritableStreamDefaultWriter::Release() {
   Local<Context> context = env->context();
   WritableStream* stream = this->stream();
   CHECK_NOT_NULL(stream);
-  Local<Value> released_error = MakeCodedError(
-      isolate, context, /* range */ false, "ERR_INVALID_STATE",
+  Local<Value> released_error = InvalidStateError(
+      isolate, context,
       "Writer was released and can no longer be used to monitor the stream's "
       "state");
   EnsureReadyPromiseRejected(released_error);
@@ -1051,6 +1051,12 @@ Local<Promise> WritableStream::Abort(Local<Value> reason) {
       USE(abort_fn.As<Function>()->Call(context, ac, 1, argv));
     }
   }
+
+  // Signalling abort may run a synchronous abort handler that transitions the
+  // stream to a terminal state; re-read it (spec: WritableStreamAbort steps
+  // after signalling) and resolve early instead of asserting.
+  if (state_ == WritableState::kClosed || state_ == WritableState::kErrored)
+    return ResolvedUndefined(env);
 
   if (has_pending_abort_)
     return pending_abort_promise_.Get(isolate)->GetPromise();
@@ -1478,6 +1484,16 @@ void WritableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
   if (!p.IsEmpty()) args.GetReturnValue().Set(p);
 }
 
+// Whether the stream has a close request queued or in flight; used by pipeTo to
+// classify the destination state (close-queued vs errored vs writable).
+void WritableStreamCloseQueuedOrInFlight(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->CloseQueuedOrInFlight());
+}
+
 void ExposeWritableStreamConstructors(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -1500,6 +1516,8 @@ void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "writableStreamStateField", WritableStreamStateField);
   SetMethod(isolate, target, "writableStreamClosedPromise",
             WritableStreamClosedPromise);
+  SetMethod(isolate, target, "writableStreamCloseQueuedOrInFlight",
+            WritableStreamCloseQueuedOrInFlight);
 }
 
 void RegisterWritableStreamExternalReferences(
@@ -1508,6 +1526,7 @@ void RegisterWritableStreamExternalReferences(
   registry->Register(AcquireWritableStreamDefaultWriter);
   registry->Register(WritableStreamStateField);
   registry->Register(WritableStreamClosedPromise);
+  registry->Register(WritableStreamCloseQueuedOrInFlight);
   WritableStream::RegisterExternalReferences(registry);
   WritableStreamDefaultController::RegisterExternalReferences(registry);
   WritableStreamDefaultWriter::RegisterExternalReferences(registry);

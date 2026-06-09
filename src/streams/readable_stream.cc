@@ -108,6 +108,21 @@ Local<Value> MakeCodedError(Isolate* isolate,
   return err;
 }
 
+// A TypeError carrying an ERR_* code (WPT requires TypeError for these).
+Local<Value> TypeErrorWith(Isolate* isolate,
+                           Local<Context> context,
+                           const char* code,
+                           const char* message) {
+  Local<String> msg = OneByteString(isolate, message);
+  Local<Value> err = Exception::TypeError(msg);
+  err.As<Object>()
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "code"),
+            OneByteString(isolate, code))
+      .Check();
+  return err;
+}
+
 Local<Value> InvalidStateError(Isolate* isolate,
                                Local<Context> context,
                                const char* message) {
@@ -205,14 +220,14 @@ bool TransferArrayBuffer(Isolate* isolate,
                          Local<ArrayBuffer> ab,
                          std::shared_ptr<BackingStore>* out) {
   if (ab->WasDetached()) {
-    isolate->ThrowException(MakeCodedError(
-        isolate, context, /* range */ false, "ERR_INVALID_STATE",
+    isolate->ThrowException(TypeErrorWith(
+        isolate, context, "ERR_INVALID_STATE",
         "Cannot transfer a detached ArrayBuffer"));
     return false;
   }
   if (!ab->IsDetachable()) {
-    isolate->ThrowException(MakeCodedError(
-        isolate, context, /* range */ false, "ERR_INVALID_STATE",
+    isolate->ThrowException(TypeErrorWith(
+        isolate, context, "ERR_INVALID_STATE",
         "Cannot transfer a non-detachable ArrayBuffer"));
     return false;
   }
@@ -235,15 +250,22 @@ std::shared_ptr<BackingStore> NewBackingStore(Isolate* isolate,
 
 // Classifies an ArrayBufferView for later reconstruction and reports its
 // element size.
-ViewType ClassifyView(Local<ArrayBufferView> view, uint32_t* element_size) {
+ViewType ClassifyView(Environment* env,
+                      Local<ArrayBufferView> view,
+                      uint32_t* element_size) {
   if (view->IsDataView()) {
     *element_size = 1;
     return ViewType::kDataView;
   }
   if (view->IsUint8Array()) {
     *element_size = 1;
-    return node::Buffer::HasInstance(view.As<Value>()) ? ViewType::kBuffer
-                                                       : ViewType::kUint8Array;
+    // node::Buffer::HasInstance() is true for *any* Uint8Array, so it cannot be
+    // used to tell a real Buffer apart from a plain Uint8Array. Compare the
+    // prototype instead, so the WHATWG-mandated view constructor is preserved
+    // (a plain Uint8Array must round-trip as a Uint8Array, not a Buffer).
+    if (view->GetPrototypeV2()->StrictEquals(env->buffer_prototype_object()))
+      return ViewType::kBuffer;
+    return ViewType::kUint8Array;
   }
   if (view->IsInt8Array()) { *element_size = 1; return ViewType::kInt8Array; }
   if (view->IsUint8ClampedArray()) {
@@ -538,38 +560,46 @@ Maybe<void> ReadableStreamDefaultController::EnqueueInternal(
       stream->default_reader()->num_read_requests() > 0) {
     stream->default_reader()->FulfillFront(chunk, false);
   } else {
-    TryCatch try_catch(isolate);
-    // Compute the chunk size.
-    double size = 1;
-    bool ok = true;
-    if (size_mode_ == SizeMode::kUserFn) {
-      Local<Function> size_fn = size_algorithm_.Get(isolate);
-      Local<Value> argv[] = {chunk};
-      Local<Value> size_val;
-      if (!size_fn->Call(context, Undefined(isolate), 1, argv)
-               .ToLocal(&size_val)) {
-        ok = false;
-      } else if (!size_val->NumberValue(context).To(&size)) {
-        ok = false;
+    // Capture any thrown/range error, then re-throw it AFTER the TryCatch has
+    // gone out of scope — a v8::TryCatch destructor cancels a pending exception
+    // raised while it is still alive, which would silently swallow size()
+    // throws and invalid-size RangeErrors.
+    Local<Value> pending_exception;
+    {
+      TryCatch try_catch(isolate);
+      double size = 1;
+      bool ok = true;
+      if (size_mode_ == SizeMode::kUserFn) {
+        Local<Function> size_fn = size_algorithm_.Get(isolate);
+        Local<Value> argv[] = {chunk};
+        Local<Value> size_val;
+        if (!size_fn->Call(context, Undefined(isolate), 1, argv)
+                 .ToLocal(&size_val)) {
+          ok = false;
+        } else if (!size_val->NumberValue(context).To(&size)) {
+          ok = false;
+        }
+      } else if (size_mode_ == SizeMode::kByteLength) {
+        Local<Object> obj;
+        Local<Value> bl;
+        if (!chunk->ToObject(context).ToLocal(&obj) ||
+            !obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "byteLength"))
+                 .ToLocal(&bl) ||
+            !bl->NumberValue(context).To(&size)) {
+          ok = false;
+        }
       }
-    } else if (size_mode_ == SizeMode::kByteLength) {
-      Local<Object> obj;
-      Local<Value> bl;
-      if (!chunk->ToObject(context).ToLocal(&obj) ||
-          !obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "byteLength"))
-               .ToLocal(&bl) ||
-          !bl->NumberValue(context).To(&size)) {
-        ok = false;
+      if (ok) {
+        if (EnqueueValueWithSize(chunk, size).IsNothing()) ok = false;
+      }
+      if (!ok) {
+        pending_exception = try_catch.Exception();
+        try_catch.Reset();
       }
     }
-    if (ok) {
-      if (EnqueueValueWithSize(chunk, size).IsNothing()) ok = false;
-    }
-    if (!ok) {
-      Local<Value> exception = try_catch.Exception();
-      try_catch.Reset();
-      ErrorInternal(exception);
-      isolate->ThrowException(exception);
+    if (!pending_exception.IsEmpty()) {
+      ErrorInternal(pending_exception);
+      isolate->ThrowException(pending_exception);
       return Nothing<void>();
     }
   }
@@ -888,8 +918,8 @@ void ReadableStreamDefaultReader::Release() {
   CHECK_NOT_NULL(stream);
 
   // Reject closed with a "reader released" error.
-  Local<Value> released_error = MakeCodedError(
-      isolate, context, /* range */ false, "ERR_INVALID_STATE",
+  Local<Value> released_error = InvalidStateError(
+      isolate, context,
       "Reader was released and can no longer be used to monitor the stream's "
       "state");
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
@@ -914,9 +944,8 @@ void ReadableStreamDefaultReader::Release() {
                                      Undefined(isolate));
 
   // Error any outstanding read requests with the releasing error.
-  Local<Value> releasing_error = MakeCodedError(
-      isolate, context, /* range */ false, "ERR_INVALID_STATE",
-      "The reader is not attached to a stream");
+  Local<Value> releasing_error = InvalidStateError(
+      isolate, context, "The reader is not attached to a stream");
   ErrorAll(releasing_error);
 }
 
@@ -1721,7 +1750,7 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
   ReadableStream* stream = this->stream();
   Local<ArrayBufferView> view = view_obj.As<ArrayBufferView>();
   uint32_t element_size = 1;
-  ViewType view_type = ClassifyView(view, &element_size);
+  ViewType view_type = ClassifyView(env, view, &element_size);
   size_t minimum_fill = min * element_size;
   Local<ArrayBuffer> buffer = view->Buffer();
   size_t byte_offset = view->ByteOffset();
@@ -2082,8 +2111,8 @@ void ReadableByteStreamController::Enqueue(
       BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
   if (c == nullptr) return;
   if (!args[0]->IsArrayBufferView()) {
-    isolate->ThrowException(MakeCodedError(
-        isolate, context, /* range */ false, "ERR_INVALID_ARG_TYPE",
+    isolate->ThrowException(TypeErrorWith(
+        isolate, context, "ERR_INVALID_ARG_TYPE",
         "chunk must be an ArrayBufferView"));
     return;
   }
@@ -2217,8 +2246,8 @@ void ReadableStreamBYOBRequest::RespondWithNewView(
     return;
   }
   if (!args[0]->IsArrayBufferView()) {
-    isolate->ThrowException(MakeCodedError(
-        isolate, context, /* range */ false, "ERR_INVALID_ARG_TYPE",
+    isolate->ThrowException(TypeErrorWith(
+        isolate, context, "ERR_INVALID_ARG_TYPE",
         "view must be an ArrayBufferView"));
     return;
   }
@@ -2364,9 +2393,8 @@ bool ReadableStreamBYOBReader::SetupInternal(Local<Object> stream_obj) {
     return false;
   }
   if (!stream->has_byte_controller()) {
-    isolate->ThrowException(MakeCodedError(
-        isolate, context, /* range */ false, "ERR_INVALID_ARG_VALUE",
-        "stream must be a byte stream"));
+    isolate->ThrowException(
+        InvalidStateError(isolate, context, "stream must be a byte stream"));
     return false;
   }
   object()->SetInternalField(kStream, stream_obj);
@@ -2396,8 +2424,8 @@ void ReadableStreamBYOBReader::Release() {
   ReadableStream* stream = this->stream();
   CHECK_NOT_NULL(stream);
 
-  Local<Value> released_error = MakeCodedError(
-      isolate, context, /* range */ false, "ERR_INVALID_STATE",
+  Local<Value> released_error = InvalidStateError(
+      isolate, context,
       "Reader was released and can no longer be used to monitor the stream's "
       "state");
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
@@ -2422,9 +2450,8 @@ void ReadableStreamBYOBReader::Release() {
   stream->object()->SetInternalField(ReadableStream::kReader,
                                      Undefined(isolate));
 
-  Local<Value> releasing_error = MakeCodedError(
-      isolate, context, /* range */ false, "ERR_INVALID_STATE",
-      "The reader is not attached to a stream");
+  Local<Value> releasing_error = InvalidStateError(
+      isolate, context, "The reader is not attached to a stream");
   ErrorAll(releasing_error);
 }
 
@@ -2443,7 +2470,7 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsArrayBufferView()) {
     USE(resolver->Reject(
         context,
-        MakeCodedError(isolate, context, /* range */ false,
+        TypeErrorWith(isolate, context,
                        "ERR_INVALID_ARG_TYPE",
                        "view must be an ArrayBufferView")));
     return;
@@ -2473,15 +2500,16 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
     }
   }
   if (min <= 0) {
+    // Spec: a min of 0 (or, after coercion, a non-positive value) is a
+    // TypeError, not a RangeError.
     USE(resolver->Reject(
-        context, MakeCodedError(isolate, context, /* range */ true,
-                                "ERR_INVALID_ARG_VALUE",
-                                "options.min must be greater than 0")));
+        context, InvalidStateError(isolate, context,
+                                   "options.min must be greater than 0")));
     return;
   }
   // min must not exceed the element capacity of the view.
   uint32_t element_size = 1;
-  ClassifyView(view, &element_size);
+  ClassifyView(env, view, &element_size);
   size_t element_capacity = view_byte_length / element_size;
   if (static_cast<size_t>(min) > element_capacity) {
     USE(resolver->Reject(
