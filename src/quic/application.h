@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <variant>
+#include <vector>
 
 #include "base_object.h"
 #include "bindingdata.h"
@@ -17,7 +18,11 @@ namespace node::quic {
 // Parsed session ticket application data, produced by
 // Application::ParseTicketData() before ALPN negotiation and consumed
 // by Application::ApplySessionTicketData() after.
-struct DefaultTicketData {};
+struct DefaultTicketData {
+  // The opaque application data carried in the ticket (after the type byte),
+  // byte-matched against the server's current `app_ticket_data` to gate 0-RTT.
+  std::vector<uint8_t> data;
+};
 struct Http3TicketData {
   uint64_t max_field_section_size;
   uint64_t qpack_max_dtable_capacity;

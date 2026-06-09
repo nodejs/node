@@ -225,8 +225,13 @@ std::optional<PendingTicketAppData> Session::Application::ParseTicketData(
   auto app_type =
       static_cast<Type>(reinterpret_cast<const uint8_t*>(data.base)[0]);
   switch (app_type) {
-    case Type::DEFAULT:
-      return DefaultTicketData{};
+    case Type::DEFAULT: {
+      // Everything after the leading type byte is opaque application data.
+      DefaultTicketData dtd;
+      const auto* p = reinterpret_cast<const uint8_t*>(data.base);
+      if (data.len > 1) dtd.data.assign(p + 1, p + data.len);
+      return dtd;
+    }
     case Type::HTTP3:
       return ParseHttp3TicketData(data);
     default:
@@ -732,6 +737,25 @@ class DefaultApplication final : public Session::Application {
     if (!session().is_destroyed()) {
       session().EmitEarlyDataRejected();
     }
+  }
+
+  void CollectSessionTicketAppData(
+      SessionTicket::AppData* app_data) const override {
+    const auto& atd = session().config().options.app_ticket_data;
+    if (!atd.has_value() || atd->length() == 0) {
+      // No app data configured — write just the type byte (base behaviour).
+      Session::Application::CollectSessionTicketAppData(app_data);
+      return;
+    }
+    // Layout: [type byte][opaque app data].
+    uv_buf_t bytes = *atd;
+    std::vector<uint8_t> buf;
+    buf.reserve(1 + bytes.len);
+    buf.push_back(static_cast<uint8_t>(type()));  // Type::DEFAULT
+    const auto* p = reinterpret_cast<const uint8_t*>(bytes.base);
+    buf.insert(buf.end(), p, p + bytes.len);
+    app_data->Set(
+        uv_buf_init(reinterpret_cast<char*>(buf.data()), buf.size()));
   }
 
   bool ApplySessionTicketData(const PendingTicketAppData& data) override {

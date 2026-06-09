@@ -240,6 +240,13 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // to skip address validation. Client-side only.
     std::optional<Store> token;
 
+    // Opaque application data to embed in issued session tickets. On the
+    // server this is both written into new tickets and used to validate
+    // 0-RTT on resume (a resumed ticket whose app-data does not byte-match
+    // this value has its early data rejected). Protocol-agnostic; the
+    // built-in HTTP/3 application uses its own typed ticket data instead.
+    std::optional<Store> app_ticket_data;
+
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Session::Options)
     SET_SELF_SIZE(Options)
