@@ -1380,11 +1380,15 @@ added: v0.1.90
 Set the encoding for the socket as a [Readable Stream][]. See
 [`readable.setEncoding()`][] for more information.
 
-### `socket.setKeepAlive([enable][, initialDelay])`
+### `socket.setKeepAlive([enable][, initialDelay][, interval][, count])`
 
 <!-- YAML
 added: v0.1.92
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63825
+    description: Added the `interval` and `count` arguments to configure
+                 `TCP_KEEPINTVL` and `TCP_KEEPCNT`.
   - version:
     - v13.12.0
     - v12.17.0
@@ -1394,6 +1398,8 @@ changes:
 
 * `enable` {boolean} **Default:** `false`
 * `initialDelay` {number} **Default:** `0`
+* `interval` {number} **Default:** `1000`
+* `count` {number} **Default:** `10`
 * Returns: {net.Socket} The socket itself.
 
 Enable/disable keep-alive functionality, and optionally set the initial
@@ -1404,12 +1410,28 @@ data packet received and the first keepalive probe. Setting `0` for
 `initialDelay` will leave the value unchanged from the default
 (or previous) setting.
 
+Set `interval` (in milliseconds) to set the delay between successive
+keepalive probes once they begin (`TCP_KEEPINTVL`). Set `count` to the
+number of unacknowledged probes sent before the connection is dropped
+(`TCP_KEEPCNT`). Both are only applied when keep-alive is enabled.
+Omitting `interval` or `count` uses the defaults of `1000` ms and `10`.
+As with `initialDelay`, a non-positive `interval` or `count` leaves the
+corresponding system default unchanged.
+
+`initialDelay` and `interval` are specified in milliseconds but the
+underlying socket options are configured in whole seconds; the values are
+divided by `1000` and rounded down before being applied.
+
 Enabling the keep-alive functionality will set the following socket options:
 
 * `SO_KEEPALIVE=1`
-* `TCP_KEEPIDLE=initialDelay`
-* `TCP_KEEPCNT=10`
-* `TCP_KEEPINTVL=1`
+* `TCP_KEEPIDLE=initialDelay / 1000`
+* `TCP_KEEPCNT=count`
+* `TCP_KEEPINTVL=interval / 1000`
+
+On Windows versions older than build 1709, keep-alive is configured through
+`SIO_KEEPALIVE_VALS`, which has no probe-count field, so `count` is ignored on
+those platforms.
 
 ### `socket.setNoDelay([noDelay])`
 
