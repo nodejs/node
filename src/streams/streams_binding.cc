@@ -22,6 +22,89 @@ using v8::Value;
 
 namespace webstreams {
 
+using v8::FunctionCallback;
+using v8::FunctionTemplate;
+using v8::Isolate;
+using v8::NewStringType;
+using v8::Promise;
+using v8::Signature;
+using v8::String;
+
+namespace {
+Local<String> InternalizedString(Isolate* isolate, const char* s) {
+  return String::NewFromUtf8(isolate, s, NewStringType::kInternalized)
+      .ToLocalChecked();
+}
+}  // namespace
+
+Local<FunctionTemplate> NewGetter(Isolate* isolate,
+                                  const char* prop,
+                                  FunctionCallback cb,
+                                  Local<Signature> sig) {
+  Local<FunctionTemplate> t =
+      FunctionTemplate::New(isolate, cb, Local<Value>(), sig, 0,
+                            v8::ConstructorBehavior::kThrow,
+                            v8::SideEffectType::kHasNoSideEffect);
+  std::string name = std::string("get ") + prop;
+  t->SetClassName(InternalizedString(isolate, name.c_str()));
+  return t;
+}
+
+Local<FunctionTemplate> NewPromiseGetter(Isolate* isolate,
+                                         const char* prop,
+                                         FunctionCallback cb) {
+  Local<FunctionTemplate> t =
+      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(), 0,
+                            v8::ConstructorBehavior::kThrow,
+                            v8::SideEffectType::kHasNoSideEffect);
+  std::string name = std::string("get ") + prop;
+  t->SetClassName(InternalizedString(isolate, name.c_str()));
+  return t;
+}
+
+void SetProtoMethodLen(Isolate* isolate,
+                       Local<FunctionTemplate> tmpl,
+                       const char* name,
+                       FunctionCallback cb,
+                       int length) {
+  Local<Signature> sig = Signature::New(isolate, tmpl);
+  Local<FunctionTemplate> t =
+      FunctionTemplate::New(isolate, cb, Local<Value>(), sig, length,
+                            v8::ConstructorBehavior::kThrow,
+                            v8::SideEffectType::kHasSideEffect);
+  Local<String> name_string = InternalizedString(isolate, name);
+  tmpl->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
+void SetProtoMethodPromise(Isolate* isolate,
+                           Local<FunctionTemplate> tmpl,
+                           const char* name,
+                           FunctionCallback cb,
+                           int length) {
+  // No receiver signature: a Promise-returning operation must reject (not throw)
+  // when invoked on a foreign receiver, so the callback must run regardless.
+  Local<FunctionTemplate> t =
+      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(),
+                            length, v8::ConstructorBehavior::kThrow,
+                            v8::SideEffectType::kHasSideEffect);
+  Local<String> name_string = InternalizedString(isolate, name);
+  tmpl->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);
+}
+
+Local<Value> IllegalInvocationRejection(Local<Context> context) {
+  Isolate* isolate = Isolate::GetCurrent();
+  Local<Value> error = v8::Exception::TypeError(
+      FIXED_ONE_BYTE_STRING(isolate, "Illegal invocation"));
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
+    return Local<Value>();
+  }
+  USE(resolver->Reject(context, error));
+  return resolver->GetPromise();
+}
+
 BindingData::BindingData(Realm* realm, Local<Object> object)
     : SnapshotableObject(realm, object, type_int) {}
 

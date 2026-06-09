@@ -78,17 +78,28 @@ T* GetStreamField(Local<Object> obj, int index, StreamBaseObject::Kind kind) {
   return static_cast<T*>(s);
 }
 
+// Builds a { value, done } read result. When `for_author_code` is false (reads
+// issued internally by pipeTo/tee) the object is given a null prototype so it is
+// never a thenable even if author code monkey-patched Object.prototype.then —
+// otherwise resolving the read promise with it would invoke that patched then,
+// making piping/teeing observable. Author-facing reads keep Object.prototype.
 Local<Object> MakeReadResult(Isolate* isolate,
                              Local<Context> context,
                              Local<Value> value,
-                             bool done) {
-  Local<Object> obj = Object::New(isolate);
-  obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "value"), value).Check();
-  obj->Set(context,
-           FIXED_ONE_BYTE_STRING(isolate, "done"),
-           Boolean::New(isolate, done))
-      .Check();
-  return obj;
+                             bool done,
+                             bool for_author_code = true) {
+  if (for_author_code) {
+    Local<Object> obj = Object::New(isolate);
+    obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "value"), value).Check();
+    obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "done"),
+             Boolean::New(isolate, done))
+        .Check();
+    return obj;
+  }
+  v8::Local<v8::Name> names[] = {FIXED_ONE_BYTE_STRING(isolate, "value"),
+                                 FIXED_ONE_BYTE_STRING(isolate, "done")};
+  Local<Value> values[] = {value, Boolean::New(isolate, done)};
+  return Object::New(isolate, Null(isolate), names, values, arraysize(names));
 }
 
 // Builds an Error/RangeError carrying a Node error `code` property, matching the
@@ -386,9 +397,7 @@ ReadableStreamDefaultController::GetConstructorTemplate(Environment* env) {
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        FunctionTemplate::New(
-            isolate, GetDesiredSize, Local<Value>(), sig, 0,
-            v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
     SetProtoMethod(isolate, tmpl, "close", Close);
     SetProtoMethod(isolate, tmpl, "enqueue", Enqueue);
     SetProtoMethod(isolate, tmpl, "error", Error);
@@ -655,7 +664,9 @@ void ReadableStreamDefaultController::PullSteps(
     } else {
       CallPullIfNeeded();
     }
-    USE(resolver->Resolve(context, MakeReadResult(isolate, context, chunk, false)));
+    USE(resolver->Resolve(
+        context, MakeReadResult(isolate, context, chunk, false,
+                                stream->default_reader()->for_author_code())));
     return;
   }
   // No buffered chunk: park the read request and ask for more.
@@ -783,12 +794,10 @@ Local<FunctionTemplate> ReadableStreamDefaultReader::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "closed"),
-        FunctionTemplate::New(isolate, GetClosed, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
-    SetProtoMethod(isolate, tmpl, "read", Read);
+        NewPromiseGetter(isolate, "closed", GetClosed));
+    SetProtoMethodPromise(isolate, tmpl, "read", Read, 0);
     SetProtoMethod(isolate, tmpl, "releaseLock", ReleaseLock);
-    SetProtoMethod(isolate, tmpl, "cancel", Cancel);
+    SetProtoMethodPromise(isolate, tmpl, "cancel", Cancel, 0);
     bd->readable_stream_default_reader_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -822,7 +831,9 @@ void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
   Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
   read_requests_.pop_front();
   Local<Value> value = done ? Undefined(isolate).As<Value>() : chunk;
-  USE(resolver->Resolve(context, MakeReadResult(isolate, context, value, done)));
+  USE(resolver->Resolve(
+      context,
+      MakeReadResult(isolate, context, value, done, for_author_code_)));
 }
 
 void ReadableStreamDefaultReader::CloseAll() {
@@ -833,7 +844,8 @@ void ReadableStreamDefaultReader::CloseAll() {
     Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
     read_requests_.pop_front();
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, Undefined(isolate), true)));
+        context, MakeReadResult(isolate, context, Undefined(isolate), true,
+                                for_author_code_)));
   }
 }
 
@@ -938,6 +950,12 @@ void ReadableStreamDefaultReader::Release() {
     MarkHandled(env, resolver->GetPromise());
   }
 
+  // The controller's release steps run before the stream<->reader link is
+  // broken. For a byte source this re-tags the first pending pull-into as
+  // "none" (its buffer belongs to the released reader) and drops the rest.
+  if (stream->has_byte_controller())
+    stream->byte_controller()->OnReaderReleased();
+
   // Unlink stream<->reader.
   object()->SetInternalField(kStream, Undefined(isolate));
   stream->object()->SetInternalField(ReadableStream::kReader,
@@ -953,9 +971,13 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
-  if (reader == nullptr) return;
   if (!reader->has_stream()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -977,7 +999,8 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
   switch (stream->state()) {
     case StreamState::kClosed:
       USE(resolver->Resolve(
-          context, MakeReadResult(isolate, context, Undefined(isolate), true)));
+          context, MakeReadResult(isolate, context, Undefined(isolate), true,
+                                  reader->for_author_code())));
       return;
     case StreamState::kErrored:
       USE(resolver->Reject(context, stream->stored_error(env)));
@@ -1005,9 +1028,13 @@ void ReadableStreamDefaultReader::Cancel(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
-  if (reader == nullptr) return;
   if (!reader->has_stream()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -1024,9 +1051,13 @@ void ReadableStreamDefaultReader::Cancel(
 void ReadableStreamDefaultReader::GetClosed(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
+    return;
+  }
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
-  if (reader == nullptr) return;
   args.GetReturnValue().Set(reader->closed_promise(env));
 }
 
@@ -1055,10 +1086,8 @@ Local<FunctionTemplate> ReadableStream::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "locked"),
-        FunctionTemplate::New(isolate, GetLocked, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
-    SetProtoMethod(isolate, tmpl, "cancel", Cancel);
+        NewGetter(isolate, "locked", GetLocked, sig));
+    SetProtoMethodPromise(isolate, tmpl, "cancel", Cancel, 0);
     bd->readable_stream_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -1262,8 +1291,11 @@ void ReadableStream::Cancel(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!ReadableStream::GetConstructorTemplate(env)->HasInstance(args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* stream = BaseObject::FromJSObject<ReadableStream>(args.This());
-  if (stream == nullptr) return;
   if (stream->locked()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -1315,16 +1347,12 @@ Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "byobRequest"),
-        FunctionTemplate::New(isolate, GetByobRequest, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "byobRequest", GetByobRequest, sig));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        FunctionTemplate::New(isolate, GetDesiredSize, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
     SetProtoMethod(isolate, tmpl, "close", Close);
-    SetProtoMethod(isolate, tmpl, "enqueue", Enqueue);
+    SetProtoMethodLen(isolate, tmpl, "enqueue", Enqueue, 1);
     SetProtoMethod(isolate, tmpl, "error", Error);
     bd->readable_byte_stream_controller_ctor.Reset(isolate, tmpl);
   }
@@ -1418,6 +1446,18 @@ void ReadableByteStreamController::InvalidateBYOBRequest() {
   ReadableStreamBYOBRequest* req = byob_request_obj();
   if (req == nullptr) return;
   Isolate* isolate = env()->isolate();
+  // The spec transfers the pull-into descriptor's ArrayBuffer on every
+  // respond()/enqueue(), which detaches the view this request handed out. Our
+  // descriptor owns a shared BackingStore (not a JS ArrayBuffer), so detach the
+  // exact ArrayBuffer wrapper the user is holding to reproduce that observable
+  // behavior; the BackingStore survives via our own shared_ptr.
+  Local<Value> view =
+      req->object()->GetInternalField(ReadableStreamBYOBRequest::kView)
+          .As<Value>();
+  if (view->IsArrayBufferView()) {
+    Local<ArrayBuffer> buffer = view.As<ArrayBufferView>()->Buffer();
+    if (!buffer->WasDetached()) USE(buffer->Detach(Local<Value>()));
+  }
   req->object()->SetInternalField(ReadableStreamBYOBRequest::kController,
                                   Undefined(isolate));
   req->object()->SetInternalField(ReadableStreamBYOBRequest::kView,
@@ -1549,8 +1589,10 @@ void ReadableByteStreamController::FillReadRequestFromQueue(
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, entry.buffer);
   Local<Object> view =
       Uint8Array::New(ab, entry.byte_offset, entry.byte_length).As<Object>();
-  USE(resolver->Resolve(context,
-                        MakeReadResult(isolate, context, view, false)));
+  ReadableStreamDefaultReader* dr = stream()->default_reader();
+  USE(resolver->Resolve(
+      context, MakeReadResult(isolate, context, view, false,
+                              dr != nullptr ? dr->for_author_code() : true)));
 }
 
 void ReadableByteStreamController::ProcessReadRequestsUsingQueue() {
@@ -1630,6 +1672,27 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(Local<Object> view_obj
 
   if (close_requested_ || stream->state() != StreamState::kReadable)
     return JustVoid();
+
+  // Spec: if the first pending pull-into's buffer has been detached by the user
+  // (it is exposed as byobRequest.view.buffer), enqueue() must throw a
+  // TypeError — before the incoming chunk's buffer is transferred. Our
+  // descriptor owns a shared BackingStore, so detect this via the outstanding
+  // BYOB request's view.
+  if (!pending_pull_intos_.empty()) {
+    ReadableStreamBYOBRequest* req = byob_request_obj();
+    if (req != nullptr) {
+      Local<Value> v =
+          req->object()->GetInternalField(ReadableStreamBYOBRequest::kView)
+              .As<Value>();
+      if (v->IsArrayBufferView() &&
+          v.As<ArrayBufferView>()->Buffer()->WasDetached()) {
+        isolate->ThrowException(TypeErrorWith(
+            isolate, context, "ERR_INVALID_STATE",
+            "The BYOB request's buffer has been detached"));
+        return Nothing<void>();
+      }
+    }
+  }
 
   std::shared_ptr<BackingStore> transferred;
   if (!TransferArrayBuffer(isolate, context, buffer, &transferred))
@@ -1790,7 +1853,8 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
     if (!MakeView(env, view_type, ab, byte_offset, 0).ToLocal(&empty_view))
       return;
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, empty_view, true)));
+        context, MakeReadResult(isolate, context, empty_view, true,
+                                stream->byob_reader()->for_author_code())));
     return;
   }
   if (queue_total_size_ > 0) {
@@ -1799,7 +1863,8 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
       if (!ConvertPullIntoDescriptor(&desc).ToLocal(&filled_view)) return;
       HandleQueueDrain();
       USE(resolver->Resolve(
-          context, MakeReadResult(isolate, context, filled_view, false)));
+          context, MakeReadResult(isolate, context, filled_view, false,
+                                  stream->byob_reader()->for_author_code())));
       return;
     }
     if (close_requested_) {
@@ -1889,8 +1954,9 @@ Maybe<void> ReadableByteStreamController::RespondWithNewView(
     return Nothing<void>();
   }
   if (desc.buffer_byte_length != view_buffer_byte_length) {
-    isolate->ThrowException(RangeCodedError(
-        isolate, context, "The given view has an unexpected buffer length"));
+    isolate->ThrowException(MakeCodedError(
+        isolate, context, /* range */ true, "ERR_INVALID_ARG_VALUE",
+        "The given view has an unexpected buffer length"));
     return Nothing<void>();
   }
   std::shared_ptr<BackingStore> transferred;
@@ -2176,11 +2242,9 @@ Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "view"),
-        FunctionTemplate::New(isolate, GetView, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
-    SetProtoMethod(isolate, tmpl, "respond", Respond);
-    SetProtoMethod(isolate, tmpl, "respondWithNewView", RespondWithNewView);
+        NewGetter(isolate, "view", GetView, sig));
+    SetProtoMethodLen(isolate, tmpl, "respond", Respond, 1);
+    SetProtoMethodLen(isolate, tmpl, "respondWithNewView", RespondWithNewView, 1);
     bd->readable_stream_byob_request_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -2205,6 +2269,11 @@ void ReadableStreamBYOBRequest::Respond(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (args.Length() < 1) {
+    isolate->ThrowException(v8::Exception::TypeError(FIXED_ONE_BYTE_STRING(
+        isolate, "Failed to execute 'respond': 1 argument required")));
+    return;
+  }
   auto* r = BaseObject::FromJSObject<ReadableStreamBYOBRequest>(args.This());
   if (r == nullptr) return;
   ReadableByteStreamController* c = r->controller();
@@ -2295,12 +2364,10 @@ Local<FunctionTemplate> ReadableStreamBYOBReader::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "closed"),
-        FunctionTemplate::New(isolate, GetClosed, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
-    SetProtoMethod(isolate, tmpl, "read", Read);
+        NewPromiseGetter(isolate, "closed", GetClosed));
+    SetProtoMethodPromise(isolate, tmpl, "read", Read, 1);
     SetProtoMethod(isolate, tmpl, "releaseLock", ReleaseLock);
-    SetProtoMethod(isolate, tmpl, "cancel", Cancel);
+    SetProtoMethodPromise(isolate, tmpl, "cancel", Cancel, 0);
     bd->readable_stream_byob_reader_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -2326,7 +2393,9 @@ void ReadableStreamBYOBReader::FulfillFront(Local<Value> view, bool done) {
   CHECK(!read_into_requests_.empty());
   Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
   read_into_requests_.pop_front();
-  USE(resolver->Resolve(context, MakeReadResult(isolate, context, view, done)));
+  USE(resolver->Resolve(
+      context,
+      MakeReadResult(isolate, context, view, done, for_author_code_)));
 }
 
 void ReadableStreamBYOBReader::CloseAll() {
@@ -2337,7 +2406,8 @@ void ReadableStreamBYOBReader::CloseAll() {
     Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
     read_into_requests_.pop_front();
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, Undefined(isolate), true)));
+        context, MakeReadResult(isolate, context, Undefined(isolate), true,
+                                for_author_code_)));
   }
 }
 
@@ -2459,9 +2529,13 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!ReadableStreamBYOBReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
-  if (reader == nullptr) return;
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
@@ -2550,9 +2624,13 @@ void ReadableStreamBYOBReader::Cancel(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!ReadableStreamBYOBReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
-  if (reader == nullptr) return;
   if (!reader->has_stream()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -2569,9 +2647,13 @@ void ReadableStreamBYOBReader::Cancel(
 void ReadableStreamBYOBReader::GetClosed(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  if (!ReadableStreamBYOBReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
+    return;
+  }
   auto* reader =
       BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
-  if (reader == nullptr) return;
   args.GetReturnValue().Set(reader->closed_promise(env));
 }
 
@@ -2712,6 +2794,9 @@ void AcquireReadableStreamDefaultReader(
   BaseObjectPtr<ReadableStreamDefaultReader> reader =
       MakeBaseObject<ReadableStreamDefaultReader>(env, reader_obj);
   reader->MakeWeak();
+  // args[1] === true marks an internal (pipeTo/tee) reader: read results get a
+  // null prototype so they are not observable thenables.
+  if (args[1]->IsTrue()) reader->set_for_author_code(false);
 
   if (!reader->SetupInternal(stream_obj)) return;  // throws on lock
   args.GetReturnValue().Set(reader_obj);
@@ -2734,6 +2819,7 @@ void AcquireReadableStreamBYOBReader(
   BaseObjectPtr<ReadableStreamBYOBReader> reader =
       MakeBaseObject<ReadableStreamBYOBReader>(env, reader_obj);
   reader->MakeWeak();
+  if (args[1]->IsTrue()) reader->set_for_author_code(false);
 
   if (!reader->SetupInternal(stream_obj)) return;  // throws on lock / non-byte
   args.GetReturnValue().Set(reader_obj);
@@ -2764,6 +2850,66 @@ void ReadableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
   if (s == nullptr) return;
   Local<Promise> p = s->closed_promise(env);
   if (!p.IsEmpty()) args.GetReturnValue().Set(p);
+}
+
+// The spec's internal ReadableStreamCancel, exposed for internal callers (tee,
+// pipeTo) that must cancel a *locked* stream. The public cancel() rejects on a
+// locked stream; this bypasses that check by running the cancel steps directly.
+void ReadableStreamCancel(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->CancelInternal(args[1]));
+}
+
+// The stream's stored error; used by pipeTo's synchronous priority checks
+// (isOrBecomesErrored) to act on an already-errored source in order.
+void ReadableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->stored_error(env));
+}
+
+// Robust brand checks: a prototype-chain test (ObjectPrototypeIsPrototypeOf in
+// JS) accepts forgeries like Object.create(ReadableStream.prototype); these use
+// the constructor template's HasInstance, which only matches real native
+// instances.
+void IsReadableStream(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(ReadableStream::HasInstance(env, args[0]));
+}
+
+// The spec's internal ReadableStreamDefaultController{Enqueue,Close,Error},
+// which silently no-op when the controller can no longer close/enqueue (unlike
+// the public methods, which throw). Used by tee/transfer, whose algorithms must
+// tolerate a branch that has since been closed or errored.
+void DefaultControllerEnqueue(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* c =
+      BaseObject::FromJSObject<ReadableStreamDefaultController>(
+          args[0].As<Object>());
+  if (c == nullptr || !c->CanCloseOrEnqueue()) return;
+  USE(c->EnqueueInternal(args[1]));  // leaves exception pending on size() throw
+}
+
+void DefaultControllerClose(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* c =
+      BaseObject::FromJSObject<ReadableStreamDefaultController>(
+          args[0].As<Object>());
+  if (c == nullptr) return;
+  c->CloseInternal();  // already guarded by CanCloseOrEnqueue
+}
+
+void DefaultControllerError(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* c =
+      BaseObject::FromJSObject<ReadableStreamDefaultController>(
+          args[0].As<Object>());
+  if (c == nullptr) return;
+  c->ErrorInternal(args[1]);  // no-op if the stream is not readable
 }
 
 void ExposeReadableStreamConstructors(Environment* env, Local<Object> target) {
@@ -2799,6 +2945,16 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "readableStreamDisturbed", ReadableStreamDisturbed);
   SetMethod(isolate, target, "readableStreamClosedPromise",
             ReadableStreamClosedPromise);
+  SetMethod(isolate, target, "readableStreamCancel", ReadableStreamCancel);
+  SetMethod(isolate, target, "isReadableStream", IsReadableStream);
+  SetMethod(isolate, target, "readableStreamStoredError",
+            ReadableStreamStoredError);
+  SetMethod(isolate, target, "readableStreamDefaultControllerEnqueue",
+            DefaultControllerEnqueue);
+  SetMethod(isolate, target, "readableStreamDefaultControllerClose",
+            DefaultControllerClose);
+  SetMethod(isolate, target, "readableStreamDefaultControllerError",
+            DefaultControllerError);
 }
 
 void RegisterReadableStreamExternalReferences(
@@ -2810,6 +2966,12 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReadableStreamStateField);
   registry->Register(ReadableStreamDisturbed);
   registry->Register(ReadableStreamClosedPromise);
+  registry->Register(ReadableStreamCancel);
+  registry->Register(IsReadableStream);
+  registry->Register(ReadableStreamStoredError);
+  registry->Register(DefaultControllerEnqueue);
+  registry->Register(DefaultControllerClose);
+  registry->Register(DefaultControllerError);
   ReadableStream::RegisterExternalReferences(registry);
   ReadableStreamDefaultController::RegisterExternalReferences(registry);
   ReadableStreamDefaultReader::RegisterExternalReferences(registry);

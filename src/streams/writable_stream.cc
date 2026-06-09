@@ -259,9 +259,7 @@ WritableStreamDefaultController::GetConstructorTemplate(Environment* env) {
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "signal"),
-        FunctionTemplate::New(isolate, GetSignal, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "signal", GetSignal, sig));
     SetProtoMethod(isolate, tmpl, "error", Error);
     bd->writable_stream_default_controller_ctor.Reset(isolate, tmpl);
   }
@@ -638,22 +636,16 @@ Local<FunctionTemplate> WritableStreamDefaultWriter::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "closed"),
-        FunctionTemplate::New(isolate, GetClosed, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewPromiseGetter(isolate, "closed", GetClosed));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "ready"),
-        FunctionTemplate::New(isolate, GetReady, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewPromiseGetter(isolate, "ready", GetReady));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        FunctionTemplate::New(isolate, GetDesiredSize, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
-    SetProtoMethod(isolate, tmpl, "write", Write);
-    SetProtoMethod(isolate, tmpl, "close", Close);
-    SetProtoMethod(isolate, tmpl, "abort", Abort);
+        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
+    SetProtoMethodPromise(isolate, tmpl, "write", Write, 0);
+    SetProtoMethodPromise(isolate, tmpl, "close", Close, 0);
+    SetProtoMethodPromise(isolate, tmpl, "abort", Abort, 0);
     SetProtoMethod(isolate, tmpl, "releaseLock", ReleaseLock);
     bd->writable_stream_default_writer_ctor.Reset(isolate, tmpl);
   }
@@ -813,28 +805,26 @@ void WritableStreamDefaultWriter::Release() {
 void WritableStreamDefaultWriter::GetClosed(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  if (w == nullptr) {
-    args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(env->isolate(), env->context(),
-                               "Invalid WritableStreamDefaultWriter")));
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
     return;
   }
+  auto* w =
+      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
   args.GetReturnValue().Set(w->closed_.promise(env));
 }
 
 void WritableStreamDefaultWriter::GetReady(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  if (w == nullptr) {
-    args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(env->isolate(), env->context(),
-                               "Invalid WritableStreamDefaultWriter")));
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
     return;
   }
+  auto* w =
+      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
   args.GetReturnValue().Set(w->ready_.promise(env));
 }
 
@@ -864,9 +854,13 @@ void WritableStreamDefaultWriter::Write(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  if (w == nullptr) return;
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context,
@@ -881,9 +875,13 @@ void WritableStreamDefaultWriter::Close(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  if (w == nullptr) return;
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context,
@@ -904,9 +902,13 @@ void WritableStreamDefaultWriter::Abort(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!WritableStreamDefaultWriter::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  if (w == nullptr) return;
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context,
@@ -953,11 +955,9 @@ Local<FunctionTemplate> WritableStream::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "locked"),
-        FunctionTemplate::New(isolate, GetLocked, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
-    SetProtoMethod(isolate, tmpl, "abort", Abort);
-    SetProtoMethod(isolate, tmpl, "close", Close);
+        NewGetter(isolate, "locked", GetLocked, sig));
+    SetProtoMethodPromise(isolate, tmpl, "abort", Abort, 0);
+    SetProtoMethodPromise(isolate, tmpl, "close", Close, 0);
     bd->writable_stream_ctor.Reset(isolate, tmpl);
   }
   return tmpl;
@@ -1339,8 +1339,11 @@ void WritableStream::Abort(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!WritableStream::HasInstance(env, args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* stream = BaseObject::FromJSObject<WritableStream>(args.This());
-  if (stream == nullptr) return;
   if (stream->locked()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context, "WritableStream is locked")));
@@ -1353,8 +1356,11 @@ void WritableStream::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  if (!WritableStream::HasInstance(env, args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
   auto* stream = BaseObject::FromJSObject<WritableStream>(args.This());
-  if (stream == nullptr) return;
   if (stream->locked()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context, "WritableStream is locked")));
@@ -1484,6 +1490,16 @@ void WritableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
   if (!p.IsEmpty()) args.GetReturnValue().Set(p);
 }
 
+// The stream's stored error; used by pipeTo's synchronous priority checks
+// (isOrBecomesErrored) to act on an already-errored destination in order.
+void WritableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->stored_error(env));
+}
+
 // Whether the stream has a close request queued or in flight; used by pipeTo to
 // classify the destination state (close-queued vs errored vs writable).
 void WritableStreamCloseQueuedOrInFlight(
@@ -1518,6 +1534,8 @@ void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             WritableStreamClosedPromise);
   SetMethod(isolate, target, "writableStreamCloseQueuedOrInFlight",
             WritableStreamCloseQueuedOrInFlight);
+  SetMethod(isolate, target, "writableStreamStoredError",
+            WritableStreamStoredError);
 }
 
 void RegisterWritableStreamExternalReferences(
@@ -1527,6 +1545,7 @@ void RegisterWritableStreamExternalReferences(
   registry->Register(WritableStreamStateField);
   registry->Register(WritableStreamClosedPromise);
   registry->Register(WritableStreamCloseQueuedOrInFlight);
+  registry->Register(WritableStreamStoredError);
   WritableStream::RegisterExternalReferences(registry);
   WritableStreamDefaultController::RegisterExternalReferences(registry);
   WritableStreamDefaultWriter::RegisterExternalReferences(registry);

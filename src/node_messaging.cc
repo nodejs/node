@@ -321,8 +321,19 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override {
     if (BaseObject::IsBaseObject(env_->isolate_data(), object)) {
-      return WriteHostObject(
-          BaseObjectPtr<BaseObject>{BaseObject::Unwrap<BaseObject>(object)});
+      BaseObjectPtr<BaseObject> base{BaseObject::Unwrap<BaseObject>(object)};
+      // A BaseObject with no native transfer mode that implements the JS
+      // transferable protocol is written through that protocol (C++ WHATWG
+      // streams), mirroring the transfer-list handling in PostMessage.
+      if (base->GetTransferMode() ==
+              BaseObject::TransferMode::kDisallowCloneAndTransfer &&
+          JSTransferable::IsJSTransferable(env_, context_, object)) {
+        BaseObjectPtr<JSTransferable> js_transferable =
+            JSTransferable::Wrap(env_, object);
+        if (!js_transferable) return Nothing<bool>();
+        return WriteHostObject(js_transferable);
+      }
+      return WriteHostObject(base);
     }
 
     if (JSTransferable::IsJSTransferable(env_, context_, object)) {
@@ -550,6 +561,15 @@ Maybe<bool> Message::Serialize(Environment* env,
     if (BaseObject::IsBaseObject(env->isolate_data(), entry)) {
       host_object =
           BaseObjectPtr<BaseObject>{BaseObject::Unwrap<BaseObject>(entry)};
+      // A BaseObject that declares no native transfer mode but implements the
+      // JS transferable protocol (markTransferMode + @@kTransfer) is driven
+      // through that protocol — the C++ WHATWG streams objects rely on this.
+      if (host_object->GetTransferMode() ==
+              BaseObject::TransferMode::kDisallowCloneAndTransfer &&
+          JSTransferable::IsJSTransferable(env, context, entry)) {
+        host_object = JSTransferable::Wrap(env, entry);
+        if (!host_object) return Nothing<bool>();
+      }
     } else {
       if (!JSTransferable::IsJSTransferable(env, context, entry)) {
         ThrowDataCloneException(context, env->clone_untransferable_str());

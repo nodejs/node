@@ -26,6 +26,48 @@ enum class SizeMode : uint8_t {
   kUserFn,      // arbitrary user-provided size() function
 };
 
+// Web IDL conformance helpers shared by the readable/writable/transform
+// binding setup. idlharness requires accessor getters to be named "get <prop>",
+// operations to carry the right `.length`, and Promise-returning operations to
+// *reject* (not throw) when invoked on a foreign receiver.
+
+// Builds an accessor getter FunctionTemplate whose `.name` is "get <prop>".
+// Carries a receiver signature (a brand-check failure throwing TypeError is the
+// correct behavior for a plain attribute getter).
+v8::Local<v8::FunctionTemplate> NewGetter(v8::Isolate* isolate,
+                                          const char* prop,
+                                          v8::FunctionCallback cb,
+                                          v8::Local<v8::Signature> sig);
+
+// Builds a getter FunctionTemplate ("get <prop>") for a Promise-typed attribute
+// (e.g. reader.closed, writer.ready). Carries NO receiver signature: Web IDL
+// requires the getter of a Promise-typed attribute to reject (not throw) on a
+// brand-check failure, so the callback must run for foreign receivers too.
+v8::Local<v8::FunctionTemplate> NewPromiseGetter(v8::Isolate* isolate,
+                                                 const char* prop,
+                                                 v8::FunctionCallback cb);
+
+// Installs a synchronous operation on tmpl's prototype WITH a receiver
+// signature and an explicit `.length` (for required arguments).
+void SetProtoMethodLen(v8::Isolate* isolate,
+                       v8::Local<v8::FunctionTemplate> tmpl,
+                       const char* name,
+                       v8::FunctionCallback cb,
+                       int length);
+
+// Installs a Promise-returning operation on tmpl's prototype WITHOUT a receiver
+// signature, so the C++ callback runs even for a foreign receiver and can reject
+// the returned promise per Web IDL instead of throwing "Illegal invocation".
+void SetProtoMethodPromise(v8::Isolate* isolate,
+                           v8::Local<v8::FunctionTemplate> tmpl,
+                           const char* name,
+                           v8::FunctionCallback cb,
+                           int length);
+
+// A Promise rejected with TypeError("Illegal invocation"); returned by a
+// Promise-returning operation invoked on a foreign receiver.
+v8::Local<v8::Value> IllegalInvocationRejection(v8::Local<v8::Context> context);
+
 // Common base for every webstreams BaseObject. Carries a small kind tag so a
 // related object recovered from a GC-traced internal field can be safely
 // downcast: BaseObject::FromJSObject<T> performs an unchecked static_cast and

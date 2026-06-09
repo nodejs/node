@@ -309,9 +309,7 @@ TransformStreamDefaultController::GetConstructorTemplate(Environment* env) {
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
-        FunctionTemplate::New(isolate, GetDesiredSize, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "desiredSize", GetDesiredSize, sig));
     SetProtoMethod(isolate, tmpl, "enqueue", Enqueue);
     SetProtoMethod(isolate, tmpl, "error", Error);
     SetProtoMethod(isolate, tmpl, "terminate", Terminate);
@@ -417,15 +415,22 @@ Maybe<void> TransformStreamDefaultController::EnqueueInternal(
         InvalidStateError(isolate, context, "Unable to enqueue"));
     return Nothing<void>();
   }
+  bool readable_errored = false;
   {
     TryCatch try_catch(isolate);
     if (rc->EnqueueInternal(chunk).IsNothing()) {
       Local<Value> error = try_catch.Exception();
       try_catch.Reset();
       stream->ErrorWritableAndUnblockWrite(error);
-      isolate->ThrowException(readable->stored_error(env));
-      return Nothing<void>();
+      readable_errored = true;
     }
+  }
+  // Throw the readable's stored error only after the TryCatch above is out of
+  // scope: its destructor would otherwise cancel a pending exception raised
+  // while it is still alive, silently swallowing the size()/enqueue failure.
+  if (readable_errored) {
+    isolate->ThrowException(readable->stored_error(env));
+    return Nothing<void>();
   }
   bool backpressure = !rc->ShouldCallPull();
   if (backpressure != stream->backpressure()) {
@@ -527,14 +532,10 @@ Local<FunctionTemplate> TransformStream::GetConstructorTemplate(
     Local<Signature> sig = Signature::New(isolate, tmpl);
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "readable"),
-        FunctionTemplate::New(isolate, GetReadable, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "readable", GetReadable, sig));
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "writable"),
-        FunctionTemplate::New(isolate, GetWritable, Local<Value>(), sig, 0,
-                              v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasNoSideEffect));
+        NewGetter(isolate, "writable", GetWritable, sig));
     bd->transform_stream_ctor.Reset(isolate, tmpl);
   }
   return tmpl;

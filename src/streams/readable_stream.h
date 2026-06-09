@@ -177,9 +177,16 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
   bool SetupInternal(v8::Local<v8::Object> stream_obj);
   void Release();
 
+  // false for readers acquired internally by pipeTo/tee: their read results get
+  // a null prototype so monkey-patched Object.prototype.then cannot observe the
+  // pipe/tee (Web IDL "forAuthorCode").
+  bool for_author_code() const { return for_author_code_; }
+  void set_for_author_code(bool v) { for_author_code_ = v; }
+
  private:
   std::deque<v8::Global<v8::Promise::Resolver>> read_requests_;
   v8::Global<v8::Promise::Resolver> closed_;
+  bool for_author_code_ = true;
 };
 
 // ============================================================================
@@ -415,9 +422,13 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
   bool SetupInternal(v8::Local<v8::Object> stream_obj);
   void Release();
 
+  bool for_author_code() const { return for_author_code_; }
+  void set_for_author_code(bool v) { for_author_code_ = v; }
+
  private:
   std::deque<v8::Global<v8::Promise::Resolver>> read_into_requests_;
   v8::Global<v8::Promise::Resolver> closed_;
+  bool for_author_code_ = true;
 };
 
 // ReadableStream — the user-facing object. Holds top-level state; the controller
