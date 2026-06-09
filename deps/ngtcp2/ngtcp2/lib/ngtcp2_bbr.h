@@ -133,6 +133,7 @@ typedef struct ngtcp2_cc_bbr {
   uint64_t round_count_at_recovery;
   uint64_t max_inflight;
   uint64_t bdp;
+  uint64_t drain_start_round;
   int loss_round_start;
   int bw_probe_samples;
   int probe_rtt_expired;

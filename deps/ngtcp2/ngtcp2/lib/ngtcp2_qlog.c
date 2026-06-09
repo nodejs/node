@@ -1120,6 +1120,9 @@ void ngtcp2_qlog_stateless_reset_pkt_received(
   ngtcp2_qlog *qlog, const ngtcp2_pkt_stateless_reset2 *sr) {
   uint8_t buf[256];
   uint8_t *p = buf;
+  static const ngtcp2_pkt_hd hd = {
+    .type = NGTCP2_PKT_STATELESS_RESET,
+  };
 
   if (!qlog->write) {
     return;
@@ -1130,9 +1133,7 @@ void ngtcp2_qlog_stateless_reset_pkt_received(
   p = qlog_write_time(qlog, p);
   p = write_verbatim(
     p, ",\"name\":\"transport:packet_received\",\"data\":{\"header\":");
-  p = write_pkt_hd(p, &(ngtcp2_pkt_hd){
-                        .type = NGTCP2_PKT_STATELESS_RESET,
-                      });
+  p = write_pkt_hd(p, &hd);
   *p++ = ',';
   p = write_pair_hex(p, "stateless_reset_token", sr->token.data,
                      sizeof(sr->token.data));

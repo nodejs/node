@@ -482,9 +482,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   }
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
-    ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                     "pkn=%" PRId64 " has already been reclaimed on PTO",
-                     ent->hd.pkt_num);
+    ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC, "pkn=", ent->hd.pkt_num,
+                     " has already been reclaimed on PTO");
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
     assert(UINT64_MAX == ent->lost_ts);
   } else {
@@ -596,7 +595,7 @@ static int process_acked_pkt(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
     if (conn->dcid.current.max_udp_payload_size < ent->pktlen) {
       conn->dcid.current.max_udp_payload_size = ent->pktlen;
       conn->cstat.max_tx_udp_payload_size =
-        ngtcp2_conn_get_path_max_tx_udp_payload_size(conn);
+        ngtcp2_conn_get_path_max_tx_udp_payload_size2(conn);
     }
 
     if (ngtcp2_pmtud_finished(conn->pmtud)) {
@@ -903,8 +902,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   }
 
   if (cc_ack.largest_pkt_sent_ts != UINT64_MAX && ack_eliciting_pkt_acked) {
-    cc_ack.rtt = ngtcp2_max_uint64(pkt_ts - cc_ack.largest_pkt_sent_ts,
-                                   NGTCP2_NANOSECONDS);
+    cc_ack.rtt =
+      ngtcp2_max(pkt_ts - cc_ack.largest_pkt_sent_ts, NGTCP2_NANOSECONDS);
 
     ngtcp2_conn_update_rtt(conn, cc_ack.rtt, fr->ack_delay_unscaled, ts);
   }
@@ -999,7 +998,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
   if (loss_time == UINT64_MAX) {
     loss_time = ent->ts + loss_delay;
   } else {
-    loss_time = ngtcp2_min_uint64(loss_time, ent->ts + loss_delay);
+    loss_time = ngtcp2_min(loss_time, ent->ts + loss_delay);
   }
 
   cstat->loss_time[pktns->id] = loss_time;
@@ -1013,8 +1012,8 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
   ngtcp2_duration loss_delay =
-    ngtcp2_max_uint64(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
-  return ngtcp2_max_uint64(loss_delay, NGTCP2_GRANULARITY);
+    ngtcp2_max(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
+  return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
 
 /*
@@ -1056,8 +1055,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
   uint64_t bytes_lost = 0;
   ngtcp2_duration max_ack_delay;
 
-  pkt_thres = ngtcp2_max_uint64(pkt_thres, NGTCP2_PKT_THRESHOLD);
-  pkt_thres = ngtcp2_min_uint64(pkt_thres, 256);
+  pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
+  pkt_thres = ngtcp2_min(pkt_thres, 256);
   cstat->loss_time[pktns->id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
 
@@ -1082,12 +1081,11 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
 
       congestion_period =
         (cstat->smoothed_rtt +
-         ngtcp2_max_uint64(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
-         max_ack_delay) *
+         ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY) + max_ack_delay) *
         NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
-      start_ts = ngtcp2_max_uint64(conn->handshake_confirmed_ts,
-                                   cstat->first_rtt_sample_ts);
+      start_ts =
+        ngtcp2_max(conn->handshake_confirmed_ts, cstat->first_rtt_sample_ts);
 
       for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
         ent = ngtcp2_ksl_it_get(&it);
@@ -1172,9 +1170,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_cc_ack *cc_ack,
       if (pktns->id == NGTCP2_PKTNS_ID_APPLICATION && loss_window &&
           loss_window >= congestion_period) {
         ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                         "persistent congestion loss_window=%" PRIu64
-                         " congestion_period=%" PRIu64,
-                         loss_window, congestion_period);
+                         "persistent congestion loss_window=", loss_window,
+                         " congestion_period=", congestion_period);
 
         /* Reset min_rtt, srtt, and rttvar here.  Next new RTT
            sample will be used to recalculate these values. */
@@ -1222,7 +1219,7 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
     assert(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED);
 
     ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
+                     "removing stale lost pkn=", ent->hd.pkt_num);
 
     --rtb->num_lost_pkts;
 
@@ -1265,7 +1262,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
     }
 
     ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
+                     "removing stale lost pkn=", ent->hd.pkt_num);
 
     --rtb->num_lost_pkts;
 
@@ -1417,9 +1414,8 @@ int ngtcp2_rtb_reclaim_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE));
 
     if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
-      ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC,
-                       "pkn=%" PRId64 " has already been reclaimed on PTO",
-                       ent->hd.pkt_num);
+      ngtcp2_log_infof(rtb->log, NGTCP2_LOG_EVENT_LDC, "pkn=", ent->hd.pkt_num,
+                       " has already been reclaimed on PTO");
 
       ngtcp2_rtb_entry_objalloc_del(ent, rtb->rtb_entry_objalloc,
                                     rtb->frc_objalloc, rtb->mem);

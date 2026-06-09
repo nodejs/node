@@ -25,7 +25,6 @@
 #include "tls_server_session_boringssl.h"
 
 #include <cassert>
-#include <iostream>
 
 #include <ngtcp2/ngtcp2.h>
 

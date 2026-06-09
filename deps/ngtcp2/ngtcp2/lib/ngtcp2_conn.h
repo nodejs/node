@@ -702,7 +702,8 @@ typedef struct ngtcp2_vmsg {
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
  * |stream_id|.  If no such stream is found, it returns NULL.
  */
-ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id);
+ngtcp2_strm *ngtcp2_conn_find_stream(const ngtcp2_conn *conn,
+                                     int64_t stream_id);
 
 /*
  * conn_init_stream initializes |strm|.  Its stream ID is |stream_id|.
@@ -804,7 +805,7 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
  * ngtcp2_conn_internal_expiry returns the minimum expiry time among
  * all timers in |conn|.
  */
-ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
+ngtcp2_tstamp ngtcp2_conn_internal_expiry(const ngtcp2_conn *conn);
 
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                                     int pkt_info_version, ngtcp2_pkt_info *pi,
@@ -853,14 +854,14 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn);
  * ngtcp2_conn_lost_pkt_expiry returns the earliest expiry time of
  * lost packet.
  */
-ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn);
+ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(const ngtcp2_conn *conn);
 
 /*
  * ngtcp2_conn_remove_lost_pkt removes the expired lost packet.
  */
 void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
-uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn);
+uint64_t ngtcp2_conn_tx_strmq_first_cycle(const ngtcp2_conn *conn);
 
 /**
  * @function
@@ -871,7 +872,7 @@ uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn);
  * `ngtcp2_conn_write_pkt` (or `ngtcp2_conn_writev_stream`) when it
  * expires.  It returns UINT64_MAX if there is no expiry.
  */
-ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn);
+ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(const ngtcp2_conn *conn);
 
 /**
  * @function
@@ -892,7 +893,7 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
  * (or `ngtcp2_conn_writev_stream`) when it expires.  It returns
  * UINT64_MAX if loss detection timer is not armed.
  */
-ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
+ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(const ngtcp2_conn *conn);
 
 /**
  * @function
@@ -901,34 +902,13 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
  * should be closed if it continues to be idle.  If idle timeout is
  * disabled, this function returns ``UINT64_MAX``.
  */
-ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn);
-
-ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
+ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(const ngtcp2_conn *conn);
 
 /*
- * ngtcp2_conn_track_retired_dcid_seq tracks the sequence number |seq|
- * of unacknowledged retiring Destination Connection ID.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CONNECTION_ID_LIMIT
- *     The number of unacknowledged retirement exceeds the limit.
+ * ngtcp2_conn_compute_pto computes the current PTO.
  */
-int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
-
-/*
- * ngtcp2_conn_untrack_retired_dcid_seq deletes the sequence number
- * |seq| of unacknowledged retiring Destination Connection ID.  It is
- * fine if such sequence number is not found.
- */
-void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
-
-/*
- * ngtcp2_conn_check_retired_dcid_tracked returns nonzero if |seq| has
- * already been tracked.
- */
-int ngtcp2_conn_check_retired_dcid_tracked(ngtcp2_conn *conn, uint64_t seq);
+ngtcp2_duration ngtcp2_conn_compute_pto(const ngtcp2_conn *conn,
+                                        const ngtcp2_pktns *pktns);
 
 /*
  * ngtcp2_conn_server_negotiate_version negotiates QUIC version.  It
@@ -1107,7 +1087,7 @@ void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
                                   ngtcp2_tstamp ts);
 
 const ngtcp2_path_history_entry *
-ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+ngtcp2_conn_find_path_history(const ngtcp2_conn *conn, const ngtcp2_path *path,
                               ngtcp2_tstamp ts);
 
 #endif /* !defined(NGTCP2_CONN_H) */

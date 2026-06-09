@@ -25,7 +25,6 @@
 #include "tls_client_context_wolfssl.h"
 
 #include <cstring>
-#include <iostream>
 #include <fstream>
 #include <limits>
 
@@ -65,7 +64,7 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   auto sz = wolfSSL_i2d_SSL_SESSION(session, nullptr);
   if (sz <= 0) {
     std::println(stderr, "Could not export TLS session in {}",
-                 config.session_file);
+                 config.session_file.native());
     return 0;
   }
   if (static_cast<size_t>(sz) > sizeof(sbuffer)) {
@@ -75,10 +74,10 @@ int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session) {
   data = sbuffer;
   sz = wolfSSL_i2d_SSL_SESSION(session, &data);
 
-  auto f = wolfSSL_BIO_new_file(config.session_file, "w");
+  auto f = wolfSSL_BIO_new_file(config.session_file.c_str(), "w");
   if (f == nullptr) {
     std::println(stderr, "Could not write TLS session in {}",
-                 config.session_file);
+                 config.session_file.native());
     return 0;
   }
 
@@ -147,7 +146,7 @@ std::expected<void, Error> TLSClientContext::init(const char *private_key_file,
     }
   }
 
-  if (config.session_file) {
+  if (!config.session_file.empty()) {
     wolfSSL_CTX_UseSessionTicket(ssl_ctx_);
     wolfSSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);
   }
