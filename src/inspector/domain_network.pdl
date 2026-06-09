@@ -96,6 +96,22 @@ experimental domain Network
       # HTTP response headers.
       Headers headers
 
+  # WebSocket request data.
+  type WebSocketRequest extends object
+    properties
+      # HTTP request headers.
+      Headers headers
+
+  # WebSocket frame data.
+  type WebSocketFrame extends object
+    properties
+      # WebSocket message opcode.
+      number opcode
+      # WebSocket message mask.
+      boolean mask
+      # WebSocket message payload data.
+      string payloadData
+
   # Disables network tracking, prevents network events from being sent to the client.
   command disable
 
@@ -210,6 +226,17 @@ experimental domain Network
       string url
       # Request initiator.
       Initiator initiator
+  # Fired when WebSocket handshake request is about to be sent.
+  event webSocketWillSendHandshakeRequest
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Timestamp.
+      TimeSinceEpoch wallTime
+      # WebSocket request data.
+      WebSocketRequest request
   # Fired when WebSocket is closed.
   event webSocketClosed
     parameters
@@ -226,3 +253,21 @@ experimental domain Network
       MonotonicTime timestamp
       # WebSocket response data.
       WebSocketResponse response
+  # Fired when WebSocket message is received.
+  event webSocketFrameReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # WebSocket response data.
+      WebSocketFrame response
+  # Fired when WebSocket message is sent.
+  event webSocketFrameSent
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # WebSocket response data.
+      WebSocketFrame response
