@@ -174,6 +174,7 @@ int ossl_uint_set_insert(UINT_SET *s, const UINT_RANGE *range)
         for (x = ossl_list_uint_set_next(x); x != NULL; x = xnext) {
             xnext = ossl_list_uint_set_next(x);
             ossl_list_uint_set_remove(s, x);
+            OPENSSL_free(x);
         }
         return 1;
     }

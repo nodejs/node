@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -501,7 +501,7 @@ my ($xv8,$xv9,$xv10,$xv11,$xv12,$xv13,$xv14,$xv15,$xv16,$xv17) = map("v$_",(8..1
 my ($xv18,$xv19,$xv20,$xv21) = map("v$_",(18..21));
 my ($xv22,$xv23,$xv24,$xv25,$xv26) = map("v$_",(22..26));
 
-my $FRAME=$LOCALS+64+9*16;	# 8*16 is for v24-v31 offload
+my $FRAME=$LOCALS+64+9*16+13*8+4*16;	# 8*16 for v24-v31 offload, 13*8 for f14-f26, 4*16 for v20-v23
 
 sub VSX_lane_ROUND_8x {
 my ($a0,$b0,$c0,$d0,$a4,$b4,$c4,$d4)=@_;
@@ -665,7 +665,28 @@ $code.=<<___;
 	addi	r11,r11,32
 	stvx	v30,r10,$sp
 	stvx	v31,r11,$sp
-	stw	r12,`$FRAME-4`($sp)		# save vrsave
+	stfd	f14,`$LOCALS+64+9*16+0*8`($sp)	# save FPR14-FPR26 (callee-saved per ELFv2 ABI)
+	stfd	f15,`$LOCALS+64+9*16+1*8`($sp)
+	stfd	f16,`$LOCALS+64+9*16+2*8`($sp)
+	stfd	f17,`$LOCALS+64+9*16+3*8`($sp)
+	stfd	f18,`$LOCALS+64+9*16+4*8`($sp)
+	stfd	f19,`$LOCALS+64+9*16+5*8`($sp)
+	stfd	f20,`$LOCALS+64+9*16+6*8`($sp)
+	stfd	f21,`$LOCALS+64+9*16+7*8`($sp)
+	stfd	f22,`$LOCALS+64+9*16+8*8`($sp)
+	stfd	f23,`$LOCALS+64+9*16+9*8`($sp)
+	stfd	f24,`$LOCALS+64+9*16+10*8`($sp)
+	stfd	f25,`$LOCALS+64+9*16+11*8`($sp)
+	be?stfd	f26,`$LOCALS+64+9*16+12*8`($sp)	# BE only
+	li	r10,`$LOCALS+64+9*16+13*8+15`
+	li	r11,`$LOCALS+64+9*16+13*8+31`
+	stvx	v20,r10,$sp			# save VMX v20-v23 (callee-saved per ELFv2 ABI)
+	addi	r10,r10,32
+	stvx	v21,r11,$sp
+	addi	r11,r11,32
+	stvx	v22,r10,$sp
+	stvx	v23,r11,$sp
+	stw	r12,`$LOCALS+64+9*16-4`($sp)		# save vrsave
 	li	r12,-4096+63
 	$PUSH	r0, `$FRAME+$LRSAVE`($sp)
 	mtspr	256,r12				# preserve 29 AltiVec registers
@@ -1159,7 +1180,28 @@ $code.=<<___;
 	bne	Loop_outer_vsx_8x
 
 Ldone_vsx_8x:
-	lwz	r12,`$FRAME-4`($sp)		# pull vrsave
+	lwz	r12,`$LOCALS+64+9*16-4`($sp)		# pull vrsave
+	lfd	f14,`$LOCALS+64+9*16+0*8`($sp)	# restore FPR14-FPR26 (callee-saved per ELFv2 ABI)
+	lfd	f15,`$LOCALS+64+9*16+1*8`($sp)
+	lfd	f16,`$LOCALS+64+9*16+2*8`($sp)
+	lfd	f17,`$LOCALS+64+9*16+3*8`($sp)
+	lfd	f18,`$LOCALS+64+9*16+4*8`($sp)
+	lfd	f19,`$LOCALS+64+9*16+5*8`($sp)
+	lfd	f20,`$LOCALS+64+9*16+6*8`($sp)
+	lfd	f21,`$LOCALS+64+9*16+7*8`($sp)
+	lfd	f22,`$LOCALS+64+9*16+8*8`($sp)
+	lfd	f23,`$LOCALS+64+9*16+9*8`($sp)
+	lfd	f24,`$LOCALS+64+9*16+10*8`($sp)
+	lfd	f25,`$LOCALS+64+9*16+11*8`($sp)
+	be?lfd	f26,`$LOCALS+64+9*16+12*8`($sp)	# BE only
+	li	r10,`$LOCALS+64+9*16+13*8+15`
+	li	r11,`$LOCALS+64+9*16+13*8+31`
+	lvx	v20,r10,$sp			# restore VMX v20-v23 (callee-saved per ELFv2 ABI)
+	addi	r10,r10,32
+	lvx	v21,r11,$sp
+	addi	r11,r11,32
+	lvx	v22,r10,$sp
+	lvx	v23,r11,$sp
 	li	r10,`15+$LOCALS+64`
 	li	r11,`31+$LOCALS+64`
 	$POP	r0, `$FRAME+$LRSAVE`($sp)

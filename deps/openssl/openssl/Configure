@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -221,16 +221,9 @@ our $BSDthreads="-pthread -D_THREAD_SAFE -D_REENTRANT";
 #
 # API compatibility name to version number mapping.
 #
+
+# This table expresses when API additions or changes can occur
 my $apitable = {
-    # This table expresses when API additions or changes can occur.
-    # The numbering used changes from 3.0 and on because we updated
-    # (solidified) our version numbering scheme at that point.
-
-    # From 3.0 and on, we internalise the given version number in decimal
-    # as MAJOR * 10000 + MINOR * 100 + 0
-    "3.0.0" => 30000,
-    "3.0"   => 30000,
-
     # Note that before 3.0, we didn't have the same version number scheme.
     # Still, the numbering we use here covers what we need.
     "1.1.1" => 10101,
@@ -240,6 +233,18 @@ my $apitable = {
     "1.0.0" => 10000,
     "0.9.8" =>   908,
 };
+
+# From 3.0 and on, we internalise the given version number in decimal
+# as MAJOR * 10000 + MINOR * 100 + 0
+my @post30_versions = ([3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5],
+                       );
+
+# The numbering used changes from 3.0 and on because we updated
+# (solidified) our version numbering scheme at that point.
+foreach (@post30_versions) {
+    my ($x, $y) = @{$_};
+    $apitable->{"$x.$y.0"} = $apitable->{"$x.$y"} = $x * 10000 + $y * 100;
+}
 
 # For OpenSSL::config::get_platform
 my %guess_opts = ();
