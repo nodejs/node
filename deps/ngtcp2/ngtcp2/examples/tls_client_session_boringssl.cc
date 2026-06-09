@@ -25,7 +25,6 @@
 #include "tls_client_session_boringssl.h"
 
 #include <cassert>
-#include <iostream>
 #include <fstream>
 
 #include "tls_client_context_boringssl.h"
@@ -73,17 +72,17 @@ TLSClientSession::init(bool &early_data_enabled,
     SSL_set_tlsext_host_name(ssl_, remote_addr);
   }
 
-  if (config.session_file) {
-    auto f = BIO_new_file(config.session_file, "r");
+  if (!config.session_file.empty()) {
+    auto f = BIO_new_file(config.session_file.c_str(), "r");
     if (f == nullptr) {
       std::println(stderr, "Could not read TLS session file {}",
-                   config.session_file);
+                   config.session_file.native());
     } else {
       auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
       BIO_free(f);
       if (session == nullptr) {
         std::println(stderr, "Could not read TLS session file {}",
-                     config.session_file);
+                     config.session_file.native());
       } else {
         if (!SSL_set_session(ssl_, session)) {
           std::println(stderr, "Could not set session");
@@ -116,8 +115,8 @@ bool TLSClientSession::get_ech_accepted() const {
   return SSL_ech_accepted(ssl_);
 }
 
-std::expected<void, Error>
-TLSClientSession::write_ech_config_list(const char *path) const {
+std::expected<void, Error> TLSClientSession::write_ech_config_list(
+  const std::filesystem::path &path) const {
   const uint8_t *retry_configs;
   size_t retry_configslen;
 

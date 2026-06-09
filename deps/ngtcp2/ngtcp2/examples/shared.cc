@@ -28,7 +28,6 @@
 
 #include <cstring>
 #include <cassert>
-#include <iostream>
 
 #include <unistd.h>
 #ifdef HAVE_NETINET_IN_H

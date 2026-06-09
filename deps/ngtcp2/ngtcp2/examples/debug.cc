@@ -28,7 +28,6 @@
 
 #include <cassert>
 #include <random>
-#include <iostream>
 #include <array>
 
 #include "util.h"
@@ -175,22 +174,10 @@ void print_hp_mask(std::span<const uint8_t> mask,
                util::format_hex(sample));
 }
 
-void log_printf(void *user_data, const char *fmt, ...) {
-  va_list ap;
-  std::array<char, 4096> buf;
+void log_write(void *user_data, char *msg, size_t len) {
+  msg[len++] = '\n';
 
-  va_start(ap, fmt);
-  auto n = vsnprintf(buf.data(), buf.size(), fmt, ap);
-  va_end(ap);
-
-  if (static_cast<size_t>(n) >= buf.size()) {
-    n = buf.size() - 1;
-  }
-
-  buf[static_cast<size_t>(n++)] = '\n';
-
-  while (write(fileno(stderr), buf.data(), static_cast<size_t>(n)) == -1 &&
-         errno == EINTR)
+  while (write(fileno(stderr), msg, len) == -1 && errno == EINTR)
     ;
 }
 
@@ -322,7 +309,7 @@ std::string_view secret_title(ngtcp2_encryption_level level) {
 void print_conn_info(ngtcp2_conn *conn) {
   ngtcp2_conn_info cinfo;
 
-  ngtcp2_conn_get_conn_info(conn, &cinfo);
+  ngtcp2_conn_get_conn_info2(conn, &cinfo);
 
   std::println(
     R"(# Connection Statistics (see ngtcp2_conn_info for details)
