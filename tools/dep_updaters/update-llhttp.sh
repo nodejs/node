@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -ex
 
 # Shell script to update llhttp in the source tree to specific version
 
@@ -51,7 +51,7 @@ trap cleanup INT TERM EXIT
 
 if [ -z "$LOCAL_COPY" ]; then
   echo "Downloading llhttp source..."
-  curl -fsSL https://github.com/nodejs/llhttp/archive/refs/tags/v$NEW_VERSION.tar.gz | tar xz -C "$WORKSPACE"
+  curl -fsSL "https://github.com/nodejs/llhttp/archive/refs/tags/v$NEW_VERSION.tar.gz" | tar xz -C "$WORKSPACE"
 
   LOCAL_COPY="$(find "$WORKSPACE" -mindepth 1 -maxdepth 1 -type d -print -quit)"
 fi
