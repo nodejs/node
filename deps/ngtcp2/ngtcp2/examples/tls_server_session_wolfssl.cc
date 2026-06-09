@@ -24,8 +24,6 @@
  */
 #include "tls_server_session_wolfssl.h"
 
-#include <iostream>
-
 #include "tls_server_context_wolfssl.h"
 #include "server_base.h"
 

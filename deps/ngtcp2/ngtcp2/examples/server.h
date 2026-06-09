@@ -39,7 +39,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <nghttp3/nghttp3.h>
 
 #include <ev.h>
 
@@ -49,25 +48,56 @@
 #include "shared.h"
 #include "util.h"
 
+#ifdef WITH_EXAMPLE_HTTP3_PROTO_CODEC
+#  include "http3_server_proto_codec.h"
+#endif // WITH_EXAMPLE_HTTP3_PROTO_CODEC
+
+#ifdef WITH_EXAMPLE_HQ_PROTO_CODEC
+#  include <http-parser/http_parser.h>
+
+#  include "hq_server_proto_codec.h"
+#endif // WITH_EXAMPLE_HQ_PROTO_CODEC
+
 using namespace ngtcp2;
 
 class Handler;
-struct FileEntry;
+
+enum FileEntryFlag {
+  FILE_ENTRY_TYPE_DIR = 0x1,
+};
+
+struct FileEntry {
+  uint64_t len{};
+  void *map{};
+  int fd{};
+  uint8_t flags{};
+};
+
+std::string make_status_body(unsigned int status_code);
+
+struct Request {
+  std::string path;
+  struct {
+    int32_t urgency;
+    int inc;
+  } pri{};
+};
 
 struct Stream {
   Stream(int64_t stream_id, Handler *handler);
 
-  std::expected<void, Error> start_response(nghttp3_conn *conn);
-  std::expected<FileEntry, Error> open_file(const std::string &path);
+  std::expected<void, Error> start_response();
+  std::expected<FileEntry, Error> open_file(const std::filesystem::path &path);
   void map_file(const FileEntry &fe);
   std::expected<void, Error>
-  send_status_response(nghttp3_conn *conn, unsigned int status_code,
+  send_status_response(ProtoCodec *pc, unsigned int status_code,
                        const std::vector<HTTPHeader> &extra_headers = {});
-  std::expected<void, Error> send_redirect_response(nghttp3_conn *conn,
+  std::expected<void, Error> send_redirect_response(ProtoCodec *pc,
                                                     unsigned int status_code,
                                                     std::string_view path);
   std::expected<uint64_t, Error> find_dyn_length(std::string_view path);
   void http_acked_stream_data(uint64_t datalen);
+  std::expected<Request, Error> request_path();
 
   int64_t stream_id;
   Handler *handler;
@@ -76,16 +106,20 @@ struct Stream {
   std::string method;
   std::string authority;
   std::string status_resp_body;
-  // data is a pointer to the memory which maps file denoted by fd.
-  uint8_t *data{};
-  // datalen is the length of mapped file by data.
-  uint64_t datalen{};
+  // resp_data is a pointer to the response data.  It might be the
+  // memory which maps file denoted by fd, or status_resp_body.
+  std::span<const uint8_t> resp_data;
   // dynresp is true if dynamic data response is enabled.
   bool dynresp{};
   // dyndataleft is the number of dynamic data left to send.
   uint64_t dyndataleft{};
   // dynbuflen is the number of bytes in-flight.
   uint64_t dynbuflen{};
+#ifdef WITH_EXAMPLE_HQ_PROTO_CODEC
+  http_parser htp;
+  // eos gets true when one HTTP request message is seen.
+  bool eos{};
+#endif // WITH_EXAMPLE_HQ_PROTO_CODEC
 };
 
 class Server;
@@ -153,27 +187,13 @@ public:
              const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
              size_t secretlen);
 
-  std::expected<void, Error> setup_httpconn();
-  void http_consume(int64_t stream_id, size_t nconsumed);
   void extend_max_remote_streams_bidi(uint64_t max_streams);
-  Stream *find_stream(int64_t stream_id);
-  void http_begin_request_headers(int64_t stream_id);
-  void http_recv_request_header(Stream *stream, int32_t token,
-                                nghttp3_rcbuf *name, nghttp3_rcbuf *value);
-  std::expected<void, Error> http_end_request_headers(Stream *stream);
-  std::expected<void, Error> http_end_stream(Stream *stream);
-  std::expected<void, Error> start_response(Stream *stream);
+  Stream *find_stream(int64_t stream_id) const;
   std::expected<void, Error> on_stream_reset(int64_t stream_id);
   std::expected<void, Error> on_stream_stop_sending(int64_t stream_id);
   std::expected<void, Error> extend_max_stream_data(int64_t stream_id,
                                                     uint64_t max_data);
   void shutdown_read(int64_t stream_id, uint64_t app_error_code);
-  void http_acked_stream_data(Stream *stream, uint64_t datalen);
-  void http_stream_close(int64_t stream_id, uint64_t app_error_code);
-  std::expected<void, Error> http_stop_sending(int64_t stream_id,
-                                               uint64_t app_error_code);
-  std::expected<void, Error> http_reset_stream(int64_t stream_id,
-                                               uint64_t app_error_code);
 
   void write_qlog(const void *data, size_t datalen);
 
@@ -189,6 +209,10 @@ public:
   ngtcp2_ssize write_pkt(ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
                          size_t destlen, ngtcp2_tstamp ts);
 
+  std::expected<void, Error> on_app_tx_ready();
+
+  std::expected<void, Error> start_response(Stream *stream);
+
 private:
   struct ev_loop *loop_;
   Server *server_;
@@ -196,7 +220,7 @@ private:
   ev_timer timer_;
   FILE *qlog_{};
   ngtcp2_cid scid_{};
-  nghttp3_conn *httpconn_{};
+  std::unique_ptr<ProtoCodec> proto_codec_;
   std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
   // This packet is repeatedly sent as a response to the incoming

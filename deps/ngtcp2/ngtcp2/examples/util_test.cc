@@ -28,6 +28,7 @@
 #include <array>
 #include <iterator>
 #include <expected>
+#include <filesystem>
 
 #include "util.h"
 
@@ -49,6 +50,7 @@ const MunitTest tests[]{
   munit_void_test(test_util_format_hex),
   munit_void_test(test_util_decode_hex),
   munit_void_test(test_util_is_hex_string),
+  munit_void_test(test_util_split_str),
   munit_test_end(),
 };
 } // namespace
@@ -60,21 +62,21 @@ const MunitSuite util_suite{
 
 namespace util {
 std::expected<HPKEPrivateKey, Error>
-read_hpke_private_key_pem(std::string_view filename) {
+read_hpke_private_key_pem(const std::filesystem::path &path) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-std::expected<std::vector<uint8_t>, Error> read_pem(std::string_view filename,
-                                                    std::string_view name,
-                                                    std::string_view type) {
+std::expected<std::vector<uint8_t>, Error>
+read_pem(const std::filesystem::path &path, std::string_view name,
+         std::string_view type) {
   return std::unexpected{Error::NOT_IMPLEMENTED};
 }
 } // namespace util
 
 namespace util {
-std::expected<void, Error> write_pem(std::string_view filename,
+std::expected<void, Error> write_pem(const std::filesystem::path &path,
                                      std::string_view name,
                                      std::string_view type,
                                      std::span<const uint8_t> data) {
@@ -162,6 +164,10 @@ void test_util_parse_uint() {
     auto res = util::parse_uint("1a");
     assert_false(res.has_value());
   }
+  {
+    auto res = util::parse_uint("");
+    assert_false(res.has_value());
+  }
 }
 
 void test_util_parse_uint_iec() {
@@ -205,6 +211,14 @@ void test_util_parse_uint_iec() {
   }
   {
     auto res = util::parse_uint_iec("1Gx");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_uint_iec("G");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_uint_iec("");
     assert_false(res.has_value());
   }
 }
@@ -274,6 +288,18 @@ void test_util_parse_duration() {
   }
   {
     auto res = util::parse_duration("1mxy");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_duration("s");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_duration("ms");
+    assert_false(res.has_value());
+  }
+  {
+    auto res = util::parse_duration("");
     assert_false(res.has_value());
   }
 }
@@ -577,6 +603,23 @@ void test_util_is_hex_string() {
   assert_false(util::is_hex_string("zzz"sv));
   assert_false(util::is_hex_string("zz"sv));
   assert_false(util::is_hex_string("z"sv));
+}
+
+void test_util_split_str() {
+  assert_true((std::vector{"alpha"sv, "bravo"sv, "charlie"sv} ==
+               (util::split_str("alpha,bravo,charlie"sv) |
+                std::ranges::to<std::vector>())));
+  assert_true((std::vector{"alpha"sv, "bravo"sv, "charlie"sv} ==
+               (util::split_str("alpha bravo charlie"sv, ' ') |
+                std::ranges::to<std::vector>())));
+  assert_true((std::vector<std::string_view>{} ==
+               (util::split_str(""sv, ' ') | std::ranges::to<std::vector>())));
+  assert_true((std::vector{""sv, ""sv} ==
+               (util::split_str(","sv) | std::ranges::to<std::vector>())));
+  assert_true(
+    (std::vector{""sv, "alpha"sv, ""sv, ""sv, "bravo"sv, "charlie"sv, ""sv,
+                 ""sv} == (util::split_str(" alpha   bravo charlie  "sv, ' ') |
+                           std::ranges::to<std::vector>())));
 }
 
 } // namespace ngtcp2

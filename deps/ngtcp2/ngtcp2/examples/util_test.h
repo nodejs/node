@@ -49,6 +49,7 @@ munit_void_test_decl(test_util_hexdump)
 munit_void_test_decl(test_util_format_hex)
 munit_void_test_decl(test_util_decode_hex)
 munit_void_test_decl(test_util_is_hex_string)
+munit_void_test_decl(test_util_split_str)
 
 } // namespace ngtcp2
 

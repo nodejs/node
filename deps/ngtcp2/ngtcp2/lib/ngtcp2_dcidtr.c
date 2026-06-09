@@ -386,7 +386,7 @@ ngtcp2_tstamp ngtcp2_dcidtr_earliest_bound_ts(const ngtcp2_dcidtr *dtr) {
     assert(dcid->cid.datalen);
     assert(dcid->bound_ts != UINT64_MAX);
 
-    res = ngtcp2_min_uint64(res, dcid->bound_ts);
+    res = ngtcp2_min(res, dcid->bound_ts);
   }
 
   return res;
