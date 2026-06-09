@@ -70,7 +70,7 @@ void nghttp3_ringbuf_free(nghttp3_ringbuf *rb) {
 
 void *nghttp3_ringbuf_push_front(nghttp3_ringbuf *rb) {
   rb->first = (rb->first - 1) & (rb->nmemb - 1);
-  rb->len = nghttp3_min_size(rb->nmemb, rb->len + 1);
+  rb->len = nghttp3_min(rb->nmemb, rb->len + 1);
 
   return (void *)&rb->buf[rb->first * rb->size];
 }
@@ -108,7 +108,9 @@ void *nghttp3_ringbuf_get(nghttp3_ringbuf *rb, size_t offset) {
   return &rb->buf[offset * rb->size];
 }
 
-int nghttp3_ringbuf_full(nghttp3_ringbuf *rb) { return rb->len == rb->nmemb; }
+int nghttp3_ringbuf_full(const nghttp3_ringbuf *rb) {
+  return rb->len == rb->nmemb;
+}
 
 int nghttp3_ringbuf_reserve(nghttp3_ringbuf *rb, size_t nmemb) {
   uint8_t *buf;
