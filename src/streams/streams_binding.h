@@ -17,6 +17,45 @@ class Realm;
 
 namespace webstreams {
 
+// How a controller computes the size of a chunk. The two built-in queuing
+// strategies are recognized at setup time so the per-chunk size() call into JS
+// can be skipped entirely.
+enum class SizeMode : uint8_t {
+  kCountOne,    // CountQueuingStrategy: size === 1
+  kByteLength,  // ByteLengthQueuingStrategy: size === chunk.byteLength
+  kUserFn,      // arbitrary user-provided size() function
+};
+
+// Common base for every webstreams BaseObject. Carries a small kind tag so a
+// related object recovered from a GC-traced internal field can be safely
+// downcast: BaseObject::FromJSObject<T> performs an unchecked static_cast and
+// RTTI is disabled in the Node build, so the tag is the discriminator. For
+// example a ReadableStream's controller field may hold either a default or a
+// byte controller, and its reader field either a default or a BYOB reader; the
+// tag tells them apart in O(1).
+class StreamBaseObject : public BaseObject {
+ public:
+  enum class Kind : uint8_t {
+    kStream,
+    kDefaultController,
+    kByteController,
+    kDefaultReader,
+    kByobReader,
+    kByobRequest,
+    kWritableStream,
+    kWritableStreamDefaultWriter,
+    kWritableStreamDefaultController,
+  };
+
+  StreamBaseObject(Environment* env, v8::Local<v8::Object> object, Kind kind)
+      : BaseObject(env, object), stream_kind_(kind) {}
+
+  Kind stream_kind() const { return stream_kind_; }
+
+ private:
+  const Kind stream_kind_;
+};
+
 // Per-realm state for the WHATWG Streams C++ implementation. Holds the cached
 // property name symbols (e.g. the `value`/`done` keys of read results) and the
 // shared promise-reaction functions so that the per-operation hot paths never
@@ -54,6 +93,9 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::FunctionTemplate> readable_byte_stream_controller_ctor;
   v8::Global<v8::FunctionTemplate> readable_stream_byob_reader_ctor;
   v8::Global<v8::FunctionTemplate> readable_stream_byob_request_ctor;
+  v8::Global<v8::FunctionTemplate> writable_stream_ctor;
+  v8::Global<v8::FunctionTemplate> writable_stream_default_writer_ctor;
+  v8::Global<v8::FunctionTemplate> writable_stream_default_controller_ctor;
 };
 
 }  // namespace webstreams

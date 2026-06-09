@@ -1,5 +1,6 @@
 #include "streams/streams_binding.h"
 #include "streams/readable_stream.h"
+#include "streams/writable_stream.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -57,6 +58,7 @@ void BindingData::Deserialize(Local<Context> context,
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   webstreams::InitializeReadableStream(isolate_data->isolate(), target);
+  webstreams::InitializeWritableStream(isolate_data->isolate(), target);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -70,6 +72,7 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   webstreams::RegisterReadableStreamExternalReferences(registry);
+  webstreams::RegisterWritableStreamExternalReferences(registry);
 }
 
 }  // namespace webstreams
