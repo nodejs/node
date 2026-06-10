@@ -60,6 +60,7 @@ class SessionManager;
   V(stream_created, StreamCreated)                                             \
   V(stream_drain, StreamDrain)                                                 \
   V(stream_headers, StreamHeaders)                                             \
+  V(stream_sessionid, StreamSessionId)                                         \
   V(stream_reset, StreamReset)                                                 \
   V(stream_trailers, StreamTrailers)
 
