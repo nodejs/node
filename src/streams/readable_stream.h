@@ -23,7 +23,16 @@ enum class StreamState : uint8_t { kReadable, kClosed, kErrored };
 // Recorded settlement of a reader's lazily-materialized `closed` promise.
 // Most readers never touch `closed`, so acquiring a reader records only the
 // state; the resolver is created (and settled accordingly) on first access.
-enum class ClosedState : uint8_t { kPending, kResolved, kRejected };
+// kRejectedReleased records "rejected with the reader-released error" WITHOUT
+// materializing the error: constructing a JS TypeError captures a stack
+// trace, which dominates getReader()/releaseLock() churn if done eagerly. The
+// error is built lazily on first `closed` access (see closed_promise).
+enum class ClosedState : uint8_t {
+  kPending,
+  kResolved,
+  kRejected,
+  kRejectedReleased,
+};
 
 class ReadableStream;
 class ReadableStreamDefaultReader;

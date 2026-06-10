@@ -158,6 +158,17 @@ Local<Value> InvalidStateError(Isolate* isolate,
   return err;
 }
 
+// The reader-released `closed` rejection reason. NEVER construct this eagerly
+// in Release(): error construction captures a stack trace, which dominates
+// getReader()/releaseLock() churn. Built only when a settled-with-it promise
+// actually exists or is first observed (ClosedState::kRejectedReleased).
+Local<Value> ReaderReleasedError(Isolate* isolate, Local<Context> context) {
+  return InvalidStateError(
+      isolate, context,
+      "Reader was released and can no longer be used to monitor the stream's "
+      "state");
+}
+
 // Reaction callbacks for user algorithm promises. args.Data() is the controller
 // wrapper object (default or byte); the controller is recovered and dispatched
 // by its kind tag.
@@ -976,9 +987,12 @@ Local<Promise> ReadableStreamDefaultReader::closed_promise(Environment* env) {
     closed_.Reset(isolate, resolver);
     if (closed_state_ == ClosedState::kResolved) {
       USE(resolver->Resolve(env->context(), Undefined(isolate)));
-    } else if (closed_state_ == ClosedState::kRejected) {
+    } else if (closed_state_ != ClosedState::kPending) {
+      Local<Value> reason = closed_state_ == ClosedState::kRejectedReleased
+                                ? ReaderReleasedError(isolate, env->context())
+                                : closed_reason_.Get(isolate);
       Local<Promise> promise = resolver->GetPromise();
-      USE(resolver->Reject(env->context(), closed_reason_.Get(isolate)));
+      USE(resolver->Reject(env->context(), reason));
       MarkHandled(env, promise);
     }
   }
@@ -1053,17 +1067,16 @@ void ReadableStreamDefaultReader::Release() {
   CHECK_NOT_NULL(stream);
 
   // Reject closed with a "reader released" error.
-  Local<Value> released_error = InvalidStateError(
-      isolate, context,
-      "Reader was released and can no longer be used to monitor the stream's "
-      "state");
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
   if (resolver.IsEmpty()) {
     // Not yet materialized: after release, `closed` is always rejected with
-    // the released error (spec ReadableStreamReaderGenericRelease).
-    closed_state_ = ClosedState::kRejected;
-    closed_reason_.Reset(isolate, released_error);
+    // the released error (spec ReadableStreamReaderGenericRelease). The error
+    // itself is built lazily on first access — constructing it here would put
+    // a stack capture on every releaseLock().
+    closed_state_ = ClosedState::kRejectedReleased;
+    closed_reason_.Reset();
   } else {
+    Local<Value> released_error = ReaderReleasedError(isolate, context);
     if (stream->state() == StreamState::kReadable) {
       USE(resolver->Reject(context, released_error));
     } else {
@@ -1091,10 +1104,12 @@ void ReadableStreamDefaultReader::Release() {
   stream_cache_ = nullptr;
   stream->set_reader_cache(nullptr);
 
-  // Error any outstanding read requests with the releasing error.
-  Local<Value> releasing_error = InvalidStateError(
-      isolate, context, "The reader is not attached to a stream");
-  ErrorAll(releasing_error);
+  // Error any outstanding read requests with the releasing error (created
+  // only if there are any — error construction captures a stack trace).
+  if (!read_requests_.empty()) {
+    ErrorAll(InvalidStateError(isolate, context,
+                               "The reader is not attached to a stream"));
+  }
 }
 
 // Shared tail of the default reader's read(): builds the read promise and
@@ -2616,9 +2631,12 @@ Local<Promise> ReadableStreamBYOBReader::closed_promise(Environment* env) {
     closed_.Reset(isolate, resolver);
     if (closed_state_ == ClosedState::kResolved) {
       USE(resolver->Resolve(env->context(), Undefined(isolate)));
-    } else if (closed_state_ == ClosedState::kRejected) {
+    } else if (closed_state_ != ClosedState::kPending) {
+      Local<Value> reason = closed_state_ == ClosedState::kRejectedReleased
+                                ? ReaderReleasedError(isolate, env->context())
+                                : closed_reason_.Get(isolate);
       Local<Promise> promise = resolver->GetPromise();
-      USE(resolver->Reject(env->context(), closed_reason_.Get(isolate)));
+      USE(resolver->Reject(env->context(), reason));
       MarkHandled(env, promise);
     }
   }
@@ -2695,17 +2713,16 @@ void ReadableStreamBYOBReader::Release() {
   ReadableStream* stream = this->stream();
   CHECK_NOT_NULL(stream);
 
-  Local<Value> released_error = InvalidStateError(
-      isolate, context,
-      "Reader was released and can no longer be used to monitor the stream's "
-      "state");
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
   if (resolver.IsEmpty()) {
     // Not yet materialized: after release, `closed` is always rejected with
-    // the released error (spec ReadableStreamReaderGenericRelease).
-    closed_state_ = ClosedState::kRejected;
-    closed_reason_.Reset(isolate, released_error);
+    // the released error (spec ReadableStreamReaderGenericRelease). The error
+    // itself is built lazily on first access — constructing it here would put
+    // a stack capture on every releaseLock().
+    closed_state_ = ClosedState::kRejectedReleased;
+    closed_reason_.Reset();
   } else {
+    Local<Value> released_error = ReaderReleasedError(isolate, context);
     if (stream->state() == StreamState::kReadable) {
       USE(resolver->Reject(context, released_error));
     } else {
@@ -2728,9 +2745,12 @@ void ReadableStreamBYOBReader::Release() {
   stream_cache_ = nullptr;
   stream->set_reader_cache(nullptr);
 
-  Local<Value> releasing_error = InvalidStateError(
-      isolate, context, "The reader is not attached to a stream");
-  ErrorAll(releasing_error);
+  // Created only if there are outstanding read-into requests (error
+  // construction captures a stack trace).
+  if (!read_into_requests_.empty()) {
+    ErrorAll(InvalidStateError(isolate, context,
+                               "The reader is not attached to a stream"));
+  }
 }
 
 void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
