@@ -494,8 +494,13 @@ void WritableStreamDefaultController::ProcessClose() {
   Local<Function> close = close_algorithm_.Get(isolate);
   Local<Value> result;
   Local<Object> controller_obj = object();
-  bool got =
-      close->Call(context, Undefined(isolate), 0, nullptr).ToLocal(&result);
+  // Called with the algorithm receiver (the sink for public streams — their
+  // wrapped close ignores `this` — and the transform stream for the shared
+  // transform trampolines, which recover it from the receiver).
+  Local<Value> close_recv = algo_receiver_.IsEmpty()
+                                ? Undefined(isolate).As<Value>()
+                                : algo_receiver_.Get(isolate);
+  bool got = close->Call(context, close_recv, 0, nullptr).ToLocal(&result);
   ClearAlgorithms();
   if (!got || !result->IsPromise()) return;
   ThenReact(env, result.As<Promise>(), controller_obj, ReactCloseFulfilled,
@@ -567,8 +572,11 @@ Local<Promise> WritableStreamDefaultController::AbortSteps(Local<Value> reason) 
   Local<Value> argv[] = {reason};
   Local<Value> result;
   Local<Promise> promise;
+  Local<Value> abort_recv = algo_receiver_.IsEmpty()
+                                ? Undefined(isolate).As<Value>()
+                                : algo_receiver_.Get(isolate);
   if (!abort.IsEmpty() &&
-      abort->Call(context, Undefined(isolate), 1, argv).ToLocal(&result) &&
+      abort->Call(context, abort_recv, 1, argv).ToLocal(&result) &&
       result->IsPromise()) {
     promise = result.As<Promise>();
   } else {

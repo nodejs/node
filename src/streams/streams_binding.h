@@ -169,6 +169,16 @@ class BindingData : public SnapshotableObject {
   // the controller started (by kind tag). Lazily created.
   v8::Global<v8::Function> start_fulfilled_reaction;
 
+  // Shared per-realm TransformStream algorithm trampolines. All but start are
+  // invoked by our own controllers with the transform stream's wrapper as
+  // receiver (algo_receiver), so one function per realm replaces five
+  // per-creation Function allocations. Lazily created.
+  v8::Global<v8::Function> transform_write_tramp;
+  v8::Global<v8::Function> transform_close_tramp;
+  v8::Global<v8::Function> transform_abort_tramp;
+  v8::Global<v8::Function> transform_pull_tramp;
+  v8::Global<v8::Function> transform_cancel_tramp;
+
   // Boilerplate { value: undefined, done: <bool> } read-result objects, cloned
   // per read (v8::Object::Clone is a flat CopyJSObject) instead of building the
   // object property-by-property through the map-transition machinery. The

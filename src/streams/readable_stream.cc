@@ -717,7 +717,12 @@ Local<Promise> ReadableStreamDefaultController::CancelSteps(
   Local<Value> argv[] = {reason};
   Local<Value> result;
   Local<Promise> promise;
-  if (cancel->Call(context, Undefined(isolate), 1, argv).ToLocal(&result) &&
+  // Receiver: the source for public streams (their wrapped cancel ignores
+  // `this`); the transform stream for the shared transform trampolines.
+  Local<Value> cancel_recv = algo_receiver_.IsEmpty()
+                                 ? Undefined(isolate).As<Value>()
+                                 : algo_receiver_.Get(isolate);
+  if (cancel->Call(context, cancel_recv, 1, argv).ToLocal(&result) &&
       result->IsPromise()) {
     promise = result.As<Promise>();
   } else {
@@ -1891,7 +1896,10 @@ Local<Promise> ReadableByteStreamController::CancelSteps(Local<Value> reason) {
   Local<Value> argv[] = {reason};
   Local<Value> result;
   Local<Promise> promise;
-  if (cancel->Call(context, Undefined(isolate), 1, argv).ToLocal(&result) &&
+  Local<Value> cancel_recv = algo_receiver_.IsEmpty()
+                                 ? Undefined(isolate).As<Value>()
+                                 : algo_receiver_.Get(isolate);
+  if (cancel->Call(context, cancel_recv, 1, argv).ToLocal(&result) &&
       result->IsPromise()) {
     promise = result.As<Promise>();
   } else {

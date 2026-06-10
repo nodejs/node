@@ -221,7 +221,12 @@ void SourceCancelRejected(const FunctionCallbackInfo<Value>& args) {
   stream->controller()->RejectFinish(env, args[0]);
 }
 
-// --- algorithm trampolines (Data == transform stream object) ---
+// --- algorithm trampolines ---
+// start carries the transform stream as Data (Setup invokes it with an
+// undefined receiver); the others are SHARED per realm and recover the
+// transform stream from their receiver — the readable/writable controllers
+// invoke them with algo_receiver == the transform stream's wrapper, set in
+// CreateTransformStream. They are never exposed to user code.
 
 void TrampStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -231,31 +236,31 @@ void TrampStart(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TrampWrite(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SinkWrite(args[0]));
 }
 
 void TrampClose(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SinkClose());
 }
 
 void TrampAbort(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SinkAbort(args[0]));
 }
 
 void TrampPull(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SourcePull());
 }
 
 void TrampCancel(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SourceCancel(args[0]));
 }
@@ -792,29 +797,43 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
                             cancel_algorithm);
 
   // Trampolines bridging the readable/writable controller algorithms back into
-  // the C++ transform stream (Data == the transform stream object).
-  auto tramp = [&](FunctionCallback cb) {
-    Local<Function> fn;
-    USE(Function::New(context, cb, stream_obj).ToLocal(&fn));
+  // the C++ transform stream. Only start carries the stream as Data (it is
+  // invoked with an undefined receiver); the rest are shared per realm and
+  // recover the stream from their receiver — the controllers call them with
+  // algo_receiver == stream_obj (passed to the factories below).
+  Local<Function> start_tramp;
+  USE(Function::New(context, TrampStart, stream_obj).ToLocal(&start_tramp));
+  BindingData* bd = BindingData::Get(env);
+  auto shared_tramp = [&](v8::Global<Function>* slot, FunctionCallback cb) {
+    Local<Function> fn = slot->Get(isolate);
+    if (fn.IsEmpty()) {
+      USE(Function::New(context, cb).ToLocal(&fn));
+      slot->Reset(isolate, fn);
+    }
     return fn;
   };
-  Local<Function> start_tramp = tramp(TrampStart);
-  Local<Function> write_tramp = tramp(TrampWrite);
-  Local<Function> close_tramp = tramp(TrampClose);
-  Local<Function> abort_tramp = tramp(TrampAbort);
-  Local<Function> pull_tramp = tramp(TrampPull);
-  Local<Function> cancel_tramp = tramp(TrampCancel);
+  Local<Function> write_tramp =
+      shared_tramp(&bd->transform_write_tramp, TrampWrite);
+  Local<Function> close_tramp =
+      shared_tramp(&bd->transform_close_tramp, TrampClose);
+  Local<Function> abort_tramp =
+      shared_tramp(&bd->transform_abort_tramp, TrampAbort);
+  Local<Function> pull_tramp =
+      shared_tramp(&bd->transform_pull_tramp, TrampPull);
+  Local<Function> cancel_tramp =
+      shared_tramp(&bd->transform_cancel_tramp, TrampCancel);
 
   Local<Object> writable_obj;
   if (!NewWritableStream(env, start_tramp, write_tramp, close_tramp, abort_tramp,
                          writable_hwm, writable_size_mode, writable_size,
-                         abort_controller)
+                         abort_controller, stream_obj)
            .ToLocal(&writable_obj)) {
     return;
   }
   Local<Object> readable_obj;
   if (!NewReadableStream(env, start_tramp, pull_tramp, cancel_tramp,
-                         readable_hwm, readable_size_mode, readable_size)
+                         readable_hwm, readable_size_mode, readable_size,
+                         stream_obj)
            .ToLocal(&readable_obj)) {
     return;
   }
