@@ -597,44 +597,72 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void CopyImpl(Local<Value> source_obj,
-              Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
+// Returns the number of bytes actually copied. This is normally |to_copy|,
+// but nothing is copied (and 0 is returned) when either side is backed by a
+// detached ArrayBuffer.
+size_t CopyImpl(Local<Value> source_obj,
+                Local<Value> target_obj,
+                const size_t target_start,
+                const size_t source_start,
+                const size_t to_copy) {
+  // v24's bundled V8 (13.6) has no v8::ArrayBuffer::CopyArrayBufferBytes, so
+  // the historical memmove path is kept here and the byte range is clamped
+  // locally instead of being deferred to V8. A detached buffer reports a zero
+  // byte length, which makes the copy a no-op that reports 0 bytes, matching
+  // what the V8 API returns upstream. Immutable ArrayBuffers do not exist in
+  // V8 13.6, so that case cannot arise on this release line.
   ArrayBufferViewContents<char> source(source_obj);
   SPREAD_BUFFER_ARG(target_obj, target);
 
-  memmove(target_data + target_start, source.data() + source_start, to_copy);
+  if (source_start >= source.length() || target_start >= target_length)
+    return 0;
+
+  size_t copied = to_copy;
+  if (copied > source.length() - source_start)
+    copied = source.length() - source_start;
+  if (copied > target_length - target_start)
+    copied = target_length - target_start;
+
+  memmove(target_data + target_start, source.data() + source_start, copied);
+
+  return copied;
 }
 
 // Assume caller has properly validated args.
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  const uint32_t target_start = args[2].As<Uint32>()->Value();
-  const uint32_t source_start = args[3].As<Uint32>()->Value();
-  const uint32_t to_copy = args[4].As<Uint32>()->Value();
+  // Byte offsets and lengths can exceed uint32 for buffers larger than 4 GiB,
+  // so they are passed and returned as doubles (exact for integers < 2^53).
+  const size_t target_start =
+      static_cast<size_t>(args[2].As<Number>()->Value());
+  const size_t source_start =
+      static_cast<size_t>(args[3].As<Number>()->Value());
+  const size_t to_copy = static_cast<size_t>(args[4].As<Number>()->Value());
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  const size_t copied =
+      CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
 
-  args.GetReturnValue().Set(to_copy);
+  args.GetReturnValue().Set(static_cast<double>(copied));
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
-                  Local<Value> source_obj,
-                  Local<Value> target_obj,
-                  uint32_t target_start,
-                  uint32_t source_start,
-                  uint32_t to_copy,
-                  // NOLINTNEXTLINE(runtime/references)
-                  FastApiCallbackOptions& options) {
+double FastCopy(Local<Value> receiver,
+                Local<Value> source_obj,
+                Local<Value> target_obj,
+                double target_start,
+                double source_start,
+                double to_copy,
+                // NOLINTNEXTLINE(runtime/references)
+                FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.copy");
   HandleScope scope(options.isolate);
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
-
-  return to_copy;
+  return static_cast<double>(CopyImpl(source_obj,
+                                      target_obj,
+                                      static_cast<size_t>(target_start),
+                                      static_cast<size_t>(source_start),
+                                      static_cast<size_t>(to_copy)));
 }
 
 static CFunction fast_copy(CFunction::Make(FastCopy));

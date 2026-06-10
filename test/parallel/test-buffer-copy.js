@@ -251,3 +251,54 @@ assert.deepStrictEqual(c, b.slice(0, c.length));
   // No copying took place:
   assert.deepStrictEqual(c.toString(), 'C'.repeat(c.length));
 }
+
+// Copying to/from SharedArrayBuffer-backed buffers. The relaxed-atomic copy
+// path is used only when both sides are backed by a SharedArrayBuffer; mixed
+// copies (one shared, one not) go through the regular non-atomic overload.
+{
+  // SharedArrayBuffer -> SharedArrayBuffer.
+  const src = Buffer.from(new SharedArrayBuffer(512)).fill(0x61);
+  const dst = Buffer.from(new SharedArrayBuffer(512)).fill(0x62);
+  const copied = src.copy(dst, 0, 0, 512);
+  assert.strictEqual(copied, 512);
+  assert.deepStrictEqual(Buffer.from(dst), Buffer.from(src));
+}
+
+{
+  // SharedArrayBuffer source -> regular Buffer target (mixed).
+  const src = Buffer.from(new SharedArrayBuffer(256)).fill(0x63);
+  const dst = Buffer.allocUnsafe(256).fill(0x64);
+  assert.strictEqual(src.copy(dst), 256);
+  assert.deepStrictEqual(dst, Buffer.from(src));
+}
+
+{
+  // Regular Buffer source -> SharedArrayBuffer target (mixed).
+  const src = Buffer.allocUnsafe(256).fill(0x65);
+  const dst = Buffer.from(new SharedArrayBuffer(256)).fill(0x66);
+  assert.strictEqual(src.copy(dst), 256);
+  assert.deepStrictEqual(Buffer.from(dst), src);
+}
+
+{
+  // Views with a non-zero byteOffset over a SharedArrayBuffer. The native copy
+  // is relative to the underlying ArrayBuffer, so the view's byteOffset must be
+  // accounted for.
+  const sab = new SharedArrayBuffer(16);
+  const whole = Buffer.from(sab);
+  for (let i = 0; i < 16; i++) whole[i] = i;
+  const src = Buffer.from(sab, 4, 8);   // sab bytes 4..11
+  const dst = Buffer.from(sab, 12, 4);  // sab bytes 12..15
+  assert.strictEqual(src.copy(dst, 0, 0, 4), 4);
+  assert.deepStrictEqual(
+    [...whole],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 4, 5, 6, 7]);
+}
+
+{
+  // Overlapping copy within a single SharedArrayBuffer uses memmove semantics.
+  const buf = Buffer.from(new SharedArrayBuffer(8));
+  for (let i = 0; i < 8; i++) buf[i] = i + 1; // [1,2,3,4,5,6,7,8]
+  assert.strictEqual(buf.copy(buf, 2, 0, 6), 6);
+  assert.deepStrictEqual([...buf], [1, 2, 1, 2, 3, 4, 5, 6]);
+}
