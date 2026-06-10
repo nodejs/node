@@ -186,7 +186,24 @@ void ThenReactCached(Environment* env,
 // PromiseSlot
 // ===========================================================================
 
+// The writer-released ready/closed rejection reason. Never constructed
+// eagerly in Release(): error construction captures a stack trace, which
+// dominates getWriter()/releaseLock() churn. Built only when an observed
+// promise must actually reject with it.
+static Local<Value> WriterReleasedError(Isolate* isolate,
+                                        Local<Context> context) {
+  return InvalidStateError(
+      isolate, context,
+      "Writer was released and can no longer be used to monitor the stream's "
+      "state");
+}
+
 void PromiseSlot::SetPending(Environment* env) {
+  if (state_ != State::kMaterialized) {
+    state_ = State::kPendingLazy;
+    reason_.Reset();
+    return;
+  }
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) return;
@@ -195,37 +212,111 @@ void PromiseSlot::SetPending(Environment* env) {
 }
 
 void PromiseSlot::SetResolved(Environment* env) {
+  if (state_ != State::kMaterialized) {
+    state_ = State::kResolvedLazy;
+    reason_.Reset();
+    return;
+  }
   Isolate* isolate = env->isolate();
   Local<Promise> p = ResolvedUndefined(env);
   resolver_.Reset();
   promise_.Reset(isolate, p);
 }
 
-void PromiseSlot::SetRejected(Environment* env, Local<Value> error) {
-  Isolate* isolate = env->isolate();
-  Local<Promise> p = RejectedWith(env, error);
-  resolver_.Reset();
-  promise_.Reset(isolate, p);
-}
-
 void PromiseSlot::Resolve(Environment* env) {
+  if (state_ != State::kMaterialized) {
+    // resolve?.(): only a pending slot settles.
+    if (state_ == State::kPendingLazy) state_ = State::kResolvedLazy;
+    return;
+  }
   if (resolver_.IsEmpty()) return;
   Local<Promise::Resolver> r = resolver_.Get(env->isolate());
+  resolver_.Reset();
   USE(r->Resolve(env->context(), Undefined(env->isolate())));
 }
 
-void PromiseSlot::Reject(Environment* env, Local<Value> error) {
+void PromiseSlot::RejectIfPendingHandled(Environment* env, Local<Value> error) {
+  if (state_ != State::kMaterialized) {
+    if (state_ == State::kPendingLazy || state_ == State::kNone) {
+      state_ = State::kRejectedLazy;
+      reason_.Reset(env->isolate(), error);
+    }
+    return;
+  }
   if (resolver_.IsEmpty()) return;
   Local<Promise::Resolver> r = resolver_.Get(env->isolate());
+  resolver_.Reset();
   USE(r->Reject(env->context(), error));
+  MarkHandled(env, promise_.Get(env->isolate()));
+}
+
+void PromiseSlot::RejectOrReplaceHandled(Environment* env, Local<Value> error) {
+  if (state_ != State::kMaterialized) {
+    state_ = State::kRejectedLazy;
+    reason_.Reset(env->isolate(), error);
+    return;
+  }
+  Isolate* isolate = env->isolate();
+  if (!resolver_.IsEmpty()) {
+    Local<Promise::Resolver> r = resolver_.Get(isolate);
+    resolver_.Reset();
+    USE(r->Reject(env->context(), error));
+  } else {
+    promise_.Reset(isolate, RejectedWith(env, error));
+  }
+  MarkHandled(env, promise_.Get(isolate));
 }
 
 bool PromiseSlot::IsPending(Environment* env) const {
+  if (state_ != State::kMaterialized) return state_ == State::kPendingLazy;
   if (promise_.IsEmpty()) return false;
   return promise_.Get(env->isolate())->State() == Promise::PromiseState::kPending;
 }
 
-Local<Promise> PromiseSlot::promise(Environment* env) const {
+Local<Promise> PromiseSlot::promise(Environment* env,
+                                    v8::Global<v8::Value>* shared_released_reason) {
+  if (state_ != State::kMaterialized && state_ != State::kNone) {
+    Isolate* isolate = env->isolate();
+    Local<Context> context = env->context();
+    State recorded = state_;
+    state_ = State::kMaterialized;
+    switch (recorded) {
+      case State::kPendingLazy: {
+        Local<Promise::Resolver> resolver;
+        if (!Promise::Resolver::New(context).ToLocal(&resolver))
+          return Local<Promise>();
+        resolver_.Reset(isolate, resolver);
+        promise_.Reset(isolate, resolver->GetPromise());
+        break;
+      }
+      case State::kResolvedLazy:
+        promise_.Reset(isolate, ResolvedUndefined(env));
+        break;
+      case State::kRejectedLazy:
+      case State::kRejectedReleasedLazy: {
+        Local<Value> reason;
+        if (recorded == State::kRejectedLazy) {
+          reason = reason_.Get(isolate);
+        } else if (shared_released_reason != nullptr &&
+                   !shared_released_reason->IsEmpty()) {
+          // The sibling slot already built the released error; reuse it so
+          // ready and closed reject with the same object.
+          reason = shared_released_reason->Get(isolate);
+        } else {
+          reason = WriterReleasedError(isolate, context);
+          if (shared_released_reason != nullptr)
+            shared_released_reason->Reset(isolate, reason);
+        }
+        reason_.Reset();
+        Local<Promise> p = RejectedWith(env, reason);
+        MarkHandled(env, p);
+        promise_.Reset(isolate, p);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
   if (promise_.IsEmpty()) return Local<Promise>();
   return promise_.Get(env->isolate());
 }
@@ -760,22 +851,12 @@ double WritableStreamDefaultWriter::GetDesiredSizeValue(bool* is_null) const {
 
 void WritableStreamDefaultWriter::EnsureReadyPromiseRejected(
     Local<Value> error) {
-  Environment* env = this->env();
-  if (ready_.IsPending(env))
-    ready_.Reject(env, error);
-  else
-    ready_.SetRejected(env, error);
-  MarkHandled(env, ready_.promise(env));
+  ready_.RejectOrReplaceHandled(env(), error);
 }
 
 void WritableStreamDefaultWriter::EnsureClosedPromiseRejected(
     Local<Value> error) {
-  Environment* env = this->env();
-  if (closed_.IsPending(env))
-    closed_.Reject(env, error);
-  else
-    closed_.SetRejected(env, error);
-  MarkHandled(env, closed_.promise(env));
+  closed_.RejectOrReplaceHandled(env(), error);
 }
 
 Local<Promise> WritableStreamDefaultWriter::WriteInternal(Local<Value> chunk) {
@@ -849,8 +930,7 @@ bool WritableStreamDefaultWriter::SetupInternal(Local<Object> stream_obj) {
       closed_.SetPending(env);
       break;
     case WritableState::kErroring:
-      ready_.SetRejected(env, stream->stored_error(env));
-      MarkHandled(env, ready_.promise(env));
+      ready_.RejectOrReplaceHandled(env, stream->stored_error(env));
       closed_.SetPending(env);
       break;
     case WritableState::kClosed:
@@ -858,10 +938,8 @@ bool WritableStreamDefaultWriter::SetupInternal(Local<Object> stream_obj) {
       closed_.SetResolved(env);
       break;
     case WritableState::kErrored:
-      ready_.SetRejected(env, stream->stored_error(env));
-      closed_.SetRejected(env, stream->stored_error(env));
-      MarkHandled(env, ready_.promise(env));
-      MarkHandled(env, closed_.promise(env));
+      ready_.RejectOrReplaceHandled(env, stream->stored_error(env));
+      closed_.RejectOrReplaceHandled(env, stream->stored_error(env));
       break;
   }
   return true;
@@ -873,12 +951,17 @@ void WritableStreamDefaultWriter::Release() {
   Local<Context> context = env->context();
   WritableStream* stream = this->stream();
   CHECK_NOT_NULL(stream);
-  Local<Value> released_error = InvalidStateError(
-      isolate, context,
-      "Writer was released and can no longer be used to monitor the stream's "
-      "state");
-  EnsureReadyPromiseRejected(released_error);
-  EnsureClosedPromiseRejected(released_error);
+  // Construct the released error only if an already-observed promise must
+  // reject with it now; otherwise record the lazy released state (error
+  // construction captures a stack trace — see WriterReleasedError).
+  if (ready_.IsMaterialized() || closed_.IsMaterialized()) {
+    Local<Value> released_error = WriterReleasedError(isolate, context);
+    EnsureReadyPromiseRejected(released_error);
+    EnsureClosedPromiseRejected(released_error);
+  } else {
+    ready_.SetRejectedReleased();
+    closed_.SetRejectedReleased();
+  }
   stream->object()->SetInternalField(WritableStream::kWriter,
                                      Undefined(isolate));
   object()->SetInternalField(kStream, Undefined(isolate));
@@ -896,7 +979,7 @@ void WritableStreamDefaultWriter::GetClosed(
   }
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  args.GetReturnValue().Set(w->closed_.promise(env));
+  args.GetReturnValue().Set(w->closed_.promise(env, &w->released_reason_));
 }
 
 void WritableStreamDefaultWriter::GetReady(
@@ -909,7 +992,7 @@ void WritableStreamDefaultWriter::GetReady(
   }
   auto* w =
       BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
-  args.GetReturnValue().Set(w->ready_.promise(env));
+  args.GetReturnValue().Set(w->ready_.promise(env, &w->released_reason_));
 }
 
 void WritableStreamDefaultWriter::GetDesiredSize(
@@ -1246,10 +1329,8 @@ void WritableStream::RejectCloseAndClosedPromiseIfNeeded() {
     }
   }
   WritableStreamDefaultWriter* writer = this->writer();
-  if (writer != nullptr) {
-    writer->closed().Reject(env, error);
-    MarkHandled(env, writer->closed().promise(env));
-  }
+  if (writer != nullptr)
+    writer->closed().RejectIfPendingHandled(env, error);
 }
 
 void WritableStream::MarkFirstWriteRequestInFlight() {

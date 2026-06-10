@@ -26,22 +26,53 @@ class WritableStream;
 class WritableStreamDefaultController;
 
 // A settle-able promise slot mirroring the JS `{ promise, resolve, reject }`
-// pattern used for the writer's ready/closed promises. It can hold either a
-// pending promise with a live resolver, or an already-settled promise with no
-// resolver (the "resolve/reject is undefined" case).
+// pattern used for the writer's ready/closed promises. The slot records its
+// state lazily: no V8 promise (or rejection error) exists until the promise
+// is first observed via promise(), so writers whose ready/closed are never
+// touched — the common case — allocate nothing. Once observed, the slot is
+// sticky-materialized and behaves like a real { promise, resolver } pair.
 class PromiseSlot {
  public:
   void SetPending(Environment* env);
   void SetResolved(Environment* env);            // PromiseResolve()
-  void SetRejected(Environment* env, v8::Local<v8::Value> error);  // PromiseReject
   void Resolve(Environment* env);                // resolve?.()
-  void Reject(Environment* env, v8::Local<v8::Value> error);       // reject?.(e)
+  // Rejects if currently pending; no-op when already settled. The rejected
+  // promise is marked handled (materialized lazily on first observation).
+  void RejectIfPendingHandled(Environment* env, v8::Local<v8::Value> error);
+  // Ensure-rejected: rejects if pending, otherwise REPLACES a settled promise
+  // with one rejected with `error`; marked handled either way.
+  void RejectOrReplaceHandled(Environment* env, v8::Local<v8::Value> error);
+  // Records "rejected with the writer-released error" without constructing
+  // the error (error construction captures a stack trace); the error is built
+  // if/when the promise is first observed.
+  void SetRejectedReleased() {
+    state_ = State::kRejectedReleasedLazy;
+    reason_.Reset();
+    promise_.Reset();
+    resolver_.Reset();
+  }
   bool IsPending(Environment* env) const;
-  bool IsEmpty() const { return promise_.IsEmpty(); }
-  v8::Local<v8::Promise> promise(Environment* env) const;
+  bool IsMaterialized() const { return state_ == State::kMaterialized; }
+  // `shared_released_reason`, when given, stores the lazily-built released
+  // error so a writer's ready and closed promises reject with the SAME error
+  // object (spec: one releasedError for both).
+  v8::Local<v8::Promise> promise(
+      Environment* env,
+      v8::Global<v8::Value>* shared_released_reason = nullptr);
   void MemoryInfo(MemoryTracker* tracker, const char* label) const;
 
  private:
+  enum class State : uint8_t {
+    kNone,                  // pre-setup
+    kPendingLazy,           // pending, promise not yet observed
+    kResolvedLazy,          // resolved(undefined), not yet observed
+    kRejectedLazy,          // rejected with reason_, not yet observed
+    kRejectedReleasedLazy,  // rejected with the released error, unbuilt
+    kMaterialized,          // promise_ (+ resolver_ when pending) is live
+  };
+
+  State state_ = State::kNone;
+  v8::Global<v8::Value> reason_;  // kRejectedLazy only
   v8::Global<v8::Promise> promise_;
   v8::Global<v8::Promise::Resolver> resolver_;
 };
@@ -204,6 +235,10 @@ class WritableStreamDefaultWriter final : public StreamBaseObject {
  private:
   PromiseSlot ready_;
   PromiseSlot closed_;
+  // Lazily-built reader-released rejection reason, shared by ready_ and
+  // closed_ so both reject with the same error object (see
+  // PromiseSlot::promise).
+  v8::Global<v8::Value> released_reason_;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).
   WritableStream* stream_cache_ = nullptr;
