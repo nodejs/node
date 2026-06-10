@@ -111,10 +111,6 @@
               "type": "boolean",
               "description": "allow worker threads when any permissions are set"
             },
-            "async-context-frame": {
-              "type": "boolean",
-              "description": "Improve AsyncLocalStorage performance with AsyncContextFrame"
-            },
             "conditions": {
               "oneOf": [
                 {

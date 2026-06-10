@@ -15,7 +15,7 @@ const readable = new Readable();
 
 als.run('test-context-1', common.mustCall(() => {
   finished(readable, common.mustCall(() => {
-    assert.strictEqual(AsyncContextFrame.enabled || enabledHooksExist(), true);
+    assert.strictEqual(!!AsyncContextFrame.current() || enabledHooksExist(), true);
     assert.strictEqual(als.getStore(), 'test-context-1');
   }));
 }));
