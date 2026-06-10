@@ -36,7 +36,45 @@ Local<String> InternalizedString(Isolate* isolate, const char* s) {
   return String::NewFromUtf8(isolate, s, NewStringType::kInternalized)
       .ToLocalChecked();
 }
+
+// Shared start-fulfilled reaction: receives the controller wrapper as the
+// promise's fulfilment value and dispatches by kind tag. One function per
+// realm replaces two per-creation Function allocations on the common path.
+void ReactStartFulfilledShared(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (!args[0]->IsObject()) return;
+  BaseObject* base =
+      BaseObject::FromJSObject(args[0].As<v8::Object>());
+  if (base == nullptr) return;
+  auto* s = static_cast<StreamBaseObject*>(base);
+  switch (s->stream_kind()) {
+    case StreamBaseObject::Kind::kDefaultController:
+      static_cast<ReadableStreamDefaultController*>(s)->OnStartFulfilled();
+      break;
+    case StreamBaseObject::Kind::kByteController:
+      static_cast<ReadableByteStreamController*>(s)->OnStartFulfilled();
+      break;
+    case StreamBaseObject::Kind::kWritableStreamDefaultController:
+      static_cast<WritableStreamDefaultController*>(s)->OnStartFulfilled();
+      break;
+    default:
+      break;
+  }
+}
 }  // namespace
+
+void ThenStartFulfilled(Environment* env, Local<Promise> promise) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  BindingData* bd = BindingData::Get(env);
+  Local<v8::Function> fn = bd->start_fulfilled_reaction.Get(isolate);
+  if (fn.IsEmpty()) {
+    if (!v8::Function::New(context, ReactStartFulfilledShared).ToLocal(&fn))
+      return;
+    bd->start_fulfilled_reaction.Reset(isolate, fn);
+  }
+  USE(promise->Then(context, fn));
+}
 
 Local<FunctionTemplate> NewGetter(Isolate* isolate,
                                   const char* prop,

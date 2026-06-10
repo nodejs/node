@@ -576,6 +576,14 @@ bool WritableStreamDefaultController::Setup(
   }
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
+  if (!start_result->IsObject()) {
+    // Common case (see the readable controllers' Setup): nothing to await, no
+    // thenable to chase, no possible rejection; reuse the shared per-realm
+    // start reaction.
+    USE(resolver->Resolve(context, controller_obj));
+    ThenStartFulfilled(env, resolver->GetPromise());
+    return true;
+  }
   USE(resolver->Resolve(context, start_result));
   ThenReact(env, resolver->GetPromise(), controller_obj, ReactStartFulfilled,
             ReactStartRejected);

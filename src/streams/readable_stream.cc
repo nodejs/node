@@ -737,6 +737,15 @@ bool ReadableStreamDefaultController::Setup(Local<Function> start_algorithm,
   }
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
+  if (!start_result->IsObject()) {
+    // Common case: start returned undefined/a primitive, so there is nothing
+    // to await (and no thenable to chase). Resolve with the controller wrapper
+    // and reuse the shared per-realm reaction — preserves the "started in a
+    // microtask" timing without two per-creation Function allocations.
+    USE(resolver->Resolve(context, controller_obj));
+    ThenStartFulfilled(env, resolver->GetPromise());
+    return true;
+  }
   USE(resolver->Resolve(context, start_result));
   ThenReact(env, resolver->GetPromise(), controller_obj, ReactStartFulfilled);
   return true;
@@ -903,10 +912,18 @@ Local<Promise> ReadableStreamDefaultReader::closed_promise(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
   if (resolver.IsEmpty()) {
-    // Should have been created in SetupInternal; create defensively.
+    // Lazily materialize, settled per the recorded state (most readers never
+    // touch `closed`, so acquiring one allocates no resolver).
     if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
       return Local<Promise>();
     closed_.Reset(isolate, resolver);
+    if (closed_state_ == ClosedState::kResolved) {
+      USE(resolver->Resolve(env->context(), Undefined(isolate)));
+    } else if (closed_state_ == ClosedState::kRejected) {
+      Local<Promise> promise = resolver->GetPromise();
+      USE(resolver->Reject(env->context(), closed_reason_.Get(isolate)));
+      MarkHandled(env, promise);
+    }
   }
   return resolver->GetPromise();
 }
@@ -915,7 +932,10 @@ void ReadableStreamDefaultReader::ResolveClosed() {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
-  if (resolver.IsEmpty()) return;
+  if (resolver.IsEmpty()) {
+    closed_state_ = ClosedState::kResolved;
+    return;
+  }
   USE(resolver->Resolve(env->context(), Undefined(isolate)));
 }
 
@@ -923,7 +943,11 @@ void ReadableStreamDefaultReader::RejectClosed(Local<Value> error) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
-  if (resolver.IsEmpty()) return;
+  if (resolver.IsEmpty()) {
+    closed_state_ = ClosedState::kRejected;
+    closed_reason_.Reset(isolate, error);
+    return;
+  }
   Local<Promise> promise = resolver->GetPromise();
   USE(resolver->Reject(env->context(), error));
   MarkHandled(env, promise);
@@ -947,18 +971,18 @@ bool ReadableStreamDefaultReader::SetupInternal(Local<Object> stream_obj) {
   stream_cache_ = stream;
   stream->set_reader_cache(this);
 
-  Local<Promise::Resolver> resolver;
-  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
-  closed_.Reset(isolate, resolver);
+  // Record the closed-promise settlement; the resolver itself is materialized
+  // only on first access to `closed` (see closed_promise).
   switch (stream->state()) {
     case StreamState::kReadable:
+      closed_state_ = ClosedState::kPending;
       break;
     case StreamState::kClosed:
-      USE(resolver->Resolve(context, Undefined(isolate)));
+      closed_state_ = ClosedState::kResolved;
       break;
     case StreamState::kErrored:
-      USE(resolver->Reject(context, stream->stored_error(env)));
-      MarkHandled(env, resolver->GetPromise());
+      closed_state_ = ClosedState::kRejected;
+      closed_reason_.Reset(isolate, stream->stored_error(env));
       break;
   }
   return true;
@@ -977,7 +1001,12 @@ void ReadableStreamDefaultReader::Release() {
       "Reader was released and can no longer be used to monitor the stream's "
       "state");
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
-  if (!resolver.IsEmpty()) {
+  if (resolver.IsEmpty()) {
+    // Not yet materialized: after release, `closed` is always rejected with
+    // the released error (spec ReadableStreamReaderGenericRelease).
+    closed_state_ = ClosedState::kRejected;
+    closed_reason_.Reset(isolate, released_error);
+  } else {
     if (stream->state() == StreamState::kReadable) {
       USE(resolver->Reject(context, released_error));
     } else {
@@ -2101,6 +2130,13 @@ bool ReadableByteStreamController::Setup(Local<Function> start_algorithm,
   }
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
+  if (!start_result->IsObject()) {
+    // Common case (see the default controller's Setup): nothing to await, no
+    // thenable to chase; reuse the shared per-realm start reaction.
+    USE(resolver->Resolve(context, controller_obj));
+    ThenStartFulfilled(env, resolver->GetPromise());
+    return true;
+  }
   USE(resolver->Resolve(context, start_result));
   ThenReact(env, resolver->GetPromise(), controller_obj, ReactStartFulfilled);
   return true;
@@ -2460,9 +2496,18 @@ Local<Promise> ReadableStreamBYOBReader::closed_promise(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
   if (resolver.IsEmpty()) {
+    // Lazily materialize, settled per the recorded state (see the default
+    // reader's closed_promise).
     if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
       return Local<Promise>();
     closed_.Reset(isolate, resolver);
+    if (closed_state_ == ClosedState::kResolved) {
+      USE(resolver->Resolve(env->context(), Undefined(isolate)));
+    } else if (closed_state_ == ClosedState::kRejected) {
+      Local<Promise> promise = resolver->GetPromise();
+      USE(resolver->Reject(env->context(), closed_reason_.Get(isolate)));
+      MarkHandled(env, promise);
+    }
   }
   return resolver->GetPromise();
 }
@@ -2471,7 +2516,10 @@ void ReadableStreamBYOBReader::ResolveClosed() {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
-  if (resolver.IsEmpty()) return;
+  if (resolver.IsEmpty()) {
+    closed_state_ = ClosedState::kResolved;
+    return;
+  }
   USE(resolver->Resolve(env->context(), Undefined(isolate)));
 }
 
@@ -2479,7 +2527,11 @@ void ReadableStreamBYOBReader::RejectClosed(Local<Value> error) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
-  if (resolver.IsEmpty()) return;
+  if (resolver.IsEmpty()) {
+    closed_state_ = ClosedState::kRejected;
+    closed_reason_.Reset(isolate, error);
+    return;
+  }
   Local<Promise> promise = resolver->GetPromise();
   USE(resolver->Reject(env->context(), error));
   MarkHandled(env, promise);
@@ -2506,18 +2558,18 @@ bool ReadableStreamBYOBReader::SetupInternal(Local<Object> stream_obj) {
   stream_cache_ = stream;
   stream->set_reader_cache(this);
 
-  Local<Promise::Resolver> resolver;
-  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
-  closed_.Reset(isolate, resolver);
+  // Record the closed-promise settlement; the resolver itself is materialized
+  // only on first access to `closed` (see closed_promise).
   switch (stream->state()) {
     case StreamState::kReadable:
+      closed_state_ = ClosedState::kPending;
       break;
     case StreamState::kClosed:
-      USE(resolver->Resolve(context, Undefined(isolate)));
+      closed_state_ = ClosedState::kResolved;
       break;
     case StreamState::kErrored:
-      USE(resolver->Reject(context, stream->stored_error(env)));
-      MarkHandled(env, resolver->GetPromise());
+      closed_state_ = ClosedState::kRejected;
+      closed_reason_.Reset(isolate, stream->stored_error(env));
       break;
   }
   return true;
@@ -2535,7 +2587,12 @@ void ReadableStreamBYOBReader::Release() {
       "Reader was released and can no longer be used to monitor the stream's "
       "state");
   Local<Promise::Resolver> resolver = closed_.Get(isolate);
-  if (!resolver.IsEmpty()) {
+  if (resolver.IsEmpty()) {
+    // Not yet materialized: after release, `closed` is always rejected with
+    // the released error (spec ReadableStreamReaderGenericRelease).
+    closed_state_ = ClosedState::kRejected;
+    closed_reason_.Reset(isolate, released_error);
+  } else {
     if (stream->state() == StreamState::kReadable) {
       USE(resolver->Reject(context, released_error));
     } else {

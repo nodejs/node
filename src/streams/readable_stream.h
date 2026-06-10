@@ -20,6 +20,11 @@ namespace webstreams {
 
 enum class StreamState : uint8_t { kReadable, kClosed, kErrored };
 
+// Recorded settlement of a reader's lazily-materialized `closed` promise.
+// Most readers never touch `closed`, so acquiring a reader records only the
+// state; the resolver is created (and settled accordingly) on first access.
+enum class ClosedState : uint8_t { kPending, kResolved, kRejected };
+
 class ReadableStream;
 class ReadableStreamDefaultReader;
 class ReadableStreamBYOBReader;
@@ -201,7 +206,11 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
 
  private:
   std::deque<v8::Global<v8::Promise::Resolver>> read_requests_;
+  // Lazily materialized on first access; until then the settlement is
+  // recorded in closed_state_/closed_reason_ (see ClosedState).
   v8::Global<v8::Promise::Resolver> closed_;
+  v8::Global<v8::Value> closed_reason_;
+  ClosedState closed_state_ = ClosedState::kPending;
   bool for_author_code_ = true;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).
@@ -472,7 +481,11 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
 
  private:
   std::deque<v8::Global<v8::Promise::Resolver>> read_into_requests_;
+  // Lazily materialized on first access; until then the settlement is
+  // recorded in closed_state_/closed_reason_ (see ClosedState).
   v8::Global<v8::Promise::Resolver> closed_;
+  v8::Global<v8::Value> closed_reason_;
+  ClosedState closed_state_ = ClosedState::kPending;
   bool for_author_code_ = true;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).

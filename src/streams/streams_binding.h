@@ -70,6 +70,13 @@ void SetProtoMethodPromise(v8::Isolate* isolate,
 // Promise-returning operation invoked on a foreign receiver.
 v8::Local<v8::Value> IllegalInvocationRejection(v8::Local<v8::Context> context);
 
+// Attaches the shared per-realm start-fulfilled reaction to `promise`, which
+// must have been resolved with a controller's wrapper object. Setup fast path
+// for a start algorithm that returned a non-object: marks the controller
+// started (by kind tag) in a microtask without per-creation Function
+// allocations.
+void ThenStartFulfilled(Environment* env, v8::Local<v8::Promise> promise);
+
 // Brand-checks `receiver` against `ctor` for a synchronous operation/getter.
 // Returns true on success; otherwise throws an ERR_INVALID_THIS TypeError named
 // for `type_name` and returns false (the caller must then return from the V8
@@ -154,6 +161,13 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::FunctionTemplate> writable_stream_default_controller_ctor;
   v8::Global<v8::FunctionTemplate> transform_stream_ctor;
   v8::Global<v8::FunctionTemplate> transform_stream_default_controller_ctor;
+
+  // Shared start-fulfilled reaction for the common "start returned a
+  // non-object" case: the start promise is resolved with the *controller
+  // wrapper* so this single per-realm function (rather than two per-creation
+  // Function allocations) can recover it from the fulfilment value and mark
+  // the controller started. Lazily created.
+  v8::Global<v8::Function> start_fulfilled_reaction;
 
   // Boilerplate { value: undefined, done: <bool> } read-result objects, cloned
   // per read (v8::Object::Clone is a flat CopyJSObject) instead of building the
