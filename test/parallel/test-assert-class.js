@@ -638,4 +638,30 @@ test('Assert class non strict with simple diff', () => {
       { code: 'ERR_ASSERTION' }
     );
   });
+
+  test('Assert class diff option is passed through throws/rejects', async () => {
+    const assertInstance = new Assert({ diff: 'full' });
+
+    // throws
+    {
+      let err;
+      try {
+        assertInstance.throws(() => {}, /Missing expected exception/);
+      } catch (e) {
+        err = e;
+      }
+      assert.strictEqual(err?.diff, 'full');
+    }
+
+    // rejects
+    {
+      let err;
+      try {
+        await assertInstance.rejects(async () => {}, /Missing expected rejection/);
+      } catch (e) {
+        err = e;
+      }
+      assert.strictEqual(err?.diff, 'full');
+    }
+  });
 }
