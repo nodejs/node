@@ -46,6 +46,7 @@ namespace quic {
 
 #define STREAM_STATE(V)                                                        \
   V(ID, id, stream_id)                                                         \
+  V(SESSION_ID, session_id, stream_id)                                         \
   V(PENDING, pending, uint8_t)                                                 \
   V(FIN_SENT, fin_sent, uint8_t)                                               \
   V(FIN_RECEIVED, fin_received, uint8_t)                                       \
@@ -59,6 +60,8 @@ namespace quic {
   V(WANTS_BLOCK, wants_block, uint8_t)                                         \
   /* Set when the stream has a headers event handler */                        \
   V(WANTS_HEADERS, wants_headers, uint8_t)                                     \
+  /* Set when the stream has a sessionid event handler */                      \
+  V(WANTS_SESSIONID, wants_sessionid, uint8_t)                                 \
   /* Set when the stream has a reset event handler */                          \
   V(WANTS_RESET, wants_reset, uint8_t)                                         \
   /* Set when the stream has a trailers event handler */                       \
@@ -891,7 +894,6 @@ class Stream::Outbound final : public MemoryRetainer {
         PullUncommitted(std::move(next));
         return bob::Status::STATUS_CONTINUE;
       }
-
       std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](int) {});
       return bob::Status::STATUS_BLOCK;
     }
@@ -1136,6 +1138,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   MakeWeak();
   DCHECK(id < kMaxStreamId);
   state()->id = id;
+  state()->session_id = kMaxStreamId;
   state()->pending = 0;
   // Allows us to be notified when data is actually read from the
   // inbound queue so that we can update the stream flow control.
@@ -1193,6 +1196,7 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
   state_slot_ = GetStreamStateArena(binding).Allocate(env()->isolate());
   MakeWeak();
   state()->id = kMaxStreamId;
+  state()->session_id = kMaxStreamId;
   state()->pending = 1;
 
   // Allows us to be notified when data is actually read from the
@@ -1253,6 +1257,7 @@ void Stream::NotifyStreamOpened(stream_id id) {
   Debug(this, "Pending stream opened with id %" PRIi64, id);
   state()->pending = 0;
   state()->id = id;
+  state()->session_id = kMaxStreamId;
   STAT_RECORD_TIMESTAMP(Stats, opened_at);
   // Now that the stream is actually opened, add it to the sessions
   // list of known open streams.
@@ -1343,6 +1348,10 @@ bool Stream::is_destroyed() const {
 
 stream_id Stream::id() const {
   return state()->id;
+}
+
+stream_id Stream::session_id() const {
+  return state()->session_id;
 }
 
 Side Stream::origin() const {
@@ -1589,6 +1598,7 @@ void Stream::BeginHeaders(HeadersKind kind) {
   headers_length_ = 0;
   headers_.clear();
   set_headers_kind(kind);
+  state()->session_id = -1; // we know we are not a wt stream
 }
 
 void Stream::set_headers_kind(HeadersKind kind) {
@@ -1606,6 +1616,13 @@ bool Stream::AddHeader(std::unique_ptr<Header> header) {
   headers_.push_back(std::move(header));
   return true;
 }
+
+ void Stream::NotifyWTSession(stream_id session_id) {
+  if (state()->session_id != session_id) {
+    state()->session_id = session_id;
+    EmitSessionid(session_id);
+  }
+ }
 
 void Stream::Acknowledge(size_t datalen) {
   if (outbound_ == nullptr) return;
@@ -1979,6 +1996,14 @@ void Stream::EmitHeaders() {
   MakeCallback(binding.stream_headers_callback(), arraysize(argv), argv);
 }
 
+void Stream::EmitSessionid(stream_id session_id) {
+  if (!env()->can_call_into_js()  || !state()->wants_sessionid) return;
+  CallbackScope<Stream> cb_scope(this);
+  Local<Value> sid = BigInt::New(env()->isolate(), session_id);
+  printf("EmitSessionid mark 2\n");
+  MakeCallback(BindingData::Get(env()).stream_sessionid_callback(), 1, &sid);
+}
+
 void Stream::EmitReset(const QuicError& error) {
   // state()->wants_reset will be set from the javascript side if the
   // stream object has a handler for the reset event.
@@ -2007,7 +2032,9 @@ void Stream::EmitWantTrailers() {
 void Stream::Schedule(Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
   Debug(this, "Scheduled");
-  if (outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
+  if (outbound_ && stream_queue_.IsEmpty()) {
+    queue->PushBack(this);
+  }
 }
 
 void Stream::Unschedule() {

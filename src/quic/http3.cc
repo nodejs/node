@@ -1256,6 +1256,37 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
+  static int on_receive_wt_data(nghttp3_conn *conn,
+                                int64_t session_id,
+                                int64_t stream_id,
+                                const uint8_t *data,
+                                size_t datalen,
+                                void *conn_user_data,
+                                void *stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+    auto& session = app.session();
+    printf("on_receive_wt_data %d: %d %d %d\n", stream_id, data[0], data[1], data[2]);
+    if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
+      stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
+  static int on_wt_data_stream_open(nghttp3_conn *conn,
+                                     int64_t session_id,
+                                     int64_t stream_id,
+                                     void *conn_user_data,
+                                     void *stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+    auto& session = app.session();
+    if (auto stream = FindOrCreateStream(conn, &session, stream_id)) [[likely]] {
+      stream->NotifyWTSession(session_id);
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
   static int on_deferred_consume(nghttp3_conn* conn,
                                  stream_id id,
                                  size_t consumed,
@@ -1455,7 +1486,9 @@ class Http3ApplicationImpl final : public Session::Application {
       on_receive_origin,
       on_end_origin,
       on_rand,
-      on_receive_settings};
+      on_receive_settings,
+      on_receive_wt_data,
+      on_wt_data_stream_open};
 };
 
 std::optional<PendingTicketAppData> ParseHttp3TicketData(const uv_buf_t& data) {
