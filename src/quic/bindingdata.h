@@ -41,6 +41,7 @@ class SessionManager;
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
   V(session_close, SessionClose)                                               \
+  V(session_application, SessionApplication)                                   \
   V(session_early_data_rejected, SessionEarlyDataRejected)                     \
   V(session_goaway, SessionGoaway)                                             \
   V(session_datagram, SessionDatagram)                                         \
