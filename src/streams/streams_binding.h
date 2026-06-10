@@ -195,6 +195,11 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::Object> read_result_done;
   v8::Global<v8::Object> read_result_not_done_null_proto;
   v8::Global<v8::Object> read_result_done_null_proto;
+
+  // The realm's original %Promise.prototype%, cached for ReaderFastRead's
+  // promise-lookalike chunk test (taken from a freshly created promise, not
+  // the patchable global). Lazily created.
+  v8::Global<v8::Object> promise_prototype;
 };
 
 }  // namespace webstreams

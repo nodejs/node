@@ -1097,17 +1097,14 @@ void ReadableStreamDefaultReader::Release() {
   ErrorAll(releasing_error);
 }
 
-void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+// Shared tail of the default reader's read(): builds the read promise and
+// dispatches by stream state. Used by both the prototype Read below and the
+// single-crossing ReaderFastRead binding.
+static void DoDefaultReaderRead(Environment* env,
+                                ReadableStreamDefaultReader* reader,
+                                const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
-          args.This())) {
-    args.GetReturnValue().Set(IllegalInvocationRejection(context));
-    return;
-  }
-  auto* reader =
-      BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
   if (!reader->has_stream()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -1142,6 +1139,19 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
         stream->default_controller()->PullSteps(resolver);
       return;
   }
+}
+
+void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Context> context = env->context();
+  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
+          args.This())) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* reader =
+      BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
+  DoDefaultReaderRead(env, reader, args);
 }
 
 void ReadableStreamDefaultReader::ReleaseLock(
@@ -3138,6 +3148,99 @@ int PipeTransferStep(ReadableStream* s, WritableStream* d) {
   }
 }
 
+// read() fast path: synchronously dequeues a buffered chunk through a default
+// reader, returning the raw chunk; the JS wrapper around the native read()
+// builds the { value, done: false } result and the already-resolved promise in
+// JIT code, skipping the C++ Promise::Resolver and result-clone crossings.
+// Mirrors the buffered branch of the default controller's PullSteps (dequeue,
+// then close-if-drained or pull). Returns the caller's sentinel (args[1]) when
+// nothing can be dequeued synchronously — released reader, non-readable state,
+// byte controller, empty queue — in which case the caller falls back to the
+// native read(), which handles parking, close, error and brand rejection. A
+// non-empty queue implies no pending read requests, so dequeuing here cannot
+// jump the queue.
+// True when `chunk` has the realm's original %Promise.prototype% anywhere on
+// its prototype chain — i.e. the JS wrapper's ObjectPrototypeIsPrototypeOf
+// promise test would (mis)classify it as a read promise. Such chunks (real
+// promises, promise subclass instances, Object.create(Promise.prototype))
+// must not be returned raw from ReaderFastRead.
+static bool LooksLikePromise(Local<Context> context,
+                             Local<Value> chunk,
+                             Local<Object> promise_proto) {
+  if (!chunk->IsObject()) return false;
+  Local<Value> proto = chunk.As<Object>()->GetPrototypeV2();
+  while (proto->IsObject()) {
+    if (proto->StrictEquals(promise_proto)) return true;
+    proto = proto.As<Object>()->GetPrototypeV2();
+  }
+  return false;
+}
+
+void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // Real brand check (HasInstance): args[0] is the wrapper's untrusted `this`
+  // and FromJSObject's cast is unchecked across BaseObject subclasses. Only a
+  // foreign receiver falls back to the native read (for its Web IDL
+  // brand-check rejection); every other case completes in this crossing.
+  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
+          args[0])) {
+    args.GetReturnValue().Set(args[1]);
+    return;
+  }
+  auto* r = BaseObject::FromJSObject<ReadableStreamDefaultReader>(
+      args[0].As<Object>());
+  Local<Context> context = env->context();
+  // Fast path: buffered chunk on an author-code reader. Non-author-code
+  // readers (tee's internal reader) need null-prototype read results so a
+  // patched Object.prototype.then cannot observe the chunks; they take the
+  // DoDefaultReaderRead path below, same as before this binding existed.
+  if (r->has_stream() && r->for_author_code()) {
+    ReadableStream* s = r->stream();
+    ReadableStreamDefaultController* c = s->default_controller();
+    if (c != nullptr && s->state() == StreamState::kReadable &&
+        c->queue_length() > 0) {
+      s->set_disturbed(true);
+      Local<Value> chunk;
+      if (!c->DequeueValue().ToLocal(&chunk)) return;
+      if (c->close_requested() && c->queue_length() == 0) {
+        c->ClearAlgorithms();
+        s->Close();
+      } else {
+        c->CallPullIfNeeded();
+      }
+      auto* bd = BindingData::Get(env);
+      Local<Object> promise_proto;
+      if (bd->promise_prototype.IsEmpty()) {
+        // Cache the realm's original %Promise.prototype% (primordial-safe:
+        // taken from a freshly created promise, not the patchable global).
+        Local<Promise::Resolver> probe;
+        if (!Promise::Resolver::New(context).ToLocal(&probe)) return;
+        promise_proto =
+            probe->GetPromise()->GetPrototypeV2().As<Object>();
+        bd->promise_prototype.Reset(env->isolate(), promise_proto);
+      } else {
+        promise_proto = bd->promise_prototype.Get(env->isolate());
+      }
+      if (!LooksLikePromise(context, chunk, promise_proto)) {
+        args.GetReturnValue().Set(chunk);
+        return;
+      }
+      // Promise-lookalike chunk: ambiguous with the read-promise return, so
+      // build the result promise natively (rare).
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+      USE(resolver->Resolve(
+          context, MakeReadResult(env, context, chunk, false, true)));
+      args.GetReturnValue().Set(resolver->GetPromise());
+      return;
+    }
+  }
+  // Everything else — released reader, closed/errored stream, byte
+  // controller, empty queue, non-author reader — is the full native read,
+  // still in this single crossing; its return is always a real promise.
+  DoDefaultReaderRead(env, r, args);
+}
+
 // Write-completion re-entry for an armed pump (declared in
 // streams_binding.h; called from the writable side). Disarms — settling the
 // stall promise so pipeTo's step loop wakes — on every outcome except
@@ -3296,6 +3399,7 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             ReadableStreamStoredError);
   SetMethod(isolate, target, "pipePump", PipePump);
   SetMethod(isolate, target, "pipePumpDisarm", PipePumpDisarm);
+  SetMethod(isolate, target, "readerFastRead", ReaderFastRead);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
   SetMethod(isolate, target, "readableStreamReleaseReader",
@@ -3322,6 +3426,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReadableStreamStoredError);
   registry->Register(PipePump);
   registry->Register(PipePumpDisarm);
+  registry->Register(ReaderFastRead);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);
