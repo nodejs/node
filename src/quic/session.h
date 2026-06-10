@@ -615,6 +615,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                               const uint32_t* sv,
                               size_t nsv);
+  void EmitApplication();
   void DatagramStatus(datagram_id datagramId, DatagramStatus status);
   void DatagramReceived(const uint8_t* data,
                         size_t datalen,
