@@ -257,6 +257,7 @@ void MacroAssembler::Call(Register target) {
   // branch via link register and set LK bit for return point
   mtctr(target);
   bctrl();
+  RecordPcForSafepoint();
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
@@ -284,6 +285,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode,
   mov(ip, Operand(target, rmode));
   mtctr(ip);
   bctrl();
+  RecordPcForSafepoint();
 }
 
 void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
@@ -417,7 +419,10 @@ Operand MacroAssembler::ClearedValue() const {
   return Operand(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
-void MacroAssembler::Call(Label* target) { b(target, SetLK); }
+void MacroAssembler::Call(Label* target) {
+  b(target, SetLK);
+  RecordPcForSafepoint();
+}
 
 void MacroAssembler::Push(Handle<HeapObject> handle) {
   mov(r0, Operand(handle));
