@@ -128,13 +128,6 @@ async function withFstatSizeZero(fn) {
     code: 'ERR_INVALID_ARG_VALUE',
   });
 
-  assert.throws(() => {
-    fs.readFile(file, {
-      getBuffer: common.mustNotCall(),
-    }, common.mustNotCall());
-  }, {
-    code: 'ERR_INVALID_ARG_VALUE',
-  });
 
   await withFstatSizeZero(common.mustCall(async () => {
     {

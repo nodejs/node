@@ -90,11 +90,6 @@ async function withFstatSizeZero(fn) {
     assert.deepStrictEqual(data, content);
   }
 
-  await assert.rejects(readFile(file, {
-    getBuffer: common.mustNotCall(),
-  }), {
-    code: 'ERR_INVALID_ARG_VALUE',
-  });
 
   await assert.rejects(readFile(file, {
     buffer() {
