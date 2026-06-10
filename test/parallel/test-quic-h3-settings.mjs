@@ -162,12 +162,21 @@ const decoder = new TextDecoder();
       this.writer.writeSync(encoder.encode('settings-ok'));
       this.writer.endSync();
     }),
+    onapplication: mustCall((appopt) => {
+      strictEqual(appopt.enableDatagrams, true);
+      strictEqual(appopt.enableConnectProtocol, false);
+      // Must be false, as this is only sent from server side
+    })
   });
 
   const clientSession = await connect(serverEndpoint.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
     application: { enableConnectProtocol: true, enableDatagrams: true },
+  });
+  clientSession.onapplication = mustCall((appopt) => {
+    strictEqual(appopt.enableConnectProtocol, true);
+    strictEqual(appopt.enableDatagrams, true);
   });
   await clientSession.opened;
 

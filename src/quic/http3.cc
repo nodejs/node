@@ -1014,6 +1014,8 @@ class Http3ApplicationImpl final : public Session::Application {
     Debug(&session(),
           "HTTP/3 application received updated settings: %s",
           options_);
+    // The settings are part of the application
+    session().EmitApplication();
   }
 
   bool started_ = false;
