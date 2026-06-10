@@ -76,6 +76,10 @@ test-macos-app-sandbox: PASS, FLAKY
 # https://github.com/nodejs/node/issues/60050
 test-cluster-dgram-1: SKIP
 
+[$arch==arm]
+# https://github.com/nodejs/node/issues/63835
+test-fs-utimes-y2k38: SKIP
+
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
 test-crypto-dh-stateless: SKIP
