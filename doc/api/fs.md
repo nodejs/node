@@ -706,8 +706,7 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `signal` {AbortSignal} allows aborting an in-progress readFile
   * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
-    synchronous function called with the file size and returning the buffer to
-    read into.
+    function called with the file size that returns the buffer.
 * Returns: {Promise} Fulfills upon a successful read with the contents of the
   file. If no encoding is specified (using `options.encoding`), the data is
   returned as a {Buffer} object. Otherwise, the data will be a string.
@@ -727,6 +726,37 @@ If one or more `filehandle.read()` calls are made on a file handle and then a
 `filehandle.readFile()` call is made, the data will be read from the current
 position till the end of the file. It doesn't always read from the beginning
 of the file.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+try {
+  const buf = Buffer.alloc(16384);
+  const contents = await file.readFile({ buffer: buf });
+  console.log(contents); // A view over `buf` containing only the bytes read
+} finally {
+  await file.close();
+}
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { open } from 'node:fs/promises';
+
+const file = await open('./some/file/to/read');
+try {
+  const contents = await file.readFile({
+    buffer: (size) => Buffer.alloc(size),
+  });
+  console.log(contents);
+} finally {
+  await file.close();
+}
+```
 
 #### `filehandle.readLines([options])`
 
@@ -1794,8 +1824,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
   * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
-    synchronous function called with the file size and returning the buffer to
-    read into.
+    function called with the file size that returns the buffer.
 * Returns: {Promise}  Fulfills with the contents of the file.
 
 Asynchronously reads the entire contents of a file.
@@ -1869,6 +1898,27 @@ Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
 
 Any specified {FileHandle} has to support reading.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { readFile } from 'node:fs/promises';
+
+const buf = Buffer.alloc(16384);
+const contents = await readFile('/path/to/file', { buffer: buf });
+console.log(contents); // A view over `buf` containing only the bytes read
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { readFile } from 'node:fs/promises';
+
+const contents = await readFile('/path/to/file', {
+  buffer: (size) => Buffer.alloc(size),
+});
+console.log(contents);
+```
 
 ### `fsPromises.readlink(path[, options])`
 
@@ -4293,8 +4343,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `signal` {AbortSignal} allows aborting an in-progress readFile
   * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
-    synchronous function called with the file size and returning the buffer to
-    read into.
+    function called with the file size that returns the buffer.
 * `callback` {Function}
   * `err` {Error|AggregateError}
   * `data` {string|Buffer}
@@ -4367,6 +4416,31 @@ when possible prefer streaming via `fs.createReadStream()`.
 
 Aborting an ongoing request does not abort individual operating
 system requests but rather the internal buffering `fs.readFile` performs.
+
+An example using the `buffer` option with a pre-allocated buffer:
+
+```mjs
+import { readFile } from 'node:fs';
+
+const buf = Buffer.alloc(16384);
+readFile('/path/to/file', { buffer: buf }, (err, data) => {
+  if (err) throw err;
+  console.log(data); // A view over `buf` containing only the bytes read
+});
+```
+
+An example using the `buffer` option with a function returning a buffer:
+
+```mjs
+import { readFile } from 'node:fs';
+
+readFile('/path/to/file', {
+  buffer: (size) => Buffer.alloc(size),
+}, (err, data) => {
+  if (err) throw err;
+  console.log(data);
+});
+```
 
 #### File descriptors
 
@@ -6479,8 +6553,7 @@ changes:
   * `encoding` {string|null} **Default:** `null`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
   * `buffer` {Buffer|TypedArray|DataView|Function} A buffer to read into, or a
-    synchronous function called with the file size and returning the buffer to
-    read into.
+    function called with the file size that returns the buffer.
 * Returns: {string|Buffer}
 
 Returns the contents of the `path`.
