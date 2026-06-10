@@ -1,5 +1,6 @@
 #include "streams/readable_stream.h"
 #include "streams/streams_binding.h"
+#include "streams/writable_stream.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -3090,38 +3091,101 @@ void ReadableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(s->stored_error(env));
 }
 
-// pipeTo fast path: synchronously dequeues a buffered chunk from a default
-// (value) stream, bypassing the per-chunk read promise + { value, done } result
-// allocation. Mirrors the buffered branch of the default controller's
-// PullSteps (dequeue, then close-if-drained or pull). Returns the caller's
-// sentinel (args[1]) when nothing can be dequeued synchronously — empty queue,
-// byte controller, or non-readable state — in which case the caller falls back
-// to reader.read(), which handles parking, close and error. Only used by
-// pipeTo while it holds the stream's reader, so no pending read request can
-// exist when the queue is non-empty.
-void ReadableStreamFastDequeue(const FunctionCallbackInfo<Value>& args) {
+// pipeTo hot loop: moves chunks already buffered in the source's C++ value
+// queue straight into the destination's write queue without touching JS — no
+// read promise, no { value, done } result, no per-write request resolver
+// (each write occupies an untracked request slot; pipeTo's shutdown waits on
+// the destination's flush promise instead). Spec-legal because how chunks
+// move through a pipe is unobservable; the user-visible effects (pull calls,
+// write calls, backpressure, closed promises) are identical to the
+// read-then-writer.write() sequence this replaces. Only used by pipeTo while
+// it holds both locks. Returns:
+//   0 — source queue empty (or closed/errored/byte): fall back to reader.read()
+//   1 — destination backpressure: arm the pump; write completions re-enter
+//   2 — destination no longer accepts writes: stop fast-pathing
+int PipeTransferStep(ReadableStream* s, WritableStream* d) {
+  ReadableStreamDefaultController* rc = s->default_controller();
+  WritableStreamDefaultController* wc = d->controller();
+  if (rc == nullptr || wc == nullptr) return rc == nullptr ? 0 : 2;
+  while (true) {
+    // Destination checks (mirrors WritableStreamDefaultWriterWrite's guards;
+    // re-evaluated per chunk because the source pull below runs user code).
+    if (d->state() != WritableState::kWritable || d->CloseQueuedOrInFlight())
+      return 2;
+    if (wc->GetDesiredSize() <= 0) return 1;
+    // Source dequeue (mirrors the default controller's buffered PullSteps).
+    if (s->state() != StreamState::kReadable || rc->queue_length() == 0)
+      return 0;
+    s->set_disturbed(true);
+    Local<Value> chunk;
+    if (!rc->DequeueValue().ToLocal(&chunk)) return 2;  // exception pending
+    if (rc->close_requested() && rc->queue_length() == 0) {
+      rc->ClearAlgorithms();
+      s->Close();
+    } else {
+      rc->CallPullIfNeeded();  // may run the user's pull synchronously
+    }
+    // The pull (or a user size algorithm) may have made the destination
+    // unwritable; writer.write() would return a rejected promise here and
+    // drop the chunk — match that by dropping it.
+    if (d->state() != WritableState::kWritable || d->CloseQueuedOrInFlight())
+      return 2;
+    double chunk_size = wc->GetChunkSize(chunk);  // errors controller on throw
+    if (d->state() != WritableState::kWritable || d->CloseQueuedOrInFlight())
+      return 2;
+    d->AddWriteRequestUntracked();
+    wc->Write(chunk, chunk_size);
+  }
+}
+
+// Write-completion re-entry for an armed pump (declared in
+// streams_binding.h; called from the writable side). Disarms — settling the
+// stall promise so pipeTo's step loop wakes — on every outcome except
+// destination backpressure, which keeps the pump armed for the next write
+// completion.
+void RunPipePump(WritableStream* d) {
+  Local<Object> src_obj = d->pump_source_obj(d->env()->isolate());
+  auto* s = src_obj.IsEmpty()
+                ? nullptr
+                : BaseObject::FromJSObject<ReadableStream>(src_obj);
+  if (s == nullptr || PipeTransferStep(s, d) != 1)
+    d->DisarmPumpAndSettleStall();
+}
+
+// Binding entry: runs the transfer loop once from pipeTo's step. Returns int
+// 0 / 2 (see PipeTransferStep) — or, on destination backpressure, arms the
+// pump and returns its stall promise; chunks then move entirely in C++ off
+// write completions until the pump stalls and the promise resolves.
+void PipePump(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsObject());
   auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
-  if (s == nullptr) {
-    args.GetReturnValue().Set(args[1]);
+  auto* d = BaseObject::FromJSObject<WritableStream>(args[1].As<Object>());
+  if (s == nullptr || d == nullptr) {
+    args.GetReturnValue().Set(2);
     return;
   }
-  ReadableStreamDefaultController* c = s->default_controller();
-  if (c == nullptr || s->state() != StreamState::kReadable ||
-      c->queue_length() == 0) {
-    args.GetReturnValue().Set(args[1]);
+  int status = PipeTransferStep(s, d);
+  if (status != 1) {
+    args.GetReturnValue().Set(status);
     return;
   }
-  s->set_disturbed(true);
-  Local<Value> chunk;
-  if (!c->DequeueValue().ToLocal(&chunk)) return;
-  if (c->close_requested() && c->queue_length() == 0) {
-    c->ClearAlgorithms();
-    s->Close();
-  } else {
-    c->CallPullIfNeeded();
+  Local<Promise> stall = d->PumpStallPromise();
+  if (stall.IsEmpty()) {  // resolver allocation failed; exception pending
+    args.GetReturnValue().Set(2);
+    return;
   }
-  args.GetReturnValue().Set(chunk);
+  d->ArmPump(args[0].As<Object>());
+  args.GetReturnValue().Set(stall);
+}
+
+// pipeTo shutdown helper: stops the pump (if armed) so no further chunks move
+// after shutdown begins, mirroring the JS step loop's shuttingDown checks.
+void PipePumpDisarm(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* d = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  if (d == nullptr) return;
+  d->DisarmPumpAndSettleStall();
 }
 
 // Introspection helper for white-box tests: returns a ReadableStream's
@@ -3230,8 +3294,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "isReadableStream", IsReadableStream);
   SetMethod(isolate, target, "readableStreamStoredError",
             ReadableStreamStoredError);
-  SetMethod(isolate, target, "readableStreamFastDequeue",
-            ReadableStreamFastDequeue);
+  SetMethod(isolate, target, "pipePump", PipePump);
+  SetMethod(isolate, target, "pipePumpDisarm", PipePumpDisarm);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
   SetMethod(isolate, target, "readableStreamReleaseReader",
@@ -3256,7 +3320,8 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReadableStreamCancel);
   registry->Register(IsReadableStream);
   registry->Register(ReadableStreamStoredError);
-  registry->Register(ReadableStreamFastDequeue);
+  registry->Register(PipePump);
+  registry->Register(PipePumpDisarm);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);

@@ -475,6 +475,10 @@ void WritableStreamDefaultController::OnWriteFulfilled() {
   if (!stream->CloseQueuedOrInFlight() && state == WritableState::kWritable)
     stream->UpdateBackpressure(GetBackpressure());
   AdvanceQueueIfNeeded();
+  // A completed write is the only event that frees up desiredSize, so this is
+  // the pipe pump's re-entry point (FinishErroring above disarms on error
+  // paths, making the armed check here sufficient).
+  if (stream->pump_armed()) RunPipePump(stream);
 }
 
 void WritableStreamDefaultController::OnWriteRejected(Local<Value> error) {
@@ -1025,6 +1029,9 @@ void WritableStream::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("stored_error", stored_error_);
   tracker->TrackField("close_request", close_request_);
   tracker->TrackField("in_flight_write_request", in_flight_write_request_);
+  tracker->TrackField("flush_resolver", flush_resolver_);
+  tracker->TrackField("pump_source", pump_source_obj_);
+  tracker->TrackField("pump_stall_resolver", pump_stall_resolver_);
   tracker->TrackField("in_flight_close_request", in_flight_close_request_);
   tracker->TrackField("closed", closed_);
 }
@@ -1190,7 +1197,11 @@ void WritableStream::UpdateBackpressure(bool backpressure) {
   CHECK(state_ == WritableState::kWritable);
   CHECK(!CloseQueuedOrInFlight());
   Environment* env = this->env();
-  WritableStreamDefaultWriter* writer = this->writer();
+  // While the pipe pump is armed nothing can observe writer.ready (the writer
+  // is pipeTo's own and its step loop is parked on the stall promise), so the
+  // per-chunk pending/resolve churn on the ready slot is skipped; the slot is
+  // re-synced to backpressure_ when the pump disarms.
+  WritableStreamDefaultWriter* writer = pump_armed_ ? nullptr : this->writer();
   if (writer != nullptr && backpressure_ != backpressure) {
     if (backpressure)
       writer->ready().SetPending(env);
@@ -1242,10 +1253,12 @@ void WritableStream::RejectCloseAndClosedPromiseIfNeeded() {
 }
 
 void WritableStream::MarkFirstWriteRequestInFlight() {
-  CHECK(in_flight_write_request_.IsEmpty());
+  CHECK(!write_request_in_flight_);
   CHECK(!write_requests_.empty());
+  // The front slot may be empty (untracked fast-transfer write).
   in_flight_write_request_ = std::move(write_requests_.front());
   write_requests_.pop_front();
+  write_request_in_flight_ = true;
 }
 
 void WritableStream::MarkCloseRequestInFlight() {
@@ -1256,27 +1269,34 @@ void WritableStream::MarkCloseRequestInFlight() {
 }
 
 bool WritableStream::HasOperationMarkedInFlight() const {
-  return !in_flight_write_request_.IsEmpty() ||
-         !in_flight_close_request_.IsEmpty();
+  return write_request_in_flight_ || !in_flight_close_request_.IsEmpty();
 }
 
 void WritableStream::FinishInFlightWrite() {
   Environment* env = this->env();
-  CHECK(!in_flight_write_request_.IsEmpty());
-  USE(in_flight_write_request_.Get(env->isolate())
-          ->Resolve(env->context(), Undefined(env->isolate())));
-  in_flight_write_request_.Reset();
+  CHECK(write_request_in_flight_);
+  if (!in_flight_write_request_.IsEmpty()) {
+    USE(in_flight_write_request_.Get(env->isolate())
+            ->Resolve(env->context(), Undefined(env->isolate())));
+    in_flight_write_request_.Reset();
+  }
+  write_request_in_flight_ = false;
+  MaybeSettleFlush();
 }
 
 void WritableStream::FinishInFlightWriteWithError(Local<Value> error) {
   Environment* env = this->env();
-  CHECK(!in_flight_write_request_.IsEmpty());
-  USE(in_flight_write_request_.Get(env->isolate())
-          ->Reject(env->context(), error));
-  in_flight_write_request_.Reset();
+  CHECK(write_request_in_flight_);
+  if (!in_flight_write_request_.IsEmpty()) {
+    USE(in_flight_write_request_.Get(env->isolate())
+            ->Reject(env->context(), error));
+    in_flight_write_request_.Reset();
+  }
+  write_request_in_flight_ = false;
   CHECK(state_ == WritableState::kWritable ||
         state_ == WritableState::kErroring);
   DealWithRejection(error);
+  MaybeSettleFlush();
 }
 
 void WritableStream::FinishInFlightClose() {
@@ -1335,9 +1355,15 @@ void WritableStream::FinishErroring() {
   controller()->ErrorSteps();
   Local<Value> stored = stored_error(env);
   while (!write_requests_.empty()) {
-    USE(write_requests_.front().Get(isolate)->Reject(context, stored));
+    // Untracked fast-transfer slots are empty: nothing to reject.
+    if (!write_requests_.front().IsEmpty())
+      USE(write_requests_.front().Get(isolate)->Reject(context, stored));
     write_requests_.pop_front();
   }
+  // No write can ever run again: release the pipe pump (and its parked
+  // pipeTo step) and any flush waiter.
+  DisarmPumpAndSettleStall();
+  MaybeSettleFlush();
 
   if (!has_pending_abort_) {
     RejectCloseAndClosedPromiseIfNeeded();
@@ -1407,6 +1433,81 @@ Local<Promise> WritableStream::AddWriteRequest() {
     return Local<Promise>();
   write_requests_.emplace_back(env->isolate(), resolver);
   return resolver->GetPromise();
+}
+
+void WritableStream::AddWriteRequestUntracked() {
+  write_requests_.emplace_back();
+}
+
+Local<Promise> WritableStream::FlushPromise() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  if (state_ == WritableState::kErrored ||
+      (write_requests_.empty() && !write_request_in_flight_)) {
+    return ResolvedUndefined(env);
+  }
+  if (!flush_resolver_.IsEmpty())
+    return flush_resolver_.Get(isolate)->GetPromise();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
+    return Local<Promise>();
+  flush_resolver_.Reset(isolate, resolver);
+  return resolver->GetPromise();
+}
+
+void WritableStream::ArmPump(Local<Object> source_obj) {
+  pump_armed_ = true;
+  pump_source_obj_.Reset(env()->isolate(), source_obj);
+}
+
+Local<Promise> WritableStream::PumpStallPromise() {
+  CHECK(pump_stall_resolver_.IsEmpty());
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(env()->context()).ToLocal(&resolver))
+    return Local<Promise>();
+  pump_stall_resolver_.Reset(env()->isolate(), resolver);
+  return resolver->GetPromise();
+}
+
+void WritableStream::DisarmPumpAndSettleStall() {
+  Environment* env = this->env();
+  if (pump_armed_) {
+    pump_armed_ = false;
+    pump_source_obj_.Reset();
+    // Ready-slot updates were suppressed while pumping (see
+    // UpdateBackpressure): re-sync the slot to the current backpressure state
+    // before pipeTo's step loop wakes and reads writer.ready. Error paths
+    // (state != writable) settle the slot themselves via
+    // EnsureReadyPromiseRejected.
+    WritableStreamDefaultWriter* writer = this->writer();
+    if (state_ == WritableState::kWritable && writer != nullptr) {
+      bool pending = writer->ready().IsPending(env);
+      if (backpressure_ && !pending)
+        writer->ready().SetPending(env);
+      else if (!backpressure_ && pending)
+        writer->ready().Resolve(env);
+    }
+  } else {
+    pump_source_obj_.Reset();
+  }
+  if (pump_stall_resolver_.IsEmpty()) return;
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = pump_stall_resolver_.Get(isolate);
+  pump_stall_resolver_.Reset();
+  USE(resolver->Resolve(env->context(), Undefined(isolate)));
+}
+
+void WritableStream::MaybeSettleFlush() {
+  if (flush_resolver_.IsEmpty()) return;
+  if (state_ != WritableState::kErrored &&
+      (!write_requests_.empty() || write_request_in_flight_)) {
+    return;
+  }
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Promise::Resolver> resolver = flush_resolver_.Get(isolate);
+  flush_resolver_.Reset();
+  USE(resolver->Resolve(env->context(), Undefined(isolate)));
 }
 
 void WritableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
@@ -1598,6 +1699,17 @@ void WritableStreamCloseQueuedOrInFlight(
   args.GetReturnValue().Set(s->CloseQueuedOrInFlight());
 }
 
+// pipeTo shutdown helper: a promise resolved (never rejected) once every
+// queued + in-flight write — including untracked fast-transfer writes, which
+// have no per-write promise — has settled or can no longer run (stream
+// errored). Internal-only.
+void WritableStreamFlushPromise(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  if (s == nullptr) return;
+  args.GetReturnValue().Set(s->FlushPromise());
+}
+
 // Introspection helper for a controller's custom inspect: returns the
 // WritableStream a WritableStreamDefaultController belongs to. Internal-only
 // (the public surface exposes no controller->stream link).
@@ -1639,6 +1751,8 @@ void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             WritableStreamCloseQueuedOrInFlight);
   SetMethod(isolate, target, "writableStreamStoredError",
             WritableStreamStoredError);
+  SetMethod(isolate, target, "writableStreamFlushPromise",
+            WritableStreamFlushPromise);
   SetMethod(isolate, target, "writableStreamControllerStream",
             WritableStreamControllerStream);
 }
@@ -1651,6 +1765,7 @@ void RegisterWritableStreamExternalReferences(
   registry->Register(WritableStreamClosedPromise);
   registry->Register(WritableStreamCloseQueuedOrInFlight);
   registry->Register(WritableStreamStoredError);
+  registry->Register(WritableStreamFlushPromise);
   registry->Register(WritableStreamControllerStream);
   WritableStream::RegisterExternalReferences(registry);
   WritableStreamDefaultController::RegisterExternalReferences(registry);

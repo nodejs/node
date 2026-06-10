@@ -275,6 +275,30 @@ class WritableStream final : public StreamBaseObject {
   void DealWithRejection(v8::Local<v8::Value> error);
   bool CloseQueuedOrInFlight() const;
   v8::Local<v8::Promise> AddWriteRequest();
+  // Tracks a write whose completion no caller observes (pipeTo's fast
+  // transfer): pushes an empty slot onto write_requests_ so the in-flight
+  // bookkeeping stays 1:1 with queued chunks without allocating a resolver.
+  void AddWriteRequestUntracked();
+  // A promise resolved (never rejected) once every queued + in-flight write
+  // has settled, or the stream has errored (so no write can ever complete).
+  // Used by pipeTo's shutdown to wait on untracked fast-transfer writes.
+  v8::Local<v8::Promise> FlushPromise();
+
+  // --- pipe pump (pipeTo hot loop, see PipePump in readable_stream.cc) ---
+  // While armed, each write completion re-enters the C++ transfer loop
+  // (RunPipePump) instead of bouncing through JS via writer.ready, so a
+  // steady-state pipe moves chunks without ever leaving C++. The stall
+  // promise settles (resolves; never rejects) when the pump disarms for any
+  // reason — source drained/closed/errored, destination no longer writable —
+  // at which point pipeTo's JS step loop re-evaluates.
+  bool pump_armed() const { return pump_armed_; }
+  void ArmPump(v8::Local<v8::Object> source_obj);
+  v8::Local<v8::Promise> PumpStallPromise();
+  void DisarmPumpAndSettleStall();
+  v8::Local<v8::Object> pump_source_obj(v8::Isolate* isolate) const {
+    return pump_source_obj_.IsEmpty() ? v8::Local<v8::Object>()
+                                      : pump_source_obj_.Get(isolate);
+  }
 
   // Settle the in-flight abort request after the controller's abort algorithm
   // (run from FinishErroring) resolves/rejects.
@@ -282,18 +306,33 @@ class WritableStream final : public StreamBaseObject {
   void OnAbortAlgorithmRejected(v8::Local<v8::Value> error);
 
   bool has_in_flight_write_request() const {
-    return !in_flight_write_request_.IsEmpty();
+    return write_request_in_flight_;
   }
 
  private:
+  void MaybeSettleFlush();
+
   WritableState state_ = WritableState::kWritable;
   v8::Global<v8::Value> stored_error_;
   bool backpressure_ = false;
 
+  // May contain empty slots: an untracked fast-transfer write (see
+  // AddWriteRequestUntracked) occupies a position with no resolver.
   std::deque<v8::Global<v8::Promise::Resolver>> write_requests_;
   v8::Global<v8::Promise::Resolver> close_request_;
   v8::Global<v8::Promise::Resolver> in_flight_write_request_;
+  // True while a write request is marked in flight; in_flight_write_request_
+  // alone cannot signal this since an untracked request's slot is empty.
+  bool write_request_in_flight_ = false;
   v8::Global<v8::Promise::Resolver> in_flight_close_request_;
+  // Lazily created by FlushPromise(); settled by MaybeSettleFlush().
+  v8::Global<v8::Promise::Resolver> flush_resolver_;
+
+  // Pipe pump state (see pump_armed() above). The source's wrapper is pinned
+  // strongly only while the pump is armed.
+  bool pump_armed_ = false;
+  v8::Global<v8::Object> pump_source_obj_;
+  v8::Global<v8::Promise::Resolver> pump_stall_resolver_;
 
   bool has_pending_abort_ = false;
   v8::Global<v8::Promise::Resolver> pending_abort_promise_;

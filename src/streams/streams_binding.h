@@ -70,6 +70,13 @@ void SetProtoMethodPromise(v8::Isolate* isolate,
 // Promise-returning operation invoked on a foreign receiver.
 v8::Local<v8::Value> IllegalInvocationRejection(v8::Local<v8::Context> context);
 
+class WritableStream;
+
+// Re-enters pipeTo's C++ transfer loop after a write completes on a pump-armed
+// destination (defined in readable_stream.cc, which sees both stream types;
+// called from the writable side's write-fulfilled reaction).
+void RunPipePump(WritableStream* dest);
+
 // Attaches the shared per-realm start-fulfilled reaction to `promise`, which
 // must have been resolved with a controller's wrapper object. Setup fast path
 // for a start algorithm that returned a non-object: marks the controller
