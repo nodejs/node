@@ -2924,6 +2924,40 @@ void ReadableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(s->stored_error(env));
 }
 
+// pipeTo fast path: synchronously dequeues a buffered chunk from a default
+// (value) stream, bypassing the per-chunk read promise + { value, done } result
+// allocation. Mirrors the buffered branch of the default controller's
+// PullSteps (dequeue, then close-if-drained or pull). Returns the caller's
+// sentinel (args[1]) when nothing can be dequeued synchronously — empty queue,
+// byte controller, or non-readable state — in which case the caller falls back
+// to reader.read(), which handles parking, close and error. Only used by
+// pipeTo while it holds the stream's reader, so no pending read request can
+// exist when the queue is non-empty.
+void ReadableStreamFastDequeue(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsObject());
+  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  if (s == nullptr) {
+    args.GetReturnValue().Set(args[1]);
+    return;
+  }
+  ReadableStreamDefaultController* c = s->default_controller();
+  if (c == nullptr || s->state() != StreamState::kReadable ||
+      c->queue_length() == 0) {
+    args.GetReturnValue().Set(args[1]);
+    return;
+  }
+  s->set_disturbed(true);
+  Local<Value> chunk;
+  if (!c->DequeueValue().ToLocal(&chunk)) return;
+  if (c->close_requested() && c->queue_length() == 0) {
+    c->ClearAlgorithms();
+    s->Close();
+  } else {
+    c->CallPullIfNeeded();
+  }
+  args.GetReturnValue().Set(chunk);
+}
+
 // Introspection helper for white-box tests: returns a ReadableStream's
 // controller object (default or byte). The public surface exposes no
 // stream->controller link.
@@ -3030,6 +3064,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "isReadableStream", IsReadableStream);
   SetMethod(isolate, target, "readableStreamStoredError",
             ReadableStreamStoredError);
+  SetMethod(isolate, target, "readableStreamFastDequeue",
+            ReadableStreamFastDequeue);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
   SetMethod(isolate, target, "readableStreamReleaseReader",
@@ -3054,6 +3090,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReadableStreamCancel);
   registry->Register(IsReadableStream);
   registry->Register(ReadableStreamStoredError);
+  registry->Register(ReadableStreamFastDequeue);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);

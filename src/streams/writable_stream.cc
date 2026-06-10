@@ -155,6 +155,31 @@ void ThenReact(Environment* env,
   USE(promise->Then(context, ff, rj));
 }
 
+// Like ThenReact, but reuses cached reaction functions (creating them on first
+// use), so the per-write hot path allocates no V8 Function. Mirrors the
+// readable side's ThenReactCached.
+void ThenReactCached(Environment* env,
+                     Local<Promise> promise,
+                     Local<Object> data,
+                     FunctionCallback on_fulfilled,
+                     FunctionCallback on_rejected,
+                     v8::Global<Function>* ff_slot,
+                     v8::Global<Function>* rj_slot) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Function> ff = ff_slot->Get(isolate);
+  if (ff.IsEmpty()) {
+    if (!Function::New(context, on_fulfilled, data).ToLocal(&ff)) return;
+    ff_slot->Reset(isolate, ff);
+  }
+  Local<Function> rj = rj_slot->Get(isolate);
+  if (rj.IsEmpty()) {
+    if (!Function::New(context, on_rejected, data).ToLocal(&rj)) return;
+    rj_slot->Reset(isolate, rj);
+  }
+  USE(promise->Then(context, ff, rj));
+}
+
 }  // namespace
 
 // ===========================================================================
@@ -387,8 +412,9 @@ void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
   if (!write->Call(context, Undefined(isolate), 2, argv).ToLocal(&result))
     return;
   if (!result->IsPromise()) return;
-  ThenReact(env, result.As<Promise>(), controller_obj, ReactWriteFulfilled,
-            ReactWriteRejected);
+  ThenReactCached(env, result.As<Promise>(), controller_obj,
+                  ReactWriteFulfilled, ReactWriteRejected,
+                  &on_write_fulfilled_, &on_write_rejected_);
 }
 
 void WritableStreamDefaultController::OnWriteFulfilled() {
@@ -457,6 +483,9 @@ void WritableStreamDefaultController::ClearAlgorithms() {
   close_algorithm_.Reset();
   abort_algorithm_.Reset();
   size_algorithm_.Reset();
+  // Break the Global -> reaction Function -> wrapper -> controller cycle.
+  on_write_fulfilled_.Reset();
+  on_write_rejected_.Reset();
 }
 
 void WritableStreamDefaultController::AdvanceQueueIfNeeded() {

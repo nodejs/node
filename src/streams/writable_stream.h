@@ -141,6 +141,13 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   v8::Global<v8::Function> abort_algorithm_;
   v8::Global<v8::Function> size_algorithm_;
 
+  // Cached promise-reaction functions for the write hot path (Data == this
+  // controller's wrapper). Created once on first write and reused for every
+  // subsequent write, so the per-write path allocates no V8 Function. The
+  // wrapper->controller->Global cycle is broken by ClearAlgorithms.
+  v8::Global<v8::Function> on_write_fulfilled_;
+  v8::Global<v8::Function> on_write_rejected_;
+
   // Raw-pointer mirror of the kStream internal field (see stream()).
   WritableStream* stream_cache_ = nullptr;
 };
