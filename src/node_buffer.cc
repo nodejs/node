@@ -597,44 +597,78 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void CopyImpl(Local<Value> source_obj,
-              Local<Value> target_obj,
-              const uint32_t target_start,
-              const uint32_t source_start,
-              const uint32_t to_copy) {
-  ArrayBufferViewContents<char> source(source_obj);
-  SPREAD_BUFFER_ARG(target_obj, target);
+// Returns the number of bytes actually copied. This is normally |to_copy|, but
+// V8 copies nothing (and returns 0) when the target is backed by a detached or
+// immutable ArrayBuffer.
+size_t CopyImpl(Local<Value> source_obj,
+                Local<Value> target_obj,
+                const size_t target_start,
+                const size_t source_start,
+                const size_t to_copy) {
+  Local<ArrayBufferView> source = source_obj.As<ArrayBufferView>();
+  Local<ArrayBufferView> target = target_obj.As<ArrayBufferView>();
 
-  memmove(target_data + target_start, source.data() + source_start, to_copy);
+  Local<ArrayBuffer> source_ab = source->Buffer();
+  Local<ArrayBuffer> target_ab = target->Buffer();
+
+  const size_t source_offset = source->ByteOffset() + source_start;
+  const size_t target_offset = target->ByteOffset() + target_start;
+
+  // Defer byte-range clamping and detached/immutable handling to V8. When both
+  // sides are backed by a SharedArrayBuffer the relaxed atomic overload is
+  // used, which honors the SharedArrayBuffer memory model. Any other
+  // combination (both regular, or one of each) goes through the ArrayBuffer
+  // overload: it operates on the underlying backing store regardless of
+  // shared-ness, so a plain memmove is performed (matching the historical
+  // behavior for SharedArrayBuffer-backed buffers). The V8 API has no overload
+  // that mixes ArrayBuffer and SharedArrayBuffer, so the two must never be
+  // cross-cast.
+  if (source_ab->IsSharedArrayBuffer() && target_ab->IsSharedArrayBuffer()) {
+    return source_ab.As<SharedArrayBuffer>()->CopyArrayBufferBytes(
+        source_offset,
+        to_copy,
+        target_ab.As<SharedArrayBuffer>(),
+        target_offset);
+  }
+  return source_ab->CopyArrayBufferBytes(
+      source_offset, to_copy, target_ab, target_offset);
 }
 
 // Assume caller has properly validated args.
 void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   Local<Value> source_obj = args[0];
   Local<Value> target_obj = args[1];
-  const uint32_t target_start = args[2].As<Uint32>()->Value();
-  const uint32_t source_start = args[3].As<Uint32>()->Value();
-  const uint32_t to_copy = args[4].As<Uint32>()->Value();
+  // Byte offsets and lengths can exceed uint32 for buffers larger than 4 GiB,
+  // so they are passed and returned as doubles (exact for integers < 2^53).
+  const size_t target_start =
+      static_cast<size_t>(args[2].As<Number>()->Value());
+  const size_t source_start =
+      static_cast<size_t>(args[3].As<Number>()->Value());
+  const size_t to_copy = static_cast<size_t>(args[4].As<Number>()->Value());
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
+  const size_t copied =
+      CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
 
-  args.GetReturnValue().Set(to_copy);
+  args.GetReturnValue().Set(static_cast<double>(copied));
 }
 
 // Assume caller has properly validated args.
-uint32_t FastCopy(Local<Value> receiver,
-                  Local<Value> source_obj,
-                  Local<Value> target_obj,
-                  uint32_t target_start,
-                  uint32_t source_start,
-                  uint32_t to_copy,
-                  // NOLINTNEXTLINE(runtime/references)
-                  FastApiCallbackOptions& options) {
+double FastCopy(Local<Value> receiver,
+                Local<Value> source_obj,
+                Local<Value> target_obj,
+                double target_start,
+                double source_start,
+                double to_copy,
+                // NOLINTNEXTLINE(runtime/references)
+                FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.copy");
   HandleScope scope(options.isolate);
 
-  CopyImpl(source_obj, target_obj, target_start, source_start, to_copy);
-
-  return to_copy;
+  return static_cast<double>(CopyImpl(source_obj,
+                                      target_obj,
+                                      static_cast<size_t>(target_start),
+                                      static_cast<size_t>(source_start),
+                                      static_cast<size_t>(to_copy)));
 }
 
 static CFunction fast_copy(CFunction::Make(FastCopy));
