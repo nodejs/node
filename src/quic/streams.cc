@@ -822,7 +822,6 @@ class Stream::Outbound final : public MemoryRetainer {
         PullUncommitted(std::move(next));
         return bob::Status::STATUS_CONTINUE;
       }
-
       std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](int) {});
       return bob::Status::STATUS_BLOCK;
     }
@@ -1901,7 +1900,9 @@ void Stream::EmitStopSending(const QuicError& error) {
 void Stream::Schedule(Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
   Debug(this, "Scheduled");
-  if (outbound_ && stream_queue_.IsEmpty()) queue->PushBack(this);
+  if (outbound_ && stream_queue_.IsEmpty()) {
+    queue->PushBack(this);
+  }
 }
 
 void Stream::Unschedule() {
