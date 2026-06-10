@@ -730,6 +730,7 @@ of the file.
 An example using the `buffer` option with a pre-allocated buffer:
 
 ```mjs
+import { Buffer } from 'node:buffer';
 import { open } from 'node:fs/promises';
 
 const file = await open('./some/file/to/read');
@@ -745,6 +746,7 @@ try {
 An example using the `buffer` option with a function returning a buffer:
 
 ```mjs
+import { Buffer } from 'node:buffer';
 import { open } from 'node:fs/promises';
 
 const file = await open('./some/file/to/read');
@@ -1902,6 +1904,7 @@ Any specified {FileHandle} has to support reading.
 An example using the `buffer` option with a pre-allocated buffer:
 
 ```mjs
+import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 
 const buf = Buffer.alloc(16384);
@@ -1912,6 +1915,7 @@ console.log(contents); // A view over `buf` containing only the bytes read
 An example using the `buffer` option with a function returning a buffer:
 
 ```mjs
+import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 
 const contents = await readFile('/path/to/file', {
@@ -4420,6 +4424,7 @@ system requests but rather the internal buffering `fs.readFile` performs.
 An example using the `buffer` option with a pre-allocated buffer:
 
 ```mjs
+import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs';
 
 const buf = Buffer.alloc(16384);
@@ -4432,6 +4437,7 @@ readFile('/path/to/file', { buffer: buf }, (err, data) => {
 An example using the `buffer` option with a function returning a buffer:
 
 ```mjs
+import { Buffer } from 'node:buffer';
 import { readFile } from 'node:fs';
 
 readFile('/path/to/file', {
