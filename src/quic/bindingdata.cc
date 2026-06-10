@@ -296,6 +296,10 @@ void BindingData::InitPerContext(Realm* realm, Local<Object> target) {
   SetMethod(realm->context(), target, "setHeadersInterest", SetHeadersInterest);
   SetMethod(realm->context(),
             target,
+            "setSessionIdInterest",
+            SetSessionIdInterest);
+  SetMethod(realm->context(),
+            target,
             "makeWebtransportStream",
             MakeWebtransportStream);
 
@@ -328,6 +332,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(SetCallbacks);
   registry->Register(SendHeaders);
   registry->Register(SetHeadersInterest);
+  registry->Register(SetSessionIdInterest);
   registry->Register(MakeWebtransportStream);
 }
 
@@ -353,6 +358,14 @@ JS_METHOD_IMPL(BindingData::SetHeadersInterest) {
   CHECK(args[2]->IsBoolean());
   stream->session().application().SetHeadersInterest(
       *stream, args[1]->IsTrue(), args[2]->IsTrue());
+}
+
+JS_METHOD_IMPL(BindingData::SetSessionIdInterest) {
+  Stream* stream;
+  ASSIGN_OR_RETURN_UNWRAP(&stream, args[0]);
+  CHECK(args[1]->IsBoolean());
+  stream->session().application().SetSessionIdInterest(
+      *stream, args[1]->IsTrue());
 }
 
 // Connects a stream to a webtransport session stream,

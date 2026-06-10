@@ -468,6 +468,7 @@ class Stream final : public AsyncWrap,
   // When a pending stream is finally opened, the NotifyStreamOpened method
   // will be called and the id will be assigned.
   void NotifyStreamOpened(stream_id id);
+
   ArenaSlotBase stats_slot_;
   ArenaSlotBase state_slot_;
   BaseObjectWeakPtr<Session> session_;

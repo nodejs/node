@@ -22,6 +22,7 @@
 namespace node {
 
 using v8::Array;
+using v8::BigInt;
 using v8::Global;
 using v8::Integer;
 using v8::Local;
@@ -159,7 +160,12 @@ struct Http3StreamState final : public StreamApplicationState {
   size_t headers_length = 0;
   bool wants_headers = false;
   bool wants_trailers = false;
-  int64_t pending_webtransport_session_ = -1;
+  bool wants_session_id = false;
+  int64_t pending_webtransport_session = -1;
+  // Until is is clear, that this has a session stream, it is kMaxStreamId
+  // after this it is -1, if it is not a webtransport stream
+  // and >= 0  it is a webtransport stream.
+  stream_id session_id = kMaxStreamId;
 };
 
 // Implements the low-level HTTP/3 Application semantics.
@@ -550,13 +556,13 @@ class Http3ApplicationImpl final : public Session::Application {
       }
     }
 
-    if (state->pending_webtransport_session_ < 0) return true;
+    if (state->pending_webtransport_session < 0) return true;
 
     if (!MakeWebtransportStream(stream,
-      state->pending_webtransport_session_)) {
+      state->pending_webtransport_session)) {
       return false;
     }
-    state->pending_webtransport_session_ = 0;
+    state->pending_webtransport_session = 0;
     return true;
   }
 
@@ -591,12 +597,18 @@ class Http3ApplicationImpl final : public Session::Application {
     state.wants_trailers = wants_trailers;
   }
 
+  void SetSessionIdInterest(Stream& stream,
+                            bool wants_sessionid) override {
+    auto& state = GetOrCreateStreamState(stream);
+    state.wants_session_id = wants_sessionid;
+  }
+
   bool MakeWebtransportStream(Stream& stream, int64_t sessionid) override {
     if (stream.is_pending()) {
       Debug(&session(),
             "Enqueing Webtransport Session strean for pending stream");
       auto& state = GetOrCreateStreamState(stream);
-      state.pending_webtransport_session_ = sessionid;
+      state.pending_webtransport_session = sessionid;
       return true;
     }
     Session::SendPendingDataScope send_scope(&session());
@@ -868,6 +880,14 @@ class Http3ApplicationImpl final : public Session::Application {
     return true;
   }
 
+  void NotifyWTSession(Stream& stream, stream_id session_id) {
+    auto& state = GetOrCreateStreamState(stream);
+    if (state.session_id != session_id) {
+      state.session_id = session_id;
+      EmitSessionid(stream, session_id);
+    }
+  }
+
   void EmitHeaders(Stream& stream) {
     auto& state = GetOrCreateStreamState(stream);
     stream.RecordReceivedActivity();
@@ -900,6 +920,18 @@ class Http3ApplicationImpl final : public Session::Application {
                                  static_cast<uint32_t>(state.headers_kind))};
     stream.MakeCallback(
         binding.stream_headers_callback(), arraysize(argv), argv);
+  }
+
+  void EmitSessionid(Stream& stream, stream_id session_id) {
+    auto* state = GetStreamState(stream);
+    if (!env()->can_call_into_js()  || !state->wants_session_id) {
+      return;
+    }
+    CallbackScope<Stream> cb_scope(&stream);
+    auto& binding = BindingData::Get(env());
+    Local<Value> sid = BigInt::New(env()->isolate(), session_id);
+    stream.MakeCallback(
+      binding.stream_sessionid_callback(), 1, &sid);
   }
 
   void EmitWantTrailers(Stream& stream) {
@@ -1389,6 +1421,63 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
 
+  static int on_receive_wt_data(nghttp3_conn* conn,
+                                int64_t session_id,
+                                int64_t stream_id,
+                                const uint8_t* data,
+                                size_t datalen,
+                                void* conn_user_data,
+                                void* stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+
+    // A cached Stream* is cleared before the Stream is removed from the
+    // session, non-null here means the stream is good to go.
+    if (auto* cached = static_cast<Stream*>(stream_user_data)) [[likely]] {
+      BaseObjectPtr<Stream> stream(cached);
+      stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
+      return NGTCP2_SUCCESS;
+    }
+
+    auto& session = app.session();
+
+    // DATA frames for a request stream the application already destroyed can
+    // still arrive. Drop the payload rather than resurrecting the stream or
+    // tearing down the connection, but return its credit: unlike framing
+    // bytes, DATA payload is not included in the count nghttp3 reports to
+    // ReceiveStreamData, so we own it. The is_destroyed() check must come
+    // first, see DefaultApplication::ReceiveStreamData.
+    if (!session.is_destroyed() && !session.FindStream(stream_id) &&
+        ngtcp2_conn_is_local_stream(session, stream_id)) {
+      Debug(&session,
+            "HTTP/3 discarding %zu bytes"
+            " for destroyed wt local stream %" PRIi64,
+            datalen,
+            stream_id);
+      app.ReturnConnectionCredit(datalen);
+      return NGTCP2_SUCCESS;
+    }
+
+    if (auto stream = app.FindOrCreateStream(stream_id)) [[likely]] {
+      stream->ReceiveData(data, datalen, Stream::ReceiveDataFlags{});
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
+  static int on_wt_data_stream_open(nghttp3_conn* conn,
+                                     int64_t session_id,
+                                     int64_t stream_id,
+                                     void* conn_user_data,
+                                     void* stream_user_data) {
+    NGHTTP3_CALLBACK_SCOPE(app);
+
+    if (auto stream = app.FindOrCreateStream(stream_id)) [[likely]] {
+      app.NotifyWTSession(*stream.get(), session_id);
+      return NGTCP2_SUCCESS;
+    }
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+
   static int on_deferred_consume(nghttp3_conn* conn,
                                  stream_id id,
                                  size_t consumed,
@@ -1591,7 +1680,9 @@ class Http3ApplicationImpl final : public Session::Application {
       on_receive_settings,
       // We don't have to listen for stream_close - nghttp3 only closes when
       // ReceiveStreamClose requests it, when we've already handled this.
-      nullptr};
+      nullptr,
+      on_receive_wt_data,
+      on_wt_data_stream_open};
 };
 
 std::unique_ptr<Session::Application> CreateHttp3Application(
