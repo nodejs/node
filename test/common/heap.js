@@ -336,6 +336,19 @@ function validateByRetainingPath(...args) {
   return validateByRetainingPathFromNodes(nodes, ...args);
 }
 
+function getRetainingNodes(startingNode, filter) {
+  const seen = new Set();
+  function listNodes(node) {
+    if (!filter(node) || seen.has(node)) return;
+    seen.add(node);
+    for (const edge of node.incomingEdges) {
+      listNodes(edge.from);
+    }
+  }
+  listNodes(startingNode);
+  return [...seen];
+}
+
 module.exports = {
   recordState,
   validateSnapshotNodes,
@@ -343,4 +356,5 @@ module.exports = {
   validateByRetainingPathFromNodes,
   getHeapSnapshotOptionTests,
   createJSHeapSnapshot,
+  getRetainingNodes,
 };

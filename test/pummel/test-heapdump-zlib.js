@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { validateByRetainingPath, validateByRetainingPathFromNodes } = require('../common/heap');
+const { validateByRetainingPath, validateByRetainingPathFromNodes, getRetainingNodes } = require('../common/heap');
 const zlib = require('zlib');
 
 // Before zlib stream is created, no ZlibStream should be created.
@@ -25,6 +25,18 @@ const gzip = zlib.createGzip();
     { node_name: 'Node / zlib_memory', edge_name: 'zlib_memory' },
   ], true);
   assert.strictEqual(withMemory.length, 0);
+}
+
+{
+  // Assert that the `ZlibStream` has no unexpected connections
+  // to other `Node / ...` nodes.
+  const contexts = validateByRetainingPath('Node / ZlibContext', []);
+  assert.deepStrictEqual(
+    getRetainingNodes(contexts[0], (node) => node.name?.startsWith('Node /'))
+      .map((node) => node.name).sort(), [
+      'Node / ZlibContext',
+      'Node / ZlibStream',
+    ]);
 }
 
 // After zlib stream is written, zlib_memory should be created.
