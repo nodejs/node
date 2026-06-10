@@ -300,6 +300,13 @@ class MemoryTracker {
                                 v8::EmbedderGraph* graph)
     : isolate_(isolate), graph_(graph) {}
 
+  // Can be passed to Track() if it is not desirable
+  // to create a strong edge between nodes, i.e. when
+  // the node should be added to the graph and the
+  // parent node is "tracking" the target node but
+  // not directly keeping it alive.
+  static const char* const kWeakEdge;
+
  private:
   typedef std::unordered_map<const MemoryRetainer*, MemoryRetainerNode*>
       NodeMap;
@@ -321,6 +328,9 @@ class MemoryTracker {
                                       size_t size,
                                       const char* edge_name = nullptr);
   inline void PopNode();
+  inline void AddEdge(v8::EmbedderGraph::Node* from,
+                      v8::EmbedderGraph::Node* to,
+                      const char* edge_name = nullptr);
 
   v8::Isolate* isolate_;
   v8::EmbedderGraph* graph_;

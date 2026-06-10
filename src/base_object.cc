@@ -179,4 +179,6 @@ void BaseObjectList::MemoryInfo(node::MemoryTracker* tracker) const {
   }
 }
 
+const char* const MemoryTracker::kWeakEdge = "<MemoryTracker::kWeakEdge>";
+
 }  // namespace node
