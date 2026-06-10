@@ -133,7 +133,7 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   // dequeue; consumed slots are nulled and the array is reset when it empties.
   // Per-chunk sizes live in a C++ deque to avoid boxing doubles into Numbers.
   v8::Global<v8::Array> queue_;
-  std::deque<double> sizes_;
+  FifoQueue<double> sizes_;
   uint32_t queue_head_ = 0;
   uint32_t queue_size_ = 0;
   double queue_total_size_ = 0;
@@ -219,7 +219,7 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
   void set_for_author_code(bool v) { for_author_code_ = v; }
 
  private:
-  std::deque<v8::Global<v8::Promise::Resolver>> read_requests_;
+  FifoQueue<v8::Global<v8::Promise::Resolver>> read_requests_;
   // Lazily materialized on first access; until then the settlement is
   // recorded in closed_state_/closed_reason_ (see ClosedState).
   v8::Global<v8::Promise::Resolver> closed_;
@@ -499,7 +499,7 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
   void set_for_author_code(bool v) { for_author_code_ = v; }
 
  private:
-  std::deque<v8::Global<v8::Promise::Resolver>> read_into_requests_;
+  FifoQueue<v8::Global<v8::Promise::Resolver>> read_into_requests_;
   // Lazily materialized on first access; until then the settlement is
   // recorded in closed_state_/closed_reason_ (see ClosedState).
   v8::Global<v8::Promise::Resolver> closed_;

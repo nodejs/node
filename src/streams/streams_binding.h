@@ -8,6 +8,8 @@
 #include "node_snapshotable.h"
 #include "v8.h"
 
+#include <vector>
+
 namespace node {
 
 class Environment;
@@ -69,6 +71,46 @@ void SetProtoMethodPromise(v8::Isolate* isolate,
 // A Promise rejected with an ERR_INVALID_THIS TypeError; returned by a
 // Promise-returning operation invoked on a foreign receiver.
 v8::Local<v8::Value> IllegalInvocationRejection(v8::Local<v8::Context> context);
+
+// FIFO queue over std::vector with a head index. Unlike std::deque — which
+// mallocs its map plus a ~512-byte node block in its constructor — this
+// allocates nothing until the first push, which matters because every
+// reader/writer/controller embeds one or more of these and most are never
+// pushed to (a reader that only reads buffered chunks parks no requests).
+// pop_front() is O(1); the dead prefix is compacted once it dominates so a
+// long-lived queue that never fully drains cannot grow unboundedly.
+template <typename T>
+class FifoQueue {
+ public:
+  bool empty() const { return head_ == items_.size(); }
+  size_t size() const { return items_.size() - head_; }
+  T& front() { return items_[head_]; }
+  const T& front() const { return items_[head_]; }
+  void push_back(const T& value) { items_.push_back(value); }
+  void push_back(T&& value) { items_.push_back(std::move(value)); }
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
+    items_.emplace_back(std::forward<Args>(args)...);
+  }
+  void pop_front() {
+    ++head_;
+    if (head_ == items_.size()) {
+      items_.clear();
+      head_ = 0;
+    } else if (head_ >= 32 && head_ * 2 >= items_.size()) {
+      items_.erase(items_.begin(), items_.begin() + head_);
+      head_ = 0;
+    }
+  }
+  void clear() {
+    items_.clear();
+    head_ = 0;
+  }
+
+ private:
+  std::vector<T> items_;
+  size_t head_ = 0;
+};
 
 class WritableStream;
 

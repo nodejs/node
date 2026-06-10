@@ -8,8 +8,6 @@
 #include "streams/streams_binding.h"
 #include "v8.h"
 
-#include <deque>
-
 namespace node {
 
 class Environment;
@@ -131,7 +129,7 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   bool QueueIsEmpty() const { return queue_size_ == 0 && !close_queued_; }
 
   v8::Global<v8::Array> queue_;
-  std::deque<double> sizes_;
+  FifoQueue<double> sizes_;
   uint32_t queue_head_ = 0;
   uint32_t queue_size_ = 0;
   double queue_total_size_ = 0;
@@ -318,7 +316,7 @@ class WritableStream final : public StreamBaseObject {
 
   // May contain empty slots: an untracked fast-transfer write (see
   // AddWriteRequestUntracked) occupies a position with no resolver.
-  std::deque<v8::Global<v8::Promise::Resolver>> write_requests_;
+  FifoQueue<v8::Global<v8::Promise::Resolver>> write_requests_;
   v8::Global<v8::Promise::Resolver> close_request_;
   v8::Global<v8::Promise::Resolver> in_flight_write_request_;
   // True while a write request is marked in flight; in_flight_write_request_
