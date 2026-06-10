@@ -61,19 +61,26 @@ void ReactStartFulfilledShared(
       break;
   }
 }
+
+void ThenSharedReaction(Environment* env,
+                        Local<Promise> promise,
+                        v8::FunctionCallback cb,
+                        v8::Global<v8::Function>* slot) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<v8::Function> fn = slot->Get(isolate);
+  if (fn.IsEmpty()) {
+    if (!v8::Function::New(context, cb).ToLocal(&fn)) return;
+    slot->Reset(isolate, fn);
+  }
+  USE(promise->Then(context, fn));
+}
 }  // namespace
 
 void ThenStartFulfilled(Environment* env, Local<Promise> promise) {
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
   BindingData* bd = BindingData::Get(env);
-  Local<v8::Function> fn = bd->start_fulfilled_reaction.Get(isolate);
-  if (fn.IsEmpty()) {
-    if (!v8::Function::New(context, ReactStartFulfilledShared).ToLocal(&fn))
-      return;
-    bd->start_fulfilled_reaction.Reset(isolate, fn);
-  }
-  USE(promise->Then(context, fn));
+  ThenSharedReaction(env, promise, ReactStartFulfilledShared,
+                     &bd->start_fulfilled_reaction);
 }
 
 Local<FunctionTemplate> NewGetter(Isolate* isolate,

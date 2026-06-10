@@ -103,16 +103,20 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   v8::Maybe<void> EnqueueValueWithSize(v8::Local<v8::Value> value, double size);
   void ResetQueue();
 
-  // Sets up the controller's algorithms and queuing parameters. The pull/cancel
-  // callbacks are already-wrapped JS functions (always return a Promise); start
-  // may run synchronously and throw. Returns false with a pending exception if
-  // the start algorithm threw synchronously.
+  // Sets up the controller's algorithms and queuing parameters. The pull
+  // callback is the user's RAW function, invoked with `algo_receiver` (the
+  // underlying source) as receiver — CallPullIfNeeded handles non-promise
+  // returns, thenables and synchronous throws natively. It may be empty (no
+  // user pull). The cancel callback remains an already-wrapped JS function
+  // (always returns a Promise); start may run synchronously and throw.
+  // Returns false with a pending exception if start threw synchronously.
   bool Setup(v8::Local<v8::Function> start_algorithm,
              v8::Local<v8::Function> pull_algorithm,
              v8::Local<v8::Function> cancel_algorithm,
              double high_water_mark,
              SizeMode size_mode,
-             v8::Local<v8::Function> size_algorithm);
+             v8::Local<v8::Function> size_algorithm,
+             v8::Local<v8::Value> algo_receiver);
 
  private:
   // The value queue is a JS Array stored in a single Global on this object (one
@@ -132,13 +136,14 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   bool pull_again_ = false;
   bool close_requested_ = false;
 
-  v8::Global<v8::Function> pull_algorithm_;
+  v8::Global<v8::Function> pull_algorithm_;  // raw user fn; may be empty
   v8::Global<v8::Function> cancel_algorithm_;
   v8::Global<v8::Function> size_algorithm_;
+  v8::Global<v8::Value> algo_receiver_;  // `this` for the raw pull algorithm
 
-  // Cached promise-reaction functions for the pull hot path (Data == this
-  // controller's wrapper). Created once on first pull and reused for every
-  // subsequent pull, so the per-pull path allocates no V8 Function.
+  // Cached promise-reaction functions for an async (promise-returning) pull
+  // (Data == this controller's wrapper); a sync pull uses the per-realm shared
+  // reaction instead. Created once on first use.
   v8::Global<v8::Function> on_pull_fulfilled_;
   v8::Global<v8::Function> on_rejected_;
 
@@ -338,11 +343,14 @@ class ReadableByteStreamController final : public StreamBaseObject {
     return pending_pull_intos_.front();
   }
 
+  // See the default controller's Setup: pull is the user's raw function
+  // (possibly empty), called with `algo_receiver` as receiver.
   bool Setup(v8::Local<v8::Function> start_algorithm,
              v8::Local<v8::Function> pull_algorithm,
              v8::Local<v8::Function> cancel_algorithm,
              double high_water_mark,
-             size_t auto_allocate_chunk_size);  // 0 => undefined
+             size_t auto_allocate_chunk_size,  // 0 => undefined
+             v8::Local<v8::Value> algo_receiver);
 
  private:
   void EnqueueChunkToQueue(std::shared_ptr<v8::BackingStore> buffer,
@@ -382,11 +390,13 @@ class ReadableByteStreamController final : public StreamBaseObject {
   bool pull_again_ = false;
   bool close_requested_ = false;
 
-  v8::Global<v8::Function> pull_algorithm_;
+  v8::Global<v8::Function> pull_algorithm_;  // raw user fn; may be empty
   v8::Global<v8::Function> cancel_algorithm_;
+  v8::Global<v8::Value> algo_receiver_;  // `this` for the raw pull algorithm
 
-  // Cached promise-reaction functions for the pull hot path (Data == this
-  // controller's wrapper). Created once on first pull and reused thereafter.
+  // Cached promise-reaction functions for an async (promise-returning) pull
+  // (Data == this controller's wrapper); a sync pull uses the per-realm shared
+  // reaction instead. Created once on first use.
   v8::Global<v8::Function> on_pull_fulfilled_;
   v8::Global<v8::Function> on_rejected_;
 
@@ -598,11 +608,12 @@ class ReadableStream final : public StreamBaseObject {
 v8::MaybeLocal<v8::Object> NewReadableStream(
     Environment* env,
     v8::Local<v8::Function> start_algorithm,
-    v8::Local<v8::Function> pull_algorithm,
+    v8::Local<v8::Function> pull_algorithm,  // raw user fn; may be empty
     v8::Local<v8::Function> cancel_algorithm,
     double high_water_mark,
     SizeMode size_mode,
-    v8::Local<v8::Function> size_algorithm);
+    v8::Local<v8::Function> size_algorithm,
+    v8::Local<v8::Value> algo_receiver = v8::Local<v8::Value>());
 
 // Binding entry points (registered on the `webstreams` internal binding).
 // createReadableStream(start, pull, cancel, highWaterMark, sizeMode, size)

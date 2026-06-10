@@ -108,6 +108,10 @@ class WritableStreamDefaultController final : public StreamBaseObject {
 
   bool started() const { return started_; }
 
+  // The write callback is the user's RAW function, invoked with
+  // `algo_receiver` (the underlying sink) as receiver — ProcessWrite handles
+  // non-promise returns, thenables and synchronous throws natively. It may be
+  // empty (no user write). close/abort remain already-wrapped JS functions.
   bool Setup(v8::Local<v8::Function> start_algorithm,
              v8::Local<v8::Function> write_algorithm,
              v8::Local<v8::Function> close_algorithm,
@@ -115,7 +119,8 @@ class WritableStreamDefaultController final : public StreamBaseObject {
              double high_water_mark,
              SizeMode size_mode,
              v8::Local<v8::Function> size_algorithm,
-             v8::Local<v8::Object> abort_controller);
+             v8::Local<v8::Object> abort_controller,
+             v8::Local<v8::Value> algo_receiver);
 
  private:
   // Value queue (chunks only); same hybrid layout as the readable default
@@ -136,10 +141,11 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   SizeMode size_mode_ = SizeMode::kCountOne;
   bool started_ = false;
 
-  v8::Global<v8::Function> write_algorithm_;
+  v8::Global<v8::Function> write_algorithm_;  // raw user fn; may be empty
   v8::Global<v8::Function> close_algorithm_;
   v8::Global<v8::Function> abort_algorithm_;
   v8::Global<v8::Function> size_algorithm_;
+  v8::Global<v8::Value> algo_receiver_;  // `this` for the raw write algorithm
 
   // Cached promise-reaction functions for the write hot path (Data == this
   // controller's wrapper). Created once on first write and reused for every
@@ -313,13 +319,14 @@ class WritableStream final : public StreamBaseObject {
 v8::MaybeLocal<v8::Object> NewWritableStream(
     Environment* env,
     v8::Local<v8::Function> start_algorithm,
-    v8::Local<v8::Function> write_algorithm,
+    v8::Local<v8::Function> write_algorithm,  // raw user fn; may be empty
     v8::Local<v8::Function> close_algorithm,
     v8::Local<v8::Function> abort_algorithm,
     double high_water_mark,
     SizeMode size_mode,
     v8::Local<v8::Function> size_algorithm,
-    v8::Local<v8::Object> abort_controller);
+    v8::Local<v8::Object> abort_controller,
+    v8::Local<v8::Value> algo_receiver = v8::Local<v8::Value>());
 
 // Binding entry points.
 // createWritableStream(start, write, close, abort, highWaterMark, sizeMode,

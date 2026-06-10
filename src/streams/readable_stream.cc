@@ -504,20 +504,67 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
   Local<Context> context = env->context();
   Local<Object> controller_obj = object();
   Local<Function> pull = pull_algorithm_.Get(isolate);
-  Local<Value> argv[] = {controller_obj};
+  // The pull algorithm is the user's raw function (no per-call async JS
+  // wrapper). The common cases — no pull, or a synchronous pull returning a
+  // non-object — complete through the shared per-realm reaction on a promise
+  // resolved with this controller's wrapper: same microtask timing as a
+  // promise return, no per-call Function allocation.
   Local<Value> result;
-  if (!pull->Call(context, Undefined(isolate), 1, argv).ToLocal(&result))
+  if (pull.IsEmpty()) {
+    result = Undefined(isolate);
+  } else {
+    Local<Value> recv = algo_receiver_.IsEmpty()
+                            ? Undefined(isolate).As<Value>()
+                            : algo_receiver_.Get(isolate);
+    Local<Value> argv[] = {controller_obj};
+    TryCatch try_catch(isolate);
+    if (!pull->Call(context, recv, 1, argv).ToLocal(&result)) {
+      if (try_catch.HasTerminated()) return;
+      // A synchronous throw behaves as a rejected pull promise (the former
+      // wrapper's semantics): error the stream in a microtask.
+      Local<Value> exception = try_catch.Exception();
+      try_catch.Reset();
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+      USE(resolver->Reject(context, exception));
+      ThenReactCached(env, resolver->GetPromise(), controller_obj,
+                      ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+      return;
+    }
+  }
+  if (result->IsPromise()) {
+    ThenReactCached(env, result.As<Promise>(), controller_obj,
+                    ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
     return;
-  // The pull algorithm is wrapped as an async function, so it returns a Promise.
-  if (!result->IsPromise()) return;
-  ThenReactCached(env, result.As<Promise>(), controller_obj, ReactPullFulfilled,
-                  &on_pull_fulfilled_, &on_rejected_);
+  }
+  if (!result->IsObject()) {
+    // Synchronous pull: enqueue FinishPull directly as a microtask via the
+    // per-controller cached reaction — one API call, no promise; ordering is
+    // identical (CallableTask and PromiseReactionJob share the FIFO queue).
+    Local<Function> ff = on_pull_fulfilled_.Get(isolate);
+    if (ff.IsEmpty()) {
+      if (!Function::New(context, ReactPullFulfilled, controller_obj)
+               .ToLocal(&ff))
+        return;
+      on_pull_fulfilled_.Reset(isolate, ff);
+    }
+    isolate->EnqueueMicrotask(ff);
+    return;
+  }
+  // Thenable (non-promise object): full promise resolution so its `then` is
+  // honored, reacted to with the per-controller cached functions.
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  USE(resolver->Resolve(context, result));
+  ThenReactCached(env, resolver->GetPromise(), controller_obj,
+                  ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
 }
 
 void ReadableStreamDefaultController::ClearAlgorithms() {
   pull_algorithm_.Reset();
   cancel_algorithm_.Reset();
   size_algorithm_.Reset();
+  algo_receiver_.Reset();
   // Break the controller<->wrapper cycle created by the cached reaction
   // functions (their Data is this controller's wrapper). No further pulls occur
   // after the algorithms are cleared, so they will not be recreated.
@@ -715,14 +762,18 @@ bool ReadableStreamDefaultController::Setup(Local<Function> start_algorithm,
                                             Local<Function> cancel_algorithm,
                                             double high_water_mark,
                                             SizeMode size_mode,
-                                            Local<Function> size_algorithm) {
+                                            Local<Function> size_algorithm,
+                                            Local<Value> algo_receiver) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   high_water_mark_ = high_water_mark;
   size_mode_ = size_mode;
-  pull_algorithm_.Reset(isolate, pull_algorithm);
+  if (!pull_algorithm.IsEmpty())
+    pull_algorithm_.Reset(isolate, pull_algorithm);
   cancel_algorithm_.Reset(isolate, cancel_algorithm);
+  if (!algo_receiver.IsEmpty() && !algo_receiver->IsUndefined())
+    algo_receiver_.Reset(isolate, algo_receiver);
   if (size_mode == SizeMode::kUserFn)
     size_algorithm_.Reset(isolate, size_algorithm);
 
@@ -1464,18 +1515,57 @@ void ReadableByteStreamController::CallPullIfNeeded() {
   Local<Context> context = env->context();
   Local<Object> controller_obj = object();
   Local<Function> pull = pull_algorithm_.Get(isolate);
-  Local<Value> argv[] = {controller_obj};
+  // Raw pull calling convention; see the default controller's CallPullIfNeeded.
   Local<Value> result;
-  if (!pull->Call(context, Undefined(isolate), 1, argv).ToLocal(&result))
+  if (pull.IsEmpty()) {
+    result = Undefined(isolate);
+  } else {
+    Local<Value> recv = algo_receiver_.IsEmpty()
+                            ? Undefined(isolate).As<Value>()
+                            : algo_receiver_.Get(isolate);
+    Local<Value> argv[] = {controller_obj};
+    TryCatch try_catch(isolate);
+    if (!pull->Call(context, recv, 1, argv).ToLocal(&result)) {
+      if (try_catch.HasTerminated()) return;
+      Local<Value> exception = try_catch.Exception();
+      try_catch.Reset();
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+      USE(resolver->Reject(context, exception));
+      ThenReactCached(env, resolver->GetPromise(), controller_obj,
+                      ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+      return;
+    }
+  }
+  if (result->IsPromise()) {
+    ThenReactCached(env, result.As<Promise>(), controller_obj,
+                    ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
     return;
-  if (!result->IsPromise()) return;
-  ThenReactCached(env, result.As<Promise>(), controller_obj, ReactPullFulfilled,
-                  &on_pull_fulfilled_, &on_rejected_);
+  }
+  if (!result->IsObject()) {
+    // Synchronous pull: microtask via the cached reaction; see the default
+    // controller's CallPullIfNeeded.
+    Local<Function> ff = on_pull_fulfilled_.Get(isolate);
+    if (ff.IsEmpty()) {
+      if (!Function::New(context, ReactPullFulfilled, controller_obj)
+               .ToLocal(&ff))
+        return;
+      on_pull_fulfilled_.Reset(isolate, ff);
+    }
+    isolate->EnqueueMicrotask(ff);
+    return;
+  }
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  USE(resolver->Resolve(context, result));
+  ThenReactCached(env, resolver->GetPromise(), controller_obj,
+                  ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
 }
 
 void ReadableByteStreamController::ClearAlgorithms() {
   pull_algorithm_.Reset();
   cancel_algorithm_.Reset();
+  algo_receiver_.Reset();
   // Break the controller<->wrapper cycle from the cached reaction functions.
   on_pull_fulfilled_.Reset();
   on_rejected_.Reset();
@@ -2109,7 +2199,8 @@ bool ReadableByteStreamController::Setup(Local<Function> start_algorithm,
                                         Local<Function> pull_algorithm,
                                         Local<Function> cancel_algorithm,
                                         double high_water_mark,
-                                        size_t auto_allocate_chunk_size) {
+                                        size_t auto_allocate_chunk_size,
+                                        Local<Value> algo_receiver) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -2118,8 +2209,11 @@ bool ReadableByteStreamController::Setup(Local<Function> start_algorithm,
     auto_allocate_chunk_size_ = auto_allocate_chunk_size;
     has_auto_allocate_ = true;
   }
-  pull_algorithm_.Reset(isolate, pull_algorithm);
+  if (!pull_algorithm.IsEmpty())
+    pull_algorithm_.Reset(isolate, pull_algorithm);
   cancel_algorithm_.Reset(isolate, cancel_algorithm);
+  if (!algo_receiver.IsEmpty() && !algo_receiver->IsUndefined())
+    algo_receiver_.Reset(isolate, algo_receiver);
 
   Local<Object> controller_obj = object();
   Local<Value> start_result;
@@ -2776,7 +2870,8 @@ MaybeLocal<Object> NewReadableStream(Environment* env,
                                      Local<Function> cancel_algorithm,
                                      double high_water_mark,
                                      SizeMode size_mode,
-                                     Local<Function> size_algorithm) {
+                                     Local<Function> size_algorithm,
+                                     Local<Value> algo_receiver) {
   Local<Context> context = env->context();
   // Create the stream object.
   Local<Function> stream_ctor;
@@ -2808,7 +2903,8 @@ MaybeLocal<Object> NewReadableStream(Environment* env,
   stream->SetController(controller_obj, /* is_byte */ false);
 
   if (!controller->Setup(start_algorithm, pull_algorithm, cancel_algorithm,
-                         high_water_mark, size_mode, size_algorithm)) {
+                         high_water_mark, size_mode, size_algorithm,
+                         algo_receiver)) {
     return MaybeLocal<Object>();  // start threw synchronously; exception pending.
   }
   return stream_obj;
@@ -2817,20 +2913,23 @@ MaybeLocal<Object> NewReadableStream(Environment* env,
 void CreateReadableStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   // args: (startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark,
-  //        sizeMode, sizeAlgorithm)
+  //        sizeMode, sizeAlgorithm, algoReceiver)
+  // pullAlgorithm is the user's RAW pull (or undefined); algoReceiver is the
+  // underlying source object used as its `this`.
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
   CHECK(args[2]->IsFunction());
   CHECK(args[3]->IsNumber());
   CHECK(args[4]->IsUint32());
+  Local<Function> pull_algorithm;
+  if (args[1]->IsFunction()) pull_algorithm = args[1].As<Function>();
   Local<Function> size_algorithm;
   if (args[5]->IsFunction()) size_algorithm = args[5].As<Function>();
   Local<Object> stream_obj;
   if (!NewReadableStream(
-           env, args[0].As<Function>(), args[1].As<Function>(),
+           env, args[0].As<Function>(), pull_algorithm,
            args[2].As<Function>(), args[3].As<Number>()->Value(),
            static_cast<SizeMode>(args[4].As<v8::Uint32>()->Value()),
-           size_algorithm)
+           size_algorithm, args[6])
            .ToLocal(&stream_obj)) {
     return;
   }
@@ -2842,14 +2941,16 @@ void CreateReadableByteStream(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   // args: (startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark,
-  //        autoAllocateChunkSize)  -- autoAllocateChunkSize 0 => undefined.
+  //        autoAllocateChunkSize, algoReceiver)
+  // autoAllocateChunkSize 0 => undefined; pullAlgorithm is the user's RAW pull
+  // (or undefined) called with algoReceiver as `this`.
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
   CHECK(args[2]->IsFunction());
   CHECK(args[3]->IsNumber());
   CHECK(args[4]->IsUint32());
   Local<Function> start_algorithm = args[0].As<Function>();
-  Local<Function> pull_algorithm = args[1].As<Function>();
+  Local<Function> pull_algorithm;
+  if (args[1]->IsFunction()) pull_algorithm = args[1].As<Function>();
   Local<Function> cancel_algorithm = args[2].As<Function>();
   double high_water_mark = args[3].As<Number>()->Value();
   size_t auto_allocate_chunk_size = args[4].As<v8::Uint32>()->Value();
@@ -2879,7 +2980,7 @@ void CreateReadableByteStream(const FunctionCallbackInfo<Value>& args) {
   stream->SetController(controller_obj, /* is_byte */ true);
 
   if (!controller->Setup(start_algorithm, pull_algorithm, cancel_algorithm,
-                         high_water_mark, auto_allocate_chunk_size)) {
+                         high_water_mark, auto_allocate_chunk_size, args[5])) {
     return;  // start threw synchronously; exception is pending.
   }
 

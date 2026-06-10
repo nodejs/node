@@ -166,7 +166,7 @@ class BindingData : public SnapshotableObject {
   // non-object" case: the start promise is resolved with the *controller
   // wrapper* so this single per-realm function (rather than two per-creation
   // Function allocations) can recover it from the fulfilment value and mark
-  // the controller started. Lazily created.
+  // the controller started (by kind tag). Lazily created.
   v8::Global<v8::Function> start_fulfilled_reaction;
 
   // Boilerplate { value: undefined, done: <bool> } read-result objects, cloned

@@ -407,12 +407,60 @@ void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
   stream->MarkFirstWriteRequestInFlight();
   Local<Function> write = write_algorithm_.Get(isolate);
   Local<Object> controller_obj = object();
-  Local<Value> argv[] = {chunk, controller_obj};
+  // The write algorithm is the user's raw function (no per-call async JS
+  // wrapper). The common cases — no write, or a synchronous write returning a
+  // non-object — complete through the shared per-realm reaction on a promise
+  // resolved with this controller's wrapper: same microtask timing as a
+  // promise return, no per-call Function allocation.
   Local<Value> result;
-  if (!write->Call(context, Undefined(isolate), 2, argv).ToLocal(&result))
+  if (write.IsEmpty()) {
+    result = Undefined(isolate);
+  } else {
+    Local<Value> recv = algo_receiver_.IsEmpty()
+                            ? Undefined(isolate).As<Value>()
+                            : algo_receiver_.Get(isolate);
+    Local<Value> argv[] = {chunk, controller_obj};
+    TryCatch try_catch(isolate);
+    if (!write->Call(context, recv, 2, argv).ToLocal(&result)) {
+      if (try_catch.HasTerminated()) return;
+      // A synchronous throw behaves as a rejected write promise.
+      Local<Value> exception = try_catch.Exception();
+      try_catch.Reset();
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+      USE(resolver->Reject(context, exception));
+      ThenReactCached(env, resolver->GetPromise(), controller_obj,
+                      ReactWriteFulfilled, ReactWriteRejected,
+                      &on_write_fulfilled_, &on_write_rejected_);
+      return;
+    }
+  }
+  if (result->IsPromise()) {
+    ThenReactCached(env, result.As<Promise>(), controller_obj,
+                    ReactWriteFulfilled, ReactWriteRejected,
+                    &on_write_fulfilled_, &on_write_rejected_);
     return;
-  if (!result->IsPromise()) return;
-  ThenReactCached(env, result.As<Promise>(), controller_obj,
+  }
+  if (!result->IsObject()) {
+    // Synchronous write: enqueue OnWriteFulfilled directly as a microtask via
+    // the per-controller cached reaction — one API call, no promise; ordering
+    // is identical (CallableTask and PromiseReactionJob share the FIFO queue).
+    Local<Function> ff = on_write_fulfilled_.Get(isolate);
+    if (ff.IsEmpty()) {
+      if (!Function::New(context, ReactWriteFulfilled, controller_obj)
+               .ToLocal(&ff))
+        return;
+      on_write_fulfilled_.Reset(isolate, ff);
+    }
+    isolate->EnqueueMicrotask(ff);
+    return;
+  }
+  // Thenable (non-promise object): full promise resolution so its `then` is
+  // honored, reacted to with the per-controller cached functions.
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  USE(resolver->Resolve(context, result));
+  ThenReactCached(env, resolver->GetPromise(), controller_obj,
                   ReactWriteFulfilled, ReactWriteRejected,
                   &on_write_fulfilled_, &on_write_rejected_);
 }
@@ -483,6 +531,7 @@ void WritableStreamDefaultController::ClearAlgorithms() {
   close_algorithm_.Reset();
   abort_algorithm_.Reset();
   size_algorithm_.Reset();
+  algo_receiver_.Reset();
   // Break the Global -> reaction Function -> wrapper -> controller cycle.
   on_write_fulfilled_.Reset();
   on_write_rejected_.Reset();
@@ -551,15 +600,19 @@ bool WritableStreamDefaultController::Setup(
     double high_water_mark,
     SizeMode size_mode,
     Local<Function> size_algorithm,
-    Local<Object> abort_controller) {
+    Local<Object> abort_controller,
+    Local<Value> algo_receiver) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   high_water_mark_ = high_water_mark;
   size_mode_ = size_mode;
-  write_algorithm_.Reset(isolate, write_algorithm);
+  if (!write_algorithm.IsEmpty())
+    write_algorithm_.Reset(isolate, write_algorithm);
   close_algorithm_.Reset(isolate, close_algorithm);
   abort_algorithm_.Reset(isolate, abort_algorithm);
+  if (!algo_receiver.IsEmpty() && !algo_receiver->IsUndefined())
+    algo_receiver_.Reset(isolate, algo_receiver);
   if (size_mode == SizeMode::kUserFn)
     size_algorithm_.Reset(isolate, size_algorithm);
   object()->SetInternalField(kAbortController, abort_controller);
@@ -1410,7 +1463,8 @@ MaybeLocal<Object> NewWritableStream(Environment* env,
                                      double high_water_mark,
                                      SizeMode size_mode,
                                      Local<Function> size_algorithm,
-                                     Local<Object> abort_controller) {
+                                     Local<Object> abort_controller,
+                                     Local<Value> algo_receiver) {
   Local<Context> context = env->context();
   Local<Function> stream_ctor;
   if (!WritableStream::GetConstructorTemplate(env)
@@ -1440,7 +1494,7 @@ MaybeLocal<Object> NewWritableStream(Environment* env,
 
   if (!controller->Setup(start_algorithm, write_algorithm, close_algorithm,
                          abort_algorithm, high_water_mark, size_mode,
-                         size_algorithm, abort_controller)) {
+                         size_algorithm, abort_controller, algo_receiver)) {
     return MaybeLocal<Object>();  // start threw synchronously; exception pending.
   }
   return stream_obj;
@@ -1449,23 +1503,26 @@ MaybeLocal<Object> NewWritableStream(Environment* env,
 void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   // args: (start, write, close, abort, highWaterMark, sizeMode, size,
-  //        abortController)
+  //        abortController, algoReceiver)
+  // write is the user's RAW write (or undefined), called with algoReceiver
+  // (the underlying sink) as `this`.
   CHECK(args[0]->IsFunction());
-  CHECK(args[1]->IsFunction());
   CHECK(args[2]->IsFunction());
   CHECK(args[3]->IsFunction());
   CHECK(args[4]->IsNumber());
   CHECK(args[5]->IsUint32());
   CHECK(args[7]->IsObject());
+  Local<Function> write_algorithm;
+  if (args[1]->IsFunction()) write_algorithm = args[1].As<Function>();
   Local<Function> size_algorithm;
   if (args[6]->IsFunction()) size_algorithm = args[6].As<Function>();
   Local<Object> stream_obj;
   if (!NewWritableStream(
-           env, args[0].As<Function>(), args[1].As<Function>(),
+           env, args[0].As<Function>(), write_algorithm,
            args[2].As<Function>(), args[3].As<Function>(),
            args[4].As<Number>()->Value(),
            static_cast<SizeMode>(args[5].As<v8::Uint32>()->Value()),
-           size_algorithm, args[7].As<Object>())
+           size_algorithm, args[7].As<Object>(), args[8])
            .ToLocal(&stream_obj)) {
     return;
   }
