@@ -2213,6 +2213,14 @@ void ReadableByteStreamController::Enqueue(
   }
   Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
   Local<ArrayBuffer> chunk_buffer = view->Buffer();
+  // A SharedArrayBuffer cannot be transferred/detached, so a byte stream may
+  // not enqueue a view backed by one (matches the JS implementation).
+  if (chunk_buffer.As<Value>()->IsSharedArrayBuffer()) {
+    isolate->ThrowException(TypeErrorWith(
+        isolate, context, "ERR_INVALID_ARG_VALUE",
+        "The \"chunk\" argument must not be backed by a SharedArrayBuffer"));
+    return;
+  }
   size_t chunk_byte_length = view->ByteLength();
   size_t chunk_buffer_byte_length = chunk_buffer->ByteLength();
   if (chunk_byte_length == 0 || chunk_buffer_byte_length == 0) {
@@ -2592,6 +2600,16 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
   }
   Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
   Local<ArrayBuffer> view_buffer = view->Buffer();
+  // A SharedArrayBuffer cannot be transferred/detached, so a BYOB read may not
+  // be issued into a view backed by one (matches the JS implementation).
+  if (view_buffer.As<Value>()->IsSharedArrayBuffer()) {
+    USE(resolver->Reject(
+        context,
+        TypeErrorWith(
+            isolate, context, "ERR_INVALID_ARG_VALUE",
+            "The \"view\" argument must not be backed by a SharedArrayBuffer")));
+    return;
+  }
   size_t view_byte_length = view->ByteLength();
   size_t view_buffer_byte_length = view_buffer->ByteLength();
   if (view_byte_length == 0 || view_buffer_byte_length == 0) {

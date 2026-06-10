@@ -6,7 +6,9 @@ const assert = require('assert');
 const { Blob } = require('buffer');
 const { inspect } = require('util');
 const { EOL } = require('os');
-const { kState } = require('internal/webstreams/util');
+const {
+  readableStreamController,
+} = require('internal/webstreams/readablestream');
 
 {
   const b = new Blob();
@@ -348,14 +350,14 @@ assert.throws(() => new Blob({}), {
   const b = new Blob(Array(10).fill('hello'));
   const stream = b.stream();
   const reader = stream.getReader();
-  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  assert.strictEqual(readableStreamController(stream).desiredSize, 0);
   const { value, done } = await reader.read();
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
   setTimeout(common.mustCall(() => {
     // The blob stream is now a byte stream hence after the first read,
     // it should pull in the next 'hello' which is 5 bytes hence -5.
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    assert.strictEqual(readableStreamController(stream).desiredSize, 0);
   }), 0);
 })().then(common.mustCall());
 
@@ -377,12 +379,12 @@ assert.throws(() => new Blob({}), {
   const b = new Blob(Array(10).fill('hello'));
   const stream = b.stream();
   const reader = stream.getReader({ mode: 'byob' });
-  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  assert.strictEqual(readableStreamController(stream).desiredSize, 0);
   const { value, done } = await reader.read(new Uint8Array(100));
   assert.strictEqual(value.byteLength, 5);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    assert.strictEqual(readableStreamController(stream).desiredSize, 0);
   }), 0);
 })().then(common.mustCall());
 
@@ -390,12 +392,12 @@ assert.throws(() => new Blob({}), {
   const b = new Blob(Array(10).fill('hello'));
   const stream = b.stream();
   const reader = stream.getReader({ mode: 'byob' });
-  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  assert.strictEqual(readableStreamController(stream).desiredSize, 0);
   const { value, done } = await reader.read(new Uint8Array(2));
   assert.strictEqual(value.byteLength, 2);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, -3);
+    assert.strictEqual(readableStreamController(stream).desiredSize, -3);
   }), 0);
 })().then(common.mustCall());
 
