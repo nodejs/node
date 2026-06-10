@@ -77,6 +77,6 @@ typedef enum ffi_abi
 #define FFI_NATIVE_RAW_API 0
 #define FFI_EXTRA_CIF_FIELDS \
   unsigned loongarch_nfixedargs; \
-  unsigned loongarch_unused;
+  unsigned loongarch_unused
 #define FFI_TARGET_SPECIFIC_VARIADIC
 #endif
