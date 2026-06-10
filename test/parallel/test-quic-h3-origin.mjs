@@ -13,7 +13,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -31,6 +31,11 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('ok'));
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
@@ -43,11 +48,6 @@ const decoder = new TextDecoder();
       'example.com': { keys: [key], certs: [cert] },
       'api.example.com': { keys: [key], certs: [cert] },
     },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -69,14 +69,13 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'example.com',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'example.com',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });
@@ -99,6 +98,11 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('ok'));
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
@@ -121,11 +125,6 @@ const decoder = new TextDecoder();
       // Authoritative defaults to true when omitted.
       'default-auth.example.com': { keys: [key], certs: [cert] },
     },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -165,14 +164,13 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'custom-port.example.com',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'custom-port.example.com',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });

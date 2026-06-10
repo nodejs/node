@@ -62,6 +62,8 @@ require(fixtures.path('resolve-paths', 'default', 'verify-paths.js'));
   builtinModules.forEach((mod) => {
     // TODO(@jasnell): Remove once node:quic is no longer flagged
     if (mod === 'node:quic') return;
+    // TODO: Remove once node:http3 is no longer flagged
+    if (mod === 'node:http3') return;
     // TODO: Remove once node:ffi is no longer flagged
     if (mod === 'node:ffi') return;
     // Remove once node:vfs is no longer flagged

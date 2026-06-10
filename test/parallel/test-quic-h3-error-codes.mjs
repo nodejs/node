@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -27,6 +27,11 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       await stream.closed;
       // Close with an explicit H3 application error code.
       ss.close({ code: 0x101, type: 'application' });
@@ -34,11 +39,6 @@ const decoder = new TextDecoder();
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -47,14 +47,13 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });
@@ -79,17 +78,17 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -98,14 +97,13 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });

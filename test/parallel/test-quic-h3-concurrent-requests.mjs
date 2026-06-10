@@ -16,7 +16,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -31,6 +31,16 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall((stream) => {
+    stream.onheaders = mustCall((headers) => {
+      const path = headers[':path'];
+      stream.sendHeaders({
+        ':status': '200',
+        'content-type': 'text/plain',
+      });
+      const w = stream.writer;
+      w.writeSync(`response for ${path}`);
+      w.endSync();
+    });
     stream.closed.then(mustCall(() => {
       if (++serverStreamsCompleted === REQUEST_COUNT) {
         serverSession.close();
@@ -40,16 +50,6 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   }, REQUEST_COUNT);
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustCall(function(headers) {
-    const path = headers[':path'];
-    this.sendHeaders({
-      ':status': '200',
-      'content-type': 'text/plain',
-    });
-    const w = this.writer;
-    w.writeSync(`response for ${path}`);
-    w.endSync();
-  }, REQUEST_COUNT),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
@@ -64,13 +64,12 @@ const paths = Array.from({ length: REQUEST_COUNT }, (_, i) => `/path/${i}`);
 const requests = paths.map(mustCall(async (path) => {
   const headersReceived = Promise.withResolvers();
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': path,
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': path,
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
       headersReceived.resolve();

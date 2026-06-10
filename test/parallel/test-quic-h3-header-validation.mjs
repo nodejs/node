@@ -21,7 +21,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -37,39 +37,39 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        // H3V-01: All header names should be lowercase regardless
+        // of how the client sent them.
+        for (const name of Object.keys(headers)) {
+          assert.strictEqual(name, name.toLowerCase(),
+                             `Header name "${name}" should be lowercase`);
+        }
+
+        // Verify specific headers arrived lowercased.
+        assert.strictEqual(headers[':method'], 'GET');
+        assert.strictEqual(headers[':path'], '/test');
+        assert.strictEqual(headers['x-custom-header'], 'Value1');
+        assert.strictEqual(headers['content-type'], 'text/plain');
+        assert.strictEqual(headers['x-mixed-case'], 'MixedValue');
+
+        // Verify values are NOT lowercased — only names are.
+        assert.strictEqual(headers['x-custom-header'], 'Value1');
+
+        stream.sendHeaders({
+          // Response with mixed-case names — should be lowercased.
+          ':status': '200',
+          'Content-Type': 'text/html',
+          'X-Response-Header': 'ResponseValue',
+        });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      // H3V-01: All header names should be lowercase regardless
-      // of how the client sent them.
-      for (const name of Object.keys(headers)) {
-        assert.strictEqual(name, name.toLowerCase(),
-                           `Header name "${name}" should be lowercase`);
-      }
-
-      // Verify specific headers arrived lowercased.
-      assert.strictEqual(headers[':method'], 'GET');
-      assert.strictEqual(headers[':path'], '/test');
-      assert.strictEqual(headers['x-custom-header'], 'Value1');
-      assert.strictEqual(headers['content-type'], 'text/plain');
-      assert.strictEqual(headers['x-mixed-case'], 'MixedValue');
-
-      // Verify values are NOT lowercased — only names are.
-      assert.strictEqual(headers['x-custom-header'], 'Value1');
-
-      this.sendHeaders({
-        // Response with mixed-case names — should be lowercased.
-        ':status': '200',
-        'Content-Type': 'text/html',
-        'X-Response-Header': 'ResponseValue',
-      });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -78,18 +78,17 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      // Mixed-case names — should be lowercased by buildNgHeaderString.
-      ':method': 'GET',
-      ':path': '/test',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      'X-Custom-Header': 'Value1',
-      'Content-Type': 'text/plain',
-      'X-Mixed-Case': 'MixedValue',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    // Mixed-case names — should be lowercased by buildNgHeaderString.
+    ':method': 'GET',
+    ':path': '/test',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    'X-Custom-Header': 'Value1',
+    'Content-Type': 'text/plain',
+    'X-Mixed-Case': 'MixedValue',
+  }, {
+    onheaders: mustCall((headers) => {
       // Client should also receive lowercased response header names.
       assert.strictEqual(headers[':status'], 200);
       assert.strictEqual(headers['content-type'], 'text/html');
@@ -116,22 +115,22 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        // All four required pseudo-headers present.
+        assert.ok(headers[':method']);
+        assert.ok(headers[':path']);
+        assert.ok(headers[':scheme']);
+        assert.ok(headers[':authority']);
+
+        stream.sendHeaders({ ':status': '204' });
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      // All four required pseudo-headers present.
-      assert.ok(headers[':method']);
-      assert.ok(headers[':path']);
-      assert.ok(headers[':scheme']);
-      assert.ok(headers[':authority']);
-
-      this.sendHeaders({ ':status': '204' });
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -140,13 +139,12 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'POST',
-      ':path': '/api/data',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream = await clientSession.request({
+    ':method': 'POST',
+    ':path': '/api/data',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 204);
     }),

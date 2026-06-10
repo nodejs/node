@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -37,6 +37,14 @@ writeFileSync(testFile, testContent);
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        assert.strictEqual(headers[':method'], 'POST');
+        assert.strictEqual(headers[':path'], '/upload');
+
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       const body = await bytes(stream);
       assert.strictEqual(decoder.decode(body), testContent);
 
@@ -46,14 +54,6 @@ writeFileSync(testFile, testContent);
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':method'], 'POST');
-      assert.strictEqual(headers[':path'], '/upload');
-
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -67,15 +67,14 @@ writeFileSync(testFile, testContent);
   const clientHeadersReceived = Promise.withResolvers();
 
   const fh = await open(testFile, 'r');
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'POST',
-      ':path': '/upload',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream = await clientSession.request({
+    ':method': 'POST',
+    ':path': '/upload',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     body: fh,
-    onheaders: mustCall(function(headers) {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
       clientHeadersReceived.resolve();
     }),

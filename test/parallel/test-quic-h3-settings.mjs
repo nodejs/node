@@ -14,7 +14,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -31,6 +31,20 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        assert.strictEqual(headers[':method'], 'GET');
+        assert.strictEqual(headers[':path'], '/limited');
+        assert.strictEqual(headers[':scheme'], 'https');
+        assert.strictEqual(headers[':authority'], 'localhost');
+        // x-first is the 5th pair — accepted.
+        assert.strictEqual(headers['x-first'], 'one');
+        // x-second would be the 6th pair — dropped.
+        assert.strictEqual(headers['x-second'], undefined);
+
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('ok'));
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
@@ -39,20 +53,6 @@ const decoder = new TextDecoder();
     sni: { '*': { keys: [key], certs: [cert] } },
     // Allow 5 header pairs: 4 pseudo-headers + 1 custom.
     application: { maxHeaderPairs: 5 },
-    onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':method'], 'GET');
-      assert.strictEqual(headers[':path'], '/limited');
-      assert.strictEqual(headers[':scheme'], 'https');
-      assert.strictEqual(headers[':authority'], 'localhost');
-      // x-first is the 5th pair — accepted.
-      assert.strictEqual(headers['x-first'], 'one');
-      // x-second would be the 6th pair — dropped.
-      assert.strictEqual(headers['x-second'], undefined);
-
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -61,16 +61,15 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/limited',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      'x-first': 'one',
-      'x-second': 'two',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/limited',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    'x-first': 'one',
+    'x-second': 'two',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });
@@ -93,6 +92,16 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        assert.strictEqual(headers[':method'], 'GET');
+        assert.strictEqual(headers[':path'], '/length-limited');
+        // x-long should be dropped — would push total over 100 bytes.
+        assert.strictEqual(headers['x-long'], undefined);
+
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('ok'));
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
@@ -102,16 +111,6 @@ const decoder = new TextDecoder();
     // Limit total header bytes. The 4 pseudo-headers fit within 100
     // bytes, but adding x-long (6 + 200 = 206 bytes) exceeds it.
     application: { maxHeaderLength: 100 },
-    onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':method'], 'GET');
-      assert.strictEqual(headers[':path'], '/length-limited');
-      // x-long should be dropped — would push total over 100 bytes.
-      assert.strictEqual(headers['x-long'], undefined);
-
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -120,15 +119,14 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/length-limited',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      'x-long': longValue,
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/length-limited',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    'x-long': longValue,
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });
@@ -147,6 +145,11 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('settings-ok'));
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
@@ -154,11 +157,6 @@ const decoder = new TextDecoder();
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     application: { enableConnectProtocol: true, enableDatagrams: true },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('settings-ok'));
-      this.writer.endSync();
-    }),
     onapplication: mustCall((appopt) => {
       assert.strictEqual(appopt.enableDatagrams, true);
       assert.strictEqual(appopt.enableConnectProtocol, false);
@@ -177,14 +175,13 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/settings',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/settings',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });

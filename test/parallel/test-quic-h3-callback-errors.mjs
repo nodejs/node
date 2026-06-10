@@ -15,17 +15,21 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 const encoder = new TextEncoder();
 
-async function makeServer(onheadersHandler, extraOpts = {}) {
+async function makeServer(onheadersHandler, extraCallbacks = {}) {
   const done = Promise.withResolvers();
   const ep = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall((stream) => {
+      stream.onheaders = (headers) => onheadersHandler(stream, headers);
+      if (extraCallbacks.onwanttrailers) {
+        stream.onwanttrailers = () => extraCallbacks.onwanttrailers(stream);
+      }
       // The server completes its response before the client's
       // callback throws, so the server stream always resolves.
       stream.closed.then(mustCall());
@@ -35,8 +39,6 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxIdleTimeout: 1 },
-    onheaders: onheadersHandler,
-    ...extraOpts,
   });
   return { ep, done };
 }
@@ -44,10 +46,10 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 // Sync throw in onheaders callback destroys the stream.
 {
   const { ep, done } = await makeServer(
-    mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
+    mustCall((stream, headers) => {
+      stream.sendHeaders({ ':status': '200' });
+      stream.writer.writeSync(encoder.encode('ok'));
+      stream.writer.endSync();
     }),
   );
 
@@ -58,14 +60,13 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await c.opened;
 
-  const s = await c.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function() {
+  const s = await c.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall(() => {
       throw new Error('onheaders sync error');
     }),
   });
@@ -84,10 +85,10 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 // Async rejection in onheaders callback destroys the stream.
 {
   const { ep, done } = await makeServer(
-    mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
+    mustCall((stream, headers) => {
+      stream.sendHeaders({ ':status': '200' });
+      stream.writer.writeSync(encoder.encode('ok'));
+      stream.writer.endSync();
     }),
   );
 
@@ -98,14 +99,13 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await c.opened;
 
-  const s = await c.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(async function() {
+  const s = await c.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall(async () => {
       throw new Error('onheaders async error');
     }),
   });
@@ -124,14 +124,14 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 // Sync throw in ontrailers callback destroys the stream.
 {
   const { ep, done } = await makeServer(
-    mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('body'));
-      this.writer.endSync();
+    mustCall((stream, headers) => {
+      stream.sendHeaders({ ':status': '200' });
+      stream.writer.writeSync(encoder.encode('body'));
+      stream.writer.endSync();
     }),
     {
-      onwanttrailers: mustCall(function() {
-        this.sendTrailers({ 'x-trailer': 'value' });
+      onwanttrailers: mustCall((stream) => {
+        stream.sendTrailers({ 'x-trailer': 'value' });
       }),
     },
   );
@@ -143,17 +143,16 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await c.opened;
 
-  const s = await c.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const s = await c.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
-    ontrailers: mustCall(function() {
+    ontrailers: mustCall(() => {
       throw new Error('ontrailers sync error');
     }),
   });
@@ -172,6 +171,12 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 // Sync throw in onorigin callback destroys the session.
 {
   const serverEndpoint = await listen(mustCall(async (ss) => {
+    ss.onstream = (stream) => {
+      stream.onheaders = (headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.endSync();
+      };
+    };
     await ss.closed;
   }), {
     sni: {
@@ -179,10 +184,6 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
       'example.com': { keys: [key], certs: [cert] },
     },
     transportParams: { maxIdleTimeout: 1 },
-    onheaders(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.endSync();
-    },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -198,13 +199,11 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'example.com',
-    },
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'example.com',
   });
 
   // The session is destroyed by the callback error, which
@@ -228,6 +227,14 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('body'));
+        stream.writer.endSync();
+      });
+      stream.onwanttrailers = mustCall(() => {
+        throw new Error('onwanttrailers error');
+      });
       // The server stream rejects because onwanttrailers threw.
       await assert.rejects(stream.closed, mustCall((err) => {
         assert.strictEqual(err.message, 'onwanttrailers error');
@@ -240,14 +247,6 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     transportParams: { maxIdleTimeout: 1 },
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('body'));
-      this.writer.endSync();
-    }),
-    onwanttrailers: mustCall(function() {
-      throw new Error('onwanttrailers error');
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -257,14 +256,13 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });

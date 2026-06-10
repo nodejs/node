@@ -20,17 +20,20 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
 const cert = fixtures.readKey('agent1-cert.pem');
 
+const onheaders = mustNotCall();
 const serverEndpoint = await listen(async (serverSession) => {
+  serverSession.onstream = (stream) => {
+    stream.onheaders = onheaders;
+  };
   await serverSession.closed;
 }, {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustNotCall(),
 });
 
 // Connect then immediately close the session before the handshake completes.

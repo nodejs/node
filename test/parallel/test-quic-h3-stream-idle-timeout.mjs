@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -31,6 +31,8 @@ const encoder = new TextEncoder();
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
+      // Receive headers but do nothing — let the stream go idle.
+      stream.onheaders = () => {};
       // Don't read — let the stream sit idle after the initial headers.
       // The stream idle timeout should destroy it, rejecting stream.closed.
       await assert.rejects(stream.closed, {
@@ -41,9 +43,6 @@ const encoder = new TextEncoder();
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 100,
-    onheaders() {
-      // Receive headers but do nothing — let the stream go idle.
-    },
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -56,15 +55,12 @@ const encoder = new TextEncoder();
 
   // Send a POST request with a body byte so the server creates the
   // stream, then stop sending (don't end the write side).
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'POST',
-      ':path': '/',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders() {},
-  });
+  const stream = await clientSession.request({
+    ':method': 'POST',
+    ':path': '/',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, { onheaders: () => {} });
   const writer = stream.writer;
   writer.writeSync(encoder.encode('x'));
 
@@ -88,6 +84,11 @@ const encoder = new TextEncoder();
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        assert.strictEqual(headers[':method'], 'POST');
+        // Send response headers so the stream is fully established.
+        stream.sendHeaders({ ':status': '200' }, { terminal: true });
+      });
       const data = await text(stream);
       assert.strictEqual(data, 'xy');
       serverGotData.resolve();
@@ -96,11 +97,6 @@ const encoder = new TextEncoder();
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 500,
-    onheaders: mustCall(function(headers) {
-      assert.strictEqual(headers[':method'], 'POST');
-      // Send response headers so the stream is fully established.
-      this.sendHeaders({ ':status': '200' }, { terminal: true });
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -109,8 +105,10 @@ const encoder = new TextEncoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    onheaders() {},
+  // This test needs to send headers separately with an explicit terminal
+  // flag, so open the request stream without headers and send them later.
+  const stream = await clientSession.request(undefined, {
+    onheaders: () => {},
   });
   stream.sendHeaders({
     ':method': 'POST',
@@ -138,6 +136,9 @@ const encoder = new TextEncoder();
 
   const serverEndpoint = await listen(mustCall(async (serverSession) => {
     serverSession.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' }, { terminal: true });
+      });
       const data = await text(stream);
       assert.strictEqual(data, 'xy');
       streamSurvived.resolve();
@@ -148,9 +149,6 @@ const encoder = new TextEncoder();
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
     streamIdleTimeout: 0,  // Disabled
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' }, { terminal: true });
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -159,8 +157,8 @@ const encoder = new TextEncoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
-    onheaders() {},
+  const stream = await clientSession.request(undefined, {
+    onheaders: () => {},
   });
   stream.sendHeaders({
     ':method': 'POST',

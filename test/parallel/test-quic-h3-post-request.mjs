@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -32,6 +32,25 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
+    stream.onheaders = mustCall((headers) => {
+      assert.strictEqual(headers[':method'], 'POST');
+      assert.strictEqual(headers[':path'], '/submit');
+
+      // Echo the request body back in the response.
+      // At this point, request body hasn't arrived yet — we read it
+      // below. But we can send response headers immediately.
+      stream.sendHeaders({
+        ':status': '200',
+        'content-type': 'text/plain',
+      });
+      // Write echoed body after reading it below. For simplicity,
+      // we write a fixed response here and verify the request body
+      // separately below.
+      const w = stream.writer;
+      w.writeSync(encoder.encode('echo:' + requestBody));
+      w.endSync();
+    });
+
     // Read the full request body from the client.
     const body = await bytes(stream);
     const text = decoder.decode(body);
@@ -43,24 +62,6 @@ const serverEndpoint = await listen(mustCall(async (serverSession) => {
   });
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustCall(function(headers) {
-    assert.strictEqual(headers[':method'], 'POST');
-    assert.strictEqual(headers[':path'], '/submit');
-
-    // Echo the request body back in the response.
-    // At this point, request body hasn't arrived yet — we use onstream
-    // to read it. But we can send response headers immediately.
-    this.sendHeaders({
-      ':status': '200',
-      'content-type': 'text/plain',
-    });
-    // Write echoed body after reading it in onstream. For simplicity,
-    // we write a fixed response here and verify the request body
-    // separately in onstream.
-    const w = this.writer;
-    w.writeSync(encoder.encode('echo:' + requestBody));
-    w.endSync();
-  }),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
@@ -75,15 +76,14 @@ const clientHeadersReceived = Promise.withResolvers();
 
 // Send a POST request with body. When body is provided, terminal is NOT
 // set on the HEADERS frame (body follows).
-const stream = await clientSession.createBidirectionalStream({
-  headers: {
-    ':method': 'POST',
-    ':path': '/submit',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
+const stream = await clientSession.request({
+  ':method': 'POST',
+  ':path': '/submit',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
   body: encoder.encode(requestBody),
-  onheaders: mustCall(function(headers) {
+  onheaders: mustCall((headers) => {
     assert.strictEqual(headers[':status'], 200);
     clientHeadersReceived.resolve();
   }),

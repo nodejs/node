@@ -12,7 +12,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 
 const key = createPrivateKey(fixtures.readKey('agent1-key.pem'));
@@ -36,13 +36,11 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 // Create a stream with headers, then immediately destroy it.
-const stream = await clientSession.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/destroyed',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
+const stream = await clientSession.request({
+  ':method': 'GET',
+  ':path': '/destroyed',
+  ':scheme': 'https',
+  ':authority': 'localhost',
 });
 
 // Destroy the stream before headers can be sent/processed.

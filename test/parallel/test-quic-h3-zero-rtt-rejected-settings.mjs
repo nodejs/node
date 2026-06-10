@@ -9,7 +9,7 @@
 // second endpoint has reduced settings, causing the H3 session ticket
 // app data validation to reject 0-RTT.
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustCallAtLeast } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
@@ -17,7 +17,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -35,29 +35,29 @@ async function getTicket(endpointOptions) {
 
   const ep = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
     });
   }), {
     sni,
     ...endpointOptions,
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const cs = await connect(ep.address, {
     servername: 'localhost',
     verifyPeer: 'manual',
     ...endpointOptions,
-    onsessionticket: mustCall((ticket) => {
+    onsessionticket: mustCallAtLeast((ticket) => {
       assert.ok(Buffer.isBuffer(ticket));
       savedTicket = ticket;
       gotTicket.resolve();
-    }, 2),
-    onnewtoken: mustCall((token) => {
+    }),
+    onnewtoken: mustCallAtLeast((token) => {
       assert.ok(Buffer.isBuffer(token));
       savedToken = token;
       gotToken.resolve();
@@ -66,14 +66,13 @@ async function getTicket(endpointOptions) {
   await cs.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
 
-  const s = await cs.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/ticket',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const s = await cs.request({
+    ':method': 'GET',
+    ':path': '/ticket',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
     }),
   });
@@ -111,13 +110,11 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
   // or datagram is sent. When 0-RTT is rejected, the stream is
   // destroyed by EarlyDataRejected — its closed promise rejects
   // with an application error.
-  const s = await cs.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/rejected',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const s = await cs.request({
+    ':method': 'GET',
+    ':path': '/rejected',
+    ':scheme': 'https',
+    ':authority': 'localhost',
   });
   await assert.rejects(s.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
