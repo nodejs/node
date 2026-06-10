@@ -184,7 +184,8 @@ void ReactRejected(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Attaches fulfill/reject reactions that re-enter C++. The reaction functions
-// carry the controller wrapper as their Data.
+// carry the controller wrapper as their Data. Used by cold paths (start);
+// the per-pull hot path uses ThenReactCached below.
 void ThenReact(Environment* env,
                Local<Promise> promise,
                Local<Object> controller_obj,
@@ -200,12 +201,38 @@ void ThenReact(Environment* env,
   USE(promise->Then(context, ff, rj));
 }
 
+// Like ThenReact, but reuses the controller's cached reaction functions
+// (creating them on first use), so the per-pull path allocates no V8 Function.
+void ThenReactCached(Environment* env,
+                     Local<Promise> promise,
+                     Local<Object> controller_obj,
+                     v8::FunctionCallback on_fulfilled,
+                     v8::Global<Function>* ff_slot,
+                     v8::Global<Function>* rj_slot) {
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  Local<Function> ff = ff_slot->Get(isolate);
+  if (ff.IsEmpty()) {
+    if (!Function::New(context, on_fulfilled, controller_obj).ToLocal(&ff))
+      return;
+    ff_slot->Reset(isolate, ff);
+  }
+  Local<Function> rj = rj_slot->Get(isolate);
+  if (rj.IsEmpty()) {
+    if (!Function::New(context, ReactRejected, controller_obj).ToLocal(&rj))
+      return;
+    rj_slot->Reset(isolate, rj);
+  }
+  USE(promise->Then(context, ff, rj));
+}
+
 // A function that returns undefined; used both to map a promise's fulfilment
 // value to undefined and as a no-op rejection handler.
 void Noop(const FunctionCallbackInfo<Value>& args) {}
 
 // Marks a promise as handled to avoid spurious unhandled-rejection warnings on
 // internal promises, mirroring `PromisePrototypeThen(p, undefined, () => {})`.
+// Cold path (close/error/release), so the per-call Function is acceptable.
 void MarkHandled(Environment* env, Local<Promise> promise) {
   Local<Context> context = env->context();
   Local<Function> noop;
@@ -478,13 +505,19 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
     return;
   // The pull algorithm is wrapped as an async function, so it returns a Promise.
   if (!result->IsPromise()) return;
-  ThenReact(env, result.As<Promise>(), controller_obj, ReactPullFulfilled);
+  ThenReactCached(env, result.As<Promise>(), controller_obj, ReactPullFulfilled,
+                  &on_pull_fulfilled_, &on_rejected_);
 }
 
 void ReadableStreamDefaultController::ClearAlgorithms() {
   pull_algorithm_.Reset();
   cancel_algorithm_.Reset();
   size_algorithm_.Reset();
+  // Break the controller<->wrapper cycle created by the cached reaction
+  // functions (their Data is this controller's wrapper). No further pulls occur
+  // after the algorithms are cleared, so they will not be recreated.
+  on_pull_fulfilled_.Reset();
+  on_rejected_.Reset();
 }
 
 void ReadableStreamDefaultController::CloseInternal() {
@@ -1450,12 +1483,16 @@ void ReadableByteStreamController::CallPullIfNeeded() {
   if (!pull->Call(context, Undefined(isolate), 1, argv).ToLocal(&result))
     return;
   if (!result->IsPromise()) return;
-  ThenReact(env, result.As<Promise>(), controller_obj, ReactPullFulfilled);
+  ThenReactCached(env, result.As<Promise>(), controller_obj, ReactPullFulfilled,
+                  &on_pull_fulfilled_, &on_rejected_);
 }
 
 void ReadableByteStreamController::ClearAlgorithms() {
   pull_algorithm_.Reset();
   cancel_algorithm_.Reset();
+  // Break the controller<->wrapper cycle from the cached reaction functions.
+  on_pull_fulfilled_.Reset();
+  on_rejected_.Reset();
 }
 
 void ReadableByteStreamController::InvalidateBYOBRequest() {

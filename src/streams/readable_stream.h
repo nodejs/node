@@ -126,6 +126,12 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   v8::Global<v8::Function> pull_algorithm_;
   v8::Global<v8::Function> cancel_algorithm_;
   v8::Global<v8::Function> size_algorithm_;
+
+  // Cached promise-reaction functions for the pull hot path (Data == this
+  // controller's wrapper). Created once on first pull and reused for every
+  // subsequent pull, so the per-pull path allocates no V8 Function.
+  v8::Global<v8::Function> on_pull_fulfilled_;
+  v8::Global<v8::Function> on_rejected_;
 };
 
 // ReadableStreamDefaultReader — holds the queue of pending read requests as
@@ -350,6 +356,11 @@ class ReadableByteStreamController final : public StreamBaseObject {
 
   v8::Global<v8::Function> pull_algorithm_;
   v8::Global<v8::Function> cancel_algorithm_;
+
+  // Cached promise-reaction functions for the pull hot path (Data == this
+  // controller's wrapper). Created once on first pull and reused thereafter.
+  v8::Global<v8::Function> on_pull_fulfilled_;
+  v8::Global<v8::Function> on_rejected_;
 };
 
 // ReadableStreamBYOBRequest — a thin view onto the controller's first pending
