@@ -58,8 +58,12 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(ReadableStreamDefaultController)
   SET_SELF_SIZE(ReadableStreamDefaultController)
 
-  // Owning stream, recovered from the traced internal field.
-  ReadableStream* stream() const;
+  // Owning stream. Returns a cached raw pointer (hot path): the GC-traced
+  // kStream internal field keeps the stream's wrapper — and therefore its
+  // BaseObject — alive for this controller's lifetime, so the cache cannot
+  // dangle. Set once by ReadableStream::SetController.
+  ReadableStream* stream() const { return stream_cache_; }
+  void set_stream_cache(ReadableStream* s) { stream_cache_ = s; }
 
   // --- internal operations (spec algorithms) ---
   // Returns desired size; sets *is_null when the stream is errored.
@@ -132,6 +136,9 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   // subsequent pull, so the per-pull path allocates no V8 Function.
   v8::Global<v8::Function> on_pull_fulfilled_;
   v8::Global<v8::Function> on_rejected_;
+
+  // Raw-pointer mirror of the kStream internal field (see stream()).
+  ReadableStream* stream_cache_ = nullptr;
 };
 
 // ReadableStreamDefaultReader — holds the queue of pending read requests as
@@ -159,8 +166,11 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(ReadableStreamDefaultReader)
   SET_SELF_SIZE(ReadableStreamDefaultReader)
 
-  ReadableStream* stream() const;
-  bool has_stream() const;
+  // Locked-to stream; cached raw pointer mirroring the GC-traced kStream
+  // internal field (set in SetupInternal, cleared in Release). While set, the
+  // traced field keeps the stream's wrapper alive, so the cache cannot dangle.
+  ReadableStream* stream() const { return stream_cache_; }
+  bool has_stream() const { return stream_cache_ != nullptr; }
 
   size_t num_read_requests() const { return read_requests_.size(); }
   // Parks a pending read; the resolver is settled later by Fulfill/Close/Error.
@@ -193,6 +203,9 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
   std::deque<v8::Global<v8::Promise::Resolver>> read_requests_;
   v8::Global<v8::Promise::Resolver> closed_;
   bool for_author_code_ = true;
+
+  // Raw-pointer mirror of the kStream internal field (see stream()).
+  ReadableStream* stream_cache_ = nullptr;
 };
 
 // ============================================================================
@@ -271,8 +284,14 @@ class ReadableByteStreamController final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(ReadableByteStreamController)
   SET_SELF_SIZE(ReadableByteStreamController)
 
-  ReadableStream* stream() const;
-  ReadableStreamBYOBRequest* byob_request_obj() const;
+  // Owning stream / current BYOBRequest. Cached raw pointers mirroring the
+  // GC-traced kStream / kByobRequest internal fields, which keep the targets'
+  // wrappers alive while set, so the caches cannot dangle.
+  ReadableStream* stream() const { return stream_cache_; }
+  void set_stream_cache(ReadableStream* s) { stream_cache_ = s; }
+  ReadableStreamBYOBRequest* byob_request_obj() const {
+    return byob_request_cache_;
+  }
 
   // --- internal operations (spec algorithms) ---
   double GetDesiredSizeValue(bool* is_null) const;
@@ -361,6 +380,10 @@ class ReadableByteStreamController final : public StreamBaseObject {
   // controller's wrapper). Created once on first pull and reused thereafter.
   v8::Global<v8::Function> on_pull_fulfilled_;
   v8::Global<v8::Function> on_rejected_;
+
+  // Raw-pointer mirrors of the kStream / kByobRequest internal fields.
+  ReadableStream* stream_cache_ = nullptr;
+  ReadableStreamBYOBRequest* byob_request_cache_ = nullptr;
 };
 
 // ReadableStreamBYOBRequest — a thin view onto the controller's first pending
@@ -388,7 +411,16 @@ class ReadableStreamBYOBRequest final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(ReadableStreamBYOBRequest)
   SET_SELF_SIZE(ReadableStreamBYOBRequest)
 
-  ReadableByteStreamController* controller() const;
+  // Owning controller; cached raw pointer mirroring the GC-traced kController
+  // internal field (set at creation, cleared by InvalidateBYOBRequest). While
+  // set, the traced field keeps the controller's wrapper alive.
+  ReadableByteStreamController* controller() const { return controller_cache_; }
+  void set_controller_cache(ReadableByteStreamController* c) {
+    controller_cache_ = c;
+  }
+
+ private:
+  ReadableByteStreamController* controller_cache_ = nullptr;
 };
 
 // ReadableStreamBYOBReader — holds the queue of pending read-into requests as
@@ -415,8 +447,10 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(ReadableStreamBYOBReader)
   SET_SELF_SIZE(ReadableStreamBYOBReader)
 
-  ReadableStream* stream() const;
-  bool has_stream() const;
+  // Locked-to stream; cached raw pointer mirroring the GC-traced kStream
+  // internal field (set in SetupInternal, cleared in Release).
+  ReadableStream* stream() const { return stream_cache_; }
+  bool has_stream() const { return stream_cache_ != nullptr; }
 
   size_t num_read_into_requests() const { return read_into_requests_.size(); }
   void AddReadIntoRequest(v8::Local<v8::Promise::Resolver> resolver);
@@ -440,6 +474,9 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
   std::deque<v8::Global<v8::Promise::Resolver>> read_into_requests_;
   v8::Global<v8::Promise::Resolver> closed_;
   bool for_author_code_ = true;
+
+  // Raw-pointer mirror of the kStream internal field (see stream()).
+  ReadableStream* stream_cache_ = nullptr;
 };
 
 // ReadableStream — the user-facing object. Holds top-level state; the controller
@@ -472,18 +509,52 @@ class ReadableStream final : public StreamBaseObject {
   v8::Local<v8::Value> stored_error(Environment* env) const;
   void set_stored_error(v8::Isolate* isolate, v8::Local<v8::Value> e);
 
-  // Controllers (exactly one is non-null once set up).
-  ReadableStreamDefaultController* default_controller() const;
-  ReadableByteStreamController* byte_controller() const;
-  bool has_byte_controller() const;
+  // Controllers (exactly one is non-null once set up). Cached raw pointers
+  // mirroring the GC-traced kController / kReader internal fields; the traced
+  // fields keep the targets' wrappers alive while set, so the caches cannot
+  // dangle. Discrimination between the two controller/reader kinds is the
+  // 1-byte kind tag — no V8 API crossing on these hot accessors.
+  ReadableStreamDefaultController* default_controller() const {
+    return controller_cache_ != nullptr &&
+                   controller_cache_->stream_kind() == Kind::kDefaultController
+               ? static_cast<ReadableStreamDefaultController*>(controller_cache_)
+               : nullptr;
+  }
+  ReadableByteStreamController* byte_controller() const {
+    return controller_cache_ != nullptr &&
+                   controller_cache_->stream_kind() == Kind::kByteController
+               ? static_cast<ReadableByteStreamController*>(controller_cache_)
+               : nullptr;
+  }
+  bool has_byte_controller() const {
+    return controller_cache_ != nullptr &&
+           controller_cache_->stream_kind() == Kind::kByteController;
+  }
 
   // Readers (at most one is non-null).
-  StreamBaseObject* generic_reader() const;  // either kind, or nullptr
-  ReadableStreamDefaultReader* default_reader() const;
-  ReadableStreamBYOBReader* byob_reader() const;
-  bool locked() const;
-  bool has_default_reader() const;
-  bool has_byob_reader() const;
+  StreamBaseObject* generic_reader() const { return reader_cache_; }
+  ReadableStreamDefaultReader* default_reader() const {
+    return reader_cache_ != nullptr &&
+                   reader_cache_->stream_kind() == Kind::kDefaultReader
+               ? static_cast<ReadableStreamDefaultReader*>(reader_cache_)
+               : nullptr;
+  }
+  ReadableStreamBYOBReader* byob_reader() const {
+    return reader_cache_ != nullptr &&
+                   reader_cache_->stream_kind() == Kind::kByobReader
+               ? static_cast<ReadableStreamBYOBReader*>(reader_cache_)
+               : nullptr;
+  }
+  bool locked() const { return reader_cache_ != nullptr; }
+  bool has_default_reader() const {
+    return reader_cache_ != nullptr &&
+           reader_cache_->stream_kind() == Kind::kDefaultReader;
+  }
+  bool has_byob_reader() const {
+    return reader_cache_ != nullptr &&
+           reader_cache_->stream_kind() == Kind::kByobReader;
+  }
+  void set_reader_cache(StreamBaseObject* r) { reader_cache_ = r; }
 
   void SetController(v8::Local<v8::Object> controller_obj, bool is_byte);
 
@@ -500,6 +571,10 @@ class ReadableStream final : public StreamBaseObject {
   bool disturbed_ = false;
   v8::Global<v8::Value> stored_error_;
   v8::Global<v8::Promise::Resolver> closed_;  // the stream-level closed promise
+
+  // Raw-pointer mirrors of the kController / kReader internal fields.
+  StreamBaseObject* controller_cache_ = nullptr;
+  StreamBaseObject* reader_cache_ = nullptr;
 };
 
 // Creates and sets up a default ReadableStream, returning its JS object. Used by

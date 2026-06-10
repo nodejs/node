@@ -62,43 +62,53 @@ using v8::Value;
 
 namespace {
 
-// Recovers a related StreamBaseObject stored in a wrapper's internal field,
-// checking the kind tag before downcasting (BaseObject::FromJSObject performs an
-// unchecked static_cast and RTTI is unavailable). Returns nullptr if the field
-// is unset or holds a different kind.
-template <typename T>
-T* GetStreamField(Local<Object> obj, int index, StreamBaseObject::Kind kind) {
-  Local<Value> v = obj->GetInternalField(index).template As<Value>();
-  if (!v->IsObject()) return nullptr;
-  BaseObject* base = BaseObject::FromJSObject(v.As<Object>());
-  if (base == nullptr) return nullptr;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  if (s->stream_kind() != kind) return nullptr;
-  return static_cast<T*>(s);
-}
-
 // Builds a { value, done } read result. When `for_author_code` is false (reads
 // issued internally by pipeTo/tee) the object is given a null prototype so it is
 // never a thenable even if author code monkey-patched Object.prototype.then —
 // otherwise resolving the read promise with it would invoke that patched then,
 // making piping/teeing observable. Author-facing reads keep Object.prototype.
-Local<Object> MakeReadResult(Isolate* isolate,
+Local<Object> MakeReadResult(Environment* env,
                              Local<Context> context,
                              Local<Value> value,
                              bool done,
                              bool for_author_code = true) {
-  if (for_author_code) {
-    Local<Object> obj = Object::New(isolate);
-    obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "value"), value).Check();
-    obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "done"),
-             Boolean::New(isolate, done))
+  // Clones a cached boilerplate object instead of assembling { value, done }
+  // property-by-property: Object::Clone is a flat heap copy that preserves the
+  // boilerplate's map, so the hot path skips the string interning, lookup, and
+  // map-transition machinery entirely. `done` is baked into the boilerplate;
+  // only `value` is written (an overwrite of an existing own property), and the
+  // done=true results (value always undefined) need no write at all.
+  Isolate* isolate = env->isolate();
+  BindingData* bd = BindingData::Get(env);
+  v8::Global<v8::Object>& slot =
+      for_author_code ? (done ? bd->read_result_done : bd->read_result_not_done)
+                      : (done ? bd->read_result_done_null_proto
+                              : bd->read_result_not_done_null_proto);
+  Local<Object> boilerplate = slot.Get(isolate);
+  if (boilerplate.IsEmpty()) {
+    // CreateDataProperty (not Set): defining the own properties must not be
+    // observable through — or corrupted by — accessors a user may have patched
+    // onto Object.prototype.
+    boilerplate = Object::New(isolate);
+    boilerplate
+        ->CreateDataProperty(context, env->value_string(), Undefined(isolate))
         .Check();
-    return obj;
+    boilerplate
+        ->CreateDataProperty(
+            context, env->done_string(), Boolean::New(isolate, done))
+        .Check();
+    if (!for_author_code)
+      boilerplate->SetPrototypeV2(context, Null(isolate)).Check();
+    slot.Reset(isolate, boilerplate);
   }
-  v8::Local<v8::Name> names[] = {FIXED_ONE_BYTE_STRING(isolate, "value"),
-                                 FIXED_ONE_BYTE_STRING(isolate, "done")};
-  Local<Value> values[] = {value, Boolean::New(isolate, done)};
-  return Object::New(isolate, Null(isolate), names, values, arraysize(names));
+  Local<Object> obj = boilerplate->Clone(isolate);
+  // Overwrites the clone's own `value` property; never reaches the prototype.
+  // Skipped only when the value IS undefined (already the boilerplate's value)
+  // — note done=true results may carry a value (a BYOB read's partially-filled
+  // view when the stream closes), so this must not key off `done`.
+  if (!value->IsUndefined())
+    obj->CreateDataProperty(context, env->value_string(), value).Check();
+  return obj;
 }
 
 // Builds an Error/RangeError carrying a Node error `code` property, matching the
@@ -403,11 +413,6 @@ void ReadableStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("size_algorithm", size_algorithm_);
 }
 
-ReadableStream* ReadableStreamDefaultController::stream() const {
-  return GetStreamField<ReadableStream>(
-      object(), kStream, Kind::kStream);
-}
-
 Local<FunctionTemplate>
 ReadableStreamDefaultController::GetConstructorTemplate(Environment* env) {
   BindingData* bd = BindingData::Get(env);
@@ -696,7 +701,7 @@ void ReadableStreamDefaultController::PullSteps(
       CallPullIfNeeded();
     }
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, chunk, false,
+        context, MakeReadResult(env, context, chunk, false,
                                 stream->default_reader()->for_author_code())));
     return;
   }
@@ -814,15 +819,6 @@ void ReadableStreamDefaultReader::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("closed", closed_);
 }
 
-ReadableStream* ReadableStreamDefaultReader::stream() const {
-  return GetStreamField<ReadableStream>(
-      object(), kStream, Kind::kStream);
-}
-
-bool ReadableStreamDefaultReader::has_stream() const {
-  return stream() != nullptr;
-}
-
 Local<FunctionTemplate> ReadableStreamDefaultReader::GetConstructorTemplate(
     Environment* env) {
   BindingData* bd = BindingData::Get(env);
@@ -876,7 +872,7 @@ void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
   Local<Value> value = done ? Undefined(isolate).As<Value>() : chunk;
   USE(resolver->Resolve(
       context,
-      MakeReadResult(isolate, context, value, done, for_author_code_)));
+      MakeReadResult(env, context, value, done, for_author_code_)));
 }
 
 void ReadableStreamDefaultReader::CloseAll() {
@@ -887,7 +883,7 @@ void ReadableStreamDefaultReader::CloseAll() {
     Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
     read_requests_.pop_front();
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, Undefined(isolate), true,
+        context, MakeReadResult(env, context, Undefined(isolate), true,
                                 for_author_code_)));
   }
 }
@@ -944,9 +940,12 @@ bool ReadableStreamDefaultReader::SetupInternal(Local<Object> stream_obj) {
         isolate, context, "ReadableStream is locked"));
     return false;
   }
-  // Wire reader<->stream via GC-traced internal fields.
+  // Wire reader<->stream via GC-traced internal fields, mirrored into the
+  // raw-pointer caches for the hot-path accessors.
   object()->SetInternalField(kStream, stream_obj);
   stream_obj->SetInternalField(ReadableStream::kReader, object());
+  stream_cache_ = stream;
+  stream->set_reader_cache(this);
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
@@ -999,10 +998,12 @@ void ReadableStreamDefaultReader::Release() {
   if (stream->has_byte_controller())
     stream->byte_controller()->OnReaderReleased();
 
-  // Unlink stream<->reader.
+  // Unlink stream<->reader (traced fields and raw-pointer caches).
   object()->SetInternalField(kStream, Undefined(isolate));
   stream->object()->SetInternalField(ReadableStream::kReader,
                                      Undefined(isolate));
+  stream_cache_ = nullptr;
+  stream->set_reader_cache(nullptr);
 
   // Error any outstanding read requests with the releasing error.
   Local<Value> releasing_error = InvalidStateError(
@@ -1042,7 +1043,7 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
   switch (stream->state()) {
     case StreamState::kClosed:
       USE(resolver->Resolve(
-          context, MakeReadResult(isolate, context, Undefined(isolate), true,
+          context, MakeReadResult(env, context, Undefined(isolate), true,
                                   reader->for_author_code())));
       return;
     case StreamState::kErrored:
@@ -1158,55 +1159,21 @@ void ReadableStream::set_stored_error(Isolate* isolate, Local<Value> e) {
   stored_error_.Reset(isolate, e);
 }
 
-ReadableStreamDefaultController* ReadableStream::default_controller() const {
-  return GetStreamField<ReadableStreamDefaultController>(
-      object(), kController, Kind::kDefaultController);
-}
-
-ReadableByteStreamController* ReadableStream::byte_controller() const {
-  return GetStreamField<ReadableByteStreamController>(
-      object(), kController, Kind::kByteController);
-}
-
-bool ReadableStream::has_byte_controller() const {
-  return byte_controller() != nullptr;
-}
-
-StreamBaseObject* ReadableStream::generic_reader() const {
-  Local<Value> v = object()->GetInternalField(kReader).As<Value>();
-  if (!v->IsObject()) return nullptr;
-  BaseObject* base = BaseObject::FromJSObject(v.As<Object>());
-  return static_cast<StreamBaseObject*>(base);
-}
-
-ReadableStreamDefaultReader* ReadableStream::default_reader() const {
-  return GetStreamField<ReadableStreamDefaultReader>(
-      object(), kReader, Kind::kDefaultReader);
-}
-
-ReadableStreamBYOBReader* ReadableStream::byob_reader() const {
-  return GetStreamField<ReadableStreamBYOBReader>(
-      object(), kReader, Kind::kByobReader);
-}
-
-bool ReadableStream::locked() const {
-  Local<Value> v = object()->GetInternalField(kReader).As<Value>();
-  return v->IsObject();
-}
-
-bool ReadableStream::has_default_reader() const {
-  return default_reader() != nullptr;
-}
-
-bool ReadableStream::has_byob_reader() const {
-  return byob_reader() != nullptr;
-}
-
 void ReadableStream::SetController(Local<Object> controller_obj, bool is_byte) {
   object()->SetInternalField(kController, controller_obj);
   // kStream is the first internal field of both controller kinds.
   controller_obj->SetInternalField(ReadableStreamDefaultController::kStream,
                                    object());
+  // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
+  auto* base = static_cast<StreamBaseObject*>(
+      BaseObject::FromJSObject(controller_obj));
+  CHECK_NOT_NULL(base);
+  controller_cache_ = base;
+  if (is_byte) {
+    static_cast<ReadableByteStreamController*>(base)->set_stream_cache(this);
+  } else {
+    static_cast<ReadableStreamDefaultController*>(base)->set_stream_cache(this);
+  }
 }
 
 Local<Promise> ReadableStream::closed_promise(Environment* env) {
@@ -1372,16 +1339,6 @@ void ReadableByteStreamController::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("cancel_algorithm", cancel_algorithm_);
 }
 
-ReadableStream* ReadableByteStreamController::stream() const {
-  return GetStreamField<ReadableStream>(object(), kStream, Kind::kStream);
-}
-
-ReadableStreamBYOBRequest* ReadableByteStreamController::byob_request_obj()
-    const {
-  return GetStreamField<ReadableStreamBYOBRequest>(
-      object(), kByobRequest, Kind::kByobRequest);
-}
-
 Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
     Environment* env) {
   BindingData* bd = BindingData::Get(env);
@@ -1516,6 +1473,8 @@ void ReadableByteStreamController::InvalidateBYOBRequest() {
   req->object()->SetInternalField(ReadableStreamBYOBRequest::kView,
                                   v8::Null(isolate));
   object()->SetInternalField(kByobRequest, Undefined(isolate));
+  req->set_controller_cache(nullptr);
+  byob_request_cache_ = nullptr;
 }
 
 void ReadableByteStreamController::ClearPendingPullIntos() {
@@ -1644,7 +1603,7 @@ void ReadableByteStreamController::FillReadRequestFromQueue(
       Uint8Array::New(ab, entry.byte_offset, entry.byte_length).As<Object>();
   ReadableStreamDefaultReader* dr = stream()->default_reader();
   USE(resolver->Resolve(
-      context, MakeReadResult(isolate, context, view, false,
+      context, MakeReadResult(env, context, view, false,
                               dr != nullptr ? dr->for_author_code() : true)));
 }
 
@@ -1906,7 +1865,7 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
     if (!MakeView(env, view_type, ab, byte_offset, 0).ToLocal(&empty_view))
       return;
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, empty_view, true,
+        context, MakeReadResult(env, context, empty_view, true,
                                 stream->byob_reader()->for_author_code())));
     return;
   }
@@ -1916,7 +1875,7 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
       if (!ConvertPullIntoDescriptor(&desc).ToLocal(&filled_view)) return;
       HandleQueueDrain();
       USE(resolver->Resolve(
-          context, MakeReadResult(isolate, context, filled_view, false,
+          context, MakeReadResult(env, context, filled_view, false,
                                   stream->byob_reader()->for_author_code())));
       return;
     }
@@ -2180,6 +2139,8 @@ void ReadableByteStreamController::GetByobRequest(
                               c->object());
     req_obj->SetInternalField(ReadableStreamBYOBRequest::kView, view);
     c->object()->SetInternalField(kByobRequest, req_obj);
+    req->set_controller_cache(c);
+    c->byob_request_cache_ = req.get();
     args.GetReturnValue().Set(req_obj);
     return;
   }
@@ -2299,11 +2260,6 @@ ReadableStreamBYOBRequest::ReadableStreamBYOBRequest(Environment* env,
     : StreamBaseObject(env, object, Kind::kByobRequest) {}
 
 void ReadableStreamBYOBRequest::MemoryInfo(MemoryTracker* tracker) const {}
-
-ReadableByteStreamController* ReadableStreamBYOBRequest::controller() const {
-  return GetStreamField<ReadableByteStreamController>(
-      object(), kController, Kind::kByteController);
-}
 
 Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
     Environment* env) {
@@ -2428,14 +2384,6 @@ void ReadableStreamBYOBReader::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("closed", closed_);
 }
 
-ReadableStream* ReadableStreamBYOBReader::stream() const {
-  return GetStreamField<ReadableStream>(object(), kStream, Kind::kStream);
-}
-
-bool ReadableStreamBYOBReader::has_stream() const {
-  return stream() != nullptr;
-}
-
 Local<FunctionTemplate> ReadableStreamBYOBReader::GetConstructorTemplate(
     Environment* env) {
   BindingData* bd = BindingData::Get(env);
@@ -2481,7 +2429,7 @@ void ReadableStreamBYOBReader::FulfillFront(Local<Value> view, bool done) {
   read_into_requests_.pop_front();
   USE(resolver->Resolve(
       context,
-      MakeReadResult(isolate, context, view, done, for_author_code_)));
+      MakeReadResult(env, context, view, done, for_author_code_)));
 }
 
 void ReadableStreamBYOBReader::CloseAll() {
@@ -2492,7 +2440,7 @@ void ReadableStreamBYOBReader::CloseAll() {
     Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
     read_into_requests_.pop_front();
     USE(resolver->Resolve(
-        context, MakeReadResult(isolate, context, Undefined(isolate), true,
+        context, MakeReadResult(env, context, Undefined(isolate), true,
                                 for_author_code_)));
   }
 }
@@ -2555,6 +2503,8 @@ bool ReadableStreamBYOBReader::SetupInternal(Local<Object> stream_obj) {
   }
   object()->SetInternalField(kStream, stream_obj);
   stream_obj->SetInternalField(ReadableStream::kReader, object());
+  stream_cache_ = stream;
+  stream->set_reader_cache(this);
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return false;
@@ -2605,6 +2555,8 @@ void ReadableStreamBYOBReader::Release() {
   object()->SetInternalField(kStream, Undefined(isolate));
   stream->object()->SetInternalField(ReadableStream::kReader,
                                      Undefined(isolate));
+  stream_cache_ = nullptr;
+  stream->set_reader_cache(nullptr);
 
   Local<Value> releasing_error = InvalidStateError(
       isolate, context, "The reader is not attached to a stream");

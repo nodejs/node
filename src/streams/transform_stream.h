@@ -45,7 +45,11 @@ class TransformStreamDefaultController final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(TransformStreamDefaultController)
   SET_SELF_SIZE(TransformStreamDefaultController)
 
-  TransformStream* stream() const;
+  // Owning stream. Cached raw pointer (hot path): the GC-traced kStream
+  // internal field keeps the stream's wrapper alive for this controller's
+  // lifetime, so the cache cannot dangle. Set by TransformStream::SetController.
+  TransformStream* stream() const { return stream_cache_; }
+  void set_stream_cache(TransformStream* s) { stream_cache_ = s; }
 
   void SetAlgorithms(v8::Local<v8::Function> transform_algorithm,
                      v8::Local<v8::Function> flush_algorithm,
@@ -75,6 +79,9 @@ class TransformStreamDefaultController final : public StreamBaseObject {
   v8::Global<v8::Function> cancel_algorithm_;
   v8::Global<v8::Promise> finish_promise_;
   v8::Global<v8::Promise::Resolver> finish_resolver_;
+
+  // Raw-pointer mirror of the kStream internal field (see stream()).
+  TransformStream* stream_cache_ = nullptr;
 };
 
 // TransformStream — owns the backpressure coordination between its writable and
@@ -102,9 +109,14 @@ class TransformStream final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(TransformStream)
   SET_SELF_SIZE(TransformStream)
 
-  ReadableStream* readable() const;
-  WritableStream* writable() const;
-  TransformStreamDefaultController* controller() const;
+  // Halves/controller: cached raw pointers mirroring the GC-traced kReadable /
+  // kWritable / kController internal fields, which keep the targets' wrappers
+  // alive for this stream's lifetime (set once during setup, never cleared).
+  ReadableStream* readable() const { return readable_cache_; }
+  WritableStream* writable() const { return writable_cache_; }
+  TransformStreamDefaultController* controller() const {
+    return controller_cache_;
+  }
 
   bool backpressure() const { return backpressure_; }
   v8::Local<v8::Promise> backpressure_change_promise(Environment* env) const;
@@ -134,6 +146,11 @@ class TransformStream final : public StreamBaseObject {
   v8::Global<v8::Promise::Resolver> backpressure_change_resolver_;
   v8::Global<v8::Promise::Resolver> start_resolver_;
   v8::Global<v8::Promise> start_promise_;
+
+  // Raw-pointer mirrors of the kReadable / kWritable / kController fields.
+  ReadableStream* readable_cache_ = nullptr;
+  WritableStream* writable_cache_ = nullptr;
+  TransformStreamDefaultController* controller_cache_ = nullptr;
 };
 
 // createTransformStream(startAlgorithm, transformAlgorithm, flushAlgorithm,

@@ -43,19 +43,6 @@ using v8::Value;
 
 namespace {
 
-// Recovers a related StreamBaseObject stored in a wrapper's internal field,
-// checking the kind tag before downcasting.
-template <typename T>
-T* GetStreamField(Local<Object> obj, int index, StreamBaseObject::Kind kind) {
-  Local<Value> v = obj->GetInternalField(index).template As<Value>();
-  if (!v->IsObject()) return nullptr;
-  BaseObject* base = BaseObject::FromJSObject(v.As<Object>());
-  if (base == nullptr) return nullptr;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  if (s->stream_kind() != kind) return nullptr;
-  return static_cast<T*>(s);
-}
-
 Local<Value> MakeCodedError(Isolate* isolate,
                             Local<Context> context,
                             bool range,
@@ -236,11 +223,6 @@ void WritableStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("close_algorithm", close_algorithm_);
   tracker->TrackField("abort_algorithm", abort_algorithm_);
   tracker->TrackField("size_algorithm", size_algorithm_);
-}
-
-WritableStream* WritableStreamDefaultController::stream() const {
-  return GetStreamField<WritableStream>(
-      object(), kStream, Kind::kWritableStream);
 }
 
 Local<FunctionTemplate>
@@ -617,14 +599,6 @@ void WritableStreamDefaultWriter::MemoryInfo(MemoryTracker* tracker) const {
   closed_.MemoryInfo(tracker, "closed");
 }
 
-WritableStream* WritableStreamDefaultWriter::stream() const {
-  return GetStreamField<WritableStream>(
-      object(), kStream, Kind::kWritableStream);
-}
-
-bool WritableStreamDefaultWriter::has_stream() const {
-  return stream() != nullptr;
-}
 
 Local<FunctionTemplate> WritableStreamDefaultWriter::GetConstructorTemplate(
     Environment* env) {
@@ -761,6 +735,8 @@ bool WritableStreamDefaultWriter::SetupInternal(Local<Object> stream_obj) {
   }
   object()->SetInternalField(kStream, stream_obj);
   stream_obj->SetInternalField(WritableStream::kWriter, object());
+  stream_cache_ = stream;
+  stream->set_writer_cache(this);
 
   switch (stream->state()) {
     case WritableState::kWritable:
@@ -804,6 +780,8 @@ void WritableStreamDefaultWriter::Release() {
   stream->object()->SetInternalField(WritableStream::kWriter,
                                      Undefined(isolate));
   object()->SetInternalField(kStream, Undefined(isolate));
+  stream_cache_ = nullptr;
+  stream->set_writer_cache(nullptr);
 }
 
 void WritableStreamDefaultWriter::GetClosed(
@@ -989,33 +967,27 @@ Local<Value> WritableStream::stored_error(Environment* env) const {
   return stored_error_.Get(env->isolate());
 }
 
-WritableStreamDefaultController* WritableStream::controller() const {
-  return GetStreamField<WritableStreamDefaultController>(
-      object(), kController, Kind::kWritableStreamDefaultController);
-}
-
-WritableStreamDefaultWriter* WritableStream::writer() const {
-  return GetStreamField<WritableStreamDefaultWriter>(
-      object(), kWriter, Kind::kWritableStreamDefaultWriter);
-}
-
-bool WritableStream::locked() const {
-  Local<Value> v = object()->GetInternalField(kWriter).As<Value>();
-  return v->IsObject();
-}
-
 void WritableStream::SetController(Local<Object> controller_obj) {
   object()->SetInternalField(kController, controller_obj);
   controller_obj->SetInternalField(
       WritableStreamDefaultController::kStream, object());
+  // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
+  auto* controller =
+      BaseObject::FromJSObject<WritableStreamDefaultController>(controller_obj);
+  CHECK_NOT_NULL(controller);
+  controller_cache_ = controller;
+  controller->set_stream_cache(this);
 }
 
 void WritableStream::SetWriter(Local<Object> writer_obj) {
   object()->SetInternalField(kWriter, writer_obj);
+  writer_cache_ =
+      BaseObject::FromJSObject<WritableStreamDefaultWriter>(writer_obj);
 }
 
 void WritableStream::ClearWriter() {
   object()->SetInternalField(kWriter, Undefined(env()->isolate()));
+  writer_cache_ = nullptr;
 }
 
 Local<Promise> WritableStream::closed_promise(Environment* env) {

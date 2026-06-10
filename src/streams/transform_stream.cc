@@ -39,17 +39,6 @@ using v8::Value;
 
 namespace {
 
-template <typename T>
-T* GetStreamField(Local<Object> obj, int index, StreamBaseObject::Kind kind) {
-  Local<Value> v = obj->GetInternalField(index).template As<Value>();
-  if (!v->IsObject()) return nullptr;
-  BaseObject* base = BaseObject::FromJSObject(v.As<Object>());
-  if (base == nullptr) return nullptr;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  if (s->stream_kind() != kind) return nullptr;
-  return static_cast<T*>(s);
-}
-
 Local<Value> MakeCodedError(Isolate* isolate,
                             Local<Context> context,
                             bool range,
@@ -288,11 +277,6 @@ void TransformStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const 
   tracker->TrackField("finish_promise", finish_promise_);
 }
 
-TransformStream* TransformStreamDefaultController::stream() const {
-  return GetStreamField<TransformStream>(
-      object(), kStream, Kind::kTransformStream);
-}
-
 Local<FunctionTemplate>
 TransformStreamDefaultController::GetConstructorTemplate(Environment* env) {
   BindingData* bd = BindingData::Get(env);
@@ -519,20 +503,6 @@ void TransformStream::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("start", start_promise_);
 }
 
-ReadableStream* TransformStream::readable() const {
-  return GetStreamField<ReadableStream>(object(), kReadable, Kind::kStream);
-}
-
-WritableStream* TransformStream::writable() const {
-  return GetStreamField<WritableStream>(
-      object(), kWritable, Kind::kWritableStream);
-}
-
-TransformStreamDefaultController* TransformStream::controller() const {
-  return GetStreamField<TransformStreamDefaultController>(
-      object(), kController, Kind::kTransformStreamDefaultController);
-}
-
 Local<FunctionTemplate> TransformStream::GetConstructorTemplate(
     Environment* env) {
   BindingData* bd = BindingData::Get(env);
@@ -712,16 +682,26 @@ Local<Promise> TransformStream::SourceCancel(Local<Value> reason) {
 
 void TransformStream::SetReadable(Local<Object> readable_obj) {
   object()->SetInternalField(kReadable, readable_obj);
+  readable_cache_ = BaseObject::FromJSObject<ReadableStream>(readable_obj);
+  CHECK_NOT_NULL(readable_cache_);
 }
 
 void TransformStream::SetWritable(Local<Object> writable_obj) {
   object()->SetInternalField(kWritable, writable_obj);
+  writable_cache_ = BaseObject::FromJSObject<WritableStream>(writable_obj);
+  CHECK_NOT_NULL(writable_cache_);
 }
 
 void TransformStream::SetController(Local<Object> controller_obj) {
   object()->SetInternalField(kController, controller_obj);
   controller_obj->SetInternalField(
       TransformStreamDefaultController::kStream, object());
+  // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
+  auto* controller =
+      BaseObject::FromJSObject<TransformStreamDefaultController>(controller_obj);
+  CHECK_NOT_NULL(controller);
+  controller_cache_ = controller;
+  controller->set_stream_cache(this);
 }
 
 void TransformStream::GetReadable(const FunctionCallbackInfo<Value>& args) {

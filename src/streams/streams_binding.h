@@ -154,6 +154,16 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::FunctionTemplate> writable_stream_default_controller_ctor;
   v8::Global<v8::FunctionTemplate> transform_stream_ctor;
   v8::Global<v8::FunctionTemplate> transform_stream_default_controller_ctor;
+
+  // Boilerplate { value: undefined, done: <bool> } read-result objects, cloned
+  // per read (v8::Object::Clone is a flat CopyJSObject) instead of building the
+  // object property-by-property through the map-transition machinery. The
+  // null-prototype variants serve non-author-code reads (pipeTo/tee), which must
+  // never observe a patched Object.prototype.then. Lazily created on first use.
+  v8::Global<v8::Object> read_result_not_done;
+  v8::Global<v8::Object> read_result_done;
+  v8::Global<v8::Object> read_result_not_done_null_proto;
+  v8::Global<v8::Object> read_result_done_null_proto;
 };
 
 }  // namespace webstreams

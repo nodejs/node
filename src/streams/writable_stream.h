@@ -74,7 +74,11 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(WritableStreamDefaultController)
   SET_SELF_SIZE(WritableStreamDefaultController)
 
-  WritableStream* stream() const;
+  // Owning stream. Cached raw pointer (hot path): the GC-traced kStream
+  // internal field keeps the stream's wrapper alive for this controller's
+  // lifetime, so the cache cannot dangle. Set by WritableStream::SetController.
+  WritableStream* stream() const { return stream_cache_; }
+  void set_stream_cache(WritableStream* s) { stream_cache_ = s; }
 
   // --- internal operations (spec algorithms) ---
   void Write(v8::Local<v8::Value> chunk, double chunk_size);
@@ -136,6 +140,9 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   v8::Global<v8::Function> close_algorithm_;
   v8::Global<v8::Function> abort_algorithm_;
   v8::Global<v8::Function> size_algorithm_;
+
+  // Raw-pointer mirror of the kStream internal field (see stream()).
+  WritableStream* stream_cache_ = nullptr;
 };
 
 // WritableStreamDefaultWriter — holds the writer's ready/closed promise slots.
@@ -164,8 +171,10 @@ class WritableStreamDefaultWriter final : public StreamBaseObject {
   SET_MEMORY_INFO_NAME(WritableStreamDefaultWriter)
   SET_SELF_SIZE(WritableStreamDefaultWriter)
 
-  WritableStream* stream() const;
-  bool has_stream() const;
+  // Locked-to stream; cached raw pointer mirroring the GC-traced kStream
+  // internal field (set in SetupInternal, cleared in Release).
+  WritableStream* stream() const { return stream_cache_; }
+  bool has_stream() const { return stream_cache_ != nullptr; }
 
   PromiseSlot& ready() { return ready_; }
   PromiseSlot& closed() { return closed_; }
@@ -184,6 +193,9 @@ class WritableStreamDefaultWriter final : public StreamBaseObject {
  private:
   PromiseSlot ready_;
   PromiseSlot closed_;
+
+  // Raw-pointer mirror of the kStream internal field (see stream()).
+  WritableStream* stream_cache_ = nullptr;
 };
 
 // WritableStream — the user-facing object. Owns the write/close/abort request
@@ -217,9 +229,15 @@ class WritableStream final : public StreamBaseObject {
   bool backpressure() const { return backpressure_; }
   v8::Local<v8::Value> stored_error(Environment* env) const;
 
-  WritableStreamDefaultController* controller() const;
-  WritableStreamDefaultWriter* writer() const;
-  bool locked() const;
+  // Controller/writer: cached raw pointers mirroring the GC-traced
+  // kController / kWriter internal fields; the traced fields keep the targets'
+  // wrappers alive while set, so the caches cannot dangle.
+  WritableStreamDefaultController* controller() const {
+    return controller_cache_;
+  }
+  WritableStreamDefaultWriter* writer() const { return writer_cache_; }
+  bool locked() const { return writer_cache_ != nullptr; }
+  void set_writer_cache(WritableStreamDefaultWriter* w) { writer_cache_ = w; }
 
   void SetController(v8::Local<v8::Object> controller_obj);
   void SetWriter(v8::Local<v8::Object> writer_obj);
@@ -275,6 +293,10 @@ class WritableStream final : public StreamBaseObject {
   v8::Global<v8::Promise::Resolver> processing_abort_resolver_;
 
   v8::Global<v8::Promise::Resolver> closed_;  // stream-level closed promise
+
+  // Raw-pointer mirrors of the kController / kWriter internal fields.
+  WritableStreamDefaultController* controller_cache_ = nullptr;
+  WritableStreamDefaultWriter* writer_cache_ = nullptr;
 };
 
 // Creates and sets up a WritableStream, returning its JS object. Used by both
