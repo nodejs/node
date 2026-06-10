@@ -22,7 +22,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -50,29 +50,29 @@ const serverDone = Promise.withResolvers();
 
 const serverEndpoint = await listen(mustCall(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
+    stream.onheaders = mustCall((headers) => {
+      // Send 103 Early Hints before the final response.
+      stream.sendInformationalHeaders({
+        ':status': '103',
+        'link': '</style.css>; rel=preload; as=style',
+      });
+
+      // Send final response headers + body.
+      stream.sendHeaders({
+        ':status': '200',
+        'content-type': 'text/plain',
+      });
+
+      const w = stream.writer;
+      w.writeSync(responseBody);
+      w.endSync();
+    });
     await stream.closed;
     serverSession.close();
     serverDone.resolve();
   });
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  onheaders: mustCall(function(headers) {
-    // Send 103 Early Hints before the final response.
-    this.sendInformationalHeaders({
-      ':status': '103',
-      'link': '</style.css>; rel=preload; as=style',
-    });
-
-    // Send final response headers + body.
-    this.sendHeaders({
-      ':status': '200',
-      'content-type': 'text/plain',
-    });
-
-    const w = this.writer;
-    w.writeSync(responseBody);
-    w.endSync();
-  }),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
@@ -84,19 +84,18 @@ await clientSession.opened;
 const clientInfoReceived = Promise.withResolvers();
 const clientHeadersReceived = Promise.withResolvers();
 
-const stream = await clientSession.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/page',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
-  oninfo: mustCall(function(headers) {
+const stream = await clientSession.request({
+  ':method': 'GET',
+  ':path': '/page',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  oninfo: mustCall((headers) => {
     strictEqual(headers[':status'], '103');
     strictEqual(headers.link, '</style.css>; rel=preload; as=style');
     clientInfoReceived.resolve();
   }),
-  onheaders: mustCall(function(headers) {
+  onheaders: mustCall((headers) => {
     strictEqual(headers[':status'], '200');
     strictEqual(headers['content-type'], 'text/plain');
     clientHeadersReceived.resolve();

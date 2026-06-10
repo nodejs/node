@@ -22,7 +22,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -47,26 +47,27 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     serverSession = ss;
-    ss.onstream = mustCall(2);
+    ss.onstream = mustCall((stream) => {
+      stream.onheaders = mustCall((headers) => {
+        const path = headers[':path'];
+        stream.sendHeaders({ ':status': '200' });
+
+        if (path === '/first') {
+          // Respond immediately to the first request.
+          stream.writer.writeSync(encoder.encode('first'));
+          stream.writer.endSync();
+        } else if (path === '/second') {
+          // Hold the second response until signaled.
+          pendingSecondStream = stream;
+          completeSecondResponse.promise.then(mustCall(() => {
+            pendingSecondStream.writer.writeSync(encoder.encode('second'));
+            pendingSecondStream.writer.endSync();
+          }));
+        }
+      });
+    }, 2);
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      const path = headers[':path'];
-      this.sendHeaders({ ':status': '200' });
-
-      if (path === '/first') {
-        // Respond immediately to the first request.
-        this.writer.writeSync(encoder.encode('first'));
-        this.writer.endSync();
-      } else if (path === '/second') {
-        // Hold the second response until signaled.
-        pendingSecondStream = this;
-        completeSecondResponse.promise.then(mustCall(() => {
-          pendingSecondStream.writer.writeSync(encoder.encode('second'));
-          pendingSecondStream.writer.endSync();
-        }));
-      }
-    }, 2),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -87,25 +88,19 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
     }
   }, 2);
 
-  const stream1 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/first',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: onClientHeaders,
-  });
+  const stream1 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/first',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, { onheaders: onClientHeaders });
 
-  const stream2 = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/second',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: onClientHeaders,
-  });
+  const stream2 = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/second',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, { onheaders: onClientHeaders });
 
   // First stream completes immediately.
   const body1 = await bytes(stream1);
@@ -125,13 +120,11 @@ dc.subscribe('quic.session.goaway', mustCall((msg) => {
 
   // After GOAWAY, new stream creation should fail.
   await rejects(
-    clientSession.createBidirectionalStream({
-      headers: {
-        ':method': 'GET',
-        ':path': '/new',
-        ':scheme': 'https',
-        ':authority': 'localhost',
-      },
+    clientSession.request({
+      ':method': 'GET',
+      ':path': '/new',
+      ':scheme': 'https',
+      ':authority': 'localhost',
     }),
     { code: 'ERR_INVALID_STATE' },
   );

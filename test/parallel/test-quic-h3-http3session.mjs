@@ -1,7 +1,7 @@
-// Flags: --experimental-quic --experimental-stream-iter --no-warnings --expose-internals
+// Flags: --experimental-quic --experimental-stream-iter --no-warnings
 
 // A request/response round-trip through http3.connect/listen, exercising
-// onstream delivery (wrapped streams), createRequestStream, header events,
+// onstream delivery (wrapped streams), request(), header events,
 // and bodies in both directions.
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
@@ -15,10 +15,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { createRequire } = await import('node:module');
-const require = createRequire(import.meta.url);
-const { connect, listen, Http3Session, Http3Stream } =
-  require('internal/quic/http3');
+const { connect, listen, Http3Session, Http3Stream } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -63,17 +60,19 @@ const info = await clientSession.opened;
 strictEqual(info.protocol, 'h3');
 
 const responseHeaders = Promise.withResolvers();
-const stream = await clientSession.createRequestStream({
+const stream = await clientSession.request({
   ':method': 'GET',
   ':path': '/hello',
   ':scheme': 'https',
   ':authority': 'localhost',
-}, { body: encoder.encode('') });
-ok(stream instanceof Http3Stream);
-stream.onheaders = mustCall((headers) => {
-  strictEqual(headers[':status'], '200');
-  responseHeaders.resolve();
+}, {
+  body: encoder.encode(''),
+  onheaders: mustCall((headers) => {
+    strictEqual(headers[':status'], '200');
+    responseHeaders.resolve();
+  }),
 });
+ok(stream instanceof Http3Stream);
 
 const body = decoder.decode(await bytes(stream));
 strictEqual(body, 'hello h3');

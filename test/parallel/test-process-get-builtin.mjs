@@ -40,6 +40,7 @@ if (!hasIntl) {
 publicBuiltins.delete('node:dtls');
 // TODO(@jasnell): Remove this once node:quic graduates from unflagged.
 publicBuiltins.delete('node:quic');
+publicBuiltins.delete('node:http3');
 // Remove this once node:vfs graduates from unflagged.
 publicBuiltins.delete('node:vfs');
 

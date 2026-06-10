@@ -20,7 +20,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -33,52 +33,43 @@ const responseBody = 'Hello from H3 server';
 
 const serverDone = Promise.withResolvers();
 
-// The onheaders callback signature is (headers, kind) with `this` bound
-// to the stream. A regular function is used so `this` is accessible.
-// safeCallbackInvoke(fn, owner, ...args) consumes the owner for error
-// handling and forwards only ...args to fn.
-const serverEndpoint = await listen(mustCall(async (serverSession) => {
+const serverEndpoint = await listen(mustCall((serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
+    // Attach onheaders synchronously in the onstream frame, before any
+    // await — header delivery follows stream creation.
+    stream.onheaders = mustCall((headers) => {
+      // Verify request pseudo-headers.
+      strictEqual(headers[':method'], 'GET');
+      strictEqual(headers[':path'], '/index.html');
+      strictEqual(headers[':scheme'], 'https');
+      strictEqual(headers[':authority'], 'localhost');
+
+      // After onheaders, stream.headers returns the initial headers.
+      strictEqual(stream.headers[':method'], 'GET');
+
+      // Send response headers (terminal: false is the default — body
+      // follows).
+      stream.sendHeaders({
+        ':status': '200',
+        'content-type': 'text/plain',
+      });
+
+      // Write response body and close the write side.
+      const w = stream.writer;
+      w.writeSync(encoder.encode(responseBody));
+      w.endSync();
+    });
     await stream.closed;
     serverSession.close();
     serverDone.resolve();
   });
 }), {
   sni: { '*': { keys: [key], certs: [cert] } },
-  // Default ALPN is h3 — omitted intentionally to exercise the default.
-  //
-  // onheaders is provided via listen options so it is applied to
-  // incoming streams (via kStreamCallbacks) BEFORE onstream fires.
-  // For H3, onheaders must be set because the H3 application delivers
-  // headers and stream[kHeaders] asserts the callback exists.
-  onheaders: mustCall(function(headers) {
-    // Verify request pseudo-headers.
-    strictEqual(headers[':method'], 'GET');
-    strictEqual(headers[':path'], '/index.html');
-    strictEqual(headers[':scheme'], 'https');
-    strictEqual(headers[':authority'], 'localhost');
-
-    // After onheaders, stream.headers returns the initial headers.
-    // `this` is the stream (bound by the onheaders setter).
-    strictEqual(this.headers[':method'], 'GET');
-
-    // Send response headers (terminal: false is the default — body follows).
-    this.sendHeaders({
-      ':status': '200',
-      'content-type': 'text/plain',
-    });
-
-    // Write response body and close the write side.
-    const w = this.writer;
-    w.writeSync(encoder.encode(responseBody));
-    w.endSync();
-  }),
 });
 
 const clientSession = await connect(serverEndpoint.address, {
   servername: 'localhost',
   verifyPeer: 'manual',
-  // Default ALPN is h3.
 });
 
 const info = await clientSession.opened;
@@ -88,14 +79,13 @@ const clientHeadersReceived = Promise.withResolvers();
 
 // Send a GET request. With body omitted, the terminal flag is set
 // automatically (END_STREAM on the HEADERS frame).
-const stream = await clientSession.createBidirectionalStream({
-  headers: {
-    ':method': 'GET',
-    ':path': '/index.html',
-    ':scheme': 'https',
-    ':authority': 'localhost',
-  },
-  onheaders: mustCall(function(headers) {
+const stream = await clientSession.request({
+  ':method': 'GET',
+  ':path': '/index.html',
+  ':scheme': 'https',
+  ':authority': 'localhost',
+}, {
+  onheaders: mustCall((headers) => {
     strictEqual(headers[':status'], '200');
     strictEqual(headers['content-type'], 'text/plain');
     clientHeadersReceived.resolve();

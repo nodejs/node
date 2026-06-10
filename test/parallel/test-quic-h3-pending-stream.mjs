@@ -15,7 +15,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -31,22 +31,22 @@ const decoder = new TextDecoder();
 
   const serverEndpoint = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        // Headers were enqueued before the stream opened
+        // and should arrive correctly.
+        strictEqual(headers[':method'], 'GET');
+        strictEqual(headers[':path'], '/pending');
+
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync(encoder.encode('ok'));
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
       serverDone.resolve();
     });
   }), {
     sni: { '*': { keys: [key], certs: [cert] } },
-    onheaders: mustCall(function(headers) {
-      // Headers were enqueued before the stream opened
-      // and should arrive correctly.
-      strictEqual(headers[':method'], 'GET');
-      strictEqual(headers[':path'], '/pending');
-
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync(encoder.encode('ok'));
-      this.writer.endSync();
-    }),
   });
 
   const clientSession = await connect(serverEndpoint.address, {
@@ -56,13 +56,12 @@ const decoder = new TextDecoder();
 
   // Create the stream BEFORE awaiting opened. The stream is pending
   // until the handshake completes and the QUIC stream can be opened.
-  const stream = await clientSession.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/pending',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const stream = await clientSession.request({
+    ':method': 'GET',
+    ':path': '/pending',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
     // Priority set at creation time.
     priority: 'high',
     incremental: true,

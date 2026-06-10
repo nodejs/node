@@ -20,7 +20,7 @@ if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
-const { listen, connect } = await import('node:quic');
+const { listen, connect } = await import('node:http3');
 const { createPrivateKey, randomBytes } = await import('node:crypto');
 const { bytes } = await import('stream/iter');
 
@@ -38,17 +38,17 @@ async function getTicket(endpointOptions) {
 
   const ep = await listen(mustCall(async (ss) => {
     ss.onstream = mustCall(async (stream) => {
+      stream.onheaders = mustCall((headers) => {
+        stream.sendHeaders({ ':status': '200' });
+        stream.writer.writeSync('ok');
+        stream.writer.endSync();
+      });
       await stream.closed;
       ss.close();
     });
   }), {
     sni,
     ...endpointOptions,
-    onheaders: mustCall(function(headers) {
-      this.sendHeaders({ ':status': '200' });
-      this.writer.writeSync('ok');
-      this.writer.endSync();
-    }),
   });
 
   const cs = await connect(ep.address, {
@@ -69,14 +69,13 @@ async function getTicket(endpointOptions) {
   await cs.opened;
   await Promise.all([gotTicket.promise, gotToken.promise]);
 
-  const s = await cs.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/ticket',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
-    onheaders: mustCall(function(headers) {
+  const s = await cs.request({
+    ':method': 'GET',
+    ':path': '/ticket',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+  }, {
+    onheaders: mustCall((headers) => {
       strictEqual(headers[':status'], '200');
     }),
   });
@@ -114,13 +113,11 @@ async function attemptRejected0RTT(endpointOptions, ticket, token) {
   // or datagram is sent. When 0-RTT is rejected, the stream is
   // destroyed by EarlyDataRejected — its closed promise rejects
   // with an application error.
-  const s = await cs.createBidirectionalStream({
-    headers: {
-      ':method': 'GET',
-      ':path': '/rejected',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-    },
+  const s = await cs.request({
+    ':method': 'GET',
+    ':path': '/rejected',
+    ':scheme': 'https',
+    ':authority': 'localhost',
   });
   await rejects(s.closed, {
     code: 'ERR_QUIC_APPLICATION_ERROR',
