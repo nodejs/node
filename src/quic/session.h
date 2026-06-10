@@ -542,6 +542,20 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void SetLastError(QuicError&& error);
   uint64_t max_data_left() const;
 
+  // Transport operations that protocol applications (e.g. HTTP/3) invoke on
+  // the session, encapsulating ngtcp2 transport details here.
+
+  // Open a unidirectional stream, setting *id on success, or returning false
+  bool OpenUni(stream_id* id);
+
+  void ExtendMaxStreams(Direction direction, uint64_t max);
+
+  // Signal that we've consumed $len bytes on stream $id to update flow control
+  void Consume(stream_id id, size_t len);
+
+  // Record an application-level error on the connection without closing it.
+  void SetError(error_code app_error_code);
+
   PendingStream::PendingStreamQueue& pending_bidi_stream_queue() const;
   PendingStream::PendingStreamQueue& pending_uni_stream_queue() const;
 

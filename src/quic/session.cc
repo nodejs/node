@@ -3452,6 +3452,30 @@ uint64_t Session::max_data_left() const {
   return ngtcp2_conn_get_max_data_left(*this);
 }
 
+bool Session::OpenUni(stream_id* id) {
+  return ngtcp2_conn_open_uni_stream(*this, id, nullptr) == 0;
+}
+
+void Session::ExtendMaxStreams(Direction direction, uint64_t max) {
+  switch (direction) {
+    case Direction::BIDIRECTIONAL:
+      ngtcp2_conn_extend_max_streams_bidi(*this, static_cast<size_t>(max));
+      break;
+    case Direction::UNIDIRECTIONAL:
+      ngtcp2_conn_extend_max_streams_uni(*this, static_cast<size_t>(max));
+      break;
+  }
+}
+
+void Session::Consume(stream_id id, size_t len) {
+  ExtendStreamOffset(id, len);
+  ExtendOffset(len);
+}
+
+void Session::SetError(error_code app_error_code) {
+  SetLastError(QuicError::ForApplication(app_error_code));
+}
+
 uint64_t Session::max_local_streams_uni() const {
   DCHECK(!is_destroyed());
   return ngtcp2_conn_get_streams_uni_left(*this);
