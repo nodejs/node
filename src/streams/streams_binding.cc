@@ -41,26 +41,23 @@ Local<String> InternalizedString(Isolate* isolate, const char* s) {
 // Shared start-fulfilled reaction: receives the controller wrapper as the
 // promise's fulfilment value and dispatches by kind tag. One function per
 // realm replaces two per-creation Function allocations on the common path.
+// One reaction per controller type: the carrier promise is resolved with the
+// exact controller wrapper at attach time, so no kind dispatch is needed (the
+// cppgc wrappers carry no kind tag, and a brand check per creation costs).
 void ReactStartFulfilledShared(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!args[0]->IsObject()) return;
-  // Readable controllers only (still BaseObjects); the cppgc-managed writable
-  // controller has its own reaction (ReactStartFulfilledWritable), so the
-  // unchecked FromJSObject cast never sees a CppgcMixin wrapper here.
-  BaseObject* base =
-      BaseObject::FromJSObject(args[0].As<v8::Object>());
-  if (base == nullptr) return;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  switch (s->stream_kind()) {
-    case StreamBaseObject::Kind::kDefaultController:
-      static_cast<ReadableStreamDefaultController*>(s)->OnStartFulfilled();
-      break;
-    case StreamBaseObject::Kind::kByteController:
-      static_cast<ReadableByteStreamController*>(s)->OnStartFulfilled();
-      break;
-    default:
-      break;
-  }
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args[0].As<v8::Object>());
+  if (c != nullptr) c->OnStartFulfilled();
+}
+
+void ReactStartFulfilledByteShared(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (!args[0]->IsObject()) return;
+  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+      args[0].As<v8::Object>());
+  if (c != nullptr) c->OnStartFulfilled();
 }
 
 void ReactStartFulfilledWritable(
@@ -119,6 +116,12 @@ void ThenStartFulfilledWritable(Environment* env, Local<Promise> promise) {
   BindingData* bd = BindingData::Get(env);
   ThenSharedReaction(env, promise, ReactStartFulfilledWritable,
                      &bd->start_fulfilled_reaction_writable);
+}
+
+void ThenStartFulfilledByte(Environment* env, Local<Promise> promise) {
+  BindingData* bd = BindingData::Get(env);
+  ThenSharedReaction(env, promise, ReactStartFulfilledByteShared,
+                     &bd->start_fulfilled_reaction_byte);
 }
 
 Local<FunctionTemplate> NewGetter(Isolate* isolate,

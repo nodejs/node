@@ -47,13 +47,18 @@ class ReadableStreamBYOBRequest;
 // never need a per-value v8::Global. All state transitions and size math happen
 // here without crossing into JS; the only crossings are invoking the user
 // pull/cancel/size algorithms.
-class ReadableStreamDefaultController final : public StreamBaseObject {
+class ReadableStreamDefaultController final
+    : CPPGC_MIXIN(ReadableStreamDefaultController) {
  public:
+  SET_CPPGC_NAME(ReadableStreamDefaultController)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   // Internal field layout of the JS wrapper. Field kStream holds the owning
   // ReadableStream wrapper so the relationship is traced by V8's GC (mirroring
   // the JS implementation's stream<->controller object graph).
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kInternalFieldCount,
   };
 
@@ -68,10 +73,6 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   ReadableStreamDefaultController(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ReadableStreamDefaultController)
-  SET_SELF_SIZE(ReadableStreamDefaultController)
 
   // Owning stream. Returns a cached raw pointer (hot path): the GC-traced
   // kStream internal field keeps the stream's wrapper — and therefore its
@@ -131,9 +132,14 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
              v8::Local<v8::Value> algo_receiver);
 
  private:
-  // The value queue: one strong Global per buffered chunk (see ValueQueueEntry
-  // in streams_binding.h for why this beats a JS-Array-backed queue).
-  FifoQueue<ValueQueueEntry> queue_;
+  // Traces the queue entries and handle members; only ever runs on the
+  // mutator thread (the queue mutates as chunks enqueue/dequeue).
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
+  // The value queue: one TracedReference per buffered chunk (see
+  // TracedValueQueueEntry in streams_binding.h for why this beats a
+  // JS-Array-backed queue).
+  FifoQueue<TracedValueQueueEntry> queue_;
   double queue_total_size_ = 0;
 
   double high_water_mark_ = 1;
@@ -143,16 +149,16 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   bool pull_again_ = false;
   bool close_requested_ = false;
 
-  v8::Global<v8::Function> pull_algorithm_;  // raw user fn; may be empty
-  v8::Global<v8::Function> cancel_algorithm_;
-  v8::Global<v8::Function> size_algorithm_;
-  v8::Global<v8::Value> algo_receiver_;  // `this` for the raw pull algorithm
+  v8::TracedReference<v8::Function> pull_algorithm_;  // raw; may be empty
+  v8::TracedReference<v8::Function> cancel_algorithm_;
+  v8::TracedReference<v8::Function> size_algorithm_;
+  v8::TracedReference<v8::Value> algo_receiver_;  // pull algorithm's `this`
 
   // Cached promise-reaction functions for an async (promise-returning) pull
   // (Data == this controller's wrapper); a sync pull uses the per-realm shared
   // reaction instead. Created once on first use.
-  v8::Global<v8::Function> on_pull_fulfilled_;
-  v8::Global<v8::Function> on_rejected_;
+  v8::TracedReference<v8::Function> on_pull_fulfilled_;
+  v8::TracedReference<v8::Function> on_rejected_;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).
   ReadableStream* stream_cache_ = nullptr;
@@ -296,10 +302,15 @@ struct PullIntoDescriptor {
 // pure C++ (memcpy over BackingStore::Data()); JS is crossed only to invoke the
 // user pull/cancel algorithms and to materialize a user-visible view once at
 // fulfillment.
-class ReadableByteStreamController final : public StreamBaseObject {
+class ReadableByteStreamController final
+    : CPPGC_MIXIN(ReadableByteStreamController) {
  public:
+  SET_CPPGC_NAME(ReadableByteStreamController)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kByobRequest,  // the current ReadableStreamBYOBRequest wrapper, or undefined
     kInternalFieldCount,
   };
@@ -315,10 +326,6 @@ class ReadableByteStreamController final : public StreamBaseObject {
   static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   ReadableByteStreamController(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ReadableByteStreamController)
-  SET_SELF_SIZE(ReadableByteStreamController)
 
   // Owning stream / current BYOBRequest. Cached raw pointers mirroring the
   // GC-traced kStream / kByobRequest internal fields, which keep the targets'
@@ -375,6 +382,10 @@ class ReadableByteStreamController final : public StreamBaseObject {
              v8::Local<v8::Value> algo_receiver);
 
  private:
+  // Traces the handle members; only ever runs on the mutator thread (the
+  // cached reaction slots and algorithms are reset as the stream settles).
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
   void EnqueueChunkToQueue(std::shared_ptr<v8::BackingStore> buffer,
                            size_t byte_offset,
                            size_t byte_length);
@@ -412,15 +423,15 @@ class ReadableByteStreamController final : public StreamBaseObject {
   bool pull_again_ = false;
   bool close_requested_ = false;
 
-  v8::Global<v8::Function> pull_algorithm_;  // raw user fn; may be empty
-  v8::Global<v8::Function> cancel_algorithm_;
-  v8::Global<v8::Value> algo_receiver_;  // `this` for the raw pull algorithm
+  v8::TracedReference<v8::Function> pull_algorithm_;  // raw; may be empty
+  v8::TracedReference<v8::Function> cancel_algorithm_;
+  v8::TracedReference<v8::Value> algo_receiver_;  // pull algorithm's `this`
 
   // Cached promise-reaction functions for an async (promise-returning) pull
   // (Data == this controller's wrapper); a sync pull uses the per-realm shared
   // reaction instead. Created once on first use.
-  v8::Global<v8::Function> on_pull_fulfilled_;
-  v8::Global<v8::Function> on_rejected_;
+  v8::TracedReference<v8::Function> on_pull_fulfilled_;
+  v8::TracedReference<v8::Function> on_rejected_;
 
   // Raw-pointer mirrors of the kStream / kByobRequest internal fields.
   ReadableStream* stream_cache_ = nullptr;
@@ -430,10 +441,15 @@ class ReadableByteStreamController final : public StreamBaseObject {
 // ReadableStreamBYOBRequest — a thin view onto the controller's first pending
 // pull-into. Holds a back-reference to the controller and the current view as
 // GC-traced internal fields; both are cleared when the request is invalidated.
-class ReadableStreamBYOBRequest final : public StreamBaseObject {
+class ReadableStreamBYOBRequest final
+    : CPPGC_MIXIN(ReadableStreamBYOBRequest) {
  public:
+  SET_CPPGC_NAME(ReadableStreamBYOBRequest)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kController = BaseObject::kInternalFieldCount,
+    kController = CppgcMixin::kInternalFieldCount,
     kView,
     kInternalFieldCount,
   };
@@ -447,10 +463,6 @@ class ReadableStreamBYOBRequest final : public StreamBaseObject {
   static void RespondWithNewView(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   ReadableStreamBYOBRequest(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ReadableStreamBYOBRequest)
-  SET_SELF_SIZE(ReadableStreamBYOBRequest)
 
   // Owning controller; cached raw pointer mirroring the GC-traced kController
   // internal field (set at creation, cleared by InvalidateBYOBRequest). While
@@ -530,10 +542,14 @@ class ReadableStreamBYOBReader final : CPPGC_MIXIN(ReadableStreamBYOBReader) {
 
 // ReadableStream — the user-facing object. Holds top-level state; the controller
 // and (current) reader are referenced through GC-traced internal fields.
-class ReadableStream final : public StreamBaseObject {
+class ReadableStream final : CPPGC_MIXIN(ReadableStream) {
  public:
+  SET_CPPGC_NAME(ReadableStream)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kController = BaseObject::kInternalFieldCount,
+    kController = CppgcMixin::kInternalFieldCount,
     kReader,
     kInternalFieldCount,
   };
@@ -548,10 +564,6 @@ class ReadableStream final : public StreamBaseObject {
 
   ReadableStream(Environment* env, v8::Local<v8::Object> object);
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ReadableStream)
-  SET_SELF_SIZE(ReadableStream)
-
   StreamState state() const { return state_; }
   bool disturbed() const { return disturbed_; }
   void set_disturbed(bool v) { disturbed_ = v; }
@@ -561,23 +573,22 @@ class ReadableStream final : public StreamBaseObject {
   // Controllers (exactly one is non-null once set up). Cached raw pointers
   // mirroring the GC-traced kController / kReader internal fields; the traced
   // fields keep the targets' wrappers alive while set, so the caches cannot
-  // dangle. Discrimination between the two controller/reader kinds is the
-  // 1-byte kind tag — no V8 API crossing on these hot accessors.
+  // dangle. Both controllers are cppgc-managed (not StreamBaseObjects), so
+  // the cache is a void* discriminated by an explicit kind byte — no V8 API
+  // crossing on these hot accessors.
+  enum class ControllerKind : uint8_t { kNone, kDefault, kByte };
   ReadableStreamDefaultController* default_controller() const {
-    return controller_cache_ != nullptr &&
-                   controller_cache_->stream_kind() == Kind::kDefaultController
+    return controller_kind_ == ControllerKind::kDefault
                ? static_cast<ReadableStreamDefaultController*>(controller_cache_)
                : nullptr;
   }
   ReadableByteStreamController* byte_controller() const {
-    return controller_cache_ != nullptr &&
-                   controller_cache_->stream_kind() == Kind::kByteController
+    return controller_kind_ == ControllerKind::kByte
                ? static_cast<ReadableByteStreamController*>(controller_cache_)
                : nullptr;
   }
   bool has_byte_controller() const {
-    return controller_cache_ != nullptr &&
-           controller_cache_->stream_kind() == Kind::kByteController;
+    return controller_kind_ == ControllerKind::kByte;
   }
 
   // Readers (at most one is attached). The default reader is cppgc-managed
@@ -623,14 +634,20 @@ class ReadableStream final : public StreamBaseObject {
   void set_state(StreamState s) { state_ = s; }
 
  private:
+  // Traces the handle members; only ever runs on the mutator thread (the
+  // stored error / closed resolver are set as the stream settles).
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
   StreamState state_ = StreamState::kReadable;
   bool disturbed_ = false;
-  v8::Global<v8::Value> stored_error_;
-  v8::Global<v8::Promise::Resolver> closed_;  // the stream-level closed promise
+  v8::TracedReference<v8::Value> stored_error_;
+  // The stream-level closed promise.
+  v8::TracedReference<v8::Promise::Resolver> closed_;
 
-  // Raw-pointer mirrors of the kController / kReader internal fields. The
-  // reader cache is type-erased (see ReaderKind above).
-  StreamBaseObject* controller_cache_ = nullptr;
+  // Raw-pointer mirrors of the kController / kReader internal fields. Both
+  // caches are type-erased (see ControllerKind / ReaderKind above).
+  void* controller_cache_ = nullptr;
+  ControllerKind controller_kind_ = ControllerKind::kNone;
   void* reader_cache_ = nullptr;
   ReaderKind reader_kind_ = ReaderKind::kNone;
 };

@@ -119,17 +119,19 @@ class FifoQueue {
   size_t head_ = 0;
 };
 
-// One buffered chunk in a default controller's value queue. A strong Global
-// per chunk beats a JS-Array-backed queue: the queue is only ever touched from
-// C++ (read()'s fast path is a binding), and a global-handle Reset/Get is far
-// cheaper than the V8 API element Set/Get (a full LookupIterator walk per
-// call) — let alone the per-chunk Array::New the array design degenerated to
-// at high-water-mark 1, where the queue empties (dropping its array) on every
-// read. Dequeue sites must Reset() the popped entry's Global eagerly:
-// FifoQueue::pop_front() only advances the head index, so an un-Reset handle
+// One buffered chunk in a default controller's value queue. A per-chunk handle
+// beats a JS-Array-backed queue: the queue is only ever touched from C++
+// (read()'s fast path is a binding), and a handle Reset/Get is far cheaper
+// than the V8 API element Set/Get (a full LookupIterator walk per call) — let
+// alone the per-chunk Array::New the array design degenerated to at
+// high-water-mark 1, where the queue empties (dropping its array) on every
+// read. The handle is a TracedReference, traced from the cppgc-managed
+// controller's Trace(). Writes must use emplace-empty + Reset (the assigning
+// store); dequeue sites must Reset() the popped entry eagerly, since
+// FifoQueue::pop_front() only advances the head index and an un-Reset handle
 // would pin the consumed chunk until the prefix is compacted.
-struct ValueQueueEntry {
-  v8::Global<v8::Value> value;
+struct TracedValueQueueEntry {
+  v8::TracedReference<v8::Value> value;
   double size;
 };
 
@@ -153,6 +155,9 @@ void ThenStartFulfilled(Environment* env, v8::Local<v8::Promise> promise);
 // creation path free of brand checks against the writable template.
 void ThenStartFulfilledWritable(Environment* env,
                                 v8::Local<v8::Promise> promise);
+
+// The readable byte controller's flavor.
+void ThenStartFulfilledByte(Environment* env, v8::Local<v8::Promise> promise);
 
 // Returns the realm's cached noop function, creating it on first use; empty
 // only on instantiation failure (with a pending exception).
@@ -249,9 +254,11 @@ class BindingData : public SnapshotableObject {
   // Function allocations) can recover it from the fulfilment value and mark
   // the controller started (by kind tag). Lazily created.
   v8::Global<v8::Function> start_fulfilled_reaction;
-  // The writable controller's flavor (cppgc-managed wrapper; see
-  // ThenStartFulfilledWritable). Lazily created.
+  // The writable / readable-byte controllers' flavors (one per controller
+  // type; the carrier resolves with the exact wrapper, so no kind dispatch).
+  // Lazily created.
   v8::Global<v8::Function> start_fulfilled_reaction_writable;
+  v8::Global<v8::Function> start_fulfilled_reaction_byte;
 
   // Shared per-realm TransformStream algorithm trampolines. All but start are
   // invoked by our own controllers with the transform stream's wrapper as

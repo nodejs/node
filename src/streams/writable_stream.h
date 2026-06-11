@@ -82,15 +82,6 @@ class PromiseSlot {
   v8::TracedReference<v8::Promise::Resolver> resolver_;
 };
 
-// ValueQueueEntry's traced flavor for cppgc-managed owners: a TracedReference
-// is traced from the owner's Trace() instead of rooting a persistent handle.
-// (The readable controller still uses the Global-based ValueQueueEntry; the
-// two unify when it converts to cppgc.)
-struct TracedValueQueueEntry {
-  v8::TracedReference<v8::Value> value;
-  double size;
-};
-
 // WritableStreamDefaultController — owns the write queue and queuing parameters.
 // The value queue holds chunks (the spec's close "sentinel" is modeled by the
 // close_queued_ flag since close is always the final queue entry). State math

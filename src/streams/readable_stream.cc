@@ -172,40 +172,50 @@ Local<Value> ReaderReleasedError(Isolate* isolate, Local<Context> context) {
       "state");
 }
 
-// Reaction callbacks for user algorithm promises. args.Data() is the controller
-// wrapper object (default or byte); the controller is recovered and dispatched
-// by its kind tag.
-void ReactStartFulfilled(const FunctionCallbackInfo<Value>& args) {
+// Reaction callbacks for user algorithm promises. args.Data() is the exact
+// controller wrapper object the reaction was created for, so each controller
+// type binds its own callback — no kind dispatch (the cppgc wrappers carry no
+// kind tag).
+void ReactStartFulfilledDefault(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  BaseObject* base = BaseObject::FromJSObject(args.Data().As<Object>());
-  if (base == nullptr) return;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  if (s->stream_kind() == StreamBaseObject::Kind::kDefaultController)
-    static_cast<ReadableStreamDefaultController*>(s)->OnStartFulfilled();
-  else
-    static_cast<ReadableByteStreamController*>(s)->OnStartFulfilled();
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnStartFulfilled();
 }
 
-void ReactPullFulfilled(const FunctionCallbackInfo<Value>& args) {
+void ReactStartFulfilledByte(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  BaseObject* base = BaseObject::FromJSObject(args.Data().As<Object>());
-  if (base == nullptr) return;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  if (s->stream_kind() == StreamBaseObject::Kind::kDefaultController)
-    static_cast<ReadableStreamDefaultController*>(s)->FinishPull();
-  else
-    static_cast<ReadableByteStreamController*>(s)->FinishPull();
+  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->OnStartFulfilled();
 }
 
-void ReactRejected(const FunctionCallbackInfo<Value>& args) {
+void ReactPullFulfilledDefault(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  BaseObject* base = BaseObject::FromJSObject(args.Data().As<Object>());
-  if (base == nullptr) return;
-  auto* s = static_cast<StreamBaseObject*>(base);
-  if (s->stream_kind() == StreamBaseObject::Kind::kDefaultController)
-    static_cast<ReadableStreamDefaultController*>(s)->ErrorInternal(args[0]);
-  else
-    static_cast<ReadableByteStreamController*>(s)->ErrorInternal(args[0]);
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->FinishPull();
+}
+
+void ReactPullFulfilledByte(const FunctionCallbackInfo<Value>& args) {
+  if (!args.Data()->IsObject()) return;
+  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->FinishPull();
+}
+
+void ReactRejectedDefault(const FunctionCallbackInfo<Value>& args) {
+  if (!args.Data()->IsObject()) return;
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->ErrorInternal(args[0]);
+}
+
+void ReactRejectedByte(const FunctionCallbackInfo<Value>& args) {
+  if (!args.Data()->IsObject()) return;
+  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+      args.Data().As<Object>());
+  if (c != nullptr) c->ErrorInternal(args[0]);
 }
 
 // Attaches fulfill/reject reactions that re-enter C++. The reaction functions
@@ -214,14 +224,15 @@ void ReactRejected(const FunctionCallbackInfo<Value>& args) {
 void ThenReact(Environment* env,
                Local<Promise> promise,
                Local<Object> controller_obj,
-               v8::FunctionCallback on_fulfilled) {
+               v8::FunctionCallback on_fulfilled,
+               v8::FunctionCallback on_rejected) {
   Local<Context> context = env->context();
   Local<Function> ff;
   Local<Function> rj;
   if (!Function::New(context, on_fulfilled, controller_obj, 0,
                      v8::ConstructorBehavior::kThrow)
            .ToLocal(&ff) ||
-      !Function::New(context, ReactRejected, controller_obj, 0,
+      !Function::New(context, on_rejected, controller_obj, 0,
                      v8::ConstructorBehavior::kThrow)
            .ToLocal(&rj)) {
     return;
@@ -235,8 +246,9 @@ void ThenReactCached(Environment* env,
                      Local<Promise> promise,
                      Local<Object> controller_obj,
                      v8::FunctionCallback on_fulfilled,
-                     v8::Global<Function>* ff_slot,
-                     v8::Global<Function>* rj_slot) {
+                     v8::FunctionCallback on_rejected,
+                     v8::TracedReference<Function>* ff_slot,
+                     v8::TracedReference<Function>* rj_slot) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Function> ff = ff_slot->Get(isolate);
@@ -250,7 +262,7 @@ void ThenReactCached(Environment* env,
   }
   Local<Function> rj = rj_slot->Get(isolate);
   if (rj.IsEmpty()) {
-    if (!Function::New(context, ReactRejected, controller_obj, 0,
+    if (!Function::New(context, on_rejected, controller_obj, 0,
                        v8::ConstructorBehavior::kThrow)
              .ToLocal(&rj)) {
       return;
@@ -421,16 +433,40 @@ MaybeLocal<Object> MakeView(Environment* env,
 // ===========================================================================
 
 ReadableStreamDefaultController::ReadableStreamDefaultController(
-    Environment* env, Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kDefaultController) {}
+    Environment* env, Local<Object> object) {
+  // Untracked: created once per stream, default destructor (TracedReference
+  // cleanup is automatic), and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void ReadableStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
-  queue_.ForEach([&](const ValueQueueEntry& entry) {
-    tracker->TrackField("queue", entry.value);
+void ReadableStreamDefaultController::Trace(cppgc::Visitor* visitor) const {
+  // The value queue (a plain vector) mutates as chunks enqueue/dequeue, so it
+  // cannot be iterated from a concurrent marking thread; defer to the mutator
+  // thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const ReadableStreamDefaultController*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(ReadableStreamDefaultController))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void ReadableStreamDefaultController::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  queue_.ForEach([&](const TracedValueQueueEntry& entry) {
+    visitor->Trace(entry.value);
   });
-  tracker->TrackField("pull_algorithm", pull_algorithm_);
-  tracker->TrackField("cancel_algorithm", cancel_algorithm_);
-  tracker->TrackField("size_algorithm", size_algorithm_);
+  visitor->Trace(pull_algorithm_);
+  visitor->Trace(cancel_algorithm_);
+  visitor->Trace(size_algorithm_);
+  visitor->Trace(algo_receiver_);
+  visitor->Trace(on_pull_fulfilled_);
+  visitor->Trace(on_rejected_);
 }
 
 Local<FunctionTemplate>
@@ -555,13 +591,15 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
       if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
       USE(resolver->Reject(context, exception));
       ThenReactCached(env, resolver->GetPromise(), controller_obj,
-                      ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+                      ReactPullFulfilledDefault, ReactRejectedDefault,
+                      &on_pull_fulfilled_, &on_rejected_);
       return;
     }
   }
   if (result->IsPromise()) {
     ThenReactCached(env, result.As<Promise>(), controller_obj,
-                    ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+                    ReactPullFulfilledDefault, ReactRejectedDefault,
+                    &on_pull_fulfilled_, &on_rejected_);
     return;
   }
   if (!result->IsObject()) {
@@ -570,7 +608,7 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
     // identical (CallableTask and PromiseReactionJob share the FIFO queue).
     Local<Function> ff = on_pull_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactPullFulfilled, controller_obj, 0,
+      if (!Function::New(context, ReactPullFulfilledDefault, controller_obj, 0,
                          v8::ConstructorBehavior::kThrow)
                .ToLocal(&ff))
         return;
@@ -585,7 +623,8 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
   USE(resolver->Resolve(context, result));
   ThenReactCached(env, resolver->GetPromise(), controller_obj,
-                  ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+                  ReactPullFulfilledDefault, ReactRejectedDefault,
+                  &on_pull_fulfilled_, &on_rejected_);
 }
 
 void ReadableStreamDefaultController::ClearAlgorithms() {
@@ -626,7 +665,7 @@ Maybe<void> ReadableStreamDefaultController::EnqueueValueWithSize(
     return Nothing<void>();
   }
   queue_.emplace_back();
-  ValueQueueEntry& entry = queue_.back();
+  TracedValueQueueEntry& entry = queue_.back();
   entry.value.Reset(isolate, value);
   entry.size = size;
   queue_total_size_ += size;
@@ -636,7 +675,7 @@ Maybe<void> ReadableStreamDefaultController::EnqueueValueWithSize(
 MaybeLocal<Value> ReadableStreamDefaultController::DequeueValue() {
   Isolate* isolate = env()->isolate();
   CHECK(!queue_.empty());
-  ValueQueueEntry& entry = queue_.front();
+  TracedValueQueueEntry& entry = queue_.front();
   Local<Value> value = entry.value.Get(isolate);
   queue_total_size_ -= entry.size;
   if (queue_total_size_ < 0) queue_total_size_ = 0;
@@ -826,7 +865,8 @@ bool ReadableStreamDefaultController::Setup(Local<Function> start_algorithm,
     return true;
   }
   USE(resolver->Resolve(context, start_result));
-  ThenReact(env, resolver->GetPromise(), controller_obj, ReactStartFulfilled);
+  ThenReact(env, resolver->GetPromise(), controller_obj,
+            ReactStartFulfilledDefault, ReactRejectedDefault);
   return true;
 }
 
@@ -836,8 +876,8 @@ void ReadableStreamDefaultController::GetDesiredSize(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
-      args.This());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   bool is_null = false;
   double desired = c->GetDesiredSizeValue(&is_null);
@@ -854,8 +894,8 @@ void ReadableStreamDefaultController::Close(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
-      args.This());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   if (!c->CanCloseOrEnqueue()) {
     args.GetIsolate()->ThrowException(InvalidStateError(
@@ -871,8 +911,8 @@ void ReadableStreamDefaultController::Enqueue(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
-      args.This());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   if (!c->CanCloseOrEnqueue()) {
     args.GetIsolate()->ThrowException(InvalidStateError(
@@ -889,8 +929,8 @@ void ReadableStreamDefaultController::Error(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = BaseObject::FromJSObject<ReadableStreamDefaultController>(
-      args.This());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   c->ErrorInternal(args[0]);
 }
@@ -1083,7 +1123,8 @@ bool ReadableStreamDefaultReader::SetupInternal(Local<Object> stream_obj) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  auto* stream = BaseObject::FromJSObject<ReadableStream>(stream_obj);
+  CHECK(ReadableStream::GetConstructorTemplate(env)->HasInstance(stream_obj));
+  auto* stream = CppgcMixin::Unwrap<ReadableStream>(stream_obj);
   CHECK_NOT_NULL(stream);
   if (stream->locked()) {
     isolate->ThrowException(InvalidStateError(
@@ -1279,12 +1320,30 @@ void ReadableStreamDefaultReader::GetClosed(
 // ReadableStream
 // ===========================================================================
 
-ReadableStream::ReadableStream(Environment* env, Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kStream) {}
+ReadableStream::ReadableStream(Environment* env, Local<Object> object) {
+  // Untracked: created in bulk (every construction/transfer), default
+  // destructor, and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void ReadableStream::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("stored_error", stored_error_);
-  tracker->TrackField("closed", closed_);
+void ReadableStream::Trace(cppgc::Visitor* visitor) const {
+  // stored_error_/closed_ are set as the stream settles, so they cannot be
+  // raced by a concurrent marking thread; defer to the mutator thread.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const ReadableStream*>(self)->TraceOnMutatorThread(v);
+          },
+          sizeof(ReadableStream))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void ReadableStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(stored_error_);
+  visitor->Trace(closed_);
 }
 
 Local<FunctionTemplate> ReadableStream::GetConstructorTemplate(
@@ -1331,14 +1390,19 @@ void ReadableStream::SetController(Local<Object> controller_obj, bool is_byte) {
   controller_obj->SetInternalField(ReadableStreamDefaultController::kStream,
                                    object());
   // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
-  auto* base = static_cast<StreamBaseObject*>(
-      BaseObject::FromJSObject(controller_obj));
-  CHECK_NOT_NULL(base);
-  controller_cache_ = base;
   if (is_byte) {
-    static_cast<ReadableByteStreamController*>(base)->set_stream_cache(this);
+    auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(controller_obj);
+    CHECK_NOT_NULL(c);
+    controller_cache_ = c;
+    controller_kind_ = ControllerKind::kByte;
+    c->set_stream_cache(this);
   } else {
-    static_cast<ReadableStreamDefaultController*>(base)->set_stream_cache(this);
+    auto* c =
+        CppgcMixin::Unwrap<ReadableStreamDefaultController>(controller_obj);
+    CHECK_NOT_NULL(c);
+    controller_cache_ = c;
+    controller_kind_ = ControllerKind::kDefault;
+    c->set_stream_cache(this);
   }
 }
 
@@ -1458,7 +1522,7 @@ void ReadableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStream"))
     return;
-  auto* stream = BaseObject::FromJSObject<ReadableStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<ReadableStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->locked());
 }
@@ -1471,7 +1535,7 @@ void ReadableStream::Cancel(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* stream = BaseObject::FromJSObject<ReadableStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<ReadableStream>(args.This().As<Object>());
   if (stream->locked()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -1490,12 +1554,36 @@ void ReadableStream::Cancel(const FunctionCallbackInfo<Value>& args) {
 // ===========================================================================
 
 ReadableByteStreamController::ReadableByteStreamController(Environment* env,
-                                                          Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kByteController) {}
+                                                          Local<Object> object) {
+  // Untracked: created once per stream, default destructor (the byte queue's
+  // BackingStores are plain C++ memory, safe to release at sweep time), and
+  // the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void ReadableByteStreamController::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("pull_algorithm", pull_algorithm_);
-  tracker->TrackField("cancel_algorithm", cancel_algorithm_);
+void ReadableByteStreamController::Trace(cppgc::Visitor* visitor) const {
+  // The cached reaction slots and algorithms are reset as the stream settles,
+  // so defer to the mutator thread.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const ReadableByteStreamController*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(ReadableByteStreamController))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void ReadableByteStreamController::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(pull_algorithm_);
+  visitor->Trace(cancel_algorithm_);
+  visitor->Trace(algo_receiver_);
+  visitor->Trace(on_pull_fulfilled_);
+  visitor->Trace(on_rejected_);
 }
 
 Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
@@ -1616,13 +1704,15 @@ void ReadableByteStreamController::CallPullIfNeeded() {
       if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
       USE(resolver->Reject(context, exception));
       ThenReactCached(env, resolver->GetPromise(), controller_obj,
-                      ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+                      ReactPullFulfilledByte, ReactRejectedByte,
+                      &on_pull_fulfilled_, &on_rejected_);
       return;
     }
   }
   if (result->IsPromise()) {
     ThenReactCached(env, result.As<Promise>(), controller_obj,
-                    ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+                    ReactPullFulfilledByte, ReactRejectedByte,
+                    &on_pull_fulfilled_, &on_rejected_);
     return;
   }
   if (!result->IsObject()) {
@@ -1630,7 +1720,7 @@ void ReadableByteStreamController::CallPullIfNeeded() {
     // controller's CallPullIfNeeded.
     Local<Function> ff = on_pull_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactPullFulfilled, controller_obj, 0,
+      if (!Function::New(context, ReactPullFulfilledByte, controller_obj, 0,
                          v8::ConstructorBehavior::kThrow)
                .ToLocal(&ff))
         return;
@@ -1643,7 +1733,8 @@ void ReadableByteStreamController::CallPullIfNeeded() {
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
   USE(resolver->Resolve(context, result));
   ThenReactCached(env, resolver->GetPromise(), controller_obj,
-                  ReactPullFulfilled, &on_pull_fulfilled_, &on_rejected_);
+                  ReactPullFulfilledByte, ReactRejectedByte,
+                  &on_pull_fulfilled_, &on_rejected_);
 }
 
 void ReadableByteStreamController::ClearAlgorithms() {
@@ -2315,11 +2406,12 @@ bool ReadableByteStreamController::Setup(Local<Function> start_algorithm,
     // Common case (see the default controller's Setup): nothing to await, no
     // thenable to chase; reuse the shared per-realm start reaction.
     USE(resolver->Resolve(context, controller_obj));
-    ThenStartFulfilled(env, resolver->GetPromise());
+    ThenStartFulfilledByte(env, resolver->GetPromise());
     return true;
   }
   USE(resolver->Resolve(context, start_result));
-  ThenReact(env, resolver->GetPromise(), controller_obj, ReactStartFulfilled);
+  ThenReact(env, resolver->GetPromise(), controller_obj,
+            ReactStartFulfilledByte, ReactRejectedByte);
   return true;
 }
 
@@ -2332,7 +2424,8 @@ void ReadableByteStreamController::GetByobRequest(
                                 "ReadableByteStreamController"))
     return;
   auto* c =
-      BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
+      CppgcMixin::Unwrap<ReadableByteStreamController>(
+          args.This().As<Object>());
   if (c == nullptr) return;
   if (c->byob_request_obj() == nullptr && c->has_pending_pull_intos()) {
     const PullIntoDescriptor& d = c->first_pending_pull_into();
@@ -2349,15 +2442,14 @@ void ReadableByteStreamController::GetByobRequest(
       return;
     Local<Object> req_obj;
     if (!ctor->NewInstance(context).ToLocal(&req_obj)) return;
-    BaseObjectPtr<ReadableStreamBYOBRequest> req =
-        MakeBaseObject<ReadableStreamBYOBRequest>(env, req_obj);
-    req->MakeWeak();
+    auto* req = cppgc::MakeGarbageCollected<ReadableStreamBYOBRequest>(
+        env->cppgc_allocation_handle(), env, req_obj);
     req_obj->SetInternalField(ReadableStreamBYOBRequest::kController,
                               c->object());
     req_obj->SetInternalField(ReadableStreamBYOBRequest::kView, view);
     c->object()->SetInternalField(kByobRequest, req_obj);
     req->set_controller_cache(c);
-    c->byob_request_cache_ = req.get();
+    c->byob_request_cache_ = req;
     args.GetReturnValue().Set(req_obj);
     return;
   }
@@ -2375,7 +2467,8 @@ void ReadableByteStreamController::GetDesiredSize(
                                 "ReadableByteStreamController"))
     return;
   auto* c =
-      BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
+      CppgcMixin::Unwrap<ReadableByteStreamController>(
+          args.This().As<Object>());
   if (c == nullptr) return;
   bool is_null = false;
   double desired = c->GetDesiredSizeValue(&is_null);
@@ -2394,7 +2487,8 @@ void ReadableByteStreamController::Close(
                                 "ReadableByteStreamController"))
     return;
   auto* c =
-      BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
+      CppgcMixin::Unwrap<ReadableByteStreamController>(
+          args.This().As<Object>());
   if (c == nullptr) return;
   if (c->close_requested()) {
     isolate->ThrowException(
@@ -2418,7 +2512,8 @@ void ReadableByteStreamController::Enqueue(
                                 "ReadableByteStreamController"))
     return;
   auto* c =
-      BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
+      CppgcMixin::Unwrap<ReadableByteStreamController>(
+          args.This().As<Object>());
   if (c == nullptr) return;
   if (!args[0]->IsArrayBufferView()) {
     isolate->ThrowException(TypeErrorWith(
@@ -2463,7 +2558,8 @@ void ReadableByteStreamController::Error(
                                 "ReadableByteStreamController"))
     return;
   auto* c =
-      BaseObject::FromJSObject<ReadableByteStreamController>(args.This());
+      CppgcMixin::Unwrap<ReadableByteStreamController>(
+          args.This().As<Object>());
   if (c == nullptr) return;
   c->ErrorInternal(args[0]);
 }
@@ -2473,10 +2569,16 @@ void ReadableByteStreamController::Error(
 // ===========================================================================
 
 ReadableStreamBYOBRequest::ReadableStreamBYOBRequest(Environment* env,
-                                                     Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kByobRequest) {}
+                                                     Local<Object> object) {
+  // Untracked: created per BYOB pull, trivially destructible, and the
+  // destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void ReadableStreamBYOBRequest::MemoryInfo(MemoryTracker* tracker) const {}
+void ReadableStreamBYOBRequest::Trace(cppgc::Visitor* visitor) const {
+  // Only the wrapper reference; no mutable handle members.
+  CppgcMixin::Trace(visitor);
+}
 
 Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
     Environment* env) {
@@ -2513,7 +2615,8 @@ void ReadableStreamBYOBRequest::GetView(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamBYOBRequest"))
     return;
-  auto* r = BaseObject::FromJSObject<ReadableStreamBYOBRequest>(args.This());
+  auto* r = CppgcMixin::Unwrap<ReadableStreamBYOBRequest>(
+      args.This().As<Object>());
   if (r == nullptr) return;
   args.GetReturnValue().Set(r->object()->GetInternalField(kView).As<Value>());
 }
@@ -2531,7 +2634,8 @@ void ReadableStreamBYOBRequest::Respond(
         isolate, "Failed to execute 'respond': 1 argument required")));
     return;
   }
-  auto* r = BaseObject::FromJSObject<ReadableStreamBYOBRequest>(args.This());
+  auto* r = CppgcMixin::Unwrap<ReadableStreamBYOBRequest>(
+      args.This().As<Object>());
   if (r == nullptr) return;
   ReadableByteStreamController* c = r->controller();
   if (c == nullptr) {
@@ -2566,7 +2670,8 @@ void ReadableStreamBYOBRequest::RespondWithNewView(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamBYOBRequest"))
     return;
-  auto* r = BaseObject::FromJSObject<ReadableStreamBYOBRequest>(args.This());
+  auto* r = CppgcMixin::Unwrap<ReadableStreamBYOBRequest>(
+      args.This().As<Object>());
   if (r == nullptr) return;
   ReadableByteStreamController* c = r->controller();
   if (c == nullptr) {
@@ -2757,7 +2862,8 @@ bool ReadableStreamBYOBReader::SetupInternal(Local<Object> stream_obj) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  auto* stream = BaseObject::FromJSObject<ReadableStream>(stream_obj);
+  CHECK(ReadableStream::GetConstructorTemplate(env)->HasInstance(stream_obj));
+  auto* stream = CppgcMixin::Unwrap<ReadableStream>(stream_obj);
   CHECK_NOT_NULL(stream);
   if (stream->locked()) {
     isolate->ThrowException(
@@ -3006,9 +3112,10 @@ MaybeLocal<Object> NewReadableStream(Environment* env,
   Local<Object> stream_obj;
   if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj))
     return MaybeLocal<Object>();
-  BaseObjectPtr<ReadableStream> stream =
-      MakeBaseObject<ReadableStream>(env, stream_obj);
-  stream->MakeWeak();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject stream).
+  auto* stream = cppgc::MakeGarbageCollected<ReadableStream>(
+      env->cppgc_allocation_handle(), env, stream_obj);
 
   // Create the controller object.
   Local<Function> controller_ctor;
@@ -3019,9 +3126,9 @@ MaybeLocal<Object> NewReadableStream(Environment* env,
   Local<Object> controller_obj;
   if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj))
     return MaybeLocal<Object>();
-  BaseObjectPtr<ReadableStreamDefaultController> controller =
-      MakeBaseObject<ReadableStreamDefaultController>(env, controller_obj);
-  controller->MakeWeak();
+  auto* controller =
+      cppgc::MakeGarbageCollected<ReadableStreamDefaultController>(
+          env->cppgc_allocation_handle(), env, controller_obj);
 
   // Link stream <-> controller (GC-traced internal fields).
   stream->SetController(controller_obj, /* is_byte */ false);
@@ -3086,9 +3193,10 @@ void CreateReadableByteStream(const FunctionCallbackInfo<Value>& args) {
     return;
   Local<Object> stream_obj;
   if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj)) return;
-  BaseObjectPtr<ReadableStream> stream =
-      MakeBaseObject<ReadableStream>(env, stream_obj);
-  stream->MakeWeak();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject stream).
+  auto* stream = cppgc::MakeGarbageCollected<ReadableStream>(
+      env->cppgc_allocation_handle(), env, stream_obj);
 
   Local<Function> controller_ctor;
   if (!ReadableByteStreamController::GetConstructorTemplate(env)
@@ -3097,9 +3205,9 @@ void CreateReadableByteStream(const FunctionCallbackInfo<Value>& args) {
     return;
   Local<Object> controller_obj;
   if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj)) return;
-  BaseObjectPtr<ReadableByteStreamController> controller =
-      MakeBaseObject<ReadableByteStreamController>(env, controller_obj);
-  controller->MakeWeak();
+  auto* controller =
+      cppgc::MakeGarbageCollected<ReadableByteStreamController>(
+          env->cppgc_allocation_handle(), env, controller_obj);
 
   stream->SetController(controller_obj, /* is_byte */ true);
 
@@ -3166,14 +3274,20 @@ void AcquireReadableStreamBYOBReader(
 // stays unchanged.
 void ReadableStreamStateField(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(static_cast<uint32_t>(s->state()));
 }
 
 void ReadableStreamDisturbed(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(s->disturbed());
 }
@@ -3181,7 +3295,10 @@ void ReadableStreamDisturbed(const FunctionCallbackInfo<Value>& args) {
 void ReadableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   Local<Promise> p = s->closed_promise(env);
   if (!p.IsEmpty()) args.GetReturnValue().Set(p);
@@ -3192,7 +3309,10 @@ void ReadableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
 // locked stream; this bypasses that check by running the cancel steps directly.
 void ReadableStreamCancel(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(s->CancelInternal(args[1]));
 }
@@ -3202,7 +3322,10 @@ void ReadableStreamCancel(const FunctionCallbackInfo<Value>& args) {
 void ReadableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!ReadableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(s->stored_error(env));
 }
@@ -3356,7 +3479,7 @@ void RunPipePump(WritableStream* d) {
   Local<Object> src_obj = d->pump_source_obj(d->env()->isolate());
   auto* s = src_obj.IsEmpty()
                 ? nullptr
-                : BaseObject::FromJSObject<ReadableStream>(src_obj);
+                : CppgcMixin::Unwrap<ReadableStream>(src_obj);
   if (s == nullptr || PipeTransferStep(s, d) != 1)
     d->DisarmPumpAndSettleStall();
 }
@@ -3368,7 +3491,7 @@ void RunPipePump(WritableStream* d) {
 void PipePump(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsObject());
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   auto* d = CppgcMixin::Unwrap<WritableStream>(args[1].As<Object>());
   if (s == nullptr || d == nullptr) {
     args.GetReturnValue().Set(2);
@@ -3403,7 +3526,7 @@ void PipePumpDisarm(const FunctionCallbackInfo<Value>& args) {
 void ReadableStreamController(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!ReadableStream::GetConstructorTemplate(env)->HasInstance(args[0])) return;
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(
       s->object()->GetInternalField(ReadableStream::kController).As<Value>());
@@ -3416,7 +3539,7 @@ void ReadableStreamController(const FunctionCallbackInfo<Value>& args) {
 void ReadableStreamReleaseReader(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!ReadableStream::GetConstructorTemplate(env)->HasInstance(args[0])) return;
-  auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
+  auto* s = CppgcMixin::Unwrap<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   if (ReadableStreamDefaultReader* dr = s->default_reader())
     dr->Release();
@@ -3439,27 +3562,24 @@ void IsReadableStream(const FunctionCallbackInfo<Value>& args) {
 // tolerate a branch that has since been closed or errored.
 void DefaultControllerEnqueue(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* c =
-      BaseObject::FromJSObject<ReadableStreamDefaultController>(
-          args[0].As<Object>());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args[0].As<Object>());
   if (c == nullptr || !c->CanCloseOrEnqueue()) return;
   USE(c->EnqueueInternal(args[1]));  // leaves exception pending on size() throw
 }
 
 void DefaultControllerClose(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* c =
-      BaseObject::FromJSObject<ReadableStreamDefaultController>(
-          args[0].As<Object>());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args[0].As<Object>());
   if (c == nullptr) return;
   c->CloseInternal();  // already guarded by CanCloseOrEnqueue
 }
 
 void DefaultControllerError(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* c =
-      BaseObject::FromJSObject<ReadableStreamDefaultController>(
-          args[0].As<Object>());
+  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+      args[0].As<Object>());
   if (c == nullptr) return;
   c->ErrorInternal(args[1]);  // no-op if the stream is not readable
 }

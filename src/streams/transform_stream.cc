@@ -695,7 +695,7 @@ Local<Promise> TransformStream::SourceCancel(Local<Value> reason) {
 
 void TransformStream::SetReadable(Local<Object> readable_obj) {
   object()->SetInternalField(kReadable, readable_obj);
-  readable_cache_ = BaseObject::FromJSObject<ReadableStream>(readable_obj);
+  readable_cache_ = CppgcMixin::Unwrap<ReadableStream>(readable_obj);
   CHECK_NOT_NULL(readable_cache_);
 }
 
