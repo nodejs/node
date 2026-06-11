@@ -4132,6 +4132,28 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
   return info;
 }
 
+#ifdef _WIN32
+static void HandleToFd(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+
+  int flags = 0;
+  if (args[1]->IsNumber()) {
+    flags = args[1].As<Int32>()->Value();
+  }
+
+  intptr_t value =
+      static_cast<intptr_t>(args[0].As<Number>()->Value());
+
+  int fd = _open_osfhandle(value, flags);
+  if (fd == -1) {
+    return env->ThrowErrnoException(errno, "_open_osfhandle");
+  }
+  args.GetReturnValue().Set(fd);
+}
+#endif  // _WIN32
+
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -4197,6 +4219,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "lutimes", LUTimes);
 
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
+
+#ifdef _WIN32
+  SetMethod(isolate, target, "handleToFd", HandleToFd);
+#endif
 
   SetMethod(isolate, target, "cpSyncCheckPaths", CpSyncCheckPaths);
   SetMethod(isolate, target, "cpSyncOverrideFile", CpSyncOverrideFile);
@@ -4325,6 +4351,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LUTimes);
 
   registry->Register(Mkdtemp);
+#ifdef _WIN32
+  registry->Register(HandleToFd);
+#endif
   registry->Register(NewFSReqCallback);
 
   registry->Register(FileHandle::New);
