@@ -12,6 +12,8 @@
 #include <vector>
 #include "v8.h"
 
+struct ZSTD_DCtx_s;
+
 namespace node {
 class Environment;
 
@@ -85,6 +87,7 @@ inline constexpr bool HasOption(EnableOption value, EnableOption flag) {
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
+  ~CompileCacheHandler();
   // With PORTABLE, the cache keys are computed from paths relative to
   // key_root, or to the cache directory when key_root is empty.
   CompileCacheEnableResult Enable(Environment* env,
@@ -148,6 +151,9 @@ class CompileCacheHandler {
   bool read_only_ = false;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
+  // Lazily created zstd decompression context, reused across cache reads
+  // to avoid recreating its workspace for every file.
+  ZSTD_DCtx_s* zstd_dctx_ = nullptr;
 };
 }  // namespace node
 
