@@ -2944,6 +2944,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63851
+    description: Add the `windowsHandle` option.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40013
     description: The `fs` option does not need `open` method if an `fd` was provided.
@@ -3000,6 +3003,8 @@ changes:
   * `highWaterMark` {integer} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
+  * `windowsHandle` {integer} A raw Win32 `HANDLE` value to read from, in place
+    of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.ReadStream}
 
 `options` can include `start` and `end` values to read a range of bytes from
@@ -3019,6 +3024,12 @@ If `fd` points to a character device that only supports blocking reads
 (such as keyboard or sound card), read operations do not finish until data is
 available. This can prevent the process from exiting and the stream from
 closing naturally.
+
+On Windows, a value passed in `fd` is interpreted as a CRT file descriptor. To
+use a raw Win32 `HANDLE` instead, such as an inherited anonymous pipe handle
+obtained from another process, pass it as `windowsHandle`. The handle is wrapped
+in a file descriptor that the stream owns and closes. The `windowsHandle` option
+throws on non-Windows platforms and cannot be combined with the `fs` option.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
@@ -3070,6 +3081,9 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63851
+    description: Add the `windowsHandle` option.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
@@ -3134,6 +3148,8 @@ changes:
     [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
+  * `windowsHandle` {integer} A raw Win32 `HANDLE` value to write to, in place
+    of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -3147,6 +3163,12 @@ the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
 It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
+
+On Windows, a value passed in `fd` is interpreted as a CRT file descriptor. To
+use a raw Win32 `HANDLE` instead, such as an inherited anonymous pipe handle
+obtained from another process, pass it as `windowsHandle`. The handle is wrapped
+in a file descriptor that the stream owns and closes. The `windowsHandle` option
+throws on non-Windows platforms and cannot be combined with the `fs` option.
 
 By default, the stream will emit a `'close'` event after it has been
 destroyed.  Set the `emitClose` option to `false` to change this behavior.
