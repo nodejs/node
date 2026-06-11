@@ -367,7 +367,7 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
         std::string(negotiated).c_str());
 
   auto& session = tls_session.session();
-  auto app = session.SelectApplicationFromAlpn(negotiated);
+  auto app = session.SelectApplication();
   if (!app) {
     Debug(&session,
           "Failed to create Application for ALPN %s",

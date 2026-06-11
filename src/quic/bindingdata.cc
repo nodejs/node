@@ -7,6 +7,7 @@
 #include <nghttp3/nghttp3.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node.h>
+#include "http3.h"
 #include <node_errors.h>
 #include <node_external_reference.h>
 #include <node_mem-inl.h>
@@ -303,6 +304,7 @@ BindingData::BindingData(Realm* realm, Local<Object> object)
   MakeWeak();
   // Unref so the check handle doesn't keep the event loop alive on its own.
   flush_check_.Unref();
+  RegisterHttp3Application();
 }
 
 SessionManager& BindingData::session_manager() {

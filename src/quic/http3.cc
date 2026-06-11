@@ -1426,6 +1426,10 @@ std::unique_ptr<Session::Application> CreateHttp3Application(
   return std::make_unique<Http3ApplicationImpl>(session, options);
 }
 
+void RegisterHttp3Application() {
+  RegisterApplicationFactory("http3", CreateHttp3Application);
+}
+
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC

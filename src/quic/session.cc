@@ -23,7 +23,6 @@
 #include "data.h"
 #include "defs.h"
 #include "endpoint.h"
-#include "http3.h"
 #include "ncrypto.h"
 #include "packet.h"
 #include "preferredaddress.h"
@@ -248,8 +247,6 @@ SessionStatsArena& GetSessionStatsArena(BindingData& binding) {
 }  // namespace
 
 // ============================================================================
-
-class Http3Application;
 
 namespace {
 constexpr std::string to_string(PreferredAddress::Policy policy) {
@@ -617,6 +614,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   if (!SET(version) || !SET(min_version) || !SET(preferred_address_strategy) ||
       !SET(transport_params) || !SET(tls_options) || !SET(qlog) ||
+      !SET(applicationName) ||
       !SET(handshake_timeout) || !SET(initial_rtt) ||
       !SET(keep_alive_timeout) || !SET(max_stream_window) || !SET(max_window) ||
       !SET(max_payload_size) || !SET(unacknowledged_packet_threshold) ||
@@ -2279,8 +2277,7 @@ Session::Session(Endpoint* endpoint,
   // known upfront from the options. For servers, application_ stays
   // null until OnSelectAlpn fires during the TLS handshake.
   if (config.side == Side::CLIENT) {
-    auto app =
-        SelectApplicationFromAlpn(DecodeAlpn(config.options.tls_options.alpn));
+    auto app = SelectApplication();
     if (app) SetApplication(std::move(app));
   }
 
@@ -2632,12 +2629,12 @@ std::string_view Session::DecodeAlpn(std::string_view wire) {
   return {};
 }
 
-std::unique_ptr<Session::Application> Session::SelectApplicationFromAlpn(
-    std::string_view alpn) {
-  // h3 and h3-XX variants use Http3ApplicationImpl.
-  // Everything else uses DefaultApplication.
-  if (alpn == "h3" || (alpn.size() > 3 && alpn.substr(0, 3) == "h3-")) {
-    return CreateHttp3Application(this, config().options.application_options);
+std::unique_ptr<Session::Application> Session::SelectApplication() {
+  const auto& name = config().options.applicationName;
+  if (!name.empty()) {
+    auto factory = FindApplicationFactory(name);
+    CHECK_NOT_NULL(factory);
+    return factory(this, config().options.application_options);
   }
   return CreateDefaultApplication(this, config().options.application_options);
 }

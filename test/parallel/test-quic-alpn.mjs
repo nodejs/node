@@ -1,10 +1,10 @@
 // Flags: --experimental-quic --no-warnings
 
-import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import * as fixtures from '../common/fixtures.mjs';
 
-const { notStrictEqual, strictEqual } = assert;
+const { notStrictEqual, strictEqual, rejects } = assert;
 const { readKey } = fixtures;
 
 if (!hasQuic) {
@@ -46,4 +46,15 @@ const clientSession = await connect(serverEndpoint.address, {
 
 await Promise.all([serverOpened.promise, checkSession(clientSession)]);
 await clientSession.close();
+
+// ALPN is required: node:quic is transport-only and assumes no application
+// protocol, so a session created without one is rejected with a clear error
+// rather than silently defaulting.
+await rejects(listen(mustNotCall(), {
+  sni: { '*': { keys: [key], certs: [cert] } },
+}), { code: 'ERR_INVALID_ARG_VALUE', message: /options\.alpn/ });
+await rejects(connect(serverEndpoint.address, { verifyPeer: 'manual' }), {
+  code: 'ERR_INVALID_ARG_VALUE', message: /options\.alpn/,
+});
+
 await serverEndpoint.close();

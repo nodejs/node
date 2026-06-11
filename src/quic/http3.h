@@ -15,6 +15,8 @@ namespace node::quic {
 std::unique_ptr<Session::Application> CreateHttp3Application(
     Session* session, const Session::Application_Options& options);
 
+void RegisterHttp3Application();
+
 // Parse HTTP/3 specific session ticket app data. Called from
 // Application::ParseTicketData() when the type byte is HTTP3.
 // The data includes the type byte prefix.
