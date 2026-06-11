@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "cppgc_helpers.h"
 #include "memory_tracker.h"
 #include "streams/streams_binding.h"
 #include "v8.h"
@@ -58,8 +59,10 @@ class PromiseSlot {
   // object (spec: one releasedError for both).
   v8::Local<v8::Promise> promise(
       Environment* env,
-      v8::Global<v8::Value>* shared_released_reason = nullptr);
-  void MemoryInfo(MemoryTracker* tracker, const char* label) const;
+      v8::TracedReference<v8::Value>* shared_released_reason = nullptr);
+  // Traces the slot's handles; called from the owning writer's mutator-thread
+  // trace (the handles are mutated as the slot settles/materializes).
+  void Trace(cppgc::Visitor* visitor) const;
 
  private:
   enum class State : uint8_t {
@@ -72,9 +75,11 @@ class PromiseSlot {
   };
 
   State state_ = State::kNone;
-  v8::Global<v8::Value> reason_;  // kRejectedLazy only
-  v8::Global<v8::Promise> promise_;
-  v8::Global<v8::Promise::Resolver> resolver_;
+  // TracedReference (not Global): the slot lives inside the cppgc-managed
+  // writer, whose sweep-time destructor must not dispose persistent handles.
+  v8::TracedReference<v8::Value> reason_;  // kRejectedLazy only
+  v8::TracedReference<v8::Promise> promise_;
+  v8::TracedReference<v8::Promise::Resolver> resolver_;
 };
 
 // WritableStreamDefaultController — owns the write queue and queuing parameters.
@@ -186,10 +191,19 @@ class WritableStreamDefaultController final : public StreamBaseObject {
 };
 
 // WritableStreamDefaultWriter — holds the writer's ready/closed promise slots.
-class WritableStreamDefaultWriter final : public StreamBaseObject {
+// cppgc-managed (like the readers): writers are created/discarded in bulk by
+// pipeTo and getWriter() churn, need no realm-shutdown cleanup, and the bump
+// allocation + TracedReference model skips the malloc + persistent handle +
+// weak callback a BaseObject pays per instance.
+class WritableStreamDefaultWriter final
+    : CPPGC_MIXIN(WritableStreamDefaultWriter) {
  public:
+  SET_CPPGC_NAME(WritableStreamDefaultWriter)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kInternalFieldCount,
   };
 
@@ -206,10 +220,6 @@ class WritableStreamDefaultWriter final : public StreamBaseObject {
   static void ReleaseLock(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   WritableStreamDefaultWriter(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(WritableStreamDefaultWriter)
-  SET_SELF_SIZE(WritableStreamDefaultWriter)
 
   // Locked-to stream; cached raw pointer mirroring the GC-traced kStream
   // internal field (set in SetupInternal, cleared in Release).
@@ -231,12 +241,17 @@ class WritableStreamDefaultWriter final : public StreamBaseObject {
   void Release();
 
  private:
+  // Traces the promise slots' TracedReference members. Only ever runs on the
+  // mutator thread: the slots' handles are reset/materialized as promises
+  // settle, so Trace() defers concurrent marking here.
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
   PromiseSlot ready_;
   PromiseSlot closed_;
   // Lazily-built reader-released rejection reason, shared by ready_ and
   // closed_ so both reject with the same error object (see
   // PromiseSlot::promise).
-  v8::Global<v8::Value> released_reason_;
+  v8::TracedReference<v8::Value> released_reason_;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).
   WritableStream* stream_cache_ = nullptr;

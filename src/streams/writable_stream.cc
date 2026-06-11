@@ -1,6 +1,9 @@
 #include "streams/writable_stream.h"
 #include "streams/streams_binding.h"
 #include "base_object-inl.h"
+#include "cppgc/allocation.h"
+#include "cppgc/visitor.h"
+#include "cppgc_helpers-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
@@ -282,8 +285,8 @@ bool PromiseSlot::IsPending(Environment* env) const {
   return promise_.Get(env->isolate())->State() == Promise::PromiseState::kPending;
 }
 
-Local<Promise> PromiseSlot::promise(Environment* env,
-                                    v8::Global<v8::Value>* shared_released_reason) {
+Local<Promise> PromiseSlot::promise(
+    Environment* env, v8::TracedReference<v8::Value>* shared_released_reason) {
   if (state_ != State::kMaterialized && state_ != State::kNone) {
     Isolate* isolate = env->isolate();
     Local<Context> context = env->context();
@@ -330,8 +333,10 @@ Local<Promise> PromiseSlot::promise(Environment* env,
   return promise_.Get(env->isolate());
 }
 
-void PromiseSlot::MemoryInfo(MemoryTracker* tracker, const char* label) const {
-  tracker->TrackField(label, promise_);
+void PromiseSlot::Trace(cppgc::Visitor* visitor) const {
+  visitor->Trace(reason_);
+  visitor->Trace(promise_);
+  visitor->Trace(resolver_);
 }
 
 // ===========================================================================
@@ -785,12 +790,37 @@ void WritableStreamDefaultController::Error(
 // ===========================================================================
 
 WritableStreamDefaultWriter::WritableStreamDefaultWriter(Environment* env,
-                                                         Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kWritableStreamDefaultWriter) {}
+                                                         Local<Object> object) {
+  // Untracked: writers are created in bulk (pipeTo acquires one per pipe),
+  // need no realm-shutdown Clean() (default destructor; TracedReference
+  // cleanup is automatic), and skipping the per-wrapper list node +
+  // WeakPersistent keeps acquisition allocation-free beyond the cppgc bump
+  // pointer.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void WritableStreamDefaultWriter::MemoryInfo(MemoryTracker* tracker) const {
-  ready_.MemoryInfo(tracker, "ready");
-  closed_.MemoryInfo(tracker, "closed");
+void WritableStreamDefaultWriter::Trace(cppgc::Visitor* visitor) const {
+  // The promise slots' handles are reset/materialized as promises settle, so
+  // they cannot be traced from a concurrent marking thread; defer to the
+  // mutator thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const WritableStreamDefaultWriter*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(WritableStreamDefaultWriter))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void WritableStreamDefaultWriter::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  ready_.Trace(visitor);
+  closed_.Trace(visitor);
+  visitor->Trace(released_reason_);
 }
 
 
@@ -979,7 +1009,7 @@ void WritableStreamDefaultWriter::GetClosed(
     return;
   }
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   args.GetReturnValue().Set(w->closed_.promise(env, &w->released_reason_));
 }
 
@@ -992,7 +1022,7 @@ void WritableStreamDefaultWriter::GetReady(
     return;
   }
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   args.GetReturnValue().Set(w->ready_.promise(env, &w->released_reason_));
 }
 
@@ -1005,7 +1035,7 @@ void WritableStreamDefaultWriter::GetDesiredSize(
                                 "WritableStreamDefaultWriter"))
     return;
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (w == nullptr) return;
   if (!w->has_stream()) {
     isolate->ThrowException(InvalidStateError(
@@ -1031,7 +1061,7 @@ void WritableStreamDefaultWriter::Write(
     return;
   }
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context,
@@ -1052,7 +1082,7 @@ void WritableStreamDefaultWriter::Close(
     return;
   }
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context,
@@ -1079,7 +1109,7 @@ void WritableStreamDefaultWriter::Abort(
     return;
   }
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context,
@@ -1096,7 +1126,7 @@ void WritableStreamDefaultWriter::ReleaseLock(
                                 "WritableStreamDefaultWriter"))
     return;
   auto* w =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(args.This());
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (w == nullptr) return;
   if (!w->has_stream()) return;
   w->Release();
@@ -1171,7 +1201,7 @@ void WritableStream::SetController(Local<Object> controller_obj) {
 void WritableStream::SetWriter(Local<Object> writer_obj) {
   object()->SetInternalField(kWriter, writer_obj);
   writer_cache_ =
-      BaseObject::FromJSObject<WritableStreamDefaultWriter>(writer_obj);
+      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(writer_obj);
 }
 
 void WritableStream::ClearWriter() {
@@ -1734,9 +1764,10 @@ void AcquireWritableStreamDefaultWriter(
     return;
   Local<Object> writer_obj;
   if (!writer_ctor->NewInstance(context).ToLocal(&writer_obj)) return;
-  BaseObjectPtr<WritableStreamDefaultWriter> writer =
-      MakeBaseObject<WritableStreamDefaultWriter>(env, writer_obj);
-  writer->MakeWeak();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject writer).
+  auto* writer = cppgc::MakeGarbageCollected<WritableStreamDefaultWriter>(
+      env->cppgc_allocation_handle(), env, writer_obj);
 
   if (!writer->SetupInternal(stream_obj)) return;  // throws on lock
   args.GetReturnValue().Set(writer_obj);
