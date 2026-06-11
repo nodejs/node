@@ -2,6 +2,10 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63853
+    description: Type stripping is now supported for files inside
+                 `node_modules` folders.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/61803
     description: Removed `--experimental-transform-types` flag.
@@ -213,9 +217,28 @@ correct line numbers in stack traces; and Node.js does not generate them.
 
 ### Type stripping in dependencies
 
-To discourage package authors from publishing packages written in TypeScript,
-Node.js refuses to handle TypeScript files inside folders under a `node_modules`
-path.
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63853
+    description: Type stripping is now supported for files inside
+                 `node_modules` folders.
+-->
+
+Type stripping works for TypeScript files inside folders under a
+`node_modules` path, so packages can ship TypeScript sources directly
+instead of transpiling to JavaScript before publishing.
+
+Like all type-stripped files, files in `node_modules` are limited to
+erasable TypeScript syntax and follow the same rules as the rest of the
+application code; for example, [file extensions are mandatory][] in `import`
+specifiers. Package authors who want to publish TypeScript sources should
+reference the `.ts` files directly from the [`"exports"`][] field of
+`package.json`.
+
+To avoid paying the cost of stripping types from dependencies on every
+startup, the [module compile cache][] can be used to cache the stripped
+output on disk.
 
 ### Paths aliases
 
@@ -226,6 +249,7 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
+[`"exports"`]: packages.md#exports
 [`--no-strip-types`]: cli.md#--no-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
@@ -233,6 +257,7 @@ with `#`.
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax
 [file extensions are mandatory]: esm.md#mandatory-file-extensions
 [full support]: #full-typescript-support
+[module compile cache]: module.md#module-compile-cache
 [subpath imports]: packages.md#subpath-imports
 [the same way as `.js` files.]: packages.md#determining-module-system
 [type stripping]: #type-stripping
