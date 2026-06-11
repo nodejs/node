@@ -36,9 +36,11 @@ struct CompileCacheEntry {
   bool refreshed = false;
   bool persisted = false;
 
-  // Copy the cache into a new store for V8 to consume. Caller takes
-  // ownership.
-  v8::ScriptCompiler::CachedData* CopyCache() const;
+  // Wrap the cache into a non-owning CachedData for V8 to consume.
+  // The caller takes ownership of the returned wrapper object, while
+  // the underlying buffer remains owned by this entry and must outlive
+  // the consumption of the wrapper.
+  v8::ScriptCompiler::CachedData* WrapCache() const;
   const char* type_name() const;
 };
 
@@ -99,7 +101,9 @@ class CompileCacheHandler {
   static constexpr size_t kCacheSizeOffset = 2;
   static constexpr size_t kCodeHashOffset = 3;
   static constexpr size_t kCacheHashOffset = 4;
-  static constexpr size_t kHeaderCount = 5;
+  static constexpr size_t kCacheRawSizeOffset = 5;
+  static constexpr size_t kHeaderCount = 6;
+  static constexpr size_t kHeaderSize = kHeaderCount * sizeof(uint32_t);
 
   v8::Isolate* isolate_ = nullptr;
   bool is_debug_ = false;
