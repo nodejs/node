@@ -741,7 +741,7 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   // args: (startAlgorithm, transformAlgorithm, flushAlgorithm, cancelAlgorithm,
   //        wHWM, wSizeMode, wSize, rHWM, rSizeMode, rSize, abortController)
-  CHECK(args[0]->IsFunction());
+  CHECK(args[0]->IsFunction() || args[0]->IsUndefined());
   CHECK(args[1]->IsFunction());
   CHECK(args[2]->IsFunction());
   CHECK(args[3]->IsFunction());
@@ -750,7 +750,14 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[7]->IsNumber());
   CHECK(args[8]->IsUint32());
   CHECK(args[10]->IsObject());
-  Local<Function> start_algorithm = args[0].As<Function>();
+  // Empty when the transformer has no start() — the common case. The halves
+  // then skip the start-promise plumbing (no start trampoline, no shared
+  // start resolver, no per-creation reaction Functions) and mark their
+  // controllers started via the shared per-realm reaction instead, with the
+  // same one-microtask-after-construction timing and writable-before-readable
+  // order.
+  Local<Function> start_algorithm;
+  if (args[0]->IsFunction()) start_algorithm = args[0].As<Function>();
   Local<Function> transform_algorithm = args[1].As<Function>();
   Local<Function> flush_algorithm = args[2].As<Function>();
   Local<Function> cancel_algorithm = args[3].As<Function>();
@@ -790,8 +797,9 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   controller->MakeWeak();
 
   // The shared start promise must exist before the readable/writable run their
-  // (trampoline) start algorithm.
-  stream->InitStartResolver(env);
+  // (trampoline) start algorithm. With no user start there is nothing to
+  // await, so neither the resolver nor the trampoline is created.
+  if (!start_algorithm.IsEmpty()) stream->InitStartResolver(env);
   stream->SetController(controller_obj);
   controller->SetAlgorithms(transform_algorithm, flush_algorithm,
                             cancel_algorithm);
@@ -802,7 +810,8 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   // recover the stream from their receiver — the controllers call them with
   // algo_receiver == stream_obj (passed to the factories below).
   Local<Function> start_tramp;
-  USE(Function::New(context, TrampStart, stream_obj).ToLocal(&start_tramp));
+  if (!start_algorithm.IsEmpty())
+    USE(Function::New(context, TrampStart, stream_obj).ToLocal(&start_tramp));
   BindingData* bd = BindingData::Get(env);
   auto shared_tramp = [&](v8::Global<Function>* slot, FunctionCallback cb) {
     Local<Function> fn = slot->Get(isolate);
@@ -844,14 +853,17 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   stream->SetBackpressure(true);
 
   // Run the start algorithm and resolve the shared start promise with its
-  // result; a synchronous throw propagates out of construction.
-  Local<Value> start_result;
-  Local<Value> argv[] = {controller_obj};
-  if (!start_algorithm->Call(context, Undefined(isolate), 1, argv)
-           .ToLocal(&start_result)) {
-    return;
+  // result; a synchronous throw propagates out of construction. (With no user
+  // start the halves already took the started fast path above.)
+  if (!start_algorithm.IsEmpty()) {
+    Local<Value> start_result;
+    Local<Value> argv[] = {controller_obj};
+    if (!start_algorithm->Call(context, Undefined(isolate), 1, argv)
+             .ToLocal(&start_result)) {
+      return;
+    }
+    stream->ResolveStart(env, start_result);
   }
-  stream->ResolveStart(env, start_result);
 
   args.GetReturnValue().Set(stream_obj);
 }

@@ -724,6 +724,19 @@ bool WritableStreamDefaultController::Setup(
   stream->UpdateBackpressure(GetBackpressure());
 
   Local<Object> controller_obj = object();
+  if (start_algorithm.IsEmpty()) {
+    // No start algorithm at all: a TransformStream half whose transformer has
+    // no start(). Reproduce the spec's thenable-adoption microtask depth with
+    // the shared per-realm reaction — see the readable controller's Setup.
+    Local<Promise::Resolver> carrier;
+    if (!Promise::Resolver::New(context).ToLocal(&carrier)) return false;
+    USE(carrier->Resolve(context, controller_obj));
+    Local<Promise::Resolver> adopter;
+    if (!Promise::Resolver::New(context).ToLocal(&adopter)) return false;
+    USE(adopter->Resolve(context, carrier->GetPromise()));  // thenable adoption
+    ThenStartFulfilled(env, adopter->GetPromise());
+    return true;
+  }
   Local<Value> start_result;
   Local<Value> argv[] = {controller_obj};
   if (!start_algorithm->Call(context, Undefined(isolate), 1, argv)

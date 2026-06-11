@@ -800,6 +800,24 @@ bool ReadableStreamDefaultController::Setup(Local<Function> start_algorithm,
   // Run the start algorithm; on fulfillment mark started and pull. A synchronous
   // throw propagates to the caller (i.e. the ReadableStream constructor).
   Local<Object> controller_obj = object();
+  if (start_algorithm.IsEmpty()) {
+    // No start algorithm at all: a TransformStream half whose transformer has
+    // no start(). Per spec the half's start promise still ADOPTS the
+    // transform's inner start promise (promiseResolvedWith(thenable)), which
+    // settles `started` three microtask jobs after construction — WPT
+    // transform-streams/errors observes that depth against a queued abort.
+    // Reproduce the ladder without per-creation reaction Functions: adopt a
+    // fulfilled promise carrying the controller wrapper, so the shared
+    // per-realm start reaction can recover it at the same depth.
+    Local<Promise::Resolver> carrier;
+    if (!Promise::Resolver::New(context).ToLocal(&carrier)) return false;
+    USE(carrier->Resolve(context, controller_obj));
+    Local<Promise::Resolver> adopter;
+    if (!Promise::Resolver::New(context).ToLocal(&adopter)) return false;
+    USE(adopter->Resolve(context, carrier->GetPromise()));  // thenable adoption
+    ThenStartFulfilled(env, adopter->GetPromise());
+    return true;
+  }
   Local<Value> start_result;
   Local<Value> argv[] = {controller_obj};
   if (!start_algorithm->Call(context, Undefined(isolate), 1, argv)
