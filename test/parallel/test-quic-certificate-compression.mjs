@@ -74,12 +74,14 @@ async function handshake({ serverAlgs, clientAlgs }) {
     serverOpened.resolve();
     serverSession.close();
   }), {
+    alpn: 'h3',
     sni: { '*': { keys: [key], certs: [cert] } },
     ...(serverAlgs !== undefined ?
       { certificateCompression: serverAlgs } : {}),
   });
 
   const clientSession = await connect(endpoint.address, {
+    alpn: 'h3',
     servername: 'localhost',
     verifyPeer: 'manual',
     ...(clientAlgs !== undefined ?

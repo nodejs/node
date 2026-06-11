@@ -88,6 +88,7 @@ class SessionManager;
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(draining_period_multiplier, "drainingPeriodMultiplier")                    \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
+  V(applicationName, "applicationName")                                        \
   V(enable_early_data, "enableEarlyData")                                      \
   V(enable_datagrams, "enableDatagrams")                                       \
   V(enable_tls_trace, "tlsTrace")                                              \

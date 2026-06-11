@@ -14,6 +14,7 @@
 #include <node_sockaddr-inl.h>
 #include <v8.h>
 #include "bindingdata.h"
+#include "http3.h"
 #include "session.h"
 #include "session_manager.h"
 
@@ -303,6 +304,7 @@ BindingData::BindingData(Realm* realm, Local<Object> object)
   MakeWeak();
   // Unref so the check handle doesn't keep the event loop alive on its own.
   flush_check_.Unref();
+  RegisterHttp3Application();
 }
 
 SessionManager& BindingData::session_manager() {

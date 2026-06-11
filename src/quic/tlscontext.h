@@ -184,7 +184,7 @@ class TLSContext final : public MemoryRetainer,
     // The ALPN protocol identifier(s) in wire format (length-prefixed,
     // concatenated). For clients this is a single entry. For servers
     // this may contain multiple entries in preference order.
-    std::string alpn = NGHTTP3_ALPN_H3;
+    std::string alpn;
 
     // The list of TLS ciphers to use for this session.
     std::string ciphers = DEFAULT_CIPHERS;

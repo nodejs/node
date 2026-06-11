@@ -126,10 +126,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Decode the first ALPN protocol name from wire format (length-prefixed).
   static std::string_view DecodeAlpn(std::string_view wire);
 
-  // Select the Application implementation based on the negotiated ALPN.
-  // h3 (and h3-XX variants) map to Http3ApplicationImpl; all others map
-  // to DefaultApplication. Sets the application_type state field.
-  std::unique_ptr<Application> SelectApplicationFromAlpn(std::string_view alpn);
+  // Select the Application implementation: the factory registered under
+  // options.applicationName when set (see application.h), otherwise the default
+  // raw-stream application.
+  std::unique_ptr<Application> SelectApplication();
 
   // Install the Application on the session. Called at construction for
   // clients (ALPN known upfront) or from OnSelectAlpn for servers
@@ -173,6 +173,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // Application-specific options (used for HTTP/3 if the negotiated
     // ALPN selects Http3ApplicationImpl).
     Application_Options application_options = Application_Options::kDefault;
+
+    std::string applicationName;
 
     // When true, QLog output will be enabled for the session.
     bool qlog = false;
