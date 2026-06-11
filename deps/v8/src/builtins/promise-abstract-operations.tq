@@ -12,12 +12,6 @@ extern transitioning runtime RejectPromise(
 extern transitioning runtime PromiseRevokeReject(
     implicit context: Context)(JSPromise): JSAny;
 
-extern transitioning runtime PromiseRejectAfterResolved(
-    implicit context: Context)(JSPromise, JSAny): JSAny;
-
-extern transitioning runtime PromiseResolveAfterResolved(
-    implicit context: Context)(JSPromise, JSAny): JSAny;
-
 extern transitioning runtime PromiseRejectEventFromStack(
     implicit context: Context)(JSPromise, JSAny): JSAny;
 }
@@ -406,7 +400,7 @@ transitioning javascript builtin PromiseCapabilityDefaultReject(
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   if (alreadyResolved == True) {
-    return runtime::PromiseRejectAfterResolved(promise, reason);
+    return Undefined;
   }
 
   // 5. Set alreadyResolved.[[Value]] to true.
@@ -434,7 +428,7 @@ transitioning javascript builtin PromiseCapabilityDefaultResolve(
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   if (alreadyResolved == True) {
-    return runtime::PromiseResolveAfterResolved(promise, resolution);
+    return Undefined;
   }
 
   // 5. Set alreadyResolved.[[Value]] to true.
