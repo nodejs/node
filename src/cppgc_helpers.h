@@ -58,13 +58,30 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
   // management, cppgc-managed objects share the same layout as BaseObjects.
   enum InternalFields { kEmbedderType = 0, kSlot, kInternalFieldCount };
 
+  // Whether the wrapper is tracked in the per-realm CppgcWrapperList.
+  // Tracking costs an allocation (list node + WeakPersistent) per wrapper and
+  // exists to run Clean() on still-live wrappers at Realm shutdown and to
+  // include them in the realm's memory tracking. Classes that perform no
+  // realm-dependent cleanup (default destructor, no Clean() override — case 1
+  // in the cleanup patterns described in src/README.md) and are created in
+  // bulk on hot paths may opt out with kUntracked: their destructor must then
+  // never access realm()/env(), as an untracked wrapper destroyed by a late
+  // garbage collection outlives the Realm.
+  enum class Tracking : uint8_t { kTracked, kUntracked };
+
   // The initialization cannot be done in the mixin constructor but has to be
   // invoked from the child class constructor, per cppgc::GarbageCollectedMixin
   // rules.
   template <typename T>
-  static inline void Wrap(T* ptr, Realm* realm, v8::Local<v8::Object> obj);
+  static inline void Wrap(T* ptr,
+                          Realm* realm,
+                          v8::Local<v8::Object> obj,
+                          Tracking tracking = Tracking::kTracked);
   template <typename T>
-  static inline void Wrap(T* ptr, Environment* env, v8::Local<v8::Object> obj);
+  static inline void Wrap(T* ptr,
+                          Environment* env,
+                          v8::Local<v8::Object> obj,
+                          Tracking tracking = Tracking::kTracked);
 
   inline v8::Local<v8::Object> object() const;
   inline Environment* env() const;
@@ -115,6 +132,9 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
  private:
   Realm* realm_ = nullptr;
   v8::TracedReference<v8::Object> traced_reference_;
+  // See Tracking. Untracked wrappers are not in the realm's wrapper list and
+  // must not touch realm_ during destruction (it may already be gone).
+  bool tracked_ = true;
 };
 
 // If the class doesn't have additional owned traceable data, use this macro to

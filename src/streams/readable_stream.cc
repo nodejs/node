@@ -893,7 +893,11 @@ void ReadableStreamDefaultController::Error(
 
 ReadableStreamDefaultReader::ReadableStreamDefaultReader(Environment* env,
                                                          Local<Object> object) {
-  CppgcMixin::Wrap(this, env, object);
+  // Untracked: readers are created in bulk, need no realm-shutdown Clean()
+  // (default destructor; TracedReference cleanup is automatic), and skipping
+  // the per-wrapper list node + WeakPersistent keeps acquisition allocation-
+  // free beyond the cppgc bump pointer.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
 }
 
 void ReadableStreamDefaultReader::Trace(cppgc::Visitor* visitor) const {
@@ -2578,7 +2582,8 @@ void ReadableStreamBYOBRequest::RespondWithNewView(
 
 ReadableStreamBYOBReader::ReadableStreamBYOBReader(Environment* env,
                                                    Local<Object> object) {
-  CppgcMixin::Wrap(this, env, object);
+  // Untracked — see ReadableStreamDefaultReader's constructor.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
 }
 
 void ReadableStreamBYOBReader::Trace(cppgc::Visitor* visitor) const {
