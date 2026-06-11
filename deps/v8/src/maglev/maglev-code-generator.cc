@@ -707,7 +707,14 @@ class ExceptionHandlerTrampolineBuilder {
 class MaglevCodeGeneratingNodeProcessor {
  public:
   MaglevCodeGeneratingNodeProcessor(MaglevAssembler* masm, Zone* zone)
-      : masm_(masm), zone_(zone) {}
+      : masm_(masm),
+        zone_(zone),
+        // Cache for faster check.
+        collect_source_positions_(masm->code_gen_state()
+                                      ->compilation_info()
+                                      ->collect_source_positions()) {
+    DCHECK_IMPLIES(collect_source_positions_, graph_labeller() != nullptr);
+  }
 
   void PreProcessGraph(Graph* graph) {
     // TODO(victorgomes): I wonder if we want to create a struct that shares
@@ -799,6 +806,15 @@ class MaglevCodeGeneratingNodeProcessor {
       ss << "--   " << graph_labeller()->NodeId(node) << ": "
          << PrintNode(graph_labeller(), node);
       __ RecordComment(ss.str());
+    }
+    if (collect_source_positions_) {
+      // TODO(leszeks): Consider collecting source position in a more memory
+      // friendly way, if we don't need the whole graph labeller.
+      const auto& provenance = graph_labeller()->GetNodeProvenance(node);
+      if (provenance.position.IsKnown()) {
+        code_gen_state()->source_position_table_builder()->AddPosition(
+            masm_->pc_offset(), provenance.position, false);
+      }
     }
 
     if (v8_flags.maglev_assert_stack_size) {
@@ -1105,6 +1121,7 @@ class MaglevCodeGeneratingNodeProcessor {
   }
   MaglevAssembler* const masm_;
   Zone* zone_;
+  bool collect_source_positions_;
 };
 
 class SafepointingNodeProcessor {
@@ -1695,8 +1712,9 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       safepoint_table_builder_(compilation_info->zone(),
                                graph->tagged_stack_slots()),
       frame_translation_builder_(compilation_info->zone()),
+      source_position_table_builder_(compilation_info->zone()),
       code_gen_state_(compilation_info, &safepoint_table_builder_,
-                      graph->max_block_id()),
+                      &source_position_table_builder_, graph->max_block_id()),
       masm_(isolate->GetMainThreadIsolateUnsafe(), compilation_info->zone(),
             &code_gen_state_),
       graph_(graph),
@@ -1919,6 +1937,10 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
     LocalIsolate* local_isolate) {
   if (!code_gen_succeeded_) return {};
 
+  // Allocate the source position table.
+  Handle<TrustedByteArray> source_positions =
+      source_position_table_builder_.ToSourcePositionTable(local_isolate);
+
   Handle<DeoptimizationData> deopt_data =
       (v8_flags.maglev_deopt_data_on_background &&
        !v8_flags.maglev_build_code_on_background)
@@ -1934,7 +1956,7 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
           .set_stack_slots(stack_slot_count_with_fixed_frame())
           .set_parameter_count(parameter_count())
           .set_deoptimization_data(deopt_data)
-          .set_empty_source_position_table()
+          .set_source_position_table(source_positions)
           .set_inlined_bytecode_size(graph_->total_inlined_bytecode_size())
           .set_osr_offset(
               code_gen_state_.compilation_info()->toplevel_osr_offset());

@@ -9,6 +9,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/maglev-safepoint-table.h"
+#include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
@@ -34,9 +35,11 @@ class MaglevCodeGenState {
  public:
   MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
                      MaglevSafepointTableBuilder* safepoint_table_builder,
+                     SourcePositionTableBuilder* source_position_table_builder,
                      uint32_t max_block_id)
       : compilation_info_(compilation_info),
         safepoint_table_builder_(safepoint_table_builder),
+        source_position_table_builder_(source_position_table_builder),
         real_jump_target_(max_block_id) {}
 
   void set_tagged_slots(int slots) { tagged_slots_ = slots; }
@@ -80,6 +83,9 @@ class MaglevCodeGenState {
   MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
+  SourcePositionTableBuilder* source_position_table_builder() const {
+    return source_position_table_builder_;
+  }
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
   Label* entry_label() { return &entry_label_; }
@@ -121,6 +127,7 @@ class MaglevCodeGenState {
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
+  SourcePositionTableBuilder* const source_position_table_builder_;
 
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<EagerDeoptInfo*> eager_deopts_;
