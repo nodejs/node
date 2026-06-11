@@ -101,6 +101,24 @@ Local<Object> MakeReadResult(Environment* env,
         ->CreateDataProperty(
             context, env->done_string(), Boolean::New(isolate, done))
         .Check();
+    // Generalize the `value` field's descriptor up front (constness kMutable,
+    // representation Tagged) by cycling distinct value types through it. The
+    // initial CreateDataProperty records a kConst HeapObject field; without
+    // this, EVERY clone's value write below would re-run the const->mutable
+    // descriptor update + map migration (PrepareForDataProperty /
+    // UpdateDescriptorForValue / Map::Update) because each clone starts from
+    // the boilerplate's un-generalized map. After generalization the hot
+    // write is a plain field store.
+    boilerplate
+        ->CreateDataProperty(
+            context, env->value_string(), v8::Integer::New(isolate, 1))
+        .Check();
+    boilerplate
+        ->CreateDataProperty(context, env->value_string(), env->done_string())
+        .Check();
+    boilerplate
+        ->CreateDataProperty(context, env->value_string(), Undefined(isolate))
+        .Check();
     if (!for_author_code)
       boilerplate->SetPrototypeV2(context, Null(isolate)).Check();
     slot.Reset(isolate, boilerplate);
@@ -192,28 +210,30 @@ void ReactStartFulfilledByte(const FunctionCallbackInfo<Value>& args) {
 
 void ReactPullFulfilledDefault(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+  // args.Data() is the controller wrapper this binding bound at Function
+  // creation: trusted, no brand re-check needed.
+  auto* c = UnwrapTrusted<ReadableStreamDefaultController>(
       args.Data().As<Object>());
   if (c != nullptr) c->FinishPull();
 }
 
 void ReactPullFulfilledByte(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+  auto* c = UnwrapTrusted<ReadableByteStreamController>(
       args.Data().As<Object>());
   if (c != nullptr) c->FinishPull();
 }
 
 void ReactRejectedDefault(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+  auto* c = UnwrapTrusted<ReadableStreamDefaultController>(
       args.Data().As<Object>());
   if (c != nullptr) c->ErrorInternal(args[0]);
 }
 
 void ReactRejectedByte(const FunctionCallbackInfo<Value>& args) {
   if (!args.Data()->IsObject()) return;
-  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+  auto* c = UnwrapTrusted<ReadableByteStreamController>(
       args.Data().As<Object>());
   if (c != nullptr) c->ErrorInternal(args[0]);
 }
@@ -606,6 +626,10 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
     // Synchronous pull: enqueue FinishPull directly as a microtask via the
     // per-controller cached reaction — one API call, no promise; ordering is
     // identical (CallableTask and PromiseReactionJob share the FIFO queue).
+    // (A native MicrotaskCallback was tried here and measured WORSE: the
+    // cell must root this cppgc controller's wrapper while armed, and the
+    // per-pull v8::Global arm/disarm pair costs more than the JS-function
+    // task machinery it saves.)
     Local<Function> ff = on_pull_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
       if (!Function::New(context, ReactPullFulfilledDefault, controller_obj, 0,
@@ -876,7 +900,7 @@ void ReadableStreamDefaultController::GetDesiredSize(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+  auto* c = UnwrapTrusted<ReadableStreamDefaultController>(
       args.This().As<Object>());
   if (c == nullptr) return;
   bool is_null = false;
@@ -894,7 +918,7 @@ void ReadableStreamDefaultController::Close(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+  auto* c = UnwrapTrusted<ReadableStreamDefaultController>(
       args.This().As<Object>());
   if (c == nullptr) return;
   if (!c->CanCloseOrEnqueue()) {
@@ -911,7 +935,7 @@ void ReadableStreamDefaultController::Enqueue(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+  auto* c = UnwrapTrusted<ReadableStreamDefaultController>(
       args.This().As<Object>());
   if (c == nullptr) return;
   if (!c->CanCloseOrEnqueue()) {
@@ -929,7 +953,7 @@ void ReadableStreamDefaultController::Error(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamDefaultController"))
     return;
-  auto* c = CppgcMixin::Unwrap<ReadableStreamDefaultController>(
+  auto* c = UnwrapTrusted<ReadableStreamDefaultController>(
       args.This().As<Object>());
   if (c == nullptr) return;
   c->ErrorInternal(args[0]);
@@ -970,9 +994,7 @@ void ReadableStreamDefaultReader::TraceOnMutatorThread(
   visitor->Trace(closed_);
   visitor->Trace(closed_reason_);
   read_requests_.ForEach(
-      [&](const v8::TracedReference<Promise::Resolver>& r) {
-        visitor->Trace(r);
-      });
+      [&](const v8::TracedReference<Value>& r) { visitor->Trace(r); });
 }
 
 Local<FunctionTemplate> ReadableStreamDefaultReader::GetConstructorTemplate(
@@ -1006,41 +1028,85 @@ void ReadableStreamDefaultReader::RegisterExternalReferences(
   registry->Register(GetClosed);
 }
 
-void ReadableStreamDefaultReader::AddReadRequest(
-    Local<Promise::Resolver> resolver) {
-  // Emplace empty + Reset (an ASSIGNING store), never the
-  // TracedReference(isolate, local) constructor: the constructor is an
-  // INITIALIZING store, which during incremental marking gets neither a
-  // markbit nor a write barrier (V8 assumes it happens inside a brand-new,
-  // yet-to-be-traced object). This reader may already have been traced this
-  // marking cycle, so an initializing store here can leave the new node
-  // unmarked, and ResetDeadNodes zaps it at the end of marking — a
+void ReadableStreamDefaultReader::AddReadRequestInternal(Local<Value> request) {
+  // Common case (single outstanding read): park in the kParkedRead internal
+  // field — a plain tagged store traced with the wrapper — instead of paying
+  // a traced-node create per read. Only used when no other request is pending
+  // so FIFO order with the overflow queue below is preserved.
+  if (!parked_read_in_slot_ && read_requests_.empty()) {
+    object()->SetInternalField(kParkedRead, request);
+    parked_read_in_slot_ = true;
+    return;
+  }
+  // Overflow (2+ concurrent reads). Emplace empty + Reset (an ASSIGNING
+  // store), never the TracedReference(isolate, local) constructor: the
+  // constructor is an INITIALIZING store, which during incremental marking
+  // gets neither a markbit nor a write barrier (V8 assumes it happens inside a
+  // brand-new, yet-to-be-traced object). This reader may already have been
+  // traced this marking cycle, so an initializing store here can leave the new
+  // node unmarked, and ResetDeadNodes zaps it at the end of marking — a
   // use-after-free when the parked read settles.
   read_requests_.emplace_back();
-  read_requests_.back().Reset(env()->isolate(), resolver);
+  read_requests_.back().Reset(env()->isolate(), request);
 }
 
-Local<Promise::Resolver> ReadableStreamDefaultReader::TakeReadRequest() {
+void ReadableStreamDefaultReader::AddReadRequest(
+    Local<Promise::Resolver> resolver) {
+  AddReadRequestInternal(resolver);
+}
+
+void ReadableStreamDefaultReader::AddReadRequestClosure(
+    Local<Function> settle) {
+  AddReadRequestInternal(settle);
+}
+
+Local<Value> ReadableStreamDefaultReader::TakeFrontReadRequest() {
+  Isolate* isolate = env()->isolate();
+  if (parked_read_in_slot_) {
+    Local<Object> wrapper = object();
+    Local<Value> request = wrapper->GetInternalField(kParkedRead).As<Value>();
+    // Clear the slot (an undefined store needs no remembered-set insert) so a
+    // settled request does not pin its promise/result graph until the next
+    // park overwrites it.
+    wrapper->SetInternalField(kParkedRead, Undefined(isolate));
+    parked_read_in_slot_ = false;
+    return request;
+  }
   CHECK(!read_requests_.empty());
-  Local<Promise::Resolver> resolver = read_requests_.front().Get(env()->isolate());
+  Local<Value> request = read_requests_.front().Get(isolate);
   // ~TracedReference does not free the traced cell (by design); Reset eagerly
   // so settled read requests do not pile up in the traced-handles table until
   // the next major GC.
   read_requests_.front().Reset();
   read_requests_.pop_front();
-  return resolver;
+  return request;
+}
+
+Local<Promise::Resolver> ReadableStreamDefaultReader::TakeReadRequest() {
+  CHECK_GT(num_read_requests(), 0u);
+  Local<Value> request = TakeFrontReadRequest();
+  // Only byte-stream paths take raw requests, and the read() wrapper never
+  // parks the closure kind on a byte stream (no default controller).
+  CHECK(!request->IsFunction());
+  return request.As<Promise::Resolver>();
 }
 
 void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  CHECK(!read_requests_.empty());
-  Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
-  read_requests_.front().Reset();
-  read_requests_.pop_front();
+  CHECK_GT(num_read_requests(), 0u);
+  Local<Value> request = TakeFrontReadRequest();
   Local<Value> value = done ? Undefined(isolate).As<Value>() : chunk;
-  USE(resolver->Resolve(
+  if (request->IsFunction()) {
+    // read() wrapper settle closure: builds { value, done } and resolves the
+    // read promise in JIT/builtin code.
+    Local<Value> argv[] = {value, Boolean::New(isolate, done)};
+    USE(request.As<Function>()->Call(
+        context, Undefined(isolate), arraysize(argv), argv));
+    return;
+  }
+  USE(request.As<Promise::Resolver>()->Resolve(
       context,
       MakeReadResult(env, context, value, done, for_author_code_)));
 }
@@ -1049,11 +1115,16 @@ void ReadableStreamDefaultReader::CloseAll() {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  while (!read_requests_.empty()) {
-    Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
-    read_requests_.front().Reset();
-    read_requests_.pop_front();
-    USE(resolver->Resolve(
+  while (num_read_requests() > 0) {
+    Local<Value> request = TakeFrontReadRequest();
+    if (request->IsFunction()) {
+      Local<Value> argv[] = {Undefined(isolate).As<Value>(),
+                             Boolean::New(isolate, true).As<Value>()};
+      USE(request.As<Function>()->Call(
+          context, Undefined(isolate), arraysize(argv), argv));
+      continue;
+    }
+    USE(request.As<Promise::Resolver>()->Resolve(
         context, MakeReadResult(env, context, Undefined(isolate), true,
                                 for_author_code_)));
   }
@@ -1063,11 +1134,17 @@ void ReadableStreamDefaultReader::ErrorAll(Local<Value> error) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  while (!read_requests_.empty()) {
-    Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
-    read_requests_.front().Reset();
-    read_requests_.pop_front();
-    USE(resolver->Reject(context, error));
+  while (num_read_requests() > 0) {
+    Local<Value> request = TakeFrontReadRequest();
+    if (request->IsFunction()) {
+      // settle(error, false, true) rejects the wrapper-created promise.
+      Local<Value> argv[] = {error, Boolean::New(isolate, false).As<Value>(),
+                             Boolean::New(isolate, true).As<Value>()};
+      USE(request.As<Function>()->Call(
+          context, Undefined(isolate), arraysize(argv), argv));
+      continue;
+    }
+    USE(request.As<Promise::Resolver>()->Reject(context, error));
   }
 }
 
@@ -1202,7 +1279,7 @@ void ReadableStreamDefaultReader::Release() {
 
   // Error any outstanding read requests with the releasing error (created
   // only if there are any — error construction captures a stack trace).
-  if (!read_requests_.empty()) {
+  if (num_read_requests() > 0) {
     ErrorAll(InvalidStateError(isolate, context,
                                "The reader is not attached to a stream"));
   }
@@ -1260,8 +1337,7 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* reader =
-      CppgcMixin::Unwrap<ReadableStreamDefaultReader>(args.This());
+  auto* reader = UnwrapTrusted<ReadableStreamDefaultReader>(args.This());
   DoDefaultReaderRead(env, reader, args);
 }
 
@@ -3407,17 +3483,21 @@ static bool LooksLikePromise(Local<Context> context,
 
 void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  auto* bd = BindingData::Get(env);
   // Real brand check (HasInstance): args[0] is the wrapper's untrusted `this`
   // and FromJSObject's cast is unchecked across BaseObject subclasses. Only a
   // foreign receiver falls back to the native read (for its Web IDL
   // brand-check rejection); every other case completes in this crossing.
-  if (!ReadableStreamDefaultReader::GetConstructorTemplate(env)->HasInstance(
-          args[0])) {
+  // The template Global is read directly off the BindingData: this binding is
+  // only reachable from the reader prototype's read(), so the reader template
+  // necessarily exists.
+  Local<FunctionTemplate> reader_tmpl =
+      bd->readable_stream_default_reader_ctor.Get(env->isolate());
+  if (reader_tmpl.IsEmpty() || !reader_tmpl->HasInstance(args[0])) {
     args.GetReturnValue().Set(args[1]);
     return;
   }
-  auto* r = CppgcMixin::Unwrap<ReadableStreamDefaultReader>(
-      args[0].As<Object>());
+  auto* r = UnwrapTrusted<ReadableStreamDefaultReader>(args[0].As<Object>());
   Local<Context> context = env->context();
   // Fast path: buffered chunk on an author-code reader. Non-author-code
   // readers (tee's internal reader) need null-prototype read results so a
@@ -3426,6 +3506,16 @@ void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
   if (r->has_stream() && r->for_author_code()) {
     ReadableStream* s = r->stream();
     ReadableStreamDefaultController* c = s->default_controller();
+    if (c != nullptr && s->state() == StreamState::kReadable &&
+        c->queue_length() == 0 && args.Length() > 2) {
+      // Would park: hand back the park sentinel (args[2]) so the JS wrapper
+      // creates the read promise and a {fulfill, reject} closure pair in JIT
+      // code and parks them via readerParkRead — settling through them is
+      // substantially cheaper than the C++ API resolver + result-clone path.
+      // No state was touched; the wrapper calls readerParkRead synchronously.
+      args.GetReturnValue().Set(args[2]);
+      return;
+    }
     if (c != nullptr && s->state() == StreamState::kReadable &&
         c->queue_length() > 0) {
       s->set_disturbed(true);
@@ -3437,7 +3527,6 @@ void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
       } else {
         c->CallPullIfNeeded();
       }
-      auto* bd = BindingData::Get(env);
       Local<Object> promise_proto;
       if (bd->promise_prototype.IsEmpty()) {
         // Cache the realm's original %Promise.prototype% (primordial-safe:
@@ -3468,6 +3557,22 @@ void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
   // controller, empty queue, non-author reader — is the full native read,
   // still in this single crossing; its return is always a real promise.
   DoDefaultReaderRead(env, r, args);
+}
+
+// Second half of the wrapper's parked-read protocol: ReaderFastRead returned
+// the park sentinel, the wrapper built the read promise plus its settle
+// closure in JIT code, and parks it here. args[0] is trusted (the wrapper
+// brand-checked it in the same synchronous step, and no user code can run in
+// between — internalBinding functions are not reachable from user code).
+// Mirrors DoDefaultReaderRead's kReadable park branch.
+void ReaderParkRead(const FunctionCallbackInfo<Value>& args) {
+  auto* r = UnwrapTrusted<ReadableStreamDefaultReader>(args[0].As<Object>());
+  if (r == nullptr || !r->has_stream()) return;
+  ReadableStream* s = r->stream();
+  s->set_disturbed(true);
+  r->AddReadRequestClosure(args[1].As<Function>());
+  ReadableStreamDefaultController* c = s->default_controller();
+  if (c != nullptr) c->CallPullIfNeeded();
 }
 
 // Write-completion re-entry for an armed pump (declared in
@@ -3624,6 +3729,7 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "pipePump", PipePump);
   SetMethod(isolate, target, "pipePumpDisarm", PipePumpDisarm);
   SetMethod(isolate, target, "readerFastRead", ReaderFastRead);
+  SetMethod(isolate, target, "readerParkRead", ReaderParkRead);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
   SetMethod(isolate, target, "readableStreamReleaseReader",
@@ -3651,6 +3757,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(PipePump);
   registry->Register(PipePumpDisarm);
   registry->Register(ReaderFastRead);
+  registry->Register(ReaderParkRead);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);

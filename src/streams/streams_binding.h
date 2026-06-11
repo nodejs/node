@@ -6,6 +6,7 @@
 #include "base_object.h"
 #include "memory_tracker.h"
 #include "node_snapshotable.h"
+#include "node_v8_embedder.h"
 #include "v8.h"
 
 #include <vector>
@@ -163,6 +164,17 @@ void ThenStartFulfilledByte(Environment* env, v8::Local<v8::Promise> promise);
 // only on instantiation failure (with a pending exception).
 v8::Local<v8::Function> NoopFunction(Environment* env);
 
+// Unwraps a cppgc-managed stream wrapper whose identity has already been
+// established — a HasInstance brand check passed, or the object is a reaction
+// Function's Data that this binding created. Skips CppgcMixin::Unwrap's
+// InternalFieldCount() V8 API call (the field count is implied by the brand),
+// which is measurable on per-chunk paths.
+template <typename T>
+inline T* UnwrapTrusted(v8::Local<v8::Object> obj) {
+  return static_cast<T*>(obj->GetAlignedPointerFromInternalField(
+      T::kSlot, EmbedderDataTag::kDefault));
+}
+
 // Brand-checks `receiver` against `ctor` for a synchronous operation/getter.
 // Returns true on success; otherwise throws an ERR_INVALID_THIS TypeError named
 // for `type_name` and returns false (the caller must then return from the V8
@@ -259,6 +271,22 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::Function> noop_function;
 };
 
+}  // namespace webstreams
+}  // namespace node
+
+// Inline definition (needs the complete Environment/Realm): BindingData::Get
+// runs multiple times per chunk on the hot paths, so it must not pay a
+// cross-TU call. env->context()'s realm is by definition the principal realm;
+// going through it directly is three dependent loads, with none of the
+// context-handle deref + embedder-data API walk of Realm::GetCurrent.
+#include "env-inl.h"
+#include "node_realm-inl.h"
+
+namespace node {
+namespace webstreams {
+inline BindingData* BindingData::Get(Environment* env) {
+  return env->principal_realm()->GetBindingData<BindingData>();
+}
 }  // namespace webstreams
 }  // namespace node
 

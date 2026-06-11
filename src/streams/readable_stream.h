@@ -185,6 +185,13 @@ class ReadableStreamDefaultReader final
 
   enum InternalFields {
     kStream = CppgcMixin::kInternalFieldCount,
+    // Fast slot for the front parked read request (the overwhelmingly common
+    // single-outstanding-read case). An internal field is a plain tagged
+    // store traced with the wrapper, where a TracedReference would pay a
+    // traced-node create + destroy per parked read (Reset never recycles
+    // nodes). Holds the request's primary: a promise resolver, or the settle
+    // closure installed by the public read() wrapper.
+    kParkedRead,
     kInternalFieldCount,
   };
 
@@ -205,10 +212,21 @@ class ReadableStreamDefaultReader final
   ReadableStream* stream() const { return stream_cache_; }
   bool has_stream() const { return stream_cache_ != nullptr; }
 
-  size_t num_read_requests() const { return read_requests_.size(); }
+  size_t num_read_requests() const {
+    return read_requests_.size() + (parked_read_in_slot_ ? 1 : 0);
+  }
   // Parks a pending read; the resolver is settled later by Fulfill/Close/Error.
   void AddReadRequest(v8::Local<v8::Promise::Resolver> resolver);
-  // Pops and returns the front pending read request resolver (CHECK non-empty).
+  // Parks a pending read issued by the public read() JS wrapper: `settle` is
+  // a JIT closure called as settle(value, done) to build { value, done } and
+  // resolve the wrapper-created promise, or settle(error, false, true) to
+  // reject it. Settling through it keeps the result construction and promise
+  // resolution in JIT/builtin code (StoreICs and an IC'd then-lookup) instead
+  // of the much dearer C++ API equivalents.
+  void AddReadRequestClosure(v8::Local<v8::Function> settle);
+  // Pops and returns the front pending read request resolver (CHECK it is the
+  // resolver kind — only byte-stream paths call this, and the read() wrapper
+  // never parks closures on byte streams).
   v8::Local<v8::Promise::Resolver> TakeReadRequest();
   // Resolves the front read request: {value: undefined, done: true} when done,
   // otherwise {value: chunk, done: false}.
@@ -238,7 +256,18 @@ class ReadableStreamDefaultReader final
   // concurrent marking here via DeferTraceToMutatorThreadIfConcurrent.
   void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
 
-  FifoQueue<v8::TracedReference<v8::Promise::Resolver>> read_requests_;
+  // A parked read request is either a promise resolver (native reads —
+  // pipeTo, tee, byte streams, the async iterator) or the read() wrapper's
+  // settle closure, discriminated by ->IsFunction().
+  void AddReadRequestInternal(v8::Local<v8::Value> request);
+  // Front parked read taken from/put into the kParkedRead internal field; the
+  // FifoQueue only holds the overflow (2+ concurrent reads). Logical order is
+  // [slot (if in use), read_requests_...]; the slot is only (re)used when both
+  // are empty so FIFO order is preserved.
+  v8::Local<v8::Value> TakeFrontReadRequest();
+  bool parked_read_in_slot_ = false;
+
+  FifoQueue<v8::TracedReference<v8::Value>> read_requests_;
   // Lazily materialized on first access; until then the settlement is
   // recorded in closed_state_/closed_reason_ (see ClosedState).
   v8::TracedReference<v8::Promise::Resolver> closed_;

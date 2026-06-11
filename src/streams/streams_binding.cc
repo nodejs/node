@@ -203,10 +203,6 @@ bool CheckReceiverInvalidThis(Environment* env,
 BindingData::BindingData(Realm* realm, Local<Object> object)
     : SnapshotableObject(realm, object, type_int) {}
 
-BindingData* BindingData::Get(Environment* env) {
-  return Realm::GetCurrent(env->context())->GetBindingData<BindingData>();
-}
-
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {}
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
