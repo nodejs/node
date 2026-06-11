@@ -26,7 +26,7 @@ assert.ok(!state.isListening);
 
 assert.strictEqual(endpoint.address, undefined);
 
-await assert.rejects(listen(123, { sni, endpoint }), {
+await assert.rejects(listen(123, { alpn: ['h3'], sni, endpoint }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 // Buffer is not detached.
@@ -36,11 +36,11 @@ await assert.rejects(listen(mustNotCall(), 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
-await listen(mustNotCall(), { sni, endpoint });
+await listen(mustNotCall(), { alpn: ['h3'], sni, endpoint });
 // Buffer is not detached.
 assert.strictEqual(cert.buffer.detached, false);
 
-await assert.rejects(listen(mustNotCall(), { sni, endpoint }), {
+await assert.rejects(listen(mustNotCall(), { alpn: ['h3'], sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.
@@ -64,7 +64,7 @@ assert.strictEqual(endpoint.closed, endpoint.close());
 await endpoint.closed;
 assert.ok(endpoint.destroyed);
 
-await assert.rejects(listen(mustNotCall(), { sni, endpoint }), {
+await assert.rejects(listen(mustNotCall(), { alpn: ['h3'], sni, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
 // Buffer is not detached.
