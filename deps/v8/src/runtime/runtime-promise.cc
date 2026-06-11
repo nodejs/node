@@ -29,30 +29,6 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseRejectAfterResolved) {
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
-  DirectHandle<Object> reason = args.at(1);
-  START_ALLOW_USE_DEPRECATED();
-  isolate->ReportPromiseReject(promise, reason,
-                               v8::kPromiseRejectAfterResolved);
-  END_ALLOW_USE_DEPRECATED();
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseResolveAfterResolved) {
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  DirectHandle<JSPromise> promise = args.at<JSPromise>(0);
-  DirectHandle<Object> resolution = args.at(1);
-  START_ALLOW_USE_DEPRECATED();
-  isolate->ReportPromiseReject(promise, resolution,
-                               v8::kPromiseResolveAfterResolved);
-  END_ALLOW_USE_DEPRECATED();
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);

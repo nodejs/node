@@ -402,14 +402,6 @@ void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
                                  strlen(reason_str)));
     return;
 
-  } else {
-    START_ALLOW_USE_DEPRECATED();
-    if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
-        data.GetEvent() == v8::kPromiseResolveAfterResolved) {
-      // Ignore reject/resolve after resolved, like the blink handler.
-      return;
-    }
-    END_ALLOW_USE_DEPRECATED();
   }
 
   v8::Local<v8::Value> exception = data.GetValue();
