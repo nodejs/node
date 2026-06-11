@@ -1,21 +1,33 @@
 "use strict";
-
-exports.__esModule = true;
-exports["default"] = void 0;
-var _namespace = _interopRequireDefault(require("./namespace"));
-var _types = require("./types");
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; _setPrototypeOf(subClass, superClass); }
-function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
-var Tag = /*#__PURE__*/function (_Namespace) {
-  _inheritsLoose(Tag, _Namespace);
-  function Tag(opts) {
-    var _this;
-    _this = _Namespace.call(this, opts) || this;
-    _this.type = _types.TAG;
-    return _this;
-  }
-  return Tag;
-}(_namespace["default"]);
-exports["default"] = Tag;
-module.exports = exports.default;
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var namespace_1 = __importDefault(require("./namespace"));
+var types_1 = require("./types");
+var Tag = /** @class */ (function (_super) {
+    __extends(Tag, _super);
+    function Tag(opts) {
+        var _this = _super.call(this, opts) || this;
+        _this.type = types_1.TAG;
+        return _this;
+    }
+    return Tag;
+}(namespace_1.default));
+exports.default = Tag;
+//# sourceMappingURL=tag.js.map

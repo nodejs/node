@@ -25,6 +25,14 @@ In the current release, this field is advisory: install scripts still run
 by default, but installs print a list of packages whose scripts have not
 been reviewed. A future release will block unreviewed install scripts.
 
+This command only works inside a project that has a `package.json`. Running
+it with `--global` (`-g`) fails with an `EGLOBAL` error, since global
+installs (`npm install -g`) and one-off executions (`npm exec` / `npx`) have
+no project `package.json` to write to. To allow install scripts in those
+contexts, use the `--allow-scripts` flag at install time (for example
+`npm install -g --allow-scripts=canvas,sharp`) or persist the setting with
+`npm config set allow-scripts=canvas,sharp --location=user`.
+
 There are three modes:
 
 ```bash
@@ -74,9 +82,10 @@ npm approve-scripts --allow-scripts-pending
 * Default: false
 * Type: Boolean
 
-When running `npm outdated` and `npm ls`, setting `--all` will show all
-outdated or installed packages, rather than only those directly depended
-upon by the current project.
+Show or act on all packages, not just the ones your project directly depends
+on. For `npm outdated` and `npm ls` this lists every outdated or installed
+package. For `npm approve-scripts` and `npm deny-scripts` it selects every
+package with pending install scripts.
 
 
 
