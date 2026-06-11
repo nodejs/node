@@ -152,17 +152,15 @@ class WritableStreamDefaultController final : public StreamBaseObject {
              v8::Local<v8::Value> algo_receiver);
 
  private:
-  // Value queue (chunks only); same hybrid layout as the readable default
-  // controller. The close sentinel is represented by close_queued_.
+  // Value queue (chunks only); same Global-per-chunk layout as the readable
+  // default controller (see ValueQueueEntry in streams_binding.h). The close
+  // sentinel is represented by close_queued_.
   v8::MaybeLocal<v8::Value> DequeueValue();
   v8::Maybe<void> EnqueueValueWithSize(v8::Local<v8::Value> value, double size);
   void ResetQueue();
-  bool QueueIsEmpty() const { return queue_size_ == 0 && !close_queued_; }
+  bool QueueIsEmpty() const { return queue_.empty() && !close_queued_; }
 
-  v8::Global<v8::Array> queue_;
-  FifoQueue<double> sizes_;
-  uint32_t queue_head_ = 0;
-  uint32_t queue_size_ = 0;
+  FifoQueue<ValueQueueEntry> queue_;
   double queue_total_size_ = 0;
   bool close_queued_ = false;
 

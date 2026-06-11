@@ -106,9 +106,11 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
   void set_pulling(bool pulling) { pulling_ = pulling; }
   bool close_requested() const { return close_requested_; }
   double queue_total_size() const { return queue_total_size_; }
-  uint32_t queue_length() const { return queue_size_; }
+  uint32_t queue_length() const {
+    return static_cast<uint32_t>(queue_.size());
+  }
 
-  // Queue helpers operating on the JS-resident value queue.
+  // Queue helpers operating on the value queue.
   v8::MaybeLocal<v8::Value> DequeueValue();
   v8::Maybe<void> EnqueueValueWithSize(v8::Local<v8::Value> value, double size);
   void ResetQueue();
@@ -129,14 +131,9 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
              v8::Local<v8::Value> algo_receiver);
 
  private:
-  // The value queue is a JS Array stored in a single Global on this object (one
-  // handle, not one-per-chunk). queue_head_ is the index of the next item to
-  // dequeue; consumed slots are nulled and the array is reset when it empties.
-  // Per-chunk sizes live in a C++ deque to avoid boxing doubles into Numbers.
-  v8::Global<v8::Array> queue_;
-  FifoQueue<double> sizes_;
-  uint32_t queue_head_ = 0;
-  uint32_t queue_size_ = 0;
+  // The value queue: one strong Global per buffered chunk (see ValueQueueEntry
+  // in streams_binding.h for why this beats a JS-Array-backed queue).
+  FifoQueue<ValueQueueEntry> queue_;
   double queue_total_size_ = 0;
 
   double high_water_mark_ = 1;

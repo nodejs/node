@@ -334,7 +334,9 @@ WritableStreamDefaultController::WritableStreamDefaultController(
     : StreamBaseObject(env, object, Kind::kWritableStreamDefaultController) {}
 
 void WritableStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("queue", queue_);
+  queue_.ForEach([&](const ValueQueueEntry& entry) {
+    tracker->TrackField("queue", entry.value);
+  });
   tracker->TrackField("write_algorithm", write_algorithm_);
   tracker->TrackField("close_algorithm", close_algorithm_);
   tracker->TrackField("abort_algorithm", abort_algorithm_);
@@ -380,47 +382,28 @@ Maybe<void> WritableStreamDefaultController::EnqueueValueWithSize(
                        "ERR_INVALID_ARG_VALUE", "The argument 'size' is invalid"));
     return Nothing<void>();
   }
-  Local<Array> queue = queue_.Get(isolate);
-  if (queue.IsEmpty()) {
-    queue = Array::New(isolate);
-    queue_.Reset(isolate, queue);
-  }
-  uint32_t tail = queue_head_ + queue_size_;
-  if (queue->Set(context, tail, value).IsNothing()) return Nothing<void>();
-  sizes_.push_back(size);
-  queue_size_++;
+  queue_.emplace_back();
+  ValueQueueEntry& entry = queue_.back();
+  entry.value.Reset(isolate, value);
+  entry.size = size;
   queue_total_size_ += size;
   return JustVoid();
 }
 
 MaybeLocal<Value> WritableStreamDefaultController::DequeueValue() {
-  Environment* env = this->env();
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-  CHECK_GT(queue_size_, 0u);
-  Local<Array> queue = queue_.Get(isolate);
-  Local<Value> value;
-  if (!queue->Get(context, queue_head_).ToLocal(&value))
-    return MaybeLocal<Value>();
-  USE(queue->Set(context, queue_head_, Undefined(isolate)));
-  queue_head_++;
-  double size = sizes_.front();
-  sizes_.pop_front();
-  queue_size_--;
-  queue_total_size_ -= size;
+  Isolate* isolate = env()->isolate();
+  CHECK(!queue_.empty());
+  ValueQueueEntry& entry = queue_.front();
+  Local<Value> value = entry.value.Get(isolate);
+  queue_total_size_ -= entry.size;
   if (queue_total_size_ < 0) queue_total_size_ = 0;
-  if (queue_size_ == 0) {
-    queue_.Reset();
-    queue_head_ = 0;
-  }
+  entry.value.Reset();  // Eager: pop_front alone would pin the chunk.
+  queue_.pop_front();
   return value;
 }
 
 void WritableStreamDefaultController::ResetQueue() {
-  queue_.Reset();
-  sizes_.clear();
-  queue_head_ = 0;
-  queue_size_ = 0;
+  queue_.clear();  // ~Global disposes each entry's handle.
   queue_total_size_ = 0;
   close_queued_ = false;
 }
@@ -645,13 +628,8 @@ void WritableStreamDefaultController::AdvanceQueueIfNeeded() {
     return;
   }
   if (QueueIsEmpty()) return;
-  if (queue_size_ > 0) {
-    Local<Value> chunk;
-    Local<Context> context = env()->context();
-    if (!queue_.Get(env()->isolate())
-             ->Get(context, queue_head_)
-             .ToLocal(&chunk))
-      return;
+  if (!queue_.empty()) {
+    Local<Value> chunk = queue_.front().value.Get(env()->isolate());
     ProcessWrite(chunk);
   } else {
     // Only the close sentinel remains.

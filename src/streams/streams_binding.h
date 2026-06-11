@@ -119,6 +119,20 @@ class FifoQueue {
   size_t head_ = 0;
 };
 
+// One buffered chunk in a default controller's value queue. A strong Global
+// per chunk beats a JS-Array-backed queue: the queue is only ever touched from
+// C++ (read()'s fast path is a binding), and a global-handle Reset/Get is far
+// cheaper than the V8 API element Set/Get (a full LookupIterator walk per
+// call) — let alone the per-chunk Array::New the array design degenerated to
+// at high-water-mark 1, where the queue empties (dropping its array) on every
+// read. Dequeue sites must Reset() the popped entry's Global eagerly:
+// FifoQueue::pop_front() only advances the head index, so an un-Reset handle
+// would pin the consumed chunk until the prefix is compacted.
+struct ValueQueueEntry {
+  v8::Global<v8::Value> value;
+  double size;
+};
+
 class WritableStream;
 
 // Re-enters pipeTo's C++ transfer loop after a write completes on a pump-armed

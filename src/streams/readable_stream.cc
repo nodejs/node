@@ -422,7 +422,9 @@ ReadableStreamDefaultController::ReadableStreamDefaultController(
     : StreamBaseObject(env, object, Kind::kDefaultController) {}
 
 void ReadableStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("queue", queue_);
+  queue_.ForEach([&](const ValueQueueEntry& entry) {
+    tracker->TrackField("queue", entry.value);
+  });
   tracker->TrackField("pull_algorithm", pull_algorithm_);
   tracker->TrackField("cancel_algorithm", cancel_algorithm_);
   tracker->TrackField("size_algorithm", size_algorithm_);
@@ -590,19 +592,14 @@ void ReadableStreamDefaultController::ClearAlgorithms() {
 void ReadableStreamDefaultController::CloseInternal() {
   if (!CanCloseOrEnqueue()) return;
   close_requested_ = true;
-  if (queue_size_ == 0) {
+  if (queue_.empty()) {
     ClearAlgorithms();
     stream()->Close();
   }
 }
 
 void ReadableStreamDefaultController::ResetQueue() {
-  Environment* env = this->env();
-  HandleScope scope(env->isolate());
-  queue_.Reset();
-  sizes_.clear();
-  queue_head_ = 0;
-  queue_size_ = 0;
+  queue_.clear();  // ~Global disposes each entry's handle.
   queue_total_size_ = 0;
 }
 
@@ -610,48 +607,30 @@ Maybe<void> ReadableStreamDefaultController::EnqueueValueWithSize(
     Local<Value> value, double size) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
   if (std::isnan(size) || size < 0 || size == std::numeric_limits<double>::infinity()) {
     isolate->ThrowException(
-        MakeCodedError(isolate, context, /* range */ true,
+        MakeCodedError(isolate, env->context(), /* range */ true,
                        "ERR_INVALID_ARG_VALUE",
                        "The argument 'size' is invalid"));
     return Nothing<void>();
   }
-  Local<Array> queue = queue_.Get(isolate);
-  if (queue.IsEmpty()) {
-    queue = Array::New(isolate);
-    queue_.Reset(isolate, queue);
-  }
-  uint32_t tail = queue_head_ + queue_size_;
-  if (queue->Set(context, tail, value).IsNothing()) return Nothing<void>();
-  sizes_.push_back(size);
-  queue_size_++;
+  queue_.emplace_back();
+  ValueQueueEntry& entry = queue_.back();
+  entry.value.Reset(isolate, value);
+  entry.size = size;
   queue_total_size_ += size;
   return JustVoid();
 }
 
 MaybeLocal<Value> ReadableStreamDefaultController::DequeueValue() {
-  Environment* env = this->env();
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-  CHECK_GT(queue_size_, 0u);
-  Local<Array> queue = queue_.Get(isolate);
-  Local<Value> value;
-  if (!queue->Get(context, queue_head_).ToLocal(&value)) return MaybeLocal<Value>();
-  // Release the consumed slot for GC.
-  USE(queue->Set(context, queue_head_, Undefined(isolate)));
-  queue_head_++;
-  double size = sizes_.front();
-  sizes_.pop_front();
-  queue_size_--;
-  queue_total_size_ -= size;
+  Isolate* isolate = env()->isolate();
+  CHECK(!queue_.empty());
+  ValueQueueEntry& entry = queue_.front();
+  Local<Value> value = entry.value.Get(isolate);
+  queue_total_size_ -= entry.size;
   if (queue_total_size_ < 0) queue_total_size_ = 0;
-  if (queue_size_ == 0) {
-    // Compact: drop the backing array so it does not grow without bound.
-    queue_.Reset();
-    queue_head_ = 0;
-  }
+  entry.value.Reset();  // Eager: pop_front alone would pin the chunk.
+  queue_.pop_front();
   return value;
 }
 
@@ -758,10 +737,10 @@ void ReadableStreamDefaultController::PullSteps(
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   ReadableStream* stream = this->stream();
-  if (queue_size_ > 0) {
+  if (!queue_.empty()) {
     Local<Value> chunk;
     if (!DequeueValue().ToLocal(&chunk)) return;
-    if (close_requested_ && queue_size_ == 0) {
+    if (close_requested_ && queue_.empty()) {
       ClearAlgorithms();
       stream->Close();
     } else {
