@@ -86,6 +86,11 @@ characters. <kbd>Ctrl</kbd>+<kbd>C</kbd> will no longer cause a `SIGINT` when
 in this mode. This mode does not affect terminal output processing, such as
 newline translation on Unix terminals.
 
+On Windows, `setRawMode()` requires write permission to the console input
+buffer. When opening `"\\\\.\\CONIN$"` with the [`fs.open()`][] family of APIs
+(for passing into `new tty.ReadStream()`), be sure to use a read/write flag
+such as `'r+'`.
+
 ## Class: `tty.WriteStream`
 
 <!-- YAML
@@ -342,6 +347,7 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
+[`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
 [`net.Socket` constructor]: net.md#new-netsocketoptions
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
