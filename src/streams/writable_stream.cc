@@ -71,15 +71,12 @@ Local<Value> InvalidStateError(Isolate* isolate,
   return err;
 }
 
-void Noop(const FunctionCallbackInfo<Value>& args) {}
-
 // Suppresses spurious unhandled-rejection warnings on internal promises.
+// Uses the realm's cached noop function (one Function total, not one per call).
 void MarkHandled(Environment* env, Local<Promise> promise) {
   if (promise.IsEmpty()) return;
-  Local<Context> context = env->context();
-  Local<Function> noop;
-  if (Function::New(context, Noop).ToLocal(&noop))
-    USE(promise->Catch(context, noop));
+  Local<Function> noop = NoopFunction(env);
+  if (!noop.IsEmpty()) USE(promise->Catch(env->context(), noop));
 }
 
 Local<Promise> ResolvedUndefined(Environment* env) {
@@ -148,8 +145,12 @@ void ThenReact(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff;
   Local<Function> rj;
-  if (!Function::New(context, on_fulfilled, data).ToLocal(&ff) ||
-      !Function::New(context, on_rejected, data).ToLocal(&rj)) {
+  if (!Function::New(context, on_fulfilled, data, 0,
+                     v8::ConstructorBehavior::kThrow)
+           .ToLocal(&ff) ||
+      !Function::New(context, on_rejected, data, 0,
+                     v8::ConstructorBehavior::kThrow)
+           .ToLocal(&rj)) {
     return;
   }
   USE(promise->Then(context, ff, rj));
@@ -169,12 +170,20 @@ void ThenReactCached(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff = ff_slot->Get(isolate);
   if (ff.IsEmpty()) {
-    if (!Function::New(context, on_fulfilled, data).ToLocal(&ff)) return;
+    if (!Function::New(context, on_fulfilled, data, 0,
+                       v8::ConstructorBehavior::kThrow)
+             .ToLocal(&ff)) {
+      return;
+    }
     ff_slot->Reset(isolate, ff);
   }
   Local<Function> rj = rj_slot->Get(isolate);
   if (rj.IsEmpty()) {
-    if (!Function::New(context, on_rejected, data).ToLocal(&rj)) return;
+    if (!Function::New(context, on_rejected, data, 0,
+                       v8::ConstructorBehavior::kThrow)
+             .ToLocal(&rj)) {
+      return;
+    }
     rj_slot->Reset(isolate, rj);
   }
   USE(promise->Then(context, ff, rj));
@@ -521,7 +530,8 @@ void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
     // is identical (CallableTask and PromiseReactionJob share the FIFO queue).
     Local<Function> ff = on_write_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactWriteFulfilled, controller_obj)
+      if (!Function::New(context, ReactWriteFulfilled, controller_obj, 0,
+                         v8::ConstructorBehavior::kThrow)
                .ToLocal(&ff))
         return;
       on_write_fulfilled_.Reset(isolate, ff);

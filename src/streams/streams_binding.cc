@@ -70,12 +70,35 @@ void ThenSharedReaction(Environment* env,
   Local<Context> context = env->context();
   Local<v8::Function> fn = slot->Get(isolate);
   if (fn.IsEmpty()) {
-    if (!v8::Function::New(context, cb).ToLocal(&fn)) return;
+    if (!v8::Function::New(context, cb, Local<Value>(), 0,
+                           v8::ConstructorBehavior::kThrow)
+             .ToLocal(&fn)) {
+      return;
+    }
     slot->Reset(isolate, fn);
   }
   USE(promise->Then(context, fn));
 }
 }  // namespace
+
+namespace {
+void NoopCallback(const v8::FunctionCallbackInfo<Value>& args) {}
+}  // namespace
+
+Local<v8::Function> NoopFunction(Environment* env) {
+  BindingData* bd = BindingData::Get(env);
+  Isolate* isolate = env->isolate();
+  Local<v8::Function> fn = bd->noop_function.Get(isolate);
+  if (fn.IsEmpty()) {
+    if (!v8::Function::New(env->context(), NoopCallback, Local<Value>(), 0,
+                           v8::ConstructorBehavior::kThrow)
+             .ToLocal(&fn)) {
+      return Local<v8::Function>();
+    }
+    bd->noop_function.Reset(isolate, fn);
+  }
+  return fn;
+}
 
 void ThenStartFulfilled(Environment* env, Local<Promise> promise) {
   BindingData* bd = BindingData::Get(env);

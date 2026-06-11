@@ -147,6 +147,10 @@ void RunPipePump(WritableStream* dest);
 // allocations.
 void ThenStartFulfilled(Environment* env, v8::Local<v8::Promise> promise);
 
+// Returns the realm's cached noop function, creating it on first use; empty
+// only on instantiation failure (with a pending exception).
+v8::Local<v8::Function> NoopFunction(Environment* env);
+
 // Brand-checks `receiver` against `ctor` for a synchronous operation/getter.
 // Returns true on success; otherwise throws an ERR_INVALID_THIS TypeError named
 // for `type_name` and returns false (the caller must then return from the V8
@@ -263,6 +267,11 @@ class BindingData : public SnapshotableObject {
   // promise-lookalike chunk test (taken from a freshly created promise, not
   // the patchable global). Lazily created.
   v8::Global<v8::Object> promise_prototype;
+
+  // Shared per-realm noop function, used to mark internal promises handled
+  // and as a fulfil-only mapping to undefined. One cached Function instead of
+  // a fresh SharedFunctionInfo per call. Lazily created.
+  v8::Global<v8::Function> noop_function;
 };
 
 }  // namespace webstreams

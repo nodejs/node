@@ -218,8 +218,11 @@ void ThenReact(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff;
   Local<Function> rj;
-  if (!Function::New(context, on_fulfilled, controller_obj).ToLocal(&ff) ||
-      !Function::New(context, ReactRejected, controller_obj)
+  if (!Function::New(context, on_fulfilled, controller_obj, 0,
+                     v8::ConstructorBehavior::kThrow)
+           .ToLocal(&ff) ||
+      !Function::New(context, ReactRejected, controller_obj, 0,
+                     v8::ConstructorBehavior::kThrow)
            .ToLocal(&rj)) {
     return;
   }
@@ -238,31 +241,31 @@ void ThenReactCached(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff = ff_slot->Get(isolate);
   if (ff.IsEmpty()) {
-    if (!Function::New(context, on_fulfilled, controller_obj).ToLocal(&ff))
+    if (!Function::New(context, on_fulfilled, controller_obj, 0,
+                       v8::ConstructorBehavior::kThrow)
+             .ToLocal(&ff)) {
       return;
+    }
     ff_slot->Reset(isolate, ff);
   }
   Local<Function> rj = rj_slot->Get(isolate);
   if (rj.IsEmpty()) {
-    if (!Function::New(context, ReactRejected, controller_obj).ToLocal(&rj))
+    if (!Function::New(context, ReactRejected, controller_obj, 0,
+                       v8::ConstructorBehavior::kThrow)
+             .ToLocal(&rj)) {
       return;
+    }
     rj_slot->Reset(isolate, rj);
   }
   USE(promise->Then(context, ff, rj));
 }
 
-// A function that returns undefined; used both to map a promise's fulfilment
-// value to undefined and as a no-op rejection handler.
-void Noop(const FunctionCallbackInfo<Value>& args) {}
-
 // Marks a promise as handled to avoid spurious unhandled-rejection warnings on
 // internal promises, mirroring `PromisePrototypeThen(p, undefined, () => {})`.
-// Cold path (close/error/release), so the per-call Function is acceptable.
+// Uses the realm's cached noop function (one Function total, not one per call).
 void MarkHandled(Environment* env, Local<Promise> promise) {
-  Local<Context> context = env->context();
-  Local<Function> noop;
-  if (Function::New(context, Noop).ToLocal(&noop))
-    USE(promise->Catch(context, noop));
+  Local<Function> noop = NoopFunction(env);
+  if (!noop.IsEmpty()) USE(promise->Catch(env->context(), noop));
 }
 
 Local<Value> RangeCodedError(Isolate* isolate,
@@ -509,6 +512,13 @@ void ReadableStreamDefaultController::FinishPull() {
 }
 
 void ReadableStreamDefaultController::CallPullIfNeeded() {
+  if (pull_algorithm_.IsEmpty()) {
+    // No user pull algorithm: the spec's pull returns an already-resolved
+    // promise whose only fulfilment effect is resetting [[pulling]] /
+    // [[pullAgain]] — bookkeeping nothing can observe when there is no pull
+    // to coalesce. Skip the promise/microtask round trip entirely.
+    return;
+  }
   if (!ShouldCallPull()) return;
   if (pulling_) {
     pull_again_ = true;
@@ -560,7 +570,8 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
     // identical (CallableTask and PromiseReactionJob share the FIFO queue).
     Local<Function> ff = on_pull_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactPullFulfilled, controller_obj)
+      if (!Function::New(context, ReactPullFulfilled, controller_obj, 0,
+                         v8::ConstructorBehavior::kThrow)
                .ToLocal(&ff))
         return;
       on_pull_fulfilled_.Reset(isolate, ff);
@@ -1389,8 +1400,8 @@ Local<Promise> ReadableStream::CancelInternal(Local<Value> reason) {
     USE(resolver->Resolve(context, Undefined(isolate)));
     return resolver->GetPromise();
   }
-  Local<Function> noop;
-  if (!Function::New(context, Noop).ToLocal(&noop)) return Local<Promise>();
+  Local<Function> noop = NoopFunction(env);
+  if (noop.IsEmpty()) return Local<Promise>();
   Local<Promise> result;
   if (!cancel_result->Then(context, noop).ToLocal(&result))
     return Local<Promise>();
@@ -1571,6 +1582,10 @@ void ReadableByteStreamController::FinishPull() {
 }
 
 void ReadableByteStreamController::CallPullIfNeeded() {
+  if (pull_algorithm_.IsEmpty()) {
+    // No user pull algorithm; see the default controller's CallPullIfNeeded.
+    return;
+  }
   if (!ShouldCallPull()) return;
   if (pulling_) {
     pull_again_ = true;
@@ -1615,7 +1630,8 @@ void ReadableByteStreamController::CallPullIfNeeded() {
     // controller's CallPullIfNeeded.
     Local<Function> ff = on_pull_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactPullFulfilled, controller_obj)
+      if (!Function::New(context, ReactPullFulfilled, controller_obj, 0,
+                         v8::ConstructorBehavior::kThrow)
                .ToLocal(&ff))
         return;
       on_pull_fulfilled_.Reset(isolate, ff);

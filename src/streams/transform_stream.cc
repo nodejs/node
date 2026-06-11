@@ -85,8 +85,12 @@ void ThenReact(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff;
   Local<Function> rj;
-  if (!Function::New(context, on_fulfilled, data).ToLocal(&ff) ||
-      !Function::New(context, on_rejected, data).ToLocal(&rj)) {
+  if (!Function::New(context, on_fulfilled, data, 0,
+                     v8::ConstructorBehavior::kThrow)
+           .ToLocal(&ff) ||
+      !Function::New(context, on_rejected, data, 0,
+                     v8::ConstructorBehavior::kThrow)
+           .ToLocal(&rj)) {
     return;
   }
   USE(promise->Then(context, ff, rj));
@@ -380,7 +384,8 @@ Local<Promise> TransformStreamDefaultController::PerformTransform(
     return ResolvedUndefined(env);
   if (!result->IsPromise()) return ResolvedUndefined(env);
   Local<Function> rj;
-  if (!Function::New(context, PerformTransformRejected, stream()->object())
+  if (!Function::New(context, PerformTransformRejected, stream()->object(), 0,
+                     v8::ConstructorBehavior::kThrow)
            .ToLocal(&rj))
     return result.As<Promise>();
   Local<Promise> chained;
@@ -598,7 +603,9 @@ Local<Promise> TransformStream::SinkWrite(Local<Value> chunk) {
   Local<Promise> bp_change = backpressure_change_promise(env);
   Local<Array> holder = MakeHolder(isolate, context, object(), chunk);
   Local<Function> cont;
-  if (!Function::New(context, SinkWriteAfterBackpressure, holder).ToLocal(&cont))
+  if (!Function::New(context, SinkWriteAfterBackpressure, holder, 0,
+                     v8::ConstructorBehavior::kThrow)
+           .ToLocal(&cont))
     return ResolvedUndefined(env);
   Local<Promise> chained;
   if (!bp_change->Then(context, cont).ToLocal(&chained))
@@ -811,12 +818,16 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   // algo_receiver == stream_obj (passed to the factories below).
   Local<Function> start_tramp;
   if (!start_algorithm.IsEmpty())
-    USE(Function::New(context, TrampStart, stream_obj).ToLocal(&start_tramp));
+    USE(Function::New(context, TrampStart, stream_obj, 0,
+                      v8::ConstructorBehavior::kThrow)
+            .ToLocal(&start_tramp));
   BindingData* bd = BindingData::Get(env);
   auto shared_tramp = [&](v8::Global<Function>* slot, FunctionCallback cb) {
     Local<Function> fn = slot->Get(isolate);
     if (fn.IsEmpty()) {
-      USE(Function::New(context, cb).ToLocal(&fn));
+      USE(Function::New(context, cb, Local<Value>(), 0,
+                        v8::ConstructorBehavior::kThrow)
+              .ToLocal(&fn));
       slot->Reset(isolate, fn);
     }
     return fn;
