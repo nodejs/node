@@ -366,6 +366,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   TLSSession& tls_session() const;
   bool has_application() const;
   Application& application() const;
+
+  // True once the session has started delivering events to JS, which we use
+  // as a gate for attaching an Application - it has to happen before this.
+  bool is_active() const { return active_; }
   const Config& config() const;
   const Options& options() const;
   const SocketAddress& remote_address() const;
@@ -606,10 +610,20 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // before the handshake completes.
   void PopulateEarlyTransportParamsState();
 
+  void set_hello_processed() { hello_processed_ = true; }
+
   // It's a terrible name but "wrapped" here means that the Session has been
   // passed out to JavaScript and should be "wrapped" by whatever handler is
   // defined there to manage it.
   void set_wrapped();
+
+  // True while JS emits must be held for later replay, before the handshake
+  // is complete and the server session event has been emitted.
+  bool must_defer_emits() const;
+
+  // Replays, in order, any emits held while must_defer_emits() was true.
+  // Called synchronously right after the new-session emit.
+  void ReplayDeferredEmits();
 
   enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
@@ -725,6 +739,10 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint8_t prefer_try_send : 1 = 0;
   };
   Flags flags_;
+
+  bool hello_processed_ = false;
+
+  bool active_ = false;
 
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;

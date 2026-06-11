@@ -184,6 +184,8 @@ uint64_t MaxDatagramPayload(uint64_t max_frame_size) {
 #define SESSION_JS_METHODS(V)                                                  \
   V(Destroy, destroy, SIDE_EFFECT)                                             \
   V(GetRemoteAddress, getRemoteAddress, NO_SIDE_EFFECT)                        \
+  V(GetServername, getServername, NO_SIDE_EFFECT)                              \
+  V(GetAlpnProtocol, getAlpnProtocol, NO_SIDE_EFFECT)                          \
   V(GetLocalAddress, getLocalAddress, NO_SIDE_EFFECT)                          \
   V(GetCertificate, getCertificate, NO_SIDE_EFFECT)                            \
   V(GetEphemeralKeyInfo, getEphemeralKey, NO_SIDE_EFFECT)                      \
@@ -793,6 +795,8 @@ struct Session::Impl final : public MemoryRetainer {
   SocketAddress remote_address_;
   std::unique_ptr<Application> application_;
   StreamsMap streams_;
+  // Emits deferred until after session setup is completed
+  std::vector<std::function<void()>> deferred_emits_;
   TimerWrapHandle timer_;
   size_t send_scope_depth_ = 0;
   QuicError last_error_;
@@ -1011,6 +1015,36 @@ struct Session::Impl final : public MemoryRetainer {
       session->SendConnectionClose();
     }
     session->Destroy();
+  }
+
+  // The SNI servername from the TLS handshake; empty (-> undefined) only if
+  // none was sent.
+  JS_METHOD(GetServername) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+    if (session->is_destroyed()) return;
+    auto sn = session->tls_session().servername();
+    if (sn.empty()) return;
+    Local<Value> ret;
+    if (ToV8Value(env->context(), sn).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
+  }
+
+  // The negotiated ALPN protocol. Undefined only for clients before the
+  // handshake is completed, as ALPN is mandatory for QUIC.
+  JS_METHOD(GetAlpnProtocol) {
+    auto env = Environment::GetCurrent(args);
+    Session* session;
+    ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+    if (session->is_destroyed()) return;
+    auto proto = session->tls_session().protocol();
+    if (proto.empty()) return;
+    Local<Value> ret;
+    if (ToV8Value(env->context(), proto).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
   }
 
   JS_METHOD(GetRemoteAddress) {
@@ -2672,6 +2706,13 @@ const Session::Options& Session::options() const {
 void Session::EmitQlog(uint32_t flags, std::string_view data) {
   if (!env()->can_call_into_js()) return;
 
+  if (!is_destroyed() && must_defer_emits()) {
+    auto held = std::string(data);
+    impl_->deferred_emits_.emplace_back(
+        [this, flags, held]() { EmitQlog(flags, held); });
+    return;
+  }
+
   bool fin = (flags & NGTCP2_QLOG_WRITE_FLAG_FIN) != 0;
 
   // Fun fact... ngtcp2 does not emit the final qlog statement until the
@@ -2794,6 +2835,16 @@ bool Session::ReadPacket(const uint8_t* data,
         // Process deferred operations that couldn't run inside callback
         // scopes (e.g., HTTP/3 GOAWAY handling that calls into JS).
         application().PostReceive();
+        // Surface a server session to JS once its ClientHello has been
+        // processed (OnSelectAlpn fired: SNI + ALPN are known and reliable).
+        // Held first-flight events - including 0-RTT request streams - replay
+        // at emit. The !wrapped guard makes this fire exactly once, on
+        // whichever packet completes the ClientHello (so a multi-datagram
+        // ClientHello is handled correctly).
+        if (is_server() && hello_processed_ && !impl_->state()->wrapped &&
+            !is_destroyed()) {
+          endpoint().EmitNewSession(BaseObjectPtr<Session>(this));
+        }
       }
       return true;
     }
@@ -3492,6 +3543,28 @@ void Session::set_wrapped() {
   impl_->state()->wrapped = 1;
 }
 
+bool Session::must_defer_emits() const {
+  // Server sessions are surfaced to JS (via the deferred new-session
+  // emit) only after their first datagram has been processed; anything
+  // emitted before then has no JS wrapper to receive it and must be
+  // held for replay.
+  return is_server() && !impl_->state()->wrapped;
+}
+
+void Session::ReplayDeferredEmits() {
+  // Once we're firing events, the server session is active:
+  active_ = true;
+  if (is_destroyed()) return;
+  DCHECK(impl_->state()->wrapped);
+  // Runs synchronously immediately after the new-session callback
+  // returns (still within first-datagram processing).
+  auto emits = std::move(impl_->deferred_emits_);
+  for (auto& emit : emits) {
+    if (is_destroyed()) return;
+    emit();
+  }
+}
+
 void Session::set_priority_supported(bool on) {
   DCHECK(!is_destroyed());
   impl_->state()->priority_supported = on ? 1 : 0;
@@ -3801,6 +3874,9 @@ bool Session::HandshakeCompleted() {
 
   Debug(this, "Session handshake completed");
   impl_->state()->handshake_completed = 1;
+  // For a client, once the handshake is completed, we're active. The server
+  // is active earlier, as 0RTT etc can fire before handshake completion.
+  active_ = true;
 
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
   SetStreamOpenAllowed();
@@ -4014,6 +4090,14 @@ void Session::EmitGoaway(stream_id last_stream_id) {
 void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
+
+  if (must_defer_emits()) {
+    auto held = std::make_shared<Store>(std::move(datagram));
+    impl_->deferred_emits_.emplace_back([this, held, flag]() {
+      EmitDatagram(std::move(*held), flag);
+    });
+    return;
+  }
 
   CallbackScope<Session> cbv_scope(this);
 
@@ -4259,6 +4343,12 @@ void Session::EmitNewToken(const uint8_t* token, size_t len) {
 void Session::EmitStream(const BaseObjectWeakPtr<Stream>& stream) {
   DCHECK(!is_destroyed());
 
+  if (must_defer_emits()) {
+    impl_->deferred_emits_.emplace_back(
+        [this, stream]() { EmitStream(stream); });
+    return;
+  }
+
   if (!env()->can_call_into_js()) return;
   CallbackScope<Session> cb_scope(this);
 
@@ -4342,6 +4432,13 @@ void Session::EmitKeylog(const char* line) {
   if (!env()->can_call_into_js()) return;
 
   auto str = std::string(line);
+
+  if (must_defer_emits()) {
+    impl_->deferred_emits_.emplace_back(
+        [this, str]() { EmitKeylog(str.c_str()); });
+    return;
+  }
+
   Local<Value> argv[] = {Undefined(env()->isolate())};
   if (!ToV8Value(env()->context(), str).ToLocal(&argv[0])) {
     Debug(this, "Failed to convert keylog line to V8 string");
