@@ -202,9 +202,8 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
   // and zstd-compressed when cache_size < raw_size (see
   // CompileCacheHandler::Persist()). Anything else is invalid.
   if (cache_size > raw_size) {
-    Debug("invalid cache size %d > uncompressed size %d\n",
-          cache_size,
-          raw_size);
+    Debug(
+        "invalid cache size %d > uncompressed size %d\n", cache_size, raw_size);
     return;
   }
 
@@ -260,13 +259,19 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
             content_size);
       return;
     }
+    // Lazily create the decompression context on first use and reuse it
+    // for subsequent reads - recreating its workspace for every file
+    // costs more than the decompression itself for small caches.
+    if (zstd_dctx_ == nullptr && (zstd_dctx_ = ZSTD_createDCtx()) == nullptr) {
+      Debug("failed to create zstd context\n");
+      return;
+    }
     // Decompress directly into the buffer handed to V8.
     std::unique_ptr<uint8_t[]> raw_data(new uint8_t[raw_size]);
-    size_t decompressed_size =
-        ZSTD_decompress(raw_data.get(), raw_size, disk_data.get(), cache_size);
+    size_t decompressed_size = ZSTD_decompressDCtx(
+        zstd_dctx_, raw_data.get(), raw_size, disk_data.get(), cache_size);
     if (ZSTD_isError(decompressed_size)) {
-      Debug("decompression failed: %s\n",
-            ZSTD_getErrorName(decompressed_size));
+      Debug("decompression failed: %s\n", ZSTD_getErrorName(decompressed_size));
       return;
     }
     if (decompressed_size != raw_size) {
@@ -276,9 +281,7 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
       return;
     }
     entry->cache.reset(new ScriptCompiler::CachedData(
-        raw_data.release(),
-        raw_size,
-        ScriptCompiler::CachedData::BufferOwned));
+        raw_data.release(), raw_size, ScriptCompiler::CachedData::BufferOwned));
   }
   Debug(" success, size=%d\n", raw_size);
 }
@@ -459,6 +462,16 @@ void CompileCacheHandler::Persist() {
   // finished. In that case, the off-thread writes should finish long
   // before any attempt of flushing is made so the method would then only
   // incur a negligible overhead from thread synchronization.
+
+  // The compression context is created lazily when there is anything to
+  // compress and reused for all the entries in this invocation.
+  ZSTD_CCtx* cctx = nullptr;
+  auto cleanup_cctx = OnScopeLeave([&cctx]() {
+    if (cctx != nullptr) {
+      ZSTD_freeCCtx(cctx);
+    }
+  });
+
   for (auto& pair : compiler_cache_store_) {
     auto* entry = pair.second.get();
     const char* type_name = entry->type_name();
@@ -495,15 +508,18 @@ void CompileCacheHandler::Persist() {
     // shutdown and should add as little overhead as possible. If the data
     // is not compressible, store it uncompressed, which is indicated by
     // the cache size being equal to the uncompressed size in the headers.
-    size_t compressed_bound = ZSTD_compressBound(raw_size);
-    std::unique_ptr<uint8_t[]> compressed(new uint8_t[compressed_bound]);
-    size_t compressed_size = ZSTD_compress(
-        compressed.get(), compressed_bound, raw_ptr, raw_size, 1);
     char* cache_ptr = raw_ptr;
     uint32_t cache_size = raw_size;
-    if (!ZSTD_isError(compressed_size) && compressed_size < raw_size) {
-      cache_ptr = reinterpret_cast<char*>(compressed.get());
-      cache_size = static_cast<uint32_t>(compressed_size);
+    std::unique_ptr<uint8_t[]> compressed;
+    if (cctx != nullptr || (cctx = ZSTD_createCCtx()) != nullptr) {
+      size_t compressed_bound = ZSTD_compressBound(raw_size);
+      compressed.reset(new uint8_t[compressed_bound]);
+      size_t compressed_size = ZSTD_compressCCtx(
+          cctx, compressed.get(), compressed_bound, raw_ptr, raw_size, 1);
+      if (!ZSTD_isError(compressed_size) && compressed_size < raw_size) {
+        cache_ptr = reinterpret_cast<char*>(compressed.get());
+        cache_size = static_cast<uint32_t>(compressed_size);
+      }
     }
     Debug("[compile cache] compressed cache for %s %s: %d -> %d bytes\n",
           type_name,
@@ -620,6 +636,12 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
     : isolate_(env->isolate()),
       is_debug_(
           env->enabled_debug_list()->enabled(DebugCategory::COMPILE_CACHE)) {}
+
+CompileCacheHandler::~CompileCacheHandler() {
+  if (zstd_dctx_ != nullptr) {
+    ZSTD_freeDCtx(zstd_dctx_);
+  }
+}
 
 // Directory structure:
 // - Compile cache directory (from NODE_COMPILE_CACHE)

@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include "v8.h"
 
+struct ZSTD_DCtx_s;
+
 namespace node {
 class Environment;
 
@@ -67,6 +69,7 @@ enum class EnableOption : uint8_t { DEFAULT, PORTABLE };
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
+  ~CompileCacheHandler();
   CompileCacheEnableResult Enable(Environment* env,
                                   const std::string& dir,
                                   EnableOption option = EnableOption::DEFAULT);
@@ -113,6 +116,9 @@ class CompileCacheHandler {
   EnableOption portable_ = EnableOption::DEFAULT;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
+  // Lazily created zstd decompression context, reused across cache reads
+  // to avoid recreating its workspace for every file.
+  ZSTD_DCtx_s* zstd_dctx_ = nullptr;
 };
 }  // namespace node
 
