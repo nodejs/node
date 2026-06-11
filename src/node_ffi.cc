@@ -8,6 +8,7 @@
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "ffi/data.h"
+#include "ffi/fast.h"
 #include "ffi/types.h"
 #include "node_errors.h"
 
@@ -245,14 +246,47 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
 
   DCHECK_EQ(fn->args.size(), fn->arg_type_names.size());
 
-  bool use_sb = IsSBEligibleSignature(*fn);
+  // Try the generated Fast API path first. If metadata creation rejects the
+  // signature, fall back to SharedBuffer for supported scalar shapes, then to
+  // the generic libffi invoker.
+  info->fast_metadata = CreateFastFFIMetadata(*fn);
+  bool use_fast_api = info->fast_metadata != nullptr;
+  bool use_sb = !use_fast_api && IsSBEligibleSignature(*fn);
   bool has_ptr_args = use_sb && SignatureHasPointerArgs(*fn);
+  // Fast API signatures that still accept JS pointer-like values need a JS
+  // wrapper with the native type names attached as hidden metadata.
+  bool needs_raw_pointer_conversions =
+      use_fast_api && SignatureNeedsRawPointerConversions(*fn);
+  // A single pointer-like parameter can get a separate Buffer-aware Fast API
+  // entrypoint so Buffer calls avoid JS pointer extraction.
+  bool needs_fast_buffer_invoke =
+      use_fast_api && SignatureNeedsFastBufferInvoke(*fn);
 
-  MaybeLocal<Function> maybe_ret =
-      Function::New(context,
-                    use_sb ? DynamicLibrary::InvokeFunctionSB
-                           : DynamicLibrary::InvokeFunction,
-                    info->object());
+  MaybeLocal<Function> maybe_ret;
+  if (use_fast_api) {
+    // V8 calls this FunctionTemplate through `fast_metadata->c_function` when
+    // the optimized Fast API call path is available. The normal callback stays
+    // attached as a fallback for V8 deopts and unsupported call sites.
+    Local<FunctionTemplate> tmpl = FunctionTemplate::New(
+        isolate,
+        DynamicLibrary::InvokeFunction,
+        info->object(),
+        Local<v8::Signature>(),
+        fn->args.size(),
+        v8::ConstructorBehavior::kThrow,
+        v8::SideEffectType::kHasSideEffect,
+        &info->fast_metadata->c_function);
+    maybe_ret = tmpl->GetFunction(context);
+  } else {
+    // Non-Fast signatures either use the SharedBuffer invoker, where JS writes
+    // argument slots before calling with no arguments, or the generic invoker
+    // that converts each JS argument in C++.
+    maybe_ret = Function::New(context,
+                              use_sb ? DynamicLibrary::InvokeFunctionSB
+                                     : DynamicLibrary::InvokeFunction,
+                              info->object());
+  }
+
   Local<Function> ret;
   if (!maybe_ret.ToLocal(&ret)) {
     return MaybeLocal<Function>();
@@ -282,6 +316,9 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
       static_cast<PropertyAttribute>(ReadOnly | DontEnum | DontDelete);
 
   if (use_sb) {
+    // SharedBuffer layout is intentionally fixed-width: slot 0 stores the
+    // return value and slots 1..N store argument payloads. The JS wrapper and
+    // InvokeFunctionSB share this exact layout.
     size_t sb_size = 8 * (fn->args.size() + 1);
     Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, sb_size);
     // The shared_ptr to the backing store keeps the memory alive while
@@ -341,6 +378,57 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
                                 internal_attrs)
              .FromMaybe(false)) {
       return MaybeLocal<Function>();
+    }
+  }
+
+  if (needs_raw_pointer_conversions || needs_fast_buffer_invoke) {
+    // Fast API wrappers need only the parameter type names. Result conversion
+    // is still handled by V8's CFunction metadata, unlike the SharedBuffer path
+    // which must also know how to read slot 0.
+    Local<Value> arguments_arr;
+    if (!ToV8Value(context, fn->arg_type_names, isolate).ToLocal(&arguments_arr)) {
+      return MaybeLocal<Function>();
+    }
+    if (!ret->DefineOwnProperty(context,
+                                env->ffi_fast_arguments_symbol(),
+                                arguments_arr,
+                                internal_attrs)
+             .FromMaybe(false)) {
+      return MaybeLocal<Function>();
+    }
+  }
+
+  if (needs_fast_buffer_invoke) {
+    // Build an alternate CFunction that describes the pointer-like argument as
+    // a V8 buffer value. The JS wrapper dispatches here only when the runtime
+    // argument is Buffer/ArrayBuffer-backed memory.
+    std::shared_ptr<FFIFunction> fast_buffer_fn =
+        CloneWithFastBufferArgNames(fn);
+    info->fast_buffer_metadata = CreateFastFFIMetadata(*fast_buffer_fn);
+    if (info->fast_buffer_metadata != nullptr) {
+      // Store the secondary invoker on the primary raw function under a hidden
+      // Symbol. Keeping it separate avoids overloading SharedBuffer slow-path
+      // metadata for Fast API routing.
+      Local<FunctionTemplate> tmpl = FunctionTemplate::New(
+          isolate,
+          DynamicLibrary::InvokeFunction,
+          info->object(),
+          Local<v8::Signature>(),
+          fn->args.size(),
+          v8::ConstructorBehavior::kThrow,
+          v8::SideEffectType::kHasSideEffect,
+          &info->fast_buffer_metadata->c_function);
+      Local<Function> fast_buffer_invoke;
+      if (!tmpl->GetFunction(context).ToLocal(&fast_buffer_invoke)) {
+        return MaybeLocal<Function>();
+      }
+      if (!ret->DefineOwnProperty(context,
+                                  env->ffi_fast_buffer_invoke_symbol(),
+                                  fast_buffer_invoke,
+                                  internal_attrs)
+               .FromMaybe(false)) {
+        return MaybeLocal<Function>();
+      }
     }
   }
 
@@ -1207,6 +1295,18 @@ static void Initialize(Local<Object> target,
       ->Set(context,
             FIXED_ONE_BYTE_STRING(isolate, "kSbReturn"),
             env->ffi_sb_return_symbol())
+      .Check();
+  // Fast API wrappers use separate metadata Symbols so pointer-conversion
+  // routing does not depend on SharedBuffer internals.
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kFastArguments"),
+            env->ffi_fast_arguments_symbol())
+      .Check();
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "kFastBufferInvoke"),
+            env->ffi_fast_buffer_invoke_symbol())
       .Check();
 }
 

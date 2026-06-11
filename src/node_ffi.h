@@ -3,6 +3,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "ffi/fast.h"
 #include "ffi.h"
 #include "uv.h"
 
@@ -54,6 +55,8 @@ class FFIFunctionInfo final : public BaseObject {
  private:
   std::shared_ptr<FFIFunction> fn;
   std::shared_ptr<v8::BackingStore> sb_backing;
+  std::unique_ptr<FastFFIMetadata> fast_metadata;
+  std::unique_ptr<FastFFIMetadata> fast_buffer_metadata;
 
   friend class DynamicLibrary;
 };
