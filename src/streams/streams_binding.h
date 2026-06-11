@@ -147,6 +147,13 @@ void RunPipePump(WritableStream* dest);
 // allocations.
 void ThenStartFulfilled(Environment* env, v8::Local<v8::Promise> promise);
 
+// The writable flavor: same contract, but the promise must have been resolved
+// with a WritableStreamDefaultController wrapper. A separate per-realm
+// reaction (instead of a kind dispatch in a shared one) keeps the readable
+// creation path free of brand checks against the writable template.
+void ThenStartFulfilledWritable(Environment* env,
+                                v8::Local<v8::Promise> promise);
+
 // Returns the realm's cached noop function, creating it on first use; empty
 // only on instantiation failure (with a pending exception).
 v8::Local<v8::Function> NoopFunction(Environment* env);
@@ -242,6 +249,9 @@ class BindingData : public SnapshotableObject {
   // Function allocations) can recover it from the fulfilment value and mark
   // the controller started (by kind tag). Lazily created.
   v8::Global<v8::Function> start_fulfilled_reaction;
+  // The writable controller's flavor (cppgc-managed wrapper; see
+  // ThenStartFulfilledWritable). Lazily created.
+  v8::Global<v8::Function> start_fulfilled_reaction_writable;
 
   // Shared per-realm TransformStream algorithm trampolines. All but start are
   // invoked by our own controllers with the transform stream's wrapper as

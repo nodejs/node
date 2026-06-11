@@ -103,40 +103,46 @@ Local<Promise> RejectedWith(Environment* env, Local<Value> error) {
 // Reaction callbacks. args.Data() is the controller (or stream) wrapper.
 void ReactStartFulfilled(const FunctionCallbackInfo<Value>& args) {
   auto* c =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(args.Data());
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(
+          args.Data().As<Object>());
   if (c != nullptr) c->OnStartFulfilled();
 }
 void ReactStartRejected(const FunctionCallbackInfo<Value>& args) {
   auto* c =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(args.Data());
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(
+          args.Data().As<Object>());
   if (c != nullptr) c->OnStartRejected(args[0]);
 }
 void ReactWriteFulfilled(const FunctionCallbackInfo<Value>& args) {
   auto* c =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(args.Data());
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(
+          args.Data().As<Object>());
   if (c != nullptr) c->OnWriteFulfilled();
 }
 void ReactWriteRejected(const FunctionCallbackInfo<Value>& args) {
   auto* c =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(args.Data());
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(
+          args.Data().As<Object>());
   if (c != nullptr) c->OnWriteRejected(args[0]);
 }
 void ReactCloseFulfilled(const FunctionCallbackInfo<Value>& args) {
   auto* c =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(args.Data());
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(
+          args.Data().As<Object>());
   if (c != nullptr) c->OnCloseFulfilled();
 }
 void ReactCloseRejected(const FunctionCallbackInfo<Value>& args) {
   auto* c =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(args.Data());
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(
+          args.Data().As<Object>());
   if (c != nullptr) c->OnCloseRejected(args[0]);
 }
 void ReactAbortFulfilled(const FunctionCallbackInfo<Value>& args) {
-  auto* s = BaseObject::FromJSObject<WritableStream>(args.Data());
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args.Data().As<Object>());
   if (s != nullptr) s->OnAbortAlgorithmFulfilled();
 }
 void ReactAbortRejected(const FunctionCallbackInfo<Value>& args) {
-  auto* s = BaseObject::FromJSObject<WritableStream>(args.Data());
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args.Data().As<Object>());
   if (s != nullptr) s->OnAbortAlgorithmRejected(args[0]);
 }
 
@@ -167,8 +173,8 @@ void ThenReactCached(Environment* env,
                      Local<Object> data,
                      FunctionCallback on_fulfilled,
                      FunctionCallback on_rejected,
-                     v8::Global<Function>* ff_slot,
-                     v8::Global<Function>* rj_slot) {
+                     v8::TracedReference<Function>* ff_slot,
+                     v8::TracedReference<Function>* rj_slot) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   Local<Function> ff = ff_slot->Get(isolate);
@@ -344,17 +350,41 @@ void PromiseSlot::Trace(cppgc::Visitor* visitor) const {
 // ===========================================================================
 
 WritableStreamDefaultController::WritableStreamDefaultController(
-    Environment* env, Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kWritableStreamDefaultController) {}
+    Environment* env, Local<Object> object) {
+  // Untracked: created once per stream, default destructor (TracedReference
+  // cleanup is automatic), and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void WritableStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
-  queue_.ForEach([&](const ValueQueueEntry& entry) {
-    tracker->TrackField("queue", entry.value);
+void WritableStreamDefaultController::Trace(cppgc::Visitor* visitor) const {
+  // The value queue (a plain vector) mutates as chunks enqueue/dequeue, so it
+  // cannot be iterated from a concurrent marking thread; defer to the mutator
+  // thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const WritableStreamDefaultController*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(WritableStreamDefaultController))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void WritableStreamDefaultController::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  queue_.ForEach([&](const TracedValueQueueEntry& entry) {
+    visitor->Trace(entry.value);
   });
-  tracker->TrackField("write_algorithm", write_algorithm_);
-  tracker->TrackField("close_algorithm", close_algorithm_);
-  tracker->TrackField("abort_algorithm", abort_algorithm_);
-  tracker->TrackField("size_algorithm", size_algorithm_);
+  visitor->Trace(write_algorithm_);
+  visitor->Trace(close_algorithm_);
+  visitor->Trace(abort_algorithm_);
+  visitor->Trace(size_algorithm_);
+  visitor->Trace(algo_receiver_);
+  visitor->Trace(on_write_fulfilled_);
+  visitor->Trace(on_write_rejected_);
 }
 
 Local<FunctionTemplate>
@@ -397,7 +427,7 @@ Maybe<void> WritableStreamDefaultController::EnqueueValueWithSize(
     return Nothing<void>();
   }
   queue_.emplace_back();
-  ValueQueueEntry& entry = queue_.back();
+  TracedValueQueueEntry& entry = queue_.back();
   entry.value.Reset(isolate, value);
   entry.size = size;
   queue_total_size_ += size;
@@ -407,7 +437,7 @@ Maybe<void> WritableStreamDefaultController::EnqueueValueWithSize(
 MaybeLocal<Value> WritableStreamDefaultController::DequeueValue() {
   Isolate* isolate = env()->isolate();
   CHECK(!queue_.empty());
-  ValueQueueEntry& entry = queue_.front();
+  TracedValueQueueEntry& entry = queue_.front();
   Local<Value> value = entry.value.Get(isolate);
   queue_total_size_ -= entry.size;
   if (queue_total_size_ < 0) queue_total_size_ = 0;
@@ -727,7 +757,7 @@ bool WritableStreamDefaultController::Setup(
     Local<Promise::Resolver> adopter;
     if (!Promise::Resolver::New(context).ToLocal(&adopter)) return false;
     USE(adopter->Resolve(context, carrier->GetPromise()));  // thenable adoption
-    ThenStartFulfilled(env, adopter->GetPromise());
+    ThenStartFulfilledWritable(env, adopter->GetPromise());
     return true;
   }
   Local<Value> start_result;
@@ -743,7 +773,7 @@ bool WritableStreamDefaultController::Setup(
     // thenable to chase, no possible rejection; reuse the shared per-realm
     // start reaction.
     USE(resolver->Resolve(context, controller_obj));
-    ThenStartFulfilled(env, resolver->GetPromise());
+    ThenStartFulfilledWritable(env, resolver->GetPromise());
     return true;
   }
   USE(resolver->Resolve(context, start_result));
@@ -759,8 +789,8 @@ void WritableStreamDefaultController::GetSignal(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "WritableStreamDefaultController"))
     return;
-  auto* c = BaseObject::FromJSObject<WritableStreamDefaultController>(
-      args.This());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   Local<Value> ac = c->object()->GetInternalField(kAbortController).As<Value>();
   if (!ac->IsObject()) return;
@@ -778,8 +808,8 @@ void WritableStreamDefaultController::Error(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "WritableStreamDefaultController"))
     return;
-  auto* c = BaseObject::FromJSObject<WritableStreamDefaultController>(
-      args.This());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   if (c->stream()->state() != WritableState::kWritable) return;
   c->ErrorInternal(args[0]);
@@ -940,7 +970,8 @@ bool WritableStreamDefaultWriter::SetupInternal(Local<Object> stream_obj) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  auto* stream = BaseObject::FromJSObject<WritableStream>(stream_obj);
+  CHECK(WritableStream::GetConstructorTemplate(env)->HasInstance(stream_obj));
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(stream_obj);
   CHECK_NOT_NULL(stream);
   if (stream->locked()) {
     isolate->ThrowException(
@@ -1136,18 +1167,44 @@ void WritableStreamDefaultWriter::ReleaseLock(
 // WritableStream
 // ===========================================================================
 
-WritableStream::WritableStream(Environment* env, Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kWritableStream) {}
+WritableStream::WritableStream(Environment* env, Local<Object> object) {
+  // Untracked: created in bulk (every construction/transfer), default
+  // destructor, and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void WritableStream::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("stored_error", stored_error_);
-  tracker->TrackField("close_request", close_request_);
-  tracker->TrackField("in_flight_write_request", in_flight_write_request_);
-  tracker->TrackField("flush_resolver", flush_resolver_);
-  tracker->TrackField("pump_source", pump_source_obj_);
-  tracker->TrackField("pump_stall_resolver", pump_stall_resolver_);
-  tracker->TrackField("in_flight_close_request", in_flight_close_request_);
-  tracker->TrackField("closed", closed_);
+void WritableStream::Trace(cppgc::Visitor* visitor) const {
+  // write_requests_ (a plain vector) mutates as writes queue/settle, so it
+  // cannot be iterated from a concurrent marking thread; defer to the mutator
+  // thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const WritableStream*>(self)->TraceOnMutatorThread(v);
+          },
+          sizeof(WritableStream))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void WritableStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(stored_error_);
+  write_requests_.ForEach(
+      [&](const v8::TracedReference<Promise::Resolver>& r) {
+        visitor->Trace(r);
+      });
+  visitor->Trace(close_request_);
+  visitor->Trace(in_flight_write_request_);
+  visitor->Trace(in_flight_close_request_);
+  visitor->Trace(flush_resolver_);
+  visitor->Trace(pump_source_obj_);
+  visitor->Trace(pump_stall_resolver_);
+  visitor->Trace(pending_abort_promise_);
+  visitor->Trace(pending_abort_reason_);
+  visitor->Trace(processing_abort_resolver_);
+  visitor->Trace(closed_);
 }
 
 Local<FunctionTemplate> WritableStream::GetConstructorTemplate(
@@ -1192,7 +1249,7 @@ void WritableStream::SetController(Local<Object> controller_obj) {
       WritableStreamDefaultController::kStream, object());
   // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
   auto* controller =
-      BaseObject::FromJSObject<WritableStreamDefaultController>(controller_obj);
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(controller_obj);
   CHECK_NOT_NULL(controller);
   controller_cache_ = controller;
   controller->set_stream_cache(this);
@@ -1468,8 +1525,10 @@ void WritableStream::FinishErroring() {
   Local<Value> stored = stored_error(env);
   while (!write_requests_.empty()) {
     // Untracked fast-transfer slots are empty: nothing to reject.
-    if (!write_requests_.front().IsEmpty())
+    if (!write_requests_.front().IsEmpty()) {
       USE(write_requests_.front().Get(isolate)->Reject(context, stored));
+      write_requests_.front().Reset();  // eager: pop_front alone would pin it
+    }
     write_requests_.pop_front();
   }
   // No write can ever run again: release the pipe pump (and its parked
@@ -1543,7 +1602,12 @@ Local<Promise> WritableStream::AddWriteRequest() {
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(env->context()).ToLocal(&resolver))
     return Local<Promise>();
-  write_requests_.emplace_back(env->isolate(), resolver);
+  // emplace-empty + Reset: the TracedReference(isolate, local) constructor is
+  // an initializing store — no markbit and no write barrier during incremental
+  // marking — so a request parked on an already-traced stream would be zapped
+  // at the end of marking. Reset() is an assigning store and is safe.
+  write_requests_.emplace_back();
+  write_requests_.back().Reset(env->isolate(), resolver);
   return resolver->GetPromise();
 }
 
@@ -1627,7 +1691,7 @@ void WritableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "WritableStream"))
     return;
-  auto* stream = BaseObject::FromJSObject<WritableStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->locked());
 }
@@ -1640,7 +1704,7 @@ void WritableStream::Abort(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* stream = BaseObject::FromJSObject<WritableStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
   if (stream->locked()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context, "WritableStream is locked")));
@@ -1657,7 +1721,7 @@ void WritableStream::Close(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* stream = BaseObject::FromJSObject<WritableStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
   if (stream->locked()) {
     args.GetReturnValue().Set(RejectedWith(
         env, InvalidStateError(isolate, context, "WritableStream is locked")));
@@ -1695,9 +1759,10 @@ MaybeLocal<Object> NewWritableStream(Environment* env,
   Local<Object> stream_obj;
   if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj))
     return MaybeLocal<Object>();
-  BaseObjectPtr<WritableStream> stream =
-      MakeBaseObject<WritableStream>(env, stream_obj);
-  stream->MakeWeak();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject stream).
+  auto* stream = cppgc::MakeGarbageCollected<WritableStream>(
+      env->cppgc_allocation_handle(), env, stream_obj);
 
   Local<Function> controller_ctor;
   if (!WritableStreamDefaultController::GetConstructorTemplate(env)
@@ -1707,9 +1772,9 @@ MaybeLocal<Object> NewWritableStream(Environment* env,
   Local<Object> controller_obj;
   if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj))
     return MaybeLocal<Object>();
-  BaseObjectPtr<WritableStreamDefaultController> controller =
-      MakeBaseObject<WritableStreamDefaultController>(env, controller_obj);
-  controller->MakeWeak();
+  auto* controller =
+      cppgc::MakeGarbageCollected<WritableStreamDefaultController>(
+          env->cppgc_allocation_handle(), env, controller_obj);
 
   stream->SetController(controller_obj);
 
@@ -1778,7 +1843,10 @@ void AcquireWritableStreamDefaultWriter(
 // properties, so the public WebIDL surface is unchanged.
 void WritableStreamStateField(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(static_cast<uint32_t>(s->state()));
 }
@@ -1786,7 +1854,10 @@ void WritableStreamStateField(const FunctionCallbackInfo<Value>& args) {
 void WritableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   Local<Promise> p = s->closed_promise(env);
   if (!p.IsEmpty()) args.GetReturnValue().Set(p);
@@ -1797,7 +1868,10 @@ void WritableStreamClosedPromise(const FunctionCallbackInfo<Value>& args) {
 void WritableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(s->stored_error(env));
 }
@@ -1807,7 +1881,10 @@ void WritableStreamStoredError(const FunctionCallbackInfo<Value>& args) {
 void WritableStreamCloseQueuedOrInFlight(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(s->CloseQueuedOrInFlight());
 }
@@ -1818,7 +1895,10 @@ void WritableStreamCloseQueuedOrInFlight(
 // errored). Internal-only.
 void WritableStreamFlushPromise(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* s = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  Environment* envh = Environment::GetCurrent(args);
+  if (!WritableStream::GetConstructorTemplate(envh)->HasInstance(args[0]))
+    return;
+  auto* s = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
   if (s == nullptr) return;
   args.GetReturnValue().Set(s->FlushPromise());
 }
@@ -1832,7 +1912,7 @@ void WritableStreamControllerStream(const FunctionCallbackInfo<Value>& args) {
            ->HasInstance(args[0])) {
     return;
   }
-  auto* c = BaseObject::FromJSObject<WritableStreamDefaultController>(
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
       args[0].As<Object>());
   if (c == nullptr) return;
   args.GetReturnValue().Set(c->stream()->object());

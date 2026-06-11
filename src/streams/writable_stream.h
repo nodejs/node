@@ -82,15 +82,29 @@ class PromiseSlot {
   v8::TracedReference<v8::Promise::Resolver> resolver_;
 };
 
+// ValueQueueEntry's traced flavor for cppgc-managed owners: a TracedReference
+// is traced from the owner's Trace() instead of rooting a persistent handle.
+// (The readable controller still uses the Global-based ValueQueueEntry; the
+// two unify when it converts to cppgc.)
+struct TracedValueQueueEntry {
+  v8::TracedReference<v8::Value> value;
+  double size;
+};
+
 // WritableStreamDefaultController — owns the write queue and queuing parameters.
 // The value queue holds chunks (the spec's close "sentinel" is modeled by the
 // close_queued_ flag since close is always the final queue entry). State math
 // and queue bookkeeping happen in C++; JS is crossed only to run the user
 // write/close/abort/size algorithms and to drive the controller's AbortSignal.
-class WritableStreamDefaultController final : public StreamBaseObject {
+class WritableStreamDefaultController final
+    : CPPGC_MIXIN(WritableStreamDefaultController) {
  public:
+  SET_CPPGC_NAME(WritableStreamDefaultController)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kAbortController,  // the JS AbortController whose .signal is exposed
     kInternalFieldCount,
   };
@@ -103,10 +117,6 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   WritableStreamDefaultController(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(WritableStreamDefaultController)
-  SET_SELF_SIZE(WritableStreamDefaultController)
 
   // Owning stream. Cached raw pointer (hot path): the GC-traced kStream
   // internal field keeps the stream's wrapper alive for this controller's
@@ -157,15 +167,20 @@ class WritableStreamDefaultController final : public StreamBaseObject {
              v8::Local<v8::Value> algo_receiver);
 
  private:
-  // Value queue (chunks only); same Global-per-chunk layout as the readable
-  // default controller (see ValueQueueEntry in streams_binding.h). The close
+  // Traces the queue entries and handle members. Only ever runs on the
+  // mutator thread: the queue mutates as chunks enqueue/dequeue, so Trace()
+  // defers concurrent marking here.
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
+  // Value queue (chunks only); one TracedReference per chunk (the cppgc
+  // flavor of the readable controller's Global-per-chunk layout). The close
   // sentinel is represented by close_queued_.
   v8::MaybeLocal<v8::Value> DequeueValue();
   v8::Maybe<void> EnqueueValueWithSize(v8::Local<v8::Value> value, double size);
   void ResetQueue();
   bool QueueIsEmpty() const { return queue_.empty() && !close_queued_; }
 
-  FifoQueue<ValueQueueEntry> queue_;
+  FifoQueue<TracedValueQueueEntry> queue_;
   double queue_total_size_ = 0;
   bool close_queued_ = false;
 
@@ -173,18 +188,18 @@ class WritableStreamDefaultController final : public StreamBaseObject {
   SizeMode size_mode_ = SizeMode::kCountOne;
   bool started_ = false;
 
-  v8::Global<v8::Function> write_algorithm_;  // raw user fn; may be empty
-  v8::Global<v8::Function> close_algorithm_;
-  v8::Global<v8::Function> abort_algorithm_;
-  v8::Global<v8::Function> size_algorithm_;
-  v8::Global<v8::Value> algo_receiver_;  // `this` for the raw write algorithm
+  v8::TracedReference<v8::Function> write_algorithm_;  // raw; may be empty
+  v8::TracedReference<v8::Function> close_algorithm_;
+  v8::TracedReference<v8::Function> abort_algorithm_;
+  v8::TracedReference<v8::Function> size_algorithm_;
+  v8::TracedReference<v8::Value> algo_receiver_;  // write algorithm's `this`
 
   // Cached promise-reaction functions for the write hot path (Data == this
   // controller's wrapper). Created once on first write and reused for every
   // subsequent write, so the per-write path allocates no V8 Function. The
-  // wrapper->controller->Global cycle is broken by ClearAlgorithms.
-  v8::Global<v8::Function> on_write_fulfilled_;
-  v8::Global<v8::Function> on_write_rejected_;
+  // wrapper->controller->handle cycle is broken by ClearAlgorithms.
+  v8::TracedReference<v8::Function> on_write_fulfilled_;
+  v8::TracedReference<v8::Function> on_write_rejected_;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).
   WritableStream* stream_cache_ = nullptr;
@@ -259,11 +274,17 @@ class WritableStreamDefaultWriter final
 
 // WritableStream — the user-facing object. Owns the write/close/abort request
 // bookkeeping; the controller and writer are referenced via GC-traced internal
-// fields.
-class WritableStream final : public StreamBaseObject {
+// fields. cppgc-managed: stream+controller pairs are created in bulk (every
+// construction and every transfer), and the bump allocation + TracedReference
+// model skips the malloc + persistent handle + weak callback per instance.
+class WritableStream final : CPPGC_MIXIN(WritableStream) {
  public:
+  SET_CPPGC_NAME(WritableStream)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kController = BaseObject::kInternalFieldCount,
+    kController = CppgcMixin::kInternalFieldCount,
     kWriter,
     kInternalFieldCount,
   };
@@ -278,10 +299,6 @@ class WritableStream final : public StreamBaseObject {
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   WritableStream(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(WritableStream)
-  SET_SELF_SIZE(WritableStream)
 
   WritableState state() const { return state_; }
   void set_state(WritableState s) { state_ = s; }
@@ -356,41 +373,47 @@ class WritableStream final : public StreamBaseObject {
   }
 
  private:
+  // Traces the request queue and handle members. Only ever runs on the
+  // mutator thread: write_requests_ mutates as writes queue/settle, so
+  // Trace() defers concurrent marking here.
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
   void MaybeSettleFlush();
 
   WritableState state_ = WritableState::kWritable;
-  v8::Global<v8::Value> stored_error_;
+  v8::TracedReference<v8::Value> stored_error_;
   bool backpressure_ = false;
 
   // May contain empty slots: an untracked fast-transfer write (see
   // AddWriteRequestUntracked) occupies a position with no resolver.
-  FifoQueue<v8::Global<v8::Promise::Resolver>> write_requests_;
-  v8::Global<v8::Promise::Resolver> close_request_;
-  v8::Global<v8::Promise::Resolver> in_flight_write_request_;
+  FifoQueue<v8::TracedReference<v8::Promise::Resolver>> write_requests_;
+  v8::TracedReference<v8::Promise::Resolver> close_request_;
+  v8::TracedReference<v8::Promise::Resolver> in_flight_write_request_;
   // True while a write request is marked in flight; in_flight_write_request_
   // alone cannot signal this since an untracked request's slot is empty.
   bool write_request_in_flight_ = false;
-  v8::Global<v8::Promise::Resolver> in_flight_close_request_;
+  v8::TracedReference<v8::Promise::Resolver> in_flight_close_request_;
   // Lazily created by FlushPromise(); settled by MaybeSettleFlush().
-  v8::Global<v8::Promise::Resolver> flush_resolver_;
+  v8::TracedReference<v8::Promise::Resolver> flush_resolver_;
 
   // Pipe pump state (see pump_armed() above). The source's wrapper is pinned
-  // strongly only while the pump is armed.
+  // only while the pump is armed.
   bool pump_armed_ = false;
-  v8::Global<v8::Object> pump_source_obj_;
-  v8::Global<v8::Promise::Resolver> pump_stall_resolver_;
+  v8::TracedReference<v8::Object> pump_source_obj_;
+  v8::TracedReference<v8::Promise::Resolver> pump_stall_resolver_;
 
   bool has_pending_abort_ = false;
-  v8::Global<v8::Promise::Resolver> pending_abort_promise_;
-  v8::Global<v8::Value> pending_abort_reason_;
+  v8::TracedReference<v8::Promise::Resolver> pending_abort_promise_;
+  v8::TracedReference<v8::Value> pending_abort_reason_;
   bool pending_abort_was_already_erroring_ = false;
 
   // The abort request resolver moved out of pending_abort_promise_ while the
   // controller's abort algorithm runs during FinishErroring (settled by the
   // abort-algorithm reaction callbacks).
-  v8::Global<v8::Promise::Resolver> processing_abort_resolver_;
+  v8::TracedReference<v8::Promise::Resolver> processing_abort_resolver_;
 
-  v8::Global<v8::Promise::Resolver> closed_;  // stream-level closed promise
+  // Stream-level closed promise.
+  v8::TracedReference<v8::Promise::Resolver> closed_;
 
   // Raw-pointer mirrors of the kController / kWriter internal fields.
   WritableStreamDefaultController* controller_cache_ = nullptr;

@@ -3369,7 +3369,7 @@ void PipePump(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsObject());
   auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
-  auto* d = BaseObject::FromJSObject<WritableStream>(args[1].As<Object>());
+  auto* d = CppgcMixin::Unwrap<WritableStream>(args[1].As<Object>());
   if (s == nullptr || d == nullptr) {
     args.GetReturnValue().Set(2);
     return;
@@ -3392,7 +3392,7 @@ void PipePump(const FunctionCallbackInfo<Value>& args) {
 // after shutdown begins, mirroring the JS step loop's shuttingDown checks.
 void PipePumpDisarm(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  auto* d = BaseObject::FromJSObject<WritableStream>(args[0].As<Object>());
+  auto* d = CppgcMixin::Unwrap<WritableStream>(args[0].As<Object>());
   if (d == nullptr) return;
   d->DisarmPumpAndSettleStall();
 }

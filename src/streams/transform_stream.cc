@@ -3,6 +3,7 @@
 #include "streams/writable_stream.h"
 #include "streams/streams_binding.h"
 #include "base_object-inl.h"
+#include "cppgc_helpers-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
@@ -700,7 +701,7 @@ void TransformStream::SetReadable(Local<Object> readable_obj) {
 
 void TransformStream::SetWritable(Local<Object> writable_obj) {
   object()->SetInternalField(kWritable, writable_obj);
-  writable_cache_ = BaseObject::FromJSObject<WritableStream>(writable_obj);
+  writable_cache_ = CppgcMixin::Unwrap<WritableStream>(writable_obj);
   CHECK_NOT_NULL(writable_cache_);
 }
 

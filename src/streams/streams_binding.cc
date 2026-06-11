@@ -3,6 +3,7 @@
 #include "streams/writable_stream.h"
 #include "streams/transform_stream.h"
 #include "base_object-inl.h"
+#include "cppgc_helpers-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
@@ -43,6 +44,9 @@ Local<String> InternalizedString(Isolate* isolate, const char* s) {
 void ReactStartFulfilledShared(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!args[0]->IsObject()) return;
+  // Readable controllers only (still BaseObjects); the cppgc-managed writable
+  // controller has its own reaction (ReactStartFulfilledWritable), so the
+  // unchecked FromJSObject cast never sees a CppgcMixin wrapper here.
   BaseObject* base =
       BaseObject::FromJSObject(args[0].As<v8::Object>());
   if (base == nullptr) return;
@@ -54,12 +58,17 @@ void ReactStartFulfilledShared(
     case StreamBaseObject::Kind::kByteController:
       static_cast<ReadableByteStreamController*>(s)->OnStartFulfilled();
       break;
-    case StreamBaseObject::Kind::kWritableStreamDefaultController:
-      static_cast<WritableStreamDefaultController*>(s)->OnStartFulfilled();
-      break;
     default:
       break;
   }
+}
+
+void ReactStartFulfilledWritable(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (!args[0]->IsObject()) return;
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args[0].As<v8::Object>());
+  if (c != nullptr) c->OnStartFulfilled();
 }
 
 void ThenSharedReaction(Environment* env,
@@ -104,6 +113,12 @@ void ThenStartFulfilled(Environment* env, Local<Promise> promise) {
   BindingData* bd = BindingData::Get(env);
   ThenSharedReaction(env, promise, ReactStartFulfilledShared,
                      &bd->start_fulfilled_reaction);
+}
+
+void ThenStartFulfilledWritable(Environment* env, Local<Promise> promise) {
+  BindingData* bd = BindingData::Get(env);
+  ThenSharedReaction(env, promise, ReactStartFulfilledWritable,
+                     &bd->start_fulfilled_reaction_writable);
 }
 
 Local<FunctionTemplate> NewGetter(Isolate* isolate,
