@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "cppgc_helpers.h"
 #include "memory_tracker.h"
 #include "streams/streams_binding.h"
 #include "v8.h"
@@ -163,10 +164,24 @@ class ReadableStreamDefaultController final : public StreamBaseObject {
 // ReadableStreamDefaultReader — holds the queue of pending read requests as
 // promise resolvers (no per-read request object), plus the reader's `closed`
 // promise.
-class ReadableStreamDefaultReader final : public StreamBaseObject {
+//
+// Unlike the other stream objects this one is cppgc-managed: readers are
+// created/discarded in bulk (getReader()/releaseLock() churn, tee, pipeTo,
+// async iteration), and the BaseObject model costs a malloc, a persistent
+// global handle and a weak callback per instance. cppgc replaces those with a
+// bump allocation + TracedReference and lets the wrapper die with its JS
+// object with no weak-callback pass. V8 references therefore live in
+// v8::TracedReference (traced via Trace(); a v8::Global member would need an
+// unsafe-in-sweep disposing destructor or a pre-finalizer).
+class ReadableStreamDefaultReader final
+    : CPPGC_MIXIN(ReadableStreamDefaultReader) {
  public:
+  SET_CPPGC_NAME(ReadableStreamDefaultReader)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kInternalFieldCount,
   };
 
@@ -180,10 +195,6 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
   static void GetClosed(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   ReadableStreamDefaultReader(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ReadableStreamDefaultReader)
-  SET_SELF_SIZE(ReadableStreamDefaultReader)
 
   // Locked-to stream; cached raw pointer mirroring the GC-traced kStream
   // internal field (set in SetupInternal, cleared in Release). While set, the
@@ -219,11 +230,16 @@ class ReadableStreamDefaultReader final : public StreamBaseObject {
   void set_for_author_code(bool v) { for_author_code_ = v; }
 
  private:
-  FifoQueue<v8::Global<v8::Promise::Resolver>> read_requests_;
+  // Traces the TracedReference members. Only ever runs on the mutator thread:
+  // the pending-read queue mutates as reads park/settle, so Trace() defers
+  // concurrent marking here via DeferTraceToMutatorThreadIfConcurrent.
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
+  FifoQueue<v8::TracedReference<v8::Promise::Resolver>> read_requests_;
   // Lazily materialized on first access; until then the settlement is
   // recorded in closed_state_/closed_reason_ (see ClosedState).
-  v8::Global<v8::Promise::Resolver> closed_;
-  v8::Global<v8::Value> closed_reason_;
+  v8::TracedReference<v8::Promise::Resolver> closed_;
+  v8::TracedReference<v8::Value> closed_reason_;
   ClosedState closed_state_ = ClosedState::kPending;
   bool for_author_code_ = true;
 
@@ -452,11 +468,16 @@ class ReadableStreamBYOBRequest final : public StreamBaseObject {
 };
 
 // ReadableStreamBYOBReader — holds the queue of pending read-into requests as
-// promise resolvers plus the reader's `closed` promise.
-class ReadableStreamBYOBReader final : public StreamBaseObject {
+// promise resolvers plus the reader's `closed` promise. cppgc-managed, same
+// rationale and structure as ReadableStreamDefaultReader above.
+class ReadableStreamBYOBReader final : CPPGC_MIXIN(ReadableStreamBYOBReader) {
  public:
+  SET_CPPGC_NAME(ReadableStreamBYOBReader)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kInternalFieldCount,
   };
 
@@ -470,10 +491,6 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
   static void GetClosed(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   ReadableStreamBYOBReader(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(ReadableStreamBYOBReader)
-  SET_SELF_SIZE(ReadableStreamBYOBReader)
 
   // Locked-to stream; cached raw pointer mirroring the GC-traced kStream
   // internal field (set in SetupInternal, cleared in Release).
@@ -499,11 +516,14 @@ class ReadableStreamBYOBReader final : public StreamBaseObject {
   void set_for_author_code(bool v) { for_author_code_ = v; }
 
  private:
-  FifoQueue<v8::Global<v8::Promise::Resolver>> read_into_requests_;
+  // See ReadableStreamDefaultReader::TraceOnMutatorThread.
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
+  FifoQueue<v8::TracedReference<v8::Promise::Resolver>> read_into_requests_;
   // Lazily materialized on first access; until then the settlement is
   // recorded in closed_state_/closed_reason_ (see ClosedState).
-  v8::Global<v8::Promise::Resolver> closed_;
-  v8::Global<v8::Value> closed_reason_;
+  v8::TracedReference<v8::Promise::Resolver> closed_;
+  v8::TracedReference<v8::Value> closed_reason_;
   ClosedState closed_state_ = ClosedState::kPending;
   bool for_author_code_ = true;
 
@@ -563,30 +583,37 @@ class ReadableStream final : public StreamBaseObject {
            controller_cache_->stream_kind() == Kind::kByteController;
   }
 
-  // Readers (at most one is non-null).
-  StreamBaseObject* generic_reader() const { return reader_cache_; }
+  // Readers (at most one is attached). The default reader is cppgc-managed
+  // (not a StreamBaseObject), so the cache is a void* discriminated by an
+  // explicit kind byte rather than the StreamBaseObject kind tag.
+  enum class ReaderKind : uint8_t { kNone, kDefault, kByob };
   ReadableStreamDefaultReader* default_reader() const {
-    return reader_cache_ != nullptr &&
-                   reader_cache_->stream_kind() == Kind::kDefaultReader
+    return reader_kind_ == ReaderKind::kDefault
                ? static_cast<ReadableStreamDefaultReader*>(reader_cache_)
                : nullptr;
   }
   ReadableStreamBYOBReader* byob_reader() const {
-    return reader_cache_ != nullptr &&
-                   reader_cache_->stream_kind() == Kind::kByobReader
+    return reader_kind_ == ReaderKind::kByob
                ? static_cast<ReadableStreamBYOBReader*>(reader_cache_)
                : nullptr;
   }
-  bool locked() const { return reader_cache_ != nullptr; }
+  bool locked() const { return reader_kind_ != ReaderKind::kNone; }
   bool has_default_reader() const {
-    return reader_cache_ != nullptr &&
-           reader_cache_->stream_kind() == Kind::kDefaultReader;
+    return reader_kind_ == ReaderKind::kDefault;
   }
-  bool has_byob_reader() const {
-    return reader_cache_ != nullptr &&
-           reader_cache_->stream_kind() == Kind::kByobReader;
+  bool has_byob_reader() const { return reader_kind_ == ReaderKind::kByob; }
+  void set_reader_cache(ReadableStreamDefaultReader* r) {
+    reader_cache_ = r;
+    reader_kind_ = ReaderKind::kDefault;
   }
-  void set_reader_cache(StreamBaseObject* r) { reader_cache_ = r; }
+  void set_reader_cache(ReadableStreamBYOBReader* r) {
+    reader_cache_ = r;
+    reader_kind_ = ReaderKind::kByob;
+  }
+  void clear_reader_cache() {
+    reader_cache_ = nullptr;
+    reader_kind_ = ReaderKind::kNone;
+  }
 
   void SetController(v8::Local<v8::Object> controller_obj, bool is_byte);
 
@@ -604,9 +631,11 @@ class ReadableStream final : public StreamBaseObject {
   v8::Global<v8::Value> stored_error_;
   v8::Global<v8::Promise::Resolver> closed_;  // the stream-level closed promise
 
-  // Raw-pointer mirrors of the kController / kReader internal fields.
+  // Raw-pointer mirrors of the kController / kReader internal fields. The
+  // reader cache is type-erased (see ReaderKind above).
   StreamBaseObject* controller_cache_ = nullptr;
-  StreamBaseObject* reader_cache_ = nullptr;
+  void* reader_cache_ = nullptr;
+  ReaderKind reader_kind_ = ReaderKind::kNone;
 };
 
 // Creates and sets up a default ReadableStream, returning its JS object. Used by

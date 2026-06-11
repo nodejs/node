@@ -86,6 +86,7 @@ class FifoQueue {
   size_t size() const { return items_.size() - head_; }
   T& front() { return items_[head_]; }
   const T& front() const { return items_[head_]; }
+  T& back() { return items_.back(); }
   void push_back(const T& value) { items_.push_back(value); }
   void push_back(T&& value) { items_.push_back(std::move(value)); }
   template <typename... Args>
@@ -105,6 +106,12 @@ class FifoQueue {
   void clear() {
     items_.clear();
     head_ = 0;
+  }
+  // Visits the live range front-to-back (used to Trace a queue of
+  // v8::TracedReference from a cppgc-managed owner).
+  template <typename F>
+  void ForEach(F&& f) const {
+    for (size_t i = head_; i < items_.size(); ++i) f(items_[i]);
   }
 
  private:

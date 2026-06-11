@@ -2,6 +2,9 @@
 #include "streams/streams_binding.h"
 #include "streams/writable_stream.h"
 #include "base_object-inl.h"
+#include "cppgc/allocation.h"
+#include "cppgc/visitor.h"
+#include "cppgc_helpers-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
@@ -889,11 +892,35 @@ void ReadableStreamDefaultController::Error(
 // ===========================================================================
 
 ReadableStreamDefaultReader::ReadableStreamDefaultReader(Environment* env,
-                                                         Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kDefaultReader) {}
+                                                         Local<Object> object) {
+  CppgcMixin::Wrap(this, env, object);
+}
 
-void ReadableStreamDefaultReader::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("closed", closed_);
+void ReadableStreamDefaultReader::Trace(cppgc::Visitor* visitor) const {
+  // The pending-read queue (a plain vector) mutates as reads park/settle, so
+  // it cannot be iterated from a concurrent marking thread; defer to the
+  // mutator thread, where tracing cannot interleave with a mutation.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const ReadableStreamDefaultReader*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(ReadableStreamDefaultReader))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void ReadableStreamDefaultReader::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(closed_);
+  visitor->Trace(closed_reason_);
+  read_requests_.ForEach(
+      [&](const v8::TracedReference<Promise::Resolver>& r) {
+        visitor->Trace(r);
+      });
 }
 
 Local<FunctionTemplate> ReadableStreamDefaultReader::GetConstructorTemplate(
@@ -929,12 +956,25 @@ void ReadableStreamDefaultReader::RegisterExternalReferences(
 
 void ReadableStreamDefaultReader::AddReadRequest(
     Local<Promise::Resolver> resolver) {
-  read_requests_.emplace_back(env()->isolate(), resolver);
+  // Emplace empty + Reset (an ASSIGNING store), never the
+  // TracedReference(isolate, local) constructor: the constructor is an
+  // INITIALIZING store, which during incremental marking gets neither a
+  // markbit nor a write barrier (V8 assumes it happens inside a brand-new,
+  // yet-to-be-traced object). This reader may already have been traced this
+  // marking cycle, so an initializing store here can leave the new node
+  // unmarked, and ResetDeadNodes zaps it at the end of marking — a
+  // use-after-free when the parked read settles.
+  read_requests_.emplace_back();
+  read_requests_.back().Reset(env()->isolate(), resolver);
 }
 
 Local<Promise::Resolver> ReadableStreamDefaultReader::TakeReadRequest() {
   CHECK(!read_requests_.empty());
   Local<Promise::Resolver> resolver = read_requests_.front().Get(env()->isolate());
+  // ~TracedReference does not free the traced cell (by design); Reset eagerly
+  // so settled read requests do not pile up in the traced-handles table until
+  // the next major GC.
+  read_requests_.front().Reset();
   read_requests_.pop_front();
   return resolver;
 }
@@ -945,6 +985,7 @@ void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
   Local<Context> context = env->context();
   CHECK(!read_requests_.empty());
   Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
+  read_requests_.front().Reset();
   read_requests_.pop_front();
   Local<Value> value = done ? Undefined(isolate).As<Value>() : chunk;
   USE(resolver->Resolve(
@@ -958,6 +999,7 @@ void ReadableStreamDefaultReader::CloseAll() {
   Local<Context> context = env->context();
   while (!read_requests_.empty()) {
     Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
+    read_requests_.front().Reset();
     read_requests_.pop_front();
     USE(resolver->Resolve(
         context, MakeReadResult(env, context, Undefined(isolate), true,
@@ -971,6 +1013,7 @@ void ReadableStreamDefaultReader::ErrorAll(Local<Value> error) {
   Local<Context> context = env->context();
   while (!read_requests_.empty()) {
     Local<Promise::Resolver> resolver = read_requests_.front().Get(isolate);
+    read_requests_.front().Reset();
     read_requests_.pop_front();
     USE(resolver->Reject(context, error));
   }
@@ -1102,7 +1145,7 @@ void ReadableStreamDefaultReader::Release() {
   stream->object()->SetInternalField(ReadableStream::kReader,
                                      Undefined(isolate));
   stream_cache_ = nullptr;
-  stream->set_reader_cache(nullptr);
+  stream->clear_reader_cache();
 
   // Error any outstanding read requests with the releasing error (created
   // only if there are any — error construction captures a stack trace).
@@ -1165,7 +1208,7 @@ void ReadableStreamDefaultReader::Read(const FunctionCallbackInfo<Value>& args) 
     return;
   }
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamDefaultReader>(args.This());
   DoDefaultReaderRead(env, reader, args);
 }
 
@@ -1176,7 +1219,7 @@ void ReadableStreamDefaultReader::ReleaseLock(
                                 "ReadableStreamDefaultReader"))
     return;
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamDefaultReader>(args.This());
   if (reader == nullptr) return;
   if (!reader->has_stream()) return;
   reader->Release();
@@ -1193,7 +1236,7 @@ void ReadableStreamDefaultReader::Cancel(
     return;
   }
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamDefaultReader>(args.This());
   if (!reader->has_stream()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -1216,7 +1259,7 @@ void ReadableStreamDefaultReader::GetClosed(
     return;
   }
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamDefaultReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamDefaultReader>(args.This());
   args.GetReturnValue().Set(reader->closed_promise(env));
 }
 
@@ -1364,17 +1407,14 @@ void ReadableStream::Close() {
     if (!resolver.IsEmpty())
       USE(resolver->Resolve(env->context(), Undefined(isolate)));
   }
-  StreamBaseObject* reader = generic_reader();
-  if (reader == nullptr) return;
   // Resolve the reader's closed promise; only a default reader's pending read
   // requests are closed here (a BYOB reader's read-into requests are handled by
   // cancel / respond-in-closed-state, mirroring readableStreamClose).
-  if (reader->stream_kind() == Kind::kDefaultReader) {
-    auto* dr = static_cast<ReadableStreamDefaultReader*>(reader);
+  if (ReadableStreamDefaultReader* dr = default_reader()) {
     dr->ResolveClosed();
     dr->CloseAll();
-  } else {
-    static_cast<ReadableStreamBYOBReader*>(reader)->ResolveClosed();
+  } else if (ReadableStreamBYOBReader* br = byob_reader()) {
+    br->ResolveClosed();
   }
 }
 
@@ -1392,14 +1432,10 @@ void ReadableStream::ErrorStream(Local<Value> error) {
       MarkHandled(env, p);
     }
   }
-  StreamBaseObject* reader = generic_reader();
-  if (reader == nullptr) return;
-  if (reader->stream_kind() == Kind::kDefaultReader) {
-    auto* dr = static_cast<ReadableStreamDefaultReader*>(reader);
+  if (ReadableStreamDefaultReader* dr = default_reader()) {
     dr->RejectClosed(error);
     dr->ErrorAll(error);
-  } else {
-    auto* br = static_cast<ReadableStreamBYOBReader*>(reader);
+  } else if (ReadableStreamBYOBReader* br = byob_reader()) {
     br->RejectClosed(error);
     br->ErrorAll(error);
   }
@@ -2541,11 +2577,34 @@ void ReadableStreamBYOBRequest::RespondWithNewView(
 // ===========================================================================
 
 ReadableStreamBYOBReader::ReadableStreamBYOBReader(Environment* env,
-                                                   Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kByobReader) {}
+                                                   Local<Object> object) {
+  CppgcMixin::Wrap(this, env, object);
+}
 
-void ReadableStreamBYOBReader::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("closed", closed_);
+void ReadableStreamBYOBReader::Trace(cppgc::Visitor* visitor) const {
+  // See ReadableStreamDefaultReader::Trace — the pending read-into queue
+  // cannot be iterated from a concurrent marking thread.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const ReadableStreamBYOBReader*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(ReadableStreamBYOBReader))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void ReadableStreamBYOBReader::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(closed_);
+  visitor->Trace(closed_reason_);
+  read_into_requests_.ForEach(
+      [&](const v8::TracedReference<Promise::Resolver>& r) {
+        visitor->Trace(r);
+      });
 }
 
 Local<FunctionTemplate> ReadableStreamBYOBReader::GetConstructorTemplate(
@@ -2581,7 +2640,10 @@ void ReadableStreamBYOBReader::RegisterExternalReferences(
 
 void ReadableStreamBYOBReader::AddReadIntoRequest(
     Local<Promise::Resolver> resolver) {
-  read_into_requests_.emplace_back(env()->isolate(), resolver);
+  // Assigning store, not the initializing-store constructor — see
+  // ReadableStreamDefaultReader::AddReadRequest.
+  read_into_requests_.emplace_back();
+  read_into_requests_.back().Reset(env()->isolate(), resolver);
 }
 
 void ReadableStreamBYOBReader::FulfillFront(Local<Value> view, bool done) {
@@ -2590,6 +2652,9 @@ void ReadableStreamBYOBReader::FulfillFront(Local<Value> view, bool done) {
   Local<Context> context = env->context();
   CHECK(!read_into_requests_.empty());
   Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
+  // ~TracedReference does not free the traced cell (by design); Reset eagerly
+  // so settled requests do not pile up in the traced-handles table.
+  read_into_requests_.front().Reset();
   read_into_requests_.pop_front();
   USE(resolver->Resolve(
       context,
@@ -2602,6 +2667,7 @@ void ReadableStreamBYOBReader::CloseAll() {
   Local<Context> context = env->context();
   while (!read_into_requests_.empty()) {
     Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
+    read_into_requests_.front().Reset();
     read_into_requests_.pop_front();
     USE(resolver->Resolve(
         context, MakeReadResult(env, context, Undefined(isolate), true,
@@ -2615,6 +2681,7 @@ void ReadableStreamBYOBReader::ErrorAll(Local<Value> error) {
   Local<Context> context = env->context();
   while (!read_into_requests_.empty()) {
     Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
+    read_into_requests_.front().Reset();
     read_into_requests_.pop_front();
     USE(resolver->Reject(context, error));
   }
@@ -2743,7 +2810,7 @@ void ReadableStreamBYOBReader::Release() {
   stream->object()->SetInternalField(ReadableStream::kReader,
                                      Undefined(isolate));
   stream_cache_ = nullptr;
-  stream->set_reader_cache(nullptr);
+  stream->clear_reader_cache();
 
   // Created only if there are outstanding read-into requests (error
   // construction captures a stack trace).
@@ -2763,7 +2830,7 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamBYOBReader>(args.This());
 
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
@@ -2855,7 +2922,7 @@ void ReadableStreamBYOBReader::ReleaseLock(
                                 "ReadableStreamBYOBReader"))
     return;
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamBYOBReader>(args.This());
   if (reader == nullptr) return;
   if (!reader->has_stream()) return;
   reader->Release();
@@ -2872,7 +2939,7 @@ void ReadableStreamBYOBReader::Cancel(
     return;
   }
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamBYOBReader>(args.This());
   if (!reader->has_stream()) {
     Local<Promise::Resolver> resolver;
     if (Promise::Resolver::New(context).ToLocal(&resolver)) {
@@ -2895,7 +2962,7 @@ void ReadableStreamBYOBReader::GetClosed(
     return;
   }
   auto* reader =
-      BaseObject::FromJSObject<ReadableStreamBYOBReader>(args.This());
+      CppgcMixin::Unwrap<ReadableStreamBYOBReader>(args.This());
   args.GetReturnValue().Set(reader->closed_promise(env));
 }
 
@@ -3040,9 +3107,10 @@ void AcquireReadableStreamDefaultReader(
     return;
   Local<Object> reader_obj;
   if (!reader_ctor->NewInstance(context).ToLocal(&reader_obj)) return;
-  BaseObjectPtr<ReadableStreamDefaultReader> reader =
-      MakeBaseObject<ReadableStreamDefaultReader>(env, reader_obj);
-  reader->MakeWeak();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject readers).
+  auto* reader = cppgc::MakeGarbageCollected<ReadableStreamDefaultReader>(
+      env->cppgc_allocation_handle(), env, reader_obj);
   // args[1] === true marks an internal (pipeTo/tee) reader: read results get a
   // null prototype so they are not observable thenables.
   if (args[1]->IsTrue()) reader->set_for_author_code(false);
@@ -3065,9 +3133,9 @@ void AcquireReadableStreamBYOBReader(
     return;
   Local<Object> reader_obj;
   if (!reader_ctor->NewInstance(context).ToLocal(&reader_obj)) return;
-  BaseObjectPtr<ReadableStreamBYOBReader> reader =
-      MakeBaseObject<ReadableStreamBYOBReader>(env, reader_obj);
-  reader->MakeWeak();
+  // cppgc-managed, same as the default reader above.
+  auto* reader = cppgc::MakeGarbageCollected<ReadableStreamBYOBReader>(
+      env->cppgc_allocation_handle(), env, reader_obj);
   if (args[1]->IsTrue()) reader->set_for_author_code(false);
 
   if (!reader->SetupInternal(stream_obj)) return;  // throws on lock / non-byte
@@ -3207,7 +3275,7 @@ void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(args[1]);
     return;
   }
-  auto* r = BaseObject::FromJSObject<ReadableStreamDefaultReader>(
+  auto* r = CppgcMixin::Unwrap<ReadableStreamDefaultReader>(
       args[0].As<Object>());
   Local<Context> context = env->context();
   // Fast path: buffered chunk on an author-code reader. Non-author-code
@@ -3332,12 +3400,10 @@ void ReadableStreamReleaseReader(const FunctionCallbackInfo<Value>& args) {
   if (!ReadableStream::GetConstructorTemplate(env)->HasInstance(args[0])) return;
   auto* s = BaseObject::FromJSObject<ReadableStream>(args[0].As<Object>());
   if (s == nullptr) return;
-  StreamBaseObject* reader = s->generic_reader();
-  if (reader == nullptr) return;
-  if (reader->stream_kind() == StreamBaseObject::Kind::kDefaultReader)
-    static_cast<ReadableStreamDefaultReader*>(reader)->Release();
-  else if (reader->stream_kind() == StreamBaseObject::Kind::kByobReader)
-    static_cast<ReadableStreamBYOBReader*>(reader)->Release();
+  if (ReadableStreamDefaultReader* dr = s->default_reader())
+    dr->Release();
+  else if (ReadableStreamBYOBReader* br = s->byob_reader())
+    br->Release();
 }
 
 // Robust brand checks: a prototype-chain test (ObjectPrototypeIsPrototypeOf in
