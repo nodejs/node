@@ -1091,6 +1091,25 @@ Local<Promise::Resolver> ReadableStreamDefaultReader::TakeReadRequest() {
   return request.As<Promise::Resolver>();
 }
 
+Local<Function> ReadableStreamDefaultReader::TakeFrontSettleClosure(
+    Isolate* isolate) {
+  if (parked_read_in_slot_) {
+    Local<Object> wrapper = object();
+    Local<Value> request = wrapper->GetInternalField(kParkedRead).As<Value>();
+    if (!request->IsFunction()) return Local<Function>();
+    // Clear the slot (an undefined store needs no remembered-set insert).
+    wrapper->SetInternalField(kParkedRead, Undefined(isolate));
+    parked_read_in_slot_ = false;
+    return request.As<Function>();
+  }
+  if (read_requests_.empty()) return Local<Function>();
+  Local<Value> request = read_requests_.front().Get(isolate);
+  if (!request->IsFunction()) return Local<Function>();
+  read_requests_.front().Reset();  // eager; see TakeFrontReadRequest
+  read_requests_.pop_front();
+  return request.As<Function>();
+}
+
 void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
@@ -3575,6 +3594,50 @@ void ReaderParkRead(const FunctionCallbackInfo<Value>& args) {
   if (c != nullptr) c->CallPullIfNeeded();
 }
 
+// The public controller.enqueue(chunk), as a binding behind a thin JS wrapper
+// (same pattern as the reader's read()). In the parked steady state every
+// chunk settles a pending read whose front request is the read() wrapper's
+// settle closure — calling that closure from C++ pays a full
+// Function::Call/Invoke/JSEntry transition per chunk. Instead, when the
+// settle is safely reorderable, the closure is returned to the enqueue JS
+// wrapper, which calls it as a JIT call: settle(chunk, false).
+//
+// Reorderable means EnqueueInternal's tail CallPullIfNeeded cannot run user
+// code: with pulling_ set (an enqueue from inside a running pull — the parked
+// steady state) it only records pull_again_, and with no pull algorithm it is
+// a no-op. Then settling after it (in the wrapper) instead of before it (the
+// spec's FulfillReadRequest order) is unobservable. When pulling_ is clear
+// and a pull algorithm exists, CallPullIfNeeded may invoke pull synchronously
+// and the spec requires the read to settle first, so the C++ settle path runs
+// as before.
+void ControllerEnqueueOrSettle(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(
+          env, ReadableStreamDefaultController::GetConstructorTemplate(env),
+          args[0], "ReadableStreamDefaultController"))
+    return;
+  auto* c =
+      UnwrapTrusted<ReadableStreamDefaultController>(args[0].As<Object>());
+  if (c == nullptr) return;
+  if (!c->CanCloseOrEnqueue()) {
+    args.GetIsolate()->ThrowException(InvalidStateError(
+        env->isolate(), env->context(), "Controller is already closed"));
+    return;
+  }
+  ReadableStream* s = c->stream();
+  if ((c->pulling() || !c->has_pull_algorithm()) && s->locked() &&
+      s->has_default_reader()) {
+    Local<Function> settle =
+        s->default_reader()->TakeFrontSettleClosure(env->isolate());
+    if (!settle.IsEmpty()) {
+      c->CallPullIfNeeded();
+      args.GetReturnValue().Set(settle);
+      return;
+    }
+  }
+  USE(c->EnqueueInternal(args[1]));  // leaves exception pending on failure
+}
+
 // Write-completion re-entry for an armed pump (declared in
 // streams_binding.h; called from the writable side). Disarms — settling the
 // stall promise so pipeTo's step loop wakes — on every outcome except
@@ -3730,6 +3793,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "pipePumpDisarm", PipePumpDisarm);
   SetMethod(isolate, target, "readerFastRead", ReaderFastRead);
   SetMethod(isolate, target, "readerParkRead", ReaderParkRead);
+  SetMethod(isolate, target, "controllerEnqueueOrSettle",
+            ControllerEnqueueOrSettle);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
   SetMethod(isolate, target, "readableStreamReleaseReader",
@@ -3758,6 +3823,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(PipePumpDisarm);
   registry->Register(ReaderFastRead);
   registry->Register(ReaderParkRead);
+  registry->Register(ControllerEnqueueOrSettle);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);

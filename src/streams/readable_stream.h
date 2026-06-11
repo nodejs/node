@@ -105,6 +105,8 @@ class ReadableStreamDefaultController final
   void set_started(bool started) { started_ = started; }
   bool started() const { return started_; }
   void set_pulling(bool pulling) { pulling_ = pulling; }
+  bool pulling() const { return pulling_; }
+  bool has_pull_algorithm() const { return !pull_algorithm_.IsEmpty(); }
   bool close_requested() const { return close_requested_; }
   double queue_total_size() const { return queue_total_size_; }
   uint32_t queue_length() const {
@@ -228,6 +230,12 @@ class ReadableStreamDefaultReader final
   // resolver kind — only byte-stream paths call this, and the read() wrapper
   // never parks closures on byte streams).
   v8::Local<v8::Promise::Resolver> TakeReadRequest();
+  // If the front pending read request is the read() wrapper's settle closure,
+  // pops and returns it; otherwise (resolver kind, or no pending request)
+  // returns empty and takes nothing. Used by the enqueue wrapper protocol to
+  // settle the read with a JIT call from the enqueue() JS wrapper instead of
+  // a C++->JS Function::Call.
+  v8::Local<v8::Function> TakeFrontSettleClosure(v8::Isolate* isolate);
   // Resolves the front read request: {value: undefined, done: true} when done,
   // otherwise {value: chunk, done: false}.
   void FulfillFront(v8::Local<v8::Value> chunk, bool done);
