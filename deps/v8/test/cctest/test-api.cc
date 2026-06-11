@@ -16375,8 +16375,6 @@ TEST(ErrorLevelWarning) {
 v8::PromiseRejectEvent reject_event = v8::kPromiseRejectWithNoHandler;
 int promise_reject_counter = 0;
 int promise_revoke_counter = 0;
-int promise_reject_after_resolved_counter = 0;
-int promise_resolve_after_resolved_counter = 0;
 int promise_reject_msg_line_number = -1;
 int promise_reject_msg_column_number = -1;
 int promise_reject_line_number = -1;
@@ -16433,12 +16431,12 @@ void PromiseRejectCallback(v8::PromiseRejectMessage reject_message) {
       break;
     }
       START_ALLOW_USE_DEPRECATED();
-    case v8::kPromiseRejectAfterResolved: {
-      promise_reject_after_resolved_counter++;
+    case v8::kDeprecatedPromiseRejectAfterResolved: {
+      // Unreachable
       break;
     }
-    case v8::kPromiseResolveAfterResolved: {
-      promise_resolve_after_resolved_counter++;
+    case v8::kDeprecatedPromiseResolveAfterResolved: {
+      // Unreachable
       break;
     }
       END_ALLOW_USE_DEPRECATED();
@@ -16464,8 +16462,6 @@ v8::Local<v8::Value> RejectValue() {
 void ResetPromiseStates() {
   promise_reject_counter = 0;
   promise_revoke_counter = 0;
-  promise_reject_after_resolved_counter = 0;
-  promise_resolve_after_resolved_counter = 0;
   promise_reject_msg_line_number = -1;
   promise_reject_msg_column_number = -1;
   promise_reject_line_number = -1;
@@ -16704,8 +16700,6 @@ TEST(PromiseRejectCallback) {
   CHECK(!GetPromise("v0")->HasHandler());
   CHECK_EQ(0, promise_reject_counter);
   CHECK_EQ(0, promise_revoke_counter);
-  CHECK_EQ(1, promise_reject_after_resolved_counter);
-  CHECK_EQ(0, promise_resolve_after_resolved_counter);
 
   ResetPromiseStates();
 
@@ -16722,8 +16716,6 @@ TEST(PromiseRejectCallback) {
   CHECK(!GetPromise("y0")->HasHandler());
   CHECK_EQ(1, promise_reject_counter);
   CHECK_EQ(0, promise_revoke_counter);
-  CHECK_EQ(0, promise_reject_after_resolved_counter);
-  CHECK_EQ(1, promise_resolve_after_resolved_counter);
 
   // Test stack frames.
   env.isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
