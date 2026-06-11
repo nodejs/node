@@ -1842,28 +1842,27 @@ void ReadableByteStreamController::ClearAlgorithms() {
 }
 
 void ReadableByteStreamController::InvalidateBYOBRequest() {
-  ReadableStreamBYOBRequest* req = byob_request_obj();
-  if (req == nullptr) return;
+  if (!has_byob_request_) return;
   Isolate* isolate = env()->isolate();
+  Local<Object> req_obj =
+      object()->GetInternalField(kByobRequest).As<Value>().As<Object>();
   // The spec transfers the pull-into descriptor's ArrayBuffer on every
   // respond()/enqueue(), which detaches the view this request handed out. Our
   // descriptor owns a shared BackingStore (not a JS ArrayBuffer), so detach the
   // exact ArrayBuffer wrapper the user is holding to reproduce that observable
   // behavior; the BackingStore survives via our own shared_ptr.
   Local<Value> view =
-      req->object()->GetInternalField(ReadableStreamBYOBRequest::kView)
-          .As<Value>();
+      req_obj->GetInternalField(ReadableStreamBYOBRequest::kView).As<Value>();
   if (view->IsArrayBufferView()) {
     Local<ArrayBuffer> buffer = view.As<ArrayBufferView>()->Buffer();
     if (!buffer->WasDetached()) USE(buffer->Detach(Local<Value>()));
   }
-  req->object()->SetInternalField(ReadableStreamBYOBRequest::kController,
-                                  Undefined(isolate));
-  req->object()->SetInternalField(ReadableStreamBYOBRequest::kView,
-                                  v8::Null(isolate));
+  req_obj->SetInternalField(ReadableStreamBYOBRequest::kController,
+                            Undefined(isolate));
+  req_obj->SetInternalField(ReadableStreamBYOBRequest::kView,
+                            v8::Null(isolate));
   object()->SetInternalField(kByobRequest, Undefined(isolate));
-  req->set_controller_cache(nullptr);
-  byob_request_cache_ = nullptr;
+  has_byob_request_ = false;
 }
 
 void ReadableByteStreamController::ClearPendingPullIntos() {
@@ -1938,7 +1937,7 @@ void ReadableByteStreamController::EnqueueDetachedPullIntoToQueue(
   if (bytes_filled > 0)
     EnqueueClonedChunkToQueue(buffer, byte_offset, bytes_filled);
   // ShiftPendingPullInto (discard the front descriptor).
-  CHECK(byob_request_obj() == nullptr);
+  CHECK(!has_byob_request());
   pending_pull_intos_.pop_front();
 }
 
@@ -2014,7 +2013,7 @@ ReadableByteStreamController::ProcessPullIntoDescriptorsUsingQueue() {
     if (queue_total_size_ == 0) break;
     PullIntoDescriptor* desc = &pending_pull_intos_.front();
     if (FillPullIntoDescriptorFromQueue(desc)) {
-      CHECK(byob_request_obj() == nullptr);
+      CHECK(!has_byob_request());
       filled.push_back(std::move(pending_pull_intos_.front()));
       pending_pull_intos_.pop_front();
     }
@@ -2079,19 +2078,17 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(Local<Object> view_obj
   // TypeError — before the incoming chunk's buffer is transferred. Our
   // descriptor owns a shared BackingStore, so detect this via the outstanding
   // BYOB request's view.
-  if (!pending_pull_intos_.empty()) {
-    ReadableStreamBYOBRequest* req = byob_request_obj();
-    if (req != nullptr) {
-      Local<Value> v =
-          req->object()->GetInternalField(ReadableStreamBYOBRequest::kView)
-              .As<Value>();
-      if (v->IsArrayBufferView() &&
-          v.As<ArrayBufferView>()->Buffer()->WasDetached()) {
-        isolate->ThrowException(TypeErrorWith(
-            isolate, context, "ERR_INVALID_STATE",
-            "The BYOB request's buffer has been detached"));
-        return Nothing<void>();
-      }
+  if (!pending_pull_intos_.empty() && has_byob_request_) {
+    Local<Object> req_obj =
+        object()->GetInternalField(kByobRequest).As<Value>().As<Object>();
+    Local<Value> v =
+        req_obj->GetInternalField(ReadableStreamBYOBRequest::kView).As<Value>();
+    if (v->IsArrayBufferView() &&
+        v.As<ArrayBufferView>()->Buffer()->WasDetached()) {
+      isolate->ThrowException(TypeErrorWith(
+          isolate, context, "ERR_INVALID_STATE",
+          "The BYOB request's buffer has been detached"));
+      return Nothing<void>();
     }
   }
 
@@ -2119,7 +2116,7 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(Local<Object> view_obj
       CHECK(queue_.empty());
       if (!pending_pull_intos_.empty()) {
         CHECK(pending_pull_intos_.front().type == PullIntoType::kDefault);
-        CHECK(byob_request_obj() == nullptr);
+        CHECK(!has_byob_request());
         pending_pull_intos_.pop_front();  // ShiftPendingPullInto
       }
       Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, transferred);
@@ -2284,6 +2281,97 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
   CallPullIfNeeded();
 }
 
+// PullInto for the byob read() wrapper protocol; see the header comment.
+// Mirrors PullInto exactly, except that the would-park branches push the
+// descriptor and return kWouldPark instead of parking a resolver — the
+// wrapper parks its settle closure via byobReaderParkRead in the next
+// (back-to-back) crossing, and the synchronous-fill branch returns the raw
+// view for the wrapper to build the result in JIT code.
+ReadableByteStreamController::ByobPullOutcome
+ReadableByteStreamController::PullIntoFast(Local<Object> view_obj,
+                                           size_t min,
+                                           Local<Value>* out) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  ReadableStream* stream = this->stream();
+  Local<ArrayBufferView> view = view_obj.As<ArrayBufferView>();
+  uint32_t element_size = 1;
+  ViewType view_type = ClassifyView(env, view, &element_size);
+  size_t minimum_fill = min * element_size;
+  Local<ArrayBuffer> buffer = view->Buffer();
+  size_t byte_offset = view->ByteOffset();
+  size_t byte_length = view->ByteLength();
+  size_t buffer_byte_length = buffer->ByteLength();
+
+  std::shared_ptr<BackingStore> transferred;
+  {
+    TryCatch try_catch(isolate);
+    if (!TransferArrayBuffer(isolate, context, buffer, &transferred)) {
+      Local<Value> exception = try_catch.Exception();
+      try_catch.Reset();
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver))
+        return ByobPullOutcome::kPromise;  // empty out; exception pending
+      USE(resolver->Reject(context, exception));
+      *out = resolver->GetPromise();
+      return ByobPullOutcome::kPromise;
+    }
+  }
+
+  PullIntoDescriptor desc;
+  desc.buffer = transferred;
+  desc.buffer_byte_length = buffer_byte_length;
+  desc.byte_offset = byte_offset;
+  desc.byte_length = byte_length;
+  desc.bytes_filled = 0;
+  desc.minimum_fill = minimum_fill;
+  desc.element_size = element_size;
+  desc.view_type = view_type;
+  desc.type = PullIntoType::kByob;
+
+  if (!pending_pull_intos_.empty()) {
+    pending_pull_intos_.push_back(std::move(desc));
+    return ByobPullOutcome::kWouldPark;
+  }
+  if (stream->state() == StreamState::kClosed) {
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, desc.buffer);
+    Local<Object> empty_view;
+    if (!MakeView(env, view_type, ab, byte_offset, 0).ToLocal(&empty_view))
+      return ByobPullOutcome::kPromise;  // empty out; exception pending
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver))
+      return ByobPullOutcome::kPromise;
+    USE(resolver->Resolve(
+        context, MakeReadResult(env, context, empty_view, true, true)));
+    *out = resolver->GetPromise();
+    return ByobPullOutcome::kPromise;
+  }
+  if (queue_total_size_ > 0) {
+    if (FillPullIntoDescriptorFromQueue(&desc)) {
+      Local<Object> filled_view;
+      if (!ConvertPullIntoDescriptor(&desc).ToLocal(&filled_view))
+        return ByobPullOutcome::kPromise;  // empty out; exception pending
+      HandleQueueDrain();
+      *out = filled_view;
+      return ByobPullOutcome::kRawView;
+    }
+    if (close_requested_) {
+      Local<Value> error =
+          InvalidStateError(isolate, context, "ReadableStream closed");
+      ErrorInternal(error);
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver))
+        return ByobPullOutcome::kPromise;
+      USE(resolver->Reject(context, error));
+      *out = resolver->GetPromise();
+      return ByobPullOutcome::kPromise;
+    }
+  }
+  pending_pull_intos_.push_back(std::move(desc));
+  return ByobPullOutcome::kWouldPark;
+}
+
 Maybe<void> ReadableByteStreamController::Respond(size_t bytes_written) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
@@ -2403,7 +2491,7 @@ void ReadableByteStreamController::RespondInClosedState(
     PullIntoDescriptor* desc) {
   CHECK_EQ(desc->bytes_filled % desc->element_size, 0u);
   if (desc->type == PullIntoType::kNone) {
-    CHECK(byob_request_obj() == nullptr);
+    CHECK(!has_byob_request());
     pending_pull_intos_.pop_front();  // ShiftPendingPullInto
   }
   ReadableStream* stream = this->stream();
@@ -2411,7 +2499,7 @@ void ReadableByteStreamController::RespondInClosedState(
     std::deque<PullIntoDescriptor> filled;
     size_t n = stream->byob_reader()->num_read_into_requests();
     for (size_t i = 0; i < n; ++i) {
-      CHECK(byob_request_obj() == nullptr);
+      CHECK(!has_byob_request());
       filled.push_back(std::move(pending_pull_intos_.front()));
       pending_pull_intos_.pop_front();
     }
@@ -2442,7 +2530,7 @@ Maybe<void> ReadableByteStreamController::RespondInReadableState(
   if (desc->bytes_filled < desc->minimum_fill) return JustVoid();
 
   // Shift the now-ready descriptor out before further mutation of the queue.
-  CHECK(byob_request_obj() == nullptr);
+  CHECK(!has_byob_request());
   PullIntoDescriptor ready = std::move(pending_pull_intos_.front());
   pending_pull_intos_.pop_front();
 
@@ -2522,29 +2610,32 @@ void ReadableByteStreamController::GetByobRequest(
       CppgcMixin::Unwrap<ReadableByteStreamController>(
           args.This().As<Object>());
   if (c == nullptr) return;
-  if (c->byob_request_obj() == nullptr && c->has_pending_pull_intos()) {
+  if (!c->has_byob_request() && c->has_pending_pull_intos()) {
     const PullIntoDescriptor& d = c->first_pending_pull_into();
     Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, d.buffer);
     Local<Object> view =
         Uint8Array::New(ab, d.byte_offset + d.bytes_filled,
                         d.byte_length - d.bytes_filled)
             .As<Object>();
-    // Create the BYOBRequest and link it (GC-traced internal fields).
-    Local<Function> ctor;
-    if (!ReadableStreamBYOBRequest::GetConstructorTemplate(env)
-             ->GetFunction(context)
-             .ToLocal(&ctor))
-      return;
+    // Create the BYOBRequest — a JS-only wrapper (no C++ object; see the
+    // class comment) — and link it via GC-traced internal fields. The
+    // instantiated constructor is cached per realm.
+    auto* bd = BindingData::Get(env);
+    Local<Function> ctor = bd->byob_request_ctor_fn.Get(isolate);
+    if (ctor.IsEmpty()) {
+      if (!ReadableStreamBYOBRequest::GetConstructorTemplate(env)
+               ->GetFunction(context)
+               .ToLocal(&ctor))
+        return;
+      bd->byob_request_ctor_fn.Reset(isolate, ctor);
+    }
     Local<Object> req_obj;
     if (!ctor->NewInstance(context).ToLocal(&req_obj)) return;
-    auto* req = cppgc::MakeGarbageCollected<ReadableStreamBYOBRequest>(
-        env->cppgc_allocation_handle(), env, req_obj);
     req_obj->SetInternalField(ReadableStreamBYOBRequest::kController,
                               c->object());
     req_obj->SetInternalField(ReadableStreamBYOBRequest::kView, view);
     c->object()->SetInternalField(kByobRequest, req_obj);
-    req->set_controller_cache(c);
-    c->byob_request_cache_ = req;
+    c->has_byob_request_ = true;
     args.GetReturnValue().Set(req_obj);
     return;
   }
@@ -2663,17 +2754,9 @@ void ReadableByteStreamController::Error(
 // ReadableStreamBYOBRequest
 // ===========================================================================
 
-ReadableStreamBYOBRequest::ReadableStreamBYOBRequest(Environment* env,
-                                                     Local<Object> object) {
-  // Untracked: created per BYOB pull, trivially destructible, and the
-  // destructor never touches the Realm.
-  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
-}
-
-void ReadableStreamBYOBRequest::Trace(cppgc::Visitor* visitor) const {
-  // Only the wrapper reference; no mutable handle members.
-  CppgcMixin::Trace(visitor);
-}
+// No constructor/Trace: a BYOBRequest is a JS-only wrapper (see the class
+// comment in the header) — its state lives entirely in GC-traced internal
+// fields, so no C++ object is allocated per pull.
 
 Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
     Environment* env) {
@@ -2704,16 +2787,25 @@ void ReadableStreamBYOBRequest::RegisterExternalReferences(
   registry->Register(RespondWithNewView);
 }
 
+// Recovers the owning controller from a brand-checked BYOBRequest wrapper's
+// kController field; nullptr when the request has been invalidated (the
+// field is cleared to undefined by InvalidateBYOBRequest).
+static ReadableByteStreamController* ByobRequestController(Local<Object> req) {
+  Local<Value> c =
+      req->GetInternalField(ReadableStreamBYOBRequest::kController)
+          .As<Value>();
+  if (!c->IsObject()) return nullptr;
+  return UnwrapTrusted<ReadableByteStreamController>(c.As<Object>());
+}
+
 void ReadableStreamBYOBRequest::GetView(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamBYOBRequest"))
     return;
-  auto* r = CppgcMixin::Unwrap<ReadableStreamBYOBRequest>(
-      args.This().As<Object>());
-  if (r == nullptr) return;
-  args.GetReturnValue().Set(r->object()->GetInternalField(kView).As<Value>());
+  args.GetReturnValue().Set(
+      args.This().As<Object>()->GetInternalField(kView).As<Value>());
 }
 
 void ReadableStreamBYOBRequest::Respond(
@@ -2729,16 +2821,15 @@ void ReadableStreamBYOBRequest::Respond(
         isolate, "Failed to execute 'respond': 1 argument required")));
     return;
   }
-  auto* r = CppgcMixin::Unwrap<ReadableStreamBYOBRequest>(
-      args.This().As<Object>());
-  if (r == nullptr) return;
-  ReadableByteStreamController* c = r->controller();
+  ReadableByteStreamController* c =
+      ByobRequestController(args.This().As<Object>());
   if (c == nullptr) {
     isolate->ThrowException(InvalidStateError(
         isolate, context, "This BYOB request has been invalidated"));
     return;
   }
-  Local<Value> view_val = r->object()->GetInternalField(kView).As<Value>();
+  Local<Value> view_val =
+      args.This().As<Object>()->GetInternalField(kView).As<Value>();
   if (view_val->IsArrayBufferView()) {
     Local<ArrayBuffer> view_buffer = view_val.As<ArrayBufferView>()->Buffer();
     if (view_buffer->WasDetached()) {
@@ -2765,10 +2856,8 @@ void ReadableStreamBYOBRequest::RespondWithNewView(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "ReadableStreamBYOBRequest"))
     return;
-  auto* r = CppgcMixin::Unwrap<ReadableStreamBYOBRequest>(
-      args.This().As<Object>());
-  if (r == nullptr) return;
-  ReadableByteStreamController* c = r->controller();
+  ReadableByteStreamController* c =
+      ByobRequestController(args.This().As<Object>());
   if (c == nullptr) {
     isolate->ThrowException(InvalidStateError(
         isolate, context, "This BYOB request has been invalidated"));
@@ -2820,9 +2909,7 @@ void ReadableStreamBYOBReader::TraceOnMutatorThread(
   visitor->Trace(closed_);
   visitor->Trace(closed_reason_);
   read_into_requests_.ForEach(
-      [&](const v8::TracedReference<Promise::Resolver>& r) {
-        visitor->Trace(r);
-      });
+      [&](const v8::TracedReference<Value>& r) { visitor->Trace(r); });
 }
 
 Local<FunctionTemplate> ReadableStreamBYOBReader::GetConstructorTemplate(
@@ -2856,25 +2943,51 @@ void ReadableStreamBYOBReader::RegisterExternalReferences(
   registry->Register(GetClosed);
 }
 
+void ReadableStreamBYOBReader::AddReadIntoRequestInternal(
+    Local<Value> request) {
+  // Assigning store, not the initializing-store constructor — see
+  // ReadableStreamDefaultReader::AddReadRequestInternal.
+  read_into_requests_.emplace_back();
+  read_into_requests_.back().Reset(env()->isolate(), request);
+}
+
 void ReadableStreamBYOBReader::AddReadIntoRequest(
     Local<Promise::Resolver> resolver) {
-  // Assigning store, not the initializing-store constructor — see
-  // ReadableStreamDefaultReader::AddReadRequest.
-  read_into_requests_.emplace_back();
-  read_into_requests_.back().Reset(env()->isolate(), resolver);
+  AddReadIntoRequestInternal(resolver);
+}
+
+void ReadableStreamBYOBReader::AddReadIntoRequestClosure(
+    Local<Function> settle) {
+  AddReadIntoRequestInternal(settle);
+}
+
+Local<Value> ReadableStreamBYOBReader::TakeFrontReadIntoRequest() {
+  Isolate* isolate = env()->isolate();
+  CHECK(!read_into_requests_.empty());
+  Local<Value> request = read_into_requests_.front().Get(isolate);
+  // ~TracedReference does not free the traced cell (by design); Reset eagerly
+  // so settled requests do not pile up in the traced-handles table.
+  read_into_requests_.front().Reset();
+  read_into_requests_.pop_front();
+  return request;
 }
 
 void ReadableStreamBYOBReader::FulfillFront(Local<Value> view, bool done) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  CHECK(!read_into_requests_.empty());
-  Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
-  // ~TracedReference does not free the traced cell (by design); Reset eagerly
-  // so settled requests do not pile up in the traced-handles table.
-  read_into_requests_.front().Reset();
-  read_into_requests_.pop_front();
-  USE(resolver->Resolve(
+  Local<Value> request = TakeFrontReadIntoRequest();
+  if (request->IsFunction()) {
+    // read() wrapper settle closure: builds { value, done } and resolves the
+    // read promise in JIT/builtin code. Unlike the default reader, the view
+    // is passed even when done (a closing BYOB stream hands back the
+    // partially-filled view).
+    Local<Value> argv[] = {view, Boolean::New(isolate, done)};
+    USE(request.As<Function>()->Call(
+        context, Undefined(isolate), arraysize(argv), argv));
+    return;
+  }
+  USE(request.As<Promise::Resolver>()->Resolve(
       context,
       MakeReadResult(env, context, view, done, for_author_code_)));
 }
@@ -2884,10 +2997,15 @@ void ReadableStreamBYOBReader::CloseAll() {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   while (!read_into_requests_.empty()) {
-    Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
-    read_into_requests_.front().Reset();
-    read_into_requests_.pop_front();
-    USE(resolver->Resolve(
+    Local<Value> request = TakeFrontReadIntoRequest();
+    if (request->IsFunction()) {
+      Local<Value> argv[] = {Undefined(isolate).As<Value>(),
+                             Boolean::New(isolate, true).As<Value>()};
+      USE(request.As<Function>()->Call(
+          context, Undefined(isolate), arraysize(argv), argv));
+      continue;
+    }
+    USE(request.As<Promise::Resolver>()->Resolve(
         context, MakeReadResult(env, context, Undefined(isolate), true,
                                 for_author_code_)));
   }
@@ -2898,10 +3016,16 @@ void ReadableStreamBYOBReader::ErrorAll(Local<Value> error) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   while (!read_into_requests_.empty()) {
-    Local<Promise::Resolver> resolver = read_into_requests_.front().Get(isolate);
-    read_into_requests_.front().Reset();
-    read_into_requests_.pop_front();
-    USE(resolver->Reject(context, error));
+    Local<Value> request = TakeFrontReadIntoRequest();
+    if (request->IsFunction()) {
+      // settle(error, false, true) rejects the wrapper-created promise.
+      Local<Value> argv[] = {error, Boolean::New(isolate, false).As<Value>(),
+                             Boolean::New(isolate, true).As<Value>()};
+      USE(request.As<Function>()->Call(
+          context, Undefined(isolate), arraysize(argv), argv));
+      continue;
+    }
+    USE(request.As<Promise::Resolver>()->Reject(context, error));
   }
 }
 
@@ -3039,10 +3163,77 @@ void ReadableStreamBYOBReader::Release() {
   }
 }
 
+// Shared validation for a BYOB read's view/options arguments. Returns true
+// with *min set; on failure returns false with *error set, or with *error
+// empty and an exception pending (a throwing options.min getter/coercion).
+// The checks and their order mirror the spec (and the JS implementation).
+static bool ValidateByobReadArgs(Environment* env,
+                                 Local<Context> context,
+                                 Local<Value> view_arg,
+                                 Local<Value> options_arg,
+                                 int64_t* min,
+                                 Local<Value>* error) {
+  Isolate* isolate = env->isolate();
+  if (!view_arg->IsArrayBufferView()) {
+    *error = TypeErrorWith(isolate, context, "ERR_INVALID_ARG_TYPE",
+                           "view must be an ArrayBufferView");
+    return false;
+  }
+  Local<ArrayBufferView> view = view_arg.As<ArrayBufferView>();
+  Local<ArrayBuffer> view_buffer = view->Buffer();
+  // A SharedArrayBuffer cannot be transferred/detached, so a BYOB read may not
+  // be issued into a view backed by one (matches the JS implementation).
+  if (view_buffer.As<Value>()->IsSharedArrayBuffer()) {
+    *error = TypeErrorWith(
+        isolate, context, "ERR_INVALID_ARG_VALUE",
+        "The \"view\" argument must not be backed by a SharedArrayBuffer");
+    return false;
+  }
+  size_t view_byte_length = view->ByteLength();
+  size_t view_buffer_byte_length = view_buffer->ByteLength();
+  if (view_byte_length == 0 || view_buffer_byte_length == 0) {
+    *error = InvalidStateError(
+        isolate, context,
+        "View or Viewed ArrayBuffer is zero-length or detached");
+    return false;
+  }
+
+  // options.min (default 1).
+  *min = 1;
+  if (options_arg->IsObject()) {
+    Local<Value> min_val;
+    if (!options_arg.As<Object>()
+             ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "min"))
+             .ToLocal(&min_val))
+      return false;  // exception pending
+    if (!min_val->IsUndefined()) {
+      if (!min_val->IntegerValue(context).To(min))
+        return false;  // exception pending
+    }
+  }
+  if (*min <= 0) {
+    // Spec: a min of 0 (or, after coercion, a non-positive value) is a
+    // TypeError, not a RangeError.
+    *error = InvalidStateError(isolate, context,
+                               "options.min must be greater than 0");
+    return false;
+  }
+  // min must not exceed the element capacity of the view.
+  uint32_t element_size = 1;
+  ClassifyView(env, view, &element_size);
+  size_t element_capacity = view_byte_length / element_size;
+  if (static_cast<size_t>(*min) > element_capacity) {
+    *error = MakeCodedError(isolate, context, /* range */ true,
+                            "ERR_OUT_OF_RANGE", "options.min is out of range");
+    return false;
+  }
+  return true;
+}
+
 void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
+  Isolate* isolate = env->isolate();
   if (!ReadableStreamBYOBReader::GetConstructorTemplate(env)->HasInstance(
           args.This())) {
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
@@ -3055,66 +3246,11 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
   args.GetReturnValue().Set(resolver->GetPromise());
 
-  if (!args[0]->IsArrayBufferView()) {
-    USE(resolver->Reject(
-        context,
-        TypeErrorWith(isolate, context,
-                       "ERR_INVALID_ARG_TYPE",
-                       "view must be an ArrayBufferView")));
-    return;
-  }
-  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
-  Local<ArrayBuffer> view_buffer = view->Buffer();
-  // A SharedArrayBuffer cannot be transferred/detached, so a BYOB read may not
-  // be issued into a view backed by one (matches the JS implementation).
-  if (view_buffer.As<Value>()->IsSharedArrayBuffer()) {
-    USE(resolver->Reject(
-        context,
-        TypeErrorWith(
-            isolate, context, "ERR_INVALID_ARG_VALUE",
-            "The \"view\" argument must not be backed by a SharedArrayBuffer")));
-    return;
-  }
-  size_t view_byte_length = view->ByteLength();
-  size_t view_buffer_byte_length = view_buffer->ByteLength();
-  if (view_byte_length == 0 || view_buffer_byte_length == 0) {
-    USE(resolver->Reject(
-        context, InvalidStateError(
-                     isolate, context,
-                     "View or Viewed ArrayBuffer is zero-length or detached")));
-    return;
-  }
-
-  // options.min (default 1).
   int64_t min = 1;
-  if (args[1]->IsObject()) {
-    Local<Value> min_val;
-    if (!args[1].As<Object>()
-             ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "min"))
-             .ToLocal(&min_val))
-      return;
-    if (!min_val->IsUndefined()) {
-      if (!min_val->IntegerValue(context).To(&min)) return;
-    }
-  }
-  if (min <= 0) {
-    // Spec: a min of 0 (or, after coercion, a non-positive value) is a
-    // TypeError, not a RangeError.
-    USE(resolver->Reject(
-        context, InvalidStateError(isolate, context,
-                                   "options.min must be greater than 0")));
-    return;
-  }
-  // min must not exceed the element capacity of the view.
-  uint32_t element_size = 1;
-  ClassifyView(env, view, &element_size);
-  size_t element_capacity = view_byte_length / element_size;
-  if (static_cast<size_t>(min) > element_capacity) {
-    USE(resolver->Reject(
-        context, MakeCodedError(isolate, context, /* range */ true,
-                                "ERR_OUT_OF_RANGE",
-                                "options.min is out of range")));
-    return;
+  Local<Value> error;
+  if (!ValidateByobReadArgs(env, context, args[0], args[1], &min, &error)) {
+    if (!error.IsEmpty()) USE(resolver->Reject(context, error));
+    return;  // empty error: exception pending, promise stays unsettled
   }
 
   if (!reader->has_stream()) {
@@ -3131,7 +3267,7 @@ void ReadableStreamBYOBReader::Read(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   stream->byte_controller()->PullInto(
-      view.As<Object>(), static_cast<size_t>(min), resolver);
+      args[0].As<Object>(), static_cast<size_t>(min), resolver);
 }
 
 void ReadableStreamBYOBReader::ReleaseLock(
@@ -3500,6 +3636,25 @@ static bool LooksLikePromise(Local<Context> context,
   return false;
 }
 
+// The realm's original %Promise.prototype%, cached on the BindingData
+// (primordial-safe: taken from a freshly created promise, not the patchable
+// global). Empty only if resolver allocation failed (exception pending).
+static Local<Object> GetPromisePrototype(Environment* env,
+                                         BindingData* bd,
+                                         Local<Context> context) {
+  Local<Object> promise_proto;
+  if (bd->promise_prototype.IsEmpty()) {
+    Local<Promise::Resolver> probe;
+    if (!Promise::Resolver::New(context).ToLocal(&probe))
+      return Local<Object>();
+    promise_proto = probe->GetPromise()->GetPrototypeV2().As<Object>();
+    bd->promise_prototype.Reset(env->isolate(), promise_proto);
+  } else {
+    promise_proto = bd->promise_prototype.Get(env->isolate());
+  }
+  return promise_proto;
+}
+
 void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto* bd = BindingData::Get(env);
@@ -3546,18 +3701,8 @@ void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
       } else {
         c->CallPullIfNeeded();
       }
-      Local<Object> promise_proto;
-      if (bd->promise_prototype.IsEmpty()) {
-        // Cache the realm's original %Promise.prototype% (primordial-safe:
-        // taken from a freshly created promise, not the patchable global).
-        Local<Promise::Resolver> probe;
-        if (!Promise::Resolver::New(context).ToLocal(&probe)) return;
-        promise_proto =
-            probe->GetPromise()->GetPrototypeV2().As<Object>();
-        bd->promise_prototype.Reset(env->isolate(), promise_proto);
-      } else {
-        promise_proto = bd->promise_prototype.Get(env->isolate());
-      }
+      Local<Object> promise_proto = GetPromisePrototype(env, bd, context);
+      if (promise_proto.IsEmpty()) return;
       if (!LooksLikePromise(context, chunk, promise_proto)) {
         args.GetReturnValue().Set(chunk);
         return;
@@ -3636,6 +3781,115 @@ void ControllerEnqueueOrSettle(const FunctionCallbackInfo<Value>& args) {
     }
   }
   USE(c->EnqueueInternal(args[1]));  // leaves exception pending on failure
+}
+
+// Single-crossing fast read for the byob read() wrapper (mirrors
+// ReaderFastRead). Completes every case inside this crossing except the park:
+// a synchronously-filled view is returned raw (the wrapper builds the
+// { done, value } result and resolved promise in JIT code), rejections and
+// the closed-state empty view return real promises, and the would-park case
+// returns the park sentinel (args[3]) so the wrapper parks its settle closure
+// via byobReaderParkRead — back-to-back crossings, nothing can run between.
+void ByobReaderFastRead(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  auto* bd = BindingData::Get(env);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  // Real brand check; the template Global necessarily exists (this binding is
+  // only reachable from the byob reader prototype's read()).
+  Local<FunctionTemplate> reader_tmpl =
+      bd->readable_stream_byob_reader_ctor.Get(isolate);
+  if (reader_tmpl.IsEmpty() || !reader_tmpl->HasInstance(args[0])) {
+    args.GetReturnValue().Set(IllegalInvocationRejection(context));
+    return;
+  }
+  auto* r = UnwrapTrusted<ReadableStreamBYOBReader>(args[0].As<Object>());
+
+  int64_t min = 1;
+  Local<Value> error;
+  if (!ValidateByobReadArgs(env, context, args[1], args[2], &min, &error)) {
+    if (error.IsEmpty()) return;  // exception pending; the wrapper throws
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+    USE(resolver->Reject(context, error));
+    args.GetReturnValue().Set(resolver->GetPromise());
+    return;
+  }
+
+  if (!r->has_stream()) {
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+    USE(resolver->Reject(
+        context, InvalidStateError(isolate, context,
+                                   "The reader is not attached to a stream")));
+    args.GetReturnValue().Set(resolver->GetPromise());
+    return;
+  }
+
+  ReadableStream* s = r->stream();
+  s->set_disturbed(true);
+  if (s->state() == StreamState::kErrored) {
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+    USE(resolver->Reject(context, s->stored_error(env)));
+    args.GetReturnValue().Set(resolver->GetPromise());
+    return;
+  }
+
+  ReadableByteStreamController* c = s->byte_controller();
+  if (!r->for_author_code()) {
+    // Internal readers need null-prototype read results: resolver path.
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+    args.GetReturnValue().Set(resolver->GetPromise());
+    c->PullInto(args[1].As<Object>(), static_cast<size_t>(min), resolver);
+    return;
+  }
+
+  Local<Value> out;
+  using Outcome = ReadableByteStreamController::ByobPullOutcome;
+  switch (c->PullIntoFast(args[1].As<Object>(), static_cast<size_t>(min),
+                          &out)) {
+    case Outcome::kWouldPark:
+      args.GetReturnValue().Set(args[3]);
+      return;
+    case Outcome::kRawView: {
+      Local<Object> promise_proto = GetPromisePrototype(env, bd, context);
+      if (promise_proto.IsEmpty()) return;
+      if (!LooksLikePromise(context, out, promise_proto)) {
+        args.GetReturnValue().Set(out);
+        return;
+      }
+      // A view made promise-lookalike by a patched prototype chain: build
+      // the result promise natively so the wrapper's return test stays
+      // unambiguous (rare).
+      Local<Promise::Resolver> resolver;
+      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+      USE(resolver->Resolve(
+          context, MakeReadResult(env, context, out, false, true)));
+      args.GetReturnValue().Set(resolver->GetPromise());
+      return;
+    }
+    case Outcome::kPromise:
+      if (!out.IsEmpty()) args.GetReturnValue().Set(out);
+      return;  // empty out: exception pending; the wrapper throws
+  }
+}
+
+// Second half of the byob wrapper's parked-read protocol: ByobReaderFastRead
+// pushed the pull-into descriptor and returned the park sentinel; the wrapper
+// built the read promise plus its settle closure and parks it here. args[0]
+// is trusted (brand-checked in the same synchronous step). Pull is only
+// triggered when the just-pushed descriptor is the head of the queue,
+// mirroring PullInto's branches (a descriptor queued behind others never
+// called CallPullIfNeeded).
+void ByobReaderParkRead(const FunctionCallbackInfo<Value>& args) {
+  auto* r = UnwrapTrusted<ReadableStreamBYOBReader>(args[0].As<Object>());
+  if (r == nullptr || !r->has_stream()) return;
+  r->AddReadIntoRequestClosure(args[1].As<Function>());
+  ReadableByteStreamController* c = r->stream()->byte_controller();
+  if (c != nullptr && c->pending_pull_intos_count() == 1)
+    c->CallPullIfNeeded();
 }
 
 // Write-completion re-entry for an armed pump (declared in
@@ -3795,6 +4049,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "readerParkRead", ReaderParkRead);
   SetMethod(isolate, target, "controllerEnqueueOrSettle",
             ControllerEnqueueOrSettle);
+  SetMethod(isolate, target, "byobReaderFastRead", ByobReaderFastRead);
+  SetMethod(isolate, target, "byobReaderParkRead", ByobReaderParkRead);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
   SetMethod(isolate, target, "readableStreamReleaseReader",
@@ -3824,6 +4080,8 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReaderFastRead);
   registry->Register(ReaderParkRead);
   registry->Register(ControllerEnqueueOrSettle);
+  registry->Register(ByobReaderFastRead);
+  registry->Register(ByobReaderParkRead);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
   registry->Register(DefaultControllerEnqueue);

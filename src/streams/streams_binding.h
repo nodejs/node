@@ -265,6 +265,11 @@ class BindingData : public SnapshotableObject {
   // the patchable global). Lazily created.
   v8::Global<v8::Object> promise_prototype;
 
+  // The instantiated ReadableStreamBYOBRequest constructor, cached so the
+  // per-pull request creation skips the template->function instantiation
+  // lookup. Lazily created.
+  v8::Global<v8::Function> byob_request_ctor_fn;
+
   // Shared per-realm noop function, used to mark internal promises handled
   // and as a fulfil-only mapping to undefined. One cached Function instead of
   // a fresh SharedFunctionInfo per call. Lazily created.

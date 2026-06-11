@@ -369,9 +369,10 @@ class ReadableByteStreamController final
   // wrappers alive while set, so the caches cannot dangle.
   ReadableStream* stream() const { return stream_cache_; }
   void set_stream_cache(ReadableStream* s) { stream_cache_ = s; }
-  ReadableStreamBYOBRequest* byob_request_obj() const {
-    return byob_request_cache_;
-  }
+  // Whether a (non-invalidated) BYOBRequest is outstanding. The request's
+  // wrapper itself lives in the kByobRequest internal field; it has no C++
+  // object (see ReadableStreamBYOBRequest).
+  bool has_byob_request() const { return has_byob_request_; }
 
   // --- internal operations (spec algorithms) ---
   double GetDesiredSizeValue(bool* is_null) const;
@@ -393,6 +394,21 @@ class ReadableByteStreamController final
   void PullInto(v8::Local<v8::Object> view,
                 size_t min,
                 v8::Local<v8::Promise::Resolver> resolver);
+  // PullInto for the byob read() wrapper protocol (author readers only): the
+  // request is NOT parked here — kWouldPark means the descriptor was pushed
+  // and the wrapper must park its settle closure via byobReaderParkRead (the
+  // two crossings are back-to-back; nothing can run in between). kRawView
+  // hands back the synchronously-filled view (the wrapper builds the
+  // { done, value } result and resolved promise in JIT code); kPromise is a
+  // natively-built promise (closed-state empty view, rejections), or empty
+  // with an exception pending.
+  enum class ByobPullOutcome : uint8_t { kWouldPark, kRawView, kPromise };
+  ByobPullOutcome PullIntoFast(v8::Local<v8::Object> view,
+                               size_t min,
+                               v8::Local<v8::Value>* out);
+  size_t pending_pull_intos_count() const {
+    return pending_pull_intos_.size();
+  }
   // byobRequest.respond(n) / respondWithNewView(view): may throw.
   v8::Maybe<void> Respond(size_t bytes_written);
   v8::Maybe<void> RespondWithNewView(v8::Local<v8::Object> view);
@@ -472,18 +488,23 @@ class ReadableByteStreamController final
 
   // Raw-pointer mirrors of the kStream / kByobRequest internal fields.
   ReadableStream* stream_cache_ = nullptr;
-  ReadableStreamBYOBRequest* byob_request_cache_ = nullptr;
+  bool has_byob_request_ = false;
 };
 
 // ReadableStreamBYOBRequest — a thin view onto the controller's first pending
 // pull-into. Holds a back-reference to the controller and the current view as
 // GC-traced internal fields; both are cleared when the request is invalidated.
-class ReadableStreamBYOBRequest final
-    : CPPGC_MIXIN(ReadableStreamBYOBRequest) {
+// ReadableStreamBYOBRequest — a JS-only wrapper: one is created per pull-into
+// descriptor (every pull in a respond-driven byte loop), so it carries no C++
+// object at all. The GC-traced internal fields hold everything: kController
+// links the owning controller (cleared on invalidation — also the
+// "invalidated" brand) and kView holds the exposed view. Methods recover the
+// controller by unwrapping the kController field after the receiver brand
+// check. The first two internal-field slots (the CppgcMixin layout) are
+// left as undefined.
+class ReadableStreamBYOBRequest final {
  public:
-  SET_CPPGC_NAME(ReadableStreamBYOBRequest)
-  SET_NO_MEMORY_INFO()
-  void Trace(cppgc::Visitor* visitor) const final;
+  ReadableStreamBYOBRequest() = delete;
 
   enum InternalFields {
     kController = CppgcMixin::kInternalFieldCount,
@@ -498,19 +519,6 @@ class ReadableStreamBYOBRequest final
   static void GetView(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RespondWithNewView(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  ReadableStreamBYOBRequest(Environment* env, v8::Local<v8::Object> object);
-
-  // Owning controller; cached raw pointer mirroring the GC-traced kController
-  // internal field (set at creation, cleared by InvalidateBYOBRequest). While
-  // set, the traced field keeps the controller's wrapper alive.
-  ReadableByteStreamController* controller() const { return controller_cache_; }
-  void set_controller_cache(ReadableByteStreamController* c) {
-    controller_cache_ = c;
-  }
-
- private:
-  ReadableByteStreamController* controller_cache_ = nullptr;
 };
 
 // ReadableStreamBYOBReader — holds the queue of pending read-into requests as
@@ -545,6 +553,12 @@ class ReadableStreamBYOBReader final : CPPGC_MIXIN(ReadableStreamBYOBReader) {
 
   size_t num_read_into_requests() const { return read_into_requests_.size(); }
   void AddReadIntoRequest(v8::Local<v8::Promise::Resolver> resolver);
+  // Parks a pending BYOB read issued by the read() JS wrapper: `settle` is a
+  // JIT closure called as settle(view, done) / settle(error, false, true) —
+  // same protocol as the default reader's read() wrapper. Note a done settle
+  // STILL passes the view (a closing BYOB stream hands back the
+  // partially-filled view).
+  void AddReadIntoRequestClosure(v8::Local<v8::Function> settle);
   // Resolves the front read-into request with {value: view, done}.
   void FulfillFront(v8::Local<v8::Value> view, bool done);
   // Resolves all pending read-into requests with {value: undefined, done:true}.
@@ -565,7 +579,13 @@ class ReadableStreamBYOBReader final : CPPGC_MIXIN(ReadableStreamBYOBReader) {
   // See ReadableStreamDefaultReader::TraceOnMutatorThread.
   void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
 
-  FifoQueue<v8::TracedReference<v8::Promise::Resolver>> read_into_requests_;
+  // Pops and returns the front request: a promise resolver (native reads —
+  // byte tee, releases) or the read() wrapper's settle closure, discriminated
+  // by ->IsFunction().
+  v8::Local<v8::Value> TakeFrontReadIntoRequest();
+  void AddReadIntoRequestInternal(v8::Local<v8::Value> request);
+
+  FifoQueue<v8::TracedReference<v8::Value>> read_into_requests_;
   // Lazily materialized on first access; until then the settlement is
   // recorded in closed_state_/closed_reason_ (see ClosedState).
   v8::TracedReference<v8::Promise::Resolver> closed_;
