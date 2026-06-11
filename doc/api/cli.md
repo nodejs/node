@@ -1642,20 +1642,18 @@ Enable the experimental [`node:stream/iter`][] module.
 
 <!-- YAML
 added: v27.0.0-alpha.0.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63853
+    description: Type stripping in `node_modules` no longer requires this flag.
 -->
 
 > Stability: 1 - Experimental
 
-By default, Node.js refuses to strip types from TypeScript files inside
-folders under a `node_modules` path. This flag enables type stripping for
-such files when they belong to a package whose `package.json` contains
-`"private": true`. Files belonging to non-private packages still throw
-[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`][].
-The limitation to private packages should never be lifted,
-as publishing packages with TypeScript sources
-is highly discouraged.
-Stripping types inside `node_modules` is intended only
-for local development.
+Type stripping applies to TypeScript files inside `node_modules` the same way
+it applies to any other TypeScript file, including packages that are not
+marked `"private": true`. This flag is ignored and remains so that existing
+command lines keep working.
 
 ### `--experimental-test-coverage`
 
@@ -5038,7 +5036,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_RX_MEMORY_NOT_SUPPORTED`]: errors.md#err_rx_memory_not_supported
-[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
 [`NODE_OPTIONS`]: #node_optionsoptions
