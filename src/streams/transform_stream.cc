@@ -3,6 +3,8 @@
 #include "streams/writable_stream.h"
 #include "streams/streams_binding.h"
 #include "base_object-inl.h"
+#include "cppgc/allocation.h"
+#include "cppgc/visitor.h"
 #include "cppgc_helpers-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -110,7 +112,7 @@ Local<Array> MakeHolder(Isolate* isolate,
 // --- reaction callbacks ---
 
 void PerformTransformRejected(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.Data().As<Object>());
   Isolate* isolate = args.GetIsolate();
   if (stream != nullptr) stream->ErrorStream(args[0]);
   isolate->ThrowException(args[0]);  // rethrow so the derived promise rejects
@@ -126,7 +128,7 @@ void SinkWriteAfterBackpressure(const FunctionCallbackInfo<Value>& args) {
   if (!holder->Get(context, 0).ToLocal(&stream_val) ||
       !holder->Get(context, 1).ToLocal(&chunk))
     return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(stream_val);
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(stream_val.As<Object>());
   if (stream == nullptr) return;
   WritableStream* writable = stream->writable();
   if (writable->state() == WritableState::kErroring) {
@@ -138,7 +140,7 @@ void SinkWriteAfterBackpressure(const FunctionCallbackInfo<Value>& args) {
 
 void SinkCloseFulfilled(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.Data().As<Object>());
   if (stream == nullptr) return;
   ReadableStream* readable = stream->readable();
   TransformStreamDefaultController* controller = stream->controller();
@@ -152,7 +154,7 @@ void SinkCloseFulfilled(const FunctionCallbackInfo<Value>& args) {
 
 void SinkCloseRejected(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.Data().As<Object>());
   if (stream == nullptr) return;
   stream->readable()->default_controller()->ErrorInternal(args[0]);
   stream->controller()->RejectFinish(env, args[0]);
@@ -167,7 +169,7 @@ void SinkAbortFulfilled(const FunctionCallbackInfo<Value>& args) {
   if (!holder->Get(context, 0).ToLocal(&stream_val) ||
       !holder->Get(context, 1).ToLocal(&reason))
     return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(stream_val);
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(stream_val.As<Object>());
   if (stream == nullptr) return;
   ReadableStream* readable = stream->readable();
   TransformStreamDefaultController* controller = stream->controller();
@@ -185,7 +187,7 @@ void SinkAbortRejected(const FunctionCallbackInfo<Value>& args) {
   Local<Array> holder = args.Data().As<Array>();
   Local<Value> stream_val;
   if (!holder->Get(context, 0).ToLocal(&stream_val)) return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(stream_val);
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(stream_val.As<Object>());
   if (stream == nullptr) return;
   stream->readable()->default_controller()->ErrorInternal(args[0]);
   stream->controller()->RejectFinish(env, args[0]);
@@ -200,7 +202,7 @@ void SourceCancelFulfilled(const FunctionCallbackInfo<Value>& args) {
   if (!holder->Get(context, 0).ToLocal(&stream_val) ||
       !holder->Get(context, 1).ToLocal(&reason))
     return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(stream_val);
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(stream_val.As<Object>());
   if (stream == nullptr) return;
   WritableStream* writable = stream->writable();
   TransformStreamDefaultController* controller = stream->controller();
@@ -219,7 +221,7 @@ void SourceCancelRejected(const FunctionCallbackInfo<Value>& args) {
   Local<Array> holder = args.Data().As<Array>();
   Local<Value> stream_val;
   if (!holder->Get(context, 0).ToLocal(&stream_val)) return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(stream_val);
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(stream_val.As<Object>());
   if (stream == nullptr) return;
   stream->writable()->controller()->ErrorIfNeeded(args[0]);
   stream->UnblockWrite();
@@ -235,37 +237,37 @@ void SourceCancelRejected(const FunctionCallbackInfo<Value>& args) {
 
 void TrampStart(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.Data());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.Data().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->start_promise(env));
 }
 
 void TrampWrite(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SinkWrite(args[0]));
 }
 
 void TrampClose(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SinkClose());
 }
 
 void TrampAbort(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SinkAbort(args[0]));
 }
 
 void TrampPull(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SourcePull());
 }
 
 void TrampCancel(const FunctionCallbackInfo<Value>& args) {
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(stream->SourceCancel(args[0]));
 }
@@ -277,14 +279,35 @@ void TrampCancel(const FunctionCallbackInfo<Value>& args) {
 // ===========================================================================
 
 TransformStreamDefaultController::TransformStreamDefaultController(
-    Environment* env, Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kTransformStreamDefaultController) {}
+    Environment* env, Local<Object> object) {
+  // Untracked: created once per stream, default destructor (TracedReference
+  // cleanup is automatic), and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void TransformStreamDefaultController::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("transform_algorithm", transform_algorithm_);
-  tracker->TrackField("flush_algorithm", flush_algorithm_);
-  tracker->TrackField("cancel_algorithm", cancel_algorithm_);
-  tracker->TrackField("finish_promise", finish_promise_);
+void TransformStreamDefaultController::Trace(cppgc::Visitor* visitor) const {
+  // The algorithms and finish promise are reset as the stream settles, so
+  // defer to the mutator thread.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const TransformStreamDefaultController*>(self)
+                ->TraceOnMutatorThread(v);
+          },
+          sizeof(TransformStreamDefaultController))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void TransformStreamDefaultController::TraceOnMutatorThread(
+    cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(transform_algorithm_);
+  visitor->Trace(flush_algorithm_);
+  visitor->Trace(cancel_algorithm_);
+  visitor->Trace(finish_promise_);
+  visitor->Trace(finish_resolver_);
 }
 
 Local<FunctionTemplate>
@@ -453,8 +476,8 @@ void TransformStreamDefaultController::GetDesiredSize(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "TransformStreamDefaultController"))
     return;
-  auto* c =
-      BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
+  auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   ReadableStreamDefaultController* rc =
       c->stream()->readable()->default_controller();
@@ -472,8 +495,8 @@ void TransformStreamDefaultController::Enqueue(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "TransformStreamDefaultController"))
     return;
-  auto* c =
-      BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
+  auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   USE(c->EnqueueInternal(args[0]));  // may leave a pending exception
 }
@@ -484,8 +507,8 @@ void TransformStreamDefaultController::Error(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "TransformStreamDefaultController"))
     return;
-  auto* c =
-      BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
+  auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   c->ErrorInternal(args[0]);
 }
@@ -496,8 +519,8 @@ void TransformStreamDefaultController::Terminate(
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "TransformStreamDefaultController"))
     return;
-  auto* c =
-      BaseObject::FromJSObject<TransformStreamDefaultController>(args.This());
+  auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
+      args.This().As<Object>());
   if (c == nullptr) return;
   c->Terminate();
 }
@@ -506,12 +529,32 @@ void TransformStreamDefaultController::Terminate(
 // TransformStream
 // ===========================================================================
 
-TransformStream::TransformStream(Environment* env, Local<Object> object)
-    : StreamBaseObject(env, object, Kind::kTransformStream) {}
+TransformStream::TransformStream(Environment* env, Local<Object> object) {
+  // Untracked: created once per construction/transfer, default destructor,
+  // and the destructor never touches the Realm.
+  CppgcMixin::Wrap(this, env, object, CppgcMixin::Tracking::kUntracked);
+}
 
-void TransformStream::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("backpressure_change", backpressure_change_promise_);
-  tracker->TrackField("start", start_promise_);
+void TransformStream::Trace(cppgc::Visitor* visitor) const {
+  // The backpressure/start promise slots are reset as the stream runs, so
+  // defer to the mutator thread.
+  if (visitor->DeferTraceToMutatorThreadIfConcurrent(
+          this,
+          [](cppgc::Visitor* v, const void* self) {
+            static_cast<const TransformStream*>(self)->TraceOnMutatorThread(v);
+          },
+          sizeof(TransformStream))) {
+    return;
+  }
+  TraceOnMutatorThread(visitor);
+}
+
+void TransformStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(backpressure_change_promise_);
+  visitor->Trace(backpressure_change_resolver_);
+  visitor->Trace(start_resolver_);
+  visitor->Trace(start_promise_);
 }
 
 Local<FunctionTemplate> TransformStream::GetConstructorTemplate(
@@ -711,7 +754,7 @@ void TransformStream::SetController(Local<Object> controller_obj) {
       TransformStreamDefaultController::kStream, object());
   // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
   auto* controller =
-      BaseObject::FromJSObject<TransformStreamDefaultController>(controller_obj);
+      CppgcMixin::Unwrap<TransformStreamDefaultController>(controller_obj);
   CHECK_NOT_NULL(controller);
   controller_cache_ = controller;
   controller->set_stream_cache(this);
@@ -722,7 +765,7 @@ void TransformStream::GetReadable(const FunctionCallbackInfo<Value>& args) {
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "TransformStream"))
     return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(
       stream->object()->GetInternalField(kReadable).As<Value>());
@@ -733,7 +776,7 @@ void TransformStream::GetWritable(const FunctionCallbackInfo<Value>& args) {
   if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
                                 "TransformStream"))
     return;
-  auto* stream = BaseObject::FromJSObject<TransformStream>(args.This());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
   args.GetReturnValue().Set(
       stream->object()->GetInternalField(kWritable).As<Value>());
@@ -789,9 +832,10 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
     return;
   Local<Object> stream_obj;
   if (!stream_ctor->NewInstance(context).ToLocal(&stream_obj)) return;
-  BaseObjectPtr<TransformStream> stream =
-      MakeBaseObject<TransformStream>(env, stream_obj);
-  stream->MakeWeak();
+  // cppgc-managed: a bump allocation traced from the wrapper; no malloc,
+  // persistent handle or weak callback (cf. the BaseObject stream).
+  auto* stream = cppgc::MakeGarbageCollected<TransformStream>(
+      env->cppgc_allocation_handle(), env, stream_obj);
 
   Local<Function> controller_ctor;
   if (!TransformStreamDefaultController::GetConstructorTemplate(env)
@@ -800,9 +844,9 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
     return;
   Local<Object> controller_obj;
   if (!controller_ctor->NewInstance(context).ToLocal(&controller_obj)) return;
-  BaseObjectPtr<TransformStreamDefaultController> controller =
-      MakeBaseObject<TransformStreamDefaultController>(env, controller_obj);
-  controller->MakeWeak();
+  auto* controller =
+      cppgc::MakeGarbageCollected<TransformStreamDefaultController>(
+          env->cppgc_allocation_handle(), env, controller_obj);
 
   // The shared start promise must exist before the readable/writable run their
   // (trampoline) start algorithm. With no user start there is nothing to
@@ -889,7 +933,7 @@ void TransformStreamControllerStream(const FunctionCallbackInfo<Value>& args) {
            ->HasInstance(args[0])) {
     return;
   }
-  auto* c = BaseObject::FromJSObject<TransformStreamDefaultController>(
+  auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
       args[0].As<Object>());
   if (c == nullptr) return;
   args.GetReturnValue().Set(c->stream()->object());

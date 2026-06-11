@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "cppgc_helpers.h"
 #include "memory_tracker.h"
 #include "streams/streams_binding.h"
 #include "v8.h"
@@ -22,10 +23,15 @@ class TransformStream;
 // TransformStreamDefaultController — holds the transform/flush/cancel algorithms
 // and drives the transform stream's readable side (enqueue/close/error). It owns
 // no queue of its own; queuing happens in the readable/writable controllers.
-class TransformStreamDefaultController final : public StreamBaseObject {
+class TransformStreamDefaultController final
+    : CPPGC_MIXIN(TransformStreamDefaultController) {
  public:
+  SET_CPPGC_NAME(TransformStreamDefaultController)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kStream = BaseObject::kInternalFieldCount,
+    kStream = CppgcMixin::kInternalFieldCount,
     kInternalFieldCount,
   };
 
@@ -40,10 +46,6 @@ class TransformStreamDefaultController final : public StreamBaseObject {
 
   TransformStreamDefaultController(Environment* env,
                                    v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(TransformStreamDefaultController)
-  SET_SELF_SIZE(TransformStreamDefaultController)
 
   // Owning stream. Cached raw pointer (hot path): the GC-traced kStream
   // internal field keeps the stream's wrapper alive for this controller's
@@ -74,11 +76,15 @@ class TransformStreamDefaultController final : public StreamBaseObject {
   v8::Local<v8::Function> flush_algorithm(Environment* env) const;
 
  private:
-  v8::Global<v8::Function> transform_algorithm_;
-  v8::Global<v8::Function> flush_algorithm_;
-  v8::Global<v8::Function> cancel_algorithm_;
-  v8::Global<v8::Promise> finish_promise_;
-  v8::Global<v8::Promise::Resolver> finish_resolver_;
+  // Traces the handle members; only ever runs on the mutator thread (the
+  // algorithms and finish promise are reset as the stream settles).
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
+  v8::TracedReference<v8::Function> transform_algorithm_;
+  v8::TracedReference<v8::Function> flush_algorithm_;
+  v8::TracedReference<v8::Function> cancel_algorithm_;
+  v8::TracedReference<v8::Promise> finish_promise_;
+  v8::TracedReference<v8::Promise::Resolver> finish_resolver_;
 
   // Raw-pointer mirror of the kStream internal field (see stream()).
   TransformStream* stream_cache_ = nullptr;
@@ -87,10 +93,14 @@ class TransformStreamDefaultController final : public StreamBaseObject {
 // TransformStream — owns the backpressure coordination between its writable and
 // readable halves. The readable/writable objects (themselves C++ streams) are
 // stored as GC-traced internal fields.
-class TransformStream final : public StreamBaseObject {
+class TransformStream final : CPPGC_MIXIN(TransformStream) {
  public:
+  SET_CPPGC_NAME(TransformStream)
+  SET_NO_MEMORY_INFO()
+  void Trace(cppgc::Visitor* visitor) const final;
+
   enum InternalFields {
-    kReadable = BaseObject::kInternalFieldCount,
+    kReadable = CppgcMixin::kInternalFieldCount,
     kWritable,
     kController,
     kInternalFieldCount,
@@ -104,10 +114,6 @@ class TransformStream final : public StreamBaseObject {
   static void GetWritable(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   TransformStream(Environment* env, v8::Local<v8::Object> object);
-
-  void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(TransformStream)
-  SET_SELF_SIZE(TransformStream)
 
   // Halves/controller: cached raw pointers mirroring the GC-traced kReadable /
   // kWritable / kController internal fields, which keep the targets' wrappers
@@ -141,11 +147,15 @@ class TransformStream final : public StreamBaseObject {
   void SetController(v8::Local<v8::Object> controller_obj);
 
  private:
+  // Traces the handle members; only ever runs on the mutator thread (the
+  // backpressure/start promise slots are reset as the stream runs).
+  void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
+
   bool backpressure_ = false;
-  v8::Global<v8::Promise> backpressure_change_promise_;
-  v8::Global<v8::Promise::Resolver> backpressure_change_resolver_;
-  v8::Global<v8::Promise::Resolver> start_resolver_;
-  v8::Global<v8::Promise> start_promise_;
+  v8::TracedReference<v8::Promise> backpressure_change_promise_;
+  v8::TracedReference<v8::Promise::Resolver> backpressure_change_resolver_;
+  v8::TracedReference<v8::Promise::Resolver> start_resolver_;
+  v8::TracedReference<v8::Promise> start_promise_;
 
   // Raw-pointer mirrors of the kReadable / kWritable / kController fields.
   ReadableStream* readable_cache_ = nullptr;

@@ -173,38 +173,6 @@ bool CheckReceiverInvalidThis(Environment* env,
                               v8::Local<v8::Value> receiver,
                               const char* type_name);
 
-// Common base for every webstreams BaseObject. Carries a small kind tag so a
-// related object recovered from a GC-traced internal field can be safely
-// downcast: BaseObject::FromJSObject<T> performs an unchecked static_cast and
-// RTTI is disabled in the Node build, so the tag is the discriminator. For
-// example a ReadableStream's controller field may hold either a default or a
-// byte controller, and its reader field either a default or a BYOB reader; the
-// tag tells them apart in O(1).
-class StreamBaseObject : public BaseObject {
- public:
-  enum class Kind : uint8_t {
-    kStream,
-    kDefaultController,
-    kByteController,
-    kDefaultReader,
-    kByobReader,
-    kByobRequest,
-    kWritableStream,
-    kWritableStreamDefaultWriter,
-    kWritableStreamDefaultController,
-    kTransformStream,
-    kTransformStreamDefaultController,
-  };
-
-  StreamBaseObject(Environment* env, v8::Local<v8::Object> object, Kind kind)
-      : BaseObject(env, object), stream_kind_(kind) {}
-
-  Kind stream_kind() const { return stream_kind_; }
-
- private:
-  const Kind stream_kind_;
-};
-
 // Per-realm state for the WHATWG Streams C++ implementation. Holds the cached
 // property name symbols (e.g. the `value`/`done` keys of read results) and the
 // shared promise-reaction functions so that the per-operation hot paths never
