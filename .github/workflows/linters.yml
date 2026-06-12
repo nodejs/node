@@ -252,8 +252,10 @@ jobs:
             /tools/lint-pr-url.mjs
             /doc/api/
           sparse-checkout-cone-mode: false
-      # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
-      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}
+      # We've checked out a merge commit, HEAD^ refers to the base branch.
+      - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
   lint-readme:
     runs-on: ubuntu-slim
     steps:
