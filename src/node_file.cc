@@ -4136,15 +4136,20 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
 static void HandleToFd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsNumber());
+  CHECK(args[0]->IsBigInt());
 
   int flags = 0;
   if (args[1]->IsNumber()) {
     flags = args[1].As<Int32>()->Value();
   }
 
-  intptr_t value =
-      static_cast<intptr_t>(args[0].As<Number>()->Value());
+  bool lossless;
+  int64_t handle = args[0].As<BigInt>()->Int64Value(&lossless);
+  if (!lossless) {
+    return THROW_ERR_OUT_OF_RANGE(
+        env, "windowsHandle does not fit into 64 bits");
+  }
+  intptr_t value = static_cast<intptr_t>(handle);
 
   int fd = _open_osfhandle(value, flags);
   if (fd == -1) {

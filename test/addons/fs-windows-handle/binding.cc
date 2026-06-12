@@ -7,17 +7,17 @@
 
 namespace {
 
+using v8::BigInt;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
-using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
 
 // Creates an anonymous pipe and returns its raw Win32 read/write HANDLE values
-// as JS numbers. These are NOT CRT file descriptors, so passing them as the
+// as JS bigints. These are NOT CRT file descriptors, so passing them as the
 // `windowsHandle` stream option exercises the HANDLE -> fd conversion path on
 // Windows. Returns undefined on other platforms.
 void CreatePipeHandles(const FunctionCallbackInfo<Value>& args) {
@@ -37,15 +37,15 @@ void CreatePipeHandles(const FunctionCallbackInfo<Value>& args) {
   result
       ->Set(context,
             String::NewFromUtf8(isolate, "readHandle").ToLocalChecked(),
-            Number::New(isolate,
-                        static_cast<double>(
+            BigInt::New(isolate,
+                        static_cast<int64_t>(
                             reinterpret_cast<intptr_t>(read_handle))))
       .Check();
   result
       ->Set(context,
             String::NewFromUtf8(isolate, "writeHandle").ToLocalChecked(),
-            Number::New(isolate,
-                        static_cast<double>(
+            BigInt::New(isolate,
+                        static_cast<int64_t>(
                             reinterpret_cast<intptr_t>(write_handle))))
       .Check();
   args.GetReturnValue().Set(result);
