@@ -1691,9 +1691,8 @@ Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
         ReadableByteStreamController::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableByteStreamController"));
-    tmpl->PrototypeTemplate()->SetAccessorProperty(
-        FIXED_ONE_BYTE_STRING(isolate, "byobRequest"),
-        NewGetter(isolate, "byobRequest", GetByobRequest));
+    // The `byobRequest` accessor is defined from JS at module load (the
+    // staged getter protocol; see the wrapper in readablestream.js).
     tmpl->PrototypeTemplate()->SetAccessorProperty(
         FIXED_ONE_BYTE_STRING(isolate, "desiredSize"),
         NewGetter(isolate, "desiredSize", GetDesiredSize));
@@ -1707,7 +1706,7 @@ Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
 
 void ReadableByteStreamController::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(GetByobRequest);
+  registry->Register(ByobRequestGetOrCreate);
   registry->Register(GetDesiredSize);
   registry->Register(Close);
   registry->Register(Enqueue);
@@ -1850,8 +1849,6 @@ void ReadableByteStreamController::InvalidateBYOBRequest() {
   // transfer, RetransferFrontIfExposed, or DetachFrontIfExposed.
   req_obj->SetInternalField(ReadableStreamBYOBRequest::kController,
                             Undefined(isolate));
-  req_obj->SetInternalField(ReadableStreamBYOBRequest::kView,
-                            v8::Null(isolate));
   object()->SetInternalField(kByobRequest, Undefined(isolate));
   has_byob_request_ = false;
 }
@@ -2845,36 +2842,34 @@ bool ReadableByteStreamController::Setup(Local<Function> start_algorithm,
   return true;
 }
 
-void ReadableByteStreamController::GetByobRequest(
+// controller.byobRequest, staged for the JS getter wrapper: returns null
+// (no pending descriptor or unusable buffer), the existing request wrapper,
+// or — on first access for a descriptor — a fresh [request, buffer,
+// byteOffset, byteLength] tuple. The wrapper constructs the request view
+// with a JIT `new Uint8Array(...)` and caches it on the request under a
+// module-private symbol, so every later byobRequest.view access is a plain
+// JS property load: no API crossing and no Factory view materialization.
+void ReadableByteStreamController::ByobRequestGetOrCreate(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args[0],
                                 "ReadableByteStreamController"))
     return;
   auto* c =
-      CppgcMixin::Unwrap<ReadableByteStreamController>(
-          args.This().As<Object>());
+      CppgcMixin::Unwrap<ReadableByteStreamController>(args[0].As<Object>());
   if (c == nullptr) return;
   if (!c->has_byob_request() && c->has_pending_pull_intos()) {
     PullIntoDescriptor& d = c->pending_pull_intos_.front();
-    // The view wraps the descriptor's own held buffer (no fresh ArrayBuffer)
-    // and marks it exposed: from here the user can detach it, and the spec's
-    // transfer points must re-transfer or detach it observably.
+    // The request view will wrap the descriptor's own held buffer; handing
+    // its geometry to JS exposes it (the spec's transfer points must
+    // re-transfer or detach it observably from here on).
     Local<ArrayBuffer> ab = d.buffer.Get(isolate);
     if (ab.IsEmpty() || ab->WasDetached()) {
       args.GetReturnValue().SetNull();
       return;
     }
-    Local<Object> view =
-        Uint8Array::New(ab, d.byte_offset + d.bytes_filled,
-                        d.byte_length - d.bytes_filled)
-            .As<Object>();
-    d.exposed = true;
-    // Create the BYOBRequest — a JS-only wrapper (no C++ object; see the
-    // class comment) — and link it via GC-traced internal fields. The
-    // instantiated constructor is cached per realm.
     auto* bd = BindingData::Get(env);
     Local<Function> ctor = bd->byob_request_ctor_fn.Get(isolate);
     if (ctor.IsEmpty()) {
@@ -2888,10 +2883,16 @@ void ReadableByteStreamController::GetByobRequest(
     if (!ctor->NewInstance(context).ToLocal(&req_obj)) return;
     req_obj->SetInternalField(ReadableStreamBYOBRequest::kController,
                               c->object());
-    req_obj->SetInternalField(ReadableStreamBYOBRequest::kView, view);
     c->object()->SetInternalField(kByobRequest, req_obj);
     c->has_byob_request_ = true;
-    args.GetReturnValue().Set(req_obj);
+    d.exposed = true;
+    Local<Value> tuple[] = {
+        req_obj, ab,
+        Number::New(isolate,
+                    static_cast<double>(d.byte_offset + d.bytes_filled)),
+        Number::New(isolate,
+                    static_cast<double>(d.byte_length - d.bytes_filled))};
+    args.GetReturnValue().Set(Array::New(isolate, tuple, arraysize(tuple)));
     return;
   }
   Local<Value> cur = c->object()->GetInternalField(kByobRequest).As<Value>();
@@ -3038,9 +3039,8 @@ Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
         ReadableStreamBYOBRequest::kInternalFieldCount);
     tmpl->SetClassName(
         FIXED_ONE_BYTE_STRING(isolate, "ReadableStreamBYOBRequest"));
-    tmpl->PrototypeTemplate()->SetAccessorProperty(
-        FIXED_ONE_BYTE_STRING(isolate, "view"),
-        NewGetter(isolate, "view", GetView));
+    // The `view` accessor is defined from JS at module load (the cached
+    // JIT-built view; see the wrapper in readablestream.js).
     SetProtoMethodLen(isolate, tmpl, "respond", Respond, 1);
     SetProtoMethodLen(isolate, tmpl, "respondWithNewView", RespondWithNewView, 1);
     bd->readable_stream_byob_request_ctor.Reset(isolate, tmpl);
@@ -3050,7 +3050,7 @@ Local<FunctionTemplate> ReadableStreamBYOBRequest::GetConstructorTemplate(
 
 void ReadableStreamBYOBRequest::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(GetView);
+  registry->Register(IsInvalidated);
   registry->Register(Respond);
   registry->Register(RespondWithNewView);
 }
@@ -3066,14 +3066,19 @@ static ReadableByteStreamController* ByobRequestController(Local<Object> req) {
   return UnwrapTrusted<ReadableByteStreamController>(c.As<Object>());
 }
 
-void ReadableStreamBYOBRequest::GetView(
+// Whether the request was invalidated (its kController field cleared) —
+// the cold half of the JS view getter: a detached cached view means either
+// invalidation (the getter returns null) or a user-detached buffer (the
+// getter keeps returning the same view object).
+void ReadableStreamBYOBRequest::IsInvalidated(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args[0],
                                 "ReadableStreamBYOBRequest"))
     return;
-  args.GetReturnValue().Set(
-      args.This().As<Object>()->GetInternalField(kView).As<Value>());
+  Local<Value> c =
+      args[0].As<Object>()->GetInternalField(kController).As<Value>();
+  args.GetReturnValue().Set(!c->IsObject());
 }
 
 void ReadableStreamBYOBRequest::Respond(
@@ -3096,15 +3101,15 @@ void ReadableStreamBYOBRequest::Respond(
         isolate, context, "This BYOB request has been invalidated"));
     return;
   }
-  Local<Value> view_val =
-      args.This().As<Object>()->GetInternalField(kView).As<Value>();
-  if (view_val->IsArrayBufferView()) {
-    Local<ArrayBuffer> view_buffer = view_val.As<ArrayBufferView>()->Buffer();
-    if (view_buffer->WasDetached()) {
-      isolate->ThrowException(InvalidStateError(
-          isolate, context, "Viewed ArrayBuffer is detached"));
-      return;
-    }
+  // The request's view wraps the front descriptor's held buffer; the spec's
+  // detached pre-check inspects exactly that buffer (a valid request implies
+  // the front descriptor exists — every shift point invalidates first).
+  CHECK(c->has_pending_pull_intos());
+  Local<ArrayBuffer> view_buffer = c->front_pending_buffer(isolate);
+  if (!view_buffer.IsEmpty() && view_buffer->WasDetached()) {
+    isolate->ThrowException(InvalidStateError(
+        isolate, context, "Viewed ArrayBuffer is detached"));
+    return;
   }
   int64_t bytes_written = 0;
   if (!args[0]->IntegerValue(context).To(&bytes_written)) return;
@@ -4420,6 +4425,10 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "byteControllerEnqueueOrSettle",
             ByteControllerEnqueueOrSettle);
   SetMethod(isolate, target, "byobReaderReadStage", ByobReaderReadStage);
+  SetMethod(isolate, target, "byobRequestGetOrCreate",
+            ReadableByteStreamController::ByobRequestGetOrCreate);
+  SetMethod(isolate, target, "byobRequestIsInvalidated",
+            ReadableStreamBYOBRequest::IsInvalidated);
   SetMethod(isolate, target, "byobReaderFillStaged", ByobReaderFillStaged);
   SetMethod(isolate, target, "byobReaderParkRead", ByobReaderParkRead);
   SetMethod(isolate, target, "readableStreamController",

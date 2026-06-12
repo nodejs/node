@@ -397,7 +397,11 @@ class ReadableByteStreamController final
       Environment* env);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
-  static void GetByobRequest(const v8::FunctionCallbackInfo<v8::Value>& args);
+  // controller.byobRequest, staged for the JS getter wrapper (returns the
+  // existing request, null, or a fresh [request, buffer, byteOffset,
+  // byteLength] tuple for the wrapper to materialize the view in JIT code).
+  static void ByobRequestGetOrCreate(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetDesiredSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Enqueue(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -493,6 +497,11 @@ class ReadableByteStreamController final
   }
   // The staged view's classification (valid between the two crossings).
   ViewType staged_view_type() const { return staged_read_.view_type; }
+  // The front pending descriptor's held buffer (the spec's respond
+  // detached pre-check inspects it).
+  v8::Local<v8::ArrayBuffer> front_pending_buffer(v8::Isolate* isolate) const {
+    return pending_pull_intos_.front().buffer.Get(isolate);
+  }
   // byobRequest.respond(n) / respondWithNewView(view): may throw.
   v8::Maybe<void> Respond(size_t bytes_written);
   v8::Maybe<void> RespondWithNewView(v8::Local<v8::Object> view);
@@ -616,14 +625,13 @@ class ReadableByteStreamController final
   bool has_byob_request_ = false;
 };
 
-// ReadableStreamBYOBRequest — a thin view onto the controller's first pending
-// pull-into. Holds a back-reference to the controller and the current view as
-// GC-traced internal fields; both are cleared when the request is invalidated.
-// ReadableStreamBYOBRequest — a JS-only wrapper: one is created per pull-into
-// descriptor (every pull in a respond-driven byte loop), so it carries no C++
-// object at all. The GC-traced internal fields hold everything: kController
+// ReadableStreamBYOBRequest — a JS-only wrapper: one is created per
+// pull-into descriptor (every pull in a respond-driven byte loop), so it
+// carries no C++ object at all. The GC-traced kController internal field
 // links the owning controller (cleared on invalidation — also the
-// "invalidated" brand) and kView holds the exposed view. Methods recover the
+// "invalidated" brand); the request view is a JS own property cached by the
+// byobRequest getter wrapper under a module-private symbol (constructed in
+// JIT code over the descriptor's held buffer). Methods recover the
 // controller by unwrapping the kController field after the receiver brand
 // check. The first two internal-field slots (the CppgcMixin layout) are
 // left as undefined.
@@ -633,7 +641,6 @@ class ReadableStreamBYOBRequest final {
 
   enum InternalFields {
     kController = CppgcMixin::kInternalFieldCount,
-    kView,
     kInternalFieldCount,
   };
 
@@ -641,7 +648,7 @@ class ReadableStreamBYOBRequest final {
       Environment* env);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
-  static void GetView(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsInvalidated(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RespondWithNewView(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
