@@ -11,6 +11,10 @@
 #include "util.h"
 #include "zlib.h"
 #include "zstd.h"
+// kCompileCacheZstdDict + kCompileCacheZstdDictSize come from the header
+// generated at build time by the GYP action (from src/compile_cache_zstd.dict).
+// The include directory (SHARED_INTERMEDIATE_DIR) is added by node.gyp.
+#include "compile_cache_zstd_dict.h"
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
 #include <unistd.h>  // getuid
@@ -28,6 +32,29 @@ using v8::ScriptCompiler;
 using v8::String;
 
 namespace {
+// The compile-cache zstd dictionary is immutable and embedded in the binary,
+// so the prepared CDict/DDict are created once and shared across all handlers
+// (and all Environments/Workers) instead of per handler. They live for the
+// lifetime of the process. Returns nullptr if preparation fails, in which
+// case callers fall back to plain (dictionary-less) zstd.
+ZSTD_CDict* GetCompileCacheCDict() {
+  static ZSTD_CDict* cdict =
+      ZSTD_createCDict(kCompileCacheZstdDict, kCompileCacheZstdDictSize, 1);
+  return cdict;
+}
+
+ZSTD_DDict* GetCompileCacheDDict() {
+  static ZSTD_DDict* ddict =
+      ZSTD_createDDict(kCompileCacheZstdDict, kCompileCacheZstdDictSize);
+  return ddict;
+}
+
+// The dictionary only helps small/medium caches; for larger inputs zstd's own
+// adaptive model dominates and the dictionary never wins, so we skip the
+// (otherwise wasted) second compression above this raw size. Decompression is
+// unaffected: a single DDict decodes both dict-assisted and plain frames.
+constexpr uint32_t kCompileCacheDictMaxRawSize = 256 * 1024;
+
 std::string Uint32ToHex(uint32_t crc) {
   std::string str;
   str.reserve(8);
@@ -266,10 +293,20 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
       Debug("failed to create zstd context\n");
       return;
     }
-    // Decompress directly into the buffer handed to V8.
+    // Decompress directly into the buffer handed to V8. The embedded
+    // dictionary is referenced via a shared, prepared DDict; plain frames
+    // (which carry no dictID) decompress correctly with it as well.
     std::unique_ptr<uint8_t[]> raw_data(new uint8_t[raw_size]);
-    size_t decompressed_size = ZSTD_decompressDCtx(
-        zstd_dctx_, raw_data.get(), raw_size, disk_data.get(), cache_size);
+    ZSTD_DDict* ddict = GetCompileCacheDDict();
+    size_t decompressed_size;
+    if (ddict != nullptr) {
+      decompressed_size = ZSTD_decompress_usingDDict(
+          zstd_dctx_, raw_data.get(), raw_size, disk_data.get(), cache_size,
+          ddict);
+    } else {
+      decompressed_size = ZSTD_decompressDCtx(
+          zstd_dctx_, raw_data.get(), raw_size, disk_data.get(), cache_size);
+    }
     if (ZSTD_isError(decompressed_size)) {
       Debug("decompression failed: %s\n", ZSTD_getErrorName(decompressed_size));
       return;
@@ -508,16 +545,43 @@ void CompileCacheHandler::Persist() {
     // shutdown and should add as little overhead as possible. If the data
     // is not compressible, store it uncompressed, which is indicated by
     // the cache size being equal to the uncompressed size in the headers.
+    //
+    // We also try the embedded trained dictionary and keep whichever frame is
+    // smaller (still subject to the "only store if < raw" policy). The
+    // dictionary mainly helps the small/medium caches that dominate real
+    // compile cache usage; for inputs where plain zstd already wins we keep
+    // the plain frame.
     char* cache_ptr = raw_ptr;
     uint32_t cache_size = raw_size;
     std::unique_ptr<uint8_t[]> compressed;
+    std::unique_ptr<uint8_t[]> compressed_dict;
     if (cctx != nullptr || (cctx = ZSTD_createCCtx()) != nullptr) {
       size_t compressed_bound = ZSTD_compressBound(raw_size);
       compressed.reset(new uint8_t[compressed_bound]);
       size_t compressed_size = ZSTD_compressCCtx(
           cctx, compressed.get(), compressed_bound, raw_ptr, raw_size, 1);
+      char* best_ptr = reinterpret_cast<char*>(compressed.get());
+      // Only attempt the dictionary for small/medium entries (see
+      // kCompileCacheDictMaxRawSize); for large blobs it never wins and the
+      // extra compression would be wasted work.
+      ZSTD_CDict* cdict = raw_size <= kCompileCacheDictMaxRawSize
+                              ? GetCompileCacheCDict()
+                              : nullptr;
+      if (cdict != nullptr) {
+        // Compress into a separate buffer so the selected frame's bytes and
+        // size always stay in sync (the plain buffer is left untouched).
+        compressed_dict.reset(new uint8_t[compressed_bound]);
+        size_t dict_size = ZSTD_compress_usingCDict(
+            cctx, compressed_dict.get(), compressed_bound, raw_ptr, raw_size,
+            cdict);
+        if (!ZSTD_isError(dict_size) &&
+            (ZSTD_isError(compressed_size) || dict_size < compressed_size)) {
+          compressed_size = dict_size;
+          best_ptr = reinterpret_cast<char*>(compressed_dict.get());
+        }
+      }
       if (!ZSTD_isError(compressed_size) && compressed_size < raw_size) {
-        cache_ptr = reinterpret_cast<char*>(compressed.get());
+        cache_ptr = best_ptr;
         cache_size = static_cast<uint32_t>(compressed_size);
       }
     }
