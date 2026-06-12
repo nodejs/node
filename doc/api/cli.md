@@ -1407,6 +1407,25 @@ added:
 
 Enable the experimental [`node:stream/iter`][] module.
 
+### `--experimental-strip-private-modules`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+By default, Node.js refuses to strip types from TypeScript files inside
+folders under a `node_modules` path. This flag enables type stripping for
+such files when they belong to a package whose `package.json` contains
+`"private": true`. Files belonging to non-private packages still throw
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`][].
+The limitation to private packages should never be lifted,
+as publishing packages with TypeScript sources
+is highly discouraged.
+Stripping types inside `node_modules` is intended only
+for local development.
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
@@ -3816,6 +3835,7 @@ one is included in the list below.
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-stream-iter`
+* `--experimental-strip-private-modules`
 * `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vfs`
@@ -4447,6 +4467,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
+[`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1

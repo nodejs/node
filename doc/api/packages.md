@@ -1151,6 +1151,9 @@ The following fields in `package.json` files are used in Node.js:
   limits which submodules can be loaded from within the package.
 * [`"imports"`][] - Package imports, for use by modules within the package
   itself.
+* [`"private"`][] - When `true`, marks the package as not for publication. Used
+  by [`--experimental-strip-private-modules`][] to allow type stripping for the
+  package's TypeScript files under `node_modules`.
 
 ### `"name"`
 
@@ -1346,6 +1349,30 @@ Package imports permit mapping to external packages.
 
 This field defines [subpath imports][] for the current package.
 
+### `"private"`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+```json
+{
+  "private": true
+}
+```
+
+The `"private"` field marks a package as private, signaling to package managers
+such as _npm_ that it must not be published to a public registry.
+By default, Node.js refuses to strip types from TypeScript files inside
+`node_modules`. When [`--experimental-strip-private-modules`][] is enabled,
+Node.js allows type stripping for:
+
+* files that are not descendant of a `node_modules` directory.
+* files that are descendant of a directory whose parent is a `node_modules` directory
+  and that contains a `package.json` file that sets `"private": true`.
+
 [CommonJS]: modules.md
 [Conditional exports]: #conditional-exports
 [ES module]: esm.md
@@ -1360,10 +1387,12 @@ This field defines [subpath imports][] for the current package.
 [`"imports"`]: #imports
 [`"main"`]: #main
 [`"name"`]: #name
+[`"private"`]: #private
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
 [`--experimental-package-map`]: cli.md#--experimental-package-mappath
+[`--experimental-strip-private-modules`]: cli.md#--experimental-strip-private-modules
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_MAP_EXTERNAL_FILE`]: errors.md#err_package_map_external_file
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported

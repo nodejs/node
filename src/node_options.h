@@ -273,6 +273,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> preload_esm_modules;
 
   bool strip_types = HAVE_AMARO;
+  bool experimental_strip_private_modules = EXPERIMENTALS_DEFAULT_VALUE;
 
   std::vector<std::string> user_argv;
 
