@@ -73,6 +73,19 @@ test('execute a TypeScript file from a private package in node_modules', async (
   assert.strictEqual(result.code, 0);
 });
 
+test('execute a TypeScript file from a private package with a non-private nested package.json',
+     async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--experimental-strip-private-modules',
+         '--no-warnings',
+         fixtures.path('typescript/ts/test-typescript-nested-nonprivate-node-modules.ts'),
+       ]);
+
+       assert.strictEqual(result.stderr, '');
+       assert.match(result.stdout, /Hello, TypeScript!/);
+       assert.strictEqual(result.code, 0);
+     });
+
 test('emit an experimental warning when stripping types in a private node_modules package',
      async () => {
        const result = await spawnPromisified(process.execPath, [
