@@ -1380,30 +1380,18 @@ added: v0.1.90
 Set the encoding for the socket as a [Readable Stream][]. See
 [`readable.setEncoding()`][] for more information.
 
-### `socket.setKeepAlive([enable][, initialDelay][, interval][, count])`
+### `socket.setKeepAlive()`
 
-<!-- YAML
-added: v0.1.92
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/63825
-    description: Added the `interval` and `count` arguments to configure
-                 `TCP_KEEPINTVL` and `TCP_KEEPCNT`.
-  - version:
-    - v13.12.0
-    - v12.17.0
-    pr-url: https://github.com/nodejs/node/pull/32204
-    description: New defaults for `TCP_KEEPCNT` and `TCP_KEEPINTVL` socket options were added.
--->
+Enable/disable keep-alive functionality, and optionally configure the
+keepalive probe timing. Returns the socket itself.
 
-* `enable` {boolean} **Default:** `false`
-* `initialDelay` {number} **Default:** `0`
-* `interval` {number} **Default:** `1000`
-* `count` {number} **Default:** `10`
-* Returns: {net.Socket} The socket itself.
+Possible signatures:
 
-Enable/disable keep-alive functionality, and optionally set the initial
-delay before the first keepalive probe is sent on an idle socket.
+* [`socket.setKeepAlive([options])`][`socket.setKeepAlive(options)`]
+* [`socket.setKeepAlive([enable][, initialDelay][, interval][, count])`][`socket.setKeepAlive(enable)`]
+
+Enabling keep-alive sets the initial delay before the first keepalive probe is
+sent on an idle socket.
 
 Set `initialDelay` (in milliseconds) to set the delay between the last
 data packet received and the first keepalive probe. Setting `0` for
@@ -1432,6 +1420,51 @@ Enabling the keep-alive functionality will set the following socket options:
 On Windows versions older than build 1709, keep-alive is configured through
 `SIO_KEEPALIVE_VALS`, which has no probe-count field, so `count` is ignored on
 those platforms.
+
+#### `socket.setKeepAlive([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {Object}
+  * `enable` {boolean} **Default:** `false`
+  * `initialDelay` {number} **Default:** `0`
+  * `interval` {number} **Default:** `1000`
+  * `count` {number} **Default:** `10`
+* Returns: {net.Socket} The socket itself.
+
+Configure keep-alive using an options object. See [`socket.setKeepAlive()`][]
+for a description of each property.
+
+```js
+socket.setKeepAlive({ enable: true, initialDelay: 1000, interval: 1000, count: 10 });
+```
+
+#### `socket.setKeepAlive([enable][, initialDelay][, interval][, count])`
+
+<!-- YAML
+added: v0.1.92
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/63825
+    description: Added the `interval` and `count` arguments to configure
+                 `TCP_KEEPINTVL` and `TCP_KEEPCNT`.
+  - version:
+    - v13.12.0
+    - v12.17.0
+    pr-url: https://github.com/nodejs/node/pull/32204
+    description: New defaults for `TCP_KEEPCNT` and `TCP_KEEPINTVL` socket options were added.
+-->
+
+* `enable` {boolean} **Default:** `false`
+* `initialDelay` {number} **Default:** `0`
+* `interval` {number} **Default:** `1000`
+* `count` {number} **Default:** `10`
+* Returns: {net.Socket} The socket itself.
+
+Configure keep-alive using positional arguments. See
+[`socket.setKeepAlive()`][] for a description of each argument.
 
 ### `socket.setNoDelay([noDelay])`
 
@@ -2102,7 +2135,9 @@ net.isIPv6('fhqwhgads'); // returns false
 [`socket.pause()`]: #socketpause
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
-[`socket.setKeepAlive()`]: #socketsetkeepaliveenable-initialdelay
+[`socket.setKeepAlive()`]: #socketsetkeepalive
+[`socket.setKeepAlive(enable)`]: #socketsetkeepaliveenable-initialdelay-interval-count
+[`socket.setKeepAlive(options)`]: #socketsetkeepaliveoptions
 [`socket.setTimeout()`]: #socketsettimeouttimeout-callback
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
