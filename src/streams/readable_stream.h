@@ -226,10 +226,6 @@ class ReadableStreamDefaultReader final
   // resolution in JIT/builtin code (StoreICs and an IC'd then-lookup) instead
   // of the much dearer C++ API equivalents.
   void AddReadRequestClosure(v8::Local<v8::Function> settle);
-  // Pops and returns the front pending read request resolver (CHECK it is the
-  // resolver kind — only byte-stream paths call this, and the read() wrapper
-  // never parks closures on byte streams).
-  v8::Local<v8::Promise::Resolver> TakeReadRequest();
   // If the front pending read request is the read() wrapper's settle closure,
   // pops and returns it; otherwise (resolver kind, or no pending request)
   // returns empty and takes nothing. Used by the enqueue wrapper protocol to
@@ -239,6 +235,12 @@ class ReadableStreamDefaultReader final
   // Resolves the front read request: {value: undefined, done: true} when done,
   // otherwise {value: chunk, done: false}.
   void FulfillFront(v8::Local<v8::Value> chunk, bool done);
+  // FulfillFront, split for callers that must take the request before
+  // producing the chunk (a dequeue whose drain may run pull reentrantly).
+  v8::Local<v8::Value> TakeFrontReadRequest();
+  void SettleReadRequest(v8::Local<v8::Value> request,
+                         v8::Local<v8::Value> chunk,
+                         bool done);
   void CloseAll();
   void ErrorAll(v8::Local<v8::Value> error);
 
@@ -271,8 +273,8 @@ class ReadableStreamDefaultReader final
   // Front parked read taken from/put into the kParkedRead internal field; the
   // FifoQueue only holds the overflow (2+ concurrent reads). Logical order is
   // [slot (if in use), read_requests_...]; the slot is only (re)used when both
-  // are empty so FIFO order is preserved.
-  v8::Local<v8::Value> TakeFrontReadRequest();
+  // are empty so FIFO order is preserved. (TakeFrontReadRequest is declared
+  // in the public section.)
   bool parked_read_in_slot_ = false;
 
   FifoQueue<v8::TracedReference<v8::Value>> read_requests_;
@@ -319,6 +321,22 @@ struct ByteQueueEntry {
 };
 
 enum class PullIntoType : uint8_t { kDefault, kByob, kNone };
+
+// A byte-side settle deferred to the calling enqueue() JS wrapper (mirrors
+// the default controller's enqueue-or-settle protocol). Armed when the
+// enqueue's final settle targets a read() wrapper settle closure and
+// reordering it past the tail CallPullIfNeeded is unobservable (pulling_
+// set => the call only records pull_again_; no pull algorithm => no-op).
+// The wrapper then performs settle(view, false) as a JIT call from its own
+// frame, replacing a C++->JS Function::Call per chunk. Unlike the default
+// controller's protocol the settled value is not the caller's chunk but a
+// C++-materialized view, so the view crosses back too (a [closure, view]
+// pair).
+struct DeferredSettle {
+  v8::Local<v8::Function> closure;
+  v8::Local<v8::Object> view;
+  bool armed = false;
+};
 
 // Mirrors the spec's pull-into descriptor. The destination buffer is an owned
 // BackingStore (transferred from the user's view), filled in place via memcpy.
@@ -384,12 +402,34 @@ class ReadableByteStreamController final
   // close(): may throw (partial read) -> returns Nothing with pending exception.
   v8::Maybe<void> CloseInternal();
   void HandleQueueDrain();
-  // enqueue(view): may throw -> Nothing with pending exception.
-  v8::Maybe<void> EnqueueInternal(v8::Local<v8::Object> view);
+  // enqueue(view): may throw -> Nothing with pending exception. When `defer`
+  // is non-null and the enqueue would settle a front read parked as a settle
+  // closure with the settle safely reorderable (see DeferredSettle), the
+  // settle is handed back through `defer` instead of being performed.
+  v8::Maybe<void> EnqueueInternal(v8::Local<v8::Object> view,
+                                  DeferredSettle* defer = nullptr);
   void ErrorInternal(v8::Local<v8::Value> error);
   v8::Local<v8::Promise> CancelSteps(v8::Local<v8::Value> reason);
   // Default-reader read on a byte stream.
   void PullStepsDefault(v8::Local<v8::Promise::Resolver> resolver);
+  // Park branch of PullStepsDefault for the read() wrapper protocol: pushes
+  // the auto-allocate descriptor (if any), parks the wrapper's settle closure
+  // and triggers pull. The wrapper only parks when the queue is empty (the
+  // ReaderFastRead crossing saw queue_total_size_ == 0, and nothing can run
+  // between the two crossings).
+  void PullStepsDefaultClosure(v8::Local<v8::Function> settle);
+  // Dequeues the front chunk (incl. drain bookkeeping — may run pull) and
+  // materializes its user-visible Uint8Array view. Queue must be non-empty.
+  v8::Local<v8::Object> DequeueChunkView();
+  bool has_buffered_bytes() const { return queue_total_size_ > 0; }
+  bool pulling() const { return pulling_; }
+  bool has_pull_algorithm() const { return !pull_algorithm_.IsEmpty(); }
+  // Whether a settle may be deferred past the tail CallPullIfNeeded: with
+  // pulling_ set it only records pull_again_, with no pull algorithm it is a
+  // no-op — in both cases no user code can run before the wrapper settles.
+  bool can_defer_settle() const {
+    return pulling_ || pull_algorithm_.IsEmpty();
+  }
   // BYOB read: fills/parks; resolves `resolver` directly for sync completion.
   void PullInto(v8::Local<v8::Object> view,
                 size_t min,
@@ -451,11 +491,19 @@ class ReadableByteStreamController final
   bool FillPullIntoDescriptorFromQueue(PullIntoDescriptor* desc);
   void FillReadRequestFromQueue(v8::Local<v8::Promise::Resolver> resolver);
   void ProcessReadRequestsUsingQueue();
+  // Pushes the auto-allocate descriptor for a default-reader read, if the
+  // stream was created with autoAllocateChunkSize.
+  void MaybePushAutoAllocateDescriptor();
   // Fills and shifts ready pull-into descriptors from the queue, returning them
   // (NOT yet committed — the caller controls commit order to preserve the FIFO
   // ordering of read-into requests).
   std::deque<PullIntoDescriptor> ProcessPullIntoDescriptorsUsingQueue();
-  void CommitPullIntoDescriptor(PullIntoDescriptor* desc);
+  // With a non-null `defer` and a done:false settle whose front request is a
+  // settle closure, hands the settle back through `defer` instead of
+  // performing it (the caller has established reorderability and that this is
+  // the operation's final settle).
+  void CommitPullIntoDescriptor(PullIntoDescriptor* desc,
+                                DeferredSettle* defer = nullptr);
   void CommitPullIntoDescriptors(std::deque<PullIntoDescriptor>* descs);
   v8::Maybe<void> RespondInternal(size_t bytes_written);
   void RespondInClosedState(PullIntoDescriptor* desc);
@@ -559,6 +607,10 @@ class ReadableStreamBYOBReader final : CPPGC_MIXIN(ReadableStreamBYOBReader) {
   // STILL passes the view (a closing BYOB stream hands back the
   // partially-filled view).
   void AddReadIntoRequestClosure(v8::Local<v8::Function> settle);
+  // If the front pending read-into request is the read() wrapper's settle
+  // closure, pops and returns it; otherwise returns empty and takes nothing.
+  // See ReadableStreamDefaultReader::TakeFrontSettleClosure.
+  v8::Local<v8::Function> TakeFrontSettleClosure(v8::Isolate* isolate);
   // Resolves the front read-into request with {value: view, done}.
   void FulfillFront(v8::Local<v8::Value> view, bool done);
   // Resolves all pending read-into requests with {value: undefined, done:true}.

@@ -1082,15 +1082,6 @@ Local<Value> ReadableStreamDefaultReader::TakeFrontReadRequest() {
   return request;
 }
 
-Local<Promise::Resolver> ReadableStreamDefaultReader::TakeReadRequest() {
-  CHECK_GT(num_read_requests(), 0u);
-  Local<Value> request = TakeFrontReadRequest();
-  // Only byte-stream paths take raw requests, and the read() wrapper never
-  // parks the closure kind on a byte stream (no default controller).
-  CHECK(!request->IsFunction());
-  return request.As<Promise::Resolver>();
-}
-
 Local<Function> ReadableStreamDefaultReader::TakeFrontSettleClosure(
     Isolate* isolate) {
   if (parked_read_in_slot_) {
@@ -1110,12 +1101,12 @@ Local<Function> ReadableStreamDefaultReader::TakeFrontSettleClosure(
   return request.As<Function>();
 }
 
-void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
+void ReadableStreamDefaultReader::SettleReadRequest(Local<Value> request,
+                                                    Local<Value> chunk,
+                                                    bool done) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  CHECK_GT(num_read_requests(), 0u);
-  Local<Value> request = TakeFrontReadRequest();
   Local<Value> value = done ? Undefined(isolate).As<Value>() : chunk;
   if (request->IsFunction()) {
     // read() wrapper settle closure: builds { value, done } and resolves the
@@ -1128,6 +1119,11 @@ void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
   USE(request.As<Promise::Resolver>()->Resolve(
       context,
       MakeReadResult(env, context, value, done, for_author_code_)));
+}
+
+void ReadableStreamDefaultReader::FulfillFront(Local<Value> chunk, bool done) {
+  CHECK_GT(num_read_requests(), 0u);
+  SettleReadRequest(TakeFrontReadRequest(), chunk, done);
 }
 
 void ReadableStreamDefaultReader::CloseAll() {
@@ -1976,19 +1972,22 @@ bool ReadableByteStreamController::FillPullIntoDescriptorFromQueue(
   return ready;
 }
 
-void ReadableByteStreamController::FillReadRequestFromQueue(
-    Local<Promise::Resolver> resolver) {
-  Environment* env = this->env();
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
+Local<Object> ReadableByteStreamController::DequeueChunkView() {
+  Isolate* isolate = env()->isolate();
   CHECK_GT(queue_total_size_, 0);
   ByteQueueEntry entry = queue_.front();
   queue_.pop_front();
   queue_total_size_ -= entry.byte_length;
   HandleQueueDrain();
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, entry.buffer);
-  Local<Object> view =
-      Uint8Array::New(ab, entry.byte_offset, entry.byte_length).As<Object>();
+  return Uint8Array::New(ab, entry.byte_offset, entry.byte_length).As<Object>();
+}
+
+void ReadableByteStreamController::FillReadRequestFromQueue(
+    Local<Promise::Resolver> resolver) {
+  Environment* env = this->env();
+  Local<Context> context = env->context();
+  Local<Object> view = DequeueChunkView();
   ReadableStreamDefaultReader* dr = stream()->default_reader();
   USE(resolver->Resolve(
       context, MakeReadResult(env, context, view, false,
@@ -2001,7 +2000,13 @@ void ReadableByteStreamController::ProcessReadRequestsUsingQueue() {
   CHECK_NOT_NULL(reader);
   while (reader->num_read_requests() > 0) {
     if (queue_total_size_ == 0) return;
-    FillReadRequestFromQueue(reader->TakeReadRequest());
+    // Take the request BEFORE dequeuing: DequeueChunkView's drain may invoke
+    // pull synchronously, and a reentrant enqueue must not settle the front
+    // request this iteration owns. SettleReadRequest handles either request
+    // kind (a resolver, or the read() wrapper's settle closure now that byte
+    // streams park those too).
+    Local<Value> request = reader->TakeFrontReadRequest();
+    reader->SettleReadRequest(request, DequeueChunkView(), false);
   }
 }
 
@@ -2035,7 +2040,7 @@ v8::MaybeLocal<Object> ReadableByteStreamController::ConvertPullIntoDescriptor(
 }
 
 void ReadableByteStreamController::CommitPullIntoDescriptor(
-    PullIntoDescriptor* desc) {
+    PullIntoDescriptor* desc, DeferredSettle* defer) {
   ReadableStream* stream = this->stream();
   CHECK(stream->state() != StreamState::kErrored);
   CHECK(desc->type != PullIntoType::kNone);
@@ -2047,10 +2052,30 @@ void ReadableByteStreamController::CommitPullIntoDescriptor(
   Local<Object> filled_view;
   if (!ConvertPullIntoDescriptor(desc).ToLocal(&filled_view)) return;
   if (desc->type == PullIntoType::kDefault) {
-    stream->default_reader()->FulfillFront(filled_view, done);
+    ReadableStreamDefaultReader* dr = stream->default_reader();
+    if (defer != nullptr && !done) {
+      Local<Function> settle = dr->TakeFrontSettleClosure(env()->isolate());
+      if (!settle.IsEmpty()) {
+        defer->closure = settle;
+        defer->view = filled_view;
+        defer->armed = true;
+        return;
+      }
+    }
+    dr->FulfillFront(filled_view, done);
   } else {
     CHECK(desc->type == PullIntoType::kByob);
-    stream->byob_reader()->FulfillFront(filled_view, done);
+    ReadableStreamBYOBReader* br = stream->byob_reader();
+    if (defer != nullptr && !done) {
+      Local<Function> settle = br->TakeFrontSettleClosure(env()->isolate());
+      if (!settle.IsEmpty()) {
+        defer->closure = settle;
+        defer->view = filled_view;
+        defer->armed = true;
+        return;
+      }
+    }
+    br->FulfillFront(filled_view, done);
   }
 }
 
@@ -2060,7 +2085,8 @@ void ReadableByteStreamController::CommitPullIntoDescriptors(
     CommitPullIntoDescriptor(&(*descs)[i]);
 }
 
-Maybe<void> ReadableByteStreamController::EnqueueInternal(Local<Object> view_obj) {
+Maybe<void> ReadableByteStreamController::EnqueueInternal(
+    Local<Object> view_obj, DeferredSettle* defer) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -2122,13 +2148,35 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(Local<Object> view_obj
       Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, transferred);
       Local<Object> tview =
           Uint8Array::New(ab, byte_offset, byte_length).As<Object>();
-      stream->default_reader()->FulfillFront(tview, false);
+      ReadableStreamDefaultReader* dr = stream->default_reader();
+      if (defer != nullptr && can_defer_settle()) {
+        // The enqueue() wrapper performs this settle as a JIT call from its
+        // own frame (see DeferredSettle); reordering it past the tail
+        // CallPullIfNeeded is unobservable here.
+        Local<Function> settle = dr->TakeFrontSettleClosure(isolate);
+        if (!settle.IsEmpty()) {
+          defer->closure = settle;
+          defer->view = tview;
+          defer->armed = true;
+        } else {
+          dr->FulfillFront(tview, false);
+        }
+      } else {
+        dr->FulfillFront(tview, false);
+      }
     }
   } else if (stream->has_byob_reader()) {
     EnqueueChunkToQueue(transferred, byte_offset, byte_length);
     std::deque<PullIntoDescriptor> filled =
         ProcessPullIntoDescriptorsUsingQueue();
-    CommitPullIntoDescriptors(&filled);
+    if (defer != nullptr && can_defer_settle() && filled.size() == 1) {
+      // Single commit: it is the operation's final settle, so it may defer
+      // (CommitPullIntoDescriptor settles natively if the front read-into
+      // request is not a settle closure).
+      CommitPullIntoDescriptor(&filled[0], defer);
+    } else {
+      CommitPullIntoDescriptors(&filled);
+    }
   } else {
     CHECK(!stream->locked());
     EnqueueChunkToQueue(transferred, byte_offset, byte_length);
@@ -2175,10 +2223,25 @@ Local<Promise> ReadableByteStreamController::CancelSteps(Local<Value> reason) {
   return promise;
 }
 
+void ReadableByteStreamController::MaybePushAutoAllocateDescriptor() {
+  if (!has_auto_allocate_) return;
+  std::shared_ptr<BackingStore> bs =
+      NewBackingStore(env()->isolate(), auto_allocate_chunk_size_);
+  PullIntoDescriptor desc;
+  desc.buffer = std::move(bs);
+  desc.buffer_byte_length = auto_allocate_chunk_size_;
+  desc.byte_offset = 0;
+  desc.byte_length = auto_allocate_chunk_size_;
+  desc.bytes_filled = 0;
+  desc.minimum_fill = 1;
+  desc.element_size = 1;
+  desc.view_type = ViewType::kUint8Array;
+  desc.type = PullIntoType::kDefault;
+  pending_pull_intos_.push_back(std::move(desc));
+}
+
 void ReadableByteStreamController::PullStepsDefault(
     Local<Promise::Resolver> resolver) {
-  Environment* env = this->env();
-  Isolate* isolate = env->isolate();
   ReadableStream* stream = this->stream();
   CHECK(stream->has_default_reader());
   if (queue_total_size_ > 0) {
@@ -2186,22 +2249,20 @@ void ReadableByteStreamController::PullStepsDefault(
     FillReadRequestFromQueue(resolver);
     return;
   }
-  if (has_auto_allocate_) {
-    std::shared_ptr<BackingStore> bs =
-        NewBackingStore(isolate, auto_allocate_chunk_size_);
-    PullIntoDescriptor desc;
-    desc.buffer = std::move(bs);
-    desc.buffer_byte_length = auto_allocate_chunk_size_;
-    desc.byte_offset = 0;
-    desc.byte_length = auto_allocate_chunk_size_;
-    desc.bytes_filled = 0;
-    desc.minimum_fill = 1;
-    desc.element_size = 1;
-    desc.view_type = ViewType::kUint8Array;
-    desc.type = PullIntoType::kDefault;
-    pending_pull_intos_.push_back(std::move(desc));
-  }
+  MaybePushAutoAllocateDescriptor();
   stream->default_reader()->AddReadRequest(resolver);
+  CallPullIfNeeded();
+}
+
+void ReadableByteStreamController::PullStepsDefaultClosure(
+    Local<Function> settle) {
+  ReadableStream* stream = this->stream();
+  CHECK(stream->has_default_reader());
+  // The read() wrapper only parks when the ReaderFastRead crossing saw an
+  // empty queue, and nothing can run between the two crossings.
+  CHECK_EQ(queue_total_size_, 0);
+  MaybePushAutoAllocateDescriptor();
+  stream->default_reader()->AddReadRequestClosure(settle);
   CallPullIfNeeded();
 }
 
@@ -2689,25 +2750,22 @@ void ReadableByteStreamController::Close(
   USE(c->CloseInternal());  // may leave a pending exception
 }
 
-void ReadableByteStreamController::Enqueue(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+// Shared validation for controller.enqueue(chunk) on the byte controller —
+// used by the native method and the enqueue-or-settle binding. Returns false
+// with an exception pending.
+static bool ValidateByteEnqueueArgs(Environment* env,
+                                    ReadableByteStreamController* c,
+                                    Local<Value> chunk,
+                                    Local<ArrayBufferView>* out) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
-                                "ReadableByteStreamController"))
-    return;
-  auto* c =
-      CppgcMixin::Unwrap<ReadableByteStreamController>(
-          args.This().As<Object>());
-  if (c == nullptr) return;
-  if (!args[0]->IsArrayBufferView()) {
+  if (!chunk->IsArrayBufferView()) {
     isolate->ThrowException(TypeErrorWith(
         isolate, context, "ERR_INVALID_ARG_TYPE",
         "chunk must be an ArrayBufferView"));
-    return;
+    return false;
   }
-  Local<ArrayBufferView> view = args[0].As<ArrayBufferView>();
+  Local<ArrayBufferView> view = chunk.As<ArrayBufferView>();
   Local<ArrayBuffer> chunk_buffer = view->Buffer();
   // A SharedArrayBuffer cannot be transferred/detached, so a byte stream may
   // not enqueue a view backed by one (matches the JS implementation).
@@ -2715,25 +2773,41 @@ void ReadableByteStreamController::Enqueue(
     isolate->ThrowException(TypeErrorWith(
         isolate, context, "ERR_INVALID_ARG_VALUE",
         "The \"chunk\" argument must not be backed by a SharedArrayBuffer"));
-    return;
+    return false;
   }
   size_t chunk_byte_length = view->ByteLength();
   size_t chunk_buffer_byte_length = chunk_buffer->ByteLength();
   if (chunk_byte_length == 0 || chunk_buffer_byte_length == 0) {
     isolate->ThrowException(InvalidStateError(
         isolate, context, "chunk ArrayBuffer is zero-length or detached"));
-    return;
+    return false;
   }
   if (c->close_requested()) {
     isolate->ThrowException(
         InvalidStateError(isolate, context, "Controller is already closed"));
-    return;
+    return false;
   }
   if (c->stream()->state() != StreamState::kReadable) {
     isolate->ThrowException(InvalidStateError(
         isolate, context, "ReadableStream is already closed"));
-    return;
+    return false;
   }
+  *out = view;
+  return true;
+}
+
+void ReadableByteStreamController::Enqueue(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+                                "ReadableByteStreamController"))
+    return;
+  auto* c =
+      CppgcMixin::Unwrap<ReadableByteStreamController>(
+          args.This().As<Object>());
+  if (c == nullptr) return;
+  Local<ArrayBufferView> view;
+  if (!ValidateByteEnqueueArgs(env, c, args[0], &view)) return;
   USE(c->EnqueueInternal(view.As<Object>()));  // may leave a pending exception
 }
 
@@ -2970,6 +3044,16 @@ Local<Value> ReadableStreamBYOBReader::TakeFrontReadIntoRequest() {
   read_into_requests_.front().Reset();
   read_into_requests_.pop_front();
   return request;
+}
+
+Local<Function> ReadableStreamBYOBReader::TakeFrontSettleClosure(
+    Isolate* isolate) {
+  if (read_into_requests_.empty()) return Local<Function>();
+  Local<Value> request = read_into_requests_.front().Get(isolate);
+  if (!request->IsFunction()) return Local<Function>();
+  read_into_requests_.front().Reset();  // eager; see TakeFrontReadIntoRequest
+  read_into_requests_.pop_front();
+  return request.As<Function>();
 }
 
 void ReadableStreamBYOBReader::FulfillFront(Local<Value> view, bool done) {
@@ -3716,9 +3800,40 @@ void ReaderFastRead(const FunctionCallbackInfo<Value>& args) {
       args.GetReturnValue().Set(resolver->GetPromise());
       return;
     }
+    // Byte controller with a default (non-BYOB) reader — the fetch-body
+    // shape. Same protocol as above: park sentinel on an empty queue (the
+    // wrapper parks its settle closure via readerParkRead, which runs the
+    // byte park steps), raw dequeued view otherwise.
+    ReadableByteStreamController* bc = s->byte_controller();
+    if (bc != nullptr && s->state() == StreamState::kReadable) {
+      if (!bc->has_buffered_bytes() && args.Length() > 2) {
+        args.GetReturnValue().Set(args[2]);
+        return;
+      }
+      if (bc->has_buffered_bytes()) {
+        s->set_disturbed(true);
+        // May run pull synchronously (drain bookkeeping); no pending read
+        // exists to race with — a non-empty queue implies none are parked.
+        Local<Object> view = bc->DequeueChunkView();
+        Local<Object> promise_proto = GetPromisePrototype(env, bd, context);
+        if (promise_proto.IsEmpty()) return;
+        // A fresh Uint8Array only looks like a promise if author code
+        // re-prototyped %TypedArray%.prototype — guard anyway (cheap walk).
+        if (!LooksLikePromise(context, view, promise_proto)) {
+          args.GetReturnValue().Set(view);
+          return;
+        }
+        Local<Promise::Resolver> resolver;
+        if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
+        USE(resolver->Resolve(
+            context, MakeReadResult(env, context, view, false, true)));
+        args.GetReturnValue().Set(resolver->GetPromise());
+        return;
+      }
+    }
   }
-  // Everything else — released reader, closed/errored stream, byte
-  // controller, empty queue, non-author reader — is the full native read,
+  // Everything else — released reader, closed/errored stream, empty queue
+  // without the park protocol, non-author reader — is the full native read,
   // still in this single crossing; its return is always a real promise.
   DoDefaultReaderRead(env, r, args);
 }
@@ -3734,6 +3849,12 @@ void ReaderParkRead(const FunctionCallbackInfo<Value>& args) {
   if (r == nullptr || !r->has_stream()) return;
   ReadableStream* s = r->stream();
   s->set_disturbed(true);
+  ReadableByteStreamController* bc = s->byte_controller();
+  if (bc != nullptr) {
+    // Byte park steps: auto-allocate descriptor push + park + pull.
+    bc->PullStepsDefaultClosure(args[1].As<Function>());
+    return;
+  }
   r->AddReadRequestClosure(args[1].As<Function>());
   ReadableStreamDefaultController* c = s->default_controller();
   if (c != nullptr) c->CallPullIfNeeded();
@@ -3781,6 +3902,38 @@ void ControllerEnqueueOrSettle(const FunctionCallbackInfo<Value>& args) {
     }
   }
   USE(c->EnqueueInternal(args[1]));  // leaves exception pending on failure
+}
+
+// Returns the [closure, view] pair for an armed deferred settle (the JS
+// wrapper performs settle(view, false) from its own frame), or nothing.
+static void MaybeReturnDeferredSettle(const FunctionCallbackInfo<Value>& args,
+                                      const DeferredSettle& defer) {
+  if (!defer.armed) return;
+  Local<Value> pair[] = {defer.closure.As<Value>(), defer.view.As<Value>()};
+  args.GetReturnValue().Set(
+      Array::New(args.GetIsolate(), pair, arraysize(pair)));
+}
+
+// controller.enqueue(chunk) for the byte controller, as a binding behind a
+// thin JS wrapper — the byte-side analog of ControllerEnqueueOrSettle (see
+// that comment for the reordering argument; the gate here is
+// can_defer_settle()). Unlike the default controller's protocol the value
+// that settles a pending read is a C++-materialized transferred view, not
+// the caller's chunk, so an armed defer returns a [closure, view] pair.
+void ByteControllerEnqueueOrSettle(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!CheckReceiverInvalidThis(
+          env, ReadableByteStreamController::GetConstructorTemplate(env),
+          args[0], "ReadableByteStreamController"))
+    return;
+  auto* c = CppgcMixin::Unwrap<ReadableByteStreamController>(
+      args[0].As<Object>());
+  if (c == nullptr) return;
+  Local<ArrayBufferView> view;
+  if (!ValidateByteEnqueueArgs(env, c, args[1], &view)) return;
+  DeferredSettle defer;
+  if (c->EnqueueInternal(view.As<Object>(), &defer).IsNothing()) return;
+  MaybeReturnDeferredSettle(args, defer);
 }
 
 // Single-crossing fast read for the byob read() wrapper (mirrors
@@ -4049,6 +4202,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "readerParkRead", ReaderParkRead);
   SetMethod(isolate, target, "controllerEnqueueOrSettle",
             ControllerEnqueueOrSettle);
+  SetMethod(isolate, target, "byteControllerEnqueueOrSettle",
+            ByteControllerEnqueueOrSettle);
   SetMethod(isolate, target, "byobReaderFastRead", ByobReaderFastRead);
   SetMethod(isolate, target, "byobReaderParkRead", ByobReaderParkRead);
   SetMethod(isolate, target, "readableStreamController",
@@ -4080,6 +4235,7 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReaderFastRead);
   registry->Register(ReaderParkRead);
   registry->Register(ControllerEnqueueOrSettle);
+  registry->Register(ByteControllerEnqueueOrSettle);
   registry->Register(ByobReaderFastRead);
   registry->Register(ByobReaderParkRead);
   registry->Register(ReadableStreamController);
