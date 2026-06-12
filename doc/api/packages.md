@@ -800,7 +800,7 @@ Any number of custom conditions can be set with repeat flags.
 
 Typical conditions should only contain alphanumerical characters,
 using ":", "-", or "=" as separators if necessary. Anything else may run
-into compability issues outside of node.
+into compatibility issues outside of node.
 
 In node, conditions have very few restrictions, but specifically these include:
 
