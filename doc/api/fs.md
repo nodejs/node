@@ -3003,7 +3003,7 @@ changes:
   * `highWaterMark` {integer} **Default:** `64 * 1024`
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
-  * `windowsHandle` {integer} A raw Win32 `HANDLE` value to read from, in place
+  * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to read from, in place
     of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.ReadStream}
 
@@ -3148,7 +3148,7 @@ changes:
     [`stream.getDefaultHighWaterMark()`][].
   * `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
-  * `windowsHandle` {integer} A raw Win32 `HANDLE` value to write to, in place
+  * `windowsHandle` {bigint} A raw Win32 `HANDLE` value to write to, in place
     of `fd`. Windows only. **Default:** `null`
 * Returns: {fs.WriteStream}
 

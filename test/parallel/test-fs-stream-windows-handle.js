@@ -9,7 +9,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-const handle = 1;
+const handle = 1n;
 
 for (const create of [fs.createReadStream, fs.createWriteStream]) {
   assert.throws(() => create(null, { windowsHandle: handle, fd: 2 }), {
@@ -32,11 +32,16 @@ for (const create of [fs.createReadStream, fs.createWriteStream]) {
     code: 'ERR_METHOD_NOT_IMPLEMENTED',
   });
 
-  // Must be an integer.
+  // Must be a bigint.
   assert.throws(() => create(null, { windowsHandle: 'nope' }), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
-  assert.throws(() => create(null, { windowsHandle: 1.5 }), {
+  assert.throws(() => create(null, { windowsHandle: 1 }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+
+  // Must fit into 64 bits.
+  assert.throws(() => create(null, { windowsHandle: 2n ** 64n }), {
     code: 'ERR_OUT_OF_RANGE',
   });
 }

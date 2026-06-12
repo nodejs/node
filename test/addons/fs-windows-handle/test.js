@@ -17,8 +17,8 @@ const fs = require('fs');
 const binding = require(`./build/${common.buildType}/binding`);
 
 const { readHandle, writeHandle } = binding.createPipeHandles();
-assert.strictEqual(typeof readHandle, 'number');
-assert.strictEqual(typeof writeHandle, 'number');
+assert.strictEqual(typeof readHandle, 'bigint');
+assert.strictEqual(typeof writeHandle, 'bigint');
 
 const payload = 'payload';
 
