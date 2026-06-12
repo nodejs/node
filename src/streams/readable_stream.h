@@ -327,21 +327,44 @@ enum class PullIntoType : uint8_t { kDefault, kByob, kNone };
 // enqueue's final settle targets a read() wrapper settle closure and
 // reordering it past the tail CallPullIfNeeded is unobservable (pulling_
 // set => the call only records pull_again_; no pull algorithm => no-op).
-// The wrapper then performs settle(view, false) as a JIT call from its own
-// frame, replacing a C++->JS Function::Call per chunk. Unlike the default
-// controller's protocol the settled value is not the caller's chunk but a
-// C++-materialized view, so the view crosses back too (a [closure, view]
-// pair).
+// The wrapper then performs the settle as a JIT call from its own frame,
+// replacing a C++->JS Function::Call per chunk. Two shapes: a ready view
+// ([closure, view] — the transferred-chunk fast path), or a descriptor
+// commit ([closure, buffer, byteOffset, length, viewTag] — the wrapper's
+// closure transfers the buffer and constructs the view in JIT code).
 struct DeferredSettle {
   v8::Local<v8::Function> closure;
-  v8::Local<v8::Object> view;
+  v8::Local<v8::Value> value;  // the ready view, or the held ArrayBuffer
   bool armed = false;
+  bool is_commit = false;  // value is a buffer; geometry below applies
+  bool transfer = false;   // commit: the buffer was exposed; transfer it
+  size_t byte_offset = 0;
+  size_t length = 0;  // in elements (bytes for DataView)
+  ViewType view_tag = ViewType::kUint8Array;
 };
 
-// Mirrors the spec's pull-into descriptor. The destination buffer is an owned
-// BackingStore (transferred from the user's view), filled in place via memcpy.
+// Mirrors the spec's pull-into descriptor. The destination buffer is a real
+// JS ArrayBuffer, transferred in from the user's view (in JS by the read()
+// wrapper via %ArrayBuffer.prototype.transferToFixedLength%, or natively for
+// resolver-path reads), filled in place via memcpy through the cached `data`
+// pointer. While the descriptor is parked in the controller's pending deque
+// the buffer lives in the traced reference; when a descriptor is shifted out
+// onto the stack for committing, the buffer moves to `buffer_local` (rooted
+// by the API callback's HandleScope) — a stack-resident TracedReference is
+// invisible to the tracer, and the commit's settle runs JS, so marking could
+// otherwise zap the node mid-commit.
+//
+// `data` is valid only while the buffer is attached. The buffer is private
+// except when a BYOBRequest view exposes it (`exposed`), after which author
+// code can detach it (e.g. byobRequest.view.buffer.transfer()); every path
+// that fills or reads `data` is guarded by the spec's detached pre-checks,
+// and the exposure points re-transfer or detach natively where the spec
+// transfers without a commit (see RetransferFrontIfExposed).
 struct PullIntoDescriptor {
-  std::shared_ptr<v8::BackingStore> buffer;
+  v8::TracedReference<v8::ArrayBuffer> buffer;  // while parked in the deque
+  v8::Local<v8::ArrayBuffer> buffer_local;      // after being shifted out
+  void* data = nullptr;
+  bool exposed = false;  // a BYOBRequest view onto this buffer was handed out
   size_t buffer_byte_length;
   size_t byte_offset;
   size_t byte_length;
@@ -434,21 +457,42 @@ class ReadableByteStreamController final
   void PullInto(v8::Local<v8::Object> view,
                 size_t min,
                 v8::Local<v8::Promise::Resolver> resolver);
-  // PullInto for the byob read() wrapper protocol (author readers only): the
-  // request is NOT parked here — kWouldPark means the descriptor was pushed
-  // and the wrapper must park its settle closure via byobReaderParkRead (the
-  // two crossings are back-to-back; nothing can run in between). kRawView
-  // hands back the synchronously-filled view (the wrapper builds the
-  // { done, value } result and resolved promise in JIT code); kPromise is a
-  // natively-built promise (closed-state empty view, rejections), or empty
-  // with an exception pending.
-  enum class ByobPullOutcome : uint8_t { kWouldPark, kRawView, kPromise };
-  ByobPullOutcome PullIntoFast(v8::Local<v8::Object> view,
-                               size_t min,
-                               v8::Local<v8::Value>* out);
+
+  // --- the byob read() wrapper's staged-read protocol (author readers) ---
+  // Crossing 1 (PullIntoStage): validates and records the view's geometry in
+  // staged_read_, deciding park vs sync from controller state. The wrapper
+  // then transfers the view's buffer in JS (no BackingStore API round trip)
+  // and re-enters with the transferred buffer; nothing can run between the
+  // crossings, so the staged geometry cannot go stale.
+  enum class ByobStageOutcome : uint8_t { kPark, kSync, kPromise };
+  ByobStageOutcome PullIntoStage(v8::Local<v8::ArrayBufferView> view,
+                                 size_t min,
+                                 v8::Local<v8::Value>* out);
+  // Crossing 2, park flavor: consumes staged_read_, pushes the descriptor
+  // over `buffer` and (the caller then) parks the wrapper's settle closure.
+  // When `buffer` is empty the descriptor was already pushed by a
+  // FillStagedRead that could not satisfy the minimum fill.
+  void PushStagedDescriptor(v8::Local<v8::ArrayBuffer> buffer);
+  // Crossing 2, sync flavor: consumes staged_read_ and fills from the queue
+  // (or builds the closed-state empty read). Returns the filled length in
+  // elements via *length_out (0 <=> done: the closed-state empty view; a
+  // satisfied fill is never empty since minimum_fill >= 1 element), or
+  // kStagedWouldPark when the queue could not satisfy the minimum fill (the
+  // descriptor was pushed with its partial fill; the wrapper parks), or
+  // kStagedError with an exception/promise per *out.
+  enum class StagedFillOutcome : uint8_t {
+    kFilled,
+    kStagedWouldPark,
+    kStagedError
+  };
+  StagedFillOutcome FillStagedRead(v8::Local<v8::ArrayBuffer> buffer,
+                                   size_t* length_out,
+                                   v8::Local<v8::Value>* out);
   size_t pending_pull_intos_count() const {
     return pending_pull_intos_.size();
   }
+  // The staged view's classification (valid between the two crossings).
+  ViewType staged_view_type() const { return staged_read_.view_type; }
   // byobRequest.respond(n) / respondWithNewView(view): may throw.
   v8::Maybe<void> Respond(size_t bytes_written);
   v8::Maybe<void> RespondWithNewView(v8::Local<v8::Object> view);
@@ -494,6 +538,26 @@ class ReadableByteStreamController final
   // Pushes the auto-allocate descriptor for a default-reader read, if the
   // stream was created with autoAllocateChunkSize.
   void MaybePushAutoAllocateDescriptor();
+  // Shifts the front pending pull-into out of the deque, moving its buffer
+  // from the traced reference (reset eagerly — ~TracedReference frees
+  // nothing) into buffer_local so the stack-resident descriptor stays
+  // GC-visible through the commit (which runs JS).
+  PullIntoDescriptor ShiftPendingPullInto();
+  // Appends `desc` to the pending deque, moving its buffer_local into the
+  // deque-resident traced reference (an assigning Reset, never the
+  // initializing-store constructor — see the readers' park queue).
+  void PushPendingPullInto(PullIntoDescriptor&& desc);
+  // Where the spec re-transfers the front descriptor's buffer without an
+  // accompanying commit (a below-minimum respond, an enqueue with pending
+  // descriptors), an exposed buffer is re-transferred natively: the old
+  // ArrayBuffer (held by the user's byobRequest view) is detached and a
+  // fresh one over the same backing store takes its place. Unexposed
+  // buffers skip this — the transfer would be unobservable. Returns false
+  // with an exception pending if the backing store handoff failed.
+  bool RetransferFrontIfExposed();
+  // Detaches the front descriptor's buffer if exposed (paths that drop the
+  // descriptor's data: a released-reader respond, error/cancel teardown).
+  void DetachFrontIfExposed();
   // Fills and shifts ready pull-into descriptors from the queue, returning them
   // (NOT yet committed — the caller controls commit order to preserve the FIFO
   // ordering of read-into requests).
@@ -518,6 +582,19 @@ class ReadableByteStreamController final
   size_t auto_allocate_chunk_size_ = 0;
   bool has_auto_allocate_ = false;
   std::deque<PullIntoDescriptor> pending_pull_intos_;
+
+  // Geometry staged by PullIntoStage for the immediately-following
+  // PushStagedDescriptor / FillStagedRead crossing (back-to-back; no user
+  // code can run in between).
+  struct StagedByobRead {
+    size_t byte_offset;
+    size_t byte_length;
+    size_t buffer_byte_length;
+    size_t minimum_fill;
+    uint32_t element_size;
+    ViewType view_type;
+    bool valid = false;
+  } staged_read_;
 
   bool started_ = false;
   bool pulling_ = false;

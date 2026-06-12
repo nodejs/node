@@ -1675,6 +1675,8 @@ void ReadableByteStreamController::TraceOnMutatorThread(
   visitor->Trace(algo_receiver_);
   visitor->Trace(on_pull_fulfilled_);
   visitor->Trace(on_rejected_);
+  for (const PullIntoDescriptor& desc : pending_pull_intos_)
+    visitor->Trace(desc.buffer);
 }
 
 Local<FunctionTemplate> ReadableByteStreamController::GetConstructorTemplate(
@@ -1842,17 +1844,10 @@ void ReadableByteStreamController::InvalidateBYOBRequest() {
   Isolate* isolate = env()->isolate();
   Local<Object> req_obj =
       object()->GetInternalField(kByobRequest).As<Value>().As<Object>();
-  // The spec transfers the pull-into descriptor's ArrayBuffer on every
-  // respond()/enqueue(), which detaches the view this request handed out. Our
-  // descriptor owns a shared BackingStore (not a JS ArrayBuffer), so detach the
-  // exact ArrayBuffer wrapper the user is holding to reproduce that observable
-  // behavior; the BackingStore survives via our own shared_ptr.
-  Local<Value> view =
-      req_obj->GetInternalField(ReadableStreamBYOBRequest::kView).As<Value>();
-  if (view->IsArrayBufferView()) {
-    Local<ArrayBuffer> buffer = view.As<ArrayBufferView>()->Buffer();
-    if (!buffer->WasDetached()) USE(buffer->Detach(Local<Value>()));
-  }
+  // Field-clearing only. The spec's accompanying buffer transfer (which
+  // detaches the view this request handed out — the descriptor's own held
+  // ArrayBuffer) happens at the caller's transfer point: a commit's settle
+  // transfer, RetransferFrontIfExposed, or DetachFrontIfExposed.
   req_obj->SetInternalField(ReadableStreamBYOBRequest::kController,
                             Undefined(isolate));
   req_obj->SetInternalField(ReadableStreamBYOBRequest::kView,
@@ -1863,6 +1858,11 @@ void ReadableByteStreamController::InvalidateBYOBRequest() {
 
 void ReadableByteStreamController::ClearPendingPullIntos() {
   InvalidateBYOBRequest();
+  // Teardown drops every descriptor's data: detach an exposed front buffer
+  // (matching the previous always-detach invalidation) and reset the traced
+  // references eagerly (~TracedReference frees nothing).
+  DetachFrontIfExposed();
+  for (PullIntoDescriptor& d : pending_pull_intos_) d.buffer.Reset();
   pending_pull_intos_.clear();
 }
 
@@ -1927,13 +1927,24 @@ void ReadableByteStreamController::EnqueueClonedChunkToQueue(
 void ReadableByteStreamController::EnqueueDetachedPullIntoToQueue(
     PullIntoDescriptor* desc) {
   CHECK(desc->type == PullIntoType::kNone);
-  std::shared_ptr<BackingStore> buffer = desc->buffer;
-  size_t byte_offset = desc->byte_offset;
   size_t bytes_filled = desc->bytes_filled;
-  if (bytes_filled > 0)
-    EnqueueClonedChunkToQueue(buffer, byte_offset, bytes_filled);
-  // ShiftPendingPullInto (discard the front descriptor).
+  if (bytes_filled > 0) {
+    // The descriptor's data pointer is valid here: every caller has either
+    // re-transferred an exposed buffer or pre-checked it attached.
+    CHECK_NOT_NULL(desc->data);
+    std::shared_ptr<BackingStore> clone =
+        NewBackingStore(env()->isolate(), bytes_filled);
+    memcpy(clone->Data(),
+           static_cast<char*>(desc->data) + desc->byte_offset,
+           bytes_filled);
+    EnqueueChunkToQueue(std::move(clone), 0, bytes_filled);
+  }
+  // The descriptor is dropped without a commit: detach an exposed buffer
+  // (the clone above already read its bytes), then discard the front
+  // descriptor (ShiftPendingPullInto).
+  DetachFrontIfExposed();
   CHECK(!has_byob_request());
+  pending_pull_intos_.front().buffer.Reset();  // eager; dtor frees nothing
   pending_pull_intos_.pop_front();
 }
 
@@ -1951,12 +1962,18 @@ bool ReadableByteStreamController::FillPullIntoDescriptorFromQueue(
     total_remaining = max_aligned_bytes - desc->bytes_filled;
     ready = true;
   }
+  if (total_remaining > 0) {
+    // Filling writes through the cached data pointer; callers reaching here
+    // with a user-exposed buffer have pre-checked it attached (the spec's
+    // enqueue/respond detached checks).
+    CHECK_NOT_NULL(desc->data);
+  }
   while (total_remaining > 0) {
     ByteQueueEntry& head = queue_.front();
     size_t bytes_to_copy =
         total_remaining < head.byte_length ? total_remaining : head.byte_length;
     size_t dest_start = desc->byte_offset + desc->bytes_filled;
-    memcpy(static_cast<char*>(desc->buffer->Data()) + dest_start,
+    memcpy(static_cast<char*>(desc->data) + dest_start,
            static_cast<char*>(head.buffer->Data()) + head.byte_offset,
            bytes_to_copy);
     if (head.byte_length == bytes_to_copy) {
@@ -2010,6 +2027,85 @@ void ReadableByteStreamController::ProcessReadRequestsUsingQueue() {
   }
 }
 
+// The descriptor's buffer, wherever it currently lives (the deque's traced
+// reference, or buffer_local after a shift).
+static Local<ArrayBuffer> DescBuffer(Isolate* isolate,
+                                     const PullIntoDescriptor& desc) {
+  if (!desc.buffer_local.IsEmpty()) return desc.buffer_local;
+  return desc.buffer.Get(isolate);
+}
+
+// Native transfer: detaches `ab` and returns a fresh ArrayBuffer over the
+// same backing store. Used by the resolver-path reads (byte tee), commits
+// settling resolver-kind requests, and the no-commit re-transfer points —
+// the wrapper-read paths transfer in JS instead.
+static bool NativeTransferIn(Isolate* isolate,
+                             Local<Context> context,
+                             Local<ArrayBuffer> ab,
+                             Local<ArrayBuffer>* out) {
+  std::shared_ptr<BackingStore> bs;
+  if (!TransferArrayBuffer(isolate, context, ab, &bs)) return false;
+  *out = ArrayBuffer::New(isolate, std::move(bs));
+  return true;
+}
+
+PullIntoDescriptor ReadableByteStreamController::ShiftPendingPullInto() {
+  Isolate* isolate = env()->isolate();
+  CHECK(!pending_pull_intos_.empty());
+  PullIntoDescriptor& front = pending_pull_intos_.front();
+  // Move the buffer to a handle-scope Local BEFORE the struct leaves the
+  // deque: the shifted descriptor lives on the stack through commits that
+  // run JS, where a stack TracedReference would be invisible to marking.
+  // Reset eagerly — ~TracedReference frees nothing.
+  if (!front.buffer.IsEmpty()) {
+    front.buffer_local = front.buffer.Get(isolate);
+    front.buffer.Reset();
+  }
+  PullIntoDescriptor desc = std::move(front);
+  pending_pull_intos_.pop_front();
+  return desc;
+}
+
+void ReadableByteStreamController::PushPendingPullInto(
+    PullIntoDescriptor&& desc) {
+  Isolate* isolate = env()->isolate();
+  Local<ArrayBuffer> buffer = desc.buffer_local;
+  desc.buffer_local = Local<ArrayBuffer>();
+  pending_pull_intos_.push_back(std::move(desc));
+  // Assigning store into the deque-resident slot (marks + barriers); the
+  // TracedReference(isolate, local) constructor is an initializing store and
+  // is only safe inside a brand-new object's own constructor.
+  if (!buffer.IsEmpty())
+    pending_pull_intos_.back().buffer.Reset(isolate, buffer);
+}
+
+bool ReadableByteStreamController::RetransferFrontIfExposed() {
+  CHECK(!pending_pull_intos_.empty());
+  PullIntoDescriptor& front = pending_pull_intos_.front();
+  if (!front.exposed) return true;
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<ArrayBuffer> old_ab = front.buffer.Get(isolate);
+  front.exposed = false;
+  if (old_ab.IsEmpty() || old_ab->WasDetached()) return true;
+  Local<ArrayBuffer> fresh;
+  if (!NativeTransferIn(isolate, env->context(), old_ab, &fresh)) return false;
+  front.buffer.Reset(isolate, fresh);
+  front.data = fresh->Data();
+  return true;
+}
+
+void ReadableByteStreamController::DetachFrontIfExposed() {
+  if (pending_pull_intos_.empty()) return;
+  PullIntoDescriptor& front = pending_pull_intos_.front();
+  if (!front.exposed) return;
+  Isolate* isolate = env()->isolate();
+  Local<ArrayBuffer> ab = front.buffer.Get(isolate);
+  front.exposed = false;
+  front.data = nullptr;
+  if (!ab.IsEmpty() && !ab->WasDetached()) USE(ab->Detach(Local<Value>()));
+}
+
 std::deque<PullIntoDescriptor>
 ReadableByteStreamController::ProcessPullIntoDescriptorsUsingQueue() {
   CHECK(!close_requested_);
@@ -2019,8 +2115,7 @@ ReadableByteStreamController::ProcessPullIntoDescriptorsUsingQueue() {
     PullIntoDescriptor* desc = &pending_pull_intos_.front();
     if (FillPullIntoDescriptorFromQueue(desc)) {
       CHECK(!has_byob_request());
-      filled.push_back(std::move(pending_pull_intos_.front()));
-      pending_pull_intos_.pop_front();
+      filled.push_back(ShiftPendingPullInto());
     }
   }
   return filled;
@@ -2032,51 +2127,83 @@ v8::MaybeLocal<Object> ReadableByteStreamController::ConvertPullIntoDescriptor(
   Isolate* isolate = env->isolate();
   CHECK_LE(desc->bytes_filled, desc->byte_length);
   CHECK_EQ(desc->bytes_filled % desc->element_size, 0u);
-  // Transfer: hand the owned BackingStore to a fresh user-visible ArrayBuffer.
-  std::shared_ptr<BackingStore> bs = std::move(desc->buffer);
-  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, bs);
+  // Resolver-kind settles: an exposed buffer is transferred natively (the
+  // user's byobRequest view detaches and the result gets a fresh identity);
+  // an unexposed buffer is private and carries the view directly.
+  Local<ArrayBuffer> ab = DescBuffer(isolate, *desc);
+  if (desc->exposed &&
+      !NativeTransferIn(isolate, env->context(), ab, &ab)) {
+    return v8::MaybeLocal<Object>();
+  }
   return MakeView(env, desc->view_type, ab, desc->byte_offset,
                   desc->bytes_filled / desc->element_size);
 }
 
 void ReadableByteStreamController::CommitPullIntoDescriptor(
     PullIntoDescriptor* desc, DeferredSettle* defer) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
   ReadableStream* stream = this->stream();
   CHECK(stream->state() != StreamState::kErrored);
   CHECK(desc->type != PullIntoType::kNone);
+  CHECK_LE(desc->bytes_filled, desc->byte_length);
   bool done = false;
   if (stream->state() == StreamState::kClosed) {
     CHECK_EQ(desc->bytes_filled % desc->element_size, 0u);
     done = true;
   }
+  ReadableStreamDefaultReader* dr = desc->type == PullIntoType::kDefault
+                                        ? stream->default_reader()
+                                        : nullptr;
+  ReadableStreamBYOBReader* br =
+      desc->type == PullIntoType::kByob ? stream->byob_reader() : nullptr;
+  CHECK(dr != nullptr || br != nullptr);
+  // Closure-kind front request: hand (buffer, done, byteOffset, length,
+  // viewTag) to the read() wrapper's settle closure, which transfers the
+  // buffer and constructs the result view in JIT code — no API ArrayBuffer
+  // or view materialization. With `defer`, the enqueue wrapper performs the
+  // same call from its own frame.
+  Local<Function> settle = dr != nullptr ? dr->TakeFrontSettleClosure(isolate)
+                                         : br->TakeFrontSettleClosure(isolate);
+  if (!settle.IsEmpty()) {
+    Local<ArrayBuffer> held = DescBuffer(isolate, *desc);
+    size_t length = desc->bytes_filled / desc->element_size;
+    // An unexposed buffer (no BYOBRequest view was ever handed out) is a
+    // private object the user has never seen: hand it to the result view
+    // directly — the spec's commit transfer is unobservable then. An exposed
+    // buffer must be transferred (the closure does it in JIT code), both to
+    // detach the user's request view and for the identity split the spec
+    // mandates between byobRequest.view.buffer and the result's buffer.
+    if (defer != nullptr && !done) {
+      defer->closure = settle;
+      defer->value = held;
+      defer->is_commit = true;
+      defer->byte_offset = desc->byte_offset;
+      defer->length = length;
+      defer->view_tag = desc->view_type;
+      defer->transfer = desc->exposed;
+      defer->armed = true;
+      return;
+    }
+    Local<Value> argv[] = {
+        held,
+        Boolean::New(isolate, done),
+        Boolean::New(isolate, false),
+        Number::New(isolate, static_cast<double>(desc->byte_offset)),
+        Number::New(isolate, static_cast<double>(length)),
+        v8::Integer::New(isolate, static_cast<int>(desc->view_type)),
+        Boolean::New(isolate, desc->exposed)};
+    USE(settle->Call(context, Undefined(isolate), arraysize(argv), argv));
+    return;
+  }
+  // Resolver-kind request (byte tee, released paths): native materialization.
   Local<Object> filled_view;
   if (!ConvertPullIntoDescriptor(desc).ToLocal(&filled_view)) return;
-  if (desc->type == PullIntoType::kDefault) {
-    ReadableStreamDefaultReader* dr = stream->default_reader();
-    if (defer != nullptr && !done) {
-      Local<Function> settle = dr->TakeFrontSettleClosure(env()->isolate());
-      if (!settle.IsEmpty()) {
-        defer->closure = settle;
-        defer->view = filled_view;
-        defer->armed = true;
-        return;
-      }
-    }
+  if (dr != nullptr)
     dr->FulfillFront(filled_view, done);
-  } else {
-    CHECK(desc->type == PullIntoType::kByob);
-    ReadableStreamBYOBReader* br = stream->byob_reader();
-    if (defer != nullptr && !done) {
-      Local<Function> settle = br->TakeFrontSettleClosure(env()->isolate());
-      if (!settle.IsEmpty()) {
-        defer->closure = settle;
-        defer->view = filled_view;
-        defer->armed = true;
-        return;
-      }
-    }
+  else
     br->FulfillFront(filled_view, done);
-  }
 }
 
 void ReadableByteStreamController::CommitPullIntoDescriptors(
@@ -2099,18 +2226,13 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(
   if (close_requested_ || stream->state() != StreamState::kReadable)
     return JustVoid();
 
-  // Spec: if the first pending pull-into's buffer has been detached by the user
-  // (it is exposed as byobRequest.view.buffer), enqueue() must throw a
-  // TypeError — before the incoming chunk's buffer is transferred. Our
-  // descriptor owns a shared BackingStore, so detect this via the outstanding
-  // BYOB request's view.
-  if (!pending_pull_intos_.empty() && has_byob_request_) {
-    Local<Object> req_obj =
-        object()->GetInternalField(kByobRequest).As<Value>().As<Object>();
-    Local<Value> v =
-        req_obj->GetInternalField(ReadableStreamBYOBRequest::kView).As<Value>();
-    if (v->IsArrayBufferView() &&
-        v.As<ArrayBufferView>()->Buffer()->WasDetached()) {
+  // Spec: if the first pending pull-into's buffer has been detached by the
+  // user (it is exposed as byobRequest.view.buffer), enqueue() must throw a
+  // TypeError — before the incoming chunk's buffer is transferred.
+  if (!pending_pull_intos_.empty()) {
+    Local<ArrayBuffer> first_ab =
+        pending_pull_intos_.front().buffer.Get(isolate);
+    if (!first_ab.IsEmpty() && first_ab->WasDetached()) {
       isolate->ThrowException(TypeErrorWith(
           isolate, context, "ERR_INVALID_STATE",
           "The BYOB request's buffer has been detached"));
@@ -2123,12 +2245,11 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(
     return Nothing<void>();
 
   if (!pending_pull_intos_.empty()) {
-    // The first pending pull-into's destination buffer is the BackingStore we
-    // own; it cannot be detached out from under us. Invalidate the outstanding
-    // BYOB request (which neutralizes any view the user is holding), then, if
-    // the descriptor was detached (type 'none'), move its filled bytes to the
-    // queue.
+    // Spec: the first pending descriptor's buffer is re-transferred here,
+    // which detaches any view the user is holding through the BYOB request.
+    // Observable only for an exposed buffer; unexposed buffers skip it.
     InvalidateBYOBRequest();
+    if (!RetransferFrontIfExposed()) return Nothing<void>();
     PullIntoDescriptor* first = &pending_pull_intos_.front();
     if (first->type == PullIntoType::kNone)
       EnqueueDetachedPullIntoToQueue(first);
@@ -2143,7 +2264,9 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(
       if (!pending_pull_intos_.empty()) {
         CHECK(pending_pull_intos_.front().type == PullIntoType::kDefault);
         CHECK(!has_byob_request());
-        pending_pull_intos_.pop_front();  // ShiftPendingPullInto
+        // ShiftPendingPullInto (discard): eager Reset; dtor frees nothing.
+        pending_pull_intos_.front().buffer.Reset();
+        pending_pull_intos_.pop_front();
       }
       Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, transferred);
       Local<Object> tview =
@@ -2156,7 +2279,7 @@ Maybe<void> ReadableByteStreamController::EnqueueInternal(
         Local<Function> settle = dr->TakeFrontSettleClosure(isolate);
         if (!settle.IsEmpty()) {
           defer->closure = settle;
-          defer->view = tview;
+          defer->value = tview;
           defer->armed = true;
         } else {
           dr->FulfillFront(tview, false);
@@ -2225,10 +2348,11 @@ Local<Promise> ReadableByteStreamController::CancelSteps(Local<Value> reason) {
 
 void ReadableByteStreamController::MaybePushAutoAllocateDescriptor() {
   if (!has_auto_allocate_) return;
-  std::shared_ptr<BackingStore> bs =
-      NewBackingStore(env()->isolate(), auto_allocate_chunk_size_);
+  Local<ArrayBuffer> ab =
+      ArrayBuffer::New(env()->isolate(), auto_allocate_chunk_size_);
   PullIntoDescriptor desc;
-  desc.buffer = std::move(bs);
+  desc.buffer_local = ab;
+  desc.data = ab->Data();
   desc.buffer_byte_length = auto_allocate_chunk_size_;
   desc.byte_offset = 0;
   desc.byte_length = auto_allocate_chunk_size_;
@@ -2237,7 +2361,7 @@ void ReadableByteStreamController::MaybePushAutoAllocateDescriptor() {
   desc.element_size = 1;
   desc.view_type = ViewType::kUint8Array;
   desc.type = PullIntoType::kDefault;
-  pending_pull_intos_.push_back(std::move(desc));
+  PushPendingPullInto(std::move(desc));
 }
 
 void ReadableByteStreamController::PullStepsDefault(
@@ -2282,10 +2406,10 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
   size_t byte_length = view->ByteLength();
   size_t buffer_byte_length = buffer->ByteLength();
 
-  std::shared_ptr<BackingStore> transferred;
+  Local<ArrayBuffer> transferred;
   {
     TryCatch try_catch(isolate);
-    if (!TransferArrayBuffer(isolate, context, buffer, &transferred)) {
+    if (!NativeTransferIn(isolate, context, buffer, &transferred)) {
       Local<Value> exception = try_catch.Exception();
       try_catch.Reset();
       USE(resolver->Reject(context, exception));
@@ -2294,7 +2418,8 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
   }
 
   PullIntoDescriptor desc;
-  desc.buffer = transferred;
+  desc.buffer_local = transferred;
+  desc.data = transferred->Data();
   desc.buffer_byte_length = buffer_byte_length;
   desc.byte_offset = byte_offset;
   desc.byte_length = byte_length;
@@ -2305,14 +2430,14 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
   desc.type = PullIntoType::kByob;
 
   if (!pending_pull_intos_.empty()) {
-    pending_pull_intos_.push_back(std::move(desc));
+    PushPendingPullInto(std::move(desc));
     stream->byob_reader()->AddReadIntoRequest(resolver);
     return;
   }
   if (stream->state() == StreamState::kClosed) {
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, desc.buffer);
     Local<Object> empty_view;
-    if (!MakeView(env, view_type, ab, byte_offset, 0).ToLocal(&empty_view))
+    if (!MakeView(env, view_type, transferred, byte_offset, 0)
+             .ToLocal(&empty_view))
       return;
     USE(resolver->Resolve(
         context, MakeReadResult(env, context, empty_view, true,
@@ -2337,100 +2462,141 @@ void ReadableByteStreamController::PullInto(Local<Object> view_obj,
       return;
     }
   }
-  pending_pull_intos_.push_back(std::move(desc));
+  PushPendingPullInto(std::move(desc));
   stream->byob_reader()->AddReadIntoRequest(resolver);
   CallPullIfNeeded();
 }
 
-// PullInto for the byob read() wrapper protocol; see the header comment.
-// Mirrors PullInto exactly, except that the would-park branches push the
-// descriptor and return kWouldPark instead of parking a resolver — the
-// wrapper parks its settle closure via byobReaderParkRead in the next
-// (back-to-back) crossing, and the synchronous-fill branch returns the raw
-// view for the wrapper to build the result in JIT code.
-ReadableByteStreamController::ByobPullOutcome
-ReadableByteStreamController::PullIntoFast(Local<Object> view_obj,
-                                           size_t min,
-                                           Local<Value>* out) {
+// Crossing 1 of the byob read() wrapper's staged-read protocol (author
+// readers only; see the header comment): validates and stages the view's
+// geometry, deciding park vs sync from controller state. The wrapper then
+// transfers the view's buffer in JS (%ArrayBuffer.prototype.%
+// transferToFixedLength% — no BackingStore API round trip) and re-enters
+// via PushStagedDescriptor (park) or FillStagedRead (sync); nothing can run
+// between the crossings.
+ReadableByteStreamController::ByobStageOutcome
+ReadableByteStreamController::PullIntoStage(Local<ArrayBufferView> view,
+                                            size_t min,
+                                            Local<Value>* out) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   ReadableStream* stream = this->stream();
-  Local<ArrayBufferView> view = view_obj.As<ArrayBufferView>();
   uint32_t element_size = 1;
   ViewType view_type = ClassifyView(env, view, &element_size);
-  size_t minimum_fill = min * element_size;
   Local<ArrayBuffer> buffer = view->Buffer();
-  size_t byte_offset = view->ByteOffset();
-  size_t byte_length = view->ByteLength();
-  size_t buffer_byte_length = buffer->ByteLength();
 
-  std::shared_ptr<BackingStore> transferred;
-  {
-    TryCatch try_catch(isolate);
-    if (!TransferArrayBuffer(isolate, context, buffer, &transferred)) {
-      Local<Value> exception = try_catch.Exception();
-      try_catch.Reset();
-      Local<Promise::Resolver> resolver;
-      if (!Promise::Resolver::New(context).ToLocal(&resolver))
-        return ByobPullOutcome::kPromise;  // empty out; exception pending
-      USE(resolver->Reject(context, exception));
-      *out = resolver->GetPromise();
-      return ByobPullOutcome::kPromise;
-    }
-  }
-
-  PullIntoDescriptor desc;
-  desc.buffer = transferred;
-  desc.buffer_byte_length = buffer_byte_length;
-  desc.byte_offset = byte_offset;
-  desc.byte_length = byte_length;
-  desc.bytes_filled = 0;
-  desc.minimum_fill = minimum_fill;
-  desc.element_size = element_size;
-  desc.view_type = view_type;
-  desc.type = PullIntoType::kByob;
-
-  if (!pending_pull_intos_.empty()) {
-    pending_pull_intos_.push_back(std::move(desc));
-    return ByobPullOutcome::kWouldPark;
-  }
-  if (stream->state() == StreamState::kClosed) {
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, desc.buffer);
-    Local<Object> empty_view;
-    if (!MakeView(env, view_type, ab, byte_offset, 0).ToLocal(&empty_view))
-      return ByobPullOutcome::kPromise;  // empty out; exception pending
+  // The wrapper transfers with %transferToFixedLength%, which throws on a
+  // non-detachable buffer; pre-check so that case keeps rejecting (the
+  // native transfer path's error) instead of throwing synchronously.
+  if (buffer->WasDetached() || !buffer->IsDetachable()) {
     Local<Promise::Resolver> resolver;
     if (!Promise::Resolver::New(context).ToLocal(&resolver))
-      return ByobPullOutcome::kPromise;
-    USE(resolver->Resolve(
-        context, MakeReadResult(env, context, empty_view, true, true)));
+      return ByobStageOutcome::kPromise;  // exception pending
+    USE(resolver->Reject(
+        context,
+        TypeErrorWith(isolate, context, "ERR_INVALID_STATE",
+                      "view's buffer has been detached or cannot be"
+                      " transferred")));
     *out = resolver->GetPromise();
-    return ByobPullOutcome::kPromise;
+    return ByobStageOutcome::kPromise;
   }
-  if (queue_total_size_ > 0) {
-    if (FillPullIntoDescriptorFromQueue(&desc)) {
-      Local<Object> filled_view;
-      if (!ConvertPullIntoDescriptor(&desc).ToLocal(&filled_view))
-        return ByobPullOutcome::kPromise;  // empty out; exception pending
-      HandleQueueDrain();
-      *out = filled_view;
-      return ByobPullOutcome::kRawView;
-    }
-    if (close_requested_) {
-      Local<Value> error =
-          InvalidStateError(isolate, context, "ReadableStream closed");
-      ErrorInternal(error);
-      Local<Promise::Resolver> resolver;
-      if (!Promise::Resolver::New(context).ToLocal(&resolver))
-        return ByobPullOutcome::kPromise;
-      USE(resolver->Reject(context, error));
-      *out = resolver->GetPromise();
-      return ByobPullOutcome::kPromise;
-    }
+
+  staged_read_.byte_offset = view->ByteOffset();
+  staged_read_.byte_length = view->ByteLength();
+  staged_read_.buffer_byte_length = buffer->ByteLength();
+  staged_read_.minimum_fill = min * element_size;
+  staged_read_.element_size = element_size;
+  staged_read_.view_type = view_type;
+  staged_read_.valid = true;
+
+  // Park when the read cannot complete synchronously: descriptors already
+  // pending, or an empty queue on a readable stream. Sync covers the
+  // closed-state empty view and queue fills (a fill that cannot satisfy the
+  // minimum ends up parking from FillStagedRead).
+  if (!pending_pull_intos_.empty() ||
+      (stream->state() == StreamState::kReadable && queue_total_size_ == 0)) {
+    return ByobStageOutcome::kPark;
   }
-  pending_pull_intos_.push_back(std::move(desc));
-  return ByobPullOutcome::kWouldPark;
+  return ByobStageOutcome::kSync;
+}
+
+void ReadableByteStreamController::PushStagedDescriptor(
+    Local<ArrayBuffer> buffer) {
+  CHECK(staged_read_.valid);
+  staged_read_.valid = false;
+  PullIntoDescriptor desc;
+  desc.buffer_local = buffer;
+  desc.data = buffer->Data();
+  desc.buffer_byte_length = staged_read_.buffer_byte_length;
+  desc.byte_offset = staged_read_.byte_offset;
+  desc.byte_length = staged_read_.byte_length;
+  desc.bytes_filled = 0;
+  desc.minimum_fill = staged_read_.minimum_fill;
+  desc.element_size = staged_read_.element_size;
+  desc.view_type = staged_read_.view_type;
+  desc.type = PullIntoType::kByob;
+  PushPendingPullInto(std::move(desc));
+}
+
+ReadableByteStreamController::StagedFillOutcome
+ReadableByteStreamController::FillStagedRead(Local<ArrayBuffer> buffer,
+                                             size_t* length_out,
+                                             Local<Value>* out) {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+  ReadableStream* stream = this->stream();
+  CHECK(staged_read_.valid);
+
+  if (stream->state() == StreamState::kClosed) {
+    staged_read_.valid = false;
+    // The closed-state empty view: the wrapper constructs
+    // new ctor(buffer, byteOffset, 0) over the transferred buffer.
+    *length_out = 0;
+    return StagedFillOutcome::kFilled;
+  }
+
+  CHECK(stream->state() == StreamState::kReadable);
+  CHECK_GT(queue_total_size_, 0);
+  PullIntoDescriptor desc;
+  desc.buffer_local = buffer;
+  desc.data = buffer->Data();
+  desc.buffer_byte_length = staged_read_.buffer_byte_length;
+  desc.byte_offset = staged_read_.byte_offset;
+  desc.byte_length = staged_read_.byte_length;
+  desc.bytes_filled = 0;
+  desc.minimum_fill = staged_read_.minimum_fill;
+  desc.element_size = staged_read_.element_size;
+  desc.view_type = staged_read_.view_type;
+  desc.type = PullIntoType::kByob;
+
+  if (FillPullIntoDescriptorFromQueue(&desc)) {
+    staged_read_.valid = false;
+    HandleQueueDrain();
+    CHECK_EQ(desc.bytes_filled % desc.element_size, 0u);
+    *length_out = desc.bytes_filled / desc.element_size;
+    CHECK_GT(*length_out, 0u);  // minimum_fill >= 1 element
+    return StagedFillOutcome::kFilled;
+  }
+  if (close_requested_) {
+    staged_read_.valid = false;
+    Local<Value> error =
+        InvalidStateError(isolate, context, "ReadableStream closed");
+    ErrorInternal(error);
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(context).ToLocal(&resolver))
+      return StagedFillOutcome::kStagedError;  // exception pending
+    USE(resolver->Reject(context, error));
+    *out = resolver->GetPromise();
+    return StagedFillOutcome::kStagedError;
+  }
+  // The queue could not satisfy the minimum fill: park the partially-filled
+  // descriptor; the wrapper parks its settle closure next (PushStagedDescriptor
+  // semantics, but with the partial fill preserved).
+  staged_read_.valid = false;
+  PushPendingPullInto(std::move(desc));
+  return StagedFillOutcome::kStagedWouldPark;
 }
 
 Maybe<void> ReadableByteStreamController::Respond(size_t bytes_written) {
@@ -2461,9 +2627,10 @@ Maybe<void> ReadableByteStreamController::Respond(size_t bytes_written) {
       return Nothing<void>();
     }
   }
-  // desc.buffer is the BackingStore we own; the data the user wrote is already
-  // in it. (The JS re-transfers here to detach the user's view; invalidating
-  // the BYOB request in RespondInternal achieves the same.)
+  // The data the user wrote is already in the held buffer. The spec's
+  // respond-entry re-transfer (which detaches the byobRequest view) is
+  // performed by the commit's transfer on the hot path, natively where the
+  // descriptor stays pending (see RespondInternal/RespondInReadableState).
   return RespondInternal(bytes_written);
 }
 
@@ -2512,10 +2679,15 @@ Maybe<void> ReadableByteStreamController::RespondWithNewView(
         "The given view has an unexpected buffer length"));
     return Nothing<void>();
   }
-  std::shared_ptr<BackingStore> transferred;
-  if (!TransferArrayBuffer(isolate, context, view_buffer, &transferred))
+  Local<ArrayBuffer> transferred;
+  if (!NativeTransferIn(isolate, context, view_buffer, &transferred))
     return Nothing<void>();
-  desc.buffer = std::move(transferred);
+  // The new view replaces the descriptor's buffer (its already-filled prefix
+  // travels with it per the offset checks above); detach the old buffer if a
+  // BYOBRequest view exposed it, matching the previous behavior.
+  DetachFrontIfExposed();
+  desc.buffer.Reset(isolate, transferred);
+  desc.data = transferred->Data();
   return RespondInternal(view_byte_length);
 }
 
@@ -2553,6 +2725,10 @@ void ReadableByteStreamController::RespondInClosedState(
   CHECK_EQ(desc->bytes_filled % desc->element_size, 0u);
   if (desc->type == PullIntoType::kNone) {
     CHECK(!has_byob_request());
+    // The descriptor is dropped without a commit; the spec's respond-entry
+    // transfer reduces to detaching an exposed buffer.
+    DetachFrontIfExposed();
+    pending_pull_intos_.front().buffer.Reset();  // eager; dtor frees nothing
     pending_pull_intos_.pop_front();  // ShiftPendingPullInto
   }
   ReadableStream* stream = this->stream();
@@ -2561,8 +2737,7 @@ void ReadableByteStreamController::RespondInClosedState(
     size_t n = stream->byob_reader()->num_read_into_requests();
     for (size_t i = 0; i < n; ++i) {
       CHECK(!has_byob_request());
-      filled.push_back(std::move(pending_pull_intos_.front()));
-      pending_pull_intos_.pop_front();
+      filled.push_back(ShiftPendingPullInto());
     }
     CommitPullIntoDescriptors(&filled);
   }
@@ -2588,18 +2763,28 @@ Maybe<void> ReadableByteStreamController::RespondInReadableState(
     return JustVoid();
   }
 
-  if (desc->bytes_filled < desc->minimum_fill) return JustVoid();
+  if (desc->bytes_filled < desc->minimum_fill) {
+    // No commit: the spec's respond-entry re-transfer is performed natively
+    // so an exposed byobRequest view detaches while the partial fill
+    // survives in the fresh buffer.
+    if (!RetransferFrontIfExposed()) return Nothing<void>();
+    return JustVoid();
+  }
 
   // Shift the now-ready descriptor out before further mutation of the queue.
   CHECK(!has_byob_request());
-  PullIntoDescriptor ready = std::move(pending_pull_intos_.front());
-  pending_pull_intos_.pop_front();
+  PullIntoDescriptor ready = ShiftPendingPullInto();
 
   size_t remainder_size = ready.bytes_filled % ready.element_size;
   if (remainder_size > 0) {
     size_t end = ready.byte_offset + ready.bytes_filled;
     size_t start = end - remainder_size;
-    EnqueueClonedChunkToQueue(ready.buffer, start, remainder_size);
+    CHECK_NOT_NULL(ready.data);
+    std::shared_ptr<BackingStore> clone =
+        NewBackingStore(isolate, remainder_size);
+    memcpy(clone->Data(), static_cast<char*>(ready.data) + start,
+           remainder_size);
+    EnqueueChunkToQueue(std::move(clone), 0, remainder_size);
   }
   ready.bytes_filled -= remainder_size;
   std::deque<PullIntoDescriptor> filled =
@@ -2611,10 +2796,11 @@ Maybe<void> ReadableByteStreamController::RespondInReadableState(
 
 void ReadableByteStreamController::OnReaderReleased() {
   if (pending_pull_intos_.empty()) return;
-  PullIntoDescriptor first = std::move(pending_pull_intos_.front());
+  PullIntoDescriptor first = ShiftPendingPullInto();
   first.type = PullIntoType::kNone;
+  for (PullIntoDescriptor& d : pending_pull_intos_) d.buffer.Reset();
   pending_pull_intos_.clear();
-  pending_pull_intos_.push_back(std::move(first));
+  PushPendingPullInto(std::move(first));
 }
 
 bool ReadableByteStreamController::Setup(Local<Function> start_algorithm,
@@ -2672,12 +2858,20 @@ void ReadableByteStreamController::GetByobRequest(
           args.This().As<Object>());
   if (c == nullptr) return;
   if (!c->has_byob_request() && c->has_pending_pull_intos()) {
-    const PullIntoDescriptor& d = c->first_pending_pull_into();
-    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, d.buffer);
+    PullIntoDescriptor& d = c->pending_pull_intos_.front();
+    // The view wraps the descriptor's own held buffer (no fresh ArrayBuffer)
+    // and marks it exposed: from here the user can detach it, and the spec's
+    // transfer points must re-transfer or detach it observably.
+    Local<ArrayBuffer> ab = d.buffer.Get(isolate);
+    if (ab.IsEmpty() || ab->WasDetached()) {
+      args.GetReturnValue().SetNull();
+      return;
+    }
     Local<Object> view =
         Uint8Array::New(ab, d.byte_offset + d.bytes_filled,
                         d.byte_length - d.bytes_filled)
             .As<Object>();
+    d.exposed = true;
     // Create the BYOBRequest — a JS-only wrapper (no C++ object; see the
     // class comment) — and link it via GC-traced internal fields. The
     // instantiated constructor is cached per realm.
@@ -3904,14 +4098,26 @@ void ControllerEnqueueOrSettle(const FunctionCallbackInfo<Value>& args) {
   USE(c->EnqueueInternal(args[1]));  // leaves exception pending on failure
 }
 
-// Returns the [closure, view] pair for an armed deferred settle (the JS
-// wrapper performs settle(view, false) from its own frame), or nothing.
+// Returns the armed deferred settle for the JS wrapper to perform from its
+// own frame: [closure, view] for a ready view, or [closure, buffer,
+// byteOffset, length, viewTag] for a descriptor commit (the wrapper's settle
+// closure transfers the buffer and constructs the view in JIT code).
 static void MaybeReturnDeferredSettle(const FunctionCallbackInfo<Value>& args,
                                       const DeferredSettle& defer) {
   if (!defer.armed) return;
-  Local<Value> pair[] = {defer.closure.As<Value>(), defer.view.As<Value>()};
-  args.GetReturnValue().Set(
-      Array::New(args.GetIsolate(), pair, arraysize(pair)));
+  Isolate* isolate = args.GetIsolate();
+  if (!defer.is_commit) {
+    Local<Value> pair[] = {defer.closure.As<Value>(), defer.value};
+    args.GetReturnValue().Set(Array::New(isolate, pair, arraysize(pair)));
+    return;
+  }
+  Local<Value> tuple[] = {
+      defer.closure.As<Value>(), defer.value,
+      Number::New(isolate, static_cast<double>(defer.byte_offset)),
+      Number::New(isolate, static_cast<double>(defer.length)),
+      v8::Integer::New(isolate, static_cast<int>(defer.view_tag)),
+      Boolean::New(isolate, defer.transfer)};
+  args.GetReturnValue().Set(Array::New(isolate, tuple, arraysize(tuple)));
 }
 
 // controller.enqueue(chunk) for the byte controller, as a binding behind a
@@ -3936,14 +4142,13 @@ void ByteControllerEnqueueOrSettle(const FunctionCallbackInfo<Value>& args) {
   MaybeReturnDeferredSettle(args, defer);
 }
 
-// Single-crossing fast read for the byob read() wrapper (mirrors
-// ReaderFastRead). Completes every case inside this crossing except the park:
-// a synchronously-filled view is returned raw (the wrapper builds the
-// { done, value } result and resolved promise in JIT code), rejections and
-// the closed-state empty view return real promises, and the would-park case
-// returns the park sentinel (args[3]) so the wrapper parks its settle closure
-// via byobReaderParkRead — back-to-back crossings, nothing can run between.
-void ByobReaderFastRead(const FunctionCallbackInfo<Value>& args) {
+// Crossing 1 of the byob read() wrapper's staged-read protocol (see
+// ReadableByteStreamController::PullIntoStage). Validation and the
+// park-vs-sync decision complete here; the outcome Smi encodes
+// (viewTag << 1) | syncBit so the wrapper can pick the primordial buffer
+// getter and the result-view constructor without re-deriving them. All
+// rejections (and the internal-reader resolver path) return real promises.
+void ByobReaderReadStage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto* bd = BindingData::Get(env);
   Isolate* isolate = env->isolate();
@@ -4000,49 +4205,59 @@ void ByobReaderFastRead(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> out;
-  using Outcome = ReadableByteStreamController::ByobPullOutcome;
-  switch (c->PullIntoFast(args[1].As<Object>(), static_cast<size_t>(min),
-                          &out)) {
-    case Outcome::kWouldPark:
-      args.GetReturnValue().Set(args[3]);
+  using Outcome = ReadableByteStreamController::ByobStageOutcome;
+  Outcome outcome = c->PullIntoStage(args[1].As<ArrayBufferView>(),
+                                     static_cast<size_t>(min), &out);
+  if (outcome == Outcome::kPromise) {
+    if (!out.IsEmpty()) args.GetReturnValue().Set(out);
+    return;  // empty out: exception pending; the wrapper throws
+  }
+  int32_t code = (static_cast<int32_t>(c->staged_view_type()) << 1) |
+                 (outcome == Outcome::kSync ? 1 : 0);
+  args.GetReturnValue().Set(code);
+}
+
+// Crossing 2, sync flavor: the wrapper transferred the view's buffer in JS
+// and hands it over for the staged fill. Returns the filled length in
+// elements as a Smi (0 <=> done: the closed-state empty view), the caller's
+// park sentinel (args[2]) when the queue could not satisfy the minimum fill
+// (the descriptor was pushed; the wrapper parks its settle closure), or a
+// promise (a closing error).
+void ByobReaderFillStaged(const FunctionCallbackInfo<Value>& args) {
+  auto* r = UnwrapTrusted<ReadableStreamBYOBReader>(args[0].As<Object>());
+  if (r == nullptr || !r->has_stream()) return;
+  ReadableByteStreamController* c = r->stream()->byte_controller();
+  if (c == nullptr) return;
+  size_t length = 0;
+  Local<Value> out;
+  using Outcome = ReadableByteStreamController::StagedFillOutcome;
+  switch (c->FillStagedRead(args[1].As<ArrayBuffer>(), &length, &out)) {
+    case Outcome::kFilled:
+      args.GetReturnValue().Set(static_cast<uint32_t>(length));
       return;
-    case Outcome::kRawView: {
-      Local<Object> promise_proto = GetPromisePrototype(env, bd, context);
-      if (promise_proto.IsEmpty()) return;
-      if (!LooksLikePromise(context, out, promise_proto)) {
-        args.GetReturnValue().Set(out);
-        return;
-      }
-      // A view made promise-lookalike by a patched prototype chain: build
-      // the result promise natively so the wrapper's return test stays
-      // unambiguous (rare).
-      Local<Promise::Resolver> resolver;
-      if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
-      USE(resolver->Resolve(
-          context, MakeReadResult(env, context, out, false, true)));
-      args.GetReturnValue().Set(resolver->GetPromise());
+    case Outcome::kStagedWouldPark:
+      args.GetReturnValue().Set(args[2]);
       return;
-    }
-    case Outcome::kPromise:
+    case Outcome::kStagedError:
       if (!out.IsEmpty()) args.GetReturnValue().Set(out);
       return;  // empty out: exception pending; the wrapper throws
   }
 }
 
-// Second half of the byob wrapper's parked-read protocol: ByobReaderFastRead
-// pushed the pull-into descriptor and returned the park sentinel; the wrapper
-// built the read promise plus its settle closure and parks it here. args[0]
-// is trusted (brand-checked in the same synchronous step). Pull is only
-// triggered when the just-pushed descriptor is the head of the queue,
-// mirroring PullInto's branches (a descriptor queued behind others never
-// called CallPullIfNeeded).
+// Crossing 2, park flavor: pushes the staged descriptor over the
+// JS-transferred buffer (args[1]; undefined when FillStagedRead already
+// pushed it with a partial fill) and parks the wrapper's settle closure.
+// Pull is only triggered when the descriptor is the head of the queue,
+// mirroring PullInto's branches.
 void ByobReaderParkRead(const FunctionCallbackInfo<Value>& args) {
   auto* r = UnwrapTrusted<ReadableStreamBYOBReader>(args[0].As<Object>());
   if (r == nullptr || !r->has_stream()) return;
-  r->AddReadIntoRequestClosure(args[1].As<Function>());
   ReadableByteStreamController* c = r->stream()->byte_controller();
-  if (c != nullptr && c->pending_pull_intos_count() == 1)
-    c->CallPullIfNeeded();
+  if (c == nullptr) return;
+  if (args[1]->IsArrayBuffer())
+    c->PushStagedDescriptor(args[1].As<ArrayBuffer>());
+  r->AddReadIntoRequestClosure(args[2].As<Function>());
+  if (c->pending_pull_intos_count() == 1) c->CallPullIfNeeded();
 }
 
 // Write-completion re-entry for an armed pump (declared in
@@ -4204,7 +4419,8 @@ void InitializeReadableStream(Isolate* isolate, Local<ObjectTemplate> target) {
             ControllerEnqueueOrSettle);
   SetMethod(isolate, target, "byteControllerEnqueueOrSettle",
             ByteControllerEnqueueOrSettle);
-  SetMethod(isolate, target, "byobReaderFastRead", ByobReaderFastRead);
+  SetMethod(isolate, target, "byobReaderReadStage", ByobReaderReadStage);
+  SetMethod(isolate, target, "byobReaderFillStaged", ByobReaderFillStaged);
   SetMethod(isolate, target, "byobReaderParkRead", ByobReaderParkRead);
   SetMethod(isolate, target, "readableStreamController",
             ReadableStreamController);
@@ -4236,7 +4452,8 @@ void RegisterReadableStreamExternalReferences(
   registry->Register(ReaderParkRead);
   registry->Register(ControllerEnqueueOrSettle);
   registry->Register(ByteControllerEnqueueOrSettle);
-  registry->Register(ByobReaderFastRead);
+  registry->Register(ByobReaderReadStage);
+  registry->Register(ByobReaderFillStaged);
   registry->Register(ByobReaderParkRead);
   registry->Register(ReadableStreamController);
   registry->Register(ReadableStreamReleaseReader);
