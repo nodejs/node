@@ -181,7 +181,7 @@ void BaseObjectList::MemoryInfo(MemoryTracker* tracker) const {
       // https://github.com/v8/v8/commit/e37cadf1143a8c5bbe44c0408186b5a26cc23863
       // is available for us
       tracker->Track(
-          bo, bo->persistent().IsWeak() ? MemoryTracker::KWeakEdge : nullptr);
+          bo, bo->persistent().IsWeak() ? MemoryTracker::kWeakEdge : nullptr);
     }
   }
 }

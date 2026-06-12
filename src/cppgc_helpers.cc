@@ -19,7 +19,7 @@ void CppgcWrapperList::MemoryInfo(MemoryTracker* tracker) const {
       // TODO(addaleax): Add weak edges instead of no edges once
       // https://github.com/v8/v8/commit/e37cadf1143a8c5bbe44c0408186b5a26cc23863
       // is available for us
-      tracker->Track(ptr, MemoryTracker::KWeakEdge);
+      tracker->Track(ptr, MemoryTracker::kWeakEdge);
     }
   }
 }
