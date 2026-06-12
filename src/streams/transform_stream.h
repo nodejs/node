@@ -135,6 +135,10 @@ class TransformStream final : CPPGC_MIXIN(TransformStream) {
   void ResolveStart(Environment* env, v8::Local<v8::Value> value);
   v8::Local<v8::Promise> start_promise(Environment* env) const;
 
+  // Takes (and clears) the chunk parked by SinkWrite while awaiting a
+  // backpressure change.
+  v8::Local<v8::Value> TakePendingWriteChunk();
+
   // Sink/source algorithms wired into the readable/writable controllers.
   v8::Local<v8::Promise> SinkWrite(v8::Local<v8::Value> chunk);
   v8::Local<v8::Promise> SinkClose();
@@ -156,6 +160,13 @@ class TransformStream final : CPPGC_MIXIN(TransformStream) {
   v8::TracedReference<v8::Promise::Resolver> backpressure_change_resolver_;
   v8::TracedReference<v8::Promise::Resolver> start_resolver_;
   v8::TracedReference<v8::Promise> start_promise_;
+  // SinkWrite's awaited-backpressure state: the writable dispatches at most
+  // one write at a time (the next write starts only after the previous
+  // sink-write promise settles), so the awaiting chunk lives in a single
+  // slot, and the continuation reaction is created once per stream instead
+  // of per chunk (Function::New allocates a SharedFunctionInfo per call).
+  v8::TracedReference<v8::Value> pending_write_chunk_;
+  v8::TracedReference<v8::Function> sink_write_continuation_;
 
   // Raw-pointer mirrors of the kReadable / kWritable / kController fields.
   ReadableStream* readable_cache_ = nullptr;

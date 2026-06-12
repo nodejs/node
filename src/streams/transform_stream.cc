@@ -121,15 +121,11 @@ void PerformTransformRejected(const FunctionCallbackInfo<Value>& args) {
 void SinkWriteAfterBackpressure(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-  Local<Array> holder = args.Data().As<Array>();
-  Local<Value> stream_val;
-  Local<Value> chunk;
-  if (!holder->Get(context, 0).ToLocal(&stream_val) ||
-      !holder->Get(context, 1).ToLocal(&chunk))
-    return;
-  auto* stream = CppgcMixin::Unwrap<TransformStream>(stream_val.As<Object>());
+  auto* stream = CppgcMixin::Unwrap<TransformStream>(args.Data().As<Object>());
   if (stream == nullptr) return;
+  // Take the chunk unconditionally so the slot is free for the next write
+  // even when the wait ends in an erroring writable.
+  Local<Value> chunk = stream->TakePendingWriteChunk();
   WritableStream* writable = stream->writable();
   if (writable->state() == WritableState::kErroring) {
     isolate->ThrowException(writable->stored_error(env));
@@ -555,6 +551,8 @@ void TransformStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
   visitor->Trace(backpressure_change_resolver_);
   visitor->Trace(start_resolver_);
   visitor->Trace(start_promise_);
+  visitor->Trace(pending_write_chunk_);
+  visitor->Trace(sink_write_continuation_);
 }
 
 Local<FunctionTemplate> TransformStream::GetConstructorTemplate(
@@ -638,6 +636,13 @@ Local<Promise> TransformStream::start_promise(Environment* env) const {
   return start_promise_.Get(env->isolate());
 }
 
+Local<Value> TransformStream::TakePendingWriteChunk() {
+  Isolate* isolate = env()->isolate();
+  Local<Value> chunk = pending_write_chunk_.Get(isolate);
+  pending_write_chunk_.Reset();  // eager; ~TracedReference frees nothing
+  return chunk;
+}
+
 Local<Promise> TransformStream::SinkWrite(Local<Value> chunk) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
@@ -645,15 +650,28 @@ Local<Promise> TransformStream::SinkWrite(Local<Value> chunk) {
   TransformStreamDefaultController* controller = this->controller();
   if (!backpressure_) return controller->PerformTransform(chunk);
   Local<Promise> bp_change = backpressure_change_promise(env);
-  Local<Array> holder = MakeHolder(isolate, context, object(), chunk);
+  // Single in-flight write: the previous write's continuation has already
+  // taken its chunk, so the slot is free. Assigning store (Reset), never the
+  // TracedReference constructor — see the readers' park queue.
+  CHECK(pending_write_chunk_.IsEmpty());
+  pending_write_chunk_.Reset(isolate, chunk);
   Local<Function> cont;
-  if (!Function::New(context, SinkWriteAfterBackpressure, holder, 0,
-                     v8::ConstructorBehavior::kThrow)
-           .ToLocal(&cont))
-    return ResolvedUndefined(env);
+  if (sink_write_continuation_.IsEmpty()) {
+    if (!Function::New(context, SinkWriteAfterBackpressure, object(), 0,
+                       v8::ConstructorBehavior::kThrow)
+             .ToLocal(&cont)) {
+      pending_write_chunk_.Reset();
+      return ResolvedUndefined(env);
+    }
+    sink_write_continuation_.Reset(isolate, cont);
+  } else {
+    cont = sink_write_continuation_.Get(isolate);
+  }
   Local<Promise> chained;
-  if (!bp_change->Then(context, cont).ToLocal(&chained))
+  if (!bp_change->Then(context, cont).ToLocal(&chained)) {
+    pending_write_chunk_.Reset();
     return ResolvedUndefined(env);
+  }
   return chained;
 }
 
