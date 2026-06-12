@@ -3041,7 +3041,9 @@ bool Session::ReadPacket(const uint8_t* data,
     // receive path caches a timestamp and passes it to all ReadPacket()
     // calls in the same I/O burst.
     if (ts == 0) ts = uv_hrtime();
+    rx_packet_ts_ = ts;
     err = ngtcp2_conn_read_pkt(*this, &path, pkt_info, data, len, ts);
+    rx_packet_ts_ = 0;
   }
   if (is_destroyed()) return false;
 
@@ -3537,6 +3539,8 @@ void Session::RemoveStream(stream_id id) {
   }
 
   ngtcp2_conn_set_stream_user_data(*this, id, nullptr);
+
+  if (impl_->application_) application().StreamRemoved(id);
 
   // Note that removing the stream from the streams map likely releases
   // the last BaseObjectPtr holding onto the Stream instance, at which

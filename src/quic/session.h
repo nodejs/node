@@ -407,6 +407,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
                   const PacketInfo& pkt_info = PacketInfo(),
                   uint64_t ts = 0);
 
+  uint64_t rx_packet_ts() const { return rx_packet_ts_; }
+
   // Called by BindingData's flush callback to trigger SendPendingData
   // on this session. Encapsulates the application() access so that
   // bindingdata.cc doesn't need the full Application type definition.
@@ -735,6 +737,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint8_t prefer_try_send : 1 = 0;
   };
   Flags flags_;
+
+  uint64_t rx_packet_ts_ = 0;
 
   bool hello_processed_ = false;
 

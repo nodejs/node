@@ -146,6 +146,9 @@ class Session::Application : public MemoryRetainer {
   virtual void ReceiveStreamClose(Stream* stream,
                                   QuicError&& error = QuicError());
 
+  // Notify the Application that this stream is about to be removed
+  virtual void StreamRemoved(stream_id id) {}
+
   // Notifies the Application that the identified stream has been reset.
   virtual void ReceiveStreamReset(Stream* stream,
                                   uint64_t final_size,
