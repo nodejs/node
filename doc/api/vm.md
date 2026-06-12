@@ -692,7 +692,7 @@ in the ECMAScript specification.
     work after that. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
-Evaluate the module and its depenendencies. Corresponds to the [Evaluate() concrete method][] field of
+Evaluate the module and its dependencies. Corresponds to the [Evaluate() concrete method][] field of
 [Cyclic Module Record][]s in the ECMAScript specification.
 
 If the module is a `vm.SourceTextModule`, `evaluate()` must be called after the module has been instantiated;
