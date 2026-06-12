@@ -8,11 +8,8 @@
     'node_builtin_modules_path%': '',
     # `node` executable target name.
     'node_core_target_name%': 'node',
-    # Derived flag from `node_shared`.
-    # On most platforms, this is `static_library` if `node_shared` is false and `shared_library` if `node_shared` is true.
-    # AIX needs to generate static library first and then link to shared library `node_aix_shared`.
-    # TODO(legendecas): move this to depend on target `node_base` in AIX build .
-    'node_intermediate_lib_type%': 'static_library',
+    # `libnode` target type, `static_library` if `node_shared` is false and `shared_library` if `node_shared` is true.
+    'node_lib_type%': 'static_library',
     # `libnode` target name, can be a `static_library` or `shared_library` based on `node_shared`.
     # NOTE: Gyp will prefix this with `lib` if this name does not start with `lib`.
     'node_lib_target_name%': 'libnode',
@@ -492,17 +489,7 @@
       }],
       [ 'node_shared=="true"', {
         'node_target_type%': 'shared_library',
-        'conditions': [
-          ['OS in "aix os400"', {
-            # For AIX, always generate static library first,
-            # It needs an extra step to generate exp and
-            # then use both static lib and exp to create
-            # shared lib.
-            'node_intermediate_lib_type': 'static_library',
-          }, {
-            'node_intermediate_lib_type': 'shared_library',
-          }],
-        ],
+        'node_lib_type': 'shared_library',
       }, {
         'node_target_type%': 'executable',
       }],
@@ -614,6 +601,10 @@
         'src/node_main.cc'
       ],
 
+      'dependencies': [
+        '<(node_lib_target_name)',
+      ],
+
       'msvs_settings': {
         'VCLinkerTool': {
           'GenerateMapFile': 'true', # /MAP
@@ -646,25 +637,13 @@
             'WARNING_CFLAGS': [ '-Werror' ],
           },
         }],
-        [ 'node_intermediate_lib_type=="static_library" and '
-            'node_shared=="true" and OS in "aix os400"', {
-          # For AIX, shared lib is linked by static lib and .exp. In the
-          # case here, the executable needs to link to shared lib.
-          # Therefore, use 'node_aix_shared' target to generate the
-          # shared lib and then executable.
-          'dependencies': [ 'node_aix_shared' ],
-        }, {
-          'dependencies': [ '<(node_lib_target_name)' ],
-          'conditions': [
-            ['OS=="win" and node_shared=="true"', {
-              'dependencies': ['generate_node_def'],
-              'msvs_settings': {
-                'VCLinkerTool': {
-                  'ModuleDefinitionFile': '<(PRODUCT_DIR)/<(node_core_target_name).def',
-                },
-              },
-            }],
-          ],
+        ['node_shared=="true" and OS=="win"', {
+          'dependencies': ['generate_node_def'],
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'ModuleDefinitionFile': '<(PRODUCT_DIR)/<(node_core_target_name).def',
+            },
+          },
         }],
         [ 'node_shared=="false"', {
           # Keep this whole-archive section in sync with the `node_lib` target below.
@@ -1095,7 +1074,7 @@
     }, # node_base
     {
       'target_name': '<(node_lib_target_name)',
-      'type': '<(node_intermediate_lib_type)',
+      'type': '<(node_lib_type)',
       'includes': [
         'node.gypi',
       ],
@@ -1215,7 +1194,10 @@
           },
         }],
         ['node_shared=="true" and OS in "aix os400"', {
-          'product_name': 'node_base',
+          'ldflags': ['--shared'],
+          'direct_dependent_settings': {
+            'ldflags': [ '-Wl,-brtl' ],
+          },
         }],
         [ 'node_shared=="true" and OS=="win"', {
           'sources': [
@@ -1797,33 +1779,6 @@
   ], # end targets
 
   'conditions': [
-    ['OS in "aix os400" and node_shared=="true"', {
-      'targets': [
-        {
-          'target_name': 'node_aix_shared',
-          'type': 'shared_library',
-          'product_name': '<(node_core_target_name)',
-          'ldflags': ['--shared'],
-          'product_extension': '<(shlib_suffix)',
-          'includes': [
-            'node.gypi'
-          ],
-          'dependencies': ['<(node_lib_target_name)'],
-          'include_dirs': [
-            'src',
-            'deps/v8/include',
-          ],
-          'sources': [
-            '<@(library_files)',
-            '<@(deps_files)',
-            'common.gypi',
-          ],
-          'direct_dependent_settings': {
-            'ldflags': [ '-Wl,-brtl' ],
-          },
-        },
-      ]
-    }], # end aix section
     ['OS=="win" and node_shared=="true"', {
      'targets': [
        {
