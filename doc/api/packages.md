@@ -1369,9 +1369,12 @@ By default, Node.js refuses to strip types from TypeScript files inside
 `node_modules`. When [`--experimental-strip-private-modules`][] is enabled,
 Node.js allows type stripping for:
 
-* files that are not descendant of a `node_modules` directory.
-* files that are descendant of a directory whose parent is a `node_modules` directory
-  and that contains a `package.json` file that sets `"private": true`.
+* files that are not inside a `node_modules` directory.
+* files inside `node_modules`, but only when the package that contains the
+  file sets `"private": true`. Only the `package.json` at each package boundary
+  is considered: the package's root directory, which is the directory directly
+  under `node_modules` (or under `node_modules/<@scope>` for scoped packages).
+  Nested `package.json` files are ignored.
 
 [CommonJS]: modules.md
 [Conditional exports]: #conditional-exports
