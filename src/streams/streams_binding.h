@@ -61,8 +61,9 @@ void SetProtoMethodLen(v8::Isolate* isolate,
                        int length);
 
 // Installs a Promise-returning operation on tmpl's prototype WITHOUT a receiver
-// signature, so the C++ callback runs even for a foreign receiver and can reject
-// the returned promise per Web IDL instead of throwing "Illegal invocation".
+// signature, so the C++ callback runs even for a foreign receiver and can
+// reject the returned promise per Web IDL instead of throwing "Illegal
+// invocation".
 void SetProtoMethodPromise(v8::Isolate* isolate,
                            v8::Local<v8::FunctionTemplate> tmpl,
                            const char* name,
@@ -260,8 +261,9 @@ class BindingData : public SnapshotableObject {
   // Boilerplate { value: undefined, done: <bool> } read-result objects, cloned
   // per read (v8::Object::Clone is a flat CopyJSObject) instead of building the
   // object property-by-property through the map-transition machinery. The
-  // null-prototype variants serve non-author-code reads (pipeTo/tee), which must
-  // never observe a patched Object.prototype.then. Lazily created on first use.
+  // null-prototype variants serve non-author-code reads (pipeTo/tee), which
+  // must never observe a patched Object.prototype.then. Lazily created on first
+  // use.
   v8::Global<v8::Object> read_result_not_done;
   v8::Global<v8::Object> read_result_done;
   v8::Global<v8::Object> read_result_not_done_null_proto;

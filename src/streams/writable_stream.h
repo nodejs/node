@@ -35,8 +35,8 @@ class WritableStreamDefaultController;
 class PromiseSlot {
  public:
   void SetPending(Environment* env);
-  void SetResolved(Environment* env);            // PromiseResolve()
-  void Resolve(Environment* env);                // resolve?.()
+  void SetResolved(Environment* env);  // PromiseResolve()
+  void Resolve(Environment* env);      // resolve?.()
   // Rejects if currently pending; no-op when already settled. The rejected
   // promise is marked handled (materialized lazily on first observation).
   void RejectIfPendingHandled(Environment* env, v8::Local<v8::Value> error);
@@ -82,11 +82,12 @@ class PromiseSlot {
   v8::TracedReference<v8::Promise::Resolver> resolver_;
 };
 
-// WritableStreamDefaultController — owns the write queue and queuing parameters.
-// The value queue holds chunks (the spec's close "sentinel" is modeled by the
-// close_queued_ flag since close is always the final queue entry). State math
-// and queue bookkeeping happen in C++; JS is crossed only to run the user
-// write/close/abort/size algorithms and to drive the controller's AbortSignal.
+// WritableStreamDefaultController — owns the write queue and queuing
+// parameters. The value queue holds chunks (the spec's close "sentinel" is
+// modeled by the close_queued_ flag since close is always the final queue
+// entry). State math and queue bookkeeping happen in C++; JS is crossed only to
+// run the user write/close/abort/size algorithms and to drive the controller's
+// AbortSignal.
 class WritableStreamDefaultController final
     : CPPGC_MIXIN(WritableStreamDefaultController) {
  public:
@@ -107,7 +108,8 @@ class WritableStreamDefaultController final
   static void GetSignal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  WritableStreamDefaultController(Environment* env, v8::Local<v8::Object> object);
+  WritableStreamDefaultController(Environment* env,
+                                  v8::Local<v8::Object> object);
 
   // Owning stream. Cached raw pointer (hot path): the GC-traced kStream
   // internal field keeps the stream's wrapper alive for this controller's
@@ -129,7 +131,8 @@ class WritableStreamDefaultController final
   void ClearAlgorithms();
   bool GetBackpressure() const;
   void AdvanceQueueIfNeeded();
-  // [kAbort]: run the abort algorithm then clear algorithms; returns its promise.
+  // [kAbort]: run the abort algorithm then clear algorithms; returns its
+  // promise.
   v8::Local<v8::Promise> AbortSteps(v8::Local<v8::Value> reason);
   void ErrorSteps();  // [kError]: resetQueue
 
@@ -359,9 +362,7 @@ class WritableStream final : CPPGC_MIXIN(WritableStream) {
   void OnAbortAlgorithmFulfilled();
   void OnAbortAlgorithmRejected(v8::Local<v8::Value> error);
 
-  bool has_in_flight_write_request() const {
-    return write_request_in_flight_;
-  }
+  bool has_in_flight_write_request() const { return write_request_in_flight_; }
 
  private:
   // Traces the request queue and handle members. Only ever runs on the

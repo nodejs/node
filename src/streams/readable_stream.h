@@ -72,7 +72,8 @@ class ReadableStreamDefaultController final
   static void Enqueue(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  ReadableStreamDefaultController(Environment* env, v8::Local<v8::Object> object);
+  ReadableStreamDefaultController(Environment* env,
+                                  v8::Local<v8::Object> object);
 
   // Owning stream. Returns a cached raw pointer (hot path): the GC-traced
   // kStream internal field keeps the stream's wrapper — and therefore its
@@ -114,9 +115,7 @@ class ReadableStreamDefaultController final
   bool has_pull_algorithm() const { return !pull_algorithm_.IsEmpty(); }
   bool close_requested() const { return close_requested_; }
   double queue_total_size() const { return queue_total_size_; }
-  uint32_t queue_length() const {
-    return static_cast<uint32_t>(queue_.size());
-  }
+  uint32_t queue_length() const { return static_cast<uint32_t>(queue_.size()); }
 
   // Queue helpers operating on the value queue.
   v8::MaybeLocal<v8::Value> DequeueValue();
@@ -394,7 +393,8 @@ class ReadableByteStreamController final
 
   enum InternalFields {
     kStream = CppgcMixin::kInternalFieldCount,
-    kByobRequest,  // the current ReadableStreamBYOBRequest wrapper, or undefined
+    kByobRequest,  // the current ReadableStreamBYOBRequest wrapper, or
+                   // undefined
     kInternalFieldCount,
   };
 
@@ -431,7 +431,8 @@ class ReadableByteStreamController final
   void ClearAlgorithms();
   void ClearPendingPullIntos();
   void InvalidateBYOBRequest();
-  // close(): may throw (partial read) -> returns Nothing with pending exception.
+  // close(): may throw (partial read) -> returns Nothing with pending
+  // exception.
   v8::Maybe<void> CloseInternal();
   void HandleQueueDrain();
   // enqueue(view): may throw -> Nothing with pending exception. When `defer`
@@ -497,9 +498,7 @@ class ReadableByteStreamController final
   StagedFillOutcome FillStagedRead(v8::Local<v8::ArrayBuffer> buffer,
                                    size_t* length_out,
                                    v8::Local<v8::Value>* out);
-  size_t pending_pull_intos_count() const {
-    return pending_pull_intos_.size();
-  }
+  size_t pending_pull_intos_count() const { return pending_pull_intos_.size(); }
   // The staged view's classification (valid between the two crossings).
   ViewType staged_view_type() const { return staged_read_.view_type; }
   // The front pending descriptor's held buffer (the spec's respond
@@ -542,9 +541,10 @@ class ReadableByteStreamController final
                            size_t byte_length);
   // Slices [byte_offset, byte_offset+byte_length) of `buffer` into a fresh
   // BackingStore and enqueues it.
-  void EnqueueClonedChunkToQueue(const std::shared_ptr<v8::BackingStore>& buffer,
-                                 size_t byte_offset,
-                                 size_t byte_length);
+  void EnqueueClonedChunkToQueue(
+      const std::shared_ptr<v8::BackingStore>& buffer,
+      size_t byte_offset,
+      size_t byte_length);
   void EnqueueDetachedPullIntoToQueue(PullIntoDescriptor* desc);
   bool FillPullIntoDescriptorFromQueue(PullIntoDescriptor* desc);
   void FillReadRequestFromQueue(v8::Local<v8::Promise::Resolver> resolver);
@@ -588,7 +588,8 @@ class ReadableByteStreamController final
   v8::Maybe<void> RespondInReadableState(size_t bytes_written,
                                          PullIntoDescriptor* desc);
   // Builds the user-visible view from a filled descriptor (transfers buffer).
-  v8::MaybeLocal<v8::Object> ConvertPullIntoDescriptor(PullIntoDescriptor* desc);
+  v8::MaybeLocal<v8::Object> ConvertPullIntoDescriptor(
+      PullIntoDescriptor* desc);
 
   std::deque<ByteQueueEntry> queue_;
   double queue_total_size_ = 0;
@@ -655,7 +656,8 @@ class ReadableStreamBYOBRequest final {
 
   static void IsInvalidated(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void RespondWithNewView(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RespondWithNewView(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 // ReadableStreamBYOBReader — holds the queue of pending read-into requests as
@@ -738,8 +740,9 @@ class ReadableStreamBYOBReader final : CPPGC_MIXIN(ReadableStreamBYOBReader) {
   ReadableStream* stream_cache_ = nullptr;
 };
 
-// ReadableStream — the user-facing object. Holds top-level state; the controller
-// and (current) reader are referenced through GC-traced internal fields.
+// ReadableStream — the user-facing object. Holds top-level state; the
+// controller and (current) reader are referenced through GC-traced internal
+// fields.
 class ReadableStream final : CPPGC_MIXIN(ReadableStream) {
  public:
   SET_CPPGC_NAME(ReadableStream)
@@ -777,7 +780,8 @@ class ReadableStream final : CPPGC_MIXIN(ReadableStream) {
   enum class ControllerKind : uint8_t { kNone, kDefault, kByte };
   ReadableStreamDefaultController* default_controller() const {
     return controller_kind_ == ControllerKind::kDefault
-               ? static_cast<ReadableStreamDefaultController*>(controller_cache_)
+               ? static_cast<ReadableStreamDefaultController*>(
+                     controller_cache_)
                : nullptr;
   }
   ReadableByteStreamController* byte_controller() const {
@@ -850,9 +854,9 @@ class ReadableStream final : CPPGC_MIXIN(ReadableStream) {
   ReaderKind reader_kind_ = ReaderKind::kNone;
 };
 
-// Creates and sets up a default ReadableStream, returning its JS object. Used by
-// both the binding entry and the C++ TransformStream. The algorithm functions
-// follow the call convention: start(controller), pull(controller),
+// Creates and sets up a default ReadableStream, returning its JS object. Used
+// by both the binding entry and the C++ TransformStream. The algorithm
+// functions follow the call convention: start(controller), pull(controller),
 // cancel(reason). Returns an empty MaybeLocal with a pending exception if the
 // start algorithm threw synchronously.
 v8::MaybeLocal<v8::Object> NewReadableStream(
@@ -882,8 +886,9 @@ void AcquireReadableStreamBYOBReader(
 // Registers the readable-stream binding methods + constructor templates and
 // their external references. Called from the binding's per-isolate / external
 // reference hooks.
-// Exposes the readable-stream constructor functions on the binding object so the
-// JS layer can use them as the public classes (their prototypes are shared).
+// Exposes the readable-stream constructor functions on the binding object so
+// the JS layer can use them as the public classes (their prototypes are
+// shared).
 void ExposeReadableStreamConstructors(Environment* env,
                                       v8::Local<v8::Object> target);
 

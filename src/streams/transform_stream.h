@@ -20,9 +20,10 @@ class ReadableStream;
 class WritableStream;
 class TransformStream;
 
-// TransformStreamDefaultController — holds the transform/flush/cancel algorithms
-// and drives the transform stream's readable side (enqueue/close/error). It owns
-// no queue of its own; queuing happens in the readable/writable controllers.
+// TransformStreamDefaultController — holds the transform/flush/cancel
+// algorithms and drives the transform stream's readable side
+// (enqueue/close/error). It owns no queue of its own; queuing happens in the
+// readable/writable controllers.
 class TransformStreamDefaultController final
     : CPPGC_MIXIN(TransformStreamDefaultController) {
  public:
@@ -49,7 +50,8 @@ class TransformStreamDefaultController final
 
   // Owning stream. Cached raw pointer (hot path): the GC-traced kStream
   // internal field keeps the stream's wrapper alive for this controller's
-  // lifetime, so the cache cannot dangle. Set by TransformStream::SetController.
+  // lifetime, so the cache cannot dangle. Set by
+  // TransformStream::SetController.
   TransformStream* stream() const { return stream_cache_; }
   void set_stream_cache(TransformStream* s) { stream_cache_ = s; }
 

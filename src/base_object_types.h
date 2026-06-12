@@ -19,7 +19,7 @@ namespace node {
   V(process_binding_data, process::BindingData)                                \
   V(timers_binding_data, timers::BindingData)                                  \
   V(url_binding_data, url::BindingData)                                        \
-  V(modules_binding_data, modules::BindingData)                               \
+  V(modules_binding_data, modules::BindingData)                                \
   V(webstreams_binding_data, webstreams::BindingData)
 
 #define UNSERIALIZABLE_BINDING_TYPES(V)                                        \

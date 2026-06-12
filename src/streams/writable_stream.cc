@@ -1,5 +1,4 @@
 #include "streams/writable_stream.h"
-#include "streams/streams_binding.h"
 #include "base_object-inl.h"
 #include "cppgc/allocation.h"
 #include "cppgc/visitor.h"
@@ -9,8 +8,8 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_realm-inl.h"
+#include "streams/streams_binding.h"
 #include "util-inl.h"
-#include "util.h"
 #include "v8.h"
 
 #include <cmath>
@@ -102,39 +101,33 @@ Local<Promise> RejectedWith(Environment* env, Local<Value> error) {
 
 // Reaction callbacks. args.Data() is the controller (or stream) wrapper.
 void ReactStartFulfilled(const FunctionCallbackInfo<Value>& args) {
-  auto* c =
-      CppgcMixin::Unwrap<WritableStreamDefaultController>(
-          args.Data().As<Object>());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
   if (c != nullptr) c->OnStartFulfilled();
 }
 void ReactStartRejected(const FunctionCallbackInfo<Value>& args) {
-  auto* c =
-      CppgcMixin::Unwrap<WritableStreamDefaultController>(
-          args.Data().As<Object>());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
   if (c != nullptr) c->OnStartRejected(args[0]);
 }
 void ReactWriteFulfilled(const FunctionCallbackInfo<Value>& args) {
-  auto* c =
-      CppgcMixin::Unwrap<WritableStreamDefaultController>(
-          args.Data().As<Object>());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
   if (c != nullptr) c->OnWriteFulfilled();
 }
 void ReactWriteRejected(const FunctionCallbackInfo<Value>& args) {
-  auto* c =
-      CppgcMixin::Unwrap<WritableStreamDefaultController>(
-          args.Data().As<Object>());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
   if (c != nullptr) c->OnWriteRejected(args[0]);
 }
 void ReactCloseFulfilled(const FunctionCallbackInfo<Value>& args) {
-  auto* c =
-      CppgcMixin::Unwrap<WritableStreamDefaultController>(
-          args.Data().As<Object>());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
   if (c != nullptr) c->OnCloseFulfilled();
 }
 void ReactCloseRejected(const FunctionCallbackInfo<Value>& args) {
-  auto* c =
-      CppgcMixin::Unwrap<WritableStreamDefaultController>(
-          args.Data().As<Object>());
+  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
+      args.Data().As<Object>());
   if (c != nullptr) c->OnCloseRejected(args[0]);
 }
 void ReactAbortFulfilled(const FunctionCallbackInfo<Value>& args) {
@@ -154,11 +147,11 @@ void ThenReact(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff;
   Local<Function> rj;
-  if (!Function::New(context, on_fulfilled, data, 0,
-                     v8::ConstructorBehavior::kThrow)
+  if (!Function::New(
+           context, on_fulfilled, data, 0, v8::ConstructorBehavior::kThrow)
            .ToLocal(&ff) ||
-      !Function::New(context, on_rejected, data, 0,
-                     v8::ConstructorBehavior::kThrow)
+      !Function::New(
+           context, on_rejected, data, 0, v8::ConstructorBehavior::kThrow)
            .ToLocal(&rj)) {
     return;
   }
@@ -179,8 +172,8 @@ void ThenReactCached(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff = ff_slot->Get(isolate);
   if (ff.IsEmpty()) {
-    if (!Function::New(context, on_fulfilled, data, 0,
-                       v8::ConstructorBehavior::kThrow)
+    if (!Function::New(
+             context, on_fulfilled, data, 0, v8::ConstructorBehavior::kThrow)
              .ToLocal(&ff)) {
       return;
     }
@@ -188,8 +181,8 @@ void ThenReactCached(Environment* env,
   }
   Local<Function> rj = rj_slot->Get(isolate);
   if (rj.IsEmpty()) {
-    if (!Function::New(context, on_rejected, data, 0,
-                       v8::ConstructorBehavior::kThrow)
+    if (!Function::New(
+             context, on_rejected, data, 0, v8::ConstructorBehavior::kThrow)
              .ToLocal(&rj)) {
       return;
     }
@@ -211,7 +204,8 @@ void ThenReactCached(Environment* env,
 static Local<Value> WriterReleasedError(Isolate* isolate,
                                         Local<Context> context) {
   return InvalidStateError(
-      isolate, context,
+      isolate,
+      context,
       "Writer was released and can no longer be used to monitor the stream's "
       "state");
 }
@@ -288,7 +282,8 @@ void PromiseSlot::RejectOrReplaceHandled(Environment* env, Local<Value> error) {
 bool PromiseSlot::IsPending(Environment* env) const {
   if (state_ != State::kMaterialized) return state_ == State::kPendingLazy;
   if (promise_.IsEmpty()) return false;
-  return promise_.Get(env->isolate())->State() == Promise::PromiseState::kPending;
+  return promise_.Get(env->isolate())->State() ==
+         Promise::PromiseState::kPending;
 }
 
 Local<Promise> PromiseSlot::promise(
@@ -375,9 +370,8 @@ void WritableStreamDefaultController::Trace(cppgc::Visitor* visitor) const {
 void WritableStreamDefaultController::TraceOnMutatorThread(
     cppgc::Visitor* visitor) const {
   CppgcMixin::Trace(visitor);
-  queue_.ForEach([&](const TracedValueQueueEntry& entry) {
-    visitor->Trace(entry.value);
-  });
+  queue_.ForEach(
+      [&](const TracedValueQueueEntry& entry) { visitor->Trace(entry.value); });
   visitor->Trace(write_algorithm_);
   visitor->Trace(close_algorithm_);
   visitor->Trace(abort_algorithm_);
@@ -387,8 +381,8 @@ void WritableStreamDefaultController::TraceOnMutatorThread(
   visitor->Trace(on_write_rejected_);
 }
 
-Local<FunctionTemplate>
-WritableStreamDefaultController::GetConstructorTemplate(Environment* env) {
+Local<FunctionTemplate> WritableStreamDefaultController::GetConstructorTemplate(
+    Environment* env) {
   BindingData* bd = BindingData::Get(env);
   Isolate* isolate = env->isolate();
   Local<FunctionTemplate> tmpl =
@@ -421,9 +415,11 @@ Maybe<void> WritableStreamDefaultController::EnqueueValueWithSize(
   Local<Context> context = env->context();
   if (std::isnan(size) || size < 0 ||
       size == std::numeric_limits<double>::infinity()) {
-    isolate->ThrowException(
-        MakeCodedError(isolate, context, /* range */ true,
-                       "ERR_INVALID_ARG_VALUE", "The argument 'size' is invalid"));
+    isolate->ThrowException(MakeCodedError(isolate,
+                                           context,
+                                           /* range */ true,
+                                           "ERR_INVALID_ARG_VALUE",
+                                           "The argument 'size' is invalid"));
     return Nothing<void>();
   }
   queue_.emplace_back();
@@ -477,12 +473,13 @@ double WritableStreamDefaultController::GetChunkSize(Local<Value> chunk) {
         !bl->NumberValue(context).To(&size)) {
       ok = false;
     }
-  } else {  // kUserFn
+  } else {                                    // kUserFn
     if (size_algorithm_.IsEmpty()) return 1;  // algorithms were cleared
     Local<Function> size_fn = size_algorithm_.Get(isolate);
     Local<Value> argv[] = {chunk};
     Local<Value> size_val;
-    if (!size_fn->Call(context, Undefined(isolate), 1, argv).ToLocal(&size_val) ||
+    if (!size_fn->Call(context, Undefined(isolate), 1, argv)
+             .ToLocal(&size_val) ||
         !size_val->NumberValue(context).To(&size)) {
       ok = false;
     }
@@ -497,7 +494,7 @@ double WritableStreamDefaultController::GetChunkSize(Local<Value> chunk) {
 }
 
 void WritableStreamDefaultController::Write(Local<Value> chunk,
-                                           double chunk_size) {
+                                            double chunk_size) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   {
@@ -547,16 +544,24 @@ void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
       Local<Promise::Resolver> resolver;
       if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
       USE(resolver->Reject(context, exception));
-      ThenReactCached(env, resolver->GetPromise(), controller_obj,
-                      ReactWriteFulfilled, ReactWriteRejected,
-                      &on_write_fulfilled_, &on_write_rejected_);
+      ThenReactCached(env,
+                      resolver->GetPromise(),
+                      controller_obj,
+                      ReactWriteFulfilled,
+                      ReactWriteRejected,
+                      &on_write_fulfilled_,
+                      &on_write_rejected_);
       return;
     }
   }
   if (result->IsPromise()) {
-    ThenReactCached(env, result.As<Promise>(), controller_obj,
-                    ReactWriteFulfilled, ReactWriteRejected,
-                    &on_write_fulfilled_, &on_write_rejected_);
+    ThenReactCached(env,
+                    result.As<Promise>(),
+                    controller_obj,
+                    ReactWriteFulfilled,
+                    ReactWriteRejected,
+                    &on_write_fulfilled_,
+                    &on_write_rejected_);
     return;
   }
   if (!result->IsObject()) {
@@ -565,7 +570,10 @@ void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
     // is identical (CallableTask and PromiseReactionJob share the FIFO queue).
     Local<Function> ff = on_write_fulfilled_.Get(isolate);
     if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactWriteFulfilled, controller_obj, 0,
+      if (!Function::New(context,
+                         ReactWriteFulfilled,
+                         controller_obj,
+                         0,
                          v8::ConstructorBehavior::kThrow)
                .ToLocal(&ff))
         return;
@@ -579,17 +587,20 @@ void WritableStreamDefaultController::ProcessWrite(Local<Value> chunk) {
   Local<Promise::Resolver> resolver;
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
   USE(resolver->Resolve(context, result));
-  ThenReactCached(env, resolver->GetPromise(), controller_obj,
-                  ReactWriteFulfilled, ReactWriteRejected,
-                  &on_write_fulfilled_, &on_write_rejected_);
+  ThenReactCached(env,
+                  resolver->GetPromise(),
+                  controller_obj,
+                  ReactWriteFulfilled,
+                  ReactWriteRejected,
+                  &on_write_fulfilled_,
+                  &on_write_rejected_);
 }
 
 void WritableStreamDefaultController::OnWriteFulfilled() {
   WritableStream* stream = this->stream();
   stream->FinishInFlightWrite();
   WritableState state = stream->state();
-  CHECK(state == WritableState::kWritable ||
-        state == WritableState::kErroring);
+  CHECK(state == WritableState::kWritable || state == WritableState::kErroring);
   USE(DequeueValue());
   if (!stream->CloseQueuedOrInFlight() && state == WritableState::kWritable)
     stream->UpdateBackpressure(GetBackpressure());
@@ -626,7 +637,10 @@ void WritableStreamDefaultController::ProcessClose() {
   bool got = close->Call(context, close_recv, 0, nullptr).ToLocal(&result);
   ClearAlgorithms();
   if (!got || !result->IsPromise()) return;
-  ThenReact(env, result.As<Promise>(), controller_obj, ReactCloseFulfilled,
+  ThenReact(env,
+            result.As<Promise>(),
+            controller_obj,
+            ReactCloseFulfilled,
             ReactCloseRejected);
 }
 
@@ -682,7 +696,8 @@ void WritableStreamDefaultController::AdvanceQueueIfNeeded() {
   }
 }
 
-Local<Promise> WritableStreamDefaultController::AbortSteps(Local<Value> reason) {
+Local<Promise> WritableStreamDefaultController::AbortSteps(
+    Local<Value> reason) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -718,16 +733,15 @@ void WritableStreamDefaultController::OnStartRejected(Local<Value> error) {
   stream()->DealWithRejection(error);
 }
 
-bool WritableStreamDefaultController::Setup(
-    Local<Function> start_algorithm,
-    Local<Function> write_algorithm,
-    Local<Function> close_algorithm,
-    Local<Function> abort_algorithm,
-    double high_water_mark,
-    SizeMode size_mode,
-    Local<Function> size_algorithm,
-    Local<Object> abort_controller,
-    Local<Value> algo_receiver) {
+bool WritableStreamDefaultController::Setup(Local<Function> start_algorithm,
+                                            Local<Function> write_algorithm,
+                                            Local<Function> close_algorithm,
+                                            Local<Function> abort_algorithm,
+                                            double high_water_mark,
+                                            SizeMode size_mode,
+                                            Local<Function> size_algorithm,
+                                            Local<Object> abort_controller,
+                                            Local<Value> algo_receiver) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -777,7 +791,10 @@ bool WritableStreamDefaultController::Setup(
     return true;
   }
   USE(resolver->Resolve(context, start_result));
-  ThenReact(env, resolver->GetPromise(), controller_obj, ReactStartFulfilled,
+  ThenReact(env,
+            resolver->GetPromise(),
+            controller_obj,
+            ReactStartFulfilled,
             ReactStartRejected);
   return true;
 }
@@ -786,7 +803,9 @@ void WritableStreamDefaultController::GetSignal(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "WritableStreamDefaultController"))
     return;
   auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
@@ -805,7 +824,9 @@ void WritableStreamDefaultController::GetSignal(
 void WritableStreamDefaultController::Error(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "WritableStreamDefaultController"))
     return;
   auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
@@ -852,7 +873,6 @@ void WritableStreamDefaultWriter::TraceOnMutatorThread(
   closed_.Trace(visitor);
   visitor->Trace(released_reason_);
 }
-
 
 Local<FunctionTemplate> WritableStreamDefaultWriter::GetConstructorTemplate(
     Environment* env) {
@@ -927,15 +947,19 @@ Local<Promise> WritableStreamDefaultWriter::WriteInternal(Local<Value> chunk) {
   WritableStreamDefaultController* controller = stream0->controller();
   double chunk_size = controller->GetChunkSize(chunk);
   if (this->stream() != stream0) {
-    return RejectedWith(env, InvalidStateError(env->isolate(), env->context(),
-                                               "Mismatched WritableStreams"));
+    return RejectedWith(
+        env,
+        InvalidStateError(
+            env->isolate(), env->context(), "Mismatched WritableStreams"));
   }
   WritableState state = stream0->state();
   if (state == WritableState::kErrored)
     return RejectedWith(env, stream0->stored_error(env));
   if (stream0->CloseQueuedOrInFlight() || state == WritableState::kClosed) {
-    return RejectedWith(env, InvalidStateError(env->isolate(), env->context(),
-                                               "WritableStream is closed"));
+    return RejectedWith(
+        env,
+        InvalidStateError(
+            env->isolate(), env->context(), "WritableStream is closed"));
   }
   if (state == WritableState::kErroring)
     return RejectedWith(env, stream0->stored_error(env));
@@ -961,8 +985,7 @@ Local<Promise> WritableStreamDefaultWriter::CloseWithErrorPropagation() {
     return ResolvedUndefined(env);
   if (state == WritableState::kErrored)
     return RejectedWith(env, stream->stored_error(env));
-  CHECK(state == WritableState::kWritable ||
-        state == WritableState::kErroring);
+  CHECK(state == WritableState::kWritable || state == WritableState::kErroring);
   return CloseInternal();
 }
 
@@ -1039,8 +1062,7 @@ void WritableStreamDefaultWriter::GetClosed(
     args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
     return;
   }
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   args.GetReturnValue().Set(w->closed_.promise(env, &w->released_reason_));
 }
 
@@ -1052,8 +1074,7 @@ void WritableStreamDefaultWriter::GetReady(
     args.GetReturnValue().Set(IllegalInvocationRejection(env->context()));
     return;
   }
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   args.GetReturnValue().Set(w->ready_.promise(env, &w->released_reason_));
 }
 
@@ -1062,11 +1083,12 @@ void WritableStreamDefaultWriter::GetDesiredSize(
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "WritableStreamDefaultWriter"))
     return;
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (w == nullptr) return;
   if (!w->has_stream()) {
     isolate->ThrowException(InvalidStateError(
@@ -1091,12 +1113,12 @@ void WritableStreamDefaultWriter::Write(
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(isolate, context,
-                               "Writer is not bound to a WritableStream")));
+        env,
+        InvalidStateError(
+            isolate, context, "Writer is not bound to a WritableStream")));
     return;
   }
   args.GetReturnValue().Set(w->WriteInternal(args[0]));
@@ -1112,18 +1134,19 @@ void WritableStreamDefaultWriter::Close(
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(isolate, context,
-                               "Writer is not bound to a WritableStream")));
+        env,
+        InvalidStateError(
+            isolate, context, "Writer is not bound to a WritableStream")));
     return;
   }
   if (w->stream()->CloseQueuedOrInFlight()) {
-    args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(isolate, context,
-                               "Failure to close WritableStream")));
+    args.GetReturnValue().Set(
+        RejectedWith(env,
+                     InvalidStateError(
+                         isolate, context, "Failure to close WritableStream")));
     return;
   }
   args.GetReturnValue().Set(w->CloseInternal());
@@ -1139,12 +1162,12 @@ void WritableStreamDefaultWriter::Abort(
     args.GetReturnValue().Set(IllegalInvocationRejection(context));
     return;
   }
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (!w->has_stream()) {
     args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(isolate, context,
-                               "Writer is not bound to a WritableStream")));
+        env,
+        InvalidStateError(
+            isolate, context, "Writer is not bound to a WritableStream")));
     return;
   }
   args.GetReturnValue().Set(w->AbortInternal(args[0]));
@@ -1153,11 +1176,12 @@ void WritableStreamDefaultWriter::Abort(
 void WritableStreamDefaultWriter::ReleaseLock(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "WritableStreamDefaultWriter"))
     return;
-  auto* w =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
+  auto* w = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(args.This());
   if (w == nullptr) return;
   if (!w->has_stream()) return;
   w->Release();
@@ -1191,10 +1215,9 @@ void WritableStream::Trace(cppgc::Visitor* visitor) const {
 void WritableStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
   CppgcMixin::Trace(visitor);
   visitor->Trace(stored_error_);
-  write_requests_.ForEach(
-      [&](const v8::TracedReference<Promise::Resolver>& r) {
-        visitor->Trace(r);
-      });
+  write_requests_.ForEach([&](const v8::TracedReference<Promise::Resolver>& r) {
+    visitor->Trace(r);
+  });
   visitor->Trace(close_request_);
   visitor->Trace(in_flight_write_request_);
   visitor->Trace(in_flight_close_request_);
@@ -1245,8 +1268,8 @@ Local<Value> WritableStream::stored_error(Environment* env) const {
 
 void WritableStream::SetController(Local<Object> controller_obj) {
   object()->SetInternalField(kController, controller_obj);
-  controller_obj->SetInternalField(
-      WritableStreamDefaultController::kStream, object());
+  controller_obj->SetInternalField(WritableStreamDefaultController::kStream,
+                                   object());
   // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
   auto* controller =
       CppgcMixin::Unwrap<WritableStreamDefaultController>(controller_obj);
@@ -1257,8 +1280,7 @@ void WritableStream::SetController(Local<Object> controller_obj) {
 
 void WritableStream::SetWriter(Local<Object> writer_obj) {
   object()->SetInternalField(kWriter, writer_obj);
-  writer_cache_ =
-      CppgcMixin::Unwrap<WritableStreamDefaultWriter>(writer_obj);
+  writer_cache_ = CppgcMixin::Unwrap<WritableStreamDefaultWriter>(writer_obj);
 }
 
 void WritableStream::ClearWriter() {
@@ -1393,8 +1415,7 @@ void WritableStream::StartErroring(Local<Value> reason) {
   stored_error_.Reset(isolate, reason);
   WritableStreamDefaultWriter* writer = this->writer();
   if (writer != nullptr) writer->EnsureReadyPromiseRejected(reason);
-  if (!HasOperationMarkedInFlight() && controller->started())
-    FinishErroring();
+  if (!HasOperationMarkedInFlight() && controller->started()) FinishErroring();
 }
 
 void WritableStream::RejectCloseAndClosedPromiseIfNeeded() {
@@ -1417,8 +1438,7 @@ void WritableStream::RejectCloseAndClosedPromiseIfNeeded() {
     }
   }
   WritableStreamDefaultWriter* writer = this->writer();
-  if (writer != nullptr)
-    writer->closed().RejectIfPendingHandled(env, error);
+  if (writer != nullptr) writer->closed().RejectIfPendingHandled(env, error);
 }
 
 void WritableStream::MarkFirstWriteRequestInFlight() {
@@ -1472,14 +1492,14 @@ void WritableStream::FinishInFlightClose() {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   CHECK(!in_flight_close_request_.IsEmpty());
-  USE(in_flight_close_request_.Get(isolate)
-          ->Resolve(env->context(), Undefined(isolate)));
+  USE(in_flight_close_request_.Get(isolate)->Resolve(env->context(),
+                                                     Undefined(isolate)));
   in_flight_close_request_.Reset();
   if (state_ == WritableState::kErroring) {
     stored_error_.Reset();
     if (has_pending_abort_) {
-      USE(pending_abort_promise_.Get(isolate)
-              ->Resolve(env->context(), Undefined(isolate)));
+      USE(pending_abort_promise_.Get(isolate)->Resolve(env->context(),
+                                                       Undefined(isolate)));
       has_pending_abort_ = false;
       pending_abort_promise_.Reset();
       pending_abort_reason_.Reset();
@@ -1579,8 +1599,7 @@ void WritableStream::OnAbortAlgorithmRejected(Local<Value> error) {
   Isolate* isolate = env->isolate();
   Local<Promise::Resolver> resolver = processing_abort_resolver_.Get(isolate);
   processing_abort_resolver_.Reset();
-  if (!resolver.IsEmpty())
-    USE(resolver->Reject(env->context(), error));
+  if (!resolver.IsEmpty()) USE(resolver->Reject(env->context(), error));
   RejectCloseAndClosedPromiseIfNeeded();
 }
 
@@ -1688,8 +1707,8 @@ void WritableStream::MaybeSettleFlush() {
 
 void WritableStream::GetLocked(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
-                                "WritableStream"))
+  if (!CheckReceiverInvalidThis(
+          env, GetConstructorTemplate(env), args.This(), "WritableStream"))
     return;
   auto* stream = CppgcMixin::Unwrap<WritableStream>(args.This().As<Object>());
   if (stream == nullptr) return;
@@ -1729,8 +1748,8 @@ void WritableStream::Close(const FunctionCallbackInfo<Value>& args) {
   }
   if (stream->CloseQueuedOrInFlight()) {
     args.GetReturnValue().Set(RejectedWith(
-        env, InvalidStateError(isolate, context,
-                               "Failure closing WritableStream")));
+        env,
+        InvalidStateError(isolate, context, "Failure closing WritableStream")));
     return;
   }
   args.GetReturnValue().Set(stream->CloseStream());
@@ -1778,10 +1797,17 @@ MaybeLocal<Object> NewWritableStream(Environment* env,
 
   stream->SetController(controller_obj);
 
-  if (!controller->Setup(start_algorithm, write_algorithm, close_algorithm,
-                         abort_algorithm, high_water_mark, size_mode,
-                         size_algorithm, abort_controller, algo_receiver)) {
-    return MaybeLocal<Object>();  // start threw synchronously; exception pending.
+  if (!controller->Setup(start_algorithm,
+                         write_algorithm,
+                         close_algorithm,
+                         abort_algorithm,
+                         high_water_mark,
+                         size_mode,
+                         size_algorithm,
+                         abort_controller,
+                         algo_receiver)) {
+    return MaybeLocal<Object>();  // start threw synchronously; exception
+                                  // pending.
   }
   return stream_obj;
 }
@@ -1804,11 +1830,16 @@ void CreateWritableStream(const FunctionCallbackInfo<Value>& args) {
   if (args[6]->IsFunction()) size_algorithm = args[6].As<Function>();
   Local<Object> stream_obj;
   if (!NewWritableStream(
-           env, args[0].As<Function>(), write_algorithm,
-           args[2].As<Function>(), args[3].As<Function>(),
+           env,
+           args[0].As<Function>(),
+           write_algorithm,
+           args[2].As<Function>(),
+           args[3].As<Function>(),
            args[4].As<Number>()->Value(),
            static_cast<SizeMode>(args[5].As<v8::Uint32>()->Value()),
-           size_algorithm, args[7].As<Object>(), args[8])
+           size_algorithm,
+           args[7].As<Object>(),
+           args[8])
            .ToLocal(&stream_obj)) {
     return;
   }
@@ -1912,8 +1943,8 @@ void WritableStreamControllerStream(const FunctionCallbackInfo<Value>& args) {
            ->HasInstance(args[0])) {
     return;
   }
-  auto* c = CppgcMixin::Unwrap<WritableStreamDefaultController>(
-      args[0].As<Object>());
+  auto* c =
+      CppgcMixin::Unwrap<WritableStreamDefaultController>(args[0].As<Object>());
   if (c == nullptr) return;
   args.GetReturnValue().Set(c->stream()->object());
 }
@@ -1935,18 +1966,29 @@ void ExposeWritableStreamConstructors(Environment* env, Local<Object> target) {
 
 void InitializeWritableStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createWritableStream", CreateWritableStream);
-  SetMethod(isolate, target, "acquireWritableStreamDefaultWriter",
+  SetMethod(isolate,
+            target,
+            "acquireWritableStreamDefaultWriter",
             AcquireWritableStreamDefaultWriter);
-  SetMethod(isolate, target, "writableStreamStateField", WritableStreamStateField);
-  SetMethod(isolate, target, "writableStreamClosedPromise",
+  SetMethod(
+      isolate, target, "writableStreamStateField", WritableStreamStateField);
+  SetMethod(isolate,
+            target,
+            "writableStreamClosedPromise",
             WritableStreamClosedPromise);
-  SetMethod(isolate, target, "writableStreamCloseQueuedOrInFlight",
+  SetMethod(isolate,
+            target,
+            "writableStreamCloseQueuedOrInFlight",
             WritableStreamCloseQueuedOrInFlight);
-  SetMethod(isolate, target, "writableStreamStoredError",
-            WritableStreamStoredError);
-  SetMethod(isolate, target, "writableStreamFlushPromise",
+  SetMethod(
+      isolate, target, "writableStreamStoredError", WritableStreamStoredError);
+  SetMethod(isolate,
+            target,
+            "writableStreamFlushPromise",
             WritableStreamFlushPromise);
-  SetMethod(isolate, target, "writableStreamControllerStream",
+  SetMethod(isolate,
+            target,
+            "writableStreamControllerStream",
             WritableStreamControllerStream);
 }
 

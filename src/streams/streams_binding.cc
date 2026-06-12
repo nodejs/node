@@ -1,7 +1,4 @@
 #include "streams/streams_binding.h"
-#include "streams/readable_stream.h"
-#include "streams/writable_stream.h"
-#include "streams/transform_stream.h"
 #include "base_object-inl.h"
 #include "cppgc_helpers-inl.h"
 #include "env-inl.h"
@@ -10,6 +7,9 @@
 #include "node_external_reference.h"
 #include "node_realm-inl.h"
 #include "node_snapshotable.h"
+#include "streams/readable_stream.h"
+#include "streams/transform_stream.h"
+#include "streams/writable_stream.h"
 #include "util.h"
 #include "v8.h"
 
@@ -76,8 +76,8 @@ void ThenSharedReaction(Environment* env,
   Local<Context> context = env->context();
   Local<v8::Function> fn = slot->Get(isolate);
   if (fn.IsEmpty()) {
-    if (!v8::Function::New(context, cb, Local<Value>(), 0,
-                           v8::ConstructorBehavior::kThrow)
+    if (!v8::Function::New(
+             context, cb, Local<Value>(), 0, v8::ConstructorBehavior::kThrow)
              .ToLocal(&fn)) {
       return;
     }
@@ -96,7 +96,10 @@ Local<v8::Function> NoopFunction(Environment* env) {
   Isolate* isolate = env->isolate();
   Local<v8::Function> fn = bd->noop_function.Get(isolate);
   if (fn.IsEmpty()) {
-    if (!v8::Function::New(env->context(), NoopCallback, Local<Value>(), 0,
+    if (!v8::Function::New(env->context(),
+                           NoopCallback,
+                           Local<Value>(),
+                           0,
                            v8::ConstructorBehavior::kThrow)
              .ToLocal(&fn)) {
       return Local<v8::Function>();
@@ -108,19 +111,23 @@ Local<v8::Function> NoopFunction(Environment* env) {
 
 void ThenStartFulfilled(Environment* env, Local<Promise> promise) {
   BindingData* bd = BindingData::Get(env);
-  ThenSharedReaction(env, promise, ReactStartFulfilledShared,
-                     &bd->start_fulfilled_reaction);
+  ThenSharedReaction(
+      env, promise, ReactStartFulfilledShared, &bd->start_fulfilled_reaction);
 }
 
 void ThenStartFulfilledWritable(Environment* env, Local<Promise> promise) {
   BindingData* bd = BindingData::Get(env);
-  ThenSharedReaction(env, promise, ReactStartFulfilledWritable,
+  ThenSharedReaction(env,
+                     promise,
+                     ReactStartFulfilledWritable,
                      &bd->start_fulfilled_reaction_writable);
 }
 
 void ThenStartFulfilledByte(Environment* env, Local<Promise> promise) {
   BindingData* bd = BindingData::Get(env);
-  ThenSharedReaction(env, promise, ReactStartFulfilledByteShared,
+  ThenSharedReaction(env,
+                     promise,
+                     ReactStartFulfilledByteShared,
                      &bd->start_fulfilled_reaction_byte);
 }
 
@@ -128,7 +135,11 @@ Local<FunctionTemplate> NewGetter(Isolate* isolate,
                                   const char* prop,
                                   FunctionCallback cb) {
   Local<FunctionTemplate> t =
-      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(), 0,
+      FunctionTemplate::New(isolate,
+                            cb,
+                            Local<Value>(),
+                            Local<Signature>(),
+                            0,
                             v8::ConstructorBehavior::kThrow,
                             v8::SideEffectType::kHasNoSideEffect);
   std::string name = std::string("get ") + prop;
@@ -140,7 +151,11 @@ Local<FunctionTemplate> NewPromiseGetter(Isolate* isolate,
                                          const char* prop,
                                          FunctionCallback cb) {
   Local<FunctionTemplate> t =
-      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(), 0,
+      FunctionTemplate::New(isolate,
+                            cb,
+                            Local<Value>(),
+                            Local<Signature>(),
+                            0,
                             v8::ConstructorBehavior::kThrow,
                             v8::SideEffectType::kHasNoSideEffect);
   std::string name = std::string("get ") + prop;
@@ -154,8 +169,12 @@ void SetProtoMethodLen(Isolate* isolate,
                        FunctionCallback cb,
                        int length) {
   Local<FunctionTemplate> t =
-      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(),
-                            length, v8::ConstructorBehavior::kThrow,
+      FunctionTemplate::New(isolate,
+                            cb,
+                            Local<Value>(),
+                            Local<Signature>(),
+                            length,
+                            v8::ConstructorBehavior::kThrow,
                             v8::SideEffectType::kHasSideEffect);
   Local<String> name_string = InternalizedString(isolate, name);
   tmpl->PrototypeTemplate()->Set(name_string, t);
@@ -167,11 +186,16 @@ void SetProtoMethodPromise(Isolate* isolate,
                            const char* name,
                            FunctionCallback cb,
                            int length) {
-  // No receiver signature: a Promise-returning operation must reject (not throw)
-  // when invoked on a foreign receiver, so the callback must run regardless.
+  // No receiver signature: a Promise-returning operation must reject (not
+  // throw) when invoked on a foreign receiver, so the callback must run
+  // regardless.
   Local<FunctionTemplate> t =
-      FunctionTemplate::New(isolate, cb, Local<Value>(), Local<Signature>(),
-                            length, v8::ConstructorBehavior::kThrow,
+      FunctionTemplate::New(isolate,
+                            cb,
+                            Local<Value>(),
+                            Local<Signature>(),
+                            length,
+                            v8::ConstructorBehavior::kThrow,
                             v8::SideEffectType::kHasSideEffect);
   Local<String> name_string = InternalizedString(isolate, name);
   tmpl->PrototypeTemplate()->Set(name_string, t);

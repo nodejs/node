@@ -1,7 +1,4 @@
 #include "streams/transform_stream.h"
-#include "streams/readable_stream.h"
-#include "streams/writable_stream.h"
-#include "streams/streams_binding.h"
 #include "base_object-inl.h"
 #include "cppgc/allocation.h"
 #include "cppgc/visitor.h"
@@ -11,8 +8,10 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_realm-inl.h"
+#include "streams/readable_stream.h"
+#include "streams/streams_binding.h"
+#include "streams/writable_stream.h"
 #include "util-inl.h"
-#include "util.h"
 #include "v8.h"
 
 namespace node {
@@ -88,11 +87,11 @@ void ThenReact(Environment* env,
   Local<Context> context = env->context();
   Local<Function> ff;
   Local<Function> rj;
-  if (!Function::New(context, on_fulfilled, data, 0,
-                     v8::ConstructorBehavior::kThrow)
+  if (!Function::New(
+           context, on_fulfilled, data, 0, v8::ConstructorBehavior::kThrow)
            .ToLocal(&ff) ||
-      !Function::New(context, on_rejected, data, 0,
-                     v8::ConstructorBehavior::kThrow)
+      !Function::New(
+           context, on_rejected, data, 0, v8::ConstructorBehavior::kThrow)
            .ToLocal(&rj)) {
     return;
   }
@@ -391,7 +390,7 @@ void TransformStreamDefaultController::ResolveFinish(Environment* env) {
 }
 
 void TransformStreamDefaultController::RejectFinish(Environment* env,
-                                                   Local<Value> error) {
+                                                    Local<Value> error) {
   if (finish_resolver_.IsEmpty()) return;
   USE(finish_resolver_.Get(env->isolate())->Reject(env->context(), error));
 }
@@ -409,7 +408,10 @@ Local<Promise> TransformStreamDefaultController::PerformTransform(
     return ResolvedUndefined(env);
   if (!result->IsPromise()) return ResolvedUndefined(env);
   Local<Function> rj;
-  if (!Function::New(context, PerformTransformRejected, stream()->object(), 0,
+  if (!Function::New(context,
+                     PerformTransformRejected,
+                     stream()->object(),
+                     0,
                      v8::ConstructorBehavior::kThrow)
            .ToLocal(&rj))
     return result.As<Promise>();
@@ -474,7 +476,9 @@ void TransformStreamDefaultController::Terminate() {
 void TransformStreamDefaultController::GetDesiredSize(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "TransformStreamDefaultController"))
     return;
   auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
@@ -493,7 +497,9 @@ void TransformStreamDefaultController::GetDesiredSize(
 void TransformStreamDefaultController::Enqueue(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "TransformStreamDefaultController"))
     return;
   auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
@@ -505,7 +511,9 @@ void TransformStreamDefaultController::Enqueue(
 void TransformStreamDefaultController::Error(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "TransformStreamDefaultController"))
     return;
   auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
@@ -517,7 +525,9 @@ void TransformStreamDefaultController::Error(
 void TransformStreamDefaultController::Terminate(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
+  if (!CheckReceiverInvalidThis(env,
+                                GetConstructorTemplate(env),
+                                args.This(),
                                 "TransformStreamDefaultController"))
     return;
   auto* c = CppgcMixin::Unwrap<TransformStreamDefaultController>(
@@ -669,7 +679,10 @@ Local<Promise> TransformStream::SinkWrite(Local<Value> chunk) {
   CHECK(sink_write_resolver_.IsEmpty());
   if (sink_write_continuation_.IsEmpty()) {
     Local<Function> cont;
-    if (!Function::New(context, SinkWriteAfterBackpressure, object(), 0,
+    if (!Function::New(context,
+                       SinkWriteAfterBackpressure,
+                       object(),
+                       0,
                        v8::ConstructorBehavior::kThrow)
              .ToLocal(&cont)) {
       return ResolvedUndefined(env);
@@ -703,7 +716,8 @@ Local<Promise> TransformStream::SinkClose() {
   }
   if (flush_promise.IsEmpty()) flush_promise = ResolvedUndefined(env);
   controller->ClearAlgorithms();
-  ThenReact(env, flush_promise, object(), SinkCloseFulfilled, SinkCloseRejected);
+  ThenReact(
+      env, flush_promise, object(), SinkCloseFulfilled, SinkCloseRejected);
   return controller->finish_promise(env);
 }
 
@@ -787,8 +801,8 @@ void TransformStream::SetWritable(Local<Object> writable_obj) {
 
 void TransformStream::SetController(Local<Object> controller_obj) {
   object()->SetInternalField(kController, controller_obj);
-  controller_obj->SetInternalField(
-      TransformStreamDefaultController::kStream, object());
+  controller_obj->SetInternalField(TransformStreamDefaultController::kStream,
+                                   object());
   // Mirror the traced fields into the raw-pointer caches (hot-path accessors).
   auto* controller =
       CppgcMixin::Unwrap<TransformStreamDefaultController>(controller_obj);
@@ -799,8 +813,8 @@ void TransformStream::SetController(Local<Object> controller_obj) {
 
 void TransformStream::GetReadable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
-                                "TransformStream"))
+  if (!CheckReceiverInvalidThis(
+          env, GetConstructorTemplate(env), args.This(), "TransformStream"))
     return;
   auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
@@ -810,8 +824,8 @@ void TransformStream::GetReadable(const FunctionCallbackInfo<Value>& args) {
 
 void TransformStream::GetWritable(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  if (!CheckReceiverInvalidThis(env, GetConstructorTemplate(env), args.This(),
-                                "TransformStream"))
+  if (!CheckReceiverInvalidThis(
+          env, GetConstructorTemplate(env), args.This(), "TransformStream"))
     return;
   auto* stream = CppgcMixin::Unwrap<TransformStream>(args.This().As<Object>());
   if (stream == nullptr) return;
@@ -890,8 +904,8 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   // await, so neither the resolver nor the trampoline is created.
   if (!start_algorithm.IsEmpty()) stream->InitStartResolver(env);
   stream->SetController(controller_obj);
-  controller->SetAlgorithms(transform_algorithm, flush_algorithm,
-                            cancel_algorithm);
+  controller->SetAlgorithms(
+      transform_algorithm, flush_algorithm, cancel_algorithm);
 
   // Trampolines bridging the readable/writable controller algorithms back into
   // the C++ transform stream. Only start carries the stream as Data (it is
@@ -900,15 +914,15 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
   // algo_receiver == stream_obj (passed to the factories below).
   Local<Function> start_tramp;
   if (!start_algorithm.IsEmpty())
-    USE(Function::New(context, TrampStart, stream_obj, 0,
-                      v8::ConstructorBehavior::kThrow)
+    USE(Function::New(
+            context, TrampStart, stream_obj, 0, v8::ConstructorBehavior::kThrow)
             .ToLocal(&start_tramp));
   BindingData* bd = BindingData::Get(env);
   auto shared_tramp = [&](v8::Global<Function>* slot, FunctionCallback cb) {
     Local<Function> fn = slot->Get(isolate);
     if (fn.IsEmpty()) {
-      USE(Function::New(context, cb, Local<Value>(), 0,
-                        v8::ConstructorBehavior::kThrow)
+      USE(Function::New(
+              context, cb, Local<Value>(), 0, v8::ConstructorBehavior::kThrow)
               .ToLocal(&fn));
       slot->Reset(isolate, fn);
     }
@@ -926,15 +940,27 @@ void CreateTransformStream(const FunctionCallbackInfo<Value>& args) {
       shared_tramp(&bd->transform_cancel_tramp, TrampCancel);
 
   Local<Object> writable_obj;
-  if (!NewWritableStream(env, start_tramp, write_tramp, close_tramp, abort_tramp,
-                         writable_hwm, writable_size_mode, writable_size,
-                         abort_controller, stream_obj)
+  if (!NewWritableStream(env,
+                         start_tramp,
+                         write_tramp,
+                         close_tramp,
+                         abort_tramp,
+                         writable_hwm,
+                         writable_size_mode,
+                         writable_size,
+                         abort_controller,
+                         stream_obj)
            .ToLocal(&writable_obj)) {
     return;
   }
   Local<Object> readable_obj;
-  if (!NewReadableStream(env, start_tramp, pull_tramp, cancel_tramp,
-                         readable_hwm, readable_size_mode, readable_size,
+  if (!NewReadableStream(env,
+                         start_tramp,
+                         pull_tramp,
+                         cancel_tramp,
+                         readable_hwm,
+                         readable_size_mode,
+                         readable_size,
                          stream_obj)
            .ToLocal(&readable_obj)) {
     return;
@@ -991,7 +1017,9 @@ void ExposeTransformStreamConstructors(Environment* env, Local<Object> target) {
 
 void InitializeTransformStream(Isolate* isolate, Local<ObjectTemplate> target) {
   SetMethod(isolate, target, "createTransformStream", CreateTransformStream);
-  SetMethod(isolate, target, "transformStreamControllerStream",
+  SetMethod(isolate,
+            target,
+            "transformStreamControllerStream",
             TransformStreamControllerStream);
 }
 
