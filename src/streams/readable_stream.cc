@@ -630,16 +630,17 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
     // cell must root this cppgc controller's wrapper while armed, and the
     // per-pull v8::Global arm/disarm pair costs more than the JS-function
     // task machinery it saves.)
-    Local<Function> ff = on_pull_fulfilled_.Get(isolate);
-    if (ff.IsEmpty()) {
-      if (!Function::New(context, ReactPullFulfilledDefault, controller_obj, 0,
-                         v8::ConstructorBehavior::kThrow)
-               .ToLocal(&ff))
-        return;
-      on_pull_fulfilled_.Reset(isolate, ff);
-    }
-    isolate->EnqueueMicrotask(ff);
+    EnqueueFinishPullMicrotask();
     return;
+  }
+  // Transform source pull: the per-realm direct-pull marker leaves the pull
+  // in flight with no promise and no reaction — the transform delivers
+  // FinishPull as one microtask when its backpressure flips (the exact FIFO
+  // position of the reaction this replaces).
+  {
+    auto* bd = BindingData::Get(env);
+    Local<Object> marker = bd->transform_pull_marker.Get(isolate);
+    if (!marker.IsEmpty() && result->StrictEquals(marker)) return;
   }
   // Thenable (non-promise object): full promise resolution so its `then` is
   // honored, reacted to with the per-controller cached functions.
@@ -649,6 +650,20 @@ void ReadableStreamDefaultController::CallPullIfNeeded() {
   ThenReactCached(env, resolver->GetPromise(), controller_obj,
                   ReactPullFulfilledDefault, ReactRejectedDefault,
                   &on_pull_fulfilled_, &on_rejected_);
+}
+
+void ReadableStreamDefaultController::EnqueueFinishPullMicrotask() {
+  Environment* env = this->env();
+  Isolate* isolate = env->isolate();
+  Local<Function> ff = on_pull_fulfilled_.Get(isolate);
+  if (ff.IsEmpty()) {
+    if (!Function::New(env->context(), ReactPullFulfilledDefault, object(), 0,
+                       v8::ConstructorBehavior::kThrow)
+             .ToLocal(&ff))
+      return;
+    on_pull_fulfilled_.Reset(isolate, ff);
+  }
+  isolate->EnqueueMicrotask(ff);
 }
 
 void ReadableStreamDefaultController::ClearAlgorithms() {

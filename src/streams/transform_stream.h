@@ -125,7 +125,6 @@ class TransformStream final : CPPGC_MIXIN(TransformStream) {
   }
 
   bool backpressure() const { return backpressure_; }
-  v8::Local<v8::Promise> backpressure_change_promise(Environment* env) const;
   void SetBackpressure(bool backpressure);
   void UnblockWrite();
   void ErrorStream(v8::Local<v8::Value> error);
@@ -136,14 +135,18 @@ class TransformStream final : CPPGC_MIXIN(TransformStream) {
   v8::Local<v8::Promise> start_promise(Environment* env) const;
 
   // Takes (and clears) the chunk parked by SinkWrite while awaiting a
-  // backpressure change.
+  // backpressure change, and the resolver backing its sink-write promise.
   v8::Local<v8::Value> TakePendingWriteChunk();
+  v8::Local<v8::Promise::Resolver> TakeSinkWriteResolver();
 
   // Sink/source algorithms wired into the readable/writable controllers.
+  // SourcePull returns the per-realm direct-pull marker: the pull stays in
+  // flight, and FinishPull is delivered as one microtask when backpressure
+  // flips to true (see SetBackpressure) — no change promise, no reaction.
   v8::Local<v8::Promise> SinkWrite(v8::Local<v8::Value> chunk);
   v8::Local<v8::Promise> SinkClose();
   v8::Local<v8::Promise> SinkAbort(v8::Local<v8::Value> reason);
-  v8::Local<v8::Promise> SourcePull();
+  v8::Local<v8::Value> SourcePull();
   v8::Local<v8::Promise> SourceCancel(v8::Local<v8::Value> reason);
 
   void SetReadable(v8::Local<v8::Object> readable_obj);
@@ -156,16 +159,22 @@ class TransformStream final : CPPGC_MIXIN(TransformStream) {
   void TraceOnMutatorThread(cppgc::Visitor* visitor) const;
 
   bool backpressure_ = false;
-  v8::TracedReference<v8::Promise> backpressure_change_promise_;
-  v8::TracedReference<v8::Promise::Resolver> backpressure_change_resolver_;
+  // A direct-protocol pull is in flight: FinishPull is delivered as one
+  // microtask at the next backpressure flip to true.
+  bool pull_pending_direct_ = false;
   v8::TracedReference<v8::Promise::Resolver> start_resolver_;
   v8::TracedReference<v8::Promise> start_promise_;
   // SinkWrite's awaited-backpressure state: the writable dispatches at most
   // one write at a time (the next write starts only after the previous
-  // sink-write promise settles), so the awaiting chunk lives in a single
-  // slot, and the continuation reaction is created once per stream instead
-  // of per chunk (Function::New allocates a SharedFunctionInfo per call).
+  // sink-write promise settles), so the awaiting chunk and its sink-write
+  // promise resolver live in single slots, and the continuation function is
+  // created once per stream. The continuation is enqueued as one microtask
+  // when backpressure flips to false (the exact FIFO position of the old
+  // change-promise reaction) and resolves the sink resolver with
+  // PerformTransform's promise — adoption keeps the writable's settle depth
+  // identical to the old derived-promise chain.
   v8::TracedReference<v8::Value> pending_write_chunk_;
+  v8::TracedReference<v8::Promise::Resolver> sink_write_resolver_;
   v8::TracedReference<v8::Function> sink_write_continuation_;
 
   // Raw-pointer mirrors of the kReadable / kWritable / kController fields.

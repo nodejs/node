@@ -120,18 +120,23 @@ void PerformTransformRejected(const FunctionCallbackInfo<Value>& args) {
 
 void SinkWriteAfterBackpressure(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
   auto* stream = CppgcMixin::Unwrap<TransformStream>(args.Data().As<Object>());
   if (stream == nullptr) return;
-  // Take the chunk unconditionally so the slot is free for the next write
+  // Take both slots unconditionally so they are free for the next write
   // even when the wait ends in an erroring writable.
   Local<Value> chunk = stream->TakePendingWriteChunk();
+  Local<Promise::Resolver> resolver = stream->TakeSinkWriteResolver();
+  if (resolver.IsEmpty()) return;
   WritableStream* writable = stream->writable();
   if (writable->state() == WritableState::kErroring) {
-    isolate->ThrowException(writable->stored_error(env));
+    // Matches the old reaction-throw: the sink-write promise rejects within
+    // this microtask.
+    USE(resolver->Reject(context, writable->stored_error(env)));
     return;
   }
-  args.GetReturnValue().Set(stream->controller()->PerformTransform(chunk));
+  USE(resolver->Resolve(context,
+                        stream->controller()->PerformTransform(chunk)));
 }
 
 void SinkCloseFulfilled(const FunctionCallbackInfo<Value>& args) {
@@ -547,11 +552,10 @@ void TransformStream::Trace(cppgc::Visitor* visitor) const {
 
 void TransformStream::TraceOnMutatorThread(cppgc::Visitor* visitor) const {
   CppgcMixin::Trace(visitor);
-  visitor->Trace(backpressure_change_promise_);
-  visitor->Trace(backpressure_change_resolver_);
   visitor->Trace(start_resolver_);
   visitor->Trace(start_promise_);
   visitor->Trace(pending_write_chunk_);
+  visitor->Trace(sink_write_resolver_);
   visitor->Trace(sink_write_continuation_);
 }
 
@@ -582,25 +586,23 @@ void TransformStream::RegisterExternalReferences(
   registry->Register(GetWritable);
 }
 
-Local<Promise> TransformStream::backpressure_change_promise(
-    Environment* env) const {
-  if (backpressure_change_promise_.IsEmpty()) return Local<Promise>();
-  return backpressure_change_promise_.Get(env->isolate());
-}
-
 void TransformStream::SetBackpressure(bool backpressure) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   CHECK(backpressure_ != backpressure);
-  if (!backpressure_change_resolver_.IsEmpty()) {
-    USE(backpressure_change_resolver_.Get(isolate)
-            ->Resolve(env->context(), Undefined(isolate)));
-  }
-  Local<Promise::Resolver> resolver;
-  if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) return;
-  backpressure_change_resolver_.Reset(isolate, resolver);
-  backpressure_change_promise_.Reset(isolate, resolver->GetPromise());
   backpressure_ = backpressure;
+  // Direct backpressure coupling — no change promise. Each waiter gets its
+  // FinishPull / write continuation enqueued as ONE microtask at the flip,
+  // the exact FIFO position of the promise reaction the old change promise
+  // would have fired.
+  if (backpressure) {
+    if (pull_pending_direct_) {
+      pull_pending_direct_ = false;
+      readable()->default_controller()->EnqueueFinishPullMicrotask();
+    }
+  } else if (!pending_write_chunk_.IsEmpty()) {
+    isolate->EnqueueMicrotask(sink_write_continuation_.Get(isolate));
+  }
 }
 
 void TransformStream::UnblockWrite() {
@@ -643,36 +645,43 @@ Local<Value> TransformStream::TakePendingWriteChunk() {
   return chunk;
 }
 
+Local<Promise::Resolver> TransformStream::TakeSinkWriteResolver() {
+  Isolate* isolate = env()->isolate();
+  Local<Promise::Resolver> resolver = sink_write_resolver_.Get(isolate);
+  sink_write_resolver_.Reset();  // eager; ~TracedReference frees nothing
+  return resolver;
+}
+
 Local<Promise> TransformStream::SinkWrite(Local<Value> chunk) {
   Environment* env = this->env();
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
   TransformStreamDefaultController* controller = this->controller();
   if (!backpressure_) return controller->PerformTransform(chunk);
-  Local<Promise> bp_change = backpressure_change_promise(env);
-  // Single in-flight write: the previous write's continuation has already
-  // taken its chunk, so the slot is free. Assigning store (Reset), never the
-  // TracedReference constructor — see the readers' park queue.
+  // Park the chunk and hand the writable a resolver-backed promise; the
+  // continuation (enqueued as one microtask when backpressure flips to
+  // false) runs the transform and resolves it with PerformTransform's
+  // promise — adoption keeps the settle depth identical to the old
+  // change-promise.Then chain. Single in-flight write: the previous write's
+  // continuation has already taken both slots. Assigning stores (Reset),
+  // never the TracedReference constructor — see the readers' park queue.
   CHECK(pending_write_chunk_.IsEmpty());
-  pending_write_chunk_.Reset(isolate, chunk);
-  Local<Function> cont;
+  CHECK(sink_write_resolver_.IsEmpty());
   if (sink_write_continuation_.IsEmpty()) {
+    Local<Function> cont;
     if (!Function::New(context, SinkWriteAfterBackpressure, object(), 0,
                        v8::ConstructorBehavior::kThrow)
              .ToLocal(&cont)) {
-      pending_write_chunk_.Reset();
       return ResolvedUndefined(env);
     }
     sink_write_continuation_.Reset(isolate, cont);
-  } else {
-    cont = sink_write_continuation_.Get(isolate);
   }
-  Local<Promise> chained;
-  if (!bp_change->Then(context, cont).ToLocal(&chained)) {
-    pending_write_chunk_.Reset();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver))
     return ResolvedUndefined(env);
-  }
-  return chained;
+  pending_write_chunk_.Reset(isolate, chunk);
+  sink_write_resolver_.Reset(isolate, resolver);
+  return resolver->GetPromise();
 }
 
 Local<Promise> TransformStream::SinkClose() {
@@ -722,11 +731,21 @@ Local<Promise> TransformStream::SinkAbort(Local<Value> reason) {
   return controller->finish_promise(env);
 }
 
-Local<Promise> TransformStream::SourcePull() {
+Local<Value> TransformStream::SourcePull() {
   Environment* env = this->env();
+  Isolate* isolate = env->isolate();
   CHECK(backpressure_);
   SetBackpressure(false);
-  return backpressure_change_promise(env);
+  pull_pending_direct_ = true;
+  // The per-realm direct-pull marker: the readable controller leaves the
+  // pull in flight; SetBackpressure(true) delivers FinishPull.
+  auto* bd = BindingData::Get(env);
+  Local<Object> marker = bd->transform_pull_marker.Get(isolate);
+  if (marker.IsEmpty()) {
+    marker = v8::Object::New(isolate);
+    bd->transform_pull_marker.Reset(isolate, marker);
+  }
+  return marker;
 }
 
 Local<Promise> TransformStream::SourceCancel(Local<Value> reason) {

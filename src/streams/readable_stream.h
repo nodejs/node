@@ -101,6 +101,11 @@ class ReadableStreamDefaultController final
   // Promise-reaction continuations invoked from C++ reaction callbacks.
   void OnStartFulfilled();  // started_ = true; CallPullIfNeeded()
   void FinishPull();        // pulling_ = false; retry if pull_again_
+  // Delivers a deferred FinishPull as one microtask (the per-controller
+  // cached reaction function; identical FIFO position to the promise
+  // reaction it replaces). Used by the sync-pull fast path and by the
+  // transform source's direct-pull protocol.
+  void EnqueueFinishPullMicrotask();
 
   void set_started(bool started) { started_ = started; }
   bool started() const { return started_; }

@@ -250,6 +250,13 @@ class BindingData : public SnapshotableObject {
   v8::Global<v8::Function> transform_pull_tramp;
   v8::Global<v8::Function> transform_cancel_tramp;
 
+  // Per-realm direct-pull marker returned by the transform source's pull
+  // algorithm: the readable controller leaves the pull in flight (no promise,
+  // no reaction) and the transform delivers FinishPull as one microtask when
+  // its backpressure flips (see TransformStream::SetBackpressure). A plain
+  // private object — never exposed, compared by identity. Lazily created.
+  v8::Global<v8::Object> transform_pull_marker;
+
   // Boilerplate { value: undefined, done: <bool> } read-result objects, cloned
   // per read (v8::Object::Clone is a flat CopyJSObject) instead of building the
   // object property-by-property through the map-transition machinery. The
