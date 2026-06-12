@@ -1,0 +1,6 @@
+{
+  "name": "restrictive-exports",
+  "exports": {
+    ".": "./index.js"
+  }
+}

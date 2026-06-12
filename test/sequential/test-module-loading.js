@@ -123,6 +123,7 @@ assert.throws(
     message: /packages[/\\]missing-main-no-index[/\\]doesnotexist\.js'\. Please.+package\.json.+valid "main"/,
     path: /fixtures[/\\]packages[/\\]missing-main-no-index[/\\]package\.json/,
     requestPath: /^\.\.[/\\]fixtures[/\\]packages[/\\]missing-main-no-index$/,
+    requireStack: [__filename],
   }
 );
 

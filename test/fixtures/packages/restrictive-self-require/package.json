@@ -1,0 +1,6 @@
+{
+  "name": "restrictive-self-require",
+  "exports": {
+    ".": "./index.js"
+  }
+}
